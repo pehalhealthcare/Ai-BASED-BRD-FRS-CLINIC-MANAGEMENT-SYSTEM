@@ -1,0 +1,20 @@
+[
+  {
+    "condition": "kidney_disease",
+    "drugs": ["ibuprofen", "diclofenac", "naproxen"],
+    "severity": "medium",
+    "message": "Use caution in kidney disease."
+  },
+  {
+    "condition": "asthma",
+    "drugs": ["propranolol"],
+    "severity": "medium",
+    "message": "Use caution in asthma."
+  },
+  {
+    "condition": "liver_disease",
+    "drugs": ["paracetamol", "acetaminophen"],
+    "severity": "medium",
+    "message": "Use caution in liver disease."
+  }
+]

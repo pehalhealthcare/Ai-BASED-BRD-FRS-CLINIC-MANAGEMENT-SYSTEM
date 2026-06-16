@@ -1,0 +1,3 @@
+from app.services.diagnosis_suggestion_service import generate_diagnosis_suggestions as generate_consultation_suggestions
+
+__all__ = ["generate_consultation_suggestions"]

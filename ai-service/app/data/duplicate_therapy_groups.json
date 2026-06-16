@@ -1,0 +1,14 @@
+[
+  {
+    "group": "paracetamol_acetaminophen",
+    "drugs": ["paracetamol", "acetaminophen"],
+    "severity": "medium",
+    "message": "Possible duplicate therapy."
+  },
+  {
+    "group": "nsaid",
+    "drugs": ["ibuprofen", "diclofenac", "naproxen", "aspirin"],
+    "severity": "medium",
+    "message": "Multiple NSAIDs may increase adverse effect risk."
+  }
+]

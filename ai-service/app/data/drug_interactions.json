@@ -1,0 +1,16 @@
+[
+  {
+    "drug_a": "warfarin",
+    "drug_b": "ibuprofen",
+    "severity": "high",
+    "message": "Potential increased bleeding risk.",
+    "recommendation": "Doctor review required before prescribing together."
+  },
+  {
+    "drug_a": "warfarin",
+    "drug_b": "aspirin",
+    "severity": "high",
+    "message": "Potential increased bleeding risk.",
+    "recommendation": "Doctor review required."
+  }
+]

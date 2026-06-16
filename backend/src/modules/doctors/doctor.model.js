@@ -1,0 +1,236 @@
+const mongoose = require('mongoose');
+
+const availabilitySchema = new mongoose.Schema(
+  {
+    dayOfWeek: {
+      type: String,
+      enum: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'],
+      required: true
+    },
+    isAvailable: {
+      type: Boolean,
+      default: false
+    },
+    startTime: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    endTime: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    slotDurationMinutes: {
+      type: Number,
+      enum: [15, 30, 45, 60],
+      default: 30
+    },
+    isActive: {
+      type: Boolean,
+      default: true
+    }
+  },
+  {
+    _id: false
+  }
+);
+
+const blockedSlotSchema = new mongoose.Schema(
+  {
+    date: {
+      type: Date,
+      required: true
+    },
+    startTime: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    endTime: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    reason: {
+      type: String,
+      trim: true,
+      default: ''
+    }
+  },
+  {
+    _id: false
+  }
+);
+
+const doctorSchema = new mongoose.Schema(
+  {
+    clinicId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Clinic',
+      required: false,
+      default: null
+    },
+    organizationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Organization',
+      required: false,
+      default: null
+    },
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
+    doctorCode: {
+      type: String,
+      required: false,
+      trim: true,
+      default: ''
+    },
+    firstName: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 100
+    },
+    lastName: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    fullName: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    gender: {
+      type: String,
+      enum: ['male', 'female', 'other'],
+      default: 'other'
+    },
+    phone: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    email: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      default: null
+    },
+    specialization: {
+      type: String,
+      required: false,
+      trim: true,
+      default: ''
+    },
+    qualification: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    medicalRegistrationNumber: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    experienceYears: {
+      type: Number,
+      default: 0
+    },
+    consultationFee: {
+      type: Number,
+      default: 0
+    },
+    followUpFee: {
+      type: Number,
+      default: 0
+    },
+    isOnlineAvailable: {
+      type: Boolean,
+      default: false
+    },
+    image: {
+      type: String,
+      default: ''
+    },
+    documentPdf: {
+      type: String,
+      default: ''
+    },
+    approvalStatus: {
+      type: String,
+      enum: ['pending_profile', 'pending_approval', 'approved', 'rejected', 're_edit'],
+      default: 'pending_profile'
+    },
+    hasAcceptedSlot: {
+      type: Boolean,
+      default: false
+    },
+    initialSlotAccepted: {
+      type: Boolean,
+      default: false
+    },
+    reEditFields: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {}
+    },
+    reEditComments: {
+      type: String,
+      default: ''
+    },
+    availability: {
+      type: [availabilitySchema],
+      default: []
+    },
+    blockedSlots: {
+      type: [blockedSlotSchema],
+      default: []
+    },
+    isActive: {
+      type: Boolean,
+      default: false
+    },
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
+    updatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    }
+  },
+  {
+    collection: 'doctors',
+    timestamps: true
+  }
+);
+
+doctorSchema.pre('validate', function setFullName(next) {
+  this.fullName = [this.firstName, this.lastName].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+  next();
+});
+
+doctorSchema.index(
+  { clinicId: 1, doctorCode: 1 },
+  { unique: true, partialFilterExpression: { clinicId: { $exists: true, $ne: null } } }
+);
+doctorSchema.index({ clinicId: 1, specialization: 1 });
+doctorSchema.index({ clinicId: 1, phone: 1 });
+doctorSchema.index({
+  doctorCode: 'text',
+  firstName: 'text',
+  lastName: 'text',
+  fullName: 'text',
+  phone: 'text',
+  email: 'text',
+  specialization: 'text'
+});
+
+const Doctor = mongoose.models.Doctor || mongoose.model('Doctor', doctorSchema);
+
+module.exports = Doctor;

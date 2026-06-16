@@ -1,0 +1,16 @@
+[2026-04-22T18:35:47.572Z] [ERROR] MongoDB Atlas connection failed. Check username, password, IP whitelist, and cluster URL. bad auth : authentication failed
+[2026-04-22T18:35:47.575Z] [WARN] MongoDB Atlas connection failed. Check username, password, IP whitelist, and cluster URL.
+[2026-04-22T18:35:47.576Z] [WARN] Continuing startup without an active MongoDB connection because NODE_ENV is not production.
+[2026-04-22T18:36:01.083Z] [ERROR] Unhandled backend error MongooseError: Cannot call `users.findOne()` before initial connection is complete if `bufferCommands = false`. Make sure you `await mongoose.connect()` if you have `bufferCommands = false`.
+    at NativeCollection.<computed> [as findOne] (C:\knowledge\internship\CMS\backend\node_modules\mongoose\lib\drivers\node-mongodb-native\collection.js:237:15)
+    at model.Query._findOne (C:\knowledge\internship\CMS\backend\node_modules\mongoose\lib\query.js:2710:45)
+    at model.Query.exec (C:\knowledge\internship\CMS\backend\node_modules\mongoose\lib\query.js:4627:80)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Object.register (C:\knowledge\internship\CMS\backend\src\modules\auth\auth.service.js:16:24)
+    at async C:\knowledge\internship\CMS\backend\src\modules\auth\auth.controller.js:6:16
+[2026-04-22T18:37:07.413Z] [ERROR] MongoDB Atlas connection failed. Check username, password, IP whitelist, and cluster URL. bad auth : authentication failed
+[2026-04-22T18:37:07.415Z] [WARN] MongoDB Atlas connection failed. Check username, password, IP whitelist, and cluster URL.
+[2026-04-22T18:37:07.415Z] [WARN] Continuing startup without an active MongoDB connection because NODE_ENV is not production.
+[2026-04-22T18:38:10.905Z] [ERROR] MongoDB Atlas connection failed. Check username, password, IP whitelist, and cluster URL. bad auth : authentication failed
+[2026-04-22T18:38:10.907Z] [WARN] MongoDB Atlas connection failed. Check username, password, IP whitelist, and cluster URL.
+[2026-04-22T18:38:10.907Z] [WARN] Continuing startup without an active MongoDB connection because NODE_ENV is not production.

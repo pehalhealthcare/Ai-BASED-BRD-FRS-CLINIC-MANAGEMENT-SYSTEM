@@ -1,0 +1,6 @@
+# Optional OCR dependencies for Phase 18 document and lab extraction.
+paddleocr
+paddlepaddle
+pytesseract
+Pillow
+pdf2image

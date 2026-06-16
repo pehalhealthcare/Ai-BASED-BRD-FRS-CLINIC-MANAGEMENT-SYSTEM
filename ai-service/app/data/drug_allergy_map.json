@@ -1,0 +1,14 @@
+[
+  {
+    "allergy": "penicillin",
+    "drugs": ["amoxicillin", "ampicillin", "penicillin"],
+    "severity": "critical",
+    "message": "Possible allergy cross-reactivity risk."
+  },
+  {
+    "allergy": "sulfa",
+    "drugs": ["sulfamethoxazole", "trimethoprim-sulfamethoxazole"],
+    "severity": "critical",
+    "message": "Possible sulfa allergy risk."
+  }
+]

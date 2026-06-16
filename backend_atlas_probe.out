@@ -1,0 +1,19 @@
+
+> ai-cms-backend@1.0.0 dev
+> nodemon src/server.js
+
+[33m[nodemon] 3.1.14[39m
+[33m[nodemon] to restart at any time, enter `rs`[39m
+[33m[nodemon] watching path(s): *.*[39m
+[33m[nodemon] watching extensions: js,mjs,cjs,json[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[2026-04-22T18:45:28.993Z] [INFO] MongoDB mode: atlas
+[2026-04-22T18:45:30.325Z] [INFO] AI-CMS Backend running at http://localhost:5127
+[2026-04-22T18:45:30.325Z] [INFO] Swagger docs available at http://localhost:5127/api-docs
+[2026-04-22T18:45:39.827Z] [INFO] GET /health 200 4ms
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting child process[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[2026-04-22T18:47:08.731Z] [INFO] MongoDB mode: atlas
+[2026-04-22T18:47:09.792Z] [INFO] AI-CMS Backend running at http://localhost:5127
+[2026-04-22T18:47:09.792Z] [INFO] Swagger docs available at http://localhost:5127/api-docs

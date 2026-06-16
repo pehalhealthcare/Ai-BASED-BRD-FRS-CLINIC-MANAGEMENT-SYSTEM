@@ -1,0 +1,627 @@
+{
+  "info": {
+    "name": "AI-CMS",
+    "_postman_id": "8c6455e2-d0e8-4a8c-81c2-9b5ab0f0c3e0",
+    "description": "Phase 15 working collection for the verified AI-CMS clinic workflow and dashboard analytics.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Backend Health",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{backendBaseUrl}}/health",
+              "host": ["{{backendBaseUrl}}"],
+              "path": ["health"]
+            }
+          }
+        },
+        {
+          "name": "Backend API Health",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{backendBaseUrl}}/api/v1/health",
+              "host": ["{{backendBaseUrl}}"],
+              "path": ["api", "v1", "health"]
+            }
+          }
+        },
+        {
+          "name": "AI Service Health",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{aiServiceBaseUrl}}/health",
+              "host": ["{{aiServiceBaseUrl}}"],
+              "path": ["health"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Demo Reception\",\n  \"email\": \"reception.new@example.com\",\n  \"password\": \"Reception@12345\",\n  \"phone\": \"9000009999\"\n}"
+            },
+            "url": {
+              "raw": "{{backendBaseUrl}}/api/v1/auth/register",
+              "host": ["{{backendBaseUrl}}"],
+              "path": ["api", "v1", "auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@aicms.local\",\n  \"password\": \"Admin123!\"\n}"
+            },
+            "url": {
+              "raw": "{{backendBaseUrl}}/api/v1/auth/login",
+              "host": ["{{backendBaseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{backendBaseUrl}}/api/v1/auth/me",
+              "host": ["{{backendBaseUrl}}"],
+              "path": ["api", "v1", "auth", "me"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Patients",
+      "item": [
+        {
+          "name": "List Patients",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{backendBaseUrl}}/api/v1/patients?page=1&limit=10",
+              "host": ["{{backendBaseUrl}}"],
+              "path": ["api", "v1", "patients"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Patient History",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{backendBaseUrl}}/api/v1/patients/{{patientId}}/history",
+              "host": ["{{backendBaseUrl}}"],
+              "path": ["api", "v1", "patients", "{{patientId}}", "history"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Doctors",
+      "item": [
+        {
+          "name": "List Doctors",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{backendBaseUrl}}/api/v1/doctors?page=1&limit=10",
+              "host": ["{{backendBaseUrl}}"],
+              "path": ["api", "v1", "doctors"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Doctor Availability",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{backendBaseUrl}}/api/v1/doctors/{{doctorId}}/availability",
+              "host": ["{{backendBaseUrl}}"],
+              "path": ["api", "v1", "doctors", "{{doctorId}}", "availability"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Appointments",
+      "item": [
+        {
+          "name": "Create Appointment",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patientId\": \"{{patientId}}\",\n  \"doctorId\": \"{{doctorId}}\",\n  \"appointmentDate\": \"2026-04-25\",\n  \"startTime\": \"10:00\",\n  \"durationMinutes\": 30,\n  \"appointmentType\": \"scheduled\",\n  \"reasonForVisit\": \"Fever and cough\",\n  \"symptomsSummary\": \"Fever for 2 days\"\n}"
+            },
+            "url": {
+              "raw": "{{backendBaseUrl}}/api/v1/appointments",
+              "host": ["{{backendBaseUrl}}"],
+              "path": ["api", "v1", "appointments"]
+            }
+          }
+        },
+        {
+          "name": "List Appointments",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{backendBaseUrl}}/api/v1/appointments?page=1&limit=10",
+              "host": ["{{backendBaseUrl}}"],
+              "path": ["api", "v1", "appointments"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Consultations",
+      "item": [
+        {
+          "name": "List Consultations",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{backendBaseUrl}}/api/v1/consultations?page=1&limit=10",
+              "host": ["{{backendBaseUrl}}"],
+              "path": ["api", "v1", "consultations"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Complete Consultation",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"diagnosis\": {\n    \"primary\": \"Viral fever\",\n    \"secondary\": [],\n    \"notes\": \"Stable\"\n  },\n  \"treatmentPlan\": \"Hydration, rest, and follow-up if fever persists.\",\n  \"followUp\": {\n    \"required\": true,\n    \"date\": \"2026-04-30\",\n    \"notes\": \"Review after 5 days\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{backendBaseUrl}}/api/v1/consultations/{{consultationId}}/complete",
+              "host": ["{{backendBaseUrl}}"],
+              "path": ["api", "v1", "consultations", "{{consultationId}}", "complete"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Prescriptions",
+      "item": [
+        {
+          "name": "Get Prescription",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{backendBaseUrl}}/api/v1/prescriptions/{{prescriptionId}}",
+              "host": ["{{backendBaseUrl}}"],
+              "path": ["api", "v1", "prescriptions", "{{prescriptionId}}"]
+            }
+          }
+        },
+        {
+          "name": "Finalize Prescription",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctorConfirmation\": true,\n  \"finalAdvice\": \"Hydration, rest, and review if fever persists.\",\n  \"followUpDate\": \"2026-04-30\"\n}"
+            },
+            "url": {
+              "raw": "{{backendBaseUrl}}/api/v1/prescriptions/{{prescriptionId}}/finalize",
+              "host": ["{{backendBaseUrl}}"],
+              "path": ["api", "v1", "prescriptions", "{{prescriptionId}}", "finalize"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Billing",
+      "item": [
+        {
+          "name": "List Invoices",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{backendBaseUrl}}/api/v1/billing/invoices?page=1&limit=10",
+              "host": ["{{backendBaseUrl}}"],
+              "path": ["api", "v1", "billing", "invoices"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Billing Summary",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{backendBaseUrl}}/api/v1/billing/summary",
+              "host": ["{{backendBaseUrl}}"],
+              "path": ["api", "v1", "billing", "summary"]
+            }
+          }
+        },
+        {
+          "name": "Record Refund",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 100,\n  \"reason\": \"Manual correction after duplicate payment\"\n}"
+            },
+            "url": {
+              "raw": "{{backendBaseUrl}}/api/v1/billing/invoices/{{invoiceId}}/refund",
+              "host": ["{{backendBaseUrl}}"],
+              "path": ["api", "v1", "billing", "invoices", "{{invoiceId}}", "refund"]
+            }
+          }
+        },
+        {
+          "name": "List Billing Anomalies",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{backendBaseUrl}}/api/v1/admin/billing-anomalies?page=1&limit=10",
+              "host": ["{{backendBaseUrl}}"],
+              "path": ["api", "v1", "admin", "billing-anomalies"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Review Billing Anomaly",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reviewStatus\": \"reviewed\",\n  \"reviewNotes\": \"Reviewed by admin after reconciliation.\"\n}"
+            },
+            "url": {
+              "raw": "{{backendBaseUrl}}/api/v1/admin/billing-anomalies/{{billingAnomalyId}}/review",
+              "host": ["{{backendBaseUrl}}"],
+              "path": ["api", "v1", "admin", "billing-anomalies", "{{billingAnomalyId}}", "review"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Labs",
+      "item": [
+        {
+          "name": "List Lab Tests",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{backendBaseUrl}}/api/v1/labs/tests?page=1&limit=10",
+              "host": ["{{backendBaseUrl}}"],
+              "path": ["api", "v1", "labs", "tests"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Lab Orders",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{backendBaseUrl}}/api/v1/labs/orders?page=1&limit=10",
+              "host": ["{{backendBaseUrl}}"],
+              "path": ["api", "v1", "labs", "orders"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Pharmacy",
+      "item": [
+        {
+          "name": "List Medicines",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{backendBaseUrl}}/api/v1/pharmacy/medicines?page=1&limit=10",
+              "host": ["{{backendBaseUrl}}"],
+              "path": ["api", "v1", "pharmacy", "medicines"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Dispensings",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{backendBaseUrl}}/api/v1/pharmacy/dispensings?page=1&limit=10",
+              "host": ["{{backendBaseUrl}}"],
+              "path": ["api", "v1", "pharmacy", "dispensings"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "List Templates",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{backendBaseUrl}}/api/v1/notifications/templates?page=1&limit=10",
+              "host": ["{{backendBaseUrl}}"],
+              "path": ["api", "v1", "notifications", "templates"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Notification Logs",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{backendBaseUrl}}/api/v1/notifications/logs?page=1&limit=10",
+              "host": ["{{backendBaseUrl}}"],
+              "path": ["api", "v1", "notifications", "logs"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Follow-ups",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{backendBaseUrl}}/api/v1/follow-ups?page=1&limit=10",
+              "host": ["{{backendBaseUrl}}"],
+              "path": ["api", "v1", "follow-ups"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "item": [
+        {
+          "name": "Dashboard Overview",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{backendBaseUrl}}/api/v1/dashboard/overview?from=2026-04-01&to=2026-04-30",
+              "host": ["{{backendBaseUrl}}"],
+              "path": ["api", "v1", "dashboard", "overview"],
+              "query": [
+                { "key": "from", "value": "2026-04-01" },
+                { "key": "to", "value": "2026-04-30" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Appointments Analytics",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{backendBaseUrl}}/api/v1/dashboard/appointments?from=2026-04-01&to=2026-04-30",
+              "host": ["{{backendBaseUrl}}"],
+              "path": ["api", "v1", "dashboard", "appointments"],
+              "query": [
+                { "key": "from", "value": "2026-04-01" },
+                { "key": "to", "value": "2026-04-30" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Revenue Analytics",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{backendBaseUrl}}/api/v1/dashboard/revenue?from=2026-04-01&to=2026-04-30",
+              "host": ["{{backendBaseUrl}}"],
+              "path": ["api", "v1", "dashboard", "revenue"],
+              "query": [
+                { "key": "from", "value": "2026-04-01" },
+                { "key": "to", "value": "2026-04-30" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "AI Service",
+      "item": [
+        {
+          "name": "Symptom Check",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"symptoms\": \"fever, cough and body pain for 2 days\",\n  \"age\": 28,\n  \"gender\": \"male\",\n  \"duration\": \"2 days\",\n  \"known_conditions\": [\"diabetes\"],\n  \"language\": \"en\"\n}"
+            },
+            "url": {
+              "raw": "{{aiServiceBaseUrl}}/api/v1/ai/symptom-check",
+              "host": ["{{aiServiceBaseUrl}}"],
+              "path": ["api", "v1", "ai", "symptom-check"]
+            }
+          }
+        },
+        {
+          "name": "Format Clinical Note",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"raw_note\": \"patient has fever and cough for two days no chest pain appetite low\",\n  \"format\": \"SOAP\"\n}"
+            },
+            "url": {
+              "raw": "{{aiServiceBaseUrl}}/api/v1/ai/format-clinical-note",
+              "host": ["{{aiServiceBaseUrl}}"],
+              "path": ["api", "v1", "ai", "format-clinical-note"]
+            }
+          }
+        },
+        {
+          "name": "Billing Anomaly",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"invoice_id\": \"INV-001\",\n  \"patient_id\": \"PAT-001\",\n  \"user_id\": \"USR-001\",\n  \"invoice_status\": \"issued\",\n  \"payment_status\": \"paid\",\n  \"total_amount\": 1400,\n  \"subtotal\": 1000,\n  \"discount_amount\": 300,\n  \"discount_percent\": 30,\n  \"tax_amount\": 180,\n  \"paid_amount\": 1400,\n  \"refund_amount\": 0,\n  \"items\": [\n    {\n      \"item_type\": \"consultation\",\n      \"name\": \"Consultation fee\",\n      \"quantity\": 1,\n      \"unit_price\": 1000,\n      \"expected_unit_price\": 1000,\n      \"total_price\": 1000\n    }\n  ],\n  \"linked_consultation_id\": \"CONS-001\",\n  \"medicine_stock_deducted\": true,\n  \"lab_order_exists\": true,\n  \"manual_price_override\": false,\n  \"historical_context\": {\n    \"patient_invoice_count_today\": 1,\n    \"user_cancelled_invoice_count_today\": 0,\n    \"patient_refund_count_30d\": 0,\n    \"duplicate_invoice_count\": 0,\n    \"average_invoice_amount_30d\": 900,\n    \"average_discount_percent_30d\": 5,\n    \"same_service_count_today\": 0\n  }\n}"
+            },
+            "url": {
+              "raw": "{{aiServiceBaseUrl}}/api/v1/ai/billing-anomaly",
+              "host": ["{{aiServiceBaseUrl}}"],
+              "path": ["api", "v1", "ai", "billing-anomaly"]
+            }
+          }
+        },
+        {
+          "name": "Train Billing Anomaly",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"records\": [\n    {\n      \"invoice_id\": \"INV-001\",\n      \"patient_id\": \"PAT-001\",\n      \"user_id\": \"USR-001\",\n      \"invoice_status\": \"issued\",\n      \"payment_status\": \"paid\",\n      \"total_amount\": 1180,\n      \"subtotal\": 1000,\n      \"discount_amount\": 0,\n      \"discount_percent\": 0,\n      \"tax_amount\": 180,\n      \"paid_amount\": 1180,\n      \"refund_amount\": 0,\n      \"items\": [\n        {\n          \"item_type\": \"consultation\",\n          \"name\": \"Consultation fee\",\n          \"quantity\": 1,\n          \"unit_price\": 1000,\n          \"expected_unit_price\": 1000,\n          \"total_price\": 1000\n        }\n      ],\n      \"linked_consultation_id\": \"CONS-001\",\n      \"medicine_stock_deducted\": true,\n      \"lab_order_exists\": true,\n      \"manual_price_override\": false,\n      \"historical_context\": {\n        \"patient_invoice_count_today\": 1,\n        \"user_cancelled_invoice_count_today\": 0,\n        \"patient_refund_count_30d\": 0,\n        \"duplicate_invoice_count\": 0,\n        \"average_invoice_amount_30d\": 900,\n        \"average_discount_percent_30d\": 5,\n        \"same_service_count_today\": 0\n      }\n    }\n  ],\n  \"save_model\": false\n}"
+            },
+            "url": {
+              "raw": "{{aiServiceBaseUrl}}/api/v1/ai/train/billing-anomaly",
+              "host": ["{{aiServiceBaseUrl}}"],
+              "path": ["api", "v1", "ai", "train", "billing-anomaly"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    { "key": "backendBaseUrl", "value": "http://localhost:5000" },
+    { "key": "aiServiceBaseUrl", "value": "http://localhost:8000" },
+    { "key": "accessToken", "value": "" },
+    { "key": "patientId", "value": "" },
+    { "key": "doctorId", "value": "" },
+    { "key": "appointmentId", "value": "" },
+    { "key": "consultationId", "value": "" },
+    { "key": "prescriptionId", "value": "" },
+    { "key": "invoiceId", "value": "" },
+    { "key": "billingAnomalyId", "value": "" }
+  ]
+}

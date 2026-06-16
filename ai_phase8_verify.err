@@ -1,0 +1,5 @@
+INFO:     Started server process [18468]
+INFO:     Waiting for application startup.
+2026-04-22 09:48:30,926 INFO [ai-cms-ai-service] AI service started on 0.0.0.0:8000
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8020 (Press CTRL+C to quit)

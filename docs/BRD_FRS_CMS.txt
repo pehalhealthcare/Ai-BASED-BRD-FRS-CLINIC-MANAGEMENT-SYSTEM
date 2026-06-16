@@ -1,0 +1,1028 @@
+--- PAGE 1 ---
+Ai BASED BRD-FRS CLINIC MANAGEMENT SYSTEM                                 
+ Copyright@ PEHALHEALTHCARE TECHNOLOGIES PRIVATE LIMITED 2018-2026 
+Business Requirements Document (BRD) 
+AI-Based Clinic Management Software (AI-CMS) 
+1.  Project Overview 
+1.1 Purpose 
+To build an intelligent, AI-powered clinic ecosystem that automates clinical, operational, and 
+financial workflows while enhancing decision-making, patient care, and revenue optimization. 
+1.2 Vision 
+“Transform traditional clinics into smart, predictive, and automated healthcare units using AI.” 
+2. Core Objectives 
+ Automate 70–90% of manual clinic operations 
+ Provide AI-assisted diagnosis & decision support 
+ Enable predictive patient management 
+ Improve doctor efficiency by 2–3x 
+ Increase clinic revenue through AI insights 
+ Deliver personalized patient experience 
+3. Stakeholders 
+ Clinic Owner / Hospital Management 
+ Doctors / Specialists 
+ Receptionists 
+ Nurses / Assistants 
+ Pharmacists 
+ Lab Technicians 
+ Patients 
+ AI Admin / Data Analyst 
+4. End-to-End AI Workflow 
+🧩 Smart Patient Journey 
+1. AI Chatbot Pre-Consultation 
+o Patient describes symptoms 
+o AI suggests probable conditions 
+o Auto-book appointment 
+2. Smart Registration 
+o Auto-fill via Aadhaar/phone/email 
+o AI extracts data from uploaded documents 
+3. AI Appointment Scheduling 
+o Suggests best doctor + time 
+o Predicts no-show probability 
+4. AI Queue Management 
+o Dynamic token allocation 
+--- PAGE 2 ---
+Ai BASED BRD-FRS CLINIC MANAGEMENT SYSTEM                                 
+ Copyright@ PEHALHEALTHCARE TECHNOLOGIES PRIVATE LIMITED 2018-2026 
+o Wait-time prediction 
+5. AI Consultation Assistance 
+o Voice-to-text clinical notes 
+o AI suggests diagnosis & treatment options 
+6. AI Prescription 
+o Drug suggestions 
+o Drug interaction alerts 
+o Dosage recommendations 
+7. AI Lab Recommendation 
+o Suggests tests based on symptoms 
+o Flags abnormal results automatically 
+8. AI Pharmacy 
+o Suggests substitutes 
+o Predicts stock demand 
+9. AI Billing 
+o Smart billing + fraud detection 
+o Insurance claim automation 
+10. AI Follow-up 
+ Predicts patient revisit 
+ Sends automated reminders 
+5. Core Modules (AI + Functional) 
+5.1 AI Patient Management 
+Features: 
+ Smart patient registration (OCR + NLP) 
+ AI-based patient profiling 
+ Risk scoring (chronic disease prediction) 
+ Patient segmentation (high-value, frequent, etc.) 
+5.2 AI Chatbot & Virtual Assistant 
+Features: 
+ Symptom checker (NLP-based) 
+ Appointment booking 
+ FAQ automation 
+ Multilingual support (Hindi, English, regional) 
+5.3 AI Appointment & Scheduling 
+ Smart slot allocation 
+ No-show prediction (ML model) 
+ Auto-rescheduling 
+ Doctor workload balancing 
+ 
+--- PAGE 3 ---
+Ai BASED BRD-FRS CLINIC MANAGEMENT SYSTEM                                 
+ Copyright@ PEHALHEALTHCARE TECHNOLOGIES PRIVATE LIMITED 2018-2026 
+5.4 AI-Powered EMR / EHR 
+Features: 
+ Voice-based consultation (speech-to-text) 
+ Auto clinical note generation 
+ AI-assisted diagnosis suggestions 
+ ICD-10 auto coding 
+ Treatment plan recommendations 
+5.5 AI Prescription System 
+ Drug recommendation engine 
+ Drug interaction alerts 
+ Allergy detection 
+ Dosage optimization 
+5.6 AI Lab Management 
+ Smart test recommendations 
+ Auto abnormality detection 
+ AI-based report interpretation 
+ Trend analysis (chronic patients) 
+5.7 AI Pharmacy Management 
+ Demand forecasting (ML model) 
+ Expiry prediction 
+ Smart reorder alerts 
+ Generic substitute suggestions 
+5.8 AI Billing & Revenue Optimization 
+ Dynamic pricing suggestions 
+ Revenue leakage detection 
+ Insurance claim automation 
+ Fraud detection 
+5.9 AI Analytics Dashboard 
+ Predictive revenue forecasting 
+ Patient retention analysis 
+ Doctor performance insights 
+ Disease trend analysis 
+5.10 Patient Mobile App (AI-enabled) 
+ AI symptom checker 
+ Teleconsultation 
+ Digital prescriptions 
+ Health insights dashboard 
+--- PAGE 4 ---
+Ai BASED BRD-FRS CLINIC MANAGEMENT SYSTEM                                 
+ Copyright@ PEHALHEALTHCARE TECHNOLOGIES PRIVATE LIMITED 2018-2026 
+6. Functional Requirements 
+User Roles 
+ Super Admin 
+ Doctor 
+ Receptionist 
+ Pharmacist 
+ Lab Technician 
+ Patient 
+Key Functionalities 
+ Multi-specialization support 
+ Multi-clinic support 
+ Real-time synchronization 
+ AI recommendations at every step 
+7. AI Capabilities (Core Engine) 
+7.1 AI Models Used 
+Use Case AI Model 
+Symptom Checker NLP (BERT/GPT-like) 
+Diagnosis Suggestion ML + Knowledge Graph 
+Voice Notes Speech-to-Text 
+Lab Analysis Computer Vision + ML 
+Forecasting Time-series models 
+7.2 AI Features Summary 
+ Predictive analytics 
+ Recommendation engines 
+ Natural language processing (NLP) 
+ Computer vision (for reports/scans) 
+ Reinforcement learning (optimization) 
+8.  Integrations 
+ Payment Gateways (Razorpay, PayU) 
+ WhatsApp API (notifications) 
+ Lab devices (LIS integration) 
+ Insurance APIs 
+ Telemedicine APIs (WebRTC) 
+9. Non-Functional Requirements 
+Security 
+ End-to-end encryption 
+ Role-based access 
+--- PAGE 5 ---
+Ai BASED BRD-FRS CLINIC MANAGEMENT SYSTEM                                 
+ Copyright@ PEHALHEALTHCARE TECHNOLOGIES PRIVATE LIMITED 2018-2026 
+ Data anonymization for AI training 
+Compliance (India) 
+ ABDM (Ayushman Bharat Digital Mission) 
+ NDHM Health ID integration 
+ HIPAA-like standards 
+10. System Architecture 
+Architecture Type: 
+ Microservices + AI Layer 
+Components: 
+ Frontend (React / Flutter) 
+ Backend (Node.js / Java Spring Boot) 
+ AI Engine (Python – TensorFlow/PyTorch) 
+ Database (PostgreSQL + MongoDB) 
+ Data Lake (for AI training) 
+11. High-Level Database Entities 
+ Patients 
+ Doctors 
+ Appointments 
+ Consultations 
+ Prescriptions 
+ Lab Orders 
+ Reports 
+ Inventory 
+ Billing 
+ AI Predictions 
+12. AI Data Flow 
+1. Data collected from patient interactions 
+2. Stored in structured + unstructured format 
+3. Processed via AI models 
+4. Predictions generated 
+5. Insights displayed to users 
+13. MVP Scope (AI Lite Version) 
+To launch fast: 
+ Patient Management 
+ Appointment Scheduling 
+ Basic EMR 
+ AI Chatbot (basic symptom checker) 
+--- PAGE 6 ---
+Ai BASED BRD-FRS CLINIC MANAGEMENT SYSTEM                                 
+ Copyright@ PEHALHEALTHCARE TECHNOLOGIES PRIVATE LIMITED 2018-2026 
+ Voice-to-text prescription 
+14.  Risks & Challenges 
+ AI accuracy & liability 
+ Doctor trust in AI suggestions 
+ Data privacy compliance 
+ High infrastructure cost 
+15. Success Metrics 
+ Doctor time saved 
+ Patient satisfaction score 
+ Revenue growth 
+ AI prediction accuracy 
+ Patient retention 
+16. Future Enhancements 
+ AI radiology (X-ray/MRI analysis) 
+ Wearable device integration 
+ Personalized treatment plans 
+ Voice-based full consultation 
+ AI doctor assistant 
+17. USP (What Makes It Powerful) 
+ End-to-end AI integration 
+ Predictive + prescriptive analytics 
+ Works across all specializations 
+ Scalable SaaS model 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+--- PAGE 7 ---
+Ai BASED BRD-FRS CLINIC MANAGEMENT SYSTEM                                 
+ Copyright@ PEHALHEALTHCARE TECHNOLOGIES PRIVATE LIMITED 2018-2026 
+Functional Requirements Specification (FRS) 
+AI-Based Clinic Management System (AI-CMS) 
+1. Document Overview 
+1.1 Purpose 
+Defines detailed functional behavior, user stories, and acceptance criteria for building an AI-
+powered clinic system. 
+1.2 Scope 
+Covers: 
+ Core clinic workflows 
+ AI integrations 
+ Role-based operations 
+ API-level behavior (high-level) 
+2.  User Roles 
+Role Description 
+Admin Full system control 
+Doctor Consultation + EMR 
+Receptionist Patient + appointments 
+Patient Self-service 
+Pharmacist Inventory + sales 
+Lab Technician Test + reports 
+AI Engine Background intelligence system 
+3. Module-wise Functional Requirements 
+3.1 Patient Management Module 
+User Story 1: Patient Registration 
+As a Receptionist 
+I want to register a new patient 
+So that they can be tracked in the system 
+Functional Requirements: 
+ Capture: Name, Age, Gender, Contact, Address 
+ Auto-generate Patient ID 
+ Upload documents (PDF/Image) 
+ AI-based OCR to extract data 
+ 
+--- PAGE 8 ---
+Ai BASED BRD-FRS CLINIC MANAGEMENT SYSTEM                                 
+ Copyright@ PEHALHEALTHCARE TECHNOLOGIES PRIVATE LIMITED 2018-2026 
+Acceptance Criteria: 
+ ✅ Patient ID is unique and auto-generated 
+ ✅ Mandatory fields validated 
+ ✅ OCR extracts at least 80% correct data 
+ ✅ Patient record is searchable within 2 seconds 
+User Story 2: Patient History Access 
+As a Doctor 
+I want to view patient history 
+So that I can provide better diagnosis 
+Acceptance Criteria: 
+ ✅ Full consultation history visible 
+ ✅ Previous prescriptions downloadable 
+ ✅ Lab reports accessible 
+ ✅ Load time < 3 seconds 
+3.2 AI Chatbot & Pre-Consultation 
+User Story 3: AI Symptom Checker 
+As a Patient 
+I want to enter symptoms 
+So that I get possible diagnosis suggestions 
+Functional Requirements: 
+ NLP-based input processing 
+ Suggest top 3 probable conditions 
+ Recommend doctor specialization 
+Acceptance Criteria: 
+ ✅ Response generated within 3 seconds 
+ ✅ Minimum 70% relevance accuracy 
+ ✅ Suggests correct department 
+User Story 4: Auto Appointment Booking 
+As a Patient 
+I want to book appointment via chatbot 
+So that I don’t need manual interaction 
+Acceptance Criteria: 
+ ✅ Available slots displayed 
+--- PAGE 9 ---
+Ai BASED BRD-FRS CLINIC MANAGEMENT SYSTEM                                 
+ Copyright@ PEHALHEALTHCARE TECHNOLOGIES PRIVATE LIMITED 2018-2026 
+ ✅ Booking confirmation via SMS/WhatsApp 
+ ✅ Calendar updated instantly 
+3.3 Appointment Management 
+User Story 5: Appointment Scheduling 
+As a Receptionist 
+I want to schedule appointments 
+So that patient visits are organized 
+Functional Requirements: 
+ Doctor-wise availability 
+ Slot booking (15/30 min configurable) 
+ Walk-in support 
+Acceptance Criteria: 
+ ✅ No double booking allowed 
+ ✅ Slot conflict validation 
+ ✅ Appointment visible in calendar 
+User Story 6: AI No-Show Prediction 
+As a Admin 
+I want to predict no-show patients 
+So that I can optimize scheduling 
+Acceptance Criteria: 
+ ✅ Risk score shown (Low/Medium/High) 
+ ✅ Based on past behavior 
+ ✅ Accuracy > 75% 
+3.4 Doctor EMR Module 
+User Story 7: Voice-Based Consultation 
+As a Doctor 
+I want to dictate notes 
+So that I save time 
+Functional Requirements: 
+ Speech-to-text conversion 
+ Auto formatting into EMR 
+ 
+--- PAGE 10 ---
+Ai BASED BRD-FRS CLINIC MANAGEMENT SYSTEM                                 
+ Copyright@ PEHALHEALTHCARE TECHNOLOGIES PRIVATE LIMITED 2018-2026 
+Acceptance Criteria: 
+ ✅ 90% transcription accuracy 
+ ✅ Notes saved automatically 
+ ✅ Editable text output 
+User Story 8: AI Diagnosis Suggestion 
+As a Doctor 
+I want to get AI suggestions 
+So that I improve accuracy 
+Acceptance Criteria: 
+ ✅ Top 3 diagnosis suggestions 
+ ✅ Based on symptoms + history 
+ ✅ Doctor can accept/reject 
+3.5 Prescription Module 
+User Story 9: E-Prescription Generation 
+As a Doctor 
+I want to generate digital prescriptions 
+So that patients can access them easily 
+Acceptance Criteria: 
+ ✅ Prescription PDF generated 
+ ✅ Share via WhatsApp/email 
+ ✅ Stored in patient history 
+User Story 10: Drug Interaction Alert 
+As a System 
+I want to alert risky drug combinations 
+So that patient safety is ensured 
+Acceptance Criteria: 
+ ✅ Alerts shown instantly 
+ ✅ Severity level displayed 
+ ✅ Override option for doctor 
+ 
+ 
+ 
+--- PAGE 11 ---
+Ai BASED BRD-FRS CLINIC MANAGEMENT SYSTEM                                 
+ Copyright@ PEHALHEALTHCARE TECHNOLOGIES PRIVATE LIMITED 2018-2026 
+3.6 Lab Management 
+User Story 11: Lab Test Recommendation 
+As a Doctor 
+I want to get AI test suggestions 
+So that diagnosis is supported 
+Acceptance Criteria: 
+ ✅ Suggested tests based on symptoms 
+ ✅ Editable list 
+ ✅ Order created with one click 
+User Story 12: Report Upload & Analysis 
+As a Lab Technician 
+I want to upload reports 
+So that doctors can review 
+Acceptance Criteria: 
+ ✅ PDF/Image upload 
+ ✅ AI highlights abnormal values 
+ ✅ Linked to patient record 
+3.7 Pharmacy Management 
+User Story 13: Medicine Dispensing 
+As a Pharmacist 
+I want to dispense medicines 
+So that billing is completed 
+Acceptance Criteria: 
+ ✅ Stock auto-deducted 
+ ✅ Batch & expiry tracked 
+ ✅ Invoice generated 
+User Story 14: AI Inventory Prediction 
+As a Admin 
+I want to predict stock demand 
+So that shortages are avoided 
+Acceptance Criteria: 
+ ✅ Demand forecast shown 
+ ✅ Reorder alerts generated 
+--- PAGE 12 ---
+Ai BASED BRD-FRS CLINIC MANAGEMENT SYSTEM                                 
+ Copyright@ PEHALHEALTHCARE TECHNOLOGIES PRIVATE LIMITED 2018-2026 
+ ✅ Accuracy > 70% 
+3.8 Billing & Payments 
+User Story 15: Billing Generation 
+As a Receptionist 
+I want to generate bills 
+So that payments are collected 
+Acceptance Criteria: 
+ ✅ Multi-service billing (consultation + lab + pharmacy) 
+ ✅ GST calculation 
+ ✅ Multiple payment modes 
+User Story 16: AI Fraud Detection 
+As a Admin 
+I want to detect billing anomalies 
+So that revenue leakage is prevented 
+Acceptance Criteria: 
+ ✅ Suspicious transactions flagged 
+ ✅ Alerts in dashboard 
+ ✅ Audit logs maintained 
+3.9 Notifications & Engagement 
+ User Story 17: Appointment Reminder 
+As a Patient 
+I want to receive reminders 
+So that I don’t miss appointments 
+Acceptance Criteria: 
+ ✅ SMS/WhatsApp sent 24 hrs before 
+ ✅ Configurable timing 
+ ✅ Delivery status tracked 
+3.10 Admin & Security 
+User Story 18: Role-Based Access Control 
+As a Admin 
+I want to control access 
+So that data is secure 
+--- PAGE 13 ---
+Ai BASED BRD-FRS CLINIC MANAGEMENT SYSTEM                                 
+ Copyright@ PEHALHEALTHCARE TECHNOLOGIES PRIVATE LIMITED 2018-2026 
+Acceptance Criteria: 
+ ✅ Role-based permissions 
+ ✅ Unauthorized access blocked 
+ ✅ Audit logs maintained 
+4. Non-Functional Requirements 
+Performance 
+ API response < 500 ms 
+ Support 1000 concurrent users 
+Security 
+ AES-256 encryption 
+ JWT authentication 
+ Audit logs 
+Scalability 
+ Microservices architecture 
+ Horizontal scaling 
+5. API-Level Functional Overview 
+Module Sample Endpoint 
+Patient POST /patients 
+Appointment POST /appointments 
+EMR POST /consultations 
+Prescription POST /prescriptions 
+Billing POST /invoices 
+AI POST /ai/diagnosis 
+ 
+6. 🧩 Testing Requirements 
+ Unit Testing (80% coverage) 
+ API Testing (Postman/Swagger) 
+ Load Testing (JMeter) 
+ AI Model Accuracy Testing 
+7. Deployment Requirements 
+ Cloud: AWS / Azure 
+ CI/CD pipeline 
+ Docker + Kubernetes 
+ 
+--- PAGE 14 ---
+Ai BASED BRD-FRS CLINIC MANAGEMENT SYSTEM                                 
+ Copyright@ PEHALHEALTHCARE TECHNOLOGIES PRIVATE LIMITED 2018-2026 
+8. MVP Scope (Developer Focus) 
+ Patient Registration 
+ Appointment Scheduling 
+ Basic EMR 
+ AI Chatbot (basic) 
+ Billing 
+9. Definition of Done (DoD) 
+ Feature implemented 
+ Unit tested 
+ API documented 
+ UI tested 
+ Deployed on staging 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+--- PAGE 15 ---
+Ai BASED BRD-FRS CLINIC MANAGEMENT SYSTEM                                 
+ Copyright@ PEHALHEALTHCARE TECHNOLOGIES PRIVATE LIMITED 2018-2026 
+Production-ready, developer-friendly deliverable combining: 
+1️ Complete Database SQL Schema (PostgreSQL – ready to import) 
+2️ AI Architecture (Models + Datasets + Pipelines) 
+Designed for a scalable AI-based Clinic Management System (AI-CMS). 
+PART 1: COMPLETE DATABASE SQL SCHEMA (PostgreSQL) 
+Supports: Multi-clinic, AI predictions, EMR, billing, pharmacy, lab 
+1. Core Setup 
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp"; 
+2. Users & Roles 
+CREATE TABLE roles ( 
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), 
+    name VARCHAR(50) UNIQUE NOT NULL 
+); 
+ 
+CREATE TABLE users ( 
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), 
+    role_id UUID REFERENCES roles(id), 
+    name VARCHAR(100), 
+    email VARCHAR(100) UNIQUE, 
+    phone VARCHAR(20), 
+    password TEXT, 
+    is_active BOOLEAN DEFAULT TRUE, 
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP 
+); 
+ 
+3. Clinics & Doctors 
+CREATE TABLE clinics ( 
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), 
+    name VARCHAR(150), 
+    address TEXT, 
+    city VARCHAR(50), 
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP 
+); 
+ 
+CREATE TABLE doctors ( 
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), 
+    user_id UUID REFERENCES users(id), 
+    clinic_id UUID REFERENCES clinics(id), 
+    specialization VARCHAR(100), 
+    experience INT, 
+    consultation_fee NUMERIC, 
+--- PAGE 16 ---
+Ai BASED BRD-FRS CLINIC MANAGEMENT SYSTEM                                 
+ Copyright@ PEHALHEALTHCARE TECHNOLOGIES PRIVATE LIMITED 2018-2026 
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP 
+); 
+ 
+ 4. Patients 
+CREATE TABLE patients ( 
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), 
+    clinic_id UUID REFERENCES clinics(id), 
+    name VARCHAR(150), 
+    gender VARCHAR(10), 
+    dob DATE, 
+    phone VARCHAR(20), 
+    email VARCHAR(100), 
+    address TEXT, 
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP 
+); 
+ 
+5. Appointments 
+CREATE TABLE appointments ( 
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), 
+    patient_id UUID REFERENCES patients(id), 
+    doctor_id UUID REFERENCES doctors(id), 
+    appointment_time TIMESTAMP, 
+    status VARCHAR(50), 
+    ai_no_show_score FLOAT, 
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP 
+); 
+ 
+6. Consultations (EMR) 
+CREATE TABLE consultations ( 
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), 
+    appointment_id UUID REFERENCES appointments(id), 
+    symptoms TEXT, 
+    diagnosis TEXT, 
+    notes TEXT, 
+    ai_suggestions JSONB, 
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP 
+); 
+ 
+7. Prescriptions 
+CREATE TABLE prescriptions ( 
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), 
+    consultation_id UUID REFERENCES consultations(id), 
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP 
+--- PAGE 17 ---
+Ai BASED BRD-FRS CLINIC MANAGEMENT SYSTEM                                 
+ Copyright@ PEHALHEALTHCARE TECHNOLOGIES PRIVATE LIMITED 2018-2026 
+); 
+ 
+CREATE TABLE prescription_items ( 
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), 
+    prescription_id UUID REFERENCES prescriptions(id), 
+    medicine_name VARCHAR(150), 
+    dosage VARCHAR(50), 
+    duration VARCHAR(50), 
+    instructions TEXT 
+); 
+ 
+8. Lab Management 
+CREATE TABLE lab_tests ( 
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), 
+    name VARCHAR(100), 
+    normal_range VARCHAR(100) 
+); 
+ 
+CREATE TABLE lab_orders ( 
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), 
+    consultation_id UUID REFERENCES consultations(id), 
+    status VARCHAR(50), 
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP 
+); 
+ 
+CREATE TABLE lab_reports ( 
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), 
+    lab_order_id UUID REFERENCES lab_orders(id), 
+    report_url TEXT, 
+    ai_analysis JSONB, 
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP 
+); 
+ 
+9. Pharmacy & Inventory 
+CREATE TABLE medicines ( 
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), 
+    name VARCHAR(150), 
+    batch_no VARCHAR(50), 
+    expiry_date DATE, 
+    stock INT, 
+    price NUMERIC 
+); 
+ 
+CREATE TABLE pharmacy_sales ( 
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), 
+    patient_id UUID REFERENCES patients(id), 
+    total_amount NUMERIC, 
+--- PAGE 18 ---
+Ai BASED BRD-FRS CLINIC MANAGEMENT SYSTEM                                 
+ Copyright@ PEHALHEALTHCARE TECHNOLOGIES PRIVATE LIMITED 2018-2026 
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP 
+); 
+ 
+10. Billing & Payments 
+CREATE TABLE invoices ( 
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), 
+    patient_id UUID REFERENCES patients(id), 
+    total_amount NUMERIC, 
+    status VARCHAR(50), 
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP 
+); 
+ 
+CREATE TABLE payments ( 
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), 
+    invoice_id UUID REFERENCES invoices(id), 
+    payment_mode VARCHAR(50), 
+    amount NUMERIC, 
+    status VARCHAR(50), 
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP 
+); 
+ 
+11. AI Predictions Table 
+CREATE TABLE ai_predictions ( 
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), 
+    patient_id UUID REFERENCES patients(id), 
+    prediction_type VARCHAR(50), 
+    input_data JSONB, 
+    output_data JSONB, 
+    confidence_score FLOAT, 
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP 
+); 
+ 
+12. Audit Logs 
+CREATE TABLE audit_logs ( 
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), 
+    user_id UUID REFERENCES users(id), 
+    action TEXT, 
+    entity VARCHAR(50), 
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP 
+); 
+ 
+ 
+ 
+--- PAGE 19 ---
+Ai BASED BRD-FRS CLINIC MANAGEMENT SYSTEM                                 
+ Copyright@ PEHALHEALTHCARE TECHNOLOGIES PRIVATE LIMITED 2018-2026 
+PART 2: AI ARCHITECTURE (MODELS + DATASETS + PIPELINES) 
+1. AI System Overview 
+Architecture Layers: 
+Frontend (App/Web) 
+        ↓ 
+Backend APIs (Node/Java) 
+        ↓ 
+AI Gateway (Python FastAPI) 
+        ↓ 
+AI Models Layer 
+        ↓ 
+Data Layer (DB + Data Lake) 
+2. AI Models Used 
+2.1 Symptom Checker (NLP) 
+ Model: BERT / GPT fine-tuned 
+ Input: Patient symptoms text 
+ Output: Top 3 diseases 
+2.2 Diagnosis Recommendation Engine 
+ Model: Gradient Boosting / Deep Learning 
+ Input: Symptoms + history + vitals 
+ Output: Diagnosis suggestions 
+2.3 No-Show Prediction 
+ Model: Logistic Regression / XGBoost 
+ Features: 
+o Past attendance 
+o Time of appointment 
+o Patient behavior 
+2.4 Voice-to-Text (Doctor Notes) 
+ Model: Whisper / Speech-to-Text API 
+2.5 Lab Report Analysis 
+ Model: Rule Engine + ML 
+ Detect abnormal values 
+ Highlight risk 
+ 
+--- PAGE 20 ---
+Ai BASED BRD-FRS CLINIC MANAGEMENT SYSTEM                                 
+ Copyright@ PEHALHEALTHCARE TECHNOLOGIES PRIVATE LIMITED 2018-2026 
+2.6 Pharmacy Demand Forecast 
+ Model: Time Series (ARIMA / LSTM) 
+3. Datasets Required 
+Clinical Data 
+ Patient history 
+ Symptoms & diagnosis mapping 
+ Prescription data 
+Public Datasets 
+ MIMIC-III (clinical data) 
+ WHO datasets 
+ Drug interaction datasets 
+Internal Data 
+ Appointment logs 
+ Billing patterns 
+ Inventory usage 
+4. AI Data Pipeline 
+Step 1: Data Collection 
+ From app (patients, doctors, lab) 
+Step 2: Data Cleaning 
+ Remove nulls 
+ Normalize formats 
+Step 3: Feature Engineering 
+ Convert symptoms → vectors 
+ Encode categorical data 
+Step 4: Model Training 
+ Train models using historical data 
+Step 5: Model Deployment 
+ Deploy via FastAPI microservice 
+Step 6: Real-Time Inference 
+ API call → prediction → response 
+--- PAGE 21 ---
+Ai BASED BRD-FRS CLINIC MANAGEMENT SYSTEM                                 
+ Copyright@ PEHALHEALTHCARE TECHNOLOGIES PRIVATE LIMITED 2018-2026 
+5. AI API Endpoints 
+POST /ai/symptom-check 
+POST /ai/diagnosis 
+POST /ai/no-show 
+POST /ai/lab-analysis 
+POST /ai/prescription-suggest 
+ 6. MLOps Pipeline 
+ Data Versioning → DVC 
+ Model Training → MLflow 
+ Deployment → Docker + Kubernetes 
+ Monitoring → Prometheus + Grafana 
+ 7. AI Accuracy Targets 
+Feature Target 
+Symptom Checker 70–85% 
+Diagnosis 75–90% 
+No-show Prediction 80% 
+Speech-to-text 90% 
+8. AI Compliance & Safety 
+ Data anonymization 
+ Consent-based usage 
+ Explainable AI (XAI) 
+ Doctor override mandatory 
+9. Deployment Stack 
+ Backend: Node.js / Spring Boot 
+ AI: Python (FastAPI) 
+ DB: PostgreSQL + MongoDB 
+ Cloud: AWS (EC2, S3, SageMaker optional) 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+--- PAGE 22 ---
+Ai BASED BRD-FRS CLINIC MANAGEMENT SYSTEM                                 
+ Copyright@ PEHALHEALTHCARE TECHNOLOGIES PRIVATE LIMITED 2018-2026 
+ 
+Production-grade Microservices Folder Structure + Code Starter Kit for AI-Based Clinic 
+Management System (AI-CMS) — designed for scalability, fast development, and enterprise deals. 
+1. Overall Microservices Architecture 
+ai-clinic-management/ 
+│ 
+├── api-gateway/ 
+├── auth-service/ 
+├── patient-service/ 
+├── appointment-service/ 
+├── consultation-service/ 
+├── billing-service/ 
+├── pharmacy-service/ 
+├── lab-service/ 
+├── ai-service/ 
+├── notification-service/ 
+│ 
+├── shared/ 
+├── infra/ 
+├── docker-compose.yml 
+└── README.md 
+2. Tech Stack (Recommended) 
+ Backend: Node.js (NestJS) OR Java Spring Boot 
+ AI Service: Python (FastAPI) 
+ DB: PostgreSQL 
+ Cache: Redis 
+ Messaging: Kafka / RabbitMQ 
+ Containerization: Docker + Kubernetes 
+3. Standard Microservice Folder Structure 
+Each service follows this structure: 
+service-name/ 
+│ 
+├── src/ 
+│   ├── controllers/ 
+│   ├── services/ 
+│   ├── repositories/ 
+│   ├── models/ 
+│   ├── dtos/ 
+│   ├── routes/ 
+│   ├── middlewares/ 
+│   ├── config/ 
+│   └── utils/ 
+│ 
+--- PAGE 23 ---
+Ai BASED BRD-FRS CLINIC MANAGEMENT SYSTEM                                 
+ Copyright@ PEHALHEALTHCARE TECHNOLOGIES PRIVATE LIMITED 2018-2026 
+├── tests/ 
+├── Dockerfile 
+├── package.json 
+├── .env 
+└── app.js 
+ 
+4. API Gateway (Node.js - Express) 
+Structure 
+api-gateway/ 
+├── src/ 
+│   ├── routes/ 
+│   ├── middlewares/ 
+│   └── app.js 
+Starter Code 
+// api-gateway/src/app.js 
+const express = require('express'); 
+const proxy = require('http-proxy-middleware'); 
+ 
+const app = express(); 
+ 
+app.use('/patients', proxy({ target: 'http://patient-service:3001', changeOrigin: true })); 
+app.use('/appointments', proxy({ target: 'http://appointment-service:3002', changeOrigin: true })); 
+app.use('/ai', proxy({ target: 'http://ai-service:8000', changeOrigin: true })); 
+ 
+app.listen(3000, () => console.log('API Gateway running on port 3000')); 
+ 
+5. Patient Service (Node.js) 
+Structure 
+patient-service/ 
+├── src/ 
+│   ├── controllers/patientController.js 
+│   ├── services/patientService.js 
+│   ├── repositories/patientRepository.js 
+│   ├── models/patientModel.js 
+│   └── app.js 
+Model 
+// models/patientModel.js 
+const { DataTypes } = require('sequelize'); 
+ 
+module.exports = (sequelize) => { 
+  return sequelize.define('Patient', { 
+--- PAGE 24 ---
+Ai BASED BRD-FRS CLINIC MANAGEMENT SYSTEM                                 
+ Copyright@ PEHALHEALTHCARE TECHNOLOGIES PRIVATE LIMITED 2018-2026 
+    id: { type: DataTypes.UUID, primaryKey: true }, 
+    name: DataTypes.STRING, 
+    phone: DataTypes.STRING, 
+    gender: DataTypes.STRING 
+  }); 
+}; 
+Controller 
+// controllers/patientController.js 
+const patientService = require('../services/patientService'); 
+ 
+exports.createPatient = async (req, res) => { 
+  const patient = await patientService.create(req.body); 
+  res.json(patient); 
+}; 
+6. Appointment Service 
+// appointment-service/src/controllers/appointmentController.js 
+ 
+exports.createAppointment = async (req, res) => { 
+  // Save appointment 
+  // Call AI service for no-show prediction 
+  res.json({ message: "Appointment created with AI score" }); 
+}; 
+7. AI Service (Python - FastAPI) 
+Structure 
+ai-service/ 
+├── app/ 
+│   ├── models/ 
+│   ├── routes/ 
+│   ├── services/ 
+│   └── main.py 
+Starter Code 
+# ai-service/app/main.py 
+from fastapi import FastAPI 
+ 
+app = FastAPI() 
+ 
+@app.post("/ai/symptom-check") 
+def symptom_check(data: dict): 
+    return { 
+        "conditions": ["Flu", "Cold", "Viral Fever"], 
+        "confidence": 0.82 
+    } 
+--- PAGE 25 ---
+Ai BASED BRD-FRS CLINIC MANAGEMENT SYSTEM                                 
+ Copyright@ PEHALHEALTHCARE TECHNOLOGIES PRIVATE LIMITED 2018-2026 
+ 
+@app.post("/ai/no-show") 
+def no_show(data: dict): 
+    return { 
+        "risk": "Medium", 
+        "score": 0.65 
+    } 
+8. Billing Service 
+// billing-service/src/services/billingService.js 
+ 
+exports.generateInvoice = async (data) => { 
+  return { 
+    total: 1500, 
+    gst: 18, 
+    finalAmount: 1770 
+  }; 
+}; 
+9. Notification Service 
+// notification-service/src/services/notificationService.js 
+ 
+exports.sendSMS = async (phone, message) => { 
+  console.log(`Sending SMS to ${phone}: ${message}`); 
+}; 
+10. Shared Module 
+shared/ 
+├── database/ 
+├── logger/ 
+├── utils/ 
+└── constants/ 
+11. Docker Setup 
+docker-compose.yml 
+version: '3.8' 
+ 
+services: 
+  api-gateway: 
+    build: ./api-gateway 
+    ports: 
+      - "3000:3000" 
+ 
+  patient-service: 
+    build: ./patient-service 
+    ports: 
+--- PAGE 26 ---
+Ai BASED BRD-FRS CLINIC MANAGEMENT SYSTEM                                 
+ Copyright@ PEHALHEALTHCARE TECHNOLOGIES PRIVATE LIMITED 2018-2026 
+      - "3001:3001" 
+ 
+  appointment-service: 
+    build: ./appointment-service 
+    ports: 
+      - "3002:3002" 
+ 
+  ai-service: 
+    build: ./ai-service 
+    ports: 
+      - "8000:8000" 
+ 
+  postgres: 
+    image: postgres 
+    environment: 
+      POSTGRES_DB: clinic 
+      POSTGRES_USER: admin 
+      POSTGRES_PASSWORD: admin 
+ 12. Communication Pattern 
+ API Gateway → REST calls 
+ Microservices → REST / Kafka events 
+ AI Service → HTTP API 
+13. Auth Roadway 
+ JWT Authentication 
+ Central Auth Service 
+ Role-based access 
+14. Deployment Roadway 
+ Dockerize each service 
+ Use Kubernetes (EKS / AKS) 
+ CI/CD (GitHub Actions) 
