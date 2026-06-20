@@ -22,9 +22,15 @@ const logout = asyncHandler(async (_req, res) => {
   return sendSuccess(res, 'Logout successful', {});
 });
 
+const resetPassword = asyncHandler(async (req, res) => {
+  const data = await authService.resetPassword(req.body, req);
+  return sendSuccess(res, 'Password changed successfully', data);
+});
+
 module.exports = {
   register,
   login,
   me,
-  logout
+  logout,
+  resetPassword
 };

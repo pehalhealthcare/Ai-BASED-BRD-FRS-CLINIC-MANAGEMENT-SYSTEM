@@ -40,7 +40,9 @@ const availabilityItemSchema = z
       .number()
       .int()
       .refine((value) => [15, 30, 45, 60].includes(value), 'Slot duration must be one of 15, 30, 45, or 60')
-      .default(30)
+      .default(30),
+    clinicId: objectIdSchema.optional().nullable(),
+    consultationMode: z.enum(['offline', 'online']).default('offline').optional()
   })
   .superRefine((value, context) => {
     if (value.isAvailable && (!value.startTime || !value.endTime)) {
@@ -89,6 +91,7 @@ const doctorPayloadSchema = z.object({
   availability: z.array(availabilityItemSchema).optional(),
   userId: objectIdSchema.optional(),
   clinicId: objectIdSchema.optional(),
+  assignedClinics: z.array(objectIdSchema).optional(),
   isActive: z.boolean().optional()
 });
 
@@ -96,9 +99,7 @@ const createDoctorSchema = z.object({
   body: doctorPayloadSchema
 });
 
-const doctorUpdatePayloadSchema = doctorPayloadSchema.omit({
-  clinicId: true
-});
+const doctorUpdatePayloadSchema = doctorPayloadSchema;
 
 const updateDoctorSchema = z.object({
   params: objectIdParamSchema('id').shape.params,

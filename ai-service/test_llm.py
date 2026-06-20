@@ -9,7 +9,7 @@ async def test_llm():
         adapter = LLMAdapter(
             provider=settings.llm_provider,
             api_key=settings.llm_api_key,
-            model_name="openrouter/free",
+            model_name="gpt-4o-mini",
             timeout_seconds=30,
             enable_llm=True
         )

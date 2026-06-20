@@ -22,13 +22,13 @@ const router = Router();
  *     tags:
  *       - Users
  */
-router.get('/', protect, authorize(ROLES.ADMIN), validate(listUsersQuerySchema), userController.listUsers);
+router.get('/', protect, authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN), validate(listUsersQuerySchema), userController.listUsers);
 
 router.get('/:id', protect, validate(userIdParamSchema), userController.getUserById);
 
-router.patch('/:id/role',protect,authorize(ROLES.ADMIN),validate(updateRoleSchema),userController.updateUserRole);
+router.patch('/:id/role',protect,authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),validate(updateRoleSchema),userController.updateUserRole);
 
-router.patch('/:id/status',protect,authorize(ROLES.ADMIN),validate(updateStatusSchema),userController.updateUserStatus
+router.patch('/:id/status',protect,authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),validate(updateStatusSchema),userController.updateUserStatus
 );
 
 module.exports = router;

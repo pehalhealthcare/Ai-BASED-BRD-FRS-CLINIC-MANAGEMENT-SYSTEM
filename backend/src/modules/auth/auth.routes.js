@@ -3,7 +3,7 @@ const { Router } = require('express');
 const { protect } = require('../../common/middlewares/auth.middleware');
 const { validate } = require('../../common/middlewares/validate.middleware');
 const authController = require('./auth.controller');
-const { loginSchema, registerSchema } = require('./auth.validator');
+const { loginSchema, registerSchema, resetPasswordSchema } = require('./auth.validator');
 
 const router = Router();
 
@@ -26,6 +26,7 @@ router.post('/register', validate(registerSchema), authController.register);
  *       - Auth
  */
 router.post('/login', validate(loginSchema), authController.login);
+router.post('/reset-password', validate(resetPasswordSchema), authController.resetPassword);
 router.get('/me', protect, authController.me);
 router.post('/logout', protect, authController.logout);
 

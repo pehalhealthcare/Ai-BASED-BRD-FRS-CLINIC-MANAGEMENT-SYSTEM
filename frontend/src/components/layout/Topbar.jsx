@@ -138,6 +138,34 @@ const Topbar = ({ title, currentUser, onToggleSidebar, onLogout }) => {
                   </>
                 )}
 
+                {(currentUser.role === ROLES.RECEPTIONIST || currentUser.role === ROLES.ADMIN) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      navigate('/clinic/settings');
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-white/[0.04] rounded-xl transition-colors text-left cursor-pointer"
+                  >
+                    <Settings size={15} className="text-stone-400 dark:text-stone-500" />
+                    Clinic Settings
+                  </button>
+                )}
+
+                {currentUser.role === ROLES.DOCTOR && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      navigate('/doctor/settings');
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-white/[0.04] rounded-xl transition-colors text-left cursor-pointer"
+                  >
+                    <Settings size={15} className="text-stone-400 dark:text-stone-500" />
+                    Doctor Settings
+                  </button>
+                )}
+
                 <button
                   type="button"
                   onClick={() => {

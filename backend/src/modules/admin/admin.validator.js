@@ -38,7 +38,9 @@ const approveDoctorSchema = z.object({
       isAvailable: z.boolean().default(false),
       startTime: z.string().trim().default(''),
       endTime: z.string().trim().default(''),
-      slotDurationMinutes: z.number().int().default(30)
+      slotDurationMinutes: z.number().int().default(30),
+      clinicId: objectIdSchema.optional().nullable(),
+      consultationMode: z.enum(['offline', 'online']).default('offline').optional()
     })).optional().default([])
   })
 });

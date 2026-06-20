@@ -282,7 +282,7 @@ const assertSlotIsBookable = async ({
 
   assertDateNotPast({ appointmentDate: normalizedDate, appointmentType });
 
-  const dayAvailability = getDayAvailability(doctor.availability || [], normalizedDate);
+  const dayAvailability = getDayAvailability(doctor.availability || [], normalizedDate, clinicId);
 
   if (!allowOutsideAvailability) {
     if (!dayAvailability) {
@@ -607,7 +607,8 @@ const getAvailableSlots = async ({ requester, query }) => {
       existingAppointments,
       blockedSlots: doctor.blockedSlots || [],
       date: appointmentDate,
-      durationMinutes: query.durationMinutes
+      durationMinutes: query.durationMinutes,
+      clinicId
     })
   };
 };

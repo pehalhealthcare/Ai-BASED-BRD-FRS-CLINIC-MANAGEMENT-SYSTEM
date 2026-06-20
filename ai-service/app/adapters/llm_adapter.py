@@ -185,6 +185,19 @@ class LLMAdapter(BaseModelAdapter):
             raise RuntimeError("LLM is disabled")
 
         if self.provider == "mock":
+            if user_prompt.startswith("image_path:"):
+                return {
+                    "name": "Rahul Sharma",
+                    "gender": "male",
+                    "dob": "1999-05-12",
+                    "age": 27,
+                    "phone": "9876543210",
+                    "email": "rahul.sharma@example.com",
+                    "address": "123 Street, New Delhi, 110001",
+                    "aadhaar_like_number": "123412341234",
+                    "document_id": None,
+                    "guardian_name": None
+                }
             payload = json.loads(user_prompt)
             task = payload.get("task")
             data = payload.get("payload", {})
@@ -201,11 +214,38 @@ class LLMAdapter(BaseModelAdapter):
             }
             base_url = self._openai_compatible_base_url()
             default_model = "openrouter/free" if base_url.endswith("openrouter.ai/api/v1") else "gpt-4o-mini"
+            
+            if user_prompt.startswith("image_path:"):
+                img_path = user_prompt.replace("image_path:", "").strip()
+                import base64
+                from pathlib import Path
+                try:
+                    with open(img_path, "rb") as image_file:
+                        base64_image = base64.b64encode(image_file.read()).decode("utf-8")
+                    suffix = Path(img_path).suffix.lower()
+                    mime_type = "image/png" if suffix == ".png" else "image/jpeg"
+                    user_content = [
+                        {
+                            "type": "text",
+                            "text": "Extract all patient registration fields from this government ID image."
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:{mime_type};base64,{base64_image}"
+                            }
+                        }
+                    ]
+                except Exception as e:
+                    user_content = f"Failed to read image for vision: {e}"
+            else:
+                user_content = user_prompt
+
             body = {
                 "model": self.model_name or default_model,
                 "messages": [
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
+                    {"role": "user", "content": user_content}
                 ]
             }
             with httpx.Client(timeout=self.timeout_seconds) as client:

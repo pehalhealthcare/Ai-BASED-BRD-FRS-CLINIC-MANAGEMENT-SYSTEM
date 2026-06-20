@@ -147,16 +147,25 @@ const updateOrganization = asyncHandler(async (req, res) => {
   if (name) organization.name = name;
   if (email) organization.email = email.toLowerCase();
   await organization.save();
-
   // Sync with Admin User
-  const adminUser = await User.findOne({ organizationId: organization._id, role: ROLES.ADMIN });
+  let adminUser = await User.findOne({ organizationId: organization._id, role: ROLES.ADMIN });
   if (adminUser) {
     if (name) adminUser.name = name;
     if (email) adminUser.email = email.toLowerCase();
     if (password) adminUser.password = password; // pre-save hook will hash it
     await adminUser.save();
+  } else {
+    // Create corresponding ADMIN user
+    adminUser = await User.create({
+      name: name || organization.name,
+      email: (email || organization.email).toLowerCase(),
+      password: password || 'Owner@12345',
+      role: ROLES.ADMIN,
+      organizationId: organization._id,
+      isActive: true,
+      approvalStatus: 'approved'
+    });
   }
-
   return sendSuccess(res, 'Organization updated successfully', { organization });
 });
 

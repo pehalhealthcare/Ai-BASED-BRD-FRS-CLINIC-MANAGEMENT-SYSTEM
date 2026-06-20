@@ -7,6 +7,8 @@ const doctorService = require('../doctors/doctor.service');
 const { generateDoctorCode } = require('../../common/utils/generateDoctorCode');
 const { AppError } = require('../../common/utils/AppError');
 const { HTTP_STATUS } = require('../../common/constants/httpStatus');
+const Clinic = require('../clinics/clinic.model');
+const Specialization = require('../specializations/specialization.model');
 
 const listBillingAnomalies = asyncHandler(async (req, res) => {
   const data = await billingAnomalyService.listBillingAnomalies({
@@ -82,6 +84,38 @@ const approveDoctor = asyncHandler(async (req, res) => {
     throw new AppError('Unauthorized access to this doctor', HTTP_STATUS.FORBIDDEN);
   }
 
+  // Find or create Doctor profile
+  let doctor = await Doctor.findOne({ userId: user._id });
+
+  // Clinic Specialization Check
+  const clinic = await Clinic.findById(clinicId);
+  if (!clinic) {
+    throw new AppError('Clinic not found', HTTP_STATUS.NOT_FOUND);
+  }
+
+  const chosenSpecialization = specialization || (doctor ? doctor.specialization : '');
+  if (!chosenSpecialization || !chosenSpecialization.trim()) {
+    throw new AppError('Specialization is required to approve the doctor profile', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  const specDoc = await Specialization.findOne({
+    name: { $regex: new RegExp(`^${chosenSpecialization.trim()}$`, 'i') },
+    isActive: true
+  });
+  if (!specDoc) {
+    throw new AppError(`Specialization "${chosenSpecialization}" is either not defined or inactive.`, HTTP_STATUS.BAD_REQUEST);
+  }
+
+  const clinicHasSpec = clinic.specializations && clinic.specializations.some(
+    (id) => id.toString() === specDoc._id.toString()
+  );
+  if (!clinicHasSpec) {
+    throw new AppError(
+      `Specialization "${chosenSpecialization}" is not assigned to the clinic "${clinic.name}". Admin can only assign the doctor to a clinic that has this specialization.`,
+      HTTP_STATUS.BAD_REQUEST
+    );
+  }
+
   if (!availability || !Array.isArray(availability) || availability.length === 0) {
     throw new AppError('Weekly availability slots must be compulsorily assigned during approval.', HTTP_STATUS.BAD_REQUEST);
   }
@@ -92,7 +126,6 @@ const approveDoctor = asyncHandler(async (req, res) => {
   }
 
   // Find or create Doctor profile
-  let doctor = await Doctor.findOne({ userId: user._id });
   const doctorCode = await generateDoctorCode(clinicId);
   const parts = user.name ? user.name.split(' ') : ['Doctor'];
   const firstName = parts[0];
@@ -113,6 +146,7 @@ const approveDoctor = asyncHandler(async (req, res) => {
 
   // Update profile with Super Admin appointed details
   doctor.clinicId = clinicId;
+  doctor.assignedClinics = [clinicId];
   doctor.doctorCode = doctorCode;
   doctor.isActive = true;
   doctor.approvalStatus = 'approved';
@@ -124,6 +158,10 @@ const approveDoctor = asyncHandler(async (req, res) => {
   if (qualification) doctor.qualification = qualification;
   if (experienceYears !== undefined) doctor.experienceYears = Number(experienceYears);
   if (consultationFee !== undefined) doctor.consultationFee = Number(consultationFee);
+  
+  // Validate timing slots & distance constraints
+  await doctorService.validateAvailabilitySlots(doctor, availability);
+  
   doctor.availability = availability;
 
   doctor.updatedBy = req.user._id;

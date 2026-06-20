@@ -45,6 +45,14 @@ const clinicSchema = new mongoose.Schema(
         type: String,
         trim: true,
         default: 'India'
+      },
+      latitude: {
+        type: Number,
+        default: null
+      },
+      longitude: {
+        type: Number,
+        default: null
       }
     },
     image: {
@@ -73,7 +81,13 @@ const clinicSchema = new mongoose.Schema(
     isActive: {
       type: Boolean,
       default: true
-    }
+    },
+    specializations: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Specialization'
+      }
+    ]
   },
   {
     collection: 'clinics',

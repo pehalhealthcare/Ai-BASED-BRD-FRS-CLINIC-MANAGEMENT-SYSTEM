@@ -74,7 +74,7 @@ router.get(
 router.patch(
   '/:id',
   protect,
-  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RECEPTIONIST),
   validate(updateDoctorSchema),
   doctorController.updateDoctor
 );

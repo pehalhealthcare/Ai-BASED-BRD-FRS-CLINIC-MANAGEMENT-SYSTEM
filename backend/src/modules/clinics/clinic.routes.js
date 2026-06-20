@@ -7,19 +7,31 @@ const clinicController = require('./clinic.controller');
 const { createClinicSchema } = require('./clinic.validator');
 
 const router = Router();
-
 router.post(
   '/',
   protect,
-  authorize(ROLES.ADMIN),
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),
   validate(createClinicSchema),
   clinicController.createClinic
 );
-
 router.get(
   '/',
   protect,
   clinicController.listClinics
+);
+
+router.get(
+  '/:id/details',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RECEPTIONIST),
+  clinicController.getClinicDetails
+);
+
+router.put(
+  '/:id',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RECEPTIONIST),
+  clinicController.updateClinic
 );
 
 module.exports = router;

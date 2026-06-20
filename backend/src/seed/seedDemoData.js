@@ -36,8 +36,8 @@ const DEMO_USERS = {
   },
   doctor: {
     name: 'Dr Aarav Mehta',
-    email: 'doctor@aicms.local',
-    password: 'Doctor@12345',
+    email: 'alpha@test.com',
+    password: 'Alpha123',
     role: ROLES.DOCTOR,
     phone: '9000000002'
   },
@@ -187,6 +187,7 @@ const seedDemoData = async () => {
       consultationFee: 500,
       availability: demoAvailability,
       blockedSlots: [],
+      approvalStatus: 'approved',
       isActive: true,
       createdBy: adminUser._id,
       updatedBy: adminUser._id
@@ -211,6 +212,7 @@ const seedDemoData = async () => {
       consultationFee: 600,
       availability: demoAvailability,
       blockedSlots: [],
+      approvalStatus: 'approved',
       isActive: true,
       createdBy: adminUser._id,
       updatedBy: adminUser._id

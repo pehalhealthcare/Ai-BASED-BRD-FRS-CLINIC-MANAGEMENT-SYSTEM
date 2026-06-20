@@ -11,7 +11,7 @@ import Avatar from '../../components/ui/Avatar';
 import Badge from '../../components/ui/Badge';
 import Modal from '../../components/ui/Modal';
 import { FullPageSpinner } from '../../components/ui/Spinner';
-import { appointmentApi, billingApi, patientApi, prescriptionApi, doctorApi } from '../../lib/api';
+import { appointmentApi, billingApi, patientApi, prescriptionApi, doctorApi, clinicApi } from '../../lib/api';
 import aiApi from '../../api/aiApi';
 import PatientDocumentOcrPanel from './PatientDocumentOcrPanel';
 
@@ -237,6 +237,7 @@ const PatientPortalPage = () => {
   const [selectedSlot, setSelectedSlot] = useState('');
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [bookingStatus, setBookingStatus] = useState('');
+  const [clinics, setClinics] = useState([]);
 
   // Profile edit state
   const [profileForm, setProfileForm] = useState({
@@ -315,16 +316,18 @@ const PatientPortalPage = () => {
       });
       setPaymentMethods(patient.paymentMethods || []);
 
-      const [apptRes, rxRes, invRes, notifRes] = await Promise.all([
+      const [apptRes, rxRes, invRes, notifRes, clinicsRes] = await Promise.all([
         appointmentApi.getAppointments({ limit: 10 }),
         prescriptionApi.getByPatient(patient._id, { status: 'finalized', limit: 10 }),
         billingApi.getPatientInvoices(patient._id, { limit: 10 }),
-        patientApi.notifications(patient._id).catch(() => ({ data: { notificationLogs: [] } }))
+        patientApi.notifications(patient._id).catch(() => ({ data: { notificationLogs: [] } })),
+        clinicApi.list().catch(() => ({ data: { clinics: [] } }))
       ]);
       setAppointments(apptRes.data?.appointments || apptRes.appointments || []);
       setPrescriptions(rxRes.data?.prescriptions || rxRes.prescriptions || []);
       setInvoices(invRes.data?.invoices || invRes.invoices || []);
       setNotifications(notifRes.data?.notificationLogs || notifRes.notificationLogs || []);
+      setClinics(clinicsRes.data?.clinics || clinicsRes.clinics || []);
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'Unable to load your patient portal.');
     } finally {
@@ -1482,6 +1485,38 @@ const PatientPortalPage = () => {
               <div className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
                 <UserCheck size={15} className="text-aura-500" />
                 <span>{selectedDoctor.experience} years of experience</span>
+              </div>
+            )}
+
+            {selectedDoctor.availability?.length > 0 && (
+              <div>
+                <SectionLabel>Weekly Timings</SectionLabel>
+                <div className="grid gap-2 mt-1 max-h-40 overflow-y-auto pr-1">
+                  {selectedDoctor.availability.filter(s => s.isAvailable).map((slot) => {
+                    const matchedClinic = clinics.find(c => c._id === (slot.clinicId?._id || slot.clinicId));
+                    return (
+                      <div key={slot.dayOfWeek || slot._id || Math.random()} className="flex justify-between items-center bg-slate-50 dark:bg-white/5 p-2.5 rounded-xl border border-slate-100 dark:border-white/10 text-xs">
+                        <span className="font-bold text-slate-800 dark:text-slate-200 capitalize">{slot.dayOfWeek}</span>
+                        <span className="text-slate-600 dark:text-slate-400 font-mono">{slot.startTime} - {slot.endTime} ({slot.slotDurationMinutes}m)</span>
+                        <div className="flex gap-1.5 items-center">
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border ${
+                            slot.consultationMode === 'online'
+                              ? 'bg-sky-50 dark:bg-sky-500/10 text-sky-800 dark:text-sky-300 border-sky-100 dark:border-sky-500/20'
+                              : 'bg-stone-100 dark:bg-white/5 text-stone-700 dark:text-stone-300 border-stone-200 dark:border-white/10'
+                          }`}>
+                            {slot.consultationMode === 'online' ? 'Online' : 'Offline'}
+                          </span>
+                          <span className="text-[10px] bg-emerald-50 dark:bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 font-bold px-2 py-0.5 rounded-lg border border-emerald-100 dark:border-emerald-500/20 max-w-[130px] truncate">
+                            {matchedClinic ? matchedClinic.name : (selectedDoctor.clinicId?.name || 'Assigned Clinic')}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {selectedDoctor.availability.filter(s => s.isAvailable).length === 0 && (
+                    <p className="text-xs text-slate-400 dark:text-slate-500 italic">No weekly practice timings configured yet.</p>
+                  )}
+                </div>
               </div>
             )}
 

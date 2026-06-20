@@ -47,7 +47,9 @@ const normalizeAvailability = (availability = []) =>
   availability.map((item) => ({
     ...item,
     dayOfWeek: normalizeDayOfWeek(item.dayOfWeek),
-    slotDurationMinutes: Number(item.slotDurationMinutes || 30)
+    slotDurationMinutes: Number(item.slotDurationMinutes || 30),
+    clinicId: item.clinicId ? String(item.clinicId) : null,
+    consultationMode: item.consultationMode || 'offline'
   }));
 
 const ensureDoctorSelfAccess = async ({ requester, clinicId, doctor }) => {
@@ -68,7 +70,16 @@ const ensureDoctorSelfAccess = async ({ requester, clinicId, doctor }) => {
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 const buildDoctorFilter = ({ clinicId, search, specialization, isActive }) => {
-  const filter = { clinicId };
+  const filter = {
+    $and: [
+      {
+        $or: [
+          { clinicId },
+          { 'availability.clinicId': clinicId }
+        ]
+      }
+    ]
+  };
 
   if (specialization) {
     filter.specialization = { $regex: escapeRegex(specialization), $options: 'i' };
@@ -80,15 +91,17 @@ const buildDoctorFilter = ({ clinicId, search, specialization, isActive }) => {
 
   if (search) {
     const pattern = new RegExp(escapeRegex(search), 'i');
-    filter.$or = [
-      { doctorCode: pattern },
-      { firstName: pattern },
-      { lastName: pattern },
-      { fullName: pattern },
-      { phone: pattern },
-      { email: pattern },
-      { specialization: pattern }
-    ];
+    filter.$and.push({
+      $or: [
+        { doctorCode: pattern },
+        { firstName: pattern },
+        { lastName: pattern },
+        { fullName: pattern },
+        { phone: pattern },
+        { email: pattern },
+        { specialization: pattern }
+      ]
+    });
   }
 
   return filter;
@@ -99,7 +112,14 @@ const getScopedDoctor = async ({ requester, doctorId, requestedClinicId = null }
     user: requester,
     requestedClinicId
   });
-  const doctor = await doctorRepository.findDoctorByIdAndClinic({ doctorId, clinicId });
+  
+  const Doctor = require('./doctor.model');
+  let doctor;
+  if (requester.role === ROLES.RECEPTIONIST) {
+    doctor = await Doctor.findOne({ _id: doctorId, organizationId: requester.organizationId });
+  } else {
+    doctor = await doctorRepository.findDoctorByIdAndClinic({ doctorId, clinicId });
+  }
 
   if (!doctor) {
     throw new AppError('Doctor not found', HTTP_STATUS.NOT_FOUND);
@@ -114,9 +134,14 @@ const createDoctor = async ({ requester, payload, requestedClinicId = null, req 
     requestedClinicId: requestedClinicId || payload.clinicId
   });
 
+  const assignedClinics = payload.assignedClinics && payload.assignedClinics.length > 0
+    ? payload.assignedClinics
+    : [clinicId];
+
   const doctor = await doctorRepository.createDoctor({
     ...payload,
     clinicId,
+    assignedClinics,
     availability: normalizeAvailability(payload.availability || []),
     doctorCode: await generateDoctorCode(clinicId),
     createdBy: requester._id,
@@ -197,6 +222,19 @@ const updateDoctor = async ({ requester, doctorId, payload, requestedClinicId = 
 
   const { image, documentPdf, ...otherPayload } = payload;
 
+  if (otherPayload.clinicId) {
+    const currentAssigned = otherPayload.assignedClinics || doctor.assignedClinics || [];
+    const assignedStr = currentAssigned.map((id) => id.toString());
+    if (!assignedStr.includes(otherPayload.clinicId.toString())) {
+      otherPayload.assignedClinics = [...currentAssigned, otherPayload.clinicId];
+    }
+  } else if (
+    otherPayload.assignedClinics &&
+    !otherPayload.assignedClinics.map((id) => id.toString()).includes(doctor.clinicId.toString())
+  ) {
+    otherPayload.assignedClinics = [...otherPayload.assignedClinics, doctor.clinicId];
+  }
+
   let availabilityChanged = false;
   let newAvailability = doctor.availability;
   if (payload.availability) {
@@ -207,6 +245,7 @@ const updateDoctor = async ({ requester, doctorId, payload, requestedClinicId = 
     if (activeSlots.length === 0) {
       throw new AppError('At least one weekly slot must be marked as available.', HTTP_STATUS.BAD_REQUEST);
     }
+    await validateAvailabilitySlots(doctor, payload.availability);
     newAvailability = normalizeAvailability(payload.availability);
     doctor.hasAcceptedSlot = false;
     availabilityChanged = true;
@@ -249,6 +288,8 @@ const updateDoctorAvailability = async ({ requester, doctorId, availability, req
   if (activeSlots.length === 0) {
     throw new AppError('At least one weekly slot must be marked as available.', HTTP_STATUS.BAD_REQUEST);
   }
+
+  await validateAvailabilitySlots(doctor, availability);
 
   doctor.availability = normalizeAvailability(availability);
   doctor.hasAcceptedSlot = false;
@@ -395,7 +436,11 @@ const updateMyProfile = async ({ requester, payload }) => {
     'consultationFee',
     'followUpFee',
     'isOnlineAvailable',
-    'organizationId'
+    'organizationId',
+    'currentAddress',
+    'permanentAddress',
+    'preferredPracticeLocation',
+    'phone'
   ];
 
   for (const field of allowedFields) {
@@ -437,7 +482,11 @@ const submitMyProfile = async ({ requester, payload }) => {
     'consultationFee',
     'followUpFee',
     'isOnlineAvailable',
-    'organizationId'
+    'organizationId',
+    'currentAddress',
+    'permanentAddress',
+    'preferredPracticeLocation',
+    'phone'
   ];
 
   for (const field of allowedFields) {
@@ -502,6 +551,150 @@ const acceptMySlot = async ({ requester }) => {
   return resolveDoctorFiles(doctor);
 };
 
+const validateAvailabilitySlots = async (doctor, availability) => {
+  const activeSlots = availability.filter((a) => a.isAvailable);
+  if (activeSlots.length === 0) return;
+
+  const Clinic = require('../clinics/clinic.model');
+  const primaryClinicId = doctor.clinicId;
+  if (!primaryClinicId) return; // Doctor must have a primary clinic assigned
+
+  // Fetch coordinates for all clinics involved
+  const clinicIds = Array.from(new Set([
+    primaryClinicId.toString(),
+    ...activeSlots.map((s) => s.clinicId ? s.clinicId.toString() : null).filter(Boolean)
+  ]));
+
+  const clinics = await Clinic.find({ _id: { $in: clinicIds } });
+  const clinicsMap = clinics.reduce((acc, c) => {
+    acc[c._id.toString()] = c;
+    return acc;
+  }, {});
+
+  const primaryClinic = clinicsMap[primaryClinicId.toString()];
+  if (!primaryClinic) return;
+
+  const lat1 = primaryClinic.address?.latitude;
+  const lon1 = primaryClinic.address?.longitude;
+
+  // Haversine distance helper
+  const calculateDistance = (la1, lo1, la2, lo2) => {
+    if (
+      la1 === null || lo1 === null || la2 === null || lo2 === null ||
+      la1 === undefined || lo1 === undefined || la2 === undefined || lo2 === undefined
+    ) {
+      return null;
+    }
+    const R = 6371; // km
+    const dLat = ((la2 - la1) * Math.PI) / 180;
+    const dLon = ((lo2 - lo1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((la1 * Math.PI) / 180) *
+        Math.cos((la2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
+  const assignedClinics = doctor.assignedClinics || [primaryClinicId];
+  const assignedClinicsStr = assignedClinics.map((id) => id.toString());
+
+  for (const slot of activeSlots) {
+    if (!slot.clinicId) continue;
+
+    if (!assignedClinicsStr.includes(slot.clinicId.toString())) {
+      const slotClinic = clinicsMap[slot.clinicId.toString()];
+      throw new AppError(
+        `Doctor is not assigned to the clinic "${slotClinic?.name || 'Clinic'}". You must assign this clinic to the doctor first.`,
+        HTTP_STATUS.BAD_REQUEST
+      );
+    }
+
+    const slotClinic = clinicsMap[slot.clinicId.toString()];
+    if (!slotClinic) continue;
+
+    const lat2 = slotClinic.address?.latitude;
+    const lon2 = slotClinic.address?.longitude;
+
+    const distance = calculateDistance(lat1, lon1, lat2, lon2);
+    if (distance !== null) {
+      if (distance > 15) {
+        if (slot.consultationMode !== 'online') {
+          throw new AppError(
+            `Clinic ${slotClinic.name} is ${distance.toFixed(1)} km away (> 15 km). The consultation schedule must be conducted in online mode.`,
+            HTTP_STATUS.BAD_REQUEST
+          );
+        }
+      }
+    }
+  }
+
+  // 2. Distance check (> 25 km) between any scheduled clinics on the same day
+  const slotsByDay = activeSlots.reduce((acc, slot) => {
+    if (!acc[slot.dayOfWeek]) acc[slot.dayOfWeek] = [];
+    acc[slot.dayOfWeek].push(slot);
+    return acc;
+  }, {});
+
+  for (const day of Object.keys(slotsByDay)) {
+    const daySlots = slotsByDay[day];
+    if (daySlots.length <= 1) continue;
+
+    for (let i = 0; i < daySlots.length; i++) {
+      for (let j = i + 1; j < daySlots.length; j++) {
+        const s1 = daySlots[i];
+        const s2 = daySlots[j];
+        if (s1.clinicId && s2.clinicId && String(s1.clinicId) !== String(s2.clinicId)) {
+          const c1 = clinicsMap[s1.clinicId.toString()];
+          const c2 = clinicsMap[s2.clinicId.toString()];
+          if (c1 && c2) {
+            const latA = c1.address?.latitude || 0;
+            const lonA = c1.address?.longitude || 0;
+            const latB = c2.address?.latitude || 0;
+            const lonB = c2.address?.longitude || 0;
+            const d = calculateDistance(latA, lonA, latB, lonB);
+            if (d !== null && d > 25) {
+              const isS1Primary = String(s1.clinicId) === String(primaryClinicId);
+              const targetSlot = isS1Primary ? s2 : s1;
+              targetSlot.consultationMode = 'online';
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // 3. Gap constraint validations (at least 1h 30m / 90 minutes) on the same day
+  const { parseTimeToMinutes } = require('../../common/utils/slotUtils');
+
+  for (const day of Object.keys(slotsByDay)) {
+    const daySlots = slotsByDay[day];
+    if (daySlots.length <= 1) continue;
+
+    // Sort slots by startTime
+    daySlots.sort((a, b) => parseTimeToMinutes(a.startTime) - parseTimeToMinutes(b.startTime));
+
+    for (let i = 0; i < daySlots.length - 1; i++) {
+      const currentSlot = daySlots[i];
+      const nextSlot = daySlots[i + 1];
+
+      const currentEnd = parseTimeToMinutes(currentSlot.endTime);
+      const nextStart = parseTimeToMinutes(nextSlot.startTime);
+
+      if (nextStart - currentEnd < 90) {
+        const currentClinicName = clinicsMap[currentSlot.clinicId?.toString()]?.name || 'Clinic';
+        const nextClinicName = clinicsMap[nextSlot.clinicId?.toString()]?.name || 'Clinic';
+        throw new AppError(
+          `There must be a gap of at least 1 hour 30 minutes between sessions on ${day} (${currentClinicName} ends at ${currentSlot.endTime}, ${nextClinicName} starts at ${nextSlot.startTime}).`,
+          HTTP_STATUS.BAD_REQUEST
+        );
+      }
+    }
+  }
+};
+
 module.exports = {
   createDoctor,
   listDoctors,
@@ -515,5 +708,6 @@ module.exports = {
   updateMyProfile,
   submitMyProfile,
   acceptMySlot,
-  resolveDoctorFiles
+  resolveDoctorFiles,
+  validateAvailabilitySlots
 };

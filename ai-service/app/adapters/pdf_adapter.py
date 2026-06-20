@@ -20,6 +20,31 @@ class PDFAdapter(BaseModelAdapter):
         path = Path(file_path)
 
         try:
+            import pdfplumber
+            with pdfplumber.open(str(path)) as pdf:
+                raw_text_parts = []
+                for page in pdf.pages[:self.max_pages]:
+                    txt = page.extract_text()
+                    if txt:
+                        raw_text_parts.append(txt)
+                raw_text = "\n\n".join(raw_text_parts).strip()
+            if raw_text:
+                return AdapterResult(
+                    output={
+                        "raw_text": raw_text,
+                        "pages": [{"page_number": i, "text": t, "confidence": 1.0} for i, t in enumerate(raw_text_parts, start=1)],
+                        "blocks": [],
+                        "language": language or "en",
+                    },
+                    confidence=1.0,
+                    explanation="Extracted text directly from digital PDF.",
+                    risk_level="low",
+                    model_status="available",
+                )
+        except Exception:
+            pass
+
+        try:
             from pdf2image import convert_from_path
         except Exception:
             try:

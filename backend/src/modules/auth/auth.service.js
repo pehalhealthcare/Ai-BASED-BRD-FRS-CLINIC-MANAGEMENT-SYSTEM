@@ -181,9 +181,43 @@ const logout = () => ({
   message: 'Logout successful'
 });
 
+const resetPassword = async (payload, req) => {
+  const { email, password } = payload;
+
+  const User = require('../users/user.model');
+  const user = await User.findOne({ email: email.toLowerCase() });
+
+  if (!user) {
+    throw new AppError('User not found with this email address', HTTP_STATUS.NOT_FOUND);
+  }
+
+  // TODO: FUTURE SECURITY INTEGRATION
+  // ---------------------------------
+  // At this point in a production environment, before allowing a password reset,
+  // you must verify the user's identity. For example:
+  // 1. Verify a one-time OTP sent to their registered phone number/email.
+  // 2. Validate a cryptographically secure token sent via a password reset email.
+  // 3. Perform security questions or MFA verification.
+  // 4. Ensure the request is within a valid time window and has not been expired/revoked.
+
+  user.password = password;
+  await user.save();
+
+  await logAuthEvent({
+    actorUserId: user._id,
+    action: 'USER_PASSWORD_RESET',
+    status: 'SUCCESS',
+    req,
+    metadata: { email }
+  });
+
+  return { message: 'Password updated successfully' };
+};
+
 module.exports = {
   register,
   login,
   getCurrentUser,
-  logout
+  logout,
+  resetPassword
 };

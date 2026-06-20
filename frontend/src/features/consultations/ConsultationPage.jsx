@@ -429,7 +429,7 @@ const ConsultationPage = () => {
   };
 
   const handleUploadVoiceNote = async () => {
-    if (!consultation?._id || !selectedAudioFile) {
+    if (!consultation?._id) {
       return;
     }
 
@@ -437,13 +437,24 @@ const ConsultationPage = () => {
     setError('');
 
     try {
-      const formData = new FormData();
-      formData.append('file', selectedAudioFile);
-      formData.append('language', form.voiceNoteLanguage || 'auto');
-      const response = await uploadConsultationVoiceNote(consultation._id, formData);
-      applyConsultationToState({ consultation: response.data.consultation });
+      if (form.transcript_text && form.transcript_text.trim()) {
+        const response = await formatClinicalNote(consultation._id, {
+          rawNote: form.transcript_text,
+          format: 'SOAP',
+          save: true
+        });
+        applyConsultationToState({ consultation: response.data.consultation });
+      } else if (selectedAudioFile) {
+        const formData = new FormData();
+        formData.append('file', selectedAudioFile);
+        formData.append('language', form.voiceNoteLanguage || 'auto');
+        const response = await uploadConsultationVoiceNote(consultation._id, formData);
+        applyConsultationToState({ consultation: response.data.consultation });
+      } else {
+        throw new Error('Please record or choose an audio file first.');
+      }
     } catch (requestError) {
-      setError(requestError.response?.data?.message || 'Unable to process the voice note.');
+      setError(requestError.response?.data?.message || requestError.message || 'Unable to process the voice note.');
     } finally {
       setVoiceUploading(false);
     }

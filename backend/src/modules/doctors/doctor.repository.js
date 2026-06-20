@@ -2,7 +2,7 @@ const Doctor = require('./doctor.model');
 
 const createDoctor = (payload) => Doctor.create(payload);
 
-const findDoctorByIdAndClinic = ({ doctorId, clinicId }) => Doctor.findOne({ _id: doctorId, clinicId });
+const findDoctorByIdAndClinic = ({ doctorId, clinicId }) => Doctor.findOne({ _id: doctorId, $or: [{ clinicId }, { assignedClinics: clinicId }] });
 
 const findDoctorByUserIdAndClinic = ({ userId, clinicId }) => Doctor.findOne({ userId, clinicId, isActive: true });
 

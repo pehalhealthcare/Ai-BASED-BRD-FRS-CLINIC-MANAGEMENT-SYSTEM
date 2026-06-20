@@ -42,7 +42,15 @@ const loginSchema = z.object({
   })
 });
 
+const resetPasswordSchema = z.object({
+  body: z.object({
+    email: emailSchema,
+    password: passwordSchema
+  })
+});
+
 module.exports = {
   registerSchema,
-  loginSchema
+  loginSchema,
+  resetPasswordSchema
 };

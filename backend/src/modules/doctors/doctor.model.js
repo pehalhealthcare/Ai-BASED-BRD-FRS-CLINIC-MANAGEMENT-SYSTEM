@@ -26,6 +26,17 @@ const availabilitySchema = new mongoose.Schema(
       enum: [15, 30, 45, 60],
       default: 30
     },
+    clinicId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Clinic',
+      required: false,
+      default: null
+    },
+    consultationMode: {
+      type: String,
+      enum: ['offline', 'online'],
+      default: 'offline'
+    },
     isActive: {
       type: Boolean,
       default: true
@@ -71,6 +82,12 @@ const doctorSchema = new mongoose.Schema(
       required: false,
       default: null
     },
+    assignedClinics: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Clinic'
+      }
+    ],
     organizationId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Organization',
@@ -159,6 +176,32 @@ const doctorSchema = new mongoose.Schema(
     documentPdf: {
       type: String,
       default: ''
+    },
+    currentAddress: {
+      line1: { type: String, trim: true, default: '' },
+      line2: { type: String, trim: true, default: '' },
+      city: { type: String, trim: true, default: '' },
+      state: { type: String, trim: true, default: '' },
+      pincode: { type: String, trim: true, default: '' },
+      country: { type: String, trim: true, default: 'India' },
+      latitude: { type: Number, default: null },
+      longitude: { type: Number, default: null }
+    },
+    permanentAddress: {
+      line1: { type: String, trim: true, default: '' },
+      line2: { type: String, trim: true, default: '' },
+      city: { type: String, trim: true, default: '' },
+      state: { type: String, trim: true, default: '' },
+      pincode: { type: String, trim: true, default: '' },
+      country: { type: String, trim: true, default: 'India' },
+      latitude: { type: Number, default: null },
+      longitude: { type: Number, default: null }
+    },
+    preferredPracticeLocation: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Clinic',
+      required: false,
+      default: null
     },
     approvalStatus: {
       type: String,

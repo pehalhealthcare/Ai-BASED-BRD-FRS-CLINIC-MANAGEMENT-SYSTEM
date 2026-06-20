@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import LoadingState from '../../components/common/LoadingState';
 import ErrorState from '../../components/common/ErrorState';
-import { doctorApi, specializationApi, organizationApi } from '../../lib/api';
+import { doctorApi, specializationApi, organizationApi, clinicApi } from '../../lib/api';
+import { OpenStreetMapProvider } from 'leaflet-geosearch';
+import MapPicker from '../../components/common/MapPicker';
 
 const FIELD_CLASS =
-  'w-full rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 text-stone-900 dark:text-stone-100 bg-white dark:bg-stone-800';
+  'w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 text-black';
 
 const StepsProgress = ({ currentStatus }) => {
   const steps = [
@@ -51,12 +53,251 @@ const StepsProgress = ({ currentStatus }) => {
   );
 };
 
+// Dynamic Map Component using Leaflet via CDN
+const DynamicMap = ({ id, lat, lng, onChange }) => {
+  const [mapLoaded, setMapLoaded] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  
+  const mapInstanceRef = window.useRef ? window.useRef(null) : { current: null };
+  const markerRef = window.useRef ? window.useRef(null) : { current: null };
+
+  // Re-declare refs if window.useRef isn't accessible directly in global scope
+  const localMapRef = useEffect ? null : {}; 
+
+  useEffect(() => {
+    let active = true;
+    const loadLeaflet = () => {
+      if (window.L) {
+        if (active) setMapLoaded(true);
+        return;
+      }
+      // CSS
+      if (!document.getElementById('leaflet-css')) {
+        const link = document.createElement('link');
+        link.id = 'leaflet-css';
+        link.rel = 'stylesheet';
+        link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+        document.head.appendChild(link);
+      }
+      // JS
+      if (!document.getElementById('leaflet-js')) {
+        const script = document.createElement('script');
+        script.id = 'leaflet-js';
+        script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+        script.onload = () => {
+          if (active) setMapLoaded(true);
+        };
+        document.head.appendChild(script);
+      } else {
+        const interval = setInterval(() => {
+          if (window.L) {
+            clearInterval(interval);
+            if (active) setMapLoaded(true);
+          }
+        }, 100);
+      }
+    };
+    loadLeaflet();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!mapLoaded) return;
+    
+    const container = document.getElementById(id);
+    if (!container) return;
+
+    let mapInstance;
+    const defaultCoords = lat && lng ? [lat, lng] : [20.5937, 78.9629];
+    const defaultZoom = lat && lng ? 15 : 5;
+
+    try {
+      mapInstance = window.L.map(id).setView(defaultCoords, defaultZoom);
+      container._leaflet_map = mapInstance;
+
+      window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap'
+      }).addTo(mapInstance);
+
+      let marker;
+      if (lat && lng) {
+        marker = window.L.marker([lat, lng], { draggable: true }).addTo(mapInstance);
+        container._leaflet_marker = marker;
+        marker.on('dragend', function () {
+          const position = marker.getLatLng();
+          onChange(position.lat, position.lng);
+        });
+      }
+
+      mapInstance.on('click', function (e) {
+        const { lat: clickLat, lng: clickLng } = e.latlng;
+        let activeMarker = container._leaflet_marker;
+        if (activeMarker) {
+          activeMarker.setLatLng(e.latlng);
+        } else {
+          activeMarker = window.L.marker(e.latlng, { draggable: true }).addTo(mapInstance);
+          container._leaflet_marker = activeMarker;
+          activeMarker.on('dragend', function () {
+            const position = activeMarker.getLatLng();
+            onChange(position.lat, position.lng);
+          });
+        }
+        onChange(clickLat, clickLng);
+      });
+
+    } catch (e) {
+      console.warn('Leaflet map initialization warning:', e);
+    }
+
+    return () => {
+      if (mapInstance) {
+        mapInstance.off();
+        mapInstance.remove();
+      }
+    };
+  }, [mapLoaded, id]);
+
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    if (!searchQuery) return;
+    try {
+      const provider = new OpenStreetMapProvider({
+        params: {
+          countrycodes: 'in',
+          addressdetails: 1,
+          limit: 10
+        }
+      });
+      const results = await provider.search({ query: searchQuery });
+      setSearchResults(results || []);
+      if (!results || results.length === 0) {
+        alert('No locations found for this query. Try adding road, locality, city or bank branch details.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error searching for location.');
+    }
+  };
+
+  const selectResult = (item) => {
+    const container = document.getElementById(id);
+    if (!container || !container._leaflet_map) return;
+    
+    const parsedLat = parseFloat(item.y);
+    const parsedLng = parseFloat(item.x);
+    
+    container._leaflet_map.setView([parsedLat, parsedLng], 16);
+    
+    let activeMarker = container._leaflet_marker;
+    if (activeMarker) {
+      activeMarker.setLatLng([parsedLat, parsedLng]);
+    } else {
+      activeMarker = window.L.marker([parsedLat, parsedLng], { draggable: true }).addTo(container._leaflet_map);
+      container._leaflet_marker = activeMarker;
+      activeMarker.on('dragend', function () {
+        const position = activeMarker.getLatLng();
+        onChange(position.lat, position.lng);
+      });
+    }
+    onChange(parsedLat, parsedLng);
+    setSearchResults([]);
+  };
+
+  return (
+    <div className="space-y-2 mt-2">
+      <div className="flex gap-2">
+        <input
+          type="text"
+          placeholder="Search any road, locality, bank branch, landmark..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="flex-1 rounded-xl border border-stone-300 px-3 py-2 text-xs text-stone-900 bg-white dark:bg-stone-850 dark:text-grey-600 outline-none focus:border-emerald-500"
+        />
+        <button
+          type="button"
+          onClick={handleSearch}
+          className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl px-4 py-2 text-xs font-semibold shrink-0"
+        >
+          Search Map
+        </button>
+      </div>
+
+      {searchResults.length > 0 && (
+        <div className="bg-white border border-stone-200 rounded-2xl p-2 max-h-48 overflow-y-auto space-y-1 shadow-lg z-20 relative">
+          <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider mb-1 px-1">Matching Locations:</p>
+          {searchResults.map((result, idx) => (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => selectResult(result)}
+              className="w-full text-left px-2 py-1.5 hover:bg-stone-50 text-xs text-stone-700 rounded transition-colors block border-b border-stone-100 last:border-0"
+            >
+              {result.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div id={id} style={{ height: '220px' }} className="w-full rounded-2xl border border-stone-250 overflow-hidden z-10 relative">
+        {!mapLoaded && (
+          <div className="absolute inset-0 flex items-center justify-center bg-stone-50 text-xs text-stone-500 font-semibold">
+            Loading Map...
+          </div>
+        )}
+      </div>
+      {lat && lng ? (
+        <p className="text-[10px] text-emerald-600 font-mono font-semibold">
+          Coordinates Selected: {lat.toFixed(6)}, {lng.toFixed(6)}
+        </p>
+      ) : (
+        <p className="text-[10px] text-rose-500 italic">
+          * Click on the map or search to pinpoint exact location.
+        </p>
+      )}
+    </div>
+  );
+};
+
 const DoctorOnboarding = ({ onProfileStatusChange }) => {
+  const [mapOpenFor, setMapOpenFor] = useState(null); // 'current' | 'permanent' | null
+  const openMap = (type) => setMapOpenFor(type);
+  const closeMap = () => setMapOpenFor(null);
+  const handleMapSelect = (addr) => {
+    if (mapOpenFor === 'current') {
+      setCurrentAddress(prev => ({
+        ...prev,
+        line1: prev.line1 || addr.line1,
+        city:  prev.city  || addr.city,
+        state: prev.state || addr.state,
+        pincode: prev.pincode || addr.pincode,
+        latitude: addr.latitude,
+        longitude: addr.longitude,
+      }));
+    } else if (mapOpenFor === 'permanent') {
+      setPermanentAddress(prev => ({
+        ...prev,
+        line1: prev.line1 || addr.line1,
+        city:  prev.city  || addr.city,
+        state: prev.state || addr.state,
+        pincode: prev.pincode || addr.pincode,
+        latitude: addr.latitude,
+        longitude: addr.longitude,
+      }));
+    }
+    closeMap();
+  };
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [specializationsList, setSpecializationsList] = useState([]);
+
+  // Form step
+  const [formStep, setFormStep] = useState(1);
 
   // Form states
   const [specialization, setSpecialization] = useState('');
@@ -72,18 +313,46 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
   const [documentPdf, setDocumentPdf] = useState('');
   const [pdfName, setPdfName] = useState('');
 
+  // Step 3 Personal Address States
+  const [currentAddress, setCurrentAddress] = useState({
+    line1: '',
+    line2: '',
+    city: '',
+    state: '',
+    pincode: '',
+    country: 'India',
+    latitude: null,
+    longitude: null
+  });
+  const [permanentAddress, setPermanentAddress] = useState({
+    line1: '',
+    line2: '',
+    city: '',
+    state: '',
+    pincode: '',
+    country: 'India',
+    latitude: null,
+    longitude: null
+  });
+  const [isSameAddress, setIsSameAddress] = useState(false);
+  const [preferredPracticeLocation, setPreferredPracticeLocation] = useState('');
+  const [clinics, setClinics] = useState([]);
+  const [orgClinics, setOrgClinics] = useState([]);
+
   const loadProfile = async () => {
     try {
-      const [profileRes, specsRes, orgsRes] = await Promise.all([
+      const [profileRes, specsRes, orgsRes, clinicsRes] = await Promise.all([
         doctorApi.getMyProfile(),
         specializationApi.list(),
-        organizationApi.getPublic()
+        organizationApi.getPublic(),
+        clinicApi.list().catch(() => ({ clinics: [] }))
       ]);
       
       const doc = profileRes.data?.doctor;
       setProfile(doc);
       setSpecializationsList(specsRes.data?.specializations || []);
       setOrganizations(orgsRes.data?.organizations || []);
+      setClinics(clinicsRes.data?.clinics || clinicsRes.clinics || []);
 
       if (doc) {
         setSpecialization(doc.specialization || '');
@@ -99,6 +368,31 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
         if (doc.documentPdf) {
           setPdfName('Uploaded_Document.pdf');
         }
+        if (doc.currentAddress) {
+          setCurrentAddress({
+            line1: doc.currentAddress.line1 || '',
+            line2: doc.currentAddress.line2 || '',
+            city: doc.currentAddress.city || '',
+            state: doc.currentAddress.state || '',
+            pincode: doc.currentAddress.pincode || '',
+            country: doc.currentAddress.country || 'India',
+            latitude: doc.currentAddress.latitude || null,
+            longitude: doc.currentAddress.longitude || null
+          });
+        }
+        if (doc.permanentAddress) {
+          setPermanentAddress({
+            line1: doc.permanentAddress.line1 || '',
+            line2: doc.permanentAddress.line2 || '',
+            city: doc.permanentAddress.city || '',
+            state: doc.permanentAddress.state || '',
+            pincode: doc.permanentAddress.pincode || '',
+            country: doc.permanentAddress.country || 'India',
+            latitude: doc.permanentAddress.latitude || null,
+            longitude: doc.permanentAddress.longitude || null
+          });
+        }
+        setPreferredPracticeLocation(doc.preferredPracticeLocation || '');
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to fetch onboarding context.');
@@ -110,6 +404,21 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
   useEffect(() => {
     loadProfile();
   }, []);
+
+  useEffect(() => {
+    if (organizationId) {
+      const filtered = clinics.filter(c => c.organizationId === organizationId);
+      setOrgClinics(filtered);
+    } else {
+      setOrgClinics([]);
+    }
+  }, [organizationId, clinics]);
+
+  useEffect(() => {
+    if (isSameAddress) {
+      setPermanentAddress({ ...currentAddress });
+    }
+  }, [isSameAddress, currentAddress]);
 
   const currentStatus = profile?.approvalStatus || 'pending_profile';
 
@@ -152,7 +461,10 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
     isOnlineAvailable,
     image,
     documentPdf,
-    organizationId
+    organizationId,
+    currentAddress,
+    permanentAddress,
+    preferredPracticeLocation
   });
 
   const handleSaveDraft = async () => {
@@ -168,17 +480,50 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     setSuccessMsg('');
     setError('');
 
     if (!organizationId) {
-      setError('Organization selection is required.');
+      setError('Organization selection is required in Step 1.');
+      setFormStep(1);
       return;
     }
 
     if (!documentPdf) {
-      setError('Compulsory registration documents (PDF) must be uploaded.');
+      setError('Compulsory registration documents (PDF) must be uploaded in Step 2.');
+      setFormStep(2);
+      return;
+    }
+
+    // Step 3 validations
+    if (!currentAddress.line1 || !currentAddress.city || !currentAddress.state || !currentAddress.pincode) {
+      setError('Please fill in all current address details.');
+      setFormStep(3);
+      return;
+    }
+
+    if (!currentAddress.latitude || !currentAddress.longitude) {
+      setError('Please choose your current address exact coordinates on the map.');
+      setFormStep(3);
+      return;
+    }
+
+    if (!permanentAddress.line1 || !permanentAddress.city || !permanentAddress.state || !permanentAddress.pincode) {
+      setError('Please fill in all permanent address details.');
+      setFormStep(3);
+      return;
+    }
+
+    if (!permanentAddress.latitude || !permanentAddress.longitude) {
+      setError('Please choose your permanent address exact coordinates on the map.');
+      setFormStep(3);
+      return;
+    }
+
+    if (!preferredPracticeLocation) {
+      setError('Preferred practice location branch selection is required.');
+      setFormStep(3);
       return;
     }
 
@@ -205,6 +550,22 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
     }
   };
 
+  const getGoogleMapsUrl = (clinic) => {
+    const addr = clinic.address || {};
+    if (addr.latitude && addr.longitude) {
+      return `https://www.google.com/maps/dir/?api=1&destination=${addr.latitude},${addr.longitude}`;
+    }
+    const query = `${clinic.name}, ${addr.line1 || ''}, ${addr.city || ''}`;
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+  };
+
+  const getClinicImage = (clinic) => {
+    if (clinic.image && (clinic.image.startsWith('data:') || clinic.image.startsWith('http') || clinic.image.startsWith('gridfs:'))) {
+      return clinic.image;
+    }
+    return 'https://images.unsplash.com/photo-1586773860418-d3b34998c66c?auto=format&fit=crop&w=400&q=80';
+  };
+
   if (loading) {
     return <LoadingState label="Loading onboarding wizard..." />;
   }
@@ -213,13 +574,11 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
     return <ErrorState title="Dashboard Offline" description={error} />;
   }
 
-  // Approved but slot not accepted yet -> Celebration screen!
   if (currentStatus === 'approved' && !profile?.hasAcceptedSlot) {
     const clinic = profile.clinicId || {};
 
     return (
       <div className="max-w-2xl mx-auto my-12 p-8 rounded-3xl bg-white border border-stone-200 shadow-2xl text-center relative overflow-hidden">
-        {/* Confetti/Stars visual simulation */}
         <div className="absolute top-0 inset-x-0 h-2 bg-gradient-to-r from-emerald-400 via-teal-500 to-indigo-500"></div>
         
         <div className="w-24 h-24 mx-auto rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100 mb-6 animate-bounce">
@@ -277,7 +636,6 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
 
   return (
     <div className="max-w-3xl mx-auto my-6 p-6 md:p-8 rounded-3xl bg-white border border-stone-200 shadow-xl">
-      {/* Steps Visual Header */}
       <StepsProgress currentStatus={currentStatus} />
 
       <div className="mb-8 border-b border-stone-100 pb-5">
@@ -316,190 +674,518 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
           </p>
         </div>
       ) : (
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Section 1: Professional info */}
-          <div>
-            <h3 className="text-sm font-bold text-stone-400 uppercase tracking-wider mb-4">1. Professional Credentials</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="md:col-span-2">
-                <label className="block text-xs font-semibold text-stone-600 mb-1">
-                  Select Organization to Join {hasReEditError('organizationId') && <span className="text-rose-500 font-bold">*</span>}
-                </label>
-                <select
-                  required
-                  value={organizationId}
-                  onChange={(e) => setOrganizationId(e.target.value)}
-                  className={getFieldClass('organizationId')}
-                >
-                  <option value="" disabled>Choose an organization to join...</option>
-                  {organizations.map((org) => (
-                    <option key={org._id} value={org._id}>
-                      {org.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+        <div>
+          {/* Inner step navigator tabs for interactive wizard feel */}
+          <div className="flex border-b border-stone-200 mb-6 text-xs md:text-sm">
+            <button
+              onClick={() => setFormStep(1)}
+              className={`flex-1 pb-3 text-center font-bold transition-all border-b-2 ${
+                formStep === 1 ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-stone-400 hover:text-stone-600'
+              }`}
+            >
+              1. Credentials & Fees
+            </button>
+            <button
+              onClick={() => setFormStep(2)}
+              className={`flex-1 pb-3 text-center font-bold transition-all border-b-2 ${
+                formStep === 2 ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-stone-400 hover:text-stone-600'
+              }`}
+            >
+              2. Upload Documents
+            </button>
+            <button
+              onClick={() => setFormStep(3)}
+              className={`flex-1 pb-3 text-center font-bold transition-all border-b-2 ${
+                formStep === 3 ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-stone-400 hover:text-stone-600'
+              }`}
+            >
+              3. Address & Practice Venue
+            </button>
+          </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-stone-600 mb-1">
-                  Medical Registration Number {hasReEditError('medicalRegistrationNumber') && <span className="text-rose-500 font-bold">*</span>}
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. MCI-12345"
-                  value={medicalRegistrationNumber}
-                  onChange={(e) => setMedicalRegistrationNumber(e.target.value)}
-                  className={getFieldClass('medicalRegistrationNumber')}
-                />
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Step 1 Form Fields */}
+            {formStep === 1 && (
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-sm font-bold text-stone-400 uppercase tracking-wider mb-4">Professional Credentials</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="md:col-span-2">
+                      <label className="block text-xs font-semibold text-stone-600 mb-1">
+                        Select Organization to Join {hasReEditError('organizationId') && <span className="text-rose-500 font-bold">*</span>}
+                      </label>
+                      <select
+                        required
+                        value={organizationId}
+                        onChange={(e) => setOrganizationId(e.target.value)}
+                        className={getFieldClass('organizationId')}
+                      >
+                        <option value="" disabled>Choose an organization to join...</option>
+                        {organizations.map((org) => (
+                          <option key={org._id} value={org._id}>
+                            {org.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-600 mb-1">
+                        Medical Registration Number {hasReEditError('medicalRegistrationNumber') && <span className="text-rose-500 font-bold">*</span>}
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. MCI-12345"
+                        value={medicalRegistrationNumber}
+                        onChange={(e) => setMedicalRegistrationNumber(e.target.value)}
+                        className={getFieldClass('medicalRegistrationNumber')}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-600 mb-1">
+                        Specialization {hasReEditError('specialization') && <span className="text-rose-500 font-bold">*</span>}
+                      </label>
+                      <select
+                        required
+                        value={specialization}
+                        onChange={(e) => setSpecialization(e.target.value)}
+                        className={getFieldClass('specialization')}
+                      >
+                        <option value="" disabled>Choose allowed specialty...</option>
+                        {specializationsList.map((spec) => (
+                          <option key={spec._id} value={spec.name}>
+                            {spec.name}
+                          </option>
+                        ))}
+                        {specialization && !specializationsList.some((s) => s.name === specialization) && (
+                          <option value={specialization}>{specialization}</option>
+                        )}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-600 mb-1">
+                        Qualification {hasReEditError('qualification') && <span className="text-rose-500 font-bold">*</span>}
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. MBBS, MD"
+                        value={qualification}
+                        onChange={(e) => setQualification(e.target.value)}
+                        className={getFieldClass('qualification')}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-600 mb-1">Years of Experience</label>
+                      <input
+                        type="number"
+                        min="0"
+                        required
+                        value={experienceYears}
+                        onChange={(e) => setExperienceYears(e.target.value)}
+                        className={getFieldClass('experienceYears')}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-sm font-bold text-stone-400 uppercase tracking-wider mb-4">Consultation Fees & Formats</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-600 mb-1">Consultation Fee (₹)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        required
+                        value={consultationFee}
+                        onChange={(e) => setConsultationFee(e.target.value)}
+                        className={getFieldClass('consultationFee')}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-600 mb-1">Follow-up Fee (₹)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        required
+                        value={followUpFee}
+                        onChange={(e) => setFollowUpFee(e.target.value)}
+                        className={getFieldClass('followUpFee')}
+                      />
+                    </div>
+                    <div className="md:col-span-2 flex items-center gap-3 py-2">
+                      <input
+                        type="checkbox"
+                        id="isOnlineAvailable"
+                        checked={isOnlineAvailable}
+                        onChange={(e) => setIsOnlineAvailable(e.target.checked)}
+                        className="w-5 h-5 accent-emerald-600 cursor-pointer"
+                      />
+                      <label htmlFor="isOnlineAvailable" className="text-sm font-semibold text-stone-700 cursor-pointer">
+                        Available for Teleconsultation / Online Consultations
+                      </label>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-stone-600 mb-1">
-                  Specialization {hasReEditError('specialization') && <span className="text-rose-500 font-bold">*</span>}
-                </label>
-                <select
-                  required
-                  value={specialization}
-                  onChange={(e) => setSpecialization(e.target.value)}
-                  className={getFieldClass('specialization')}
-                >
-                  <option value="" disabled>Choose allowed specialty...</option>
-                  {specializationsList.map((spec) => (
-                    <option key={spec._id} value={spec.name}>
-                      {spec.name}
-                    </option>
-                  ))}
-                  {/* Fallback option if current doctor specialization isn't matched in the current active list */}
-                  {specialization && !specializationsList.some((s) => s.name === specialization) && (
-                    <option value={specialization}>{specialization}</option>
+            )}
+
+            {/* Step 2 Form Fields */}
+            {formStep === 2 && (
+              <div className="space-y-6">
+                <h3 className="text-sm font-bold text-stone-400 uppercase tracking-wider mb-4">Profile & Credential Uploads</h3>
+                <div className="flex flex-col gap-6">
+                  <div>
+                    <label className="block text-xs font-semibold text-stone-600 mb-1">
+                      Profile Photo {hasReEditError('image') && <span className="text-rose-500 font-bold">(needs re-upload)</span>}
+                    </label>
+                    <div className={`flex items-center gap-4 p-3 rounded-2xl border ${hasReEditError('image') ? 'border-rose-500 bg-rose-50/20' : 'border-stone-150'}`}>
+                      {image ? (
+                        <img src={image} alt="Doctor preview" className="w-16 h-16 rounded-full object-cover border border-stone-200" />
+                      ) : (
+                        <div className="w-16 h-16 rounded-full bg-stone-100 flex items-center justify-center text-xs font-bold text-stone-400 border border-stone-200">Photo</div>
+                      )}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleFileChange(e, 'image')}
+                        className="text-xs text-stone-500 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-stone-50 file:text-stone-700 hover:file:bg-stone-100 cursor-pointer"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-stone-600 mb-1">
+                      Registration Document / Degree (Compulsory PDF) {hasReEditError('documentPdf') && <span className="text-rose-500 font-bold">(needs re-upload)</span>}
+                    </label>
+                    <div className={`p-3 rounded-2xl border ${hasReEditError('documentPdf') ? 'border-rose-500 bg-rose-50/20' : 'border-stone-150'}`}>
+                      <input
+                        type="file"
+                        accept=".pdf"
+                        onChange={(e) => handleFileChange(e, 'pdf')}
+                        className="w-full text-xs text-stone-500 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-stone-50 file:text-stone-700 hover:file:bg-stone-100 cursor-pointer"
+                      />
+                      {pdfName && <p className="text-xs text-emerald-600 mt-2 font-semibold">✓ {pdfName}</p>}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Step 3 Form Fields */}
+            {formStep === 3 && (
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-sm font-bold text-stone-400 uppercase tracking-wider mb-4">Current Personal Address</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-600 mb-1">Address Line 1</label>
+                      <input
+                        type="text"
+                        placeholder="House / Apartment no, Street"
+                        value={currentAddress.line1}
+                        onChange={(e) => setCurrentAddress({ ...currentAddress, line1: e.target.value })}
+                        className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm text-black"
+                        required={formStep === 3}
+                      />
+                      <button type="button" onClick={() => openMap('current')} className="map-button mt-2 px-4 py-2 rounded-md text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer">
+                        Select on Map
+                      </button>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-600 mb-1">Address Line 2</label>
+                      <input
+                        type="text"
+                        placeholder="Locality / Landmark"
+                        value={currentAddress.line2}
+                        onChange={(e) => setCurrentAddress({ ...currentAddress, line2: e.target.value })}
+                        className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm text-black"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-600 mb-1">City</label>
+                      <input
+                        type="text"
+                        placeholder="City"
+                        value={currentAddress.city}
+                        onChange={(e) => setCurrentAddress({ ...currentAddress, city: e.target.value })}
+                        className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm text-black"
+                        required={formStep === 3}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-600 mb-1">State</label>
+                      <input
+                        type="text"
+                        placeholder="State"
+                        value={currentAddress.state}
+                        onChange={(e) => setCurrentAddress({ ...currentAddress, state: e.target.value })}
+                        className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm text-black"
+                        required={formStep === 3}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-600 mb-1">Pincode</label>
+                      <input
+                        type="text"
+                        placeholder="Pincode"
+                        value={currentAddress.pincode}
+                        onChange={(e) => setCurrentAddress({ ...currentAddress, pincode: e.target.value })}
+                        className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm text-black"
+                        required={formStep === 3}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-600 mb-1">Country</label>
+                      <input
+                        type="text"
+                        value={currentAddress.country}
+                        onChange={(e) => setCurrentAddress({ ...currentAddress, country: e.target.value })}
+                        className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm text-black"
+                        required={formStep === 3}
+                      />
+                    </div>
+                    
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-stone-150">
+                  <div className="flex items-center gap-2 mb-4">
+                    <h3 className="text-sm font-bold text-stone-400 uppercase tracking-wider">Permanent Address</h3>
+                    <div className="flex items-center gap-1.5 ml-auto">
+                      <input
+                        type="checkbox"
+                        id="same_address"
+                        checked={isSameAddress}
+                        onChange={(e) => setIsSameAddress(e.target.checked)}
+                        className="w-4 h-4 accent-emerald-600 cursor-pointer"
+                      />
+                      <label htmlFor="same_address" className="text-xs font-semibold text-stone-700 cursor-pointer">
+                        Same as current address
+                      </label>
+                    </div>
+                  </div>
+
+                  {!isSameAddress && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-stone-600 mb-1">Address Line 1</label>
+                        <input
+                          type="text"
+                          placeholder="House / Apartment no, Street"
+                          value={permanentAddress.line1}
+                          onChange={(e) => setPermanentAddress({ ...permanentAddress, line1: e.target.value })}
+                          className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm text-black"
+                          required={formStep === 3 && !isSameAddress}
+                        />
+                        <button type="button" onClick={() => openMap('permanent')} className="map-button mt-2 px-4 py-2 rounded-md text-sm font-medium">
+                          Select on Map
+                        </button>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-stone-600 mb-1">Address Line 2</label>
+                        <input
+                          type="text"
+                          placeholder="Locality / Landmark"
+                          value={permanentAddress.line2}
+                          onChange={(e) => setPermanentAddress({ ...permanentAddress, line2: e.target.value })}
+                          className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm text-black"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-stone-600 mb-1">City</label>
+                        <input
+                          type="text"
+                          placeholder="City"
+                          value={permanentAddress.city}
+                          onChange={(e) => setPermanentAddress({ ...permanentAddress, city: e.target.value })}
+                          className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm text-black"
+                          required={formStep === 3 && !isSameAddress}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-stone-600 mb-1">State</label>
+                        <input
+                          type="text"
+                          placeholder="State"
+                          value={permanentAddress.state}
+                          onChange={(e) => setPermanentAddress({ ...permanentAddress, state: e.target.value })}
+                          className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm text-black"
+                          required={formStep === 3 && !isSameAddress}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-stone-600 mb-1">Pincode</label>
+                        <input
+                          type="text"
+                          placeholder="Pincode"
+                          value={permanentAddress.pincode}
+                          onChange={(e) => setPermanentAddress({ ...permanentAddress, pincode: e.target.value })}
+                          className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm text-black"
+                          required={formStep === 3 && !isSameAddress}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-stone-600 mb-1">Country</label>
+                        <input
+                          type="text"
+                          value={permanentAddress.country}
+                          onChange={(e) => setPermanentAddress({ ...permanentAddress, country: e.target.value })}
+                          className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm text-black"
+                          required={formStep === 3 && !isSameAddress}
+                        />
+                      </div>
+
+                      <MapPicker
+                        isOpen={!!mapOpenFor}
+                        onClose={closeMap}
+                        onSelectAddress={handleMapSelect}
+                        initialAddress={mapOpenFor === 'current' ? currentAddress : permanentAddress}
+                      />
+                    </div>
                   )}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-stone-600 mb-1">
-                  Qualification {hasReEditError('qualification') && <span className="text-rose-500 font-bold">*</span>}
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. MBBS, MD"
-                  value={qualification}
-                  onChange={(e) => setQualification(e.target.value)}
-                  className={getFieldClass('qualification')}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-stone-600 mb-1">Years of Experience</label>
-                <input
-                  type="number"
-                  min="0"
-                  required
-                  value={experienceYears}
-                  onChange={(e) => setExperienceYears(e.target.value)}
-                  className={getFieldClass('experienceYears')}
-                />
-              </div>
-            </div>
-          </div>
+                </div>
 
-          {/* Section 2: Consultation Info */}
-          <div>
-            <h3 className="text-sm font-bold text-stone-400 uppercase tracking-wider mb-4">2. Consultation Fees & Formats</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-stone-600 mb-1">Consultation Fee (₹)</label>
-                <input
-                  type="number"
-                  min="0"
-                  required
-                  value={consultationFee}
-                  onChange={(e) => setConsultationFee(e.target.value)}
-                  className={getFieldClass('consultationFee')}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-stone-600 mb-1">Follow-up Fee (₹)</label>
-                <input
-                  type="number"
-                  min="0"
-                  required
-                  value={followUpFee}
-                  onChange={(e) => setFollowUpFee(e.target.value)}
-                  className={getFieldClass('followUpFee')}
-                />
-              </div>
-              <div className="md:col-span-2 flex items-center gap-3 py-2">
-                <input
-                  type="checkbox"
-                  id="isOnlineAvailable"
-                  checked={isOnlineAvailable}
-                  onChange={(e) => setIsOnlineAvailable(e.target.checked)}
-                  className="w-5 h-5 accent-emerald-600 cursor-pointer"
-                />
-                <label htmlFor="isOnlineAvailable" className="text-sm font-semibold text-stone-700 cursor-pointer">
-                  Available for Teleconsultation / Online Consultations
-                </label>
-              </div>
-            </div>
-          </div>
-
-          {/* Section 3: Document uploads */}
-          <div>
-            <h3 className="text-sm font-bold text-stone-400 uppercase tracking-wider mb-4">3. Profile & Credential Uploads</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-xs font-semibold text-stone-600 mb-1">
-                  Profile Photo {hasReEditError('image') && <span className="text-rose-500 font-bold">(needs re-upload)</span>}
-                </label>
-                <div className={`flex items-center gap-4 p-3 rounded-2xl border ${hasReEditError('image') ? 'border-rose-500 bg-rose-50/20' : 'border-stone-150'}`}>
-                  {image ? (
-                    <img src={image} alt="Doctor preview" className="w-16 h-16 rounded-full object-cover border border-stone-200" />
+                {/* Organization Branches & Preference Selection */}
+                <div className="pt-6 border-t border-stone-150">
+                  <h3 className="text-sm font-bold text-stone-400 uppercase tracking-wider mb-2">Practice Branch Location Preference</h3>
+                  <p className="text-xs text-stone-500 mb-4">Choose your preferred branch for the hospital organization you selected in Step 1.</p>
+                  
+                  {orgClinics.length === 0 ? (
+                    <div className="p-6 rounded-2xl bg-amber-50 text-amber-800 text-xs text-center border border-amber-200">
+                      Please select an organization in Step 1 to view clinic branches.
+                    </div>
                   ) : (
-                    <div className="w-16 h-16 rounded-full bg-stone-100 flex items-center justify-center text-xs font-bold text-stone-400 border border-stone-200">Photo</div>
+                    <div className="space-y-4">
+                      {/* Dropdown for Selection */}
+                      <div>
+                        <label className="block text-xs font-semibold text-stone-600 mb-1">Select Preferred Branch</label>
+                        <select
+                          value={preferredPracticeLocation}
+                          onChange={(e) => setPreferredPracticeLocation(e.target.value)}
+                          className="w-full rounded-2xl border border-stone-300 px-4 py-3 text-sm text-stone-900 bg-white"
+                          required={formStep === 3}
+                        >
+                          <option value="" disabled>Choose preferred branch...</option>
+                          {orgClinics.map((clinic) => (
+                            <option key={clinic._id} value={clinic._id}>
+                              {clinic.name} ({clinic.code})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Displaying clinics beautifully with images */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                        {orgClinics.map((clinic) => {
+                          const isSelected = preferredPracticeLocation === clinic._id;
+                          return (
+                            <div 
+                              key={clinic._id}
+                              onClick={() => setPreferredPracticeLocation(clinic._id)}
+                              className={`rounded-2xl border-2 overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer ${
+                                isSelected ? 'border-emerald-600 bg-emerald-50/10' : 'border-stone-200 bg-white'
+                              }`}
+                            >
+                              <img 
+                                src={getClinicImage(clinic)} 
+                                alt={clinic.name}
+                                className="w-full h-32 object-cover" 
+                              />
+                              <div className="p-4">
+                                <div className="flex justify-between items-start">
+                                  <h4 className="font-bold text-sm text-stone-900">{clinic.name}</h4>
+                                  <span className="text-[10px] font-mono bg-stone-100 text-stone-600 px-1.5 py-0.5 rounded font-bold">{clinic.code}</span>
+                                </div>
+                                <p className="text-xs text-stone-500 mt-1 line-clamp-2">
+                                  {clinic.address?.line1 || ''}, {clinic.address?.city || ''}, {clinic.address?.state || ''} {clinic.address?.pincode || ''}
+                                </p>
+                                {clinic.phone && (
+                                  <p className="text-[11px] text-stone-600 mt-1 font-semibold">📞 Reception: {clinic.phone}</p>
+                                )}
+                                
+                                <div className="mt-4 flex gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setPreferredPracticeLocation(clinic._id);
+                                    }}
+                                    className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${
+                                      isSelected 
+                                        ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
+                                        : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
+                                    }`}
+                                  >
+                                    {isSelected ? '✓ Preferred' : 'Select Branch'}
+                                  </button>
+                                  <a
+                                    href={getGoogleMapsUrl(clinic)}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="px-3 py-2 bg-stone-900 hover:bg-stone-850 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1"
+                                    title="Get Directions on Google Maps"
+                                  >
+                                    🗺️ Directions
+                                  </a>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
                   )}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => handleFileChange(e, 'image')}
-                    className="text-xs text-stone-500 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-stone-50 file:text-stone-700 hover:file:bg-stone-100 cursor-pointer"
-                  />
                 </div>
               </div>
+            )}
 
-              <div>
-                <label className="block text-xs font-semibold text-stone-600 mb-1">
-                  Registration Document / Degree (Compulsory PDF) {hasReEditError('documentPdf') && <span className="text-rose-500 font-bold">(needs re-upload)</span>}
-                </label>
-                <div className={`p-3 rounded-2xl border ${hasReEditError('documentPdf') ? 'border-rose-500 bg-rose-50/20' : 'border-stone-150'}`}>
-                  <input
-                    type="file"
-                    accept=".pdf"
-                    onChange={(e) => handleFileChange(e, 'pdf')}
-                    className="w-full text-xs text-stone-500 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-stone-50 file:text-stone-700 hover:file:bg-stone-100 cursor-pointer"
-                  />
-                  {pdfName && <p className="text-xs text-emerald-600 mt-2 font-semibold">✓ {pdfName}</p>}
-                </div>
+            {/* Navigation and Action Buttons */}
+            <div className="flex justify-between gap-3 pt-6 border-t border-stone-100">
+              <div className="flex gap-2">
+                {formStep > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => setFormStep(prev => prev - 1)}
+                    className="rounded-2xl border border-stone-300 px-5 py-3 text-xs font-semibold text-stone-700 hover:bg-stone-50 transition cursor-pointer"
+                  >
+                    ← Back
+                  </button>
+                )}
+                {formStep < 3 && (
+                  <button
+                    type="button"
+                    onClick={() => setFormStep(prev => prev + 1)}
+                    className="rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-3 text-xs font-semibold shadow transition cursor-pointer"
+                  >
+                    Next Step →
+                  </button>
+                )}
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleSaveDraft}
+                  className="rounded-2xl border border-stone-300 px-5 py-3 text-xs font-semibold text-stone-700 hover:bg-stone-50 transition cursor-pointer"
+                >
+                  Save as Draft
+                </button>
+                {formStep === 3 && (
+                  <button
+                    type="submit"
+                    className="rounded-2xl bg-emerald-600 px-6 py-3 text-xs font-bold text-white hover:bg-emerald-700 shadow-lg shadow-emerald-600/15 transition cursor-pointer"
+                  >
+                    Submit for Approval
+                  </button>
+                )}
               </div>
             </div>
-          </div>
-
-          {/* Actions */}
-          <div className="flex justify-end gap-3 pt-6 border-t border-stone-100">
-            <button
-              type="button"
-              onClick={handleSaveDraft}
-              className="rounded-2xl border border-stone-300 px-6 py-3.5 text-sm font-semibold text-stone-700 hover:bg-stone-50 transition cursor-pointer"
-            >
-              Save as Draft
-            </button>
-            <button
-              type="submit"
-              className="rounded-2xl bg-emerald-600 px-7 py-3.5 text-sm font-semibold text-white hover:bg-emerald-700 shadow-lg shadow-emerald-600/15 transition cursor-pointer"
-            >
-              Submit for Approval
-            </button>
-          </div>
-        </form>
+          </form>
+        </div>
       )}
     </div>
   );

@@ -68,14 +68,33 @@ const formatCompactDate = (value) => formatDate(value).replaceAll('-', '');
 
 const getDayNameFromDate = (value) => DAY_NAMES[normalizeDate(value).getUTCDay()];
 
-const getDayAvailability = (availability = [], date) => {
+const getDayAvailability = (availability = [], date, clinicId = null) => {
   const dayName = getDayNameFromDate(date);
 
-  return availability.find((item) => normalizeDayOfWeek(item.dayOfWeek) === dayName && item.isAvailable !== false && item.isActive !== false) || null;
+  return (
+    availability.find((item) => {
+      const isDay =
+        normalizeDayOfWeek(item.dayOfWeek) === dayName &&
+        item.isAvailable !== false &&
+        item.isActive !== false;
+      if (!isDay) return false;
+      if (clinicId && item.clinicId) {
+        return String(item.clinicId) === String(clinicId);
+      }
+      return true;
+    }) || null
+  );
 };
 
-const generateSlots = ({ availability = [], existingAppointments = [], blockedSlots = [], date, durationMinutes }) => {
-  const dayAvailability = getDayAvailability(availability, date);
+const generateSlots = ({
+  availability = [],
+  existingAppointments = [],
+  blockedSlots = [],
+  date,
+  durationMinutes,
+  clinicId = null
+}) => {
+  const dayAvailability = getDayAvailability(availability, date, clinicId);
 
   if (!dayAvailability || !dayAvailability.startTime || !dayAvailability.endTime) {
     return [];

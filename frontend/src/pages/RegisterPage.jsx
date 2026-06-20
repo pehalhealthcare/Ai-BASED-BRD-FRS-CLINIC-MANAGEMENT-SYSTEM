@@ -120,24 +120,33 @@ const RegisterPage = () => {
       const formData = new FormData();
       formData.append('file', selectedFile);
       formData.append('document_type', 'patient_id');
+      formData.append('mask_sensitive_fields', 'false');
       
       const response = await aiApi.publicOcrExtract(formData);
       const output = response?.output || response;
       const fields = output?.extracted_fields || output?.fields || output || {};
       
+      console.log('OCR raw response:', response);
+      console.log('OCR extracted fields:', fields);
+
       const name = fields.name?.value || '';
-      const phoneRaw = fields.phone?.value || '';
-      const phone = phoneRaw.replace(/X/g, ''); // Remove masked Xs if any
+      const phone = (fields.phone?.value || '').replace(/[^\d+]/g, '');
+      const email = fields.email?.value || '';
       const gender = fields.gender?.value?.toLowerCase() || '';
       const dateOfBirth = fields.dob?.value || fields.date_of_birth?.value || fields.dateOfBirth?.value || '';
       const age = fields.age?.value || '';
       const addressVal = fields.address?.value || '';
-      const pincode = fields.pincode?.value || fields.postal_code?.value || '';
+      
+      // Extract 6-digit pincode from raw text if not explicitly in fields
+      const rawText = output?.raw_text || '';
+      const pincodeMatch = rawText.match(/\b\d{6}\b/);
+      const pincode = fields.pincode?.value || fields.postal_code?.value || (pincodeMatch ? pincodeMatch[0] : '');
 
       setForm((current) => ({
         ...current,
         ...(name ? { name } : {}),
         ...(phone ? { phone } : {}),
+        ...(email ? { email } : {}),
         ...(gender && ['male', 'female', 'other'].includes(gender) ? { gender } : {}),
         ...(dateOfBirth ? { dateOfBirth: dateOfBirth.slice(0, 10) } : {}),
         ...(age ? { age: Number(age) } : {}),
@@ -156,6 +165,7 @@ const RegisterPage = () => {
 
       setExtractionMessage('Document details auto-filled via AI. Please review and correct any inaccuracies.');
     } catch (extractError) {
+      console.error('OCR Extraction failed:', extractError);
       setError(extractError.message || 'Unable to extract document details.');
     } finally {
       setExtracting(false);

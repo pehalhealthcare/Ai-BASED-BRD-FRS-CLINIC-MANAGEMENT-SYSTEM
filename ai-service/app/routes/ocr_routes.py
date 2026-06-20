@@ -48,8 +48,11 @@ async def ocr_extract(
     file: UploadFile = File(...),
     document_type: str | None = Form(default=None),
     language: str | None = Form(default="auto"),
+    mask_sensitive_fields: bool = Form(default=True),
 ) -> dict:
-    response = await extract_document_upload(file, document_type=document_type, language=language)
+    response = await extract_document_upload(
+        file, document_type=document_type, language=language, mask_sensitive_fields=mask_sensitive_fields
+    )
     return success_response("OCR extraction completed successfully", response.model_dump())
 
 
@@ -68,8 +71,11 @@ async def direct_ocr_extract(
     file: UploadFile = File(...),
     document_type: str | None = Form(default=None),
     language: str | None = Form(default="auto"),
+    mask_sensitive_fields: bool = Form(default=True),
 ) -> dict:
-    response = await extract_document_upload(file, document_type=document_type, language=language)
+    response = await extract_document_upload(
+        file, document_type=document_type, language=language, mask_sensitive_fields=mask_sensitive_fields
+    )
     return success_response("OCR extraction completed successfully", response.model_dump())
 
 
@@ -78,6 +84,10 @@ async def ocr_patient_document(
     file: UploadFile = File(...),
     document_type: str | None = Form(default=None),
     language: str | None = Form(default="auto"),
+    mask_sensitive_fields: bool = Form(default=True),
 ) -> dict:
-    response = await extract_document_upload(file, document_type=document_type, language=language)
+    response = await extract_document_upload(
+        file, document_type=document_type, language=language, mask_sensitive_fields=mask_sensitive_fields
+    )
     return success_response("OCR extraction completed successfully", merge_legacy_payload(response.output, response))
+

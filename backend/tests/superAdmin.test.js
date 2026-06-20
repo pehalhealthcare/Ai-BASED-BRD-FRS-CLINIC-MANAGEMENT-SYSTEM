@@ -24,6 +24,8 @@ describe('Super Admin features', () => {
         code: 'NPCLINIC',
         phone: '9111111111',
         image: 'base64imageStr',
+        email: 'newpremium@test.com',
+        password: 'Password123!',
         address: {
           line1: '123 New Road',
           city: 'Mumbai',
@@ -56,6 +58,8 @@ describe('Super Admin features', () => {
         name: 'Sub Clinic East',
         code: 'NPCLINEAST',
         phone: '9222222222',
+        email: 'subcliniceast@test.com',
+        password: 'Password123!',
         parentClinicId: parentClinic._id.toString()
       };
 
@@ -69,13 +73,42 @@ describe('Super Admin features', () => {
       expect(response.body.data.clinic.parentClinicId).toBe(payload.parentClinicId);
     });
 
-    it('does not allow normal admin or other roles to create clinic', async () => {
+    it('allows normal admin to create new clinic', async () => {
+      const payload = {
+        name: 'Admin-Created Clinic',
+        code: 'ADMCLINIC',
+        phone: '9111111122',
+        image: 'base64imageStr',
+        email: 'admincreated@test.com',
+        password: 'Password123!',
+        address: {
+          line1: '123 Admin Road',
+          city: 'Mumbai',
+          state: 'Maharashtra',
+          pincode: '400001'
+        }
+      };
+
       const response = await request(app)
         .post('/api/v1/clinics')
         .set(getAuthHeaders(normalAdmin.token))
+        .send(payload);
+
+      expect(response.status).toBe(201);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.clinic.name).toBe(payload.name);
+    });
+
+    it('does not allow receptionist or other roles to create clinic', async () => {
+      const receptionist = await createUserWithClinic({ role: ROLES.RECEPTIONIST });
+      const response = await request(app)
+        .post('/api/v1/clinics')
+        .set(getAuthHeaders(receptionist.token))
         .send({
           name: 'Unauthorized Clinic',
-          code: 'UNAUTHCL'
+          code: 'UNAUTHCL',
+          email: 'unauthclinic@test.com',
+          password: 'Password123!'
         });
 
       expect(response.status).toBe(403);
@@ -96,10 +129,24 @@ describe('Super Admin features', () => {
       const User = require('../src/modules/users/user.model');
       const Clinic = require('../src/modules/clinics/clinic.model');
       const Doctor = require('../src/modules/doctors/doctor.model');
+      const Organization = require('../src/modules/organizations/organization.model');
+      const Specialization = require('../src/modules/specializations/specialization.model');
       const { generateAccessToken } = require('../src/modules/auth/token.service');
 
       // 1. Doctor registers (simulated by User creation)
       const suffix = Date.now();
+      const pediatricsSpec = await Specialization.create({
+        name: 'Pediatrics',
+        description: 'Pediatric medicine',
+        isActive: true
+      });
+
+      const testOrg = await Organization.create({
+        name: `Test Org ${suffix}`,
+        email: `test-org-${suffix}@test.com`,
+        phone: '9999999999'
+      });
+
       const pendingUser = await User.create({
         name: 'Dr Onboard Demo',
         email: `onboard-${suffix}@example.com`,
@@ -141,7 +188,8 @@ describe('Super Admin features', () => {
         followUpFee: 300,
         isOnlineAvailable: true,
         image: 'photoBase64',
-        documentPdf: 'documentPdfBase64'
+        documentPdf: 'documentPdfBase64',
+        organizationId: testOrg._id.toString()
       };
 
       const saveDraftRes = await request(app)
@@ -178,7 +226,8 @@ describe('Super Admin features', () => {
       // 6. Super Admin approves and appoints doctor to clinic
       const targetClinic = await Clinic.create({
         name: 'Approval Target Clinic',
-        code: 'APPTARGET'
+        code: 'APPTARGET',
+        specializations: [pediatricsSpec._id]
       });
 
       const approvalPayload = {
@@ -202,6 +251,9 @@ describe('Super Admin features', () => {
         .post(`/api/v1/admin/approve-doctor/${pendingUser._id}`)
         .set(getAuthHeaders(superAdmin.token))
         .send(approvalPayload);
+      if (approveRes.status !== 200) {
+        console.log('APPROVE_DOCTOR_ERROR:', JSON.stringify(approveRes.body, null, 2));
+      }
       expect(approveRes.status).toBe(200);
       expect(approveRes.body.data.doctor.approvalStatus).toBe('approved');
       expect(approveRes.body.data.doctor.clinicId).toBe(targetClinic._id.toString());
@@ -280,12 +332,20 @@ describe('Super Admin features', () => {
     it('handles requesting doctor profile re-edit and doctor re-submission', async () => {
       const User = require('../src/modules/users/user.model');
       const Doctor = require('../src/modules/doctors/doctor.model');
+      const Organization = require('../src/modules/organizations/organization.model');
       const { generateAccessToken } = require('../src/modules/auth/token.service');
 
       // 1. Setup pending doctor
+      const suffix = Date.now();
+      const testOrg = await Organization.create({
+        name: `Test Org Reedit ${suffix}`,
+        email: `reedit-org-${suffix}@test.com`,
+        phone: '9999999999'
+      });
+
       const pendingUser = await User.create({
         name: 'Dr Re-edit Demo',
-        email: `reedit-${Date.now()}@example.com`,
+        email: `reedit-${suffix}@example.com`,
         password: 'Pass123!Safe',
         role: ROLES.DOCTOR,
         approvalStatus: 'pending_approval'
@@ -303,7 +363,8 @@ describe('Super Admin features', () => {
         qualification: 'MD',
         medicalRegistrationNumber: 'REG-54321',
         documentPdf: 'pdfBase64',
-        approvalStatus: 'pending_approval'
+        approvalStatus: 'pending_approval',
+        organizationId: testOrg._id
       });
 
       // 2. Super Admin requests re-edit
@@ -331,7 +392,8 @@ describe('Super Admin features', () => {
         experienceYears: 10,
         consultationFee: 1000,
         followUpFee: 500,
-        documentPdf: 'newPdfBase64'
+        documentPdf: 'newPdfBase64',
+        organizationId: testOrg._id.toString()
       };
 
       const submitRes = await request(app)
@@ -358,10 +420,20 @@ describe('Super Admin features', () => {
       expect(response.body.data.clinics).toBeDefined();
     });
 
-    it('denies access to non-super admin', async () => {
+    it('allows organization admin to access their dashboard overview', async () => {
       const response = await request(app)
         .get('/api/v1/dashboard/super-admin/overview')
         .set(getAuthHeaders(normalAdmin.token));
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.clinics).toBeDefined();
+    });
+
+    it('denies access to non-admin roles', async () => {
+      const receptionist = await createUserWithClinic({ role: ROLES.RECEPTIONIST });
+      const response = await request(app)
+        .get('/api/v1/dashboard/super-admin/overview')
+        .set(getAuthHeaders(receptionist.token));
 
       expect(response.status).toBe(403);
     });

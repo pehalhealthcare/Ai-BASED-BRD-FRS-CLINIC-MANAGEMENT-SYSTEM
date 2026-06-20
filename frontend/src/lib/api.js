@@ -44,6 +44,7 @@ const sanitizeParams = (params = {}) =>
 const authApi = {
   register: (payload) => extractData(apiClient.post('/auth/register', payload)),
   login: (payload) => extractData(apiClient.post('/auth/login', payload)),
+  resetPassword: (payload) => extractData(apiClient.post('/auth/reset-password', payload)),
   me: () => extractData(apiClient.get('/auth/me')),
   logout: () => extractData(apiClient.post('/auth/logout'))
 };
@@ -245,13 +246,17 @@ const adminApi = {
 
 const clinicApi = {
   create: (payload) => extractData(apiClient.post('/clinics', payload)),
-  list: () => extractData(apiClient.get('/clinics'))
+  list: () => extractData(apiClient.get('/clinics')),
+  getDetails: (id) => extractData(apiClient.get(`/clinics/${id}/details`)),
+  update: (id, payload) => extractData(apiClient.put(`/clinics/${id}`, payload))
 };
 
 const specializationApi = {
-  list: () => extractData(apiClient.get('/specializations')),
+  list: (params = {}) => extractData(apiClient.get('/specializations', { params })),
   create: (payload) => extractData(apiClient.post('/specializations', payload)),
-  remove: (id) => extractData(apiClient.delete(`/specializations/${id}`))
+  update: (id, payload) => extractData(apiClient.put(`/specializations/${id}`, payload)),
+  remove: (id) => extractData(apiClient.delete(`/specializations/${id}`)),
+  getAnalytics: (id) => extractData(apiClient.get(`/specializations/${id}/analytics`))
 };
 
 const auditApi = {

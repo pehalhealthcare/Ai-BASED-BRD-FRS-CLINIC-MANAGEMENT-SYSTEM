@@ -299,4 +299,30 @@ describe('Auth + RBAC', () => {
     expect(seedAuditLogs).toHaveLength(1);
     expect(seedAuditLogs[0].metadata.password).toBeUndefined();
   });
+
+  it('allows resetting password without verification but validates password schema', async () => {
+    const registerPayload = buildRegisterPayload({ email: 'reset-password@example.com' });
+    await request(app).post('/api/v1/auth/register').send(registerPayload);
+
+    // 1. Reset password fails if password is too simple
+    const failRes = await request(app).post('/api/v1/auth/reset-password').send({
+      email: registerPayload.email,
+      password: 'short'
+    });
+    expect(failRes.status).toBe(400);
+
+    // 2. Reset password succeeds with a valid password
+    const successRes = await request(app).post('/api/v1/auth/reset-password').send({
+      email: registerPayload.email,
+      password: 'NewPassword123!'
+    });
+    expect(successRes.status).toBe(200);
+
+    // 3. Can login with the new password
+    const loginRes = await request(app).post('/api/v1/auth/login').send({
+      email: registerPayload.email,
+      password: 'NewPassword123!'
+    });
+    expect(loginRes.status).toBe(200);
+  });
 });

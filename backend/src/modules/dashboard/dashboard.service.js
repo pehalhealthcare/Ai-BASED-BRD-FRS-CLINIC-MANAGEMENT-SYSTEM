@@ -1247,6 +1247,7 @@ const getSuperAdminOverview = async ({ requester } = {}) => {
   const Doctor = require('../doctors/doctor.model');
   const Invoice = require('../billing/invoice.model');
   const PharmacySale = require('../pharmacy/pharmacySale.model');
+  const User = require('../users/user.model');
   const { ROLES } = require('../../common/constants/roles');
 
   const filter = { isActive: true };
@@ -1259,7 +1260,7 @@ const getSuperAdminOverview = async ({ requester } = {}) => {
 
   const totalDoctors = await Doctor.countDocuments({ clinicId: { $in: clinicIds }, isActive: true });
 
-  const [doctorCounts, invoiceRevenues, pharmacyRevenues] = await Promise.all([
+  const [doctorCounts, invoiceRevenues, pharmacyRevenues, managers] = await Promise.all([
     Doctor.aggregate([
       { $match: { clinicId: { $in: clinicIds }, isActive: true } },
       { $group: { _id: '$clinicId', count: { $sum: 1 } } }
@@ -1271,12 +1272,14 @@ const getSuperAdminOverview = async ({ requester } = {}) => {
     PharmacySale.aggregate([
       { $match: { clinicId: { $in: clinicIds } } },
       { $group: { _id: '$clinicId', total: { $sum: '$amount' } } }
-    ])
+    ]),
+    User.find({ clinicId: { $in: clinicIds }, role: ROLES.RECEPTIONIST }).lean()
   ]);
 
   const doctorCountMap = new Map(doctorCounts.map((d) => [String(d._id), d.count]));
   const invoiceRevenueMap = new Map(invoiceRevenues.map((i) => [String(i._id), i.total]));
   const pharmacyRevenueMap = new Map(pharmacyRevenues.map((p) => [String(p._id), p.total]));
+  const managerMap = new Map(managers.map((m) => [String(m.clinicId), m.email]));
 
   let grandTotalRevenue = 0;
 
@@ -1290,7 +1293,8 @@ const getSuperAdminOverview = async ({ requester } = {}) => {
     return {
       ...clinic,
       doctorCount: docCount,
-      revenue: clinicRevenue
+      revenue: clinicRevenue,
+      email: managerMap.get(String(clinic._id)) || 'N/A'
     };
   });
 

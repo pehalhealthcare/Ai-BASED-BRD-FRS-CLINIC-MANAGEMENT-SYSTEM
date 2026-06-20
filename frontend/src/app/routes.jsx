@@ -4,6 +4,9 @@ import DashboardLayout from '../components/layout/DashboardLayout';
 import { ROLES } from '../constants/roles';
 import UsersAdminPage from '../features/admin/UsersAdminPage';
 import OrganizationSettingsPage from '../features/admin/OrganizationSettingsPage';
+import DoctorReview from '../features/admin/DoctorReview';
+import ClinicSettingsPage from '../features/admin/ClinicSettingsPage';
+import SpecialitiesAdminPage from '../features/admin/SpecialitiesAdminPage';
 import SuperAdminDashboard from '../features/super-admin/SuperAdminDashboard';
 import MyDoctorsDashboard from '../features/super-admin/MyDoctorsDashboard';
 import OrganizationsPage from '../features/super-admin/OrganizationsPage';
@@ -14,6 +17,7 @@ import DoctorAvailabilityEditor from '../features/doctors/DoctorAvailabilityEdit
 import DoctorDetailPage from '../features/doctors/DoctorDetailPage';
 import DoctorFormPage from '../features/doctors/DoctorFormPage';
 import DoctorListPage from '../features/doctors/DoctorListPage';
+import DoctorSettingsPage from '../features/doctors/DoctorSettingsPage';
 import DashboardAppointmentsPage from '../features/dashboard/DashboardAppointmentsPage';
 import DashboardLabsPage from '../features/dashboard/DashboardLabsPage';
 import DashboardBillingAnomaliesPage from '../features/dashboard/DashboardBillingAnomaliesPage';
@@ -119,6 +123,14 @@ export const router = createBrowserRouter([
       {
         path: 'admin/organization-settings',
         element: protect(<OrganizationSettingsPage />, [ROLES.ADMIN])
+      },
+      {
+        path: 'clinic/settings',
+        element: protect(<ClinicSettingsPage />, [ROLES.RECEPTIONIST, ROLES.ADMIN])
+      },
+      {
+        path: 'admin/specialities',
+        element: protect(<SpecialitiesAdminPage />, [ROLES.ADMIN])
       },
       {
         path: 'dashboard',
@@ -320,9 +332,12 @@ export const router = createBrowserRouter([
         path: 'doctors/:id/edit',
         element: protect(<DoctorFormPage />, [ROLES.ADMIN, ROLES.SUPER_ADMIN])
       },
+              { path: 'admin/doctors/:doctorId/review', element: protect(<DoctorReview />, [ROLES.ADMIN]) },
+        { path: 'doctors/:id/availability', element: protect(<DoctorAvailabilityEditor />, [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.RECEPTIONIST]) },
+
       {
-        path: 'doctors/:id/availability',
-        element: protect(<DoctorAvailabilityEditor />, [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.RECEPTIONIST])
+        path: 'doctor/settings',
+        element: protect(<DoctorSettingsPage />, [ROLES.DOCTOR])
       }
     ]
   },

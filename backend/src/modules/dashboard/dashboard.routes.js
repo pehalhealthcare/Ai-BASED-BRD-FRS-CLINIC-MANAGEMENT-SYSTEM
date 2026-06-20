@@ -83,7 +83,7 @@ router.get(
 router.get(
   '/super-admin/overview',
   protect,
-  authorize(ROLES.ADMIN),
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),
   dashboardController.getSuperAdminOverview
 );
 

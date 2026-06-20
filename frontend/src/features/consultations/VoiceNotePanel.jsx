@@ -23,6 +23,7 @@ const VoiceNotePanel = ({
   const [isRecording, setIsRecording] = useState(false);
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
+  const recognitionRef = useRef(null);
 
   const startRecording = async () => {
     try {
@@ -44,6 +45,35 @@ const VoiceNotePanel = ({
         stream.getTracks().forEach((track) => track.stop());
       };
 
+      // Set up Web Speech API recognition
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        const recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = form.voiceNoteLanguage === 'auto' ? 'en-US' : (form.voiceNoteLanguage === 'hi' ? 'hi-IN' : 'en-US');
+
+        recognition.onresult = (event) => {
+          let finalTranscript = '';
+          for (let i = event.resultIndex; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+              finalTranscript += event.results[i][0].transcript + ' ';
+            }
+          }
+          if (finalTranscript) {
+            const currentText = form.transcript_text || '';
+            onTranscriptChange(currentText + finalTranscript);
+          }
+        };
+
+        recognition.onerror = (e) => {
+          console.error('Speech recognition error', e);
+        };
+
+        recognition.start();
+        recognitionRef.current = recognition;
+      }
+
       mediaRecorder.start();
       setIsRecording(true);
     } catch (err) {
@@ -56,6 +86,10 @@ const VoiceNotePanel = ({
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
+    }
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      recognitionRef.current = null;
     }
   };
 

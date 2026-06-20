@@ -8,6 +8,7 @@ describe('GridFS File Storage & zlib Compression', () => {
   let Clinic;
   let clinic;
   let doctorToken;
+  let organizationId;
 
   // Simple base64 data URIs for testing
   const dummyImageBase64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
@@ -18,6 +19,7 @@ describe('GridFS File Storage & zlib Compression', () => {
     User = require('../src/modules/users/user.model');
     Doctor = require('../src/modules/doctors/doctor.model');
     Clinic = require('../src/modules/clinics/clinic.model');
+    const Organization = require('../src/modules/organizations/organization.model');
 
     const suffix = `${Date.now()}${Math.floor(Math.random() * 1000)}`;
     clinic = await Clinic.create({
@@ -25,6 +27,13 @@ describe('GridFS File Storage & zlib Compression', () => {
       code: `CL${suffix}`.slice(-10),
       isActive: true
     });
+
+    const org = await Organization.create({
+      name: `GridFS Org ${suffix}`,
+      email: `gridfs-org-${suffix}@test.com`,
+      phone: '9999999999'
+    });
+    organizationId = org._id.toString();
   });
 
   it('registers a doctor user, uploads credentials/photo to GridFS with compression, and resolves base64 on fetch', async () => {
@@ -53,7 +62,8 @@ describe('GridFS File Storage & zlib Compression', () => {
         qualification: 'MD',
         medicalRegistrationNumber: 'REG-GRID-99',
         image: dummyImageBase64,
-        documentPdf: dummyPdfBase64
+        documentPdf: dummyPdfBase64,
+        organizationId
       });
 
     expect(updateResponse.status).toBe(200);
@@ -97,7 +107,8 @@ describe('GridFS File Storage & zlib Compression', () => {
         qualification: 'MD',
         medicalRegistrationNumber: 'REG-GRID-99',
         image: dummyImageBase64,
-        documentPdf: dummyPdfBase64
+        documentPdf: dummyPdfBase64,
+        organizationId
       });
 
     expect(submitResponse.status).toBe(200);
