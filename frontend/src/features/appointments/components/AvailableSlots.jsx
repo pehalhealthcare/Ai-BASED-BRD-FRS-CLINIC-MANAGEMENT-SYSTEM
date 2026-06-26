@@ -21,7 +21,7 @@ const AvailableSlots = ({ slots = [], selectedSlot, onSelect }) => {
                 ? isSelected
                   ? 'border-emerald-600 bg-emerald-50 text-emerald-900'
                   : 'border-stone-300 bg-white text-stone-800 hover:border-emerald-400 hover:bg-emerald-50/70'
-                : 'border-stone-200 bg-stone-100 text-stone-500'
+                : 'border-gray-300 bg-gray-200 text-gray-400 cursor-not-allowed'
             }`}
           >
             <p className="text-sm font-semibold">

@@ -131,15 +131,52 @@ const DoctorReview = () => {
 
   // Add slot to the schedule
   const addSlot = (day) => {
-    const firstAssigned = assignedClinicIds[0] || '';
+    const defaultClinic = primaryClinicId || assignedClinicIds[0] || '';
+    const timeline = dailyTimelines[day];
+    const defaultStart = (timeline && timeline.enabled) ? timeline.startTime : '09:00';
+    const defaultEnd = (timeline && timeline.enabled) ? timeline.endTime : '13:00';
+
+    // Verify distance if adding a slot for a secondary clinic offline
+    if (defaultClinic && primaryClinicId && String(defaultClinic) !== String(primaryClinicId)) {
+      const primaryClinic = clinics.find((c) => String(c._id) === String(primaryClinicId));
+      const clinic = clinics.find((c) => String(c._id) === String(defaultClinic));
+      if (primaryClinic && clinic) {
+        const dist = hasCoordinates(primaryClinic.address) && hasCoordinates(clinic.address)
+          ? haversineDistance(
+              primaryClinic.address.latitude,
+              primaryClinic.address.longitude,
+              clinic.address.latitude,
+              clinic.address.longitude
+            )
+          : 0;
+        if (dist > 25) {
+          toast.error(`Clinic "${clinic.name}" is ${dist.toFixed(1)} km away from the Primary Clinic (> 25 km limit). You can only schedule online sessions for this clinic.`);
+          // Add as online
+          setSlots((prev) => [
+            ...prev,
+            {
+              id: `slot-${Date.now()}-${Math.random()}`,
+              dayOfWeek: day,
+              clinicId: defaultClinic,
+              startTime: defaultStart,
+              endTime: defaultEnd,
+              consultationMode: 'online',
+              slotDurationMinutes: 30,
+            },
+          ]);
+          return;
+        }
+      }
+    }
+
     setSlots((prev) => [
       ...prev,
       {
         id: `slot-${Date.now()}-${Math.random()}`,
         dayOfWeek: day,
-        clinicId: firstAssigned,
-        startTime: '09:00',
-        endTime: '13:00',
+        clinicId: defaultClinic,
+        startTime: defaultStart,
+        endTime: defaultEnd,
         consultationMode: 'offline',
         slotDurationMinutes: 30,
       },
@@ -190,9 +227,11 @@ const DoctorReview = () => {
         if (s.id !== id) return s;
         const updated = { ...s, [field]: value };
         
-        // Auto-enforce distance mode restriction (Rule 4: >50km from Primary is online only)
+        // Auto-enforce distance mode restriction (not more than 25km from Primary for offline)
         if (field === 'clinicId' || field === 'consultationMode') {
           const targetClinicId = field === 'clinicId' ? value : s.clinicId;
+          const targetMode = field === 'consultationMode' ? value : s.consultationMode;
+
           if (primaryClinicId && String(targetClinicId) !== String(primaryClinicId)) {
             const primaryClinic = clinics.find((c) => String(c._id) === String(primaryClinicId));
             const clinic = clinics.find((c) => String(c._id) === String(targetClinicId));
@@ -205,7 +244,8 @@ const DoctorReview = () => {
                     clinic.address.longitude
                   )
                 : 0;
-              if (dist > 50) {
+              if (targetMode === 'offline' && dist > 25) {
+                toast.error(`Clinic "${clinic.name}" is ${dist.toFixed(1)} km away from the Primary Clinic (> 25 km limit). You cannot set offline session slots for it.`);
                 updated.consultationMode = 'online';
               }
             }
@@ -252,13 +292,17 @@ const DoctorReview = () => {
 
       // Check overlap with travel gaps (1.5 hours after each offline slot to the next offline slot)
       for (let i = 0; i < dayOfflineSlots.length - 1; i++) {
-        const gapStart = parseTimeToMinutes(dayOfflineSlots[i].endTime);
-        const gapEnd = gapStart + 90; // 1.5 hr traveling time
-        if (Math.max(onStart, gapStart) < Math.min(onEnd, gapEnd)) {
-          return {
-            isValid: false,
-            message: `Online slot (${online.startTime}-${online.endTime}) overlaps with 1.5-hr traveling time (${dayOfflineSlots[i].endTime}-${dayOfflineSlots[i+1].startTime}) for the next clinic.`
-          };
+        const s1 = dayOfflineSlots[i];
+        const s2 = dayOfflineSlots[i + 1];
+        if (String(s1.clinicId) !== String(s2.clinicId)) {
+          const gapStart = parseTimeToMinutes(s1.endTime);
+          const gapEnd = gapStart + 90; // 1.5 hr traveling time
+          if (Math.max(onStart, gapStart) < Math.min(onEnd, gapEnd)) {
+            return {
+              isValid: false,
+              message: `Online slot (${online.startTime}-${online.endTime}) overlaps with 1.5-hr traveling time (${s1.endTime}-${s2.startTime}) for the next clinic.`
+            };
+          }
         }
       }
     }
@@ -290,16 +334,39 @@ const DoctorReview = () => {
       };
     }
 
-    // Check all gaps are at least 90 minutes (1.5 hours)
+    // Check all gaps are at least 90 minutes (1.5 hours) and distance < 25km between different clinics
     for (let i = 0; i < dayOfflineSlots.length - 1; i++) {
-      const currentEnd = parseTimeToMinutes(dayOfflineSlots[i].endTime);
-      const nextStart = parseTimeToMinutes(dayOfflineSlots[i + 1].startTime);
-      const gap = nextStart - currentEnd;
-      if (gap < 90) {
-        return {
-          isValid: false,
-          message: `Gap between offline session ${i + 1} and ${i + 2} must be at least 1.5 hours (90 minutes). Current gap: ${gap} minutes.`,
-        };
+      const s1 = dayOfflineSlots[i];
+      const s2 = dayOfflineSlots[i + 1];
+
+      if (String(s1.clinicId) !== String(s2.clinicId)) {
+        const c1 = clinics.find((c) => String(c._id) === String(s1.clinicId));
+        const c2 = clinics.find((c) => String(c._id) === String(s2.clinicId));
+        
+        if (c1 && c2) {
+          const distanceBetween = hasCoordinates(c1.address) && hasCoordinates(c2.address)
+            ? haversineDistance(c1.address.latitude, c1.address.longitude, c2.address.latitude, c2.address.longitude)
+            : 0;
+            
+          if (distanceBetween > 25) {
+            return {
+              isValid: false,
+              message: `Clinics "${c1.name}" and "${c2.name}" are ${distanceBetween.toFixed(1)} km apart (exceeds 25km limit). Offline sessions must be scheduled on alternate days.`
+            };
+          }
+        }
+
+        const currentEnd = parseTimeToMinutes(s1.endTime);
+        const nextStart = parseTimeToMinutes(s2.startTime);
+        const gap = nextStart - currentEnd;
+        if (gap < 90) {
+          const c1 = clinics.find((c) => String(c._id) === String(s1.clinicId));
+          const c2 = clinics.find((c) => String(c._id) === String(s2.clinicId));
+          return {
+            isValid: false,
+            message: `Gap between sessions at "${c1?.name || 'Clinic A'}" and "${c2?.name || 'Clinic B'}" must be at least 1.5 hours (90 minutes). Current gap: ${gap} minutes.`,
+          };
+        }
       }
     }
 
@@ -341,9 +408,9 @@ const DoctorReview = () => {
               )
             : 0;
 
-          if (distToPrimary > 50) {
+          if (distToPrimary > 25) {
             toast.error(
-              `Clinic "${secondaryClinic.name}" is ${distToPrimary.toFixed(1)} km away from the Primary Clinic "${primaryClinic.name}" (> 50 km). Only online sessions are allowed for this clinic.`
+              `Clinic "${secondaryClinic.name}" is ${distToPrimary.toFixed(1)} km away from the Primary Clinic "${primaryClinic.name}" (> 25 km limit). You cannot set offline slots for this clinic.`
             );
             return false;
           }
@@ -397,16 +464,13 @@ const DoctorReview = () => {
                 ? haversineDistance(c1.address.latitude, c1.address.longitude, c2.address.latitude, c2.address.longitude)
                 : 0;
 
-              // Check alternate day vs gap rules
               if (s1.consultationMode === 'offline' && s2.consultationMode === 'offline') {
                 if (distanceBetweenClinics > 25) {
-                  // Rule 3: Clinics 25-50km (or greater) cannot be offline same day
                   toast.error(
                     `Clinics "${c1.name}" and "${c2.name}" are ${distanceBetweenClinics.toFixed(1)} km apart (> 25 km). Offline sessions must be scheduled on alternate days. You cannot schedule both offline on ${day}.`
                   );
                   return false;
                 } else {
-                  // Rule 2: Clinics within 25km must have at least 1.5 hours gap
                   const s1End = parseTimeToMinutes(s1.endTime);
                   const s2Start = parseTimeToMinutes(s2.startTime);
                   const gap = s2Start - s1End;
@@ -435,6 +499,7 @@ const DoctorReview = () => {
     try {
       const payload = {
         clinicId: primaryClinicId,
+        assignedClinics: assignedClinicIds,
         specialization: doctor.profile?.specialization || '',
         qualification: doctor.profile?.qualification || '',
         experienceYears: Number(doctor.profile?.experienceYears || 0),
@@ -931,6 +996,31 @@ const DoctorReview = () => {
                                   ...prev,
                                   [day]: { ...prev[day], enabled: checked },
                                 }));
+
+                                // Automatically set a default whole-day slot for the primary clinic matching the timeline
+                                if (checked) {
+                                  const timeline = dailyTimelines[day];
+                                  const tStart = timeline?.startTime || '09:00';
+                                  const tEnd = timeline?.endTime || '18:00';
+                                  const defaultClinic = primaryClinicId || assignedClinicIds[0] || '';
+
+                                  setSlots((prev) => {
+                                    // Filter out any existing slots for this day and insert the whole day slot
+                                    const filtered = prev.filter((s) => s.dayOfWeek !== day);
+                                    return [
+                                      ...filtered,
+                                      {
+                                        id: `slot-${Date.now()}-${Math.random()}`,
+                                        dayOfWeek: day,
+                                        clinicId: defaultClinic,
+                                        startTime: tStart,
+                                        endTime: tEnd,
+                                        consultationMode: 'offline',
+                                        slotDurationMinutes: 30,
+                                      }
+                                    ];
+                                  });
+                                }
                               }}
                               className="accent-emerald-600 w-4 h-4 cursor-pointer"
                             />
@@ -1095,7 +1185,7 @@ const DoctorReview = () => {
                         min="0"
                         value={consultationFee}
                         onChange={(e) => setConsultationFee(e.target.value)}
-                        className="w-full bg-white rounded-xl border border-stone-300 p-2 text-xs font-medium"
+                        className="w-full bg-white rounded-xl border border-stone-300 p-2 text-xs font-medium text-black"
                       />
                     </div>
                     <div>
@@ -1107,7 +1197,7 @@ const DoctorReview = () => {
                         min="0"
                         value={followUpFee}
                         onChange={(e) => setFollowUpFee(e.target.value)}
-                        className="w-full bg-white rounded-xl border border-stone-300 p-2 text-xs font-medium"
+                        className="w-full bg-white rounded-xl border border-stone-300 p-2 text-xs font-medium text-black"
                       />
                     </div>
                   </div>

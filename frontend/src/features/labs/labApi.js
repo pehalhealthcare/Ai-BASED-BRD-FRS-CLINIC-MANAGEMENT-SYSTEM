@@ -12,5 +12,6 @@ export const updateLabReport = (id, payload) => labApi.updateReport(id, payload)
 export const reviewLabAnalysis = (id, payload) => labApi.reviewAiAnalysis(id, payload);
 export const finalizeLabReport = (id, payload) => labApi.finalizeReport(id, payload);
 export const getPatientLabHistory = (patientId, params) => patientApi.labs(patientId, params);
+export const updateLabTest = (id, payload) => labApi.updateTest(id, payload);
 
 export default labApi;

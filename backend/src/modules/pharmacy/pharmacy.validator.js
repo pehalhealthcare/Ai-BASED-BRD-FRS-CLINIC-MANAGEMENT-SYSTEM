@@ -156,6 +156,33 @@ const patientMedicineHistorySchema = z.object({
   })
 });
 
+const createPharmacyOrderSchema = z.object({
+  body: z.object({
+    medicineId: objectIdSchema,
+    quantity: z.coerce.number().int().positive('Quantity must be a positive integer'),
+    prescriptionType: z.enum(['system', 'manual']),
+    prescriptionId: objectIdSchema.optional().nullable(),
+    prescriptionFile: z.string().optional(),
+    clinicId: objectIdSchema.optional(),
+    patientId: objectIdSchema.optional()
+  })
+});
+
+const listPharmacyOrdersQuerySchema = z.object({
+  query: paginationQuerySchema.extend({
+    patientId: objectIdSchema.optional(),
+    status: z.enum(['pending', 'completed', 'cancelled']).optional(),
+    clinicId: objectIdSchema.optional()
+  })
+});
+
+const updatePharmacyOrderStatusSchema = z.object({
+  params: objectIdParamSchema('id').shape.params,
+  body: z.object({
+    status: z.enum(['pending', 'completed', 'cancelled'])
+  })
+});
+
 module.exports = {
   createMedicineSchema,
   updateMedicineSchema,
@@ -166,5 +193,8 @@ module.exports = {
   medicineIdParamSchema,
   dispensingIdParamSchema,
   cancelDispensingSchema,
-  patientMedicineHistorySchema
+  patientMedicineHistorySchema,
+  createPharmacyOrderSchema,
+  listPharmacyOrdersQuerySchema,
+  updatePharmacyOrderStatusSchema
 };

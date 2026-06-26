@@ -33,7 +33,14 @@ export const ROUTES = {
   superAdminDashboard: '/super-admin/dashboard',
   adminClinicsDashboard: '/admin/clinics-dashboard',
   adminDoctorsDashboard: '/admin/my-doctors-dashboard',
-  organizationSettings: '/admin/organization-settings'
+  adminReceptionistsDashboard: '/admin/my-receptionists-dashboard',
+  organizationSettings: '/admin/organization-settings',
+  clinicSettings: '/clinic/settings',
+  adminLeavesReview: '/admin/leaves-review',
+  adminLeavePolicy: '/admin/leave-policy',
+  doctorLeaves: '/doctor/leaves',
+  doctorEarnings: '/doctor/earnings',
+  patientAppointments: '/patient/appointments'
 };
 
 export const NAV_ITEMS = [
@@ -53,6 +60,12 @@ export const NAV_ITEMS = [
     roles: [ROLES.ADMIN]
   },
   {
+    label: 'My Receptionists',
+    path: ROUTES.adminReceptionistsDashboard,
+    roles: [ROLES.ADMIN]
+  },
+
+  {
     label: 'Dashboard',
     path: ROUTES.dashboard,
     roles: [ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR]
@@ -61,6 +74,11 @@ export const NAV_ITEMS = [
     label: 'Dashboard',
     path: ROUTES.dashboardPharmacy,
     roles: [ROLES.PHARMACIST]
+  },
+  {
+    label: 'Earnings',
+    path: ROUTES.doctorEarnings,
+    roles: [ROLES.DOCTOR]
   },
   { label: 'Patients', path: ROUTES.patients, roles: [ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR] },
   { label: 'Appointments', path: ROUTES.appointments, roles: [ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR] },

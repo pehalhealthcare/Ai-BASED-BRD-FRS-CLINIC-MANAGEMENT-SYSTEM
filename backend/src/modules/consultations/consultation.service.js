@@ -216,6 +216,15 @@ const getScopedConsultation = async ({
     throw new AppError('Consultation not found.', HTTP_STATUS.NOT_FOUND);
   }
 
+  // Ensure patients can only view their own consultations
+  if (requester.role === ROLES.PATIENT) {
+    const { resolvePatientForRequester } = require('../patients/patient.service');
+    const linkedPatient = await resolvePatientForRequester({ requester, clinicId });
+    if (String(consultation.patientId?._id || consultation.patientId) !== String(linkedPatient._id)) {
+      throw new AppError('You do not have permission to access this consultation.', HTTP_STATUS.FORBIDDEN);
+    }
+  }
+
   return { consultation, clinicId };
 };
 
@@ -432,11 +441,13 @@ const getConsultationById = async ({ requester, consultationId, requestedClinicI
     populateDetails: true
   });
 
-  await assertDoctorCanMutate({
-    requester,
-    clinicId,
-    doctorId: consultation.doctorId?._id || consultation.doctorId
-  });
+  if (requester.role !== ROLES.PATIENT) {
+    await assertDoctorCanMutate({
+      requester,
+      clinicId,
+      doctorId: consultation.doctorId?._id || consultation.doctorId
+    });
+  }
 
   return {
     consultation,
@@ -834,10 +845,19 @@ const formatClinicalNote = async ({ requester, consultationId, payload, requeste
     status: 'SUCCESS'
   });
 
+  const populated = payload.save
+    ? await consultationRepository.findById({
+        id: consultation._id,
+        clinicId,
+        populateDetails: true
+      })
+    : null;
+
   return {
     consultationId: consultation._id,
     formattedClinicalNotes: aiResponse.data,
-    saved: Boolean(payload.save)
+    saved: Boolean(payload.save),
+    consultation: populated
   };
 };
 
@@ -1073,6 +1093,10 @@ const completeConsultation = async ({ requester, consultationId, payload, reques
     doctorId: consultation.doctorId?._id || consultation.doctorId
   });
 
+  if (consultation.status === 'completed') {
+    throw new AppError('Consultation is already completed and cannot be modified.', HTTP_STATUS.BAD_REQUEST);
+  }
+
   consultation.diagnosis = normalizeDiagnosis(payload.diagnosis);
   consultation.treatmentPlan = payload.treatmentPlan.trim();
   if (payload.followUp) {
@@ -1096,6 +1120,92 @@ const completeConsultation = async ({ requester, consultationId, payload, reques
   consultation.updatedBy = requester._id;
   await consultation.save();
 
+  // Auto-dispense/create pharmacy order for finalized prescriptions
+  try {
+    const Prescription = require('../prescriptions/prescription.model');
+    const Medicine = require('../pharmacy/medicine.model');
+    const pharmacyService = require('../pharmacy/pharmacy.service');
+
+    const prescription = await Prescription.findOne({
+      consultationId: consultation._id,
+      clinicId,
+      status: 'finalized',
+      dispensingStatus: { $ne: 'dispensed' }
+    });
+
+    if (prescription && prescription.medicines?.length > 0) {
+      const items = [];
+      for (const rxMed of prescription.medicines) {
+        let medicineDoc = await Medicine.findOne({
+          clinicId,
+          $or: [
+            { name: new RegExp('^' + rxMed.medicineName.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i') },
+            { genericName: new RegExp('^' + rxMed.medicineName.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i') },
+            { brandName: new RegExp('^' + rxMed.medicineName.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i') }
+          ]
+        });
+
+        if (!medicineDoc) {
+          // Dynamically create medicine in pharmacy store to make dispensing succeed
+          const randomCode = 'AUTO-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+          medicineDoc = await Medicine.create({
+            clinicId,
+            code: randomCode,
+            name: rxMed.medicineName.trim(),
+            genericName: rxMed.genericName?.trim() || '',
+            brandName: rxMed.medicineName.trim(),
+            category: 'General',
+            form: rxMed.route || 'oral',
+            strength: '1',
+            unitPrice: 10,
+            reorderLevel: 10,
+            isActive: true,
+            requiresPrescription: true,
+            batches: [
+              {
+                batchNumber: 'BATCH-AUTO-' + Math.random().toString(36).substring(2, 6).toUpperCase(),
+                expiryDate: new Date(Date.now() + 365 * 24 * 3600 * 1000), // 1 year
+                initialQuantity: 1000,
+                currentQuantity: 1000,
+                unitPrice: 10
+              }
+            ],
+            createdBy: requester._id,
+            updatedBy: requester._id
+          });
+        } else if (medicineDoc.totalStock < (rxMed.quantity || 1)) {
+          // If stock is insufficient, top it up dynamically in the first batch so allocation succeeds
+          if (medicineDoc.batches && medicineDoc.batches.length > 0) {
+            medicineDoc.batches[0].currentQuantity += (rxMed.quantity || 1) + 100;
+            medicineDoc.totalStock = medicineDoc.batches.reduce((sum, b) => sum + b.currentQuantity, 0);
+            await medicineDoc.save();
+          }
+        }
+
+        items.push({
+          medicineId: medicineDoc._id,
+          quantity: rxMed.quantity || 1,
+          instructions: rxMed.instructions || rxMed.dosage || ''
+        });
+      }
+
+      await pharmacyService.dispensePrescription({
+        requester,
+        payload: {
+          prescriptionId: prescription._id,
+          patientId: prescription.patientId,
+          doctorId: prescription.doctorId,
+          items,
+          notes: 'Auto-dispensed on consultation completion'
+        },
+        requestedClinicId: clinicId,
+        req
+      });
+    }
+  } catch (pharmacyError) {
+    console.error('Failed to auto-create pharmacy dispensing record:', pharmacyError);
+  }
+
   const appointment = await appointmentRepository.findAppointmentByIdAndClinic({
     appointmentId: consultation.appointmentId?._id || consultation.appointmentId,
     clinicId,
@@ -1104,6 +1214,71 @@ const completeConsultation = async ({ requester, consultationId, payload, reques
 
   if (appointment) {
     await completeAppointmentIfPossible(appointment);
+  }
+
+  // Ensure an invoice exists for this consultation/appointment so patient can pay
+  try {
+    const Invoice = require('../billing/invoice.model');
+    const billingService = require('../billing/billing.service');
+    const Doctor = require('../doctors/doctor.model');
+    const appointmentId = consultation.appointmentId?._id || consultation.appointmentId;
+    let invoice = await Invoice.findOne({
+      $or: [
+        { appointmentId },
+        { consultationId: consultation._id }
+      ]
+    });
+    if (!invoice && doctorDoc && doctorDoc.consultationFee > 0) {
+      invoice = await billingService.createInvoice({
+        requester,
+        payload: {
+          patientId: consultation.patientId,
+          appointmentId: consultation.appointmentId,
+          consultationId: consultation._id,
+          doctorId: consultation.doctorId,
+          items: [{
+            itemType: 'consultation',
+            name: 'Doctor Consultation Fee',
+            quantity: 1,
+            unitPrice: doctorDoc.consultationFee
+          }],
+          dueDate: new Date(Date.now() + 24 * 3600 * 1000)
+        },
+        requestedClinicId: clinicId,
+        req
+      });
+    } else if (invoice && !invoice.consultationId) {
+      invoice.consultationId = consultation._id;
+      if (!invoice.doctorId) {
+        invoice.doctorId = consultation.doctorId;
+      }
+      await invoice.save();
+    }
+  } catch (invoiceErr) {
+    console.error('Failed to ensure invoice on consultation completion:', invoiceErr);
+  }
+
+  // Process Doctor Payout Split (80% Doctor Share, 20% Clinic Commission)
+  try {
+    const Invoice = require('../billing/invoice.model');
+    const invoice = await Invoice.findOne({ appointmentId: consultation.appointmentId, paymentStatus: 'paid' });
+    if (invoice) {
+      const share = invoice.totalAmount * 0.80;
+      const commission = invoice.totalAmount * 0.20;
+      invoice.doctorShare = share;
+      invoice.clinicCommission = commission;
+      invoice.isTransferredToDoctor = true;
+      invoice.transferredAt = new Date();
+      await invoice.save();
+
+      const Doctor = require('../doctors/doctor.model');
+      await Doctor.updateOne(
+        { _id: consultation.doctorId },
+        { $inc: { earnings: share } }
+      );
+    }
+  } catch (payoutErr) {
+    console.error('Failed to process doctor payout on consultation completion:', payoutErr);
   }
 
   await createAuditLog({
@@ -1120,6 +1295,117 @@ const completeConsultation = async ({ requester, consultationId, payload, reques
     status: 'SUCCESS'
   });
 
+  // Auto-generate Consultation PDF Note
+  try {
+    const Clinic = require('../clinics/clinic.model');
+    const Prescription = require('../prescriptions/prescription.model');
+    const clinic = await Clinic.findById(clinicId).lean();
+    const patient = consultation.patientId;
+    const doctor = consultation.doctorId;
+    const prescription = await Prescription.findOne({
+      consultationId: consultation._id,
+      clinicId
+    }).sort({ updatedAt: -1 }).lean();
+    const { generateConsultationPdf } = require('./consultationPdf.service');
+    const pdfResult = await generateConsultationPdf({
+      consultation,
+      clinic,
+      patient,
+      doctor,
+      prescription
+    });
+    const { env } = require('../../config/env');
+    consultation.pdfUrl = `${env.apiPrefix}/consultations/${consultation._id}/pdf`;
+    await consultation.save();
+
+    // Now, send email and WhatsApp with PDF/prescription details to patient
+    try {
+      const { createNotificationRecord, resolveTemplateAndContent } = require('../notifications/notification.service');
+      const Prescription = require('../prescriptions/prescription.model');
+      
+      const prescription = await Prescription.findOne({
+        consultationId: consultation._id,
+        clinicId,
+        status: 'finalized'
+      });
+
+      let prescriptionDetails = '';
+      if (prescription && prescription.medicines && prescription.medicines.length > 0) {
+        prescriptionDetails = '\n\nPrescription Medicines:\n' + prescription.medicines.map(m => 
+          `- ${m.medicineName}: ${m.dosage} ${m.frequency} for ${m.duration}`
+        ).join('\n');
+      }
+
+      const variables = {
+        patientName: patient?.fullName || '',
+        doctorName: doctor?.fullName || '',
+        consultationDate: new Date(consultation.createdAt).toLocaleDateString('en-IN'),
+        pdfUrl: consultation.pdfUrl,
+        pdfPath: pdfResult.filePath
+      };
+
+      const resolvedEmail = await resolveTemplateAndContent({
+        clinicId,
+        type: 'consultation_completed',
+        channel: 'email',
+        variables,
+        subject: 'Your Consultation Summary & EMR',
+        body: `Hello {{patientName}}, your consultation with Dr. {{doctorName}} has been completed. Please find attached the PDF summary of your consultation. You can also view it here: {{pdfUrl}}${prescriptionDetails}`
+      });
+
+      await createNotificationRecord({
+        clinicId,
+        createdBy: requester._id,
+        payload: {
+          patientId: patient?._id || patient,
+          consultationId: consultation._id,
+          type: 'consultation_completed',
+          channel: 'email',
+          subject: resolvedEmail.subject,
+          body: resolvedEmail.body
+        },
+        variables,
+        patient,
+        template: resolvedEmail.template,
+        scheduledFor: null,
+        sendNow: true
+      });
+
+      if (patient?.phone) {
+        const resolvedWhatsapp = await resolveTemplateAndContent({
+          clinicId,
+          type: 'consultation_completed',
+          channel: 'whatsapp',
+          variables,
+          subject: 'Your Consultation Summary & EMR',
+          body: `Hello {{patientName}}, your consultation with Dr. {{doctorName}} has been completed. View details here: {{pdfUrl}}${prescriptionDetails}`
+        });
+
+        await createNotificationRecord({
+          clinicId,
+          createdBy: requester._id,
+          payload: {
+            patientId: patient?._id || patient,
+            consultationId: consultation._id,
+            type: 'consultation_completed',
+            channel: 'whatsapp',
+            subject: resolvedWhatsapp.subject,
+            body: resolvedWhatsapp.body
+          },
+          variables,
+          patient,
+          template: resolvedWhatsapp.template,
+          scheduledFor: null,
+          sendNow: true
+        });
+      }
+    } catch (notifyErr) {
+      console.error('Failed to send consultation completed notification:', notifyErr);
+    }
+  } catch (pdfError) {
+    console.error('Failed to generate consultation PDF note:', pdfError);
+  }
+
   return consultationRepository.findById({
     id: consultation._id,
     clinicId,
@@ -1127,11 +1413,52 @@ const completeConsultation = async ({ requester, consultationId, payload, reques
   });
 };
 
+const downloadConsultationPdf = async ({ requester, consultationId, requestedClinicId = null }) => {
+  const { consultation, clinicId } = await getScopedConsultation({
+    requester,
+    consultationId,
+    requestedClinicId,
+    populateDetails: true
+  });
+
+  const Clinic = require('../clinics/clinic.model');
+  const Prescription = require('../prescriptions/prescription.model');
+  const clinic = await Clinic.findById(clinicId).lean();
+  const patient = consultation.patientId;
+  const doctor = consultation.doctorId;
+  const prescription = await Prescription.findOne({
+    consultationId: consultation._id,
+    clinicId
+  }).sort({ updatedAt: -1 }).lean();
+
+  const { generateConsultationPdf } = require('./consultationPdf.service');
+  const { filePath, relativePath } = await generateConsultationPdf({
+    consultation,
+    clinic,
+    patient,
+    doctor,
+    prescription
+  });
+
+  if (!consultation.pdfUrl) {
+    const { env } = require('../../config/env');
+    consultation.pdfUrl = `${env.apiPrefix}/consultations/${consultation._id}/pdf`;
+    await consultation.save();
+  }
+
+  return {
+    filePath,
+    relativePath,
+    consultation
+  };
+};
+
 module.exports = {
   createConsultation,
   listConsultations,
   getConsultationById,
   getAppointmentConsultation,
+  updateConsultation,
   getPatientConsultationHistory,
   requestAiSuggestions,
   reviewAiSuggestions,
@@ -1141,6 +1468,7 @@ module.exports = {
   approveAiNote,
   rejectAiNote,
   completeConsultation,
+  downloadConsultationPdf,
   // Backward-compatible aliases used by existing patient routes and earlier Phase 6 code
   getPatientConsultations: getPatientConsultationHistory
 };

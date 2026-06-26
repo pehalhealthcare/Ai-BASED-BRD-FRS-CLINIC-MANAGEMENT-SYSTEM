@@ -105,7 +105,7 @@ const appointmentSchema = new mongoose.Schema(
     },
     appointmentType: {
       type: String,
-      enum: ['scheduled', 'walk_in', 'follow_up', 'teleconsultation'],
+      enum: ['scheduled', 'walk_in', 'follow_up', 'teleconsultation', 'emergency'],
       default: 'scheduled'
     },
     status: {
@@ -146,6 +146,15 @@ const appointmentSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Appointment',
       default: null
+    },
+    isEarlyBooking: {
+      type: Boolean,
+      default: false
+    },
+    earlyBookingReason: {
+      type: String,
+      enum: ['doctor_request', 'receptionist_discretion', 'none'],
+      default: 'none'
     },
     meta: {
       type: Object,

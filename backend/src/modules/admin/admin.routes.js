@@ -9,7 +9,8 @@ const {
   listBillingAnomaliesQuerySchema,
   billingAnomalyIdParamSchema,
   reviewBillingAnomalySchema,
-  approveDoctorSchema
+  approveDoctorSchema,
+  approveReceptionistSchema
 } = require('./admin.validator');
 
 const router = Router();
@@ -84,6 +85,43 @@ router.post(
   protect,
   authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),
   adminController.reEditDoctor
+);
+
+// Receptionist approval & dashboard routes
+router.get(
+  '/pending-receptionists',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),
+  adminController.listPendingReceptionists
+);
+
+router.post(
+  '/approve-receptionist/:userId',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),
+  validate(approveReceptionistSchema),
+  adminController.approveReceptionist
+);
+
+router.post(
+  '/reject-receptionist/:userId',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),
+  adminController.rejectReceptionist
+);
+
+router.post(
+  '/receptionists/:userId/re-edit',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),
+  adminController.reEditReceptionist
+);
+
+router.get(
+  '/my-receptionists/dashboard',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),
+  adminController.getMyReceptionistsDashboard
 );
 
 module.exports = router;

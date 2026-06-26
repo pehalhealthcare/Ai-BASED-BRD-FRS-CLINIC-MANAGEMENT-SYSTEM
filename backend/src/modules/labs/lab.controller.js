@@ -133,8 +133,21 @@ const getPatientLabHistory = asyncHandler(async (req, res) => {
   return sendSuccess(res, 'Patient lab history retrieved successfully', data);
 });
 
+const updateLabTest = asyncHandler(async (req, res) => {
+  const labTest = await labService.updateLabTest({
+    requester: req.user,
+    labTestId: req.params.id,
+    payload: req.body,
+    requestedClinicId: req.query.clinicId,
+    req
+  });
+
+  return sendSuccess(res, 'Lab test updated successfully', { labTest });
+});
+
 module.exports = {
   createLabTest,
+  updateLabTest,
   listLabTests,
   createLabOrder,
   listLabOrders,

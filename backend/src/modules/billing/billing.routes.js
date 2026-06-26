@@ -84,7 +84,7 @@ router.post(
 router.get(
   '/invoices/:id/pdf',
   protect,
-  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR),
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR, ROLES.PATIENT),
   validate(invoiceIdParamSchema),
   billingController.downloadInvoicePdf
 );

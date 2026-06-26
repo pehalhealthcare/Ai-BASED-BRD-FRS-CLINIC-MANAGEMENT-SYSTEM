@@ -12,6 +12,7 @@ export const rejectConsultationAiNote = (id, payload) => consultationApi.rejectA
 export const requestConsultationAiSuggestions = (id, payload) => consultationApi.requestAiSuggestions(id, payload);
 export const reviewConsultationAiSuggestions = (id, payload) => consultationApi.reviewAiSuggestions(id, payload);
 export const completeConsultation = (id, payload) => consultationApi.complete(id, payload);
+export const downloadConsultationPdf = (id) => consultationApi.downloadPdf(id);
 export const formatConsultationNote = (id, payload) => consultationApi.formatNote(id, payload);
 export const getPatientConsultationHistory = (patientId, params) => consultationApi.historyByPatient(patientId, params);
 export const getPatientClinicalHistory = (patientId) => consultationApi.getClinicalHistoryByPatient(patientId);

@@ -29,6 +29,7 @@ const approveDoctorSchema = z.object({
   }),
   body: z.object({
     clinicId: objectIdSchema,
+    assignedClinics: z.array(objectIdSchema).optional().default([]),
     specialization: z.string().trim().min(2).max(100),
     qualification: z.string().trim().optional().default(''),
     experienceYears: z.number().int().nonnegative().optional().default(0),
@@ -45,9 +46,29 @@ const approveDoctorSchema = z.object({
   })
 });
 
+const approveReceptionistSchema = z.object({
+  params: z.object({
+    userId: objectIdSchema
+  }),
+  body: z.object({
+    clinicId: objectIdSchema,
+    assignedClinics: z.array(objectIdSchema).optional().default([]),
+    qualification: z.string().trim().optional().default(''),
+    experienceYears: z.number().int().nonnegative().optional().default(0),
+    availability: z.array(z.object({
+      dayOfWeek: z.enum(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']),
+      isAvailable: z.boolean().default(false),
+      startTime: z.string().trim().default(''),
+      endTime: z.string().trim().default(''),
+      clinicId: objectIdSchema.optional().nullable()
+    })).optional().default([])
+  })
+});
+
 module.exports = {
   listBillingAnomaliesQuerySchema,
   billingAnomalyIdParamSchema,
   reviewBillingAnomalySchema,
-  approveDoctorSchema
+  approveDoctorSchema,
+  approveReceptionistSchema
 };

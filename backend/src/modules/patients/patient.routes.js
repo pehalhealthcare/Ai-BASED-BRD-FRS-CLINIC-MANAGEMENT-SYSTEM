@@ -11,7 +11,9 @@ const {
   updateMyPatientSchema,
   listPatientQuerySchema,
   patientIdParamSchema,
-  namedPatientIdParamSchema
+  namedPatientIdParamSchema,
+  uploadPatientDocumentSchema,
+  documentIdParamSchema
 } = require('./patient.validator');
 const { patientConsultationHistorySchema } = require('../consultations/consultation.validator');
 const { patientLabHistorySchema } = require('../labs/lab.validator');
@@ -26,6 +28,12 @@ router.get(
   protect,
   authorize(ROLES.PATIENT),
   patientController.getMyPatientProfile
+);
+router.post(
+  '/me/verify-history-password',
+  protect,
+  authorize(ROLES.PATIENT),
+  patientController.verifyHistoryPassword
 );
 router.patch(
   '/me',
@@ -72,14 +80,14 @@ router.get(
 router.get(
   '/:patientId/labs',
   protect,
-  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR),
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR, ROLES.PATIENT),
   validate(patientLabHistorySchema),
   patientController.getPatientLabs
 );
 router.get(
   '/:patientId/medicines',
   protect,
-  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR, ROLES.PHARMACIST),
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR, ROLES.PHARMACIST, ROLES.PATIENT),
   validate(patientMedicineHistorySchema),
   patientController.getPatientMedicines
 );
@@ -103,6 +111,35 @@ router.get(
   authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR),
   validate(patientIdParamSchema),
   patientController.getPatientHistory
+);
+
+router.post(
+  '/:patientId/documents',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR, ROLES.PATIENT),
+  validate(uploadPatientDocumentSchema),
+  patientController.uploadPatientDocument
+);
+router.get(
+  '/:patientId/documents',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR, ROLES.PATIENT),
+  validate(namedPatientIdParamSchema),
+  patientController.listPatientDocuments
+);
+router.get(
+  '/:patientId/documents/:documentId',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR, ROLES.PATIENT),
+  validate(documentIdParamSchema),
+  patientController.downloadPatientDocument
+);
+router.delete(
+  '/:patientId/documents/:documentId',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR, ROLES.PATIENT),
+  validate(documentIdParamSchema),
+  patientController.deletePatientDocument
 );
 
 module.exports = router;

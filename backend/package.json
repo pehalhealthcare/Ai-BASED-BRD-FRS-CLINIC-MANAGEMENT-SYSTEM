@@ -11,6 +11,8 @@
     "test:watch": "jest --watch",
     "seed": "node src/seed/seedDemoData.js",
     "seed:admin": "node src/seed/seedAdmin.js",
+    "seed:insurance": "node src/modules/insurance/seed/insurance.seed.js",
+    "seed:pharmacy-labs": "node src/seed/seedPharmacyAndLabs.js",
     "check:env": "node src/scripts/checkEnv.js",
     "lint": "echo \"Linting will be configured in a later phase\""
   },

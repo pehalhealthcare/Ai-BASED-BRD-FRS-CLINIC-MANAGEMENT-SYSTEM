@@ -88,11 +88,36 @@ const invoiceSchema = new mongoose.Schema(
       required: true,
       index: true
     },
+    organizationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Organization',
+      default: null,
+      index: true
+    },
     patientId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Patient',
       required: true,
       index: true
+    },
+    doctorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Doctor',
+      default: null,
+      index: true
+    },
+    serviceType: {
+      type: String,
+      enum: ['CONSULTATION', 'LAB', 'PHARMACY', 'other'],
+      default: 'CONSULTATION'
+    },
+    insuranceCoveredAmount: {
+      type: Number,
+      default: 0
+    },
+    patientPayableAmount: {
+      type: Number,
+      default: 0
     },
     appointmentId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -224,6 +249,22 @@ const invoiceSchema = new mongoose.Schema(
     metadata: {
       type: Object,
       default: {}
+    },
+    doctorShare: {
+      type: Number,
+      default: 0
+    },
+    clinicCommission: {
+      type: Number,
+      default: 0
+    },
+    isTransferredToDoctor: {
+      type: Boolean,
+      default: false
+    },
+    transferredAt: {
+      type: Date,
+      default: null
     }
   },
   {

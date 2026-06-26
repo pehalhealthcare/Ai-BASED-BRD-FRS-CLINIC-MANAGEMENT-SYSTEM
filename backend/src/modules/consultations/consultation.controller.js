@@ -162,6 +162,19 @@ const completeConsultation = asyncHandler(async (req, res) => {
   return sendSuccess(res, 'Consultation completed successfully', { consultation });
 });
 
+const downloadConsultationPdf = asyncHandler(async (req, res) => {
+  const fs = require('fs');
+  const { filePath } = await consultationService.downloadConsultationPdf({
+    requester: req.user,
+    consultationId: req.params.id,
+    requestedClinicId: req.query.clinicId
+  });
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', 'inline; filename="consultation_note.pdf"');
+  fs.createReadStream(filePath).pipe(res);
+});
+
 module.exports = {
   createConsultation,
   listConsultations,
@@ -177,6 +190,7 @@ module.exports = {
   approveAiNote,
   rejectAiNote,
   completeConsultation,
+  downloadConsultationPdf,
   // Backward-compatible alias
   getPatientConsultations: getPatientConsultationHistory
 };

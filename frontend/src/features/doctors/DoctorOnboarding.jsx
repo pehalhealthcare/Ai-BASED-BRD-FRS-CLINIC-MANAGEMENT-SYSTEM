@@ -6,7 +6,7 @@ import { OpenStreetMapProvider } from 'leaflet-geosearch';
 import MapPicker from '../../components/common/MapPicker';
 
 const FIELD_CLASS =
-  'w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 text-black';
+  'w-full rounded-2xl border border-stone-300 bg-white dark:bg-stone-700 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 text-stone-900 dark:text-white dark:border-stone-600 dark:placeholder-stone-400';
 
 const StepsProgress = ({ currentStatus }) => {
   const steps = [
@@ -270,20 +270,24 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
     if (mapOpenFor === 'current') {
       setCurrentAddress(prev => ({
         ...prev,
-        line1: prev.line1 || addr.line1,
-        city:  prev.city  || addr.city,
-        state: prev.state || addr.state,
-        pincode: prev.pincode || addr.pincode,
+        line1: addr.line1 || prev.line1,
+        line2: addr.line2 || prev.line2,
+        city:  addr.city  || prev.city,
+        state: addr.state || prev.state,
+        pincode: addr.pincode || prev.pincode,
+        country: addr.country || prev.country || 'India',
         latitude: addr.latitude,
         longitude: addr.longitude,
       }));
     } else if (mapOpenFor === 'permanent') {
       setPermanentAddress(prev => ({
         ...prev,
-        line1: prev.line1 || addr.line1,
-        city:  prev.city  || addr.city,
-        state: prev.state || addr.state,
-        pincode: prev.pincode || addr.pincode,
+        line1: addr.line1 || prev.line1,
+        line2: addr.line2 || prev.line2,
+        city:  addr.city  || prev.city,
+        state: addr.state || prev.state,
+        pincode: addr.pincode || prev.pincode,
+        country: addr.country || prev.country || 'India',
         latitude: addr.latitude,
         longitude: addr.longitude,
       }));
@@ -338,6 +342,7 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
   const [preferredPracticeLocation, setPreferredPracticeLocation] = useState('');
   const [clinics, setClinics] = useState([]);
   const [orgClinics, setOrgClinics] = useState([]);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const loadProfile = async () => {
     try {
@@ -576,71 +581,280 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
 
   if (currentStatus === 'approved' && !profile?.hasAcceptedSlot) {
     const clinic = profile.clinicId || {};
+    const primaryId = profile.clinicId?._id || profile.clinicId;
+    const assignedList = profile.assignedClinics?.length
+      ? profile.assignedClinics
+      : (primaryId ? [primaryId] : []);
+
+    const availableSlots = profile?.availability?.filter(s => s.isAvailable) || [];
+
+    // Group slots by day for cleaner display
+    const slotsByDay = availableSlots.reduce((acc, slot) => {
+      const day = slot.dayOfWeek;
+      if (!acc[day]) acc[day] = [];
+      acc[day].push(slot);
+      return acc;
+    }, {});
+
+    const dayOrder = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
+    const sortedDays = dayOrder.filter(d => slotsByDay[d]);
+
+    const modeColor = (mode) =>
+      mode === 'online'
+        ? 'bg-sky-100 text-sky-700 border-sky-200'
+        : 'bg-violet-100 text-violet-700 border-violet-200';
 
     return (
-      <div className="max-w-2xl mx-auto my-12 p-8 rounded-3xl bg-white border border-stone-200 shadow-2xl text-center relative overflow-hidden">
-        <div className="absolute top-0 inset-x-0 h-2 bg-gradient-to-r from-emerald-400 via-teal-500 to-indigo-500"></div>
-        
-        <div className="w-24 h-24 mx-auto rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100 mb-6 animate-bounce">
-          <svg className="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-          </svg>
-        </div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950 flex items-start justify-center py-10 px-4">
+        <div className="w-full max-w-3xl">
 
-        <h2 className="text-4xl font-black text-stone-900 mb-3 tracking-tight">Hurray!</h2>
-        <h3 className="text-xl font-bold text-emerald-700 mb-6">You are successfully verified by admin!</h3>
-
-        <div className="rounded-2xl border border-stone-200 bg-stone-50 p-6 text-left space-y-4 mb-8">
-          <div className="border-b border-stone-200 pb-3">
-            <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">Assigned Practice Venue</span>
-            <h4 className="text-lg font-bold text-stone-800 mt-0.5">{clinic.name || 'AI-CMS Branch'}</h4>
-            <p className="text-xs text-stone-500 mt-1">{clinic.address?.line1 || ''}, {clinic.address?.city || ''}</p>
-          </div>
-          <div className="grid grid-cols-2 gap-4 text-xs text-stone-600">
-            <div>
-              <span className="text-stone-400 font-semibold block">Clinic Code</span>
-              <strong className="text-stone-800 font-mono text-sm">{clinic.code || 'N/A'}</strong>
-            </div>
-            <div>
-              <span className="text-stone-400 font-semibold block">Reception Contact</span>
-              <strong className="text-stone-800 text-sm">{clinic.phone || 'N/A'}</strong>
+          {/* ── Hero Banner ── */}
+          <div className="relative rounded-3xl overflow-hidden mb-6 bg-gradient-to-r from-emerald-500 via-teal-500 to-indigo-600 p-8 text-center shadow-2xl shadow-emerald-900/40">
+            <div className="absolute inset-0 opacity-10" style={{backgroundImage:"radial-gradient(circle at 20% 50%, white 1px, transparent 1px), radial-gradient(circle at 80% 20%, white 1px, transparent 1px)", backgroundSize:"30px 30px"}} />
+            <div className="relative z-10">
+              <div className="w-20 h-20 mx-auto rounded-full bg-white/20 border-2 border-white/40 flex items-center justify-center mb-4 shadow-lg">
+                <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                </svg>
+              </div>
+              <h1 className="text-3xl md:text-4xl font-black text-white mb-2 tracking-tight">Congratulations, Doctor!</h1>
+              <p className="text-emerald-100 text-base font-medium">You have been successfully verified and approved by the admin.</p>
+              <p className="text-white/70 text-sm mt-1">Please review your offer letter carefully before accepting.</p>
             </div>
           </div>
-          <div className="border-t border-stone-200 pt-3">
-            <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block mb-1">Assigned Practice Slots</span>
-            <div className="space-y-1.5 mt-2 bg-white rounded-xl p-3 border border-stone-150">
-              {profile?.availability?.filter(slot => slot.isAvailable).map((slot) => (
-                <div key={slot.dayOfWeek} className="flex justify-between items-center text-xs py-1 border-b border-stone-100 last:border-0">
-                  <span className="capitalize font-bold text-stone-700">{slot.dayOfWeek}</span>
-                  <span className="text-stone-600 font-semibold">
-                    {slot.startTime} - {slot.endTime} <span className="text-stone-400 font-normal">({slot.slotDurationMinutes} min slots)</span>
+
+          {/* ── Offer Letter Card ── */}
+          <div className="bg-white/95 backdrop-blur-sm rounded-3xl shadow-2xl overflow-hidden border border-white/20">
+
+            {/* Header strip */}
+            <div className="bg-gradient-to-r from-slate-800 to-slate-900 px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center">
+                  <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-white font-bold text-sm">Official Offer Letter</p>
+                  <p className="text-slate-400 text-[10px] uppercase tracking-wider">AI-CMS Healthcare Network</p>
+                </div>
+              </div>
+              <span className="text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                ✓ Verified
+              </span>
+            </div>
+
+            <div className="p-6 space-y-6">
+
+              {/* ── Primary Clinic Info ── */}
+              <div className="rounded-2xl border border-stone-200 bg-gradient-to-br from-stone-50 to-white overflow-hidden">
+                <div className="px-5 py-3 bg-stone-100 border-b border-stone-200 flex items-center gap-2">
+                  <svg className="w-4 h-4 text-stone-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                  <span className="text-[11px] font-bold text-stone-500 uppercase tracking-widest">Primary Appointed Clinic</span>
+                </div>
+                <div className="px-5 py-4">
+                  <h3 className="text-xl font-black text-stone-900">{clinic.name || 'AI-CMS Branch'}</h3>
+                  <p className="text-stone-500 text-sm mt-1">
+                    {[clinic.address?.line1, clinic.address?.line2, clinic.address?.city, clinic.address?.state].filter(Boolean).join(', ')}
+                  </p>
+                  <div className="flex flex-wrap gap-3 mt-3">
+                    <div className="flex items-center gap-1.5 text-xs bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg font-semibold">
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" /></svg>
+                      Code: <span className="font-mono font-black text-slate-900">{clinic.code || 'N/A'}</span>
+                    </div>
+                    <div className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold ${profile.isOnlineAvailable ? 'bg-emerald-100 text-emerald-800' : 'bg-stone-100 text-stone-600'}`}>
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17H3a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2h-2" /></svg>
+                      Teleconsultation: {profile.isOnlineAvailable ? '✓ Enabled' : '✗ Disabled'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Assigned Venues ── */}
+              {assignedList.length > 0 && (
+                <div className="rounded-2xl border border-stone-200 overflow-hidden">
+                  <div className="px-5 py-3 bg-stone-100 border-b border-stone-200 flex items-center gap-2">
+                    <svg className="w-4 h-4 text-stone-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <span className="text-[11px] font-bold text-stone-500 uppercase tracking-widest">Appointed Practice Venues</span>
+                  </div>
+                  <div className="px-5 py-4 flex flex-wrap gap-2">
+                    {assignedList.map((c) => {
+                      const cObj = clinics.find(item => String(item._id) === String(c._id || c));
+                      if (!cObj) return null;
+                      const isPrimary = String(cObj._id) === String(primaryId);
+                      return (
+                        <div key={cObj._id} className={`flex items-center gap-2 px-4 py-2 rounded-xl border-2 font-semibold text-sm ${
+                          isPrimary
+                            ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-200'
+                            : 'bg-white border-stone-200 text-stone-700'
+                        }`}>
+                          <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5" />
+                          </svg>
+                          {cObj.name}
+                          {isPrimary && <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${isPrimary ? 'bg-white/20 text-white' : 'bg-stone-100 text-stone-500'}`}>PRIMARY</span>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* ── Practice Slots ── */}
+              <div className="rounded-2xl border border-stone-200 overflow-hidden">
+                <div className="px-5 py-3 bg-gradient-to-r from-slate-800 to-slate-700 flex items-center gap-2">
+                  <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <span className="text-[11px] font-bold text-slate-300 uppercase tracking-widest">Assigned Practice Schedule</span>
+                  <span className="ml-auto text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold">
+                    {availableSlots.length} slots
                   </span>
                 </div>
-              ))}
-              {(!profile?.availability || profile.availability.filter(s => s.isAvailable).length === 0) && (
-                <p className="text-xs text-stone-400 italic">No active slots configured.</p>
+
+                {availableSlots.length === 0 ? (
+                  <div className="px-5 py-8 text-center text-stone-400 italic text-sm">
+                    No active practice slots have been configured yet.
+                  </div>
+                ) : (
+                  <div className="divide-y divide-stone-100">
+                    {sortedDays.map((day) => (
+                      <div key={day} className="px-5 py-4">
+                        {/* Day heading */}
+                        <div className="flex items-center gap-2 mb-3">
+                          <span className="capitalize font-black text-stone-900 text-sm">{day}</span>
+                          <span className="text-[10px] bg-stone-100 text-stone-500 px-2 py-0.5 rounded-full font-bold">
+                            {slotsByDay[day].length} slot{slotsByDay[day].length > 1 ? 's' : ''}
+                          </span>
+                        </div>
+                        {/* Slot cards for the day */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {slotsByDay[day].map((slot, idx) => {
+                            const matchedClinic = clinics.find(c => String(c._id) === String(slot.clinicId?._id || slot.clinicId));
+                            return (
+                              <div key={slot._id || idx} className="flex items-start gap-3 rounded-xl border border-stone-200 bg-stone-50 p-3 hover:bg-stone-100 transition-colors">
+                                {/* Time icon */}
+                                <div className="w-8 h-8 rounded-lg bg-white border border-stone-200 flex items-center justify-center shrink-0 shadow-sm">
+                                  <svg className="w-4 h-4 text-stone-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  {/* Time range */}
+                                  <p className="font-black text-stone-900 text-sm">
+                                    {slot.startTime} – {slot.endTime}
+                                  </p>
+                                  {/* Duration */}
+                                  <p className="text-[11px] text-stone-500 font-medium mt-0.5">
+                                    {slot.slotDurationMinutes} min per slot
+                                  </p>
+                                  {/* Tags */}
+                                  <div className="flex flex-wrap gap-1.5 mt-2">
+                                    <span className={`inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-md border ${modeColor(slot.consultationMode)}`}>
+                                      {slot.consultationMode === 'online' ? '🌐 Online' : '🏥 In-Clinic'}
+                                    </span>
+                                    {matchedClinic && (
+                                      <span className="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-md border bg-emerald-50 text-emerald-700 border-emerald-200" title={matchedClinic.name}>
+                                        📍 {matchedClinic.name}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* ── Terms & Conditions ── */}
+              <div className="rounded-2xl border-2 border-dashed border-amber-300 bg-amber-50 p-5">
+                <div className="flex items-start gap-3 mb-4">
+                  <svg className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                  </svg>
+                  <div>
+                    <h4 className="font-black text-amber-900 text-sm mb-1">Terms &amp; Conditions of Appointment</h4>
+                    <div className="text-xs text-amber-800 space-y-1.5 leading-relaxed">
+                      <p>• You confirm that all credentials and documents you submitted are authentic and accurate.</p>
+                      <p>• You agree to adhere to the clinic's code of professional conduct and patient care standards.</p>
+                      <p>• You agree to fulfill the assigned practice schedule unless prior notice is given to the administration.</p>
+                      <p>• You authorize the clinic to display your profile, specialization, and availability to patients for appointment booking.</p>
+                      <p>• You agree that teleconsultation (if enabled) will be conducted through the clinic's approved platform only.</p>
+                      <p>• Any breach of conduct may result in suspension or revocation of your clinic access.</p>
+                    </div>
+                  </div>
+                </div>
+                <label className="flex items-center gap-3 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    id="acceptTerms"
+                    checked={acceptedTerms}
+                    onChange={(e) => setAcceptedTerms(e.target.checked)}
+                    className="w-5 h-5 accent-emerald-600 cursor-pointer rounded"
+                  />
+                  <span className="text-sm font-bold text-amber-900 group-hover:text-amber-700 transition-colors select-none">
+                    I have read and agree to all the terms &amp; conditions of this appointment
+                  </span>
+                </label>
+              </div>
+
+              {/* ── Accept Button ── */}
+              <button
+                onClick={handleAcceptSlot}
+                disabled={!acceptedTerms}
+                className={`w-full py-4 rounded-2xl text-sm font-black tracking-wide shadow-lg transition-all duration-200 flex items-center justify-center gap-2 ${
+                  acceptedTerms
+                    ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-emerald-300 cursor-pointer scale-100 hover:scale-[1.01]'
+                    : 'bg-stone-200 text-stone-400 cursor-not-allowed shadow-none'
+                }`}
+              >
+                {acceptedTerms ? (
+                  <>
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Accept Offer &amp; Open My Workspace
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    Accept Terms &amp; Conditions to Continue
+                  </>
+                )}
+              </button>
+
+              {error && (
+                <p className="p-3 rounded-xl bg-rose-50 text-rose-700 text-sm font-semibold border border-rose-200 text-center">{error}</p>
               )}
             </div>
           </div>
-        </div>
 
-        <button
-          onClick={handleAcceptSlot}
-          className="w-full rounded-2xl bg-emerald-600 py-4 text-sm font-bold text-white hover:bg-emerald-700 shadow-lg shadow-emerald-600/20 transition-all cursor-pointer"
-        >
-          Accept & Open Workspace
-        </button>
+          {/* Footer note */}
+          <p className="text-center text-slate-500 text-xs mt-4">
+            By accepting this offer, you agree to join the AI-CMS Healthcare Network as a registered practitioner.
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-3xl mx-auto my-6 p-6 md:p-8 rounded-3xl bg-white border border-stone-200 shadow-xl">
+    <div className="max-w-3xl mx-auto my-6 p-6 md:p-8 rounded-3xl bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 shadow-xl">
       <StepsProgress currentStatus={currentStatus} />
 
-      <div className="mb-8 border-b border-stone-100 pb-5">
-        <h2 className="text-3xl font-black text-stone-900 tracking-tight">Complete Doctor Profile</h2>
-        <p className="text-stone-500 text-sm mt-1">Please enter your professional details and upload verification documents to submit your application.</p>
+      <div className="mb-8 border-b border-stone-100 dark:border-stone-700 pb-5">
+        <h2 className="text-3xl font-black text-stone-900 dark:text-white tracking-tight">Complete Doctor Profile</h2>
+        <p className="text-stone-500 dark:text-stone-400 text-sm mt-1">Please enter your professional details and upload verification documents to submit your application.</p>
       </div>
 
       {successMsg && <p className="mb-5 p-3.5 rounded-2xl bg-emerald-50 text-emerald-700 text-sm font-semibold border border-emerald-100">{successMsg}</p>}
@@ -668,19 +882,19 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 7.89M9 11l3 3L22 4" />
             </svg>
           </div>
-          <h3 className="text-lg font-bold text-stone-900">Waiting for Admin Approval</h3>
-          <p className="text-stone-500 text-sm mt-2 max-w-md mx-auto">
+          <h3 className="text-lg font-bold text-stone-900 dark:text-white">Waiting for Admin Approval</h3>
+          <p className="text-stone-500 dark:text-stone-400 text-sm mt-2 max-w-md mx-auto">
             Your credentials have been submitted and are under validation. The dashboard will unlock once the admin assigns you to a clinic.
           </p>
         </div>
       ) : (
         <div>
           {/* Inner step navigator tabs for interactive wizard feel */}
-          <div className="flex border-b border-stone-200 mb-6 text-xs md:text-sm">
+          <div className="flex border-b border-stone-200 dark:border-stone-700 mb-6 text-xs md:text-sm">
             <button
               onClick={() => setFormStep(1)}
               className={`flex-1 pb-3 text-center font-bold transition-all border-b-2 ${
-                formStep === 1 ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-stone-400 hover:text-stone-600'
+                formStep === 1 ? 'border-emerald-600 text-emerald-700 dark:text-emerald-400' : 'border-transparent text-stone-400 hover:text-stone-600 dark:hover:text-stone-300'
               }`}
             >
               1. Credentials & Fees
@@ -688,7 +902,7 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
             <button
               onClick={() => setFormStep(2)}
               className={`flex-1 pb-3 text-center font-bold transition-all border-b-2 ${
-                formStep === 2 ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-stone-400 hover:text-stone-600'
+                formStep === 2 ? 'border-emerald-600 text-emerald-700 dark:text-emerald-400' : 'border-transparent text-stone-400 hover:text-stone-600 dark:hover:text-stone-300'
               }`}
             >
               2. Upload Documents
@@ -696,7 +910,7 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
             <button
               onClick={() => setFormStep(3)}
               className={`flex-1 pb-3 text-center font-bold transition-all border-b-2 ${
-                formStep === 3 ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-stone-400 hover:text-stone-600'
+                formStep === 3 ? 'border-emerald-600 text-emerald-700 dark:text-emerald-400' : 'border-transparent text-stone-400 hover:text-stone-600 dark:hover:text-stone-300'
               }`}
             >
               3. Address & Practice Venue
@@ -708,10 +922,10 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
             {formStep === 1 && (
               <div className="space-y-6">
                 <div>
-                  <h3 className="text-sm font-bold text-stone-400 uppercase tracking-wider mb-4">Professional Credentials</h3>
+                  <h3 className="text-sm font-bold text-stone-400 dark:text-stone-500 uppercase tracking-wider mb-4">Professional Credentials</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="md:col-span-2">
-                      <label className="block text-xs font-semibold text-stone-600 mb-1">
+                      <label className="block text-xs font-semibold text-stone-600 dark:text-stone-300 mb-1">
                         Select Organization to Join {hasReEditError('organizationId') && <span className="text-rose-500 font-bold">*</span>}
                       </label>
                       <select
@@ -730,7 +944,7 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-stone-600 mb-1">
+                      <label className="block text-xs font-semibold text-stone-600 dark:text-stone-300 mb-1">
                         Medical Registration Number {hasReEditError('medicalRegistrationNumber') && <span className="text-rose-500 font-bold">*</span>}
                       </label>
                       <input
@@ -743,7 +957,7 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-stone-600 mb-1">
+                      <label className="block text-xs font-semibold text-stone-600 dark:text-stone-300 mb-1">
                         Specialization {hasReEditError('specialization') && <span className="text-rose-500 font-bold">*</span>}
                       </label>
                       <select
@@ -764,7 +978,7 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-stone-600 mb-1">
+                      <label className="block text-xs font-semibold text-stone-600 dark:text-stone-300 mb-1">
                         Qualification {hasReEditError('qualification') && <span className="text-rose-500 font-bold">*</span>}
                       </label>
                       <input
@@ -777,7 +991,7 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-stone-600 mb-1">Years of Experience</label>
+                      <label className="block text-xs font-semibold text-stone-600 dark:text-stone-300 mb-1">Years of Experience</label>
                       <input
                         type="number"
                         min="0"
@@ -791,10 +1005,10 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
                 </div>
 
                 <div>
-                  <h3 className="text-sm font-bold text-stone-400 uppercase tracking-wider mb-4">Consultation Fees & Formats</h3>
+                  <h3 className="text-sm font-bold text-stone-400 dark:text-stone-500 uppercase tracking-wider mb-4">Consultation Fees & Formats</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-semibold text-stone-600 mb-1">Consultation Fee (₹)</label>
+                      <label className="block text-xs font-semibold text-stone-600 dark:text-stone-300 mb-1">Consultation Fee (₹)</label>
                       <input
                         type="number"
                         min="0"
@@ -805,7 +1019,7 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-stone-600 mb-1">Follow-up Fee (₹)</label>
+                      <label className="block text-xs font-semibold text-stone-600 dark:text-stone-300 mb-1">Follow-up Fee (₹)</label>
                       <input
                         type="number"
                         min="0"
@@ -823,7 +1037,7 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
                         onChange={(e) => setIsOnlineAvailable(e.target.checked)}
                         className="w-5 h-5 accent-emerald-600 cursor-pointer"
                       />
-                      <label htmlFor="isOnlineAvailable" className="text-sm font-semibold text-stone-700 cursor-pointer">
+                      <label htmlFor="isOnlineAvailable" className="text-sm font-semibold text-stone-700 dark:text-stone-200 cursor-pointer">
                         Available for Teleconsultation / Online Consultations
                       </label>
                     </div>
@@ -878,21 +1092,32 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
             {formStep === 3 && (
               <div className="space-y-6">
                 <div>
-                  <h3 className="text-sm font-bold text-stone-400 uppercase tracking-wider mb-4">Current Personal Address</h3>
+                  <h3 className="text-sm font-bold text-stone-400 dark:text-stone-500 uppercase tracking-wider mb-4">Current Personal Address</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-semibold text-stone-600 mb-1">Address Line 1</label>
+                      <label className="block text-xs font-semibold text-stone-600 dark:text-stone-300 mb-1">Address Line 1</label>
                       <input
                         type="text"
                         placeholder="House / Apartment no, Street"
                         value={currentAddress.line1}
                         onChange={(e) => setCurrentAddress({ ...currentAddress, line1: e.target.value })}
-                        className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm text-black"
+                        className="w-full rounded-2xl border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-700 px-4 py-3 text-sm text-stone-900 dark:text-white dark:placeholder-stone-400 outline-none focus:border-emerald-500"
                         required={formStep === 3}
                       />
-                      <button type="button" onClick={() => openMap('current')} className="map-button mt-2 px-4 py-2 rounded-md text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer">
-                        Select on Map
-                      </button>
+                      <div className="flex flex-wrap items-center gap-2 mt-2">
+                        <button type="button" onClick={() => openMap('current')} className="map-button px-4 py-2 rounded-md text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer transition-colors shadow-sm">
+                          Select on Map
+                        </button>
+                        {currentAddress.latitude && currentAddress.longitude ? (
+                          <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-1 rounded-lg border border-emerald-200 dark:border-emerald-900/50 flex items-center gap-1">
+                            📍 Located on Map ({currentAddress.latitude.toFixed(4)}, {currentAddress.longitude.toFixed(4)})
+                          </span>
+                        ) : (
+                          <span className="text-xs font-semibold text-rose-600 bg-rose-50 dark:bg-rose-950/30 px-2.5 py-1 rounded-lg border border-rose-200 dark:border-rose-900/50 flex items-center gap-1 animate-pulse">
+                            ⚠️ Map Location Required
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-stone-600 mb-1">Address Line 2</label>
@@ -901,7 +1126,7 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
                         placeholder="Locality / Landmark"
                         value={currentAddress.line2}
                         onChange={(e) => setCurrentAddress({ ...currentAddress, line2: e.target.value })}
-                        className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm text-black"
+                        className="w-full rounded-2xl border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-700 px-4 py-3 text-sm text-stone-900 dark:text-white dark:placeholder-stone-400 outline-none focus:border-emerald-500"
                       />
                     </div>
                     <div>
@@ -911,7 +1136,7 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
                         placeholder="City"
                         value={currentAddress.city}
                         onChange={(e) => setCurrentAddress({ ...currentAddress, city: e.target.value })}
-                        className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm text-black"
+                        className="w-full rounded-2xl border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-700 px-4 py-3 text-sm text-stone-900 dark:text-white dark:placeholder-stone-400 outline-none focus:border-emerald-500"
                         required={formStep === 3}
                       />
                     </div>
@@ -922,7 +1147,7 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
                         placeholder="State"
                         value={currentAddress.state}
                         onChange={(e) => setCurrentAddress({ ...currentAddress, state: e.target.value })}
-                        className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm text-black"
+                        className="w-full rounded-2xl border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-700 px-4 py-3 text-sm text-stone-900 dark:text-white dark:placeholder-stone-400 outline-none focus:border-emerald-500"
                         required={formStep === 3}
                       />
                     </div>
@@ -933,7 +1158,7 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
                         placeholder="Pincode"
                         value={currentAddress.pincode}
                         onChange={(e) => setCurrentAddress({ ...currentAddress, pincode: e.target.value })}
-                        className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm text-black"
+                        className="w-full rounded-2xl border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-700 px-4 py-3 text-sm text-stone-900 dark:text-white dark:placeholder-stone-400 outline-none focus:border-emerald-500"
                         required={formStep === 3}
                       />
                     </div>
@@ -943,7 +1168,7 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
                         type="text"
                         value={currentAddress.country}
                         onChange={(e) => setCurrentAddress({ ...currentAddress, country: e.target.value })}
-                        className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm text-black"
+                        className="w-full rounded-2xl border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-700 px-4 py-3 text-sm text-stone-900 dark:text-white dark:placeholder-stone-400 outline-none focus:border-emerald-500"
                         required={formStep === 3}
                       />
                     </div>
@@ -977,12 +1202,23 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
                           placeholder="House / Apartment no, Street"
                           value={permanentAddress.line1}
                           onChange={(e) => setPermanentAddress({ ...permanentAddress, line1: e.target.value })}
-                          className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm text-black"
+                          className="w-full rounded-2xl border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-700 px-4 py-3 text-sm text-stone-900 dark:text-white dark:placeholder-stone-400 outline-none focus:border-emerald-500"
                           required={formStep === 3 && !isSameAddress}
                         />
-                        <button type="button" onClick={() => openMap('permanent')} className="map-button mt-2 px-4 py-2 rounded-md text-sm font-medium">
-                          Select on Map
-                        </button>
+                        <div className="flex flex-wrap items-center gap-2 mt-2">
+                          <button type="button" onClick={() => openMap('permanent')} className="map-button px-4 py-2 rounded-md text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer transition-colors shadow-sm">
+                            Select on Map
+                          </button>
+                          {permanentAddress.latitude && permanentAddress.longitude ? (
+                            <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-1 rounded-lg border border-emerald-200 dark:border-emerald-900/50 flex items-center gap-1">
+                              📍 Located on Map ({permanentAddress.latitude.toFixed(4)}, {permanentAddress.longitude.toFixed(4)})
+                            </span>
+                          ) : (
+                            <span className="text-xs font-semibold text-rose-600 bg-rose-50 dark:bg-rose-950/30 px-2.5 py-1 rounded-lg border border-rose-200 dark:border-rose-900/50 flex items-center gap-1 animate-pulse">
+                              ⚠️ Map Location Required
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <div>
                         <label className="block text-xs font-semibold text-stone-600 mb-1">Address Line 2</label>
@@ -991,7 +1227,7 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
                           placeholder="Locality / Landmark"
                           value={permanentAddress.line2}
                           onChange={(e) => setPermanentAddress({ ...permanentAddress, line2: e.target.value })}
-                          className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm text-black"
+                          className="w-full rounded-2xl border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-700 px-4 py-3 text-sm text-stone-900 dark:text-white dark:placeholder-stone-400 outline-none focus:border-emerald-500"
                         />
                       </div>
                       <div>
@@ -1001,7 +1237,7 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
                           placeholder="City"
                           value={permanentAddress.city}
                           onChange={(e) => setPermanentAddress({ ...permanentAddress, city: e.target.value })}
-                          className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm text-black"
+                          className="w-full rounded-2xl border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-700 px-4 py-3 text-sm text-stone-900 dark:text-white dark:placeholder-stone-400 outline-none focus:border-emerald-500"
                           required={formStep === 3 && !isSameAddress}
                         />
                       </div>
@@ -1012,7 +1248,7 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
                           placeholder="State"
                           value={permanentAddress.state}
                           onChange={(e) => setPermanentAddress({ ...permanentAddress, state: e.target.value })}
-                          className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm text-black"
+                          className="w-full rounded-2xl border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-700 px-4 py-3 text-sm text-stone-900 dark:text-white dark:placeholder-stone-400 outline-none focus:border-emerald-500"
                           required={formStep === 3 && !isSameAddress}
                         />
                       </div>
@@ -1023,7 +1259,7 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
                           placeholder="Pincode"
                           value={permanentAddress.pincode}
                           onChange={(e) => setPermanentAddress({ ...permanentAddress, pincode: e.target.value })}
-                          className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm text-black"
+                          className="w-full rounded-2xl border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-700 px-4 py-3 text-sm text-stone-900 dark:text-white dark:placeholder-stone-400 outline-none focus:border-emerald-500"
                           required={formStep === 3 && !isSameAddress}
                         />
                       </div>
@@ -1033,7 +1269,7 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
                           type="text"
                           value={permanentAddress.country}
                           onChange={(e) => setPermanentAddress({ ...permanentAddress, country: e.target.value })}
-                          className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm text-black"
+                          className="w-full rounded-2xl border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-700 px-4 py-3 text-sm text-stone-900 dark:text-white dark:placeholder-stone-400 outline-none focus:border-emerald-500"
                           required={formStep === 3 && !isSameAddress}
                         />
                       </div>
@@ -1065,7 +1301,7 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
                         <select
                           value={preferredPracticeLocation}
                           onChange={(e) => setPreferredPracticeLocation(e.target.value)}
-                          className="w-full rounded-2xl border border-stone-300 px-4 py-3 text-sm text-stone-900 bg-white"
+                          className="w-full rounded-2xl border border-stone-300 dark:border-stone-600 px-4 py-3 text-sm text-stone-900 dark:text-white bg-white dark:bg-stone-700 outline-none focus:border-emerald-500"
                           required={formStep === 3}
                         >
                           <option value="" disabled>Choose preferred branch...</option>

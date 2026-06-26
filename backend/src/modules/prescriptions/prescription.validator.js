@@ -39,9 +39,9 @@ const createPrescriptionSchema = z.object({
     appointmentId: objectIdSchema.optional(),
     doctorId: objectIdSchema.optional(),
     notes: z.string().trim().max(4000).optional(),
-    medicines: z.array(prescriptionItemSchema).min(1, 'At least one medicine is required'),
+    medicines: z.array(prescriptionItemSchema).optional(),
     advice: z.string().trim().max(4000).optional(),
-    followUpDate: futureOrTodayDateSchema.optional(),
+    followUpDate: futureOrTodayDateSchema.nullish(),
     aiAssist: aiAssistSchema,
     overrideReason: z.string().trim().max(1000).optional()
   })
@@ -52,7 +52,7 @@ const updatePrescriptionSchema = z.object({
   body: z
     .object({
       notes: z.string().trim().max(4000).optional(),
-      medicines: z.array(prescriptionItemSchema).min(1).optional(),
+      medicines: z.array(prescriptionItemSchema).optional(),
       advice: z.string().trim().max(4000).optional(),
       followUpDate: futureOrTodayDateSchema.nullish(),
       aiAssist: aiAssistSchema,
@@ -66,7 +66,7 @@ const updatePrescriptionSchema = z.object({
 const finalizePrescriptionSchema = z.object({
   params: objectIdParamSchema('id').shape.params,
   body: z.object({
-    followUpDate: futureOrTodayDateSchema.optional(),
+    followUpDate: futureOrTodayDateSchema.nullish(),
     finalAdvice: z.string().trim().max(4000).optional(),
     overrideReason: z.string().trim().max(1000).optional(),
     doctorConfirmation: z.literal(true, {

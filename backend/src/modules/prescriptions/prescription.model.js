@@ -78,6 +78,56 @@ const aiAssistSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const labRecommendationSchema = new mongoose.Schema(
+  {
+    testName: {
+      type: String,
+      trim: true,
+      required: true
+    },
+    priority: {
+      type: String,
+      enum: ['routine', 'urgent', 'stat'],
+      default: 'routine'
+    },
+    sampleRequired: {
+      type: String,
+      trim: true,
+      default: 'Blood'
+    },
+    reason: {
+      type: String,
+      trim: true,
+      default: ''
+    }
+  },
+  { _id: false }
+);
+
+const procedureRecommendationSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      trim: true,
+      required: true
+    },
+    code: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    fee: {
+      type: Number,
+      default: 0
+    },
+    status: {
+      type: String,
+      default: 'scheduled'
+    }
+  },
+  { _id: false }
+);
+
 const prescriptionOverrideSchema = new mongoose.Schema(
   {
     reason: {
@@ -95,6 +145,14 @@ const prescriptionOverrideSchema = new mongoose.Schema(
 
 const prescriptionSchema = new mongoose.Schema(
   {
+    labs: {
+      type: [labRecommendationSchema],
+      default: []
+    },
+    procedures: {
+      type: [procedureRecommendationSchema],
+      default: []
+    },
     clinicId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Clinic',

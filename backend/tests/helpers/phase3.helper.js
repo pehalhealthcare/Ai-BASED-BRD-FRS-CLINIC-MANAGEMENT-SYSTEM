@@ -79,6 +79,13 @@ const createDoctorRecord = async ({ clinicId, createdBy, userId = null, availabi
     isActive: true,
     approvalStatus: 'approved',
     hasAcceptedSlot: true,
+    bankAccount: {
+      accountNumber: '1234567890',
+      ifscCode: 'HDFC0001234',
+      bankName: 'HDFC Bank',
+      accountHolderName: 'Appointment Doctor',
+      passbookCopy: 'passbook.png'
+    },
     ...overrides
   });
 };

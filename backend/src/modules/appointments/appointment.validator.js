@@ -9,7 +9,7 @@ const durationSchema = z.coerce.number().int().refine((value) => [15, 30, 45, 60
   message: 'durationMinutes must be one of 15, 30, 45, or 60'
 });
 
-const appointmentTypeSchema = z.enum(['scheduled', 'walk_in', 'follow_up', 'teleconsultation']);
+const appointmentTypeSchema = z.enum(['scheduled', 'walk_in', 'follow_up', 'teleconsultation', 'emergency']);
 const appointmentStatusSchema = z.enum(Object.values(APPOINTMENT_STATUSES));
 
 const paginationQuerySchema = z.object({
@@ -28,7 +28,9 @@ const createAppointmentSchema = z.object({
     reasonForVisit: z.string().trim().max(500).optional(),
     symptomsSummary: z.string().trim().max(1000).optional(),
     source: z.enum(['reception', 'patient_app', 'chatbot', 'admin']).optional(),
-    notes: z.string().trim().max(1000).optional()
+    notes: z.string().trim().max(1000).optional(),
+    isEarlyBooking: z.boolean().optional(),
+    earlyBookingReason: z.enum(['doctor_request', 'receptionist_discretion', 'none']).optional()
   })
 });
 
@@ -58,7 +60,8 @@ const availableSlotsQuerySchema = z.object({
     doctorId: objectIdSchema,
     date: dateStringSchema,
     durationMinutes: durationSchema.default(30),
-    clinicId: objectIdSchema.optional()
+    clinicId: objectIdSchema.optional(),
+    appointmentType: appointmentTypeSchema.optional()
   })
 });
 
@@ -79,7 +82,9 @@ const rescheduleAppointmentSchema = z.object({
     appointmentDate: dateStringSchema,
     startTime: timeStringSchema,
     durationMinutes: durationSchema.default(30),
-    reason: z.string().trim().min(1, 'Reason is required').max(500)
+    reason: z.string().trim().min(1, 'Reason is required').max(500),
+    isEarlyBooking: z.boolean().optional(),
+    earlyBookingReason: z.enum(['doctor_request', 'receptionist_discretion', 'none']).optional()
   })
 });
 

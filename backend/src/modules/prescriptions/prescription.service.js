@@ -92,7 +92,12 @@ const buildDrugSafetyMedication = (medicine = {}) => ({
 
 const buildExistingDrugSafetyMedications = (patient) =>
   (patient?.currentMedications || [])
-    .map((item) => String(item || '').trim())
+    .map((item) => {
+      if (item && typeof item === 'object') {
+        return String(item.name || '').trim();
+      }
+      return String(item || '').trim();
+    })
     .filter(Boolean)
     .map((item) => ({
       name: item,
@@ -346,6 +351,8 @@ const createPrescription = async ({ requester, payload, requestedClinicId = null
     symptomsSnapshot: symptomsToSnapshot(consultation.symptoms || []),
     notes: payload.notes?.trim?.() || consultation.clinicalNotes || '',
     medicines: normalizedMedicines,
+    labs: payload.labs || [],
+    procedures: payload.procedures || [],
     advice: payload.advice?.trim?.() || consultation.treatmentPlan || '',
     drugSafetyCheck,
     drugSafetySeverity,
@@ -473,11 +480,20 @@ const getPrescriptionsByConsultation = async ({ requester, consultationId, reque
     throw new AppError('Consultation not found.', HTTP_STATUS.NOT_FOUND);
   }
 
-  await assertDoctorAccess({
-    requester,
-    clinicId,
-    consultationDoctorId: consultation.doctorId?._id || consultation.doctorId
-  });
+  if (requester.role === ROLES.PATIENT) {
+    const { resolvePatientForRequester } = require('../patients/patient.service');
+    const linkedPatient = await resolvePatientForRequester({ requester, clinicId });
+    const patientId = consultation.patientId?._id || consultation.patientId;
+    if (String(linkedPatient._id) !== String(patientId)) {
+      throw new AppError('You do not have permission to access these prescriptions.', HTTP_STATUS.FORBIDDEN);
+    }
+  } else {
+    await assertDoctorAccess({
+      requester,
+      clinicId,
+      consultationDoctorId: consultation.doctorId?._id || consultation.doctorId
+    });
+  }
 
   const prescriptions = await prescriptionRepository.findByConsultation({
     consultationId,
@@ -518,6 +534,12 @@ const updatePrescription = async ({ requester, prescriptionId, payload, requeste
   }
   if (payload.medicines) {
     prescription.medicines = normalizeMedicines(payload.medicines);
+  }
+  if (payload.labs) {
+    prescription.labs = payload.labs;
+  }
+  if (payload.procedures) {
+    prescription.procedures = payload.procedures;
   }
   if (payload.aiAssist) {
     prescription.aiAssist = normalizeAiAssist(payload.aiAssist);
@@ -699,7 +721,13 @@ const downloadPrescriptionPdf = async ({ requester, prescriptionId, requestedCli
     requestedClinicId
   });
 
-  if (prescription.status !== 'finalized') {
+  // Fetch associated consultation
+  const consultation = await consultationRepository.findById({
+    id: prescription.consultationId?._id || prescription.consultationId,
+    clinicId: prescription.clinicId
+  });
+
+  if (prescription.status !== 'finalized' && (!consultation || consultation.status !== 'completed')) {
     throw new AppError('Only finalized prescriptions can be downloaded.', HTTP_STATUS.BAD_REQUEST);
   }
 
@@ -728,6 +756,34 @@ const downloadPrescriptionPdf = async ({ requester, prescriptionId, requestedCli
   };
 };
 
+const downloadMedicinesText = async ({ requester, prescriptionId, requestedClinicId = null }) => {
+  const { prescription } = await getScopedPrescription({
+    requester,
+    prescriptionId,
+    requestedClinicId
+  });
+
+  const meds = prescription.medicines || [];
+  let text = `PRESCRIPTION MEDICINES LIST\n`;
+  text += `=========================================\n`;
+  text += `Prescription Number: ${prescription.prescriptionNumber || 'N/A'}\n`;
+  text += `Date: ${new Date(prescription.finalizedAt || prescription.createdAt).toLocaleDateString('en-IN')}\n`;
+  text += `=========================================\n\n`;
+
+  meds.forEach((m, index) => {
+    text += `${index + 1}. ${m.medicineName || 'N/A'}\n`;
+    if (m.genericName) text += `   Generic Name: ${m.genericName}\n`;
+    if (m.dosage) text += `   Dosage: ${m.dosage}\n`;
+    if (m.frequency) text += `   Frequency: ${m.frequency} (${m.timing || 'after food'})\n`;
+    if (m.duration) text += `   Duration: ${m.duration}\n`;
+    if (m.instructions) text += `   Instructions: ${m.instructions}\n`;
+    if (m.quantity) text += `   Quantity: ${m.quantity}\n`;
+    text += `-----------------------------------------\n`;
+  });
+
+  return text;
+};
+
 module.exports = {
   createPrescription,
   getPrescriptionById,
@@ -736,5 +792,6 @@ module.exports = {
   updatePrescription,
   finalizePrescription,
   cancelPrescription,
-  downloadPrescriptionPdf
+  downloadPrescriptionPdf,
+  downloadMedicinesText
 };

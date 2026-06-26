@@ -7,7 +7,8 @@ export const appointmentApi = {
   getById: async (id) => unwrapResponse(await axiosClient.get(`/appointments/${id}`)),
   availableSlots: async (params = {}) => unwrapResponse(await axiosClient.get('/appointments/available-slots', { params })),
   updateStatus: async (id, payload) => unwrapResponse(await axiosClient.patch(`/appointments/${id}/status`, payload)),
-  getQueueStatus: async (doctorId) => unwrapResponse(await axiosClient.get(`/appointments/queue/${doctorId}`))
+  getQueueStatus: async (doctorId) => unwrapResponse(await axiosClient.get(`/appointments/queue/${doctorId}`)),
+  verifyPayment: async (id, payload) => unwrapResponse(await axiosClient.post(`/appointments/${id}/verify-payment`, payload))
 };
 
 export default appointmentApi;

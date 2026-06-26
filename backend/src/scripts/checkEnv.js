@@ -47,6 +47,18 @@ const run = () => {
       missing.push('MONGO_URI_ATLAS still contains placeholder values.');
     }
 
+    if (env.notificationProvider === 'twilio') {
+      if (!env.twilioAccountSid || containsPlaceholder(env.twilioAccountSid)) {
+        missing.push('TWILIO_ACCOUNT_SID is missing or contains placeholder values.');
+      }
+      if (!env.twilioAuthToken || containsPlaceholder(env.twilioAuthToken)) {
+        missing.push('TWILIO_AUTH_TOKEN is missing or contains placeholder values.');
+      }
+      if (!env.twilioPhoneNumber || containsPlaceholder(env.twilioPhoneNumber)) {
+        missing.push('TWILIO_PHONE_NUMBER is missing or contains placeholder values.');
+      }
+    }
+
     if (missing.length > 0) {
       printError('Environment validation failed.');
       missing.forEach((message) => printError(`- ${message}`));

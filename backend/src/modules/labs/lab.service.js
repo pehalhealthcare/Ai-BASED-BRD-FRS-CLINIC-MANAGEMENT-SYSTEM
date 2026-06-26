@@ -445,6 +445,52 @@ const createLabTest = async ({ requester, payload, requestedClinicId = null, req
   return labTest;
 };
 
+const updateLabTest = async ({ requester, labTestId, payload, requestedClinicId = null, req }) => {
+  const clinicId = resolveClinicContext({
+    user: requester,
+    requestedClinicId: requestedClinicId || payload.clinicId
+  });
+
+  const labTest = await labRepository.findLabTestById({ id: labTestId, clinicId });
+  if (!labTest) {
+    throw new AppError('Lab test not found.', HTTP_STATUS.NOT_FOUND);
+  }
+
+  const updates = {};
+  if (payload.code) updates.code = payload.code.trim().toUpperCase();
+  if (payload.name) updates.name = payload.name.trim();
+  if (payload.category) updates.category = payload.category.trim();
+  if (payload.specimenType) updates.specimenType = payload.specimenType.trim();
+  if (typeof payload.unit !== 'undefined') updates.unit = payload.unit.trim();
+  if (payload.normalRange) updates.normalRange = normalizeNormalRange(payload.normalRange);
+  if (typeof payload.price !== 'undefined') updates.price = payload.price;
+  if (typeof payload.isActive === 'boolean') updates.isActive = payload.isActive;
+  updates.updatedBy = requester._id;
+
+  const updatedLabTest = await labRepository.updateLabTest({
+    id: labTestId,
+    clinicId,
+    data: updates
+  });
+
+  await createAuditLog({
+    actorUserId: requester._id,
+    action: 'LAB_TEST_UPDATED',
+    entity: 'LabTest',
+    entityId: updatedLabTest._id,
+    metadata: {
+      clinicId: String(clinicId),
+      code: updatedLabTest.code,
+      name: updatedLabTest.name
+    },
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent'),
+    status: 'SUCCESS'
+  });
+
+  return updatedLabTest;
+};
+
 const listLabTests = async ({ requester, query = {}, requestedClinicId = null }) => {
   const clinicId = resolveClinicContext({
     user: requester,
@@ -483,53 +529,67 @@ const createLabOrder = async ({ requester, payload, requestedClinicId = null, re
     user: requester,
     requestedClinicId: requestedClinicId || payload.clinicId
   });
-  const consultation = await consultationRepository.findById({
-    id: payload.consultationId,
-    clinicId,
-    populateDetails: true
-  });
 
-  if (!consultation) {
-    throw new AppError('Consultation not found.', HTTP_STATUS.NOT_FOUND);
+  let consultation = null;
+  if (payload.consultationId) {
+    consultation = await consultationRepository.findById({
+      id: payload.consultationId,
+      clinicId,
+      populateDetails: true
+    });
+
+    if (!consultation) {
+      throw new AppError('Consultation not found.', HTTP_STATUS.NOT_FOUND);
+    }
   }
 
-  const patient = await patientRepository.findPatientByIdAndClinic({
-    patientId: payload.patientId,
-    clinicId
-  });
+  let patient = null;
+  if (payload.patientId) {
+    patient = await patientRepository.findPatientByIdAndClinic({
+      patientId: payload.patientId,
+      clinicId
+    });
+  } else if (requester.role === ROLES.PATIENT) {
+    patient = await patientRepository.findPatientByUserId({ userId: requester._id });
+  }
 
   if (!patient) {
     throw new AppError('Patient not found.', HTTP_STATUS.NOT_FOUND);
   }
 
-  const doctor = await doctorRepository.findDoctorByIdAndClinic({
-    doctorId: payload.doctorId,
-    clinicId
-  });
+  let doctor = null;
+  if (payload.doctorId) {
+    doctor = await doctorRepository.findDoctorByIdAndClinic({
+      doctorId: payload.doctorId,
+      clinicId
+    });
 
-  if (!doctor) {
-    throw new AppError('Doctor not found.', HTTP_STATUS.NOT_FOUND);
+    if (!doctor) {
+      throw new AppError('Doctor not found.', HTTP_STATUS.NOT_FOUND);
+    }
   }
 
-  if (String(consultation.patientId?._id || consultation.patientId) !== String(patient._id)) {
-    throw new AppError('Consultation does not belong to the selected patient.', HTTP_STATUS.BAD_REQUEST);
+  if (consultation) {
+    if (String(consultation.patientId?._id || consultation.patientId) !== String(patient._id)) {
+      throw new AppError('Consultation does not belong to the selected patient.', HTTP_STATUS.BAD_REQUEST);
+    }
+
+    if (doctor && String(consultation.doctorId?._id || consultation.doctorId) !== String(doctor._id)) {
+      throw new AppError('Consultation does not belong to the selected doctor.', HTTP_STATUS.BAD_REQUEST);
+    }
   }
 
-  if (String(consultation.doctorId?._id || consultation.doctorId) !== String(doctor._id)) {
-    throw new AppError('Consultation does not belong to the selected doctor.', HTTP_STATUS.BAD_REQUEST);
-  }
-
-  const appointmentId = payload.appointmentId || consultation.appointmentId?._id || consultation.appointmentId;
+  const appointmentId = payload.appointmentId || consultation?.appointmentId?._id || consultation?.appointmentId;
 
   if (
     appointmentId &&
-    consultation.appointmentId &&
+    consultation?.appointmentId &&
     String(consultation.appointmentId?._id || consultation.appointmentId) !== String(appointmentId)
   ) {
     throw new AppError('Consultation does not belong to the selected appointment.', HTTP_STATUS.BAD_REQUEST);
   }
 
-  if (requester.role === ROLES.DOCTOR) {
+  if (requester.role === ROLES.DOCTOR && doctor) {
     const requesterDoctor = await getRequesterDoctorProfile({ requester, clinicId });
 
     if (String(requesterDoctor._id) !== String(doctor._id)) {
@@ -549,7 +609,7 @@ const createLabOrder = async ({ requester, payload, requestedClinicId = null, re
     : [];
 
   if (catalogTests.length !== requestedCatalogTestIds.length) {
-    throw new AppError('One or more selected lab tests were not found.', HTTP_STATUS.BAD_REQUEST);
+    throw new AppError('One or more selected lab tests were not found or are inactive.', HTTP_STATUS.BAD_REQUEST);
   }
 
   const tests = buildLabOrderTests({
@@ -563,9 +623,9 @@ const createLabOrder = async ({ requester, payload, requestedClinicId = null, re
 
   const labOrder = await labRepository.createLabOrder({
     clinicId,
-    consultationId: consultation._id,
+    consultationId: consultation ? consultation._id : null,
     patientId: patient._id,
-    doctorId: doctor._id,
+    doctorId: doctor ? doctor._id : null,
     appointmentId: appointmentId || null,
     orderNumber: await generateLabOrderNumber(clinicId),
     tests,
@@ -577,15 +637,17 @@ const createLabOrder = async ({ requester, payload, requestedClinicId = null, re
     updatedBy: requester._id
   });
 
-  await consultationRepository.updateConsultation({
-    id: consultation._id,
-    clinicId,
-    update: {
-      labOrdered: true,
-      updatedBy: requester._id
-    },
-    populateDetails: false
-  });
+  if (consultation) {
+    await consultationRepository.updateConsultation({
+      id: consultation._id,
+      clinicId,
+      update: {
+        labOrdered: true,
+        updatedBy: requester._id
+      },
+      populateDetails: false
+    });
+  }
 
   await createAuditLog({
     actorUserId: requester._id,
@@ -594,9 +656,9 @@ const createLabOrder = async ({ requester, payload, requestedClinicId = null, re
     entityId: labOrder._id,
     metadata: {
       clinicId: String(clinicId),
-      consultationId: String(consultation._id),
+      consultationId: consultation ? String(consultation._id) : null,
       patientId: String(patient._id),
-      doctorId: String(doctor._id),
+      doctorId: doctor ? String(doctor._id) : null,
       orderNumber: labOrder.orderNumber,
       tests: tests.map((test) => test.code)
     },
@@ -1036,6 +1098,13 @@ const getPatientLabHistory = async ({ requester, patientId, query = {}, requeste
     throw new AppError('Patient not found.', HTTP_STATUS.NOT_FOUND);
   }
 
+  if (requester.role === ROLES.PATIENT) {
+    const patientProfile = await patientRepository.findPatientByUserId({ userId: requester._id });
+    if (!patientProfile || String(patientProfile._id) !== String(patientId)) {
+      throw new AppError('You can only access your own lab history.', HTTP_STATUS.FORBIDDEN);
+    }
+  }
+
   const { page, limit } = getPagination(query);
   const filter = {
     clinicId,
@@ -1106,6 +1175,7 @@ const getPatientLabHistory = async ({ requester, patientId, query = {}, requeste
 
 module.exports = {
   createLabTest,
+  updateLabTest,
   listLabTests,
   createLabOrder,
   listLabOrders,

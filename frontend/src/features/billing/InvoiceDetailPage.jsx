@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 
 import ErrorState from '../../components/common/ErrorState';
 import LoadingState from '../../components/common/LoadingState';
@@ -42,6 +42,7 @@ const buildFormFromInvoice = (invoice) => ({
 
 const InvoiceDetailPage = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const currentUser = getCurrentUserFromStorage();
   const [invoice, setInvoice] = useState(null);
   const [form, setForm] = useState(buildFormFromInvoice(null));
@@ -229,66 +230,8 @@ const InvoiceDetailPage = () => {
     }
   };
 
-  const handleRazorpayPayment = async () => {
-    if (!isRazorpayLoaded) {
-      setError('Razorpay SDK failed to load. Are you online?');
-      return;
-    }
-
-    setRazorpayLoading(true);
-    setError('');
-
-    try {
-      // 1. Create Order
-      const orderResponse = await createRazorpayOrder(id);
-      const orderData = orderResponse.data;
-
-      // 2. Open Razorpay Checkout
-      const options = {
-        key: import.meta.env.VITE_RAZORPAY_KEY_ID, // Your Razorpay Key ID
-        amount: orderData.amount,
-        currency: orderData.currency,
-        name: 'Clinic AI',
-        description: `Payment for Invoice ${invoice.invoiceNumber}`,
-        order_id: orderData.orderId,
-        handler: async (response) => {
-          try {
-            // 3. Verify Payment
-            const verifyResponse = await verifyRazorpayPayment(id, {
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature
-            });
-            
-            // 4. Update Invoice
-            setInvoice(verifyResponse.data.invoice);
-            setForm(buildFormFromInvoice(verifyResponse.data.invoice));
-            alert('Payment Successful!');
-          } catch (verifyError) {
-            setError(verifyError.response?.data?.message || 'Payment verification failed.');
-          }
-        },
-        prefill: {
-          name: invoice.patientId?.fullName || '',
-          email: invoice.patientId?.email || '',
-          contact: invoice.patientId?.phone || ''
-        },
-        theme: {
-          color: '#059669' // emerald-600
-        }
-      };
-
-      const rzp = new window.Razorpay(options);
-      rzp.on('payment.failed', function (response) {
-        setError(response.error.description || 'Payment failed.');
-      });
-      rzp.open();
-
-    } catch (requestError) {
-      setError(requestError.response?.data?.message || 'Unable to initiate Razorpay payment.');
-    } finally {
-      setRazorpayLoading(false);
-    }
+  const handleRazorpayPayment = () => {
+    navigate(`/billing/${id}/checkout`);
   };
 
   const handleCancel = async () => {

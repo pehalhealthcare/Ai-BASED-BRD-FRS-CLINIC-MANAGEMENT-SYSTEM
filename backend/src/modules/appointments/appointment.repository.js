@@ -3,7 +3,7 @@ const Appointment = require('./appointment.model');
 const populateAppointment = (query) =>
   query
     .populate('patientId', 'patientId firstName lastName fullName phone email isActive allergies chronicConditions currentMedications bloodGroup gender dateOfBirth age')
-    .populate('doctorId', 'doctorCode firstName lastName fullName phone email specialization userId isActive availability blockedSlots')
+    .populate('doctorId', 'doctorCode firstName lastName fullName phone email specialization userId isActive availability blockedSlots image')
     .populate('createdBy', 'name email role')
     .populate('rescheduledFrom', 'appointmentDate startTime endTime durationMinutes status');
 

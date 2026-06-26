@@ -268,19 +268,31 @@ const MapPicker = ({ isOpen, onClose, onSelectAddress, initialAddress }) => {
         </div>
 
         {/* Search Bar */}
-        <form onSubmit={handleSearchSubmit} className="flex gap-2 my-4">
+        <div className="flex gap-2 my-4">
           <div className="relative flex-1">
             <input
               type="text"
               placeholder="Enter clinic address, landmark, town or city..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 rounded-2xl border border-stone-300 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 text-black"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (searchQuery.trim()) geocodeAddressString(searchQuery);
+                }
+              }}
+              className="w-full pl-10 pr-4 py-3 rounded-2xl border border-stone-300 bg-white text-stone-900 placeholder-stone-400 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
             />
             <Search className="absolute left-3.5 top-3.5 text-stone-400" size={16} />
           </div>
           <button
-            type="submit"
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (searchQuery.trim()) geocodeAddressString(searchQuery);
+            }}
             disabled={searching}
             className="rounded-2xl bg-stone-900 px-5 text-sm font-semibold text-white hover:bg-stone-800 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-75"
           >
@@ -288,13 +300,17 @@ const MapPicker = ({ isOpen, onClose, onSelectAddress, initialAddress }) => {
           </button>
           <button
             type="button"
-            onClick={locateUserCurrentPosition}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              locateUserCurrentPosition();
+            }}
             className="rounded-2xl border border-stone-300 p-3 hover:bg-stone-50 text-stone-700 transition"
             title="My Location"
           >
             <Navigation size={18} />
           </button>
-        </form>
+        </div>
 
         {searchError && (
           <p className="text-xs text-rose-600 font-semibold mb-2">{searchError}</p>

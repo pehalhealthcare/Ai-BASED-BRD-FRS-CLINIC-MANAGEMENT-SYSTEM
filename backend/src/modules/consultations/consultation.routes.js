@@ -60,7 +60,7 @@ router.get(
 router.get(
   '/:id',
   protect,
-  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR),
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR, ROLES.PATIENT),
   validate(consultationIdParamSchema),
   consultationController.getConsultationById
 );
@@ -127,6 +127,14 @@ router.post(
   authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR),
   validate(completeConsultationSchema),
   consultationController.completeConsultation
+);
+
+router.get(
+  '/:id/pdf',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR, ROLES.PATIENT),
+  validate(consultationIdParamSchema),
+  consultationController.downloadConsultationPdf
 );
 
 // Backward-compatible aliases kept for earlier Phase 6 route usage.

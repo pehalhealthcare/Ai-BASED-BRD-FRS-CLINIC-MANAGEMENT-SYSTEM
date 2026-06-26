@@ -255,9 +255,69 @@ const SymptomChatbotWidget = ({ isPatientDashboard = false, onBookingSuccess }) 
         symptomsSummary: form.symptoms
       });
 
-      const appointmentId = bookingResponse?.appointment?._id || bookingResponse?.data?.appointment?._id || bookingResponse?._id;
+      const actualResponse = bookingResponse?.data || bookingResponse;
+      const appointmentId = actualResponse?.appointment?._id || actualResponse?._id;
+      const razorpayOrder = actualResponse?.razorpayOrder;
 
       if (appointmentId) {
+        if (razorpayOrder) {
+          setBookingStatus('Initiating payment checkout...');
+          const loadScript = () => {
+            return new Promise((resolve) => {
+              if (window.Razorpay) {
+                resolve(true);
+                return;
+              }
+              const script = document.createElement('script');
+              script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+              script.onload = () => resolve(true);
+              script.onerror = () => resolve(false);
+              document.body.appendChild(script);
+            });
+          };
+
+          const scriptLoaded = await loadScript();
+          if (!scriptLoaded) {
+            setBookingStatus('Failed to load Razorpay payment SDK.');
+            return;
+          }
+
+          const options = {
+            key: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_replace_with_actual',
+            amount: razorpayOrder.amount,
+            currency: razorpayOrder.currency,
+            name: 'AI-CMS Clinic',
+            description: 'Doctor Consultation Fee',
+            order_id: razorpayOrder.id,
+            handler: async function (response) {
+              setBookingStatus('Verifying payment...');
+              try {
+                await appointmentApi.verifyPayment(appointmentId, {
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature
+                });
+                setBookingStatus(`Success! Payment verified. Booked with ${selectedDoctor.fullName} on ${selectedDate} at ${selectedSlot}.`);
+                if (typeof onBookingSuccess === 'function') {
+                  onBookingSuccess();
+                }
+              } catch (verifyErr) {
+                setBookingStatus('Payment verification failed.');
+              }
+            },
+            prefill: {
+              email: user?.email || '',
+              contact: user?.phone || ''
+            },
+            theme: {
+              color: '#10b981'
+            }
+          };
+          const rzp = new window.Razorpay(options);
+          rzp.open();
+          return;
+        }
+
         try {
           await notificationApi.send({
             patientId: targetPatientId,
@@ -268,7 +328,7 @@ const SymptomChatbotWidget = ({ isPatientDashboard = false, onBookingSuccess }) 
             body: `Your appointment with ${selectedDoctor.fullName} is booked for ${selectedDate} at ${selectedSlot} via the AI assistant.`
           });
         } catch (_notificationError) {
-          // Booking succeeded even if notification queue fails.
+          // Succeeded even if notification fails
         }
       }
 

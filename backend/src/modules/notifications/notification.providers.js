@@ -74,8 +74,16 @@ const twilioProvider = {
       if (!toPhone) {
         throw new Error('Recipient phone number is missing.');
       }
+      
+      // Clean all non-digit characters except leading +
+      toPhone = toPhone.replace(/(?!^\+)[^\d]/g, '');
+
       if (!toPhone.startsWith('+')) {
-        toPhone = '+' + toPhone; // Twilio requires E.164 format
+        if (toPhone.length === 10) {
+          toPhone = '+91' + toPhone; // Assume Indian number for 10 digits
+        } else {
+          toPhone = '+' + toPhone;
+        }
       }
 
       // If channel is whatsapp, prefix with 'whatsapp:'

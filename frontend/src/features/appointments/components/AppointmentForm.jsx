@@ -75,6 +75,51 @@ const AppointmentForm = ({
             <option value="chatbot">Chatbot</option>
           </select>
         </label>
+        
+        <div className="md:col-span-2 grid gap-4 rounded-2xl border border-amber-100 bg-amber-50/50 p-4">
+          <label className="flex items-center gap-3 text-sm font-semibold text-amber-900 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={form.isEarlyBooking || false}
+              onChange={(event) => {
+                const checked = event.target.checked;
+                onChange({
+                  ...form,
+                  isEarlyBooking: checked,
+                  earlyBookingReason: checked ? 'doctor_request' : 'none'
+                });
+              }}
+              className="h-5 w-5 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
+            />
+            Schedule Early (Doctor's Request / Special Override)
+          </label>
+
+          {form.isEarlyBooking && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="grid gap-2 text-sm text-stone-700">
+                Reason for Early Booking
+                <select
+                  value={form.earlyBookingReason}
+                  onChange={(event) => updateField('earlyBookingReason', event.target.value)}
+                  className="rounded-2xl border border-stone-300 bg-white px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                >
+                  <option value="doctor_request">As per Doctor's Request</option>
+                  <option value="receptionist_discretion">Receptionist Discretion</option>
+                </select>
+              </label>
+              <label className="grid gap-2 text-sm text-stone-700">
+                Custom Start Time
+                <input
+                  type="time"
+                  value={form.startTime}
+                  onChange={(event) => updateField('startTime', event.target.value)}
+                  className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                />
+              </label>
+            </div>
+          )}
+        </div>
+
         <label className="grid gap-2 text-sm text-stone-700 md:col-span-2">
           Reason for visit
           <textarea value={form.reasonForVisit} onChange={(event) => updateField('reasonForVisit', event.target.value)} rows={3} className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" />

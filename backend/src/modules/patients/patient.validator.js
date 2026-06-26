@@ -79,9 +79,46 @@ const patientPayloadSchema = z.object({
   address: addressSchema,
   profileImage: optionalTrimmedString,
   bloodGroup: optionalTrimmedString,
+  medicalHistoryPassword: z.string().trim().optional(),
   allergies: z.array(z.string().trim().min(1)).optional(),
   chronicConditions: z.array(z.string().trim().min(1)).optional(),
-  currentMedications: z.array(z.string().trim().min(1)).optional(),
+  currentMedications: z
+    .array(
+      z.union([
+        z.string().trim(),
+        z.object({
+          name: z.string().trim().min(1),
+          frequency: z.string().trim().optional()
+        })
+      ])
+    )
+    .optional(),
+  pastSurgeries: z
+    .array(
+      z.object({
+        name: z.string().trim().min(1),
+        year: z.string().trim().optional()
+      })
+    )
+    .optional(),
+  familyHistory: z
+    .array(
+      z.object({
+        relation: z.string().trim().min(1),
+        condition: z.string().trim().min(1)
+      })
+    )
+    .optional(),
+  lifestyle: z
+    .object({
+      smoking: z.string().trim().optional(),
+      alcohol: z.string().trim().optional(),
+      exerciseFrequency: z.string().trim().optional(),
+      dietType: z.string().trim().optional()
+    })
+    .optional(),
+  pregnancyHistory: z.string().trim().optional(),
+  lmpDate: z.coerce.date().nullable().optional(),
   emergencyContact: emergencyContactSchema,
   documents: z.array(documentSchema).optional(),
   isActive: z.boolean().optional(),
@@ -104,7 +141,7 @@ const updatePatientSchema = z.object({
 });
 
 const updateMyPatientSchema = z.object({
-  body: patientUpdatePayloadSchema.partial()
+  body: patientUpdatePayloadSchema.omit({ email: true, phone: true }).partial()
 });
 
 const listPatientQuerySchema = z.object({
@@ -121,11 +158,29 @@ const listPatientQuerySchema = z.object({
 const patientIdParamSchema = objectIdParamSchema('id');
 const namedPatientIdParamSchema = objectIdParamSchema('patientId');
 
+const uploadPatientDocumentSchema = z.object({
+  params: namedPatientIdParamSchema.shape.params,
+  body: z.object({
+    file_name: z.string().trim().min(1, 'File name is required'),
+    file_data: z.string().trim().min(1, 'File base64 data is required'),
+    document_type: z.string().trim().min(1, 'Document type is required')
+  })
+});
+
+const documentIdParamSchema = z.object({
+  params: z.object({
+    patientId: objectIdSchema,
+    documentId: objectIdSchema
+  })
+});
+
 module.exports = {
   createPatientSchema,
   updatePatientSchema,
   updateMyPatientSchema,
   listPatientQuerySchema,
   patientIdParamSchema,
-  namedPatientIdParamSchema
+  namedPatientIdParamSchema,
+  uploadPatientDocumentSchema,
+  documentIdParamSchema
 };

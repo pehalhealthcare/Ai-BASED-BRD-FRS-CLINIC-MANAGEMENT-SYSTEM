@@ -121,4 +121,11 @@ router.get(
   appointmentController.getQueueStatus
 );
 
+router.post(
+  '/:id/verify-payment',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.PATIENT),
+  appointmentController.verifyPayment
+);
+
 module.exports = router;

@@ -5,6 +5,8 @@ import { ROLES } from '../constants/roles';
 import UsersAdminPage from '../features/admin/UsersAdminPage';
 import OrganizationSettingsPage from '../features/admin/OrganizationSettingsPage';
 import DoctorReview from '../features/admin/DoctorReview';
+import ReceptionistReview from '../features/admin/ReceptionistReview';
+import MyReceptionistsDashboard from '../features/admin/MyReceptionistsDashboard';
 import ClinicSettingsPage from '../features/admin/ClinicSettingsPage';
 import SpecialitiesAdminPage from '../features/admin/SpecialitiesAdminPage';
 import SuperAdminDashboard from '../features/super-admin/SuperAdminDashboard';
@@ -47,6 +49,10 @@ import MedicineFormPage from '../features/pharmacy/MedicineFormPage';
 import PatientMedicineHistory from '../features/pharmacy/PatientMedicineHistory';
 import CreateInvoicePage from '../features/billing/CreateInvoicePage';
 import InvoiceDetailPage from '../features/billing/InvoiceDetailPage';
+import PaymentCheckoutPage from '../features/billing/PaymentCheckoutPage';
+import PaymentSuccessPage from '../features/billing/PaymentSuccessPage';
+import PaymentFailurePage from '../features/billing/PaymentFailurePage';
+import FinancialDashboard from '../features/billing/FinancialDashboard';
 import PrescriptionCreatePage from '../features/prescriptions/PrescriptionCreatePage';
 import PrescriptionDetailPage from '../features/prescriptions/PrescriptionDetailPage';
 import ProtectedRoute from './ProtectedRoute';
@@ -81,12 +87,22 @@ import PatientCreatePage from '../pages/patients/PatientCreatePage';
 import PatientDetailPage from '../pages/patients/PatientDetailPage';
 import PatientListPage from '../pages/patients/PatientListPage';
 import PrescriptionBuilderPage from '../pages/prescriptions/PrescriptionBuilderPage';
+import DoctorLeavesPage from '../features/doctors/DoctorLeavesPage';
+import DoctorEarningsPage from '../features/doctors/DoctorEarningsPage';
+import AdminLeavesReviewPage from '../features/admin/AdminLeavesReviewPage';
+import AdminLeavePolicyPage from '../features/admin/AdminLeavePolicyPage';
+import PatientAppointmentsPage from '../features/patients/PatientAppointmentsPage';
+import LandingPage from '../pages/LandingPage';
 
 const protect = (element, allowedRoles = []) => (
   <ProtectedRoute allowedRoles={allowedRoles}>{element}</ProtectedRoute>
 );
 
 export const router = createBrowserRouter([
+  {
+    path: '/',
+    element: <LandingPage />
+  },
   {
     path: '/login',
     element: <LoginPage />
@@ -96,13 +112,15 @@ export const router = createBrowserRouter([
     element: <RegisterPage />
   },
   {
-    path: '/',
     element: protect(<DashboardLayout />),
     children: [
-      { index: true, element: protect(<RoleHomeRedirect />) },
       {
         path: 'portal',
         element: protect(<PatientPortalPage />, [ROLES.PATIENT])
+      },
+      {
+        path: 'patient/appointments',
+        element: protect(<PatientAppointmentsPage />, [ROLES.PATIENT])
       },
       {
         path: 'users',
@@ -119,6 +137,10 @@ export const router = createBrowserRouter([
       {
         path: 'admin/my-doctors-dashboard',
         element: protect(<MyDoctorsDashboard />, [ROLES.ADMIN])
+      },
+      {
+        path: 'admin/my-receptionists-dashboard',
+        element: protect(<MyReceptionistsDashboard />, [ROLES.ADMIN])
       },
       {
         path: 'admin/organization-settings',
@@ -226,7 +248,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'consultations/:consultationId',
-        element: protect(<ConsultationPage />, [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.DOCTOR])
+        element: protect(<ConsultationPage />, [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.DOCTOR, ROLES.PATIENT])
       },
       {
         path: 'consultations/:consultationId/labs/new',
@@ -313,8 +335,24 @@ export const router = createBrowserRouter([
         element: protect(<CreateInvoicePage />, [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.RECEPTIONIST])
       },
       {
+        path: 'billing/financials',
+        element: protect(<FinancialDashboard />, [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.DOCTOR])
+      },
+      {
         path: 'billing/:id',
         element: protect(<InvoiceDetailPage />, [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR, ROLES.PATIENT])
+      },
+      {
+        path: 'billing/:id/checkout',
+        element: protect(<PaymentCheckoutPage />, [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.RECEPTIONIST, ROLES.PATIENT])
+      },
+      {
+        path: 'billing/:id/success',
+        element: protect(<PaymentSuccessPage />, [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.RECEPTIONIST, ROLES.PATIENT])
+      },
+      {
+        path: 'billing/:id/failure',
+        element: protect(<PaymentFailurePage />, [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.RECEPTIONIST, ROLES.PATIENT])
       },
       {
         path: 'doctors',
@@ -332,11 +370,28 @@ export const router = createBrowserRouter([
         path: 'doctors/:id/edit',
         element: protect(<DoctorFormPage />, [ROLES.ADMIN, ROLES.SUPER_ADMIN])
       },
-              { path: 'admin/doctors/:doctorId/review', element: protect(<DoctorReview />, [ROLES.ADMIN]) },
-        { path: 'doctors/:id/availability', element: protect(<DoctorAvailabilityEditor />, [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.RECEPTIONIST]) },
+      { path: 'admin/doctors/:doctorId/review', element: protect(<DoctorReview />, [ROLES.ADMIN]) },
+      { path: 'admin/receptionists/:receptionistId/review', element: protect(<ReceptionistReview />, [ROLES.ADMIN]) },
+      { path: 'doctors/:id/availability', element: protect(<DoctorAvailabilityEditor />, [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.RECEPTIONIST]) },
+      {
+        path: 'doctor/leaves',
+        element: protect(<DoctorLeavesPage />, [ROLES.DOCTOR])
+      },
+      {
+        path: 'doctor/earnings',
+        element: protect(<DoctorEarningsPage />, [ROLES.DOCTOR])
+      },
+      {
+        path: 'admin/leaves-review',
+        element: protect(<AdminLeavesReviewPage />, [ROLES.ADMIN])
+      },
+      {
+        path: 'admin/leave-policy',
+        element: protect(<AdminLeavePolicyPage />, [ROLES.ADMIN])
+      },
 
       {
-        path: 'doctor/settings',
+        path: 'doctor/profile',
         element: protect(<DoctorSettingsPage />, [ROLES.DOCTOR])
       }
     ]

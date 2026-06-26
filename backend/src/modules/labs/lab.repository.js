@@ -25,6 +25,10 @@ const populateLabReport = (query) =>
 
 const createLabTest = (data) => LabTest.create(data);
 
+const findLabTestById = ({ id, clinicId }) => LabTest.findOne({ _id: id, clinicId });
+
+const updateLabTest = ({ id, clinicId, data }) => LabTest.findOneAndUpdate({ _id: id, clinicId }, data, { new: true, runValidators: true });
+
 const listLabTests = async ({ filter, page = 1, limit = 10, sort = { name: 1 } }) => {
   const skip = (page - 1) * limit;
   const [labTests, total] = await Promise.all([
@@ -164,6 +168,8 @@ module.exports = {
   createLabTest,
   listLabTests,
   findLabTestsByIds,
+  findLabTestById,
+  updateLabTest,
   createLabOrder,
   listLabOrders,
   findLabOrderById,

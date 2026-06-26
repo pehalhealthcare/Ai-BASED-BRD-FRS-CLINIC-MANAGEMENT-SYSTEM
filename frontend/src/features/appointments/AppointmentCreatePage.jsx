@@ -17,7 +17,9 @@ const defaultForm = {
   appointmentType: 'scheduled',
   reasonForVisit: '',
   symptomsSummary: '',
-  source: 'reception'
+  source: 'reception',
+  isEarlyBooking: false,
+  earlyBookingReason: 'none'
 };
 
 const AppointmentCreatePage = () => {

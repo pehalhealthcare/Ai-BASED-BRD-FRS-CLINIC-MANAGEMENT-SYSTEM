@@ -4,6 +4,7 @@ import { Eye, EyeOff, Mail, Lock, User, Phone, Briefcase, HeartPulse } from 'luc
 
 import { authApi, organizationApi } from '../../lib/api';
 import { setCurrentUser, setToken } from '../../lib/auth';
+import MapPicker from '../../components/common/MapPicker';
 
 const ROLES_OPTIONS = [
   { value: 'PATIENT', label: 'Patient', description: 'Access personal health portal' },
@@ -15,13 +16,79 @@ const ROLES_OPTIONS = [
 
 const RegisterPage = () => {
   const navigate = useNavigate();
-  const [form, setForm] = useState({ name: '', email: '', phone: '', password: '', role: 'PATIENT' });
+  const [form, setForm] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    password: '',
+    role: 'PATIENT',
+    gender: 'male',
+    dateOfBirth: '',
+    age: ''
+  });
+  const [currentAddress, setCurrentAddress] = useState({
+    line1: '',
+    line2: '',
+    city: '',
+    state: '',
+    pincode: '',
+    country: 'India',
+    latitude: null,
+    longitude: null
+  });
+  const [permanentAddress, setPermanentAddress] = useState({
+    line1: '',
+    line2: '',
+    city: '',
+    state: '',
+    pincode: '',
+    country: 'India',
+    latitude: null,
+    longitude: null
+  });
+  const [isSameAddress, setIsSameAddress] = useState(true);
+  const [showMapPicker, setShowMapPicker] = useState(false);
+  const [mapTarget, setMapTarget] = useState('current'); // 'current' or 'permanent'
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  const calculateAge = (dobString) => {
+    if (!dobString) return '';
+    const dob = new Date(dobString);
+    if (isNaN(dob.getTime())) return '';
+    const today = new Date();
+    let age = today.getFullYear() - dob.getFullYear();
+    const m = today.getMonth() - dob.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+      age--;
+    }
+    return age < 0 ? 0 : age;
+  };
+
+  const handleDobChange = (e) => {
+    const dob = e.target.value;
+    const age = calculateAge(dob);
+    setForm((prev) => ({
+      ...prev,
+      dateOfBirth: dob,
+      age: age !== '' ? Number(age) : ''
+    }));
+  };
+
   const handleChange = (e) => {
     setForm((cur) => ({ ...cur, [e.target.name]: e.target.value }));
+  };
+
+  const handleMapSelect = (addr) => {
+    if (mapTarget === 'current') {
+      setCurrentAddress(addr);
+      if (isSameAddress) {
+        setPermanentAddress(addr);
+      }
+    } else {
+      setPermanentAddress(addr);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -29,7 +96,13 @@ const RegisterPage = () => {
     setLoading(true);
     setError('');
     try {
-      const payload = { ...form, phone: form.phone || undefined };
+      const payload = {
+        ...form,
+        phone: form.phone || undefined,
+        age: form.age ? Number(form.age) : undefined,
+        address: currentAddress,
+        permanentAddress: isSameAddress ? currentAddress : permanentAddress
+      };
       const response = await authApi.register(payload);
       setToken(response.data.accessToken);
       setCurrentUser(response.data.user);
@@ -187,6 +260,217 @@ const RegisterPage = () => {
               </div>
             </div>
 
+            {/* Gender, DOB & Age */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="reg-gender" className="text-sm font-medium text-slate-700 dark:text-slate-300">Gender</label>
+                <select
+                  id="reg-gender" name="gender" required
+                  value={form.gender} onChange={handleChange}
+                  className="w-full px-4 py-2.5 rounded-xl text-sm bg-white dark:bg-navy-800 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:border-aura-500 focus:ring-2 focus:ring-aura-500/20 transition"
+                >
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="reg-dob" className="text-sm font-medium text-slate-700 dark:text-slate-300">Date of Birth</label>
+                <input
+                  id="reg-dob" name="dateOfBirth" type="date" required
+                  value={form.dateOfBirth} onChange={handleDobChange}
+                  className="w-full px-4 py-2.5 rounded-xl text-sm bg-white dark:bg-navy-800 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-aura-500 focus:ring-2 focus:ring-aura-500/20 transition"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="reg-age" className="text-sm font-medium text-slate-700 dark:text-slate-300">Age</label>
+                <input
+                  id="reg-age" name="age" type="number" readOnly
+                  value={form.age}
+                  placeholder="Calculated Age"
+                  className="w-full px-4 py-2.5 rounded-xl text-sm bg-slate-100 dark:bg-navy-900 border border-slate-200 dark:border-white/10 text-slate-550 dark:text-slate-400 cursor-not-allowed outline-none"
+                />
+              </div>
+            </div>
+
+            {/* Current Address */}
+            <div className="p-4 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-navy-900/30 space-y-3">
+              <div className="flex justify-between items-center">
+                <h4 className="text-sm font-bold text-slate-900 dark:text-white">Current Address</h4>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMapTarget('current');
+                    setShowMapPicker(true);
+                  }}
+                  className="inline-flex items-center gap-1.5 text-xs text-aura-600 dark:text-aura-400 hover:underline font-bold cursor-pointer"
+                >
+                  📍 Locate on Map
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <input
+                  type="text" placeholder="Address Line 1" required
+                  value={currentAddress.line1}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setCurrentAddress(c => {
+                      const updated = { ...c, line1: val };
+                      if (isSameAddress) setPermanentAddress(p => ({ ...p, line1: val }));
+                      return updated;
+                    });
+                  }}
+                  className="w-full px-3 py-2 rounded-xl text-xs bg-white dark:bg-navy-800 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 focus:outline-none"
+                />
+                <input
+                  type="text" placeholder="Address Line 2"
+                  value={currentAddress.line2}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setCurrentAddress(c => {
+                      const updated = { ...c, line2: val };
+                      if (isSameAddress) setPermanentAddress(p => ({ ...p, line2: val }));
+                      return updated;
+                    });
+                  }}
+                  className="w-full px-3 py-2 rounded-xl text-xs bg-white dark:bg-navy-800 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 focus:outline-none"
+                />
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <input
+                  type="text" placeholder="City" required
+                  value={currentAddress.city}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setCurrentAddress(c => {
+                      const updated = { ...c, city: val };
+                      if (isSameAddress) setPermanentAddress(p => ({ ...p, city: val }));
+                      return updated;
+                    });
+                  }}
+                  className="w-full px-3 py-2 rounded-xl text-xs bg-white dark:bg-navy-800 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 focus:outline-none"
+                />
+                <input
+                  type="text" placeholder="State" required
+                  value={currentAddress.state}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setCurrentAddress(c => {
+                      const updated = { ...c, state: val };
+                      if (isSameAddress) setPermanentAddress(p => ({ ...p, state: val }));
+                      return updated;
+                    });
+                  }}
+                  className="w-full px-3 py-2 rounded-xl text-xs bg-white dark:bg-navy-800 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 focus:outline-none"
+                />
+                <input
+                  type="text" placeholder="Pincode" required
+                  value={currentAddress.pincode}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setCurrentAddress(c => {
+                      const updated = { ...c, pincode: val };
+                      if (isSameAddress) setPermanentAddress(p => ({ ...p, pincode: val }));
+                      return updated;
+                    });
+                  }}
+                  className="w-full px-3 py-2 rounded-xl text-xs bg-white dark:bg-navy-800 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 focus:outline-none"
+                />
+                <input
+                  type="text" placeholder="Country" required
+                  value={currentAddress.country}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setCurrentAddress(c => {
+                      const updated = { ...c, country: val };
+                      if (isSameAddress) setPermanentAddress(p => ({ ...p, country: val }));
+                      return updated;
+                    });
+                  }}
+                  className="w-full px-3 py-2 rounded-xl text-xs bg-white dark:bg-navy-800 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 focus:outline-none"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 pt-1.5">
+                <input
+                  id="reg-same-addr" type="checkbox"
+                  checked={isSameAddress}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setIsSameAddress(checked);
+                    if (checked) {
+                      setPermanentAddress(currentAddress);
+                    }
+                  }}
+                  className="w-4 h-4 accent-aura-600 rounded cursor-pointer"
+                />
+                <label htmlFor="reg-same-addr" className="text-xs font-bold text-slate-700 dark:text-slate-350 cursor-pointer">
+                  Permanent address is same as current address
+                </label>
+              </div>
+            </div>
+
+            {/* Permanent Address */}
+            {!isSameAddress && (
+              <div className="p-4 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-navy-900/30 space-y-3 animate-slide-down">
+                <div className="flex justify-between items-center">
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">Permanent Address</h4>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMapTarget('permanent');
+                      setShowMapPicker(true);
+                    }}
+                    className="inline-flex items-center gap-1.5 text-xs text-aura-600 dark:text-aura-400 hover:underline font-bold cursor-pointer"
+                  >
+                    📍 Locate on Map
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <input
+                    type="text" placeholder="Address Line 1" required
+                    value={permanentAddress.line1}
+                    onChange={(e) => setPermanentAddress({ ...permanentAddress, line1: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl text-xs bg-white dark:bg-navy-800 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 focus:outline-none"
+                  />
+                  <input
+                    type="text" placeholder="Address Line 2"
+                    value={permanentAddress.line2}
+                    onChange={(e) => setPermanentAddress({ ...permanentAddress, line2: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl text-xs bg-white dark:bg-navy-800 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 focus:outline-none"
+                  />
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <input
+                    type="text" placeholder="City" required
+                    value={permanentAddress.city}
+                    onChange={(e) => setPermanentAddress({ ...permanentAddress, city: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl text-xs bg-white dark:bg-navy-800 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 focus:outline-none"
+                  />
+                  <input
+                    type="text" placeholder="State" required
+                    value={permanentAddress.state}
+                    onChange={(e) => setPermanentAddress({ ...permanentAddress, state: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl text-xs bg-white dark:bg-navy-800 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 focus:outline-none"
+                  />
+                  <input
+                    type="text" placeholder="Pincode" required
+                    value={permanentAddress.pincode}
+                    onChange={(e) => setPermanentAddress({ ...permanentAddress, pincode: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl text-xs bg-white dark:bg-navy-800 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 focus:outline-none"
+                  />
+                  <input
+                    type="text" placeholder="Country" required
+                    value={permanentAddress.country}
+                    onChange={(e) => setPermanentAddress({ ...permanentAddress, country: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl text-xs bg-white dark:bg-navy-800 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 focus:outline-none"
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Password */}
             <div className="flex flex-col gap-1.5">
               <label htmlFor="reg-password" className="text-sm font-medium text-slate-700 dark:text-slate-300">Password</label>
@@ -234,6 +518,15 @@ const RegisterPage = () => {
           </p>
         </div>
       </div>
+
+      {showMapPicker && (
+        <MapPicker
+          isOpen={showMapPicker}
+          onClose={() => setShowMapPicker(false)}
+          onSelectAddress={handleMapSelect}
+          initialAddress={mapTarget === 'current' ? currentAddress : permanentAddress}
+        />
+      )}
     </div>
   );
 };

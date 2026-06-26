@@ -118,6 +118,11 @@ const updateUserStatus = async ({ requester, userId, isActive, req }) => {
     await Doctor.updateOne({ userId: user._id }, { isActive });
   }
 
+  if (user.role === ROLES.RECEPTIONIST) {
+    const Receptionist = require('../receptionists/receptionist.model');
+    await Receptionist.updateOne({ userId: user._id }, { isActive });
+  }
+
   if (user.role === ROLES.DOCTOR && isActive) {
     const doctorRepository = require('../doctors/doctor.repository');
     const existingDoctor = await doctorRepository.findDoctorByUserId({ userId: user._id });

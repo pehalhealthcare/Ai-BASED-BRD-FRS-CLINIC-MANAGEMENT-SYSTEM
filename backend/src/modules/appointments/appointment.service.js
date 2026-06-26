@@ -19,6 +19,20 @@ const aiService = require('../ai/ai.service');
 const doctorRepository = require('../doctors/doctor.repository');
 const patientRepository = require('../patients/patient.repository');
 const appointmentRepository = require('./appointment.repository');
+const { isClosedOnDate } = require('../holidays/clinicHoliday.service');
+const { isDoctorOnLeave } = require('../leaves/doctorLeave.service');
+const DoctorLeave = require('../leaves/doctorLeave.model');
+const { logger } = require('../../common/utils/logger');
+
+const resolveAppointmentDoctorImage = async (appointment) => {
+  if (!appointment) return appointment;
+  const aptObj = typeof appointment.toObject === 'function' ? appointment.toObject() : appointment;
+  if (aptObj.doctorId) {
+    const { resolveDoctorFiles } = require('../doctors/doctor.service');
+    aptObj.doctorId = await resolveDoctorFiles(aptObj.doctorId);
+  }
+  return aptObj;
+};
 
 const assertDateNotPast = ({ appointmentDate, appointmentType }) => {
   const normalizedDate = normalizeDate(appointmentDate);
@@ -241,6 +255,15 @@ const ensurePatientAndDoctor = async ({ clinicId, patientId, doctorId }) => {
     throw new AppError('Doctor is inactive and cannot accept appointments.', HTTP_STATUS.BAD_REQUEST);
   }
 
+  const hasBankDetails = doctor.bankAccount?.accountNumber &&doctor.bankAccount?.ifscCode &&doctor.bankAccount?.bankName &&doctor.bankAccount?.accountHolderName &&doctor.bankAccount?.passbookCopy;
+
+
+  console.log(hasBankDetails);
+
+  if (!hasBankDetails) {
+    throw new AppError("This doctor has not completed their bank account setup or passbook upload, and cannot accept appointments at this time.", HTTP_STATUS.BAD_REQUEST);
+  }
+
   return { patient, doctor };
 };
 
@@ -281,6 +304,22 @@ const assertSlotIsBookable = async ({
   }
 
   assertDateNotPast({ appointmentDate: normalizedDate, appointmentType });
+  // New: check if clinic is closed on this date for appointments
+  const closed = await isClosedOnDate(clinicId, normalizedDate, 'appointments', appointmentType);
+  if (closed) {
+    throw new AppError('Clinic is closed on the selected date.', HTTP_STATUS.CONFLICT);
+  }
+
+  // Check if doctor is on leave during the selected time range
+  const [hours, minutes] = startTime.split(':').map(Number);
+  const startDatetime = new Date(normalizedDate);
+  startDatetime.setUTCHours(hours, minutes, 0, 0);
+  const endDatetime = new Date(startDatetime.getTime() + durationMinutes * 60 * 1000);
+
+  const onLeave = await isDoctorOnLeave(doctor._id, startDatetime, endDatetime);
+  if (onLeave) {
+    throw new AppError('Doctor is on leave during the selected time slot.', HTTP_STATUS.CONFLICT);
+  }
 
   const dayAvailability = getDayAvailability(doctor.availability || [], normalizedDate, clinicId);
 
@@ -383,6 +422,23 @@ const createAppointment = async ({ requester, payload, requestedClinicId = null,
     if (!linkedPatient || String(linkedPatient._id) !== String(payload.patientId)) {
       throw new AppError('You can only book appointments for yourself.', HTTP_STATUS.FORBIDDEN);
     }
+
+    // Check for any unpaid consultation invoices for this patient where the consultation has been completed
+    const Invoice = require('../billing/invoice.model');
+    const unpaidInvoices = await Invoice.find({
+      patientId: payload.patientId,
+      serviceType: 'CONSULTATION',
+      paymentStatus: 'unpaid',
+      consultationId: { $ne: null }
+    }).populate('consultationId');
+
+    const hasUnpaidCompletedConsultation = unpaidInvoices.some(
+      inv => inv.consultationId && inv.consultationId.status === 'completed'
+    );
+
+    if (hasUnpaidCompletedConsultation) {
+      throw new AppError('You have pending unpaid consultation fees. Please complete payment before booking new appointments.', HTTP_STATUS.BAD_REQUEST);
+    }
   }
 
   const { patient, doctor } = await ensurePatientAndDoctor({
@@ -390,7 +446,7 @@ const createAppointment = async ({ requester, payload, requestedClinicId = null,
     patientId: payload.patientId,
     doctorId: payload.doctorId
   });
-  const allowOutsideAvailability = payload.appointmentType === 'walk_in';
+  const allowOutsideAvailability = payload.appointmentType === 'walk_in' || payload.isEarlyBooking === true;
   const slot = await assertSlotIsBookable({
     appointmentDate: payload.appointmentDate,
     startTime: payload.startTime,
@@ -429,7 +485,9 @@ const createAppointment = async ({ requester, payload, requestedClinicId = null,
     symptomsSummary: payload.symptomsSummary || '',
     source: payload.source || (requester.role === ROLES.ADMIN ? 'admin' : 'reception'),
     noShowRisk,
-    notes: payload.notes || ''
+    notes: payload.notes || '',
+    isEarlyBooking: payload.isEarlyBooking || false,
+    earlyBookingReason: payload.earlyBookingReason || 'none'
   });
 
   if (predictionResponseData) {
@@ -469,20 +527,74 @@ const createAppointment = async ({ requester, payload, requestedClinicId = null,
     populateDetails: true
   });
 
-  try {
-    const { scheduleAppointmentReminderIntent } = require('../notifications/notification.service');
+  let razorpayOrder = null;
+  let invoiceId = null;
 
-    await scheduleAppointmentReminderIntent({
+  const isPatientBooking = requester.role === ROLES.PATIENT || payload.source === 'chatbot' || payload.source === 'patient_app';
+  if (isPatientBooking && doctor.consultationFee > 0) {
+    try {
+      const billingService = require('../billing/billing.service');
+      const invoice = await billingService.createInvoice({
+        requester,
+        payload: {
+          patientId: patient._id,
+          appointmentId: appointment._id,
+          items: [{
+            itemType: 'consultation',
+            name: 'Doctor Consultation Fee',
+            quantity: 1,
+            unitPrice: doctor.consultationFee
+          }],
+          dueDate: new Date(Date.now() + 24 * 3600 * 1000)
+        },
+        requestedClinicId: clinicId,
+        req
+      });
+      invoiceId = invoice._id;
+      
+      const orderData = await billingService.createRazorpayOrder({
+        requester,
+        invoiceId: invoice._id,
+        requestedClinicId: clinicId
+      });
+      razorpayOrder = orderData;
+    } catch (billingErr) {
+      logger.warn('Failed to auto-create billing/payment order for appointment booking:', billingErr);
+    }
+  }
+
+  try {
+    const {
+      scheduleAppointmentReminderIntent,
+      sendAppointmentBookingNotifications
+    } = require('../notifications/notification.service');
+
+    scheduleAppointmentReminderIntent({
       appointment: populatedAppointment,
       patient: populatedAppointment?.patientId || patient,
       doctor: populatedAppointment?.doctorId || doctor,
       actorUserId: requester._id
-    });
+    }).catch(err => require('../../common/utils/logger').logger.warn('Failed to schedule reminder intent:', err));
+
+    sendAppointmentBookingNotifications({
+      appointment: populatedAppointment,
+      patient: populatedAppointment?.patientId || patient,
+      doctor: populatedAppointment?.doctorId || doctor,
+      actorUserId: requester._id
+    }).catch(err => require('../../common/utils/logger').logger.warn('Failed to send booking notifications:', err));
   } catch (_error) {
     // Notification scheduling is best-effort and must not block appointment creation.
   }
 
-  return populatedAppointment;
+  const resData = resolveAppointmentDoctorImage(populatedAppointment);
+  if (razorpayOrder) {
+    return {
+      appointment: resData,
+      razorpayOrder,
+      invoiceId
+    };
+  }
+  return resData;
 };
 
 const listAppointments = async ({ requester, query }) => {
@@ -510,8 +622,12 @@ const listAppointments = async ({ requester, query }) => {
     limit
   });
 
+  const resolvedAppointments = await Promise.all(
+    appointments.map((apt) => resolveAppointmentDoctorImage(apt))
+  );
+
   return {
-    appointments,
+    appointments: resolvedAppointments,
     pagination: buildPaginationMeta({ page, limit, total })
   };
 };
@@ -552,7 +668,10 @@ const getCalendarAppointments = async ({ requester, query }) => {
   }
 
   const appointments = await appointmentRepository.findAppointmentsForRange({ filter });
-  const groupedAppointments = appointments.reduce((groups, appointment) => {
+  const resolvedAppointments = await Promise.all(
+    appointments.map((apt) => resolveAppointmentDoctorImage(apt))
+  );
+  const groupedAppointments = resolvedAppointments.reduce((groups, appointment) => {
     const dateKey = formatDate(appointment.appointmentDate);
 
     if (!groups[dateKey]) {
@@ -592,6 +711,17 @@ const getAvailableSlots = async ({ requester, query }) => {
   }
 
   const appointmentDate = normalizeDate(query.date);
+
+  const closedAppointments = await isClosedOnDate(clinicId, appointmentDate, 'appointments', query.appointmentType);
+  const closedSlots = await isClosedOnDate(clinicId, appointmentDate, 'doctor_slots', query.appointmentType);
+  if (closedAppointments || closedSlots) {
+    return {
+      doctorId: String(doctor._id),
+      date: formatDate(appointmentDate),
+      slots: []
+    };
+  }
+
   const existingAppointments = await appointmentRepository.findDoctorAppointmentsForDate({
     clinicId,
     doctorId: doctor._id,
@@ -599,17 +729,39 @@ const getAvailableSlots = async ({ requester, query }) => {
     statuses: ACTIVE_APPOINTMENT_STATUSES
   });
 
+  const doctorLeaves = await DoctorLeave.find({
+    doctorId: doctor._id,
+    status: 'approved',
+    start_datetime: { $lt: new Date(appointmentDate.getTime() + 24 * 60 * 60 * 1000) },
+    end_datetime: { $gt: appointmentDate }
+  });
+
+  const slots = generateSlots({
+    availability: doctor.availability || [],
+    existingAppointments,
+    blockedSlots: doctor.blockedSlots || [],
+    date: appointmentDate,
+    durationMinutes: query.durationMinutes,
+    clinicId
+  });
+
+  const filteredSlots = slots.filter((slot) => {
+    const [startH, startM] = slot.startTime.split(':').map(Number);
+    const slotStart = new Date(appointmentDate);
+    slotStart.setUTCHours(startH, startM, 0, 0);
+
+    const [endH, endM] = slot.endTime.split(':').map(Number);
+    const slotEnd = new Date(appointmentDate);
+    slotEnd.setUTCHours(endH, endM, 0, 0);
+
+    const isOnLeave = doctorLeaves.some((leave) => leave.start_datetime < slotEnd && leave.end_datetime > slotStart);
+    return !isOnLeave;
+  });
+
   return {
     doctorId: String(doctor._id),
     date: formatDate(appointmentDate),
-    slots: generateSlots({
-      availability: doctor.availability || [],
-      existingAppointments,
-      blockedSlots: doctor.blockedSlots || [],
-      date: appointmentDate,
-      durationMinutes: query.durationMinutes,
-      clinicId
-    })
+    slots: filteredSlots
   };
 };
 
@@ -621,7 +773,7 @@ const getAppointmentById = async ({ requester, appointmentId, requestedClinicId 
     populateDetails: true
   });
 
-  return appointment;
+  return resolveAppointmentDoctorImage(appointment);
 };
 
 const updateAppointmentStatus = async ({ requester, appointmentId, payload, requestedClinicId = null, req }) => {
@@ -654,6 +806,19 @@ const updateAppointmentStatus = async ({ requester, appointmentId, payload, requ
   appointment.notes = appendNote(appointment.notes, payload.note);
   await appointment.save();
 
+  if (payload.status === APPOINTMENT_STATUSES.CHECKED_IN) {
+    try {
+      const { scheduleWaitTimeReminder } = require('../notifications/notification.service');
+      await scheduleWaitTimeReminder({
+        appointmentId: appointment._id,
+        clinicId,
+        actorUserId: requester._id
+      });
+    } catch (_error) {
+      // best effort
+    }
+  }
+
   await createAuditLog({
     actorUserId: requester._id,
     action: 'appointment_status_updated',
@@ -668,11 +833,12 @@ const updateAppointmentStatus = async ({ requester, appointmentId, payload, requ
     status: 'SUCCESS'
   });
 
-  return appointmentRepository.findAppointmentByIdAndClinic({
+  const updatedAppt = await appointmentRepository.findAppointmentByIdAndClinic({
     appointmentId: appointment._id,
     clinicId,
     populateDetails: true
   });
+  return resolveAppointmentDoctorImage(updatedAppt);
 };
 
 const cancelAppointment = async ({ requester, appointmentId, payload, requestedClinicId = null, req }) => {
@@ -705,11 +871,12 @@ const cancelAppointment = async ({ requester, appointmentId, payload, requestedC
     status: 'SUCCESS'
   });
 
-  return appointmentRepository.findAppointmentByIdAndClinic({
+  const updatedAppt = await appointmentRepository.findAppointmentByIdAndClinic({
     appointmentId: appointment._id,
     clinicId,
     populateDetails: true
   });
+  return resolveAppointmentDoctorImage(updatedAppt);
 };
 
 const rescheduleAppointment = async ({ requester, appointmentId, payload, requestedClinicId = null, req }) => {
@@ -722,7 +889,13 @@ const rescheduleAppointment = async ({ requester, appointmentId, payload, reques
   const nextStatuses = APPOINTMENT_STATUS_TRANSITIONS[appointment.status] || [];
 
   if (!nextStatuses.includes(APPOINTMENT_STATUSES.RESCHEDULED)) {
-    throw new AppError('Only booked or confirmed appointments can be rescheduled.', HTTP_STATUS.BAD_REQUEST);
+    const isCancelledDueToLeave = appointment.status === APPOINTMENT_STATUSES.CANCELLED &&
+      appointment.cancellationReason &&
+      appointment.cancellationReason.includes('Doctor on leave');
+
+    if (!isCancelledDueToLeave) {
+      throw new AppError('Only booked or confirmed appointments can be rescheduled.', HTTP_STATUS.BAD_REQUEST);
+    }
   }
 
   const doctor = await doctorRepository.findDoctorByIdAndClinic({
@@ -735,7 +908,8 @@ const rescheduleAppointment = async ({ requester, appointmentId, payload, reques
     durationMinutes: payload.durationMinutes,
     appointmentType: appointment.appointmentType,
     doctor,
-    clinicId
+    clinicId,
+    allowOutsideAvailability: payload.isEarlyBooking === true
   });
   const patientAppointmentHistory = await buildPatientAppointmentHistory({
     clinicId,
@@ -774,6 +948,8 @@ const rescheduleAppointment = async ({ requester, appointmentId, payload, reques
     noShowRisk,
     notes: appendNote(appointment.notes, `Rescheduled: ${payload.reason}`),
     rescheduledFrom: appointment._id,
+    isEarlyBooking: payload.isEarlyBooking || false,
+    earlyBookingReason: payload.earlyBookingReason || 'none',
     meta: {
       ...(appointment.meta || {}),
       rescheduleReason: payload.reason
@@ -811,11 +987,36 @@ const rescheduleAppointment = async ({ requester, appointmentId, payload, reques
     status: 'SUCCESS'
   });
 
-  return appointmentRepository.findAppointmentByIdAndClinic({
+  const rescheduledAppt = await appointmentRepository.findAppointmentByIdAndClinic({
     appointmentId: newAppointment._id,
     clinicId,
     populateDetails: true
   });
+
+  try {
+    const {
+      scheduleAppointmentReminderIntent,
+      sendAppointmentBookingNotifications
+    } = require('../notifications/notification.service');
+
+    await scheduleAppointmentReminderIntent({
+      appointment: rescheduledAppt,
+      patient: rescheduledAppt?.patientId || appointment.patientId,
+      doctor: rescheduledAppt?.doctorId || doctor,
+      actorUserId: requester._id
+    });
+
+    await sendAppointmentBookingNotifications({
+      appointment: rescheduledAppt,
+      patient: rescheduledAppt?.patientId || appointment.patientId,
+      doctor: rescheduledAppt?.doctorId || doctor,
+      actorUserId: requester._id
+    });
+  } catch (_error) {
+    // Notification scheduling is best-effort and must not block appointment reschedule.
+  }
+
+  return resolveAppointmentDoctorImage(rescheduledAppt);
 };
 
 const getQueueStatus = async ({ requester, doctorId, requestedClinicId = null }) => {
@@ -869,6 +1070,70 @@ const getQueueStatus = async ({ requester, doctorId, requestedClinicId = null })
   };
 };
 
+const verifyAppointmentPayment = async ({ requester, appointmentId, payload, req }) => {
+  const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = payload;
+  const { env } = require('../../config/env');
+  const crypto = require('crypto');
+
+  if (!env.razorpayKeySecret) {
+    throw new AppError('Razorpay secret is not configured.', HTTP_STATUS.INTERNAL_SERVER_ERROR);
+  }
+
+  const body = razorpay_order_id + "|" + razorpay_payment_id;
+  const expectedSignature = crypto
+    .createHmac('sha256', env.razorpayKeySecret)
+    .update(body.toString())
+    .digest('hex');
+
+  if (expectedSignature !== razorpay_signature) {
+    throw new AppError('Invalid payment signature', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  // Find invoice associated with this appointment
+  const Invoice = require('../billing/invoice.model');
+  const invoice = await Invoice.findOne({ appointmentId });
+  if (!invoice) {
+    throw new AppError('Associated invoice not found.', HTTP_STATUS.NOT_FOUND);
+  }
+
+  const billingService = require('../billing/billing.service');
+  // Record payment on invoice
+  await billingService.recordPayment({
+    requester,
+    invoiceId: invoice._id,
+    payload: {
+      amount: invoice.dueAmount,
+      paymentMode: 'razorpay',
+      transactionId: razorpay_payment_id,
+      notes: `Razorpay Order: ${razorpay_order_id}`
+    },
+    requestedClinicId: invoice.clinicId,
+    req
+  });
+
+  // Confirm appointment
+  const appointment = await appointmentRepository.findAppointmentByIdAndClinic({
+    appointmentId,
+    clinicId: invoice.clinicId,
+    populateDetails: false
+  });
+
+  if (!appointment) {
+    throw new AppError('Appointment not found.', HTTP_STATUS.NOT_FOUND);
+  }
+
+  appointment.status = APPOINTMENT_STATUSES.CONFIRMED;
+  await appointment.save();
+
+  const populated = await appointmentRepository.findAppointmentByIdAndClinic({
+    appointmentId,
+    clinicId: invoice.clinicId,
+    populateDetails: true
+  });
+
+  return resolveAppointmentDoctorImage(populated);
+};
+
 module.exports = {
   createAppointment,
   listAppointments,
@@ -878,5 +1143,6 @@ module.exports = {
   updateAppointmentStatus,
   cancelAppointment,
   rescheduleAppointment,
-  getQueueStatus
+  getQueueStatus,
+  verifyAppointmentPayment
 };

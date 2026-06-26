@@ -226,42 +226,51 @@ const AppointmentDetailsPage = () => {
             </form>
           ) : null}
 
-          {canManageAppointment ? (
+          {canManageAppointment || (currentUser?.role === 'PATIENT' && (['booked', 'confirmed'].includes(appointment.status) || (appointment.status === 'cancelled' && appointment.cancellationReason?.includes('Doctor on leave')))) ? (
             <>
-              <article className="grid gap-4 rounded-3xl border border-stone-200 bg-white p-6 shadow-lg shadow-stone-200/40">
-                <h3 className="text-lg font-semibold text-stone-900">Send reminder</h3>
-                <p className="text-sm text-stone-600">Queue an SMS/email reminder for this appointment.</p>
-                <button
-                  type="button"
-                  onClick={handleSendReminder}
-                  disabled={sendingReminder || ['cancelled', 'completed', 'no_show'].includes(appointment.status)}
-                  className="rounded-2xl border border-sky-300 px-4 py-3 text-sm font-semibold text-sky-700 hover:bg-sky-50 disabled:opacity-60"
-                >
-                  {sendingReminder ? 'Sending reminder...' : 'Send appointment reminder'}
-                </button>
-              </article>
+              {canManageAppointment && (
+                <>
+                  <article className="grid gap-4 rounded-3xl border border-stone-200 bg-white p-6 shadow-lg shadow-stone-200/40">
+                    <h3 className="text-lg font-semibold text-stone-900">Send reminder</h3>
+                    <p className="text-sm text-stone-600">Queue an SMS/email reminder for this appointment.</p>
+                    <button
+                      type="button"
+                      onClick={handleSendReminder}
+                      disabled={sendingReminder || ['cancelled', 'completed', 'no_show'].includes(appointment.status)}
+                      className="rounded-2xl border border-sky-300 px-4 py-3 text-sm font-semibold text-sky-700 hover:bg-sky-50 disabled:opacity-60"
+                    >
+                      {sendingReminder ? 'Sending reminder...' : 'Send appointment reminder'}
+                    </button>
+                  </article>
 
-              <form className="grid gap-4 rounded-3xl border border-stone-200 bg-white p-6 shadow-lg shadow-stone-200/40" onSubmit={handleCancel}>
-                <h3 className="text-lg font-semibold text-stone-900">Cancel appointment</h3>
-                <textarea value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} rows={3} placeholder="Cancellation reason" className="rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" />
-                <button type="submit" className="rounded-2xl border border-rose-300 px-4 py-3 text-sm font-semibold text-rose-700 hover:bg-rose-50">
-                  Cancel appointment
-                </button>
-              </form>
+                  <form className="grid gap-4 rounded-3xl border border-stone-200 bg-white p-6 shadow-lg shadow-stone-200/40" onSubmit={handleCancel}>
+                    <h3 className="text-lg font-semibold text-stone-900">Cancel appointment</h3>
+                    <textarea value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} rows={3} placeholder="Cancellation reason" className="rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 text-black dark:bg-navy-800 dark:border-white/[0.08] dark:text-white" />
+                    <button type="submit" className="rounded-2xl border border-rose-300 px-4 py-3 text-sm font-semibold text-rose-700 hover:bg-rose-50 dark:text-white dark:border-white/[0.08] dark:hover:bg-navy-850">
+                      Cancel appointment
+                    </button>
+                  </form>
+                </>
+              )}
 
               <form className="grid gap-4 rounded-3xl border border-stone-200 bg-white p-6 shadow-lg shadow-stone-200/40" onSubmit={handleReschedule}>
                 <h3 className="text-lg font-semibold text-stone-900">Reschedule appointment</h3>
-                <input type="date" value={rescheduleForm.appointmentDate} onChange={(event) => setRescheduleForm((current) => ({ ...current, appointmentDate: event.target.value }))} className="rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" />
-                <input type="time" value={rescheduleForm.startTime} onChange={(event) => setRescheduleForm((current) => ({ ...current, startTime: event.target.value }))} className="rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" />
-                <select value={rescheduleForm.durationMinutes} onChange={(event) => setRescheduleForm((current) => ({ ...current, durationMinutes: Number(event.target.value) }))} className="rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100">
+                {appointment.status === 'cancelled' && appointment.cancellationReason?.includes('Doctor on leave') && (
+                  <p className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/20 p-3 rounded-xl border border-amber-200 dark:border-amber-900">
+                    This appointment was previously cancelled because the doctor was on leave. You can now reschedule it.
+                  </p>
+                )}
+                <input type="date" value={rescheduleForm.appointmentDate} onChange={(event) => setRescheduleForm((current) => ({ ...current, appointmentDate: event.target.value }))} className="rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 text-black dark:bg-navy-800 dark:border-white/[0.08] dark:text-white" />
+                <input type="time" value={rescheduleForm.startTime} onChange={(event) => setRescheduleForm((current) => ({ ...current, startTime: event.target.value }))} className="rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 text-black dark:bg-navy-800 dark:border-white/[0.08] dark:text-white" />
+                <select value={rescheduleForm.durationMinutes} onChange={(event) => setRescheduleForm((current) => ({ ...current, durationMinutes: Number(event.target.value) }))} className="rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 text-black dark:bg-navy-800 dark:border-white/[0.08] dark:text-white">
                   {[15, 30, 45, 60].map((duration) => (
                     <option key={duration} value={duration}>
                       {duration} minutes
                     </option>
                   ))}
                 </select>
-                <textarea value={rescheduleForm.reason} onChange={(event) => setRescheduleForm((current) => ({ ...current, reason: event.target.value }))} rows={3} placeholder="Reason for reschedule" className="rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" />
-                <button type="submit" className="rounded-2xl border border-stone-300 px-4 py-3 text-sm font-semibold text-stone-700 hover:bg-stone-50">
+                <textarea value={rescheduleForm.reason} onChange={(event) => setRescheduleForm((current) => ({ ...current, reason: event.target.value }))} rows={3} placeholder="Reason for reschedule" className="rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 text-black dark:bg-navy-800 dark:border-white/[0.08] dark:text-white" />
+                <button type="submit" className="rounded-2xl border border-stone-300 px-4 py-3 text-sm font-semibold text-stone-700 hover:bg-stone-50 dark:text-white dark:border-white/[0.08] dark:hover:bg-navy-850">
                   Reschedule appointment
                 </button>
               </form>

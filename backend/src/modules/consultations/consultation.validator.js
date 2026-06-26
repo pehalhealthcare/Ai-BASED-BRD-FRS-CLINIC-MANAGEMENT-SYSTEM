@@ -2,9 +2,10 @@ const { z } = require('zod');
 
 const { objectIdSchema, objectIdParamSchema } = require('../../common/validators/objectId.validator');
 
-const dateStringSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format');
+const dateStringSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format').or(z.literal(''));
 
 const futureOrTodayDateSchema = dateStringSchema.refine((value) => {
+  if (!value) return true;
   const selected = new Date(`${value}T00:00:00.000Z`);
   const today = new Date();
   today.setUTCHours(0, 0, 0, 0);
@@ -174,12 +175,12 @@ const formatClinicalNoteSchema = z.object({
 
 const aiSoapNoteSchema = z.object({
   note_type: z.literal('SOAP').optional(),
-  subjective: z.string().trim().min(1).max(5000),
-  objective: z.string().trim().min(1).max(5000),
-  assessment: z.string().trim().min(1).max(5000),
-  plan: z.string().trim().min(1).max(5000),
+  subjective: z.string().trim().max(5000).optional().or(z.literal('')),
+  objective: z.string().trim().max(5000).optional().or(z.literal('')),
+  assessment: z.string().trim().max(5000).optional().or(z.literal('')),
+  plan: z.string().trim().max(5000).optional().or(z.literal('')),
   draft_ai_note: z.boolean().optional(),
-  missing_information: z.array(z.string().trim().min(1)).optional()
+  missing_information: z.array(z.string().trim()).optional()
 });
 
 const voiceNoteParamSchema = z.object({
@@ -190,7 +191,7 @@ const editAiNoteSchema = z.object({
   params: consultationIdParamSchema.shape.params,
   body: z
     .object({
-      transcript_text: z.string().trim().min(1).max(10000).optional(),
+      transcript_text: z.string().trim().max(10000).optional().or(z.literal('')),
       ai_soap_note: aiSoapNoteSchema.optional()
     })
     .refine((payload) => Object.keys(payload).length > 0, {
@@ -202,7 +203,7 @@ const approveAiNoteSchema = z.object({
   params: consultationIdParamSchema.shape.params,
   body: z
     .object({
-      transcript_text: z.string().trim().min(1).max(10000).optional(),
+      transcript_text: z.string().trim().max(10000).optional().or(z.literal('')),
       approved_note: aiSoapNoteSchema.optional()
     })
     .optional()

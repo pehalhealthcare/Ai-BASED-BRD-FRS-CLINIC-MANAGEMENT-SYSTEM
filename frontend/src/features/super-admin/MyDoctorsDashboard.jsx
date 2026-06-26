@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import LoadingState from '../../components/common/LoadingState';
 import ErrorState from '../../components/common/ErrorState';
 import PageHeader from '../../components/layout/PageHeader';
-import { adminApi, clinicApi, specializationApi, doctorApi, userApi } from '../../lib/api';
+import { Settings, Calendar } from 'lucide-react';
+import { adminApi, clinicApi, specializationApi, doctorApi, userApi, leaveApi } from '../../lib/api';
 
 const FIELD_CLASS =
   'w-full rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 text-black';
@@ -22,6 +23,87 @@ const MyDoctorsDashboard = () => {
   const [clinics, setClinics] = useState([]);
   const [specializations, setSpecializations] = useState([]);
   const [activeSpecialization, setActiveSpecialization] = useState(null);
+
+  // Filters state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [specialtyQuery, setSpecialtyQuery] = useState('');
+  const [clinicQuery, setClinicQuery] = useState('');
+  const [minExperience, setMinExperience] = useState('');
+  const [sortByPerformance, setSortByPerformance] = useState(false);
+  const [filterOnLeave, setFilterOnLeave] = useState(false);
+  const [leaves, setLeaves] = useState([]);
+
+  const isDoctorOnLeave = (docId) => {
+    const today = new Date();
+    return leaves.some(
+      (l) =>
+        l.status === 'approved' &&
+        String(l.doctorId?._id || l.doctorId) === String(docId) &&
+        new Date(l.start_datetime) <= today &&
+        new Date(l.end_datetime) >= today
+    );
+  };
+
+  const filteredAndSortedDoctors = useMemo(() => {
+    let result = [...doctors];
+
+    // Filter by search query (name or specialization)
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(
+        (doc) =>
+          (doc.fullName || doc.name || '').toLowerCase().includes(q) ||
+          (doc.specialization || '').toLowerCase().includes(q)
+      );
+    }
+
+    // Filter by specialty dropdown
+    if (specialtyQuery) {
+      result = result.filter(
+        (doc) => (doc.specialization || '').toLowerCase() === specialtyQuery.toLowerCase()
+      );
+    }
+
+    // Filter by clinic/hospital name dropdown
+    if (clinicQuery) {
+      result = result.filter((doc) => {
+        const docClinicId = doc.clinicId?._id || doc.clinicId;
+        return String(docClinicId) === String(clinicQuery);
+      });
+    }
+
+    // Filter by minimum experience
+    if (minExperience) {
+      const expLimit = parseInt(minExperience, 10);
+      if (!isNaN(expLimit)) {
+        result = result.filter((doc) => {
+          const exp = doc.profile?.experienceYears ?? doc.experienceYears ?? 0;
+          return exp >= expLimit;
+        });
+      }
+    }
+
+    // Filter by currently on leave
+    if (filterOnLeave) {
+      const today = new Date();
+      result = result.filter((doc) => {
+        return leaves.some(
+          (l) =>
+            l.status === 'approved' &&
+            String(l.doctorId?._id || l.doctorId) === String(doc._id) &&
+            new Date(l.start_datetime) <= today &&
+            new Date(l.end_datetime) >= today
+        );
+      });
+    }
+
+    // Sort by performance (highest totalRevenue first) or default
+    if (sortByPerformance) {
+      result.sort((a, b) => (b.totalRevenue || 0) - (a.totalRevenue || 0));
+    }
+
+    return result;
+  }, [doctors, searchQuery, specialtyQuery, clinicQuery, minExperience, filterOnLeave, leaves, sortByPerformance]);
 
   // Modals / forms
   const [selectedDoctor, setSelectedDoctor] = useState(null);
@@ -61,10 +143,11 @@ const MyDoctorsDashboard = () => {
     setLoading(true);
     setError('');
     try {
-      const [dashRes, clinicsRes, specsRes] = await Promise.all([
+      const [dashRes, clinicsRes, specsRes, leavesRes] = await Promise.all([
         adminApi.getMyDoctorsDashboard(),
         clinicApi.list(),
-        specializationApi.list()
+        specializationApi.list(),
+        leaveApi.list()
       ]);
 
       setDoctors(dashRes.data?.doctors || []);
@@ -73,6 +156,7 @@ const MyDoctorsDashboard = () => {
       setBestDoctor(dashRes.data?.bestDoctor || null);
       setClinics(clinicsRes.data?.clinics || []);
       setSpecializations(specsRes.data?.specializations || []);
+      setLeaves(leavesRes.leaves || []);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load My Doctors dashboard.');
     } finally {
@@ -483,6 +567,24 @@ const MyDoctorsDashboard = () => {
         eyebrow="Super Admin Panel"
         title="My Doctors"
         description="Monitor clinics directory, category counts, perform doctor verification, and manage allowed specializations."
+        actions={
+          <div className="flex gap-3">
+            <button
+              onClick={() => navigate('/admin/leaves-review')}
+              className="flex items-center gap-2 rounded-2xl bg-indigo-50 border border-indigo-200 px-4 py-3 text-sm font-bold text-indigo-700 hover:bg-indigo-100 transition shadow-sm cursor-pointer"
+            >
+              <Calendar size={16} />
+              <span>Leave Reviews</span>
+            </button>
+            <button
+              onClick={() => navigate('/admin/leave-policy')}
+              className="flex items-center gap-2 rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-bold text-white hover:bg-indigo-700 transition shadow-md shadow-indigo-600/10 cursor-pointer"
+            >
+              <Settings size={16} />
+              <span>Doctor Settings</span>
+            </button>
+          </div>
+        }
       />
 
       {message && (
@@ -552,63 +654,9 @@ const MyDoctorsDashboard = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-        {/* Specialization Admin Section */}
-        <div className="bg-white border border-stone-200 rounded-3xl p-6 shadow-sm xl:col-span-1 space-y-6">
-          <div>
-            <h3 className="text-lg font-black text-stone-900">Hospital Specialties</h3>
-            <p className="text-xs text-stone-500 mt-1">Manage allowed specialties. Only these options will be selectable during onboarding.</p>
-          </div>
-
-          <form onSubmit={handleCreateSpecialization} className="space-y-3">
-            <input
-              type="text"
-              placeholder="Specialization Name (e.g. Cardiology)"
-              required
-              value={newSpecName}
-              onChange={(e) => setNewSpecName(e.target.value)}
-              className={FIELD_CLASS}
-            />
-            <input
-              type="text"
-              placeholder="Brief Description"
-              value={newSpecDesc}
-              onChange={(e) => setNewSpecDesc(e.target.value)}
-              className={FIELD_CLASS}
-            />
-            <button
-              type="submit"
-              className="w-full rounded-2xl bg-indigo-600 py-3 text-xs font-bold text-white hover:bg-indigo-700 transition shadow-lg shadow-indigo-600/15 cursor-pointer"
-            >
-              Add Specialization
-            </button>
-          </form>
-
-          <div className="border-t border-stone-100 pt-4">
-            <h4 className="text-xs uppercase font-bold text-stone-400 tracking-widest mb-3">Current List</h4>
-            <div className="grid gap-2 max-h-60 overflow-y-auto pr-1">
-              {specializations.map((spec) => (
-                <div key={spec._id} className="flex justify-between items-center p-3 rounded-xl bg-stone-50 border border-stone-200/60 hover:bg-stone-100/30 transition">
-                  <div>
-                    <strong className="text-xs text-stone-800">{spec.name}</strong>
-                    {spec.description && <p className="text-[10px] text-stone-500 mt-0.5">{spec.description}</p>}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteSpecialization(spec._id)}
-                    className="text-stone-400 hover:text-rose-600 text-xs font-bold px-2 py-1 cursor-pointer"
-                    title="Deactivate Specialization"
-                  >
-                    &times;
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
+      <div className="grid grid-cols-1 gap-8">
         {/* Categories Distribution & Pending Approvals */}
-        <div className="xl:col-span-2 space-y-8">
+        <div className="space-y-8">
           {/* Pending Reviews Queue */}
           <div className="bg-white border border-stone-200 rounded-3xl p-6 shadow-sm">
             <h3 className="text-lg font-black text-stone-900 mb-4">Verification & Approval Queue</h3>
@@ -778,50 +826,168 @@ const MyDoctorsDashboard = () => {
         </div>
       </div>
 
-      {/* Directory Grid */}
-      <div className="bg-white border border-stone-200 rounded-3xl p-6 shadow-sm mt-4">
-        <h3 className="text-lg font-black text-stone-900 mb-4">Doctor Directory (Approved)</h3>
-        {doctors.length === 0 ? (
-          <p className="text-stone-500 text-sm py-4">No active doctors appointed in clinics directory.</p>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {doctors.map((doc) => (
-              <div
-                key={doc._id}
-                className="p-4 rounded-2xl border border-stone-200 bg-stone-50 hover:bg-white hover:shadow-lg hover:border-indigo-200 transition-all duration-300 flex items-center justify-between"
-              >
-                <div className="flex items-center gap-3">
-                  {doc.image ? (
-                    <img src={doc.image} alt={doc.fullName} className="w-12 h-12 rounded-full object-cover border border-stone-200" />
-                  ) : (
-                    <div className="w-12 h-12 rounded-full bg-stone-200 flex items-center justify-center text-xs font-bold text-stone-400">MD</div>
-                  )}
-                  <div>
-                    <h4 className="font-bold text-stone-900 text-sm flex items-center gap-1.5">
-                      {doc.fullName}
-                      {!doc.isActive && (
-                        <span className="inline-block px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider bg-rose-50 text-rose-700 border border-rose-200">
-                          Suspended
-                        </span>
-                      )}
-                    </h4>
-                    <p className="text-[10px] text-stone-500 mt-0.5">{doc.specialization} &bull; {doc.clinicId?.name || 'N/A'}</p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedDoctor(doc);
-                    setModalMode('view');
-                  }}
-                  className="rounded-xl border border-stone-300 px-3 py-1.5 text-[10px] font-bold text-stone-700 hover:bg-stone-50 cursor-pointer"
-                >
-                  View Details
-                </button>
-              </div>
-            ))}
+      {/* Filter Panel & Directory Grid */}
+      <div className="bg-white border border-stone-200 rounded-3xl p-6 shadow-sm mt-4 space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h3 className="text-lg font-black text-stone-900">Approved Doctors</h3>
+            <p className="text-xs text-stone-500 mt-1">Filter and view all approved medical practitioners.</p>
           </div>
-        )}
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
+          {/* Search query */}
+          <div>
+            <label className="block text-xs font-bold text-stone-600 mb-2">Search Doctor</label>
+            <input
+              type="text"
+              placeholder="Search by name or specialty..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className={FIELD_CLASS}
+            />
+          </div>
+
+          {/* Specialty Filter */}
+          <div>
+            <label className="block text-xs font-bold text-stone-600 mb-2">Specialty Category</label>
+            <select
+              value={specialtyQuery}
+              onChange={(e) => setSpecialtyQuery(e.target.value)}
+              className={FIELD_CLASS}
+            >
+              <option value="">All Specialties</option>
+              {specializations.map((spec) => (
+                <option key={spec._id} value={spec.name}>
+                  {spec.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Hospital/Clinic Filter */}
+          <div>
+            <label className="block text-xs font-bold text-stone-600 mb-2">Hospital / Clinic</label>
+            <select
+              value={clinicQuery}
+              onChange={(e) => setClinicQuery(e.target.value)}
+              className={FIELD_CLASS}
+            >
+              <option value="">All Clinics</option>
+              {clinics.map((c) => (
+                <option key={c._id} value={c._id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Experience Filter */}
+          <div>
+            <label className="block text-xs font-bold text-stone-600 mb-2">Min Experience (Years)</label>
+            <input
+              type="number"
+              min="0"
+              placeholder="e.g. 5"
+              value={minExperience}
+              onChange={(e) => setMinExperience(e.target.value)}
+              className={FIELD_CLASS}
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-6 pt-2 border-t border-stone-100">
+          <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-stone-700">
+            <input
+              type="checkbox"
+              checked={filterOnLeave}
+              onChange={(e) => setFilterOnLeave(e.target.checked)}
+              className="w-4 h-4 accent-emerald-600 cursor-pointer rounded"
+            />
+            <span>Currently on Leave 🏖️</span>
+          </label>
+
+          <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-stone-700">
+            <input
+              type="checkbox"
+              checked={sortByPerformance}
+              onChange={(e) => setSortByPerformance(e.target.checked)}
+              className="w-4 h-4 accent-emerald-600 cursor-pointer rounded"
+            />
+            <span>Sort by Performance (Highest Revenue) 📈</span>
+          </label>
+
+          {(searchQuery || specialtyQuery || clinicQuery || minExperience || filterOnLeave || sortByPerformance) && (
+            <button
+              onClick={() => {
+                setSearchQuery('');
+                setSpecialtyQuery('');
+                setClinicQuery('');
+                setMinExperience('');
+                setFilterOnLeave(false);
+                setSortByPerformance(false);
+              }}
+              className="ml-auto text-xs text-indigo-600 hover:text-indigo-800 font-bold hover:underline"
+            >
+              Clear All Filters
+            </button>
+          )}
+        </div>
+
+        <div className="border-t border-stone-100 pt-4">
+          {filteredAndSortedDoctors.length === 0 ? (
+            <p className="text-stone-500 text-sm py-8 text-center">No active doctors appointed matching filters.</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredAndSortedDoctors.map((doc) => {
+                const onLeave = isDoctorOnLeave(doc._id);
+                return (
+                  <div
+                    key={doc._id}
+                    className="p-4 rounded-2xl border border-stone-200 bg-stone-50 hover:bg-white hover:shadow-lg hover:border-indigo-200 transition-all duration-300 flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-3">
+                      {doc.image ? (
+                        <img src={doc.image} alt={doc.fullName} className="w-12 h-12 rounded-full object-cover border border-stone-200" />
+                      ) : (
+                        <div className="w-12 h-12 rounded-full bg-stone-200 flex items-center justify-center text-xs font-bold text-stone-400">MD</div>
+                      )}
+                      <div>
+                        <h4 className="font-bold text-stone-900 text-sm flex flex-wrap items-center gap-1.5">
+                          {doc.fullName}
+                          {!doc.isActive && (
+                            <span className="inline-block px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider bg-rose-50 text-rose-700 border border-rose-200">
+                              Suspended
+                            </span>
+                          )}
+                          {onLeave && (
+                            <span className="inline-block px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200">
+                              🏖️ On Leave
+                            </span>
+                          )}
+                        </h4>
+                        <p className="text-[10px] text-stone-500 mt-0.5">{doc.specialization} &bull; {doc.clinicId?.name || 'N/A'}</p>
+                        <span className="text-[10px] text-stone-500 font-semibold mt-1 block">
+                          Exp: {doc.profile?.experienceYears ?? doc.experienceYears ?? 0} Yrs &bull; Rev: <strong className="text-emerald-600">₹ {(doc.totalRevenue || 0).toLocaleString('en-IN')}</strong>
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedDoctor(doc);
+                        setModalMode('view');
+                      }}
+                      className="rounded-xl border border-stone-300 px-3 py-1.5 text-[10px] font-bold text-stone-700 hover:bg-stone-50 cursor-pointer"
+                    >
+                      View Details
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Action / Detail modals */}
@@ -966,9 +1132,9 @@ const MyDoctorsDashboard = () => {
                     { icon: '🩺', label: 'Specialization', value: selectedDoctor.profile?.specialization || selectedDoctor.specialization || 'N/A', accent: 'indigo' },
                     { icon: '🎓', label: 'Qualification', value: selectedDoctor.profile?.qualification || selectedDoctor.qualification || 'N/A', accent: 'violet' },
                     { icon: '🪪', label: 'Reg. Number', value: selectedDoctor.profile?.medicalRegistrationNumber || selectedDoctor.medicalRegistrationNumber || 'N/A', accent: 'sky' },
-                    { icon: '⏳', label: 'Experience', value: `${selectedDoctor.profile?.experienceYears ?? selectedDoctor.experienceYears ?? 0} Years`, accent: 'teal' },
+                                   { icon: '⏳', label: 'Experience', value: `${selectedDoctor.profile?.experienceYears ?? selectedDoctor.experienceYears ?? 0} Years`, accent: 'teal' },
                     { icon: '💊', label: 'Consult Fee', value: `₹ ${selectedDoctor.profile?.consultationFee ?? selectedDoctor.consultationFee ?? 0}`, accent: 'emerald' },
-                    { icon: '🔁', label: 'Follow-up Fee', value: `₹ ${selectedDoctor.profile?.followUpFee ?? selectedDoctor.followUpFee ?? 0}`, accent: 'green' },
+                    { icon: '🌐', label: 'Online Booking', value: (selectedDoctor.profile?.isOnlineAvailable ?? selectedDoctor.isOnlineAvailable) ? 'Yes (Online Available)' : 'No (Offline Only)', accent: 'sky' },
                   ].map(({ icon, label, value, accent }) => (
                     <div key={label} className={`relative overflow-hidden rounded-2xl border p-4 bg-gradient-to-br ${
                       accent === 'indigo' ? 'from-indigo-50 to-white border-indigo-100' :

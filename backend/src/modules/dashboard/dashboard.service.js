@@ -250,7 +250,7 @@ const aggregateByDate = async ({
   ]);
 
 const getOverview = async ({ requester, query = {}, requestedClinicId = null }) => {
-  const { clinicId, range, doctorId } = await resolveDashboardContext({
+  const { clinicId, range, doctorId, doctorProfile } = await resolveDashboardContext({
     requester,
     query,
     requestedClinicId,
@@ -379,6 +379,33 @@ const getOverview = async ({ requester, query = {}, requestedClinicId = null }) 
 
   const lowStockMedicines = medicines.filter((medicine) => getMedicineStockFlags(medicine).lowStock).length;
 
+  let amountReceived = 0;
+  let commissionEarned = 0;
+  if (!doctorId) {
+    const revenueSummary = await Invoice.aggregate([
+      {
+        $match: {
+          clinicId: toObjectId(clinicId),
+          invoiceStatus: { $ne: 'cancelled' },
+          invoiceDate: { $gte: range.fromDate, $lte: range.toDate }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalPaid: { $sum: '$paidAmount' },
+          totalCommission: { $sum: '$clinicCommission' }
+        }
+      }
+    ]);
+    if (revenueSummary && revenueSummary[0]) {
+      amountReceived = revenueSummary[0].totalPaid || 0;
+      commissionEarned = revenueSummary[0].totalCommission || 0;
+    }
+  }
+
+  const paymentReceived = doctorProfile ? (doctorProfile.earnings || 0) : 0;
+
   return {
     cards: {
       totalPatients,
@@ -390,7 +417,10 @@ const getOverview = async ({ requester, query = {}, requestedClinicId = null }) 
       pendingInvoices,
       labOrders,
       lowStockMedicines,
-      pendingFollowUps
+      pendingFollowUps,
+      amountReceived,
+      commissionEarned,
+      paymentReceived
     },
     range: {
       from: range.from,

@@ -93,6 +93,18 @@ const downloadPrescriptionPdf = asyncHandler(async (req, res) => {
   return res.download(filePath, path.basename(filePath));
 });
 
+const downloadMedicines = asyncHandler(async (req, res) => {
+  const fileContent = await prescriptionService.downloadMedicinesText({
+    requester: req.user,
+    prescriptionId: req.params.id,
+    requestedClinicId: req.query.clinicId
+  });
+
+  res.setHeader('Content-Type', 'text/plain');
+  res.setHeader('Content-Disposition', `attachment; filename="medicines_${req.params.id}.txt"`);
+  return res.send(fileContent);
+});
+
 module.exports = {
   createPrescription,
   getPrescriptionById,
@@ -101,5 +113,6 @@ module.exports = {
   updatePrescription,
   finalizePrescription,
   cancelPrescription,
-  downloadPrescriptionPdf
+  downloadPrescriptionPdf,
+  downloadMedicines
 };

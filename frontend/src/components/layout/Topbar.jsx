@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Menu, Sun, Moon, LogOut, Bell, Settings, BarChart2 } from 'lucide-react';
+import { Menu, Sun, Moon, LogOut, Bell, Settings, BarChart2, User, Calendar } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import Avatar from '../ui/Avatar';
 import { ROLES } from '../../constants/roles';
@@ -153,17 +153,30 @@ const Topbar = ({ title, currentUser, onToggleSidebar, onLogout }) => {
                 )}
 
                 {currentUser.role === ROLES.DOCTOR && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      navigate('/doctor/settings');
-                    }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-white/[0.04] rounded-xl transition-colors text-left cursor-pointer"
-                  >
-                    <Settings size={15} className="text-stone-400 dark:text-stone-500" />
-                    Doctor Settings
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        navigate('/doctor/profile');
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-white/[0.04] rounded-xl transition-colors text-left cursor-pointer"
+                    >
+                      <User size={15} className="text-stone-400 dark:text-stone-500" />
+                      View Details
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        navigate('/doctor/leaves');
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-white/[0.04] rounded-xl transition-colors text-left cursor-pointer"
+                    >
+                      <Calendar size={15} className="text-stone-400 dark:text-stone-500" />
+                      My Leaves
+                    </button>
+                  </>
                 )}
 
                 <button

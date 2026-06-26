@@ -5,9 +5,9 @@ import EmptyState from '../../components/common/EmptyState';
 import ErrorState from '../../components/common/ErrorState';
 import LoadingState from '../../components/common/LoadingState';
 import PageHeader from '../../components/layout/PageHeader';
-import { ADMIN_ROLES } from '../../constants/roles';
+import { createLabTest, listLabTests, updateLabTest } from './labApi';
+import { ADMIN_ROLES, ROLES } from '../../constants/roles';
 import useAuth from '../../hooks/useAuth';
-import { createLabTest, listLabTests } from './labApi';
 
 const FIELD_CLASS =
   'w-full rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100';
@@ -24,7 +24,7 @@ const createInitialForm = () => ({
 
 const LabTestCatalogPage = () => {
   const { user } = useAuth();
-  const canManageCatalog = ADMIN_ROLES.includes(user?.role);
+  const canManageCatalog = ADMIN_ROLES.includes(user?.role) || user?.role === ROLES.LAB_TECHNICIAN;
   const [filters, setFilters] = useState({
     search: '',
     category: '',
@@ -95,6 +95,21 @@ const LabTestCatalogPage = () => {
       setError(requestError.response?.data?.message || 'Unable to create the lab test.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleToggleActive = async (labTest) => {
+    try {
+      await updateLabTest(labTest._id, { isActive: !labTest.isActive });
+      const response = await listLabTests({
+        limit: 50,
+        ...(filters.search ? { search: filters.search } : {}),
+        ...(filters.category ? { category: filters.category } : {}),
+        ...(filters.isActive !== 'all' ? { isActive: filters.isActive === 'true' } : {})
+      });
+      setLabTests(response.data.labTests || []);
+    } catch (requestError) {
+      alert(requestError.response?.data?.message || 'Unable to update the lab test.');
     }
   };
 
@@ -236,9 +251,21 @@ const LabTestCatalogPage = () => {
                         Reference: {labTest.normalRange?.text || [labTest.normalRange?.min, labTest.normalRange?.max].filter((value) => typeof value !== 'undefined').join(' - ') || 'Not provided'}
                       </p>
                     </div>
-                    <div className="text-right">
+                    <div className="text-right flex flex-col items-end gap-2">
                       <p className="text-sm font-semibold text-stone-900">INR {Number(labTest.price || 0).toFixed(2)}</p>
-                      <p className="mt-1 text-xs uppercase tracking-[0.16em] text-stone-500">{labTest.isActive ? 'Active' : 'Inactive'}</p>
+                      <p className="text-xs uppercase tracking-[0.16em] text-stone-500">{labTest.isActive ? 'Active' : 'Inactive'}</p>
+                      {canManageCatalog ? (
+                        <button
+                          onClick={() => handleToggleActive(labTest)}
+                          className={`mt-2 rounded-xl px-3 py-1.5 text-xs font-semibold border transition ${
+                            labTest.isActive
+                              ? 'border-rose-300 text-rose-700 hover:bg-rose-50'
+                              : 'border-emerald-300 text-emerald-700 hover:bg-emerald-50'
+                          }`}
+                        >
+                          {labTest.isActive ? 'Deactivate' : 'Activate'}
+                        </button>
+                      ) : null}
                     </div>
                   </div>
                 </article>

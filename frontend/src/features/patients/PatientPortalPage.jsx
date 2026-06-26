@@ -1,19 +1,30 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   Bot, User, ClipboardList, FileText, Globe, RefreshCcw, Send,
   Plus, X, Camera, Calendar, Stethoscope, AlertTriangle,
   CheckCircle2, Clock, ChevronRight, Activity, Pill, Heart,
-  Phone, MapPin, UserCheck, Syringe, Bell, CreditCard, Shield
+  Phone, MapPin, UserCheck, Syringe, Bell, CreditCard, Shield,
+  Eye, EyeOff, Lock, Unlock, ShieldAlert, UploadCloud, Trash2, Edit3,
+  Search, Filter, SortAsc, ChevronLeft, Building2, RotateCcw,
+  CalendarPlus, XCircle, Video, Star, TrendingUp
 } from 'lucide-react';
 
 import Avatar from '../../components/ui/Avatar';
 import Badge from '../../components/ui/Badge';
 import Modal from '../../components/ui/Modal';
 import { FullPageSpinner } from '../../components/ui/Spinner';
-import { appointmentApi, billingApi, patientApi, prescriptionApi, doctorApi, clinicApi } from '../../lib/api';
+import { appointmentApi, billingApi, patientApi, prescriptionApi, doctorApi, clinicApi, paymentApi } from '../../lib/api';
 import aiApi from '../../api/aiApi';
 import PatientDocumentOcrPanel from './PatientDocumentOcrPanel';
+import MyProfile from './PortalComponents/MyProfile';
+import MedicalHistory from './PortalComponents/MedicalHistory';
+import Appointments from './PortalComponents/Appointments';
+import Prescriptions from './PortalComponents/Prescriptions';
+import Notifications from './PortalComponents/Notifications';
+import Records from './PortalComponents/Records';
+import BillingInsurance from './PortalComponents/BillingInsurance';
+import { SectionLabel } from './PortalComponents/SharedComponents';
 
 // ============================================================
 // Translations
@@ -80,126 +91,117 @@ const LANG_OPTIONS = [
   { value: 'bn', label: 'বাংলা' },
 ];
 
+
+
 // ============================================================
-// Helper sub-components
+// Consultation Payment Banner Helper Component
 // ============================================================
 
-const TagList = ({ items, color, onRemove }) => (
-  <div className="flex flex-wrap gap-2 min-h-[40px]">
-    {items.length > 0 ? items.map((item, i) => (
-      <span
-        key={i}
-        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border
-          ${color === 'rose'
-            ? 'bg-rose-50 border-rose-200 text-rose-700 dark:bg-rose-500/10 dark:border-rose-500/30 dark:text-rose-300'
-            : color === 'sky'
-            ? 'bg-sky-50 border-sky-200 text-sky-700 dark:bg-sky-500/10 dark:border-sky-500/30 dark:text-sky-300'
-            : 'bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-500/10 dark:border-indigo-500/30 dark:text-indigo-300'
-          }`}
-      >
-        {item}
-        {onRemove && (
-          <button
-            type="button"
-            onClick={() => onRemove(i)}
-            className="opacity-60 hover:opacity-100 transition ml-0.5"
-            aria-label={`Remove ${item}`}
-          >
-            <X size={12} />
-          </button>
-        )}
-      </span>
-    )) : (
-      <span className="text-xs text-slate-400 dark:text-slate-500 italic self-center">None added yet</span>
-    )}
-  </div>
-);
+const ConsultationPaymentBanner = ({ invoice }) => {
+  const isOnline = invoice.appointmentId?.appointmentType === 'teleconsultation';
+  const doctorName = invoice.doctorId?.fullName || invoice.appointmentId?.doctorId?.fullName || 'Doctor';
+  const feeAmount = invoice.dueAmount || invoice.totalAmount || 0;
+  const completedAt = invoice.consultationId?.completedAt || invoice.createdAt;
 
-const SectionLabel = ({ children }) => (
-  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500 mb-2">{children}</p>
-);
+  const [timeLeft, setTimeLeft] = useState('');
+  const [isExpired, setIsExpired] = useState(false);
 
-const DoctorCard = ({ doc, onViewProfile, onBookSlot }) => (
-  <div className="
-    p-3.5 rounded-xl border
-    bg-white dark:bg-navy-800
-    border-slate-200 dark:border-white/10
-    hover:border-aura-400 dark:hover:border-aura-500/50
-    hover:-translate-y-0.5 hover:shadow-elevated dark:hover:shadow-elevated-dark
-    transition-all duration-150 flex flex-col gap-3
-  ">
-    <div className="flex items-center gap-2.5">
-      <Avatar name={doc.fullName} size="sm" />
-      <div className="min-w-0">
-        <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">{doc.fullName}</p>
-        <p className="text-[11px] text-slate-500 dark:text-slate-400">{doc.specialization}</p>
+  useEffect(() => {
+    if (!isOnline || !completedAt) return;
+
+    const calculateTime = () => {
+      const completionTime = new Date(completedAt).getTime();
+      const endTime = completionTime + 20 * 60 * 1000; // 20 mins
+      const now = Date.now();
+      const diff = endTime - now;
+
+      if (diff <= 0) {
+        setTimeLeft('00:00');
+        setIsExpired(true);
+        return;
+      }
+
+      const mins = Math.floor(diff / 60000);
+      const secs = Math.floor((diff % 60000) / 1000);
+      setTimeLeft(`${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`);
+    };
+
+    calculateTime();
+    const interval = setInterval(calculateTime, 1000);
+    return () => clearInterval(interval);
+  }, [isOnline, completedAt]);
+
+  return (
+    <div className={`
+      relative overflow-hidden rounded-2xl p-5 border flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all duration-300 shadow-sm
+      ${isOnline
+        ? isExpired
+          ? 'bg-rose-500/10 border-rose-500/20 text-rose-800 dark:text-rose-200'
+          : 'bg-amber-500/10 border-amber-500/20 text-amber-800 dark:text-amber-200'
+        : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-800 dark:text-indigo-200'
+      }
+    `}>
+      <div className="flex items-start gap-4">
+        <div className={`
+          w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border
+          ${isOnline
+            ? isExpired
+              ? 'bg-rose-500/20 border-rose-500/30 text-rose-500'
+              : 'bg-amber-500/20 border-amber-500/30 text-amber-500'
+            : 'bg-indigo-500/20 border-indigo-500/30 text-indigo-500'
+          }
+        `}>
+          {isOnline ? <Clock size={22} className={isExpired ? 'animate-pulse' : ''} /> : <CreditCard size={22} />}
+        </div>
+
+        <div>
+          <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+            Pending Consultation Fee: Dr. {doctorName}
+          </h4>
+          <p className="text-xs mt-1 text-slate-600 dark:text-slate-350 leading-relaxed">
+            {isOnline
+              ? isExpired
+                ? 'The 20-minute payment window has expired. All upcoming appointments with this doctor have been cancelled.'
+                : `This online consultation must be paid within 20 minutes. Please complete the payment to keep your upcoming appointments.`
+              : 'Please complete your consultation fee payment. You can pay online here or at the clinic receptionist.'
+            }
+          </p>
+          <div className="flex flex-wrap items-center gap-3 mt-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
+            <span>Amount Due: ₹{feeAmount}</span>
+            {isOnline && !isExpired && (
+              <span className="flex items-center gap-1 text-rose-500 font-bold bg-rose-500/10 px-2 py-0.5 rounded-md">
+                <Clock size={12} /> Time remaining: {timeLeft}
+              </span>
+            )}
+            {isOnline && isExpired && (
+              <span className="text-rose-500 font-bold bg-rose-500/15 px-2 py-0.5 rounded-md">
+                Expired
+              </span>
+            )}
+          </div>
+        </div>
       </div>
-      {doc.isActive && (
-        <span className="ml-auto shrink-0 flex items-center gap-1 text-[10px] font-semibold text-aura-600 dark:text-aura-400">
-          <span className="w-1.5 h-1.5 rounded-full bg-aura-500 animate-pulse" />
-          Online
-        </span>
-      )}
-    </div>
-    <div className="flex gap-2">
-      <button
-        onClick={() => onViewProfile(doc)}
-        className="flex-1 py-1.5 text-[11px] font-semibold rounded-lg bg-slate-100 dark:bg-white/8 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/15 transition"
-      >
-        View Profile
-      </button>
-      <button
-        onClick={() => onBookSlot(doc)}
-        className="flex-1 py-1.5 text-[11px] font-semibold rounded-lg bg-aura-600 dark:bg-aura-500 text-white hover:bg-aura-700 dark:hover:bg-aura-600 transition"
-      >
-        Book Slot
-      </button>
-    </div>
-  </div>
-);
 
-const InputRow = ({ label, value, onChange, type = 'text', placeholder, required }) => (
-  <div className="flex flex-col gap-1.5">
-    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">{label}</label>
-    <input
-      type={type}
-      value={value}
-      onChange={onChange}
-      placeholder={placeholder}
-      required={required}
-      className="
-        w-full px-4 py-2.5 rounded-xl text-sm
-        bg-white dark:bg-navy-800/60
-        border border-slate-200 dark:border-white/10
-        text-slate-900 dark:text-slate-100
-        placeholder:text-slate-400 dark:placeholder:text-slate-600
-        focus:outline-none focus:border-aura-500 focus:ring-2 focus:ring-aura-500/20
-        transition
-      "
-    />
-  </div>
-);
-
-const SelectRow = ({ label, value, onChange, children, required }) => (
-  <div className="flex flex-col gap-1.5">
-    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">{label}</label>
-    <select
-      value={value}
-      onChange={onChange}
-      required={required}
-      className="
-        w-full px-4 py-2.5 rounded-xl text-sm
-        bg-white dark:bg-navy-800/60
-        border border-slate-200 dark:border-white/10
-        text-slate-900 dark:text-slate-100
-        focus:outline-none focus:border-aura-500 focus:ring-2 focus:ring-aura-500/20
-        transition
-      "
-    >
-      {children}
-    </select>
-  </div>
-);
+      <div className="shrink-0 w-full md:w-auto">
+        {!isExpired && (
+          <Link
+            to={`/billing/${invoice._id}/checkout`}
+            className={`
+              inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white shadow-sm hover:scale-[1.02] transition-all w-full md:w-auto
+              ${isOnline
+                ? 'bg-amber-600 hover:bg-amber-700'
+                : 'bg-indigo-600 hover:bg-indigo-700'
+              }
+            `}
+          >
+            <CreditCard size={15} />
+            Pay Online (Razorpay)
+          </Link>
+        )}
+      </div>
+    </div>
+  );
+};
 
 // ============================================================
 // Main component
@@ -212,8 +214,23 @@ const PatientPortalPage = () => {
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState('appointments');
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(() => searchParams.get('tab') || 'appointments');
   const [notifications, setNotifications] = useState([]);
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
+
+  // Appointments tab state
+  const [apptFilterTab, setApptFilterTab] = useState('all');
+  const [apptSearch, setApptSearch] = useState('');
+  const [apptSort, setApptSort] = useState('date');
+  const [calendarMonth, setCalendarMonth] = useState(new Date());
+  const [cancellingApptId, setCancellingApptId] = useState(null);
 
   // Chatbot state
   const [selectedLanguage, setSelectedLanguage] = useState('en');
@@ -250,12 +267,36 @@ const PatientPortalPage = () => {
   const [profileSuccessMessage, setProfileSuccessMessage] = useState('');
 
   // Medical history state
-  const [historyForm, setHistoryForm] = useState({ allergies: [], chronicConditions: [], currentMedications: [] });
+  const [historyForm, setHistoryForm] = useState({
+    allergies: [],
+    chronicConditions: [],
+    currentMedications: [],
+    pastSurgeries: [],
+    familyHistory: [],
+    lifestyle: { smoking: 'no', alcohol: 'no', exerciseFrequency: 'never', dietType: 'veg' },
+    pregnancyHistory: '',
+    lmpDate: ''
+  });
   const [newAllergy, setNewAllergy] = useState('');
   const [newCondition, setNewCondition] = useState('');
-  const [newMedication, setNewMedication] = useState('');
+  const [newMedication, setNewMedication] = useState({ name: '', frequency: '' });
+  const [newSurgery, setNewSurgery] = useState({ name: '', year: '' });
+  const [newFamilyHistory, setNewFamilyHistory] = useState({ relation: '', condition: '' });
   const [savingHistory, setSavingHistory] = useState(false);
   const [historySuccessMessage, setHistorySuccessMessage] = useState('');
+  const [isEditingHistory, setIsEditingHistory] = useState(false);
+
+  // Security Password Lock States
+  const [isHistoryUnlocked, setIsHistoryUnlocked] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [unlockError, setUnlockError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [unlocking, setUnlocking] = useState(false);
+  const [historySubTab, setHistorySubTab] = useState('overview');
+  const [lockType, setLockType] = useState('account');
+  const [customPassword, setCustomPassword] = useState('');
+  const [documents, setDocuments] = useState([]);
+  const [loadingDocs, setLoadingDocs] = useState(false);
 
   // Billing & Insurance state
   const [insuranceForm, setInsuranceForm] = useState({
@@ -267,6 +308,7 @@ const PatientPortalPage = () => {
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [savingBilling, setSavingBilling] = useState(false);
   const [billingSuccessMessage, setBillingSuccessMessage] = useState('');
+  const [payments, setPayments] = useState([]);
 
   // ─── Data Loading ───────────────────────────────────────────
 
@@ -279,6 +321,7 @@ const PatientPortalPage = () => {
       if (!patient?._id) throw new Error('Patient profile not linked.');
 
       setProfile(patient);
+      setLockType(patient.hasCustomHistoryPassword ? 'custom' : 'account');
       setProfileForm({
         firstName: patient.firstName || '',
         lastName: patient.lastName || '',
@@ -304,7 +347,15 @@ const PatientPortalPage = () => {
       setHistoryForm({
         allergies: patient.allergies || [],
         chronicConditions: patient.chronicConditions || [],
-        currentMedications: patient.currentMedications || []
+        currentMedications: (patient.currentMedications || []).map(med => {
+          if (typeof med === 'string') return { name: med, frequency: '' };
+          return med || { name: '', frequency: '' };
+        }),
+        pastSurgeries: patient.pastSurgeries || [],
+        familyHistory: patient.familyHistory || [],
+        lifestyle: patient.lifestyle || { smoking: 'no', alcohol: 'no', exerciseFrequency: 'never', dietType: 'veg' },
+        pregnancyHistory: patient.pregnancyHistory || '',
+        lmpDate: patient.lmpDate ? new Date(patient.lmpDate).toISOString().split('T')[0] : ''
       });
       setInsuranceForm({
         provider: patient.insuranceDetails?.provider || '',
@@ -316,18 +367,20 @@ const PatientPortalPage = () => {
       });
       setPaymentMethods(patient.paymentMethods || []);
 
-      const [apptRes, rxRes, invRes, notifRes, clinicsRes] = await Promise.all([
+      const [apptRes, rxRes, invRes, notifRes, clinicsRes, paymentHistoryRes] = await Promise.all([
         appointmentApi.getAppointments({ limit: 10 }),
         prescriptionApi.getByPatient(patient._id, { status: 'finalized', limit: 10 }),
         billingApi.getPatientInvoices(patient._id, { limit: 10 }),
         patientApi.notifications(patient._id).catch(() => ({ data: { notificationLogs: [] } })),
-        clinicApi.list().catch(() => ({ data: { clinics: [] } }))
+        clinicApi.list().catch(() => ({ data: { clinics: [] } })),
+        paymentApi.getHistory(patient._id).catch(() => ({ data: { payments: [] } }))
       ]);
       setAppointments(apptRes.data?.appointments || apptRes.appointments || []);
       setPrescriptions(rxRes.data?.prescriptions || rxRes.prescriptions || []);
       setInvoices(invRes.data?.invoices || invRes.invoices || []);
       setNotifications(notifRes.data?.notificationLogs || notifRes.notificationLogs || []);
       setClinics(clinicsRes.data?.clinics || clinicsRes.clinics || []);
+      setPayments(paymentHistoryRes.data?.payments || paymentHistoryRes.payments || []);
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'Unable to load your patient portal.');
     } finally {
@@ -336,6 +389,44 @@ const PatientPortalPage = () => {
   }, []);
 
   useEffect(() => { loadPortal(true); }, [loadPortal]);
+
+  const loadDocuments = useCallback(async () => {
+    if (!profile?._id) return;
+    setLoadingDocs(true);
+    try {
+      const res = await patientApi.listDocuments(profile._id);
+      setDocuments(res.data?.documents || res.documents || []);
+    } catch (err) {
+      console.error('Failed to load documents', err);
+    } finally {
+      setLoadingDocs(false);
+    }
+  }, [profile?._id]);
+
+  const handleDownloadInvoice = async (invoiceId) => {
+    try {
+      const response = await billingApi.downloadInvoicePdf(invoiceId);
+      const blob = new Blob([response.data], {
+        type: response.headers['content-type'] || 'application/pdf'
+      });
+      const objectUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = objectUrl;
+      link.download = `invoice-${invoiceId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(objectUrl);
+    } catch (err) {
+      console.error('Failed to download invoice:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'history' && historySubTab === 'documents' && isHistoryUnlocked) {
+      loadDocuments();
+    }
+  }, [activeTab, historySubTab, isHistoryUnlocked, loadDocuments]);
 
   // Welcome message (once, when profile loads)
   useEffect(() => {
@@ -543,16 +634,62 @@ const PatientPortalPage = () => {
     finally { setSavingProfile(false); }
   };
 
+  const handleVerifyPassword = async (e) => {
+    e.preventDefault();
+    if (!confirmPassword.trim()) {
+      setUnlockError('Password is required.');
+      return;
+    }
+    setUnlocking(true);
+    setUnlockError('');
+    try {
+      await patientApi.verifyHistoryPassword(confirmPassword);
+      setIsHistoryUnlocked(true);
+      setConfirmPassword('');
+    } catch (err) {
+      setUnlockError(err.response?.data?.message || 'Incorrect password. Access denied.');
+    } finally {
+      setUnlocking(false);
+    }
+  };
+
   const handleSaveHistory = async (e) => {
     e.preventDefault();
     setSavingHistory(true);
     setHistorySuccessMessage('');
     try {
-      const res = await patientApi.updateMe({ allergies: historyForm.allergies, chronicConditions: historyForm.chronicConditions, currentMedications: historyForm.currentMedications });
+      const payloadMeds = (historyForm.currentMedications || []).map(med => {
+        if (typeof med === 'string') return { name: med, frequency: '' };
+        return med;
+      });
+
+      const payload = {
+        allergies: historyForm.allergies,
+        chronicConditions: historyForm.chronicConditions,
+        currentMedications: payloadMeds,
+        pastSurgeries: historyForm.pastSurgeries,
+        familyHistory: historyForm.familyHistory,
+        lifestyle: historyForm.lifestyle,
+        pregnancyHistory: profile?.gender === 'female' ? historyForm.pregnancyHistory : undefined,
+        lmpDate: (profile?.gender === 'female' && historyForm.lmpDate) ? historyForm.lmpDate : undefined,
+        ...(lockType === 'custom' && customPassword.trim() ? { medicalHistoryPassword: customPassword.trim() } : {}),
+        ...(lockType === 'account' ? { medicalHistoryPassword: '' } : {})
+      };
+
+      const res = await patientApi.updateMe(payload);
       const updated = res.data?.patient || res.patient;
-      if (updated) { setProfile(updated); setHistorySuccessMessage('Medical history saved!'); loadPortal(false); }
-    } catch { setError('Failed to save medical history.'); }
-    finally { setSavingHistory(false); }
+      if (updated) {
+        setProfile(updated);
+        setHistorySuccessMessage('Medical history saved!');
+        setCustomPassword('');
+        loadPortal(false);
+        setIsEditingHistory(false);
+      }
+    } catch {
+      setError('Failed to save medical history.');
+    } finally {
+      setSavingHistory(false);
+    }
   };
 
   const handleSaveInsurance = async (e) => {
@@ -677,7 +814,7 @@ const PatientPortalPage = () => {
   // ─── Render ─────────────────────────────────────────────────
 
   return (
-    <div className="max-w-7xl mx-auto space-y-5 animate-fade-in">
+    <div className="w-full space-y-5 animate-fade-in">
 
       {/* ── Portal Header ── */}
       <div className="
@@ -735,6 +872,11 @@ const PatientPortalPage = () => {
         </div>
       </div>
 
+      {/* ── Pending Payment Notifications ── */}
+      {invoices.filter(inv => inv.serviceType === 'CONSULTATION' && inv.paymentStatus !== 'paid').map(inv => (
+        <ConsultationPaymentBanner key={inv._id} invoice={inv} />
+      ))}
+
       {/* ── Tab Navigation ── */}
       <div className="flex flex-wrap gap-1 p-1 rounded-xl bg-slate-100 dark:bg-navy-800 border border-slate-200 dark:border-white/[0.06]">
         {tabs.map((tab) => (
@@ -758,702 +900,133 @@ const PatientPortalPage = () => {
 
       {/* ── TAB: My Profile ── */}
       {activeTab === 'profile' && (
-        <div className="rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-navy-800 shadow-card dark:shadow-card-dark p-6 max-w-3xl">
-          <div className="flex items-center gap-3 pb-5 mb-5 border-b border-slate-100 dark:border-white/[0.06]">
-            <div className="w-9 h-9 rounded-xl bg-aura-50 dark:bg-aura-500/10 border border-aura-200 dark:border-aura-500/20 flex items-center justify-center">
-              <User size={18} className="text-aura-600 dark:text-aura-400" />
-            </div>
-            <div>
-              <h2 className="text-base font-semibold text-slate-900 dark:text-white">Edit My Profile</h2>
-              <p className="text-xs text-slate-400 dark:text-slate-500">Update your personal details and emergency contact.</p>
-            </div>
-          </div>
-
-          {profileSuccessMessage && (
-            <div className="mb-5 flex items-center gap-2 p-3 rounded-xl bg-aura-50 dark:bg-aura-500/10 border border-aura-200 dark:border-aura-500/30 text-aura-700 dark:text-aura-300 text-sm font-medium animate-slide-down">
-              <CheckCircle2 size={16} />
-              {profileSuccessMessage}
-            </div>
-          )}
-
-          <div className="mb-6">
-            <PatientDocumentOcrPanel onApply={handleOcrApply} />
-          </div>
-
-          <form onSubmit={handleSaveProfile} className="space-y-6">
-            {/* Photo upload */}
-            <div className="flex items-center gap-5 p-4 rounded-xl bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/8">
-              <div className="relative">
-                <Avatar
-                  src={profileImageFile || profile?.profileImage}
-                  name={`${profileForm.firstName} ${profileForm.lastName}`}
-                  size="xl"
-                />
-                <label className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-aura-600 dark:bg-aura-500 border-2 border-white dark:border-navy-800 flex items-center justify-center cursor-pointer hover:bg-aura-700 transition">
-                  <Camera size={12} className="text-white" />
-                  <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" aria-label="Upload profile photo" />
-                </label>
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-slate-900 dark:text-white">Profile Photo</p>
-                <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Click the camera icon to upload. Accepts PNG, JPG.</p>
-              </div>
-            </div>
-
-            {/* Basic info */}
-            <div className="grid sm:grid-cols-2 gap-4">
-              <InputRow label="First Name" value={profileForm.firstName} onChange={(e) => pf('firstName', e.target.value)} required />
-              <InputRow label="Last Name" value={profileForm.lastName} onChange={(e) => pf('lastName', e.target.value)} />
-            </div>
-
-            <div className="grid sm:grid-cols-3 gap-4">
-              <SelectRow label="Gender" value={profileForm.gender} onChange={(e) => pf('gender', e.target.value)}>
-                <option value="male">Male</option>
-                <option value="female">Female</option>
-                <option value="other">Other</option>
-              </SelectRow>
-              <InputRow label="Date of Birth" type="date" value={profileForm.dateOfBirth} onChange={(e) => pf('dateOfBirth', e.target.value)} />
-              <InputRow label="Blood Group" value={profileForm.bloodGroup} onChange={(e) => pf('bloodGroup', e.target.value)} placeholder="e.g. O+" />
-            </div>
-
-            <div className="grid sm:grid-cols-2 gap-4">
-              <InputRow label="Phone" value={profileForm.phone} onChange={(e) => pf('phone', e.target.value)} required />
-              <InputRow label="Email" type="email" value={profileForm.email} onChange={(e) => pf('email', e.target.value)} />
-            </div>
-
-            {/* Address */}
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500 mb-3 flex items-center gap-1.5">
-                <MapPin size={12} /> Address
-              </p>
-              <div className="grid sm:grid-cols-2 gap-4">
-                <InputRow label="Address Line 1" value={profileForm.address.line1} onChange={(e) => pa('line1', e.target.value)} />
-                <InputRow label="Address Line 2" value={profileForm.address.line2} onChange={(e) => pa('line2', e.target.value)} />
-              </div>
-              <div className="grid sm:grid-cols-4 gap-4 mt-4">
-                <InputRow label="City" value={profileForm.address.city} onChange={(e) => pa('city', e.target.value)} />
-                <InputRow label="State" value={profileForm.address.state} onChange={(e) => pa('state', e.target.value)} />
-                <InputRow label="Pincode" value={profileForm.address.pincode} onChange={(e) => pa('pincode', e.target.value)} />
-                <InputRow label="Country" value={profileForm.address.country} onChange={(e) => pa('country', e.target.value)} />
-              </div>
-            </div>
-
-            {/* Emergency Contact */}
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500 mb-3 flex items-center gap-1.5">
-                <Phone size={12} /> Emergency Contact
-              </p>
-              <div className="grid sm:grid-cols-3 gap-4">
-                <InputRow label="Name" value={profileForm.emergencyContact.name} onChange={(e) => pe('name', e.target.value)} />
-                <InputRow label="Relation" placeholder="e.g. Spouse, Father" value={profileForm.emergencyContact.relation} onChange={(e) => pe('relation', e.target.value)} />
-                <InputRow label="Phone" value={profileForm.emergencyContact.phone} onChange={(e) => pe('phone', e.target.value)} />
-              </div>
-            </div>
-
-            <div className="pt-2 flex justify-end border-t border-slate-100 dark:border-white/[0.06]">
-              <button
-                type="submit"
-                disabled={savingProfile}
-                className="px-6 py-2.5 rounded-xl bg-aura-600 dark:bg-aura-500 text-white text-sm font-semibold hover:bg-aura-700 dark:hover:bg-aura-600 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                {savingProfile && <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>}
-                {savingProfile ? 'Saving...' : 'Save Profile'}
-              </button>
-            </div>
-          </form>
-        </div>
+        <MyProfile
+          profile={profile}
+          profileForm={profileForm}
+          profileSuccessMessage={profileSuccessMessage}
+          savingProfile={savingProfile}
+          handleSaveProfile={handleSaveProfile}
+          handleOcrApply={handleOcrApply}
+          profileImageFile={profileImageFile}
+          handleImageChange={handleImageChange}
+          pf={pf}
+          pa={pa}
+          pe={pe}
+          appointments={appointments}
+          prescriptions={prescriptions}
+        />
       )}
 
       {/* ── TAB: Medical History ── */}
       {activeTab === 'history' && (
-        <div className="rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-navy-800 shadow-card dark:shadow-card-dark p-6 max-w-3xl">
-          <div className="flex items-center gap-3 pb-5 mb-5 border-b border-slate-100 dark:border-white/[0.06]">
-            <div className="w-9 h-9 rounded-xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 flex items-center justify-center">
-              <Activity size={18} className="text-rose-600 dark:text-rose-400" />
-            </div>
-            <div>
-              <h2 className="text-base font-semibold text-slate-900 dark:text-white">Medical History</h2>
-              <p className="text-xs text-slate-400 dark:text-slate-500">Manage your allergies, conditions, and medications.</p>
-            </div>
-          </div>
-
-          {historySuccessMessage && (
-            <div className="mb-5 flex items-center gap-2 p-3 rounded-xl bg-aura-50 dark:bg-aura-500/10 border border-aura-200 dark:border-aura-500/30 text-aura-700 dark:text-aura-300 text-sm font-medium animate-slide-down">
-              <CheckCircle2 size={16} />{historySuccessMessage}
-            </div>
-          )}
-
-          <form onSubmit={handleSaveHistory} className="space-y-6">
-            {/* Allergies */}
-            {[
-              { key: 'allergies', label: 'Allergies', color: 'rose', placeholder: 'Add allergy (e.g. Penicillin)', state: newAllergy, setState: setNewAllergy },
-              { key: 'chronicConditions', label: 'Chronic Conditions', color: 'sky', placeholder: 'Add condition (e.g. Hypertension)', state: newCondition, setState: setNewCondition },
-              { key: 'currentMedications', label: 'Current Medications', color: 'indigo', placeholder: 'Add medication (e.g. Metformin 500mg)', state: newMedication, setState: setNewMedication },
-            ].map(({ key, label, color, placeholder, state, setState }) => (
-              <div key={key} className="space-y-2.5">
-                <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">{label}</p>
-                <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/8 min-h-[52px]">
-                  <TagList
-                    items={historyForm[key]}
-                    color={color}
-                    onRemove={(i) => removeHistoryItem(key, i)}
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <input
-                    value={state}
-                    onChange={(e) => setState(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addHistoryItem(key, state, setState); } }}
-                    placeholder={placeholder}
-                    className="flex-1 px-4 py-2.5 rounded-xl text-sm bg-white dark:bg-navy-800/60 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:border-aura-500 focus:ring-2 focus:ring-aura-500/20 transition"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => addHistoryItem(key, state, setState)}
-                    className="px-4 py-2.5 rounded-xl text-sm font-semibold bg-slate-100 dark:bg-white/8 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/15 transition flex items-center gap-1.5"
-                  >
-                    <Plus size={14} /> Add
-                  </button>
-                </div>
-              </div>
-            ))}
-
-            <div className="pt-2 flex justify-end border-t border-slate-100 dark:border-white/[0.06]">
-              <button
-                type="submit"
-                disabled={savingHistory}
-                className="px-6 py-2.5 rounded-xl bg-aura-600 dark:bg-aura-500 text-white text-sm font-semibold hover:bg-aura-700 dark:hover:bg-aura-600 transition disabled:opacity-50 flex items-center gap-2"
-              >
-                {savingHistory && <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>}
-                {savingHistory ? 'Saving...' : 'Save History'}
-              </button>
-            </div>
-          </form>
-        </div>
+        <MedicalHistory
+          isHistoryUnlocked={isHistoryUnlocked}
+          setIsHistoryUnlocked={setIsHistoryUnlocked}
+          confirmPassword={confirmPassword}
+          setConfirmPassword={setConfirmPassword}
+          showPassword={showPassword}
+          setShowPassword={setShowPassword}
+          unlockError={unlockError}
+          unlocking={unlocking}
+          handleVerifyPassword={handleVerifyPassword}
+          profile={profile}
+          isEditingHistory={isEditingHistory}
+          setIsEditingHistory={setIsEditingHistory}
+          historySubTab={historySubTab}
+          setHistorySubTab={setHistorySubTab}
+          historySuccessMessage={historySuccessMessage}
+          historyForm={historyForm}
+          setHistoryForm={setHistoryForm}
+          removeHistoryItem={removeHistoryItem}
+          addHistoryItem={addHistoryItem}
+          newAllergy={newAllergy}
+          setNewAllergy={setNewAllergy}
+          newCondition={newCondition}
+          setNewCondition={setNewCondition}
+          newMedication={newMedication}
+          setNewMedication={setNewMedication}
+          newSurgery={newSurgery}
+          setNewSurgery={setNewSurgery}
+          newFamilyHistory={newFamilyHistory}
+          setNewFamilyHistory={setNewFamilyHistory}
+          lockType={lockType}
+          setLockType={setLockType}
+          customPassword={customPassword}
+          setCustomPassword={setCustomPassword}
+          savingHistory={savingHistory}
+          handleSaveHistory={handleSaveHistory}
+          documents={documents}
+          loadingDocs={loadingDocs}
+          loadDocuments={loadDocuments}
+          patientApi={patientApi}
+        />
       )}
 
       {/* ── TAB: Appointments ── */}
       {activeTab === 'appointments' && (
-        <div className="rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-navy-800 shadow-card dark:shadow-card-dark overflow-hidden p-6 max-w-4xl space-y-6">
-          <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/[0.06] pb-4">
-            <div>
-              <h2 className="text-base font-semibold text-slate-900 dark:text-white">Upcoming & Past Appointments</h2>
-              <p className="text-xs text-slate-400 dark:text-slate-500">View schedule details and cancel bookings if necessary.</p>
-            </div>
-            <Badge color="success">{appointments.length} Total</Badge>
-          </div>
-
-          <div className="space-y-4">
-            {appointments.length > 0 ? (
-              appointments.map((apt) => {
-                const isCancelled = apt.status === 'cancelled';
-                const isCompleted = apt.status === 'completed';
-                return (
-                  <div key={apt._id} className="p-4 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-navy-900/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-aura-50 dark:bg-aura-500/10 flex items-center justify-center text-aura-600 dark:text-aura-400">
-                        <Calendar size={18} />
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-semibold text-slate-900 dark:text-white">
-                          {apt.doctorId?.fullName || 'Unknown Doctor'}
-                        </h4>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                          {apt.appointmentDate ? new Date(apt.appointmentDate).toLocaleDateString('en-IN', { dateStyle: 'medium' }) : ''} at {apt.startTime || 'TBD'}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
-                      <Badge color={isCompleted ? 'success' : isCancelled ? 'danger' : 'info'}>
-                        {apt.status || 'scheduled'}
-                      </Badge>
-                      {!isCancelled && !isCompleted && (
-                        <button
-                          onClick={async () => {
-                            if (window.confirm('Are you sure you want to cancel this appointment?')) {
-                              try {
-                                await appointmentApi.cancelAppointment(apt._id, { reason: 'Cancelled by patient' });
-                                loadPortal(false);
-                              } catch (err) {
-                                alert(err.response?.data?.message || 'Failed to cancel appointment');
-                              }
-                            }
-                          }}
-                          className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 transition"
-                        >
-                          Cancel
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })
-            ) : (
-              <div className="text-center py-12">
-                <Calendar size={28} className="mx-auto text-slate-300 dark:text-slate-600 mb-2" />
-                <p className="text-sm text-slate-500 dark:text-slate-400">You don't have any appointments scheduled.</p>
-              </div>
-            )}
-          </div>
-        </div>
+        <Appointments
+          appointments={appointments}
+          apptSearch={apptSearch}
+          setApptSearch={setApptSearch}
+          apptFilterTab={apptFilterTab}
+          setApptFilterTab={setApptFilterTab}
+          apptSort={apptSort}
+          setApptSort={setApptSort}
+          calendarMonth={calendarMonth}
+          setCalendarMonth={setCalendarMonth}
+          clinics={clinics}
+          cancellingApptId={cancellingApptId}
+          setCancellingApptId={setCancellingApptId}
+          loadPortal={loadPortal}
+          appointmentApi={appointmentApi}
+          invoices={invoices}
+        />
       )}
 
       {/* ── TAB: Prescriptions ── */}
       {activeTab === 'prescriptions' && (
-        <div className="rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-navy-800 shadow-card dark:shadow-card-dark overflow-hidden p-6 max-w-4xl space-y-6">
-          <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/[0.06] pb-4">
-            <div>
-              <h2 className="text-base font-semibold text-slate-900 dark:text-white">Past Prescriptions</h2>
-              <p className="text-xs text-slate-400 dark:text-slate-500">View prescription history and instructions from your doctors.</p>
-            </div>
-            <Badge color="accent">{prescriptions.length} Records</Badge>
-          </div>
-
-          <div className="space-y-5">
-            {prescriptions.length > 0 ? (
-              prescriptions.map((rx) => (
-                <div key={rx._id} className="p-5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-navy-900/50 space-y-3">
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
-                        <Pill size={16} />
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-semibold text-slate-900 dark:text-white">
-                          Prescribed by: {rx.doctorId?.fullName || 'Clinic Physician'}
-                        </h4>
-                        <p className="text-xs text-slate-400 dark:text-slate-500">
-                          Date: {rx.createdAt ? new Date(rx.createdAt).toLocaleDateString('en-IN', { dateStyle: 'medium' }) : ''}
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <button
-                      onClick={async () => {
-                        try {
-                          const response = await prescriptionApi.download(rx._id);
-                          const blob = new Blob([response.data], { type: 'application/pdf' });
-                          const url = window.URL.createObjectURL(blob);
-                          const link = document.createElement('a');
-                          link.href = url;
-                          link.setAttribute('download', `prescription-${rx._id}.pdf`);
-                          document.body.appendChild(link);
-                          link.click();
-                          link.remove();
-                        } catch {
-                          alert('Failed to download PDF.');
-                        }
-                      }}
-                      className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white dark:bg-navy-800 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:bg-slate-100 transition"
-                    >
-                      Download PDF
-                    </button>
-                  </div>
-
-                  <div className="mt-3 overflow-x-auto">
-                    <table className="w-full text-left border-collapse text-xs">
-                      <thead>
-                        <tr className="border-b border-slate-200 dark:border-white/10 text-slate-400">
-                          <th className="py-2 font-semibold">Medicine</th>
-                          <th className="py-2 font-semibold">Dosage</th>
-                          <th className="py-2 font-semibold">Frequency</th>
-                          <th className="py-2 font-semibold">Duration</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 dark:divide-white/5 text-slate-700 dark:text-slate-300">
-                        {rx.medications?.map((med, idx) => (
-                          <tr key={idx}>
-                            <td className="py-2 font-medium">{med.name}</td>
-                            <td className="py-2">{med.dosage || 'As directed'}</td>
-                            <td className="py-2">{med.frequency || 'N/A'}</td>
-                            <td className="py-2">{med.duration || 'N/A'}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="text-center py-12">
-                <Pill size={28} className="mx-auto text-slate-300 dark:text-slate-600 mb-2" />
-                <p className="text-sm text-slate-500 dark:text-slate-400">No past prescriptions found.</p>
-              </div>
-            )}
-          </div>
-        </div>
+        <Prescriptions
+          prescriptions={prescriptions}
+          prescriptionApi={prescriptionApi}
+        />
       )}
 
       {/* ── TAB: Notifications ── */}
       {activeTab === 'notifications' && (
-        <div className="rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-navy-800 shadow-card dark:shadow-card-dark overflow-hidden p-6 max-w-4xl space-y-6">
-          <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/[0.06] pb-4">
-            <div>
-              <h2 className="text-base font-semibold text-slate-900 dark:text-white">Active Alerts & Notifications</h2>
-              <p className="text-xs text-slate-400 dark:text-slate-500">Upcoming appointment reminders and clinic alerts.</p>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            {(() => {
-              const getAppointmentEndDateTime = (appointment) => {
-                if (!appointment) return null;
-                const dateStr = appointment.appointmentDate;
-                const timeStr = appointment.endTime || appointment.startTime;
-                if (!dateStr || !timeStr) return null;
-                const date = new Date(dateStr);
-                const [hours, minutes] = timeStr.split(':').map(Number);
-                date.setHours(hours, minutes, 0, 0);
-                return date;
-              };
-
-              const activeNotifs = notifications.filter(notif => {
-                if (!notif.appointmentId) return true;
-                const aptId = typeof notif.appointmentId === 'object' ? notif.appointmentId._id : notif.appointmentId;
-                const appointment = appointments.find(a => a._id === aptId);
-                if (!appointment) return true;
-                const endDateTime = getAppointmentEndDateTime(appointment);
-                if (!endDateTime) return true;
-                
-                // Expiry rule: remove ≥10 min after appointment ends
-                const expiryTime = new Date(endDateTime.getTime() + 10 * 60 * 1000);
-                return new Date() < expiryTime;
-              });
-
-              return activeNotifs.length > 0 ? (
-                activeNotifs.map((notif) => (
-                  <div key={notif._id} className="p-4 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-navy-900/50 flex justify-between items-start gap-4">
-                    <div className="flex gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-500/10 flex items-center justify-center text-amber-600 dark:text-amber-400 mt-0.5 shrink-0">
-                        <Bell size={16} />
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-semibold text-slate-900 dark:text-white">{notif.subject || 'Alert'}</h4>
-                        <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">{notif.body}</p>
-                        <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-2">
-                          Received: {notif.createdAt ? new Date(notif.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : ''}
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => {
-                        setNotifications(prev => prev.filter(n => n._id !== notif._id));
-                      }}
-                      className="text-slate-400 hover:text-slate-700 dark:hover:text-white p-1"
-                    >
-                      <X size={15} />
-                    </button>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-12">
-                  <Bell size={28} className="mx-auto text-slate-300 dark:text-slate-600 mb-2" />
-                  <p className="text-sm text-slate-500 dark:text-slate-400">No active notifications.</p>
-                </div>
-              );
-            })()}
-          </div>
-        </div>
+        <Notifications
+          notifications={notifications}
+          setNotifications={setNotifications}
+          appointments={appointments}
+        />
       )}
 
       {/* ── TAB: Records ── */}
       {activeTab === 'records' && (
-        <div className="grid md:grid-cols-2 gap-5">
-          {/* Appointments */}
-          <div className="rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-navy-800 shadow-card dark:shadow-card-dark overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-100 dark:border-white/[0.06] flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-aura-50 dark:bg-aura-500/10 flex items-center justify-center">
-                <Calendar size={16} className="text-aura-600 dark:text-aura-400" />
-              </div>
-              <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Appointments</h3>
-              <Badge color="success" size="sm" className="ml-auto">{appointments.length}</Badge>
-            </div>
-            <div className="divide-y divide-slate-50 dark:divide-white/[0.04]">
-              {appointments.length > 0 ? appointments.map((apt) => (
-                <Link
-                  key={apt._id}
-                  to={`/appointments/${apt._id}`}
-                  className="flex items-start gap-3 px-5 py-3.5 hover:bg-slate-50 dark:hover:bg-white/[0.03] transition group"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-white/8 flex items-center justify-center shrink-0 mt-0.5">
-                    <Clock size={14} className="text-slate-400 dark:text-slate-500" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">
-                      {apt.doctorId?.fullName || 'Unknown Doctor'}
-                    </p>
-                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
-                      {apt.appointmentDate ? new Date(apt.appointmentDate).toLocaleDateString('en-IN', { dateStyle: 'medium' }) : 'Date TBD'}
-                      {apt.startTime && ` • ${apt.startTime}`}
-                    </p>
-                  </div>
-                  <Badge color={apt.status === 'completed' ? 'success' : apt.status === 'cancelled' ? 'danger' : 'info'} size="sm">
-                    {apt.status || 'scheduled'}
-                  </Badge>
-                </Link>
-              )) : (
-                <div className="px-5 py-8 text-center">
-                  <Calendar size={24} className="mx-auto text-slate-300 dark:text-slate-600 mb-2" />
-                  <p className="text-sm text-slate-500 dark:text-slate-400">No appointments yet</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Prescriptions */}
-          <div className="rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-navy-800 shadow-card dark:shadow-card-dark overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-100 dark:border-white/[0.06] flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center">
-                <Pill size={16} className="text-indigo-600 dark:text-indigo-400" />
-              </div>
-              <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Prescriptions</h3>
-              <Badge color="accent" size="sm" className="ml-auto">{prescriptions.length}</Badge>
-            </div>
-            <div className="divide-y divide-slate-50 dark:divide-white/[0.04]">
-              {prescriptions.length > 0 ? prescriptions.map((rx) => (
-                <Link
-                  key={rx._id}
-                  to={`/prescriptions/${rx._id}`}
-                  className="flex items-start gap-3 px-5 py-3.5 hover:bg-slate-50 dark:hover:bg-white/[0.03] transition"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center shrink-0 mt-0.5">
-                    <ClipboardList size={14} className="text-indigo-500 dark:text-indigo-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">
-                      {rx.medications?.map((m) => m.name).join(', ') || 'Prescription'}
-                    </p>
-                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
-                      {rx.createdAt ? new Date(rx.createdAt).toLocaleDateString('en-IN', { dateStyle: 'medium' }) : 'Date TBD'}
-                    </p>
-                  </div>
-                  <ChevronRight size={14} className="text-slate-400 mt-1 shrink-0" />
-                </Link>
-              )) : (
-                <div className="px-5 py-8 text-center">
-                  <Pill size={24} className="mx-auto text-slate-300 dark:text-slate-600 mb-2" />
-                  <p className="text-sm text-slate-500 dark:text-slate-400">No prescriptions yet</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Invoices */}
-          <div className="rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-navy-800 shadow-card dark:shadow-card-dark overflow-hidden md:col-span-2">
-            <div className="px-5 py-4 border-b border-slate-100 dark:border-white/[0.06] flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-500/10 flex items-center justify-center">
-                <FileText size={16} className="text-amber-600 dark:text-amber-400" />
-              </div>
-              <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Billing & Invoices</h3>
-              <Badge color="warning" size="sm" className="ml-auto">{invoices.length}</Badge>
-            </div>
-            <div className="divide-y divide-slate-50 dark:divide-white/[0.04]">
-              {invoices.length > 0 ? invoices.map((inv) => (
-                <Link
-                  key={inv._id}
-                  to={`/billing/${inv._id}`}
-                  className="flex items-center gap-4 px-5 py-3.5 hover:bg-slate-50 dark:hover:bg-white/[0.03] transition"
-                >
-                  <div>
-                    <p className="text-sm font-medium text-slate-900 dark:text-slate-100">Invoice #{inv.invoiceNumber || inv._id?.slice(-6)}</p>
-                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
-                      {inv.createdAt ? new Date(inv.createdAt).toLocaleDateString('en-IN', { dateStyle: 'medium' }) : ''}
-                    </p>
-                  </div>
-                  <div className="ml-auto text-right">
-                    <p className="text-sm font-bold text-slate-900 dark:text-white">₹{inv.totalAmount || 0}</p>
-                    <Badge color={inv.paymentStatus === 'paid' ? 'success' : 'warning'} size="sm">{inv.paymentStatus || 'pending'}</Badge>
-                  </div>
-                </Link>
-              )) : (
-                <div className="px-5 py-8 text-center">
-                  <FileText size={24} className="mx-auto text-slate-300 dark:text-slate-600 mb-2" />
-                  <p className="text-sm text-slate-500 dark:text-slate-400">No invoices yet</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+        <Records
+          appointments={appointments}
+          prescriptions={prescriptions}
+          invoices={invoices}
+        />
       )}
 
       {/* ── TAB: Billing & Insurance ── */}
       {activeTab === 'billing' && (
-        <div className="grid md:grid-cols-2 gap-6 max-w-6xl">
-          {/* Insurance Details Panel */}
-          <div className="rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-navy-800 shadow-card dark:shadow-card-dark p-6 space-y-6">
-            <div className="flex items-center gap-3 pb-4 border-b border-slate-100 dark:border-white/[0.06]">
-              <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 flex items-center justify-center">
-                <Shield size={18} className="text-emerald-600 dark:text-emerald-400" />
-              </div>
-              <div>
-                <h2 className="text-base font-semibold text-slate-900 dark:text-white">Insurance Details</h2>
-                <p className="text-xs text-slate-400 dark:text-slate-500">Provide auto insurance details for claim automation.</p>
-              </div>
-            </div>
-
-            {billingSuccessMessage && (
-              <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-sm font-medium animate-slide-down">
-                <CheckCircle2 size={16} />
-                {billingSuccessMessage}
-              </div>
-            )}
-
-            <form onSubmit={handleSaveInsurance} className="space-y-4">
-              <InputRow
-                label="Insurance Provider"
-                value={insuranceForm.provider}
-                onChange={(e) => setInsuranceForm({ ...insuranceForm, provider: e.target.value })}
-                placeholder="e.g. Acme Auto Insurance"
-              />
-              <div className="grid sm:grid-cols-2 gap-4">
-                <InputRow
-                  label="Policy Number"
-                  value={insuranceForm.policyNumber}
-                  onChange={(e) => setInsuranceForm({ ...insuranceForm, policyNumber: e.target.value })}
-                  placeholder="Policy #"
-                />
-                <InputRow
-                  label="Group Number"
-                  value={insuranceForm.groupNumber}
-                  onChange={(e) => setInsuranceForm({ ...insuranceForm, groupNumber: e.target.value })}
-                  placeholder="Group #"
-                />
-              </div>
-              <InputRow
-                label="Subscriber Name"
-                value={insuranceForm.subscriberName}
-                onChange={(e) => setInsuranceForm({ ...insuranceForm, subscriberName: e.target.value })}
-                placeholder="Name on card"
-              />
-              <InputRow
-                label="Subscriber Date of Birth"
-                type="date"
-                value={insuranceForm.subscriberDob ? insuranceForm.subscriberDob.slice(0, 10) : ''}
-                onChange={(e) => setInsuranceForm({ ...insuranceForm, subscriberDob: e.target.value })}
-              />
-
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/8">
-                <input
-                  type="checkbox"
-                  id="autoClaimAutomation"
-                  checked={insuranceForm.autoClaimAutomation}
-                  onChange={(e) => setInsuranceForm({ ...insuranceForm, autoClaimAutomation: e.target.checked })}
-                  className="w-4 h-4 rounded text-aura-600 border-slate-300 focus:ring-aura-500"
-                />
-                <label htmlFor="autoClaimAutomation" className="text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer">
-                  Enable Auto Insurance Claims Automation
-                </label>
-              </div>
-
-              <div className="pt-2 flex justify-end">
-                <button
-                  type="submit"
-                  disabled={savingBilling}
-                  className="px-6 py-2.5 rounded-xl bg-aura-600 dark:bg-aura-500 text-white text-sm font-semibold hover:bg-aura-700 dark:hover:bg-aura-600 transition disabled:opacity-50"
-                >
-                  {savingBilling ? 'Saving...' : 'Save Insurance'}
-                </button>
-              </div>
-            </form>
-          </div>
-
-          {/* Payment Methods Panel */}
-          <div className="rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-navy-800 shadow-card dark:shadow-card-dark p-6 space-y-6">
-            <div className="flex items-center gap-3 pb-4 border-b border-slate-100 dark:border-white/[0.06]">
-              <div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 flex items-center justify-center">
-                <CreditCard size={18} className="text-indigo-600 dark:text-indigo-400" />
-              </div>
-              <div>
-                <h2 className="text-base font-semibold text-slate-900 dark:text-white">Payment Methods</h2>
-                <p className="text-xs text-slate-400 dark:text-slate-500">Manage your saved credit/debit cards.</p>
-              </div>
-            </div>
-
-            {/* List of Cards */}
-            <div className="space-y-3">
-              {paymentMethods.length > 0 ? (
-                paymentMethods.map((pm, i) => (
-                  <div key={i} className="p-4 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-navy-900/50 flex justify-between items-center">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-white dark:bg-navy-800 border border-slate-200 dark:border-white/10 flex items-center justify-center text-slate-600 dark:text-slate-400">
-                        <CreditCard size={18} />
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900 dark:text-white">•••• •••• •••• {pm.cardNumber?.slice(-4) || 'Card'}</p>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{pm.cardholderName} | Exp: {pm.expiryDate}</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => handleRemoveCard(i)}
-                      className="text-xs font-bold text-rose-600 dark:text-rose-400 hover:underline cursor-pointer"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                ))
-              ) : (
-                <p className="text-xs text-slate-500 italic text-center py-4">No payment methods saved yet.</p>
-              )}
-            </div>
-
-            {/* Add Card Form */}
-            <div className="pt-4 border-t border-slate-100 dark:border-white/[0.06]">
-              <h3 className="text-sm font-semibold text-slate-900 dark:text-white mb-4">Add New Card</h3>
-              <form onSubmit={handleAddCard} className="space-y-4">
-                <InputRow
-                  label="Cardholder Name"
-                  value={newCardForm.cardholderName}
-                  onChange={(e) => setNewCardForm({ ...newCardForm, cardholderName: e.target.value })}
-                  placeholder="John Doe"
-                  required
-                />
-                <InputRow
-                  label="Card Number"
-                  value={newCardForm.cardNumber}
-                  onChange={(e) => {
-                    let val = e.target.value.replace(/\D/g, '').slice(0, 16);
-                    let formatted = val.match(/.{1,4}/g)?.join(' ') || val;
-                    setNewCardForm({ ...newCardForm, cardNumber: formatted });
-                  }}
-                  placeholder="4000 1234 5678 9010"
-                  required
-                />
-                <div className="grid grid-cols-2 gap-4">
-                  <InputRow
-                    label="Expiry Date"
-                    value={newCardForm.expiryDate}
-                    onChange={(e) => {
-                      let val = e.target.value.replace(/\D/g, '').slice(0, 4);
-                      if (val.length >= 2) {
-                        val = val.slice(0, 2) + '/' + val.slice(2);
-                      }
-                      setNewCardForm({ ...newCardForm, expiryDate: val });
-                    }}
-                    placeholder="MM/YY"
-                    required
-                  />
-                  <InputRow
-                    label="CVV"
-                    type="password"
-                    value={newCardForm.CVV}
-                    onChange={(e) => setNewCardForm({ ...newCardForm, CVV: e.target.value.replace(/\D/g, '').slice(0, 3) })}
-                    placeholder="123"
-                    required
-                  />
-                </div>
-                <div className="pt-2">
-                  <button
-                    type="submit"
-                    disabled={savingBilling}
-                    className="w-full py-2.5 rounded-xl bg-slate-900 dark:bg-white/8 text-white dark:text-slate-200 text-sm font-semibold hover:bg-slate-800 dark:hover:bg-white/12 transition disabled:opacity-50"
-                  >
-                    Add Payment Method
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
+        <BillingInsurance
+          profile={profile}
+          insuranceForm={insuranceForm}
+          setInsuranceForm={setInsuranceForm}
+          newCardForm={newCardForm}
+          setNewCardForm={setNewCardForm}
+          paymentMethods={paymentMethods}
+          savingBilling={savingBilling}
+          billingSuccessMessage={billingSuccessMessage}
+          handleSaveInsurance={handleSaveInsurance}
+          handleAddCard={handleAddCard}
+          handleRemoveCard={handleRemoveCard}
+          invoices={invoices}
+          payments={payments}
+          handleDownloadInvoice={handleDownloadInvoice}
+        />
       )}
 
       {/* ── Doctor Profile Modal ── */}
@@ -1545,6 +1118,7 @@ const PatientPortalPage = () => {
           </div>
         )}
       </Modal>
+      
     </div>
   );
 };

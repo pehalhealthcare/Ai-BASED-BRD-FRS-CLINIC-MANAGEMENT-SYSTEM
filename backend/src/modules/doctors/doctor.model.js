@@ -165,6 +165,17 @@ const doctorSchema = new mongoose.Schema(
       type: Number,
       default: 0
     },
+    earnings: {
+      type: Number,
+      default: 0
+    },
+    bankAccount: {
+      accountNumber: { type: String, trim: true, default: '' },
+      ifscCode: { type: String, trim: true, default: '' },
+      bankName: { type: String, trim: true, default: '' },
+      accountHolderName: { type: String, trim: true, default: '' },
+      passbookCopy: { type: String, default: '' }
+    },
     isOnlineAvailable: {
       type: Boolean,
       default: false
@@ -174,6 +185,10 @@ const doctorSchema = new mongoose.Schema(
       default: ''
     },
     documentPdf: {
+      type: String,
+      default: ''
+    },
+    signature: {
       type: String,
       default: ''
     },

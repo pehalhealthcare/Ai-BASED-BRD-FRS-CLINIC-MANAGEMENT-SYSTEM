@@ -14,6 +14,9 @@ const resolvePatientFiles = async (patient) => {
   if (patObj.profileImage && patObj.profileImage.startsWith('gridfs:')) {
     patObj.profileImage = await gridFsStorage.downloadAsBase64(patObj.profileImage);
   }
+  const Patient = require('./patient.model');
+  const fullPatient = await Patient.findById(patient._id).select('+medicalHistoryPassword');
+  patObj.hasCustomHistoryPassword = !!(fullPatient && fullPatient.medicalHistoryPassword);
   return patObj;
 };
 
@@ -242,6 +245,37 @@ const getMyPatientProfile = async ({ requester, requestedClinicId = null }) => {
   return { patient: resolved };
 };
 
+const MOCK_INSURANCE_CARDS = [
+  {
+    provider: 'Star Health Insurance',
+    policyNumber: 'STAR12345',
+    groupNumber: 'GRP1001',
+    subscriberName: 'Rahul Sharma',
+    coverageAmount: 150000
+  },
+  {
+    provider: 'Niva Bupa Health Insurance',
+    policyNumber: 'NIVA98765',
+    groupNumber: 'GRP1002',
+    subscriberName: 'Priya Patel',
+    coverageAmount: 250000
+  },
+  {
+    provider: 'ICICI Lombard General Insurance',
+    policyNumber: 'ICICI55555',
+    groupNumber: 'GRP1003',
+    subscriberName: 'Amit Kumar',
+    coverageAmount: 350000
+  },
+  {
+    provider: 'HDFC Ergo General Insurance',
+    policyNumber: 'HDFC44444',
+    groupNumber: 'GRP1004',
+    subscriberName: 'Siddharth Malhotra',
+    coverageAmount: 500000
+  }
+];
+
 const updateMyPatientProfile = async ({ requester, payload, requestedClinicId = null, req }) => {
   const { ensureUserClinicContext } = require('../../common/utils/clinicContext');
   await ensureUserClinicContext(requester);
@@ -256,19 +290,54 @@ const updateMyPatientProfile = async ({ requester, payload, requestedClinicId = 
     await processAndSaveFile(patient, 'profileImage', payload.profileImage, 'patient_photo');
   }
 
+  // Validate insurance details if provided
+  if (payload.insuranceDetails) {
+    const { provider, policyNumber, subscriberName } = payload.insuranceDetails;
+    if (provider || policyNumber || subscriberName) {
+      const match = MOCK_INSURANCE_CARDS.find(card =>
+        card.provider.trim().toLowerCase() === provider?.trim().toLowerCase() &&
+        card.policyNumber.trim().toLowerCase() === policyNumber?.trim().toLowerCase() &&
+        card.subscriberName.trim().toLowerCase() === subscriberName?.trim().toLowerCase()
+      );
+
+      if (!match) {
+        throw new AppError('Invalid mock insurance card details. Please fill in matching details of a valid mock card.', HTTP_STATUS.BAD_REQUEST);
+      }
+
+      payload.insuranceDetails.coverageAmount = match.coverageAmount;
+      // If patient already has this policy linked, preserve their remainingCoverage if it's less than coverageAmount
+      const existingPolicy = patient.insuranceDetails?.policyNumber?.trim().toLowerCase() === policyNumber?.trim().toLowerCase();
+      if (existingPolicy && patient.insuranceDetails?.remainingCoverage !== undefined) {
+        payload.insuranceDetails.remainingCoverage = patient.insuranceDetails.remainingCoverage;
+      } else {
+        payload.insuranceDetails.remainingCoverage = match.coverageAmount;
+      }
+      payload.insuranceDetails.lastResetAt = patient.insuranceDetails?.lastResetAt || new Date();
+    } else {
+      payload.insuranceDetails.coverageAmount = 0;
+      payload.insuranceDetails.remainingCoverage = 0;
+      payload.insuranceDetails.lastResetAt = null;
+    }
+  }
+
   const allowedUpdates = {
     firstName: payload.firstName,
     lastName: payload.lastName,
     gender: payload.gender,
     dateOfBirth: payload.dateOfBirth,
-    phone: payload.phone,
-    email: payload.email,
     address: payload.address,
     bloodGroup: payload.bloodGroup,
     allergies: payload.allergies,
     chronicConditions: payload.chronicConditions,
     currentMedications: payload.currentMedications,
-    emergencyContact: payload.emergencyContact
+    pastSurgeries: payload.pastSurgeries,
+    familyHistory: payload.familyHistory,
+    lifestyle: payload.lifestyle,
+    pregnancyHistory: payload.pregnancyHistory,
+    lmpDate: payload.lmpDate,
+    emergencyContact: payload.emergencyContact,
+    insuranceDetails: payload.insuranceDetails,
+    paymentMethods: payload.paymentMethods
   };
 
   Object.keys(allowedUpdates).forEach((key) => {
@@ -628,6 +697,104 @@ const getPatientHistory = async ({ requester, patientId, requestedClinicId = nul
   };
 };
 
+const uploadPatientDocument = async ({ requester, patientId, payload, requestedClinicId = null }) => {
+  const patient = await getScopedPatient({ requester, patientId, requestedClinicId });
+  const PatientDocument = require('./patientDocument.model');
+
+  const fileRef = await gridFsStorage.uploadBase64(payload.file_data, payload.file_name);
+
+  const doc = await PatientDocument.create({
+    patient_id: patient._id,
+    file_name: payload.file_name,
+    file_url: fileRef,
+    document_type: payload.document_type,
+    uploaded_by: requester._id
+  });
+
+  return doc;
+};
+
+const listPatientDocuments = async ({ requester, patientId, requestedClinicId = null }) => {
+  const patient = await getScopedPatient({ requester, patientId, requestedClinicId });
+  const PatientDocument = require('./patientDocument.model');
+
+  const docs = await PatientDocument.find({ patient_id: patient._id })
+    .populate('uploaded_by', 'name email role')
+    .sort({ uploaded_at: -1 });
+
+  return docs;
+};
+
+const downloadPatientDocument = async ({ requester, patientId, documentId, requestedClinicId = null }) => {
+  const patient = await getScopedPatient({ requester, patientId, requestedClinicId });
+  const PatientDocument = require('./patientDocument.model');
+
+  const doc = await PatientDocument.findOne({ _id: documentId, patient_id: patient._id });
+  if (!doc) {
+    throw new AppError('Document not found', HTTP_STATUS.NOT_FOUND);
+  }
+
+  const base64Data = await gridFsStorage.downloadAsBase64(doc.file_url);
+  return {
+    document: doc,
+    base64Data
+  };
+};
+
+const deletePatientDocument = async ({ requester, patientId, documentId, requestedClinicId = null }) => {
+  const patient = await getScopedPatient({ requester, patientId, requestedClinicId });
+  const PatientDocument = require('./patientDocument.model');
+
+  const doc = await PatientDocument.findOne({ _id: documentId, patient_id: patient._id });
+  if (!doc) {
+    throw new AppError('Document not found', HTTP_STATUS.NOT_FOUND);
+  }
+
+  await gridFsStorage.deleteFile(doc.file_url);
+  await doc.deleteOne();
+
+  return { success: true };
+};
+
+const verifyHistoryPassword = async ({ requester, password, requestedClinicId = null }) => {
+  const { ensureUserClinicContext } = require('../../common/utils/clinicContext');
+  await ensureUserClinicContext(requester);
+
+  const clinicId = resolveClinicContext({
+    user: requester,
+    requestedClinicId
+  });
+
+  const patient = await patientRepository.findPatientByContactWithPassword({
+    clinicId,
+    email: requester.email,
+    phone: requester.phone
+  });
+
+  if (!patient) {
+    throw new AppError('Patient profile not linked.', HTTP_STATUS.NOT_FOUND);
+  }
+
+  if (patient.medicalHistoryPassword) {
+    const isValid = await patient.compareHistoryPassword(password);
+    if (!isValid) {
+      throw new AppError('Incorrect medical history password. Access denied.', HTTP_STATUS.UNAUTHORIZED);
+    }
+  } else {
+    const User = require('../users/user.model');
+    const user = await User.findById(requester._id).select('+password');
+    if (!user) {
+      throw new AppError('User not found.', HTTP_STATUS.NOT_FOUND);
+    }
+    const isValid = await user.comparePassword(password);
+    if (!isValid) {
+      throw new AppError('Incorrect account password. Access denied.', HTTP_STATUS.UNAUTHORIZED);
+    }
+  }
+
+  return patient;
+};
+
 module.exports = {
   createPatient,
   listPatients,
@@ -637,5 +804,10 @@ module.exports = {
   getPatientById,
   updatePatient,
   deletePatient,
-  getPatientHistory
+  getPatientHistory,
+  uploadPatientDocument,
+  listPatientDocuments,
+  downloadPatientDocument,
+  deletePatientDocument,
+  verifyHistoryPassword
 };

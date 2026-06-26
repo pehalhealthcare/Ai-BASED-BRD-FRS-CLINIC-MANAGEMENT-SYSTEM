@@ -20,6 +20,12 @@ const resolveDoctorFiles = async (doctor) => {
   if (docObj.documentPdf && docObj.documentPdf.startsWith('gridfs:')) {
     docObj.documentPdf = await gridFsStorage.downloadAsBase64(docObj.documentPdf);
   }
+  if (docObj.signature && docObj.signature.startsWith('gridfs:')) {
+    docObj.signature = await gridFsStorage.downloadAsBase64(docObj.signature);
+  }
+  if (docObj.bankAccount && docObj.bankAccount.passbookCopy && docObj.bankAccount.passbookCopy.startsWith('gridfs:')) {
+    docObj.bankAccount.passbookCopy = await gridFsStorage.downloadAsBase64(docObj.bankAccount.passbookCopy);
+  }
 
   return docObj;
 };
@@ -219,8 +225,42 @@ const updateDoctor = async ({ requester, doctorId, payload, requestedClinicId = 
   if (payload.documentPdf !== undefined) {
     await processAndSaveFile(doctor, 'documentPdf', payload.documentPdf, 'doctor_document');
   }
+  if (payload.signature !== undefined) {
+    await processAndSaveFile(doctor, 'signature', payload.signature, 'doctor_signature');
+  }
 
-  const { image, documentPdf, ...otherPayload } = payload;
+  if (payload.bankAccount && payload.bankAccount.passbookCopy !== undefined) {
+    const currentRef = doctor.bankAccount?.passbookCopy;
+    const newContent = payload.bankAccount.passbookCopy;
+    if (newContent && newContent.startsWith('data:')) {
+      const fileRef = await gridFsStorage.uploadBase64(newContent, 'passbook_copy');
+      if (currentRef && currentRef.startsWith('gridfs:')) {
+        await gridFsStorage.deleteFile(currentRef);
+      }
+      if (!doctor.bankAccount) doctor.bankAccount = {};
+      doctor.bankAccount.passbookCopy = fileRef;
+    } else {
+      if (newContent === '' || !newContent) {
+        if (currentRef && currentRef.startsWith('gridfs:')) {
+          await gridFsStorage.deleteFile(currentRef);
+        }
+      }
+      if (!doctor.bankAccount) doctor.bankAccount = {};
+      doctor.bankAccount.passbookCopy = newContent || '';
+    }
+  }
+
+  const { image, documentPdf, signature, bankAccount, ...otherPayload } = payload;
+
+  if (bankAccount) {
+    if (!doctor.bankAccount) {
+      doctor.bankAccount = {};
+    }
+    if (bankAccount.accountNumber !== undefined) doctor.bankAccount.accountNumber = bankAccount.accountNumber;
+    if (bankAccount.ifscCode !== undefined) doctor.bankAccount.ifscCode = bankAccount.ifscCode;
+    if (bankAccount.bankName !== undefined) doctor.bankAccount.bankName = bankAccount.bankName;
+    if (bankAccount.accountHolderName !== undefined) doctor.bankAccount.accountHolderName = bankAccount.accountHolderName;
+  }
 
   if (otherPayload.clinicId) {
     const currentAssigned = otherPayload.assignedClinics || doctor.assignedClinics || [];
@@ -407,7 +447,9 @@ const deleteDoctor = async ({ requester, doctorId, requestedClinicId = null, req
 
 const getMyProfile = async ({ requester }) => {
   const Doctor = require('./doctor.model');
-  const doctor = await Doctor.findOne({ userId: requester._id }).populate('clinicId', 'name code address phone');
+  const doctor = await Doctor.findOne({ userId: requester._id })
+    .populate('clinicId', 'name code address phone')
+    .populate('userId', 'email name role');
   if (!doctor) {
     throw new AppError('Doctor profile not found', HTTP_STATUS.NOT_FOUND);
   }
@@ -427,6 +469,9 @@ const updateMyProfile = async ({ requester, payload }) => {
   if (payload.documentPdf !== undefined) {
     await processAndSaveFile(doctor, 'documentPdf', payload.documentPdf, 'doctor_document');
   }
+  if (payload.signature !== undefined) {
+    await processAndSaveFile(doctor, 'signature', payload.signature, 'doctor_signature');
+  }
 
   const allowedFields = [
     'specialization',
@@ -440,7 +485,8 @@ const updateMyProfile = async ({ requester, payload }) => {
     'currentAddress',
     'permanentAddress',
     'preferredPracticeLocation',
-    'phone'
+    'phone',
+    'signature'
   ];
 
   for (const field of allowedFields) {
@@ -448,7 +494,18 @@ const updateMyProfile = async ({ requester, payload }) => {
       doctor[field] = payload[field];
     }
   }
-
+  
+  // Handle bank account updates explicitly
+  if (payload.bankAccount) {
+    if (!doctor.bankAccount) doctor.bankAccount = {};
+    const ba = payload.bankAccount;
+    if (ba.accountNumber !== undefined) doctor.bankAccount.accountNumber = ba.accountNumber;
+    if (ba.ifscCode !== undefined) doctor.bankAccount.ifscCode = ba.ifscCode;
+    if (ba.bankName !== undefined) doctor.bankAccount.bankName = ba.bankName;
+    if (ba.accountHolderName !== undefined) doctor.bankAccount.accountHolderName = ba.accountHolderName;
+    if (ba.passbookCopy !== undefined) doctor.bankAccount.passbookCopy = ba.passbookCopy;
+  }
+  
   if (payload.organizationId !== undefined) {
     const User = require('../users/user.model');
     await User.updateOne({ _id: requester._id }, { $set: { organizationId: payload.organizationId || null } });
@@ -473,6 +530,9 @@ const submitMyProfile = async ({ requester, payload }) => {
   if (payload.documentPdf !== undefined) {
     await processAndSaveFile(doctor, 'documentPdf', payload.documentPdf, 'doctor_document');
   }
+  if (payload.signature !== undefined) {
+    await processAndSaveFile(doctor, 'signature', payload.signature, 'doctor_signature');
+  }
 
   const allowedFields = [
     'specialization',
@@ -486,7 +546,8 @@ const submitMyProfile = async ({ requester, payload }) => {
     'currentAddress',
     'permanentAddress',
     'preferredPracticeLocation',
-    'phone'
+    'phone',
+    'signature'
   ];
 
   for (const field of allowedFields) {

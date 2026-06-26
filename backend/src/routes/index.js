@@ -19,6 +19,13 @@ const auditRoutes = require('../modules/audit/audit.routes');
 const clinicRoutes = require('../modules/clinics/clinic.routes');
 const specializationRoutes = require('../modules/specializations/specialization.routes');
 const organizationRoutes = require('../modules/organizations/organization.routes');
+const holidayRoutes = require('../modules/holidays/clinicHoliday.routes');
+const leaveRoutes = require('../modules/leaves/doctorLeave.routes');
+const receptionistRoutes = require('../modules/receptionists/receptionist.routes');
+const insuranceRoutes = require('../modules/insurance/routes/insurance.routes');
+const billingModuleRoutes = require('../modules/billing/routes/billing.routes');
+const paymentRoutes = require('../modules/payment/routes/payment.routes');
+const settlementsRoutes = require('../modules/settlements/routes/settlements.routes');
 
 const router = Router();
 
@@ -37,10 +44,17 @@ router.use('/pharmacy', pharmacyRoutes);
 router.use('/users', userRoutes);
 router.use('/patients', patientRoutes);
 router.use('/doctors', doctorRoutes);
+router.use('/receptionists', receptionistRoutes);
 router.use('/prescriptions', prescriptionRoutes);
 router.use('/audit', auditRoutes);
 router.use('/clinics', clinicRoutes);
 router.use('/specializations', specializationRoutes);
 router.use('/organizations', organizationRoutes);
+router.use('/holidays', holidayRoutes);
+router.use('/leaves', leaveRoutes);
+router.use('/', insuranceRoutes);
+router.use('/payment', paymentRoutes);
+router.use('/', settlementsRoutes);
+router.use('/billing', billingModuleRoutes);
 
 module.exports = router;

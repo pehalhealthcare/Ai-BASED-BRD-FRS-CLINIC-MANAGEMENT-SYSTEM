@@ -81,9 +81,9 @@ const labOrderTestSchema = z
 
 const createLabOrderSchema = z.object({
   body: z.object({
-    consultationId: objectIdSchema,
+    consultationId: objectIdSchema.optional(),
     patientId: objectIdSchema,
-    doctorId: objectIdSchema,
+    doctorId: objectIdSchema.optional(),
     appointmentId: objectIdSchema.optional(),
     priority: z.enum(['routine', 'urgent']).optional(),
     notes: optionalTrimmedString(2000),
@@ -172,6 +172,21 @@ const patientLabHistorySchema = z.object({
   })
 });
 
+const updateLabTestSchema = z.object({
+  params: objectIdParamSchema('id').shape.params,
+  body: z.object({
+    code: z.string().trim().max(30).optional(),
+    name: z.string().trim().max(200).optional(),
+    category: z.string().trim().max(120).optional(),
+    specimenType: z.string().trim().max(120).optional(),
+    unit: optionalTrimmedString(60),
+    normalRange: normalRangeSchema,
+    price: z.coerce.number().min(0).optional(),
+    isActive: z.boolean().optional(),
+    clinicId: objectIdSchema.optional()
+  }).partial()
+});
+
 module.exports = {
   createLabTestSchema,
   listLabTestQuerySchema,
@@ -184,5 +199,6 @@ module.exports = {
   updateLabReportSchema,
   reviewLabAnalysisSchema,
   finalizeLabReportSchema,
-  patientLabHistorySchema
+  patientLabHistorySchema,
+  updateLabTestSchema
 };

@@ -15,7 +15,7 @@ const notificationTemplateSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ['appointment_reminder', 'follow_up', 'prescription_ready', 'billing_due', 'lab_report_ready', 'custom'],
+      enum: ['appointment_reminder', 'follow_up', 'prescription_ready', 'billing_due', 'lab_report_ready', 'appointment_booked', 'final_bill', 'custom'],
       required: true
     },
     channel: {

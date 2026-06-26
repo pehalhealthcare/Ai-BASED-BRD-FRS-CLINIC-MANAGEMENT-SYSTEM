@@ -1,6 +1,7 @@
 const { sendSuccess } = require('../../common/utils/apiResponse');
 const { asyncHandler } = require('../../common/utils/asyncHandler');
 const doctorService = require('./doctor.service');
+const { smartSearchDoctors: smartSearchService } = require('./doctor.smartSearch.service');
 
 const createDoctor = asyncHandler(async (req, res) => {
   const doctor = await doctorService.createDoctor({
@@ -131,6 +132,17 @@ const acceptMySlot = asyncHandler(async (req, res) => {
   return sendSuccess(res, 'Doctor clinic slot details accepted successfully', { doctor });
 });
 
+const smartSearchDoctors = asyncHandler(async (req, res) => {
+  const { specialization, preference, lat, lng } = req.query;
+  const doctors = await smartSearchService({
+    specialization,
+    preference: preference || 'earliest',
+    lat: lat ? parseFloat(lat) : undefined,
+    lng: lng ? parseFloat(lng) : undefined
+  });
+  return sendSuccess(res, 'Smart search results retrieved', { doctors });
+});
+
 module.exports = {
   createDoctor,
   listDoctors,
@@ -144,5 +156,6 @@ module.exports = {
   getMyProfile,
   updateMyProfile,
   submitMyProfile,
-  acceptMySlot
+  acceptMySlot,
+  smartSearchDoctors
 };

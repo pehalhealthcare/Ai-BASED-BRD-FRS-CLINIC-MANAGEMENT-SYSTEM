@@ -122,6 +122,34 @@ const getPatientMedicineHistory = asyncHandler(async (req, res) => {
   return sendSuccess(res, 'Patient medicine history retrieved successfully', data);
 });
 
+
+const createPharmacyOrder = asyncHandler(async (req, res) => {
+  const pharmacyOrder = await pharmacyService.createPharmacyOrder({
+    requester: req.user,
+    payload: req.body,
+    req
+  });
+  return sendSuccess(res, 'Pharmacy order created successfully', { pharmacyOrder }, 201);
+});
+
+const listPharmacyOrders = asyncHandler(async (req, res) => {
+  const data = await pharmacyService.listPharmacyOrders({
+    requester: req.user,
+    query: req.query
+  });
+  return sendSuccess(res, 'Pharmacy orders retrieved successfully', data);
+});
+
+const updatePharmacyOrderStatus = asyncHandler(async (req, res) => {
+  const pharmacyOrder = await pharmacyService.updatePharmacyOrderStatus({
+    requester: req.user,
+    orderId: req.params.id,
+    status: req.body.status,
+    req
+  });
+  return sendSuccess(res, 'Pharmacy order status updated successfully', { pharmacyOrder });
+});
+
 module.exports = {
   createMedicine,
   listMedicines,
@@ -133,5 +161,8 @@ module.exports = {
   listDispensings,
   getDispensingById,
   cancelDispensing,
-  getPatientMedicineHistory
+  getPatientMedicineHistory,
+  createPharmacyOrder,
+  listPharmacyOrders,
+  updatePharmacyOrderStatus
 };

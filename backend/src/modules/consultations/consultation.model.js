@@ -426,6 +426,11 @@ const consultationSchema = new mongoose.Schema(
       type: Boolean,
       default: false
     },
+    pdfUrl: {
+      type: String,
+      trim: true,
+      default: ''
+    },
     labOrdered: {
       type: Boolean,
       default: false

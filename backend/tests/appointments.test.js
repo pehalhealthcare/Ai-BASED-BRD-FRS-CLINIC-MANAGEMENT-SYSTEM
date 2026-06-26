@@ -520,4 +520,76 @@ describe('Appointments module', () => {
 
     expect(originalAfter.body.data.appointment.status).toBe(APPOINTMENT_STATUSES.RESCHEDULED);
   });
+
+  it('creates appointment successfully outside availability when isEarlyBooking is true', async () => {
+    const admin = await createUserWithClinic({ role: ROLES.ADMIN });
+    const schedule = buildFutureSchedule(13);
+    const patient = await createPatientRecord({ clinicId: admin.clinic._id, createdBy: admin.user._id });
+    const doctor = await createDoctorRecord({
+      clinicId: admin.clinic._id,
+      createdBy: admin.user._id,
+      availability: [
+        {
+          dayOfWeek: schedule.dayOfWeek,
+          isAvailable: true,
+          startTime: '10:00',
+          endTime: '12:00',
+          slotDurationMinutes: 30
+        }
+      ]
+    });
+
+    const response = await request(app)
+      .post('/api/v1/appointments')
+      .set(getAuthHeaders(admin.token))
+      .send({
+        patientId: patient._id,
+        doctorId: doctor._id,
+        appointmentDate: schedule.date,
+        startTime: '09:00',
+        durationMinutes: 30,
+        appointmentType: 'scheduled',
+        isEarlyBooking: true,
+        earlyBookingReason: 'doctor_request'
+      });
+
+    expect(response.status).toBe(201);
+    expect(response.body.data.appointment.isEarlyBooking).toBe(true);
+    expect(response.body.data.appointment.earlyBookingReason).toBe('doctor_request');
+  });
+
+  it('rejects appointment creation outside availability when isEarlyBooking is false', async () => {
+    const admin = await createUserWithClinic({ role: ROLES.ADMIN });
+    const schedule = buildFutureSchedule(14);
+    const patient = await createPatientRecord({ clinicId: admin.clinic._id, createdBy: admin.user._id });
+    const doctor = await createDoctorRecord({
+      clinicId: admin.clinic._id,
+      createdBy: admin.user._id,
+      availability: [
+        {
+          dayOfWeek: schedule.dayOfWeek,
+          isAvailable: true,
+          startTime: '10:00',
+          endTime: '12:00',
+          slotDurationMinutes: 30
+        }
+      ]
+    });
+
+    const response = await request(app)
+      .post('/api/v1/appointments')
+      .set(getAuthHeaders(admin.token))
+      .send({
+        patientId: patient._id,
+        doctorId: doctor._id,
+        appointmentDate: schedule.date,
+        startTime: '09:00',
+        durationMinutes: 30,
+        appointmentType: 'scheduled',
+        isEarlyBooking: false
+      });
+
+    expect(response.status).toBe(409);
+    expect(response.body.message).toBe('Selected slot is outside doctor availability.');
+  });
 });

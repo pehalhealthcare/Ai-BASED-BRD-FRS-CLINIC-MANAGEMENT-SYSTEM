@@ -78,6 +78,17 @@ const blockedSlotSchema = z
     }
   });
 
+const bankAccountSchema = z
+  .object({
+    accountNumber: z.string().trim().optional(),
+    ifscCode: z.string().trim().optional(),
+    bankName: z.string().trim().optional(),
+    accountHolderName: z.string().trim().optional(),
+    passbookCopy: z.string().trim().optional()
+  })
+  .partial()
+  .optional();
+
 const doctorPayloadSchema = z.object({
   firstName: z.string().trim().min(1, 'First name is required'),
   lastName: z.string().trim().optional(),
@@ -92,7 +103,8 @@ const doctorPayloadSchema = z.object({
   userId: objectIdSchema.optional(),
   clinicId: objectIdSchema.optional(),
   assignedClinics: z.array(objectIdSchema).optional(),
-  isActive: z.boolean().optional()
+  isActive: z.boolean().optional(),
+  bankAccount: bankAccountSchema
 });
 
 const createDoctorSchema = z.object({

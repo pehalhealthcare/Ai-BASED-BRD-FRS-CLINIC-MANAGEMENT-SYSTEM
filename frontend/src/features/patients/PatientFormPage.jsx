@@ -14,9 +14,21 @@ const defaultForm = {
   phone: '',
   email: '',
   bloodGroup: '',
-  allergies: '',
-  chronicConditions: '',
-  currentMedications: '',
+  allergies: [],
+  otherAllergy: '',
+  chronicConditions: [],
+  otherChronicCondition: '',
+  currentMedications: [{ name: '', frequency: '' }],
+  pastSurgeries: [{ name: '', year: '' }],
+  familyHistory: [{ relation: '', condition: '' }],
+  lifestyle: {
+    smoking: 'no',
+    alcohol: 'no',
+    exerciseFrequency: '',
+    dietType: ''
+  },
+  pregnancyHistory: '',
+  lmpDate: '',
   address: {
     line1: '',
     line2: '',
@@ -33,10 +45,12 @@ const defaultForm = {
 };
 
 const splitCommaSeparated = (value) =>
-  value
-    .split(',')
-    .map((item) => item.trim())
-    .filter(Boolean);
+  typeof value === 'string'
+    ? value
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean)
+    : [];
 
 const PatientFormPage = () => {
   const navigate = useNavigate();
@@ -47,6 +61,9 @@ const PatientFormPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+
+  const standardConditions = ['Diabetes', 'Hypertension', 'Asthma', 'Thyroid', 'Heart Disease', 'Kidney Disease', 'Cancer'];
+  const standardAllergies = ['Penicillin', 'Dust', 'Peanuts', 'Milk'];
 
   useEffect(() => {
     if (!isEditMode) {
@@ -67,6 +84,24 @@ const PatientFormPage = () => {
           return;
         }
 
+        const checkedConditions = (patient?.chronicConditions || []).filter(c => standardConditions.includes(c));
+        const otherConditions = (patient?.chronicConditions || []).filter(c => !standardConditions.includes(c)).join(', ');
+
+        const checkedAllergies = (patient?.allergies || []).filter(a => standardAllergies.includes(a));
+        const otherAllergies = (patient?.allergies || []).filter(a => !standardAllergies.includes(a)).join(', ');
+
+        const meds = (patient?.currentMedications || []).map(m => {
+          if (typeof m === 'string') return { name: m, frequency: '' };
+          return { name: m.name || '', frequency: m.frequency || '' };
+        });
+        if (meds.length === 0) meds.push({ name: '', frequency: '' });
+
+        const surgeries = (patient?.pastSurgeries || []).map(s => ({ name: s.name || '', year: s.year || '' }));
+        if (surgeries.length === 0) surgeries.push({ name: '', year: '' });
+
+        const famHistory = (patient?.familyHistory || []).map(f => ({ relation: f.relation || '', condition: f.condition || '' }));
+        if (famHistory.length === 0) famHistory.push({ relation: '', condition: '' });
+
         setForm({
           firstName: patient?.firstName || '',
           lastName: patient?.lastName || '',
@@ -75,9 +110,21 @@ const PatientFormPage = () => {
           phone: patient?.phone || '',
           email: patient?.email || '',
           bloodGroup: patient?.bloodGroup || '',
-          allergies: (patient?.allergies || []).join(', '),
-          chronicConditions: (patient?.chronicConditions || []).join(', '),
-          currentMedications: (patient?.currentMedications || []).join(', '),
+          allergies: checkedAllergies,
+          otherAllergy: otherAllergies,
+          chronicConditions: checkedConditions,
+          otherChronicCondition: otherConditions,
+          currentMedications: meds,
+          pastSurgeries: surgeries,
+          familyHistory: famHistory,
+          lifestyle: {
+            smoking: patient?.lifestyle?.smoking || 'no',
+            alcohol: patient?.lifestyle?.alcohol || 'no',
+            exerciseFrequency: patient?.lifestyle?.exerciseFrequency || '',
+            dietType: patient?.lifestyle?.dietType || ''
+          },
+          pregnancyHistory: patient?.pregnancyHistory || '',
+          lmpDate: patient?.lmpDate ? patient.lmpDate.slice(0, 10) : '',
           address: {
             line1: patient?.address?.line1 || '',
             line2: patient?.address?.line2 || '',
@@ -160,6 +207,20 @@ const PatientFormPage = () => {
 
     setSubmitting(true);
 
+    const payloadChronic = [...form.chronicConditions];
+    if (form.otherChronicCondition.trim()) {
+      payloadChronic.push(...splitCommaSeparated(form.otherChronicCondition));
+    }
+
+    const payloadAllergies = [...form.allergies];
+    if (form.otherAllergy.trim()) {
+      payloadAllergies.push(...splitCommaSeparated(form.otherAllergy));
+    }
+
+    const payloadMeds = form.currentMedications.filter(med => med.name.trim());
+    const payloadSurgeries = form.pastSurgeries.filter(surg => surg.name.trim());
+    const payloadFamily = form.familyHistory.filter(f => f.relation.trim() && f.condition.trim());
+
     const payload = {
       firstName: form.firstName.trim(),
       lastName: form.lastName.trim() || undefined,
@@ -168,9 +229,14 @@ const PatientFormPage = () => {
       phone: form.phone.trim(),
       email: form.email.trim() || undefined,
       bloodGroup: form.bloodGroup.trim() || undefined,
-      allergies: splitCommaSeparated(form.allergies),
-      chronicConditions: splitCommaSeparated(form.chronicConditions),
-      currentMedications: splitCommaSeparated(form.currentMedications),
+      allergies: payloadAllergies,
+      chronicConditions: payloadChronic,
+      currentMedications: payloadMeds,
+      pastSurgeries: payloadSurgeries,
+      familyHistory: payloadFamily,
+      lifestyle: form.lifestyle,
+      pregnancyHistory: form.gender === 'female' ? form.pregnancyHistory : undefined,
+      lmpDate: form.gender === 'female' && form.lmpDate ? form.lmpDate : undefined,
       address: {
         line1: form.address.line1.trim(),
         line2: form.address.line2.trim(),
@@ -208,7 +274,7 @@ const PatientFormPage = () => {
   }
 
   return (
-    <section className="grid gap-6">
+    <section className="grid gap-6 pb-12">
       <div className="flex flex-col gap-3 rounded-3xl border border-stone-200 bg-white p-6 shadow-lg shadow-stone-200/40 md:flex-row md:items-center md:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">Patients</p>
@@ -222,10 +288,13 @@ const PatientFormPage = () => {
       <PatientDocumentOcrPanel onApply={handleOcrApply} />
 
       <form className="grid gap-6" onSubmit={handleSubmit}>
+        {/* Core Profile */}
         <div className="grid gap-6 rounded-3xl border border-stone-200 bg-white p-6 shadow-lg shadow-stone-200/40 md:grid-cols-2">
+          <h3 className="md:col-span-2 text-lg font-semibold text-stone-900">Demographics</h3>
+          
           <label className="grid gap-2 text-sm text-stone-700">
             First name
-            <input className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" value={form.firstName} onChange={(event) => updateField('firstName', event.target.value)} />
+            <input className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" value={form.firstName} onChange={(event) => updateField('firstName', event.target.value)} required />
           </label>
           <label className="grid gap-2 text-sm text-stone-700">
             Last name
@@ -245,30 +314,340 @@ const PatientFormPage = () => {
           </label>
           <label className="grid gap-2 text-sm text-stone-700">
             Phone
-            <input className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" value={form.phone} onChange={(event) => updateField('phone', event.target.value)} />
+            <input className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" value={form.phone} onChange={(event) => updateField('phone', event.target.value)} required />
           </label>
           <label className="grid gap-2 text-sm text-stone-700">
             Email
             <input type="email" className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" value={form.email} onChange={(event) => updateField('email', event.target.value)} />
           </label>
-          <label className="grid gap-2 text-sm text-stone-700">
+          <label className="grid gap-2 text-sm text-stone-700 md:col-span-2">
             Blood group
             <input className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" value={form.bloodGroup} onChange={(event) => updateField('bloodGroup', event.target.value)} />
           </label>
-          <label className="grid gap-2 text-sm text-stone-700">
-            Allergies
-            <input className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" value={form.allergies} onChange={(event) => updateField('allergies', event.target.value)} placeholder="Dust, Penicillin" />
-          </label>
-          <label className="grid gap-2 text-sm text-stone-700 md:col-span-2">
-            Chronic conditions
-            <input className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" value={form.chronicConditions} onChange={(event) => updateField('chronicConditions', event.target.value)} placeholder="Diabetes, Hypertension" />
-          </label>
-          <label className="grid gap-2 text-sm text-stone-700 md:col-span-2">
-            Current medications
-            <input className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" value={form.currentMedications} onChange={(event) => updateField('currentMedications', event.target.value)} placeholder="Metformin, Vitamin D" />
-          </label>
         </div>
 
+        {/* Structured Medical History */}
+        <div className="grid gap-6 rounded-3xl border border-stone-200 bg-white p-6 shadow-lg shadow-stone-200/40">
+          <h3 className="text-lg font-semibold text-stone-900 border-b border-stone-100 pb-3">Medical History</h3>
+          
+          {/* Chronic Diseases */}
+          <div className="grid gap-3">
+            <span className="text-sm font-semibold text-stone-800">Chronic Diseases</span>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {standardConditions.map((disease) => (
+                <label key={disease} className="flex items-center gap-2 text-sm text-stone-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.chronicConditions.includes(disease)}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setForm(prev => ({
+                        ...prev,
+                        chronicConditions: checked
+                          ? [...prev.chronicConditions, disease]
+                          : prev.chronicConditions.filter(d => d !== disease)
+                      }));
+                    }}
+                    className="w-4 h-4 accent-emerald-600 rounded"
+                  />
+                  <span>{disease}</span>
+                </label>
+              ))}
+            </div>
+            <label className="grid gap-2 text-sm text-stone-700 mt-2">
+              <span>Other Chronic Conditions (comma separated)</span>
+              <input
+                className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                value={form.otherChronicCondition}
+                onChange={(e) => updateField('otherChronicCondition', e.target.value)}
+                placeholder="e.g. Migraine, Arthritis"
+              />
+            </label>
+          </div>
+
+          {/* Allergies */}
+          <div className="grid gap-3 border-t border-stone-100 pt-4">
+            <span className="text-sm font-semibold text-stone-800">Allergies</span>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {standardAllergies.map((allergy) => (
+                <label key={allergy} className="flex items-center gap-2 text-sm text-stone-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.allergies.includes(allergy)}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setForm(prev => ({
+                        ...prev,
+                        allergies: checked
+                          ? [...prev.allergies, allergy]
+                          : prev.allergies.filter(a => a !== allergy)
+                      }));
+                    }}
+                    className="w-4 h-4 accent-emerald-600 rounded"
+                  />
+                  <span>{allergy}</span>
+                </label>
+              ))}
+            </div>
+            <label className="grid gap-2 text-sm text-stone-700 mt-2">
+              <span>Other Allergies (comma separated)</span>
+              <input
+                className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                value={form.otherAllergy}
+                onChange={(e) => updateField('otherAllergy', e.target.value)}
+                placeholder="e.g. Pollen, Soy"
+              />
+            </label>
+          </div>
+
+          {/* Current Medications Dynamic List */}
+          <div className="grid gap-3 border-t border-stone-100 pt-4">
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-semibold text-stone-800">Current Medications</span>
+              <button
+                type="button"
+                onClick={() => setForm(prev => ({
+                  ...prev,
+                  currentMedications: [...prev.currentMedications, { name: '', frequency: '' }]
+                }))}
+                className="text-xs font-bold text-emerald-600 hover:text-emerald-700"
+              >
+                + Add Medication
+              </button>
+            </div>
+            {form.currentMedications.map((med, idx) => (
+              <div key={idx} className="flex gap-3 items-center">
+                <input
+                  className="w-1/2 rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                  value={med.name}
+                  onChange={(e) => {
+                    const updated = [...form.currentMedications];
+                    updated[idx].name = e.target.value;
+                    setForm(prev => ({ ...prev, currentMedications: updated }));
+                  }}
+                  placeholder="Medication name (e.g. Metformin 500mg)"
+                />
+                <input
+                  className="w-1/2 rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                  value={med.frequency}
+                  onChange={(e) => {
+                    const updated = [...form.currentMedications];
+                    updated[idx].frequency = e.target.value;
+                    setForm(prev => ({ ...prev, currentMedications: updated }));
+                  }}
+                  placeholder="Frequency (e.g. Twice Daily)"
+                />
+                {form.currentMedications.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => setForm(prev => ({
+                      ...prev,
+                      currentMedications: prev.currentMedications.filter((_, i) => i !== idx)
+                    }))}
+                    className="text-rose-600 hover:text-rose-700 text-sm font-semibold px-2"
+                  >
+                    Delete
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Past Surgeries Dynamic List */}
+          <div className="grid gap-3 border-t border-stone-100 pt-4">
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-semibold text-stone-800">Past Surgeries</span>
+              <button
+                type="button"
+                onClick={() => setForm(prev => ({
+                  ...prev,
+                  pastSurgeries: [...prev.pastSurgeries, { name: '', year: '' }]
+                }))}
+                className="text-xs font-bold text-emerald-600 hover:text-emerald-700"
+              >
+                + Add Surgery
+              </button>
+            </div>
+            {form.pastSurgeries.map((surg, idx) => (
+              <div key={idx} className="flex gap-3 items-center">
+                <input
+                  className="w-1/2 rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                  value={surg.name}
+                  onChange={(e) => {
+                    const updated = [...form.pastSurgeries];
+                    updated[idx].name = e.target.value;
+                    setForm(prev => ({ ...prev, pastSurgeries: updated }));
+                  }}
+                  placeholder="Surgery name (e.g. Appendix Removal)"
+                />
+                <input
+                  className="w-1/2 rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                  value={surg.year}
+                  onChange={(e) => {
+                    const updated = [...form.pastSurgeries];
+                    updated[idx].year = e.target.value;
+                    setForm(prev => ({ ...prev, pastSurgeries: updated }));
+                  }}
+                  placeholder="Year (e.g. 2022)"
+                />
+                {form.pastSurgeries.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => setForm(prev => ({
+                      ...prev,
+                      pastSurgeries: prev.pastSurgeries.filter((_, i) => i !== idx)
+                    }))}
+                    className="text-rose-600 hover:text-rose-700 text-sm font-semibold px-2"
+                  >
+                    Delete
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Family History Dynamic List */}
+          <div className="grid gap-3 border-t border-stone-100 pt-4">
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-semibold text-stone-800">Family History</span>
+              <button
+                type="button"
+                onClick={() => setForm(prev => ({
+                  ...prev,
+                  familyHistory: [...prev.familyHistory, { relation: '', condition: '' }]
+                }))}
+                className="text-xs font-bold text-emerald-600 hover:text-emerald-700"
+              >
+                + Add Record
+              </button>
+            </div>
+            {form.familyHistory.map((fam, idx) => (
+              <div key={idx} className="flex gap-3 items-center">
+                <input
+                  className="w-1/2 rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                  value={fam.relation}
+                  onChange={(e) => {
+                    const updated = [...form.familyHistory];
+                    updated[idx].relation = e.target.value;
+                    setForm(prev => ({ ...prev, familyHistory: updated }));
+                  }}
+                  placeholder="Relation (e.g. Father)"
+                />
+                <input
+                  className="w-1/2 rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                  value={fam.condition}
+                  onChange={(e) => {
+                    const updated = [...form.familyHistory];
+                    updated[idx].condition = e.target.value;
+                    setForm(prev => ({ ...prev, familyHistory: updated }));
+                  }}
+                  placeholder="Disease/Condition (e.g. Diabetes)"
+                />
+                {form.familyHistory.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => setForm(prev => ({
+                      ...prev,
+                      familyHistory: prev.familyHistory.filter((_, i) => i !== idx)
+                    }))}
+                    className="text-rose-600 hover:text-rose-700 text-sm font-semibold px-2"
+                  >
+                    Delete
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Lifestyle */}
+          <div className="grid gap-4 border-t border-stone-100 pt-4 md:grid-cols-2">
+            <span className="text-sm font-semibold text-stone-800 md:col-span-2">Lifestyle</span>
+            <label className="grid gap-2 text-sm text-stone-700">
+              <span>Smoking</span>
+              <select
+                value={form.lifestyle.smoking}
+                onChange={(e) => setForm(prev => ({
+                  ...prev,
+                  lifestyle: { ...prev.lifestyle, smoking: e.target.value }
+                }))}
+                className="w-full rounded-2xl border border-stone-300 bg-white text-stone-900 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+              >
+                <option value="no">No</option>
+                <option value="yes">Yes</option>
+                <option value="former">Former Smoker</option>
+              </select>
+            </label>
+
+            <label className="grid gap-2 text-sm text-stone-700">
+              <span>Alcohol</span>
+              <select
+                value={form.lifestyle.alcohol}
+                onChange={(e) => setForm(prev => ({
+                  ...prev,
+                  lifestyle: { ...prev.lifestyle, alcohol: e.target.value }
+                }))}
+                className="w-full rounded-2xl border border-stone-300 bg-white text-stone-900 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+              >
+                <option value="no">No</option>
+                <option value="yes">Yes</option>
+                <option value="occasional">Occasional</option>
+              </select>
+            </label>
+
+            <label className="grid gap-2 text-sm text-stone-700">
+              <span>Exercise Frequency</span>
+              <input
+                className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                value={form.lifestyle.exerciseFrequency}
+                onChange={(e) => setForm(prev => ({
+                  ...prev,
+                  lifestyle: { ...prev.lifestyle, exerciseFrequency: e.target.value }
+                }))}
+                placeholder="e.g. Daily, 2-3 times/week, None"
+              />
+            </label>
+
+            <label className="grid gap-2 text-sm text-stone-700">
+              <span>Diet Type</span>
+              <input
+                className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                value={form.lifestyle.dietType}
+                onChange={(e) => setForm(prev => ({
+                  ...prev,
+                  lifestyle: { ...prev.lifestyle, dietType: e.target.value }
+                }))}
+                placeholder="e.g. Vegetarian, Non-Vegetarian, Vegan"
+              />
+            </label>
+          </div>
+
+          {/* Pregnancy & LMP for Female Patients */}
+          {form.gender === 'female' && (
+            <div className="grid gap-4 border-t border-stone-100 pt-4 md:grid-cols-2">
+              <span className="text-sm font-semibold text-stone-800 md:col-span-2">Pregnancy History & LMP</span>
+              <label className="grid gap-2 text-sm text-stone-700">
+                <span>Pregnancy History</span>
+                <input
+                  className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                  value={form.pregnancyHistory}
+                  onChange={(e) => updateField('pregnancyHistory', e.target.value)}
+                  placeholder="Details (e.g. G2P1A0)"
+                />
+              </label>
+              <label className="grid gap-2 text-sm text-stone-700">
+                <span>LMP Date</span>
+                <input
+                  type="date"
+                  className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                  value={form.lmpDate}
+                  onChange={(e) => updateField('lmpDate', e.target.value)}
+                />
+              </label>
+            </div>
+          )}
+        </div>
+
+        {/* Address */}
         <div className="grid gap-6 rounded-3xl border border-stone-200 bg-white p-6 shadow-lg shadow-stone-200/40 md:grid-cols-2">
           <h3 className="md:col-span-2 text-lg font-semibold text-stone-900">Address</h3>
           {['line1', 'line2', 'city', 'state', 'pincode', 'country'].map((field) => (
@@ -283,6 +662,7 @@ const PatientFormPage = () => {
           ))}
         </div>
 
+        {/* Emergency Contact */}
         <div className="grid gap-6 rounded-3xl border border-stone-200 bg-white p-6 shadow-lg shadow-stone-200/40 md:grid-cols-3">
           <h3 className="md:col-span-3 text-lg font-semibold text-stone-900">Emergency contact</h3>
           {['name', 'relation', 'phone'].map((field) => (

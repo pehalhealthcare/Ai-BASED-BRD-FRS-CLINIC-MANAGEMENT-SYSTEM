@@ -7,6 +7,7 @@ import useAuth from '../../hooks/useAuth';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 import FloatingChatbot from './FloatingChatbot';
+import BottomFloatingNavBar from './BottomFloatingNavBar';
 
 const pageTitles = {
   [ROUTES.dashboard]: 'Dashboard',
@@ -19,6 +20,7 @@ const pageTitles = {
   [ROUTES.dashboardBillingFraud]: 'Billing Risk Review',
   [ROUTES.dashboardAuditLogs]: 'Audit Logs',
   [ROUTES.portal]: 'My Portal',
+  [ROUTES.patientAppointments]: 'My Appointments',
   [ROUTES.users]: 'User Management',
   [ROUTES.labOrders]: 'Lab Orders',
   [ROUTES.pharmacyMedicines]: 'Pharmacy',
@@ -26,6 +28,7 @@ const pageTitles = {
   [ROUTES.followUps]: 'Follow-ups',
   [ROUTES.superAdminDashboard]: 'Super Admin',
   [ROUTES.superAdminApprovals]: 'My Doctors',
+  [ROUTES.adminReceptionistsDashboard]: 'My Receptionists',
 };
 
 const DashboardLayout = () => {
@@ -77,6 +80,7 @@ const DashboardLayout = () => {
           <Outlet />
         </main>
         {user?.role === ROLES.PATIENT && <FloatingChatbot />}
+        <BottomFloatingNavBar />
       </div>
     </div>
   );

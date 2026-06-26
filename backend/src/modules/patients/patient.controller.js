@@ -133,6 +133,60 @@ const updateMyPatientProfile = asyncHandler(async (req, res) => {
   return sendSuccess(res, 'Patient profile updated successfully', { patient });
 });
 
+const uploadPatientDocument = asyncHandler(async (req, res) => {
+  const document = await patientService.uploadPatientDocument({
+    requester: req.user,
+    patientId: req.params.patientId,
+    payload: req.body,
+    requestedClinicId: req.query.clinicId
+  });
+
+  return sendSuccess(res, 'Document uploaded successfully', { document }, 201);
+});
+
+const listPatientDocuments = asyncHandler(async (req, res) => {
+  const documents = await patientService.listPatientDocuments({
+    requester: req.user,
+    patientId: req.params.patientId,
+    requestedClinicId: req.query.clinicId
+  });
+
+  return sendSuccess(res, 'Documents retrieved successfully', { documents });
+});
+
+const downloadPatientDocument = asyncHandler(async (req, res) => {
+  const data = await patientService.downloadPatientDocument({
+    requester: req.user,
+    patientId: req.params.patientId,
+    documentId: req.params.documentId,
+    requestedClinicId: req.query.clinicId
+  });
+
+  return sendSuccess(res, 'Document downloaded successfully', data);
+});
+
+const deletePatientDocument = asyncHandler(async (req, res) => {
+  const result = await patientService.deletePatientDocument({
+    requester: req.user,
+    patientId: req.params.patientId,
+    documentId: req.params.documentId,
+    requestedClinicId: req.query.clinicId
+  });
+
+  return sendSuccess(res, 'Document deleted successfully', result);
+});
+
+const verifyHistoryPassword = asyncHandler(async (req, res) => {
+  const { password } = req.body;
+  const result = await patientService.verifyHistoryPassword({
+    requester: req.user,
+    password,
+    requestedClinicId: req.query.clinicId
+  });
+
+  return sendSuccess(res, 'Medical history password verified successfully', { verified: true });
+});
+
 module.exports = {
   createPatient,
   listPatients,
@@ -145,5 +199,10 @@ module.exports = {
   getPatientConsultations,
   getPatientLabs,
   getPatientMedicines,
-  getPatientNotifications
+  getPatientNotifications,
+  uploadPatientDocument,
+  listPatientDocuments,
+  downloadPatientDocument,
+  deletePatientDocument,
+  verifyHistoryPassword
 };

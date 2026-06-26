@@ -21,7 +21,10 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   const isPendingDoctor = user?.role === 'DOCTOR' && 
     (['pending_profile', 'pending_approval', 're_edit'].includes(user?.approvalStatus) || !user?.hasAcceptedSlot);
 
-  if (isPendingDoctor && location.pathname !== '/dashboard') {
+  const isPendingReceptionist = user?.role === 'RECEPTIONIST' && 
+    (['pending_profile', 'pending_approval', 're_edit'].includes(user?.approvalStatus) || !user?.hasAcceptedSlot);
+
+  if ((isPendingDoctor || isPendingReceptionist) && location.pathname !== '/dashboard') {
     return <Navigate to="/dashboard" replace />;
   }
 

@@ -11,6 +11,7 @@ const doctorRepository = require('../doctors/doctor.repository');
 const patientRepository = require('../patients/patient.repository');
 const prescriptionRepository = require('../prescriptions/prescription.repository');
 const pharmacyRepository = require('./pharmacy.repository');
+const PharmacyOrder = require('./pharmacyOrder.model');
 const {
   allocateDispensingBatches,
   getMedicineStockFlags,
@@ -963,6 +964,13 @@ const getPatientMedicineHistory = async ({ requester, patientId, query = {}, req
     throw new AppError('Patient not found.', HTTP_STATUS.NOT_FOUND);
   }
 
+  if (requester.role === ROLES.PATIENT) {
+    const patientProfile = await patientRepository.findPatientByUserId({ userId: requester._id });
+    if (!patientProfile || String(patientProfile._id) !== String(patientId)) {
+      throw new AppError('You can only access your own medicine history.', HTTP_STATUS.FORBIDDEN);
+    }
+  }
+
   const { page, limit } = getPagination(query);
   const filter = {
     clinicId,
@@ -996,6 +1004,176 @@ const getPatientMedicineHistory = async ({ requester, patientId, query = {}, req
   };
 };
 
+const createPharmacyOrder = async ({ requester, payload, req }) => {
+  const clinicId = resolveClinicContext({
+    user: requester,
+    requestedClinicId: payload.clinicId
+  });
+
+  let patientId = payload.patientId;
+  if (requester.role === ROLES.PATIENT) {
+    const patient = await patientRepository.findPatientByUserId({ userId: requester._id });
+    if (!patient) {
+      throw new AppError('Patient profile not found for this user.', HTTP_STATUS.NOT_FOUND);
+    }
+    patientId = patient._id;
+  }
+
+  if (!patientId) {
+    throw new AppError('Patient ID is required.', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  const medicine = await Medicine.findOne({ _id: payload.medicineId, clinicId });
+  if (!medicine) {
+    throw new AppError('Medicine not found in this clinic.', HTTP_STATUS.NOT_FOUND);
+  }
+
+  if (!medicine.isActive) {
+    throw new AppError('This medicine is currently unavailable.', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  if (medicine.totalStock < payload.quantity) {
+    throw new AppError('Insufficient stock available.', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  // Deduct stock immediately to hold the reservation
+  const { allocations, remainingQuantity } = allocateDispensingBatches({
+    medicine,
+    requestedQuantity: payload.quantity
+  });
+
+  if (remainingQuantity > 0) {
+    throw new AppError('Failed to allocate medicine from batches. Insufficient active/unexpired stock.', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  await medicine.save();
+
+  const totalPrice = Number((medicine.unitPrice || 0) * payload.quantity);
+
+  const order = await PharmacyOrder.create({
+    clinicId,
+    patientId,
+    medicineId: medicine._id,
+    quantity: payload.quantity,
+    prescriptionType: payload.prescriptionType,
+    prescriptionId: payload.prescriptionId || null,
+    prescriptionFile: payload.prescriptionFile || '',
+    totalPrice,
+    status: 'pending'
+  });
+
+  await createAuditLog({
+    actorUserId: requester._id,
+    action: 'PHARMACY_ORDER_CREATED',
+    entity: 'PharmacyOrder',
+    entityId: order._id,
+    metadata: {
+      clinicId: String(clinicId),
+      medicineId: String(medicine._id),
+      quantity: payload.quantity
+    },
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent'),
+    status: 'SUCCESS'
+  });
+
+  return order;
+};
+
+const listPharmacyOrders = async ({ requester, query = {} }) => {
+  const clinicId = resolveClinicContext({
+    user: requester,
+    requestedClinicId: query.clinicId
+  });
+
+  const { page, limit } = getPagination(query);
+  const filter = { clinicId };
+
+  if (requester.role === ROLES.PATIENT) {
+    const patient = await patientRepository.findPatientByUserId({ userId: requester._id });
+    if (!patient) {
+      return { pharmacyOrders: [], pagination: buildPaginationMeta({ page, limit, total: 0 }) };
+    }
+    filter.patientId = patient._id;
+  } else if (query.patientId) {
+    filter.patientId = query.patientId;
+  }
+
+  if (query.status) {
+    filter.status = query.status;
+  }
+
+  const skip = (page - 1) * limit;
+  const [orders, total] = await Promise.all([
+    PharmacyOrder.find(filter)
+      .populate('patientId', 'firstName lastName fullName phone')
+      .populate('medicineId', 'name genericName unitPrice category form strength')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+    PharmacyOrder.countDocuments(filter)
+  ]);
+
+  return {
+    pharmacyOrders: orders,
+    pagination: buildPaginationMeta({ page, limit, total })
+  };
+};
+
+const updatePharmacyOrderStatus = async ({ requester, orderId, status, req }) => {
+  const order = await PharmacyOrder.findById(orderId);
+  if (!order) {
+    throw new AppError('Order not found.', HTTP_STATUS.NOT_FOUND);
+  }
+
+  if (order.status === status) {
+    return order;
+  }
+
+  const oldStatus = order.status;
+  order.status = status;
+  await order.save();
+
+  // If order is cancelled, return the stock
+  if (status === 'cancelled' && oldStatus !== 'cancelled') {
+    const medicine = await Medicine.findById(order.medicineId);
+    if (medicine) {
+      if (medicine.batches && medicine.batches.length > 0) {
+        medicine.batches[0].quantity += order.quantity;
+      } else {
+        medicine.batches.push({
+          batchNumber: `RESTOCK-ORD-${order._id}`,
+          quantity: order.quantity,
+          expiryDate: new Date('2028-12-31'),
+          purchasePrice: Math.round(medicine.unitPrice * 0.7),
+          sellingPrice: medicine.unitPrice,
+          receivedAt: new Date()
+        });
+      }
+      medicine.totalStock = recalculateTotalStock(medicine);
+      await medicine.save();
+    }
+  }
+
+  await createAuditLog({
+    actorUserId: requester._id,
+    action: 'PHARMACY_ORDER_STATUS_UPDATED',
+    entity: 'PharmacyOrder',
+    entityId: order._id,
+    metadata: {
+      clinicId: String(order.clinicId),
+      oldStatus,
+      newStatus: status
+    },
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent'),
+    status: 'SUCCESS'
+  });
+
+  return order;
+};
+
 module.exports = {
   createMedicine,
   listMedicines,
@@ -1007,5 +1185,8 @@ module.exports = {
   listDispensings,
   getDispensingById,
   cancelDispensing,
-  getPatientMedicineHistory
+  getPatientMedicineHistory,
+  createPharmacyOrder,
+  listPharmacyOrders,
+  updatePharmacyOrderStatus
 };

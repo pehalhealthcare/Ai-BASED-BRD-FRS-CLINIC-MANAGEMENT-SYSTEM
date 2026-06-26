@@ -21,7 +21,12 @@ const {
 const DEFAULT_CHANNEL = 'mock';
 const APPOINTMENT_REMINDER_COOLDOWN_MINUTES = 30;
 
-const resolveProviderName = (providerName = null) => getNotificationProvider(providerName).name;
+const resolveProviderName = (providerName = null, channel = null) => {
+  if (!providerName && channel === 'email') {
+    return 'email';
+  }
+  return getNotificationProvider(providerName || undefined).name;
+};
 
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -86,7 +91,22 @@ const getDefaultMessageTemplate = ({ type, subject = '' }) => {
     case 'appointment_reminder':
       return {
         subject: subject || 'Appointment Reminder',
-        body: 'Hello {{patientName}}, your appointment with Dr. {{doctorName}} is scheduled for {{appointmentDate}} at {{appointmentTime}}.'
+        body: 'Hello {{patientName}},\n\nYour appointment with Dr. {{doctorName}} ({{doctorDegree}}, {{doctorExperience}} Experience) is scheduled for {{appointmentDate}} at {{appointmentTime}}.\n\nHospital: {{hospitalName}}\nEmergency Contact: {{hospitalEmergencyContact}}\n\nThank you!'
+      };
+    case 'appointment_booked':
+      return {
+        subject: subject || 'Appointment Booking Confirmation',
+        body: 'Hello {{patientName}},\n\nYour appointment with Dr. {{doctorName}} ({{doctorDegree}}, {{doctorExperience}} Experience) has been successfully booked for {{appointmentDate}} at {{appointmentTime}}.\n\nHospital: {{hospitalName}}\nEmergency Contact: {{hospitalEmergencyContact}}\n\nThank you!'
+      };
+    case 'appointment_wait_time_reminder':
+      return {
+        subject: subject || 'Consultation Starting Soon',
+        body: 'Hello {{patientName}}, your consultation with Dr. {{doctorName}} is starting soon. Approximately {{timeLeft}} minutes remaining. Emergency Contact: {{hospitalEmergencyContact}}.'
+      };
+    case 'consultation_completed':
+      return {
+        subject: subject || 'Consultation Summary & EMR',
+        body: 'Hello {{patientName}}, your consultation with Dr. {{doctorName}} has been completed. Please find attached the PDF summary of your consultation. You can also view it here: {{pdfUrl}}'
       };
     case 'follow_up':
       return {
@@ -230,7 +250,7 @@ const createNotificationRecord = async ({
     body: payload.body,
     renderedVariables: variables,
     status: 'pending',
-    provider: resolveProviderName(payload.provider),
+    provider: resolveProviderName(payload.provider, payload.channel || DEFAULT_CHANNEL),
     scheduledFor,
     createdBy,
     updatedBy: createdBy
@@ -254,12 +274,16 @@ const createNotificationRecord = async ({
   });
 };
 
-const buildAppointmentVariables = ({ appointment, patient, doctor }) => ({
+const buildAppointmentVariables = ({ appointment, patient, doctor, clinic }) => ({
   patientName: patient?.fullName || '',
   doctorName: doctor?.fullName || '',
+  doctorDegree: doctor?.qualification || 'MBBS',
+  doctorExperience: doctor?.experienceYears ? `${doctor.experienceYears} Years` : 'N/A',
   appointmentDate: formatDateLabel(appointment?.appointmentDate),
   appointmentTime: appointment?.startTime || '',
-  reasonForVisit: appointment?.reasonForVisit || ''
+  reasonForVisit: appointment?.reasonForVisit || '',
+  hospitalEmergencyContact: clinic?.phone || '+91 99999 88888',
+  hospitalName: clinic?.name || 'AI-CMS Clinic'
 });
 
 const buildFollowUpVariables = ({ patient, followUpTask }) => ({
@@ -450,10 +474,13 @@ const sendAppointmentReminder = async ({ requester, payload, requestedClinicId =
 
   const patient = appointment.patientId;
   const doctor = appointment.doctorId;
+  const Clinic = require('../clinics/clinic.model');
+  const clinic = await Clinic.findById(clinicId).lean();
   const variables = buildAppointmentVariables({
     appointment,
     patient,
-    doctor
+    doctor,
+    clinic
   });
   const resolved = await resolveTemplateAndContent({
     clinicId,
@@ -1201,6 +1228,423 @@ const sendLabReportReadyNotification = async ({ labReport, actorUserId }) =>
     });
   });
 
+const sendAppointmentBookingNotifications = async ({ appointment, patient, doctor, actorUserId }) =>
+  safeNotificationHook('appointment_booking_notifications', async () => {
+    if (!appointment || !patient) {
+      return;
+    }
+
+    const Clinic = require('../clinics/clinic.model');
+    const { formatDate } = require('../../common/utils/slotUtils');
+    const clinic = await Clinic.findById(appointment.clinicId).populate('organizationId').lean();
+    
+    const orgName = clinic?.organizationId?.name || 'our Hospital';
+    const doctorName = doctor?.fullName || 'the Doctor';
+    const dateLabel = appointment.appointmentDate ? formatDate(appointment.appointmentDate) : '';
+    const timeLabel = appointment.startTime || '';
+    
+    const isOffline = appointment.appointmentType !== 'teleconsultation';
+    
+    let locationDetails = '';
+    let instructionDetails = '';
+    let qrCodeUrl = '';
+
+    if (isOffline) {
+      const addr = clinic?.address || {};
+      const addressStr = [addr.line1, addr.line2, addr.city, addr.state, addr.pincode].filter(Boolean).join(', ');
+      const mapLink = addr.latitude && addr.longitude ? `https://maps.google.com/?q=${addr.latitude},${addr.longitude}` : '';
+      locationDetails = `clinic ${clinic?.name || 'Clinic'}${addressStr ? ` with address ${addressStr}` : ''}${mapLink ? ` and direction google map link: ${mapLink}` : ''}`;
+      instructionDetails = `Please scan the attached QR code to confirm your booking at the reception of the clinic.`;
+      qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${appointment._id}`;
+    } else {
+      locationDetails = `clinic ${clinic?.name || 'Clinic'}`;
+      instructionDetails = `A meeting link would be generated 10 minutes before the appointment.`;
+    }
+
+    const customMessage = `Your Appointment with Dr. ${doctorName} at Hospital ${orgName} of ${locationDetails} on schedule ${dateLabel} and ${timeLabel}. Be prepared 10 minutes before the appointment. ${instructionDetails}${qrCodeUrl ? `\n\nQR Code: ${qrCodeUrl}` : ''}`;
+
+    const variables = buildAppointmentVariables({ appointment, patient, doctor, clinic });
+
+    // 1. Email notification (placeholder in dev)
+    await createNotificationRecord({
+      clinicId: appointment.clinicId,
+      createdBy: actorUserId,
+      payload: {
+        patientId: patient._id,
+        appointmentId: appointment._id,
+        type: 'appointment_booked',
+        channel: 'email',
+        subject: `Appointment Booking Confirmation`,
+        body: customMessage
+      },
+      variables,
+      patient,
+      template: null,
+      scheduledFor: null,
+      sendNow: true
+    });
+
+    // 2. WhatsApp and SMS via Twilio directly (with full diagnostics)
+    if (patient.phone) {
+      const { env } = require('../../config/env');
+      const twilio = require('twilio');
+
+      if (!env.twilioAccountSid || !env.twilioAuthToken || !env.twilioPhoneNumber) {
+        logger.warn('[notification:booking] Twilio not configured — skipping WhatsApp/SMS for appointment booking.');
+      } else {
+        let toPhone = String(patient.phone).replace(/\D/g, '');
+        if (toPhone.length === 10) toPhone = '+91' + toPhone;
+        else if (!toPhone.startsWith('+')) toPhone = '+' + toPhone;
+
+        logger.info(`[notification:booking] Attempting WhatsApp to ${toPhone} via Twilio`);
+
+        const twilioClient = twilio(env.twilioAccountSid, env.twilioAuthToken);
+
+        // WhatsApp
+        try {
+          // WhatsApp requires a WhatsApp-enabled number (sandbox: +14155238886)
+          const whatsappFrom = env.twilioWhatsappNumber || '+14155238886';
+          const wa = await twilioClient.messages.create({
+            body: customMessage,
+            from: `whatsapp:${whatsappFrom}`,
+            to: `whatsapp:${toPhone}`
+          });
+          logger.info(`[notification:booking] WhatsApp sent: SID=${wa.sid} status=${wa.status}`);
+        } catch (waErr) {
+          logger.error(`[notification:booking] WhatsApp FAILED for ${toPhone}:`, waErr?.message || waErr);
+        }
+
+        // SMS
+        try {
+          const sms = await twilioClient.messages.create({
+            body: customMessage,
+            from: env.twilioPhoneNumber,
+            to: toPhone
+          });
+          logger.info(`[notification:booking] SMS sent: SID=${sms.sid} status=${sms.status}`);
+        } catch (smsErr) {
+          logger.error(`[notification:booking] SMS FAILED for ${toPhone}:`, smsErr?.message || smsErr);
+        }
+      }
+    }
+  });
+
+const sendWaitTimeNotification = async ({ appointment, timeLeftMinutes, actorUserId }) => {
+  const patient = appointment.patientId;
+  const doctor = appointment.doctorId;
+  const Clinic = require('../clinics/clinic.model');
+  const clinic = await Clinic.findById(appointment.clinicId).lean();
+  const variables = {
+    ...buildAppointmentVariables({ appointment, patient, doctor, clinic }),
+    timeLeft: String(Math.round(timeLeftMinutes))
+  };
+
+  const resolved = await resolveTemplateAndContent({
+    clinicId: appointment.clinicId,
+    type: 'appointment_wait_time_reminder',
+    channel: DEFAULT_CHANNEL,
+    variables,
+    subject: 'Consultation Starting Soon',
+    body: 'Hello {{patientName}}, your consultation with Dr. {{doctorName}} is starting soon. Approximately {{timeLeft}} minutes remaining.'
+  });
+
+  // Email
+  await createNotificationRecord({
+    clinicId: appointment.clinicId,
+    createdBy: actorUserId,
+    payload: {
+      patientId: patient?._id || null,
+      appointmentId: appointment._id,
+      type: 'appointment_wait_time_reminder',
+      channel: 'email',
+      subject: resolved.subject,
+      body: resolved.body
+    },
+    variables,
+    patient,
+    template: resolved.template,
+    scheduledFor: null,
+    sendNow: true
+  });
+
+  // SMS & WhatsApp
+  if (patient?.phone) {
+    await createNotificationRecord({
+      clinicId: appointment.clinicId,
+      createdBy: actorUserId,
+      payload: {
+        patientId: patient?._id || null,
+        appointmentId: appointment._id,
+        type: 'appointment_wait_time_reminder',
+        channel: 'sms',
+        subject: resolved.subject,
+        body: resolved.body
+      },
+      variables,
+      patient,
+      template: resolved.template,
+      scheduledFor: null,
+      sendNow: true
+    });
+
+    await createNotificationRecord({
+      clinicId: appointment.clinicId,
+      createdBy: actorUserId,
+      payload: {
+        patientId: patient?._id || null,
+        appointmentId: appointment._id,
+        type: 'appointment_wait_time_reminder',
+        channel: 'whatsapp',
+        subject: resolved.subject,
+        body: resolved.body
+      },
+      variables,
+      patient,
+      template: resolved.template,
+      scheduledFor: null,
+      sendNow: true
+    });
+  }
+};
+
+const scheduleWaitTimeReminder = async ({ appointmentId, clinicId, actorUserId }) => {
+  try {
+    const { APPOINTMENT_STATUSES } = require('../../common/constants/appointmentStatus');
+    const { normalizeDate } = require('../../common/utils/slotUtils');
+
+    const populatedAppointment = await appointmentRepository.findAppointmentByIdAndClinic({
+      appointmentId,
+      clinicId,
+      populateDetails: true
+    });
+    if (!populatedAppointment) return;
+
+    // Calculate wait time
+    const today = normalizeDate(new Date());
+    const appointments = await appointmentRepository.findDoctorAppointmentsForDate({
+      clinicId: populatedAppointment.clinicId,
+      doctorId: populatedAppointment.doctorId?._id || populatedAppointment.doctorId,
+      appointmentDate: today,
+      statuses: [
+        APPOINTMENT_STATUSES.CHECKED_IN,
+        APPOINTMENT_STATUSES.IN_CONSULTATION
+      ]
+    });
+    // Sort by startTime
+    appointments.sort((a, b) => a.startTime.localeCompare(b.startTime));
+    const currentIndex = appointments.findIndex(a => String(a._id) === String(populatedAppointment._id));
+    const patientsAhead = currentIndex > 0 ? currentIndex : 0;
+    const estimatedWaitTimeMinutes = patientsAhead * 15;
+
+    if (estimatedWaitTimeMinutes <= 0) {
+      setTimeout(async () => {
+        try {
+          await sendWaitTimeNotification({ appointment: populatedAppointment, timeLeftMinutes: 0, actorUserId });
+        } catch (e) {
+          logger.warn('Error sending immediate wait time notification:', e);
+        }
+      }, 5000);
+      return;
+    }
+
+    const elapsedMinutes = estimatedWaitTimeMinutes * 0.9;
+    const timeLeftMinutes = estimatedWaitTimeMinutes - elapsedMinutes; // 10% left
+    const delayMs = elapsedMinutes * 60 * 1000;
+
+    setTimeout(async () => {
+      try {
+        const freshAppt = await appointmentRepository.findAppointmentByIdAndClinic({
+          appointmentId: populatedAppointment._id,
+          clinicId: populatedAppointment.clinicId,
+          populateDetails: true
+        });
+        if (freshAppt && freshAppt.status === APPOINTMENT_STATUSES.CHECKED_IN) {
+          await sendWaitTimeNotification({ appointment: freshAppt, timeLeftMinutes, actorUserId });
+        }
+      } catch (e) {
+        logger.warn('Error sending delayed wait time notification:', e);
+      }
+    }, delayMs);
+
+  } catch (err) {
+    logger.warn('Failed to schedule wait time reminder:', err);
+  }
+};
+
+const sendFinalBillEmail = async ({ invoice, actorUserId }) =>
+  safeNotificationHook('final_bill_email', async () => {
+    if (!invoice) return;
+
+    // Check if the invoice is for pharmacy or lab (or contains those items)
+    const containsTargetItems = invoice.items?.some(item => ['pharmacy', 'lab'].includes(item.itemType)) || false;
+
+    if (!containsTargetItems) {
+      return; // only send for pharmacy or lab final bills
+    }
+
+    const patient = invoice.patientId?.fullName
+      ? invoice.patientId
+      : await patientRepository.findPatientByIdAndClinic({
+          patientId: invoice.patientId,
+          clinicId: invoice.clinicId
+        });
+
+    if (!patient) return;
+
+    const { env } = require('../../config/env');
+
+    const variables = {
+      patientName: patient?.fullName || '',
+      invoiceNumber: invoice.invoiceNumber,
+      totalAmount: Number(invoice.totalAmount || 0).toFixed(2),
+      paidAmount: Number(invoice.paidAmount || 0).toFixed(2),
+      dueAmount: Number(invoice.dueAmount || 0).toFixed(2),
+      pdfUrl: invoice.pdfUrl || `${env.apiPrefix}/billing/invoices/${invoice._id}/pdf`
+    };
+
+    // Format items list
+    const itemsList = (invoice.items || []).map(item => `- ${item.name} (${item.quantity} x INR ${item.unitPrice})`).join('\n');
+    const emailBody = `Hello ${variables.patientName},\n\nThank you for your purchase/test. Here is the final bill details for your invoice ${variables.invoiceNumber}:\n\nItems:\n${itemsList}\n\nTotal Amount: INR ${variables.totalAmount}\nPaid Amount: INR ${variables.paidAmount}\nDue Amount: INR ${variables.dueAmount}\n\nYou can view/download your invoice PDF here: ${variables.pdfUrl}\n\nBest regards,\nAI-CMS Clinic`;
+
+    // Email
+    await createNotificationRecord({
+      clinicId: invoice.clinicId,
+      createdBy: actorUserId,
+      payload: {
+        patientId: patient._id,
+        invoiceId: invoice._id,
+        type: 'final_bill',
+        channel: 'email',
+        subject: `Final Bill Invoice ${invoice.invoiceNumber}`,
+        body: emailBody
+      },
+      variables,
+      patient,
+      template: null,
+      scheduledFor: null,
+      sendNow: true
+    });
+  });
+
+const sendConsultationReportPdf = async ({ invoice, actorUserId }) =>
+  safeNotificationHook('consultation_report_pdf', async () => {
+    if (!invoice || !invoice.appointmentId) return;
+
+    const Consultation = require('../consultations/consultation.model');
+    const consultation = await Consultation.findOne({ appointmentId: invoice.appointmentId })
+      .populate('patientId')
+      .populate('doctorId');
+
+    if (!consultation) {
+      return;
+    }
+
+    const PatientObj = consultation.patientId;
+    const DoctorObj = consultation.doctorId;
+    if (!PatientObj) return;
+
+    const Clinic = require('../clinics/clinic.model');
+    const clinicObj = await Clinic.findById(consultation.clinicId).lean();
+
+    let pdfFilePath = '';
+    try {
+      const { generateConsultationPdf } = require('../consultations/consultationPdf.service');
+      const pdfResult = await generateConsultationPdf({
+        consultation,
+        clinic: clinicObj,
+        patient: PatientObj,
+        doctor: DoctorObj
+      });
+      pdfFilePath = pdfResult.filePath;
+
+      if (!consultation.pdfUrl) {
+        const { env } = require('../../config/env');
+        consultation.pdfUrl = `${env.apiPrefix}/consultations/${consultation._id}/pdf`;
+        await consultation.save();
+      }
+    } catch (pdfErr) {
+      logger.error('Failed to generate consultation PDF on payment event:', pdfErr);
+    }
+
+    const Prescription = require('../prescriptions/prescription.model');
+    const prescription = await Prescription.findOne({
+      consultationId: consultation._id,
+      clinicId: consultation.clinicId,
+      status: 'finalized'
+    });
+
+    let prescriptionDetails = '';
+    if (prescription && prescription.medicines && prescription.medicines.length > 0) {
+      prescriptionDetails = '\n\nPrescription Medicines:\n' + prescription.medicines.map(m => 
+        `- ${m.medicineName}: ${m.dosage} ${m.frequency} for ${m.duration}`
+      ).join('\n');
+    }
+
+    const variables = {
+      patientName: PatientObj?.fullName || '',
+      doctorName: DoctorObj?.fullName || '',
+      consultationDate: new Date(consultation.createdAt).toLocaleDateString('en-IN'),
+      pdfUrl: consultation.pdfUrl,
+      pdfPath: pdfFilePath
+    };
+
+    const resolvedEmail = await resolveTemplateAndContent({
+      clinicId: consultation.clinicId,
+      type: 'consultation_completed',
+      channel: 'email',
+      variables,
+      subject: 'Your Consultation Summary & EMR',
+      body: `Hello {{patientName}}, your consultation with Dr. {{doctorName}} has been completed. Please find attached the PDF summary of your consultation. You can also view it here: {{pdfUrl}}${prescriptionDetails}`
+    });
+
+    await createNotificationRecord({
+      clinicId: consultation.clinicId,
+      createdBy: actorUserId,
+      payload: {
+        patientId: PatientObj._id,
+        consultationId: consultation._id,
+        type: 'consultation_completed',
+        channel: 'email',
+        subject: resolvedEmail.subject,
+        body: resolvedEmail.body
+      },
+      variables,
+      patient: PatientObj,
+      template: resolvedEmail.template,
+      scheduledFor: null,
+      sendNow: true
+    });
+
+    if (PatientObj?.phone) {
+      const resolvedWhatsapp = await resolveTemplateAndContent({
+        clinicId: consultation.clinicId,
+        type: 'consultation_completed',
+        channel: 'whatsapp',
+        variables,
+        subject: 'Your Consultation Summary & EMR',
+        body: `Hello {{patientName}}, your consultation with Dr. {{doctorName}} has been completed. View details here: {{pdfUrl}}${prescriptionDetails}`
+      });
+
+      await createNotificationRecord({
+        clinicId: consultation.clinicId,
+        createdBy: actorUserId,
+        payload: {
+          patientId: PatientObj._id,
+          consultationId: consultation._id,
+          type: 'consultation_completed',
+          channel: 'whatsapp',
+          subject: resolvedWhatsapp.subject,
+          body: resolvedWhatsapp.body
+        },
+        variables,
+        patient: PatientObj,
+        template: resolvedWhatsapp.template,
+        scheduledFor: null,
+        sendNow: true
+      });
+    }
+  });
+
 module.exports = {
   createNotificationTemplate,
   listNotificationTemplates,
@@ -1219,5 +1663,10 @@ module.exports = {
   sendPrescriptionReadyNotification,
   sendBillingDueNotification,
   sendLabReportReadyNotification,
-  renderNotificationTemplate
+  renderNotificationTemplate,
+  sendAppointmentBookingNotifications,
+  scheduleWaitTimeReminder,
+  sendFinalBillEmail,
+  sendConsultationReportPdf,
+  resolveTemplateAndContent
 };

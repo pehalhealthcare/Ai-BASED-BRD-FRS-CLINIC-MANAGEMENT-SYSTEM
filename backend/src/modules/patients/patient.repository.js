@@ -26,6 +26,28 @@ const findPatientByContact = ({ clinicId, email, phone }) => {
   });
 };
 
+const findPatientByContactWithPassword = ({ clinicId, email, phone }) => {
+  const filters = [];
+
+  if (email) {
+    filters.push({ email: String(email).trim().toLowerCase() });
+  }
+
+  if (phone) {
+    filters.push({ phone: String(phone).trim() });
+  }
+
+  if (!filters.length) {
+    return null;
+  }
+
+  return Patient.findOne({
+    clinicId,
+    isActive: { $ne: false },
+    $or: filters
+  }).select('+medicalHistoryPassword');
+};
+
 const listPatients = async ({ filter, page, limit, sort = { createdAt: -1 } }) => {
   const skip = (page - 1) * limit;
   const [patients, total] = await Promise.all([
@@ -40,5 +62,6 @@ module.exports = {
   createPatient,
   findPatientByIdAndClinic,
   findPatientByContact,
+  findPatientByContactWithPassword,
   listPatients
 };

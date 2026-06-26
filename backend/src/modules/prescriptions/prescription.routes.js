@@ -34,7 +34,7 @@ router.get(
 router.get(
   '/consultation/:consultationId',
   protect,
-  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR, ROLES.RECEPTIONIST, ROLES.PHARMACIST),
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR, ROLES.RECEPTIONIST, ROLES.PHARMACIST, ROLES.PATIENT),
   validate(consultationIdParamSchema),
   prescriptionController.getPrescriptionsByConsultation
 );
@@ -44,6 +44,13 @@ router.get(
   authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR, ROLES.RECEPTIONIST, ROLES.PHARMACIST, ROLES.PATIENT),
   validate(prescriptionIdParamSchema),
   prescriptionController.downloadPrescriptionPdf
+);
+router.get(
+  '/:id/medicines/download',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR, ROLES.RECEPTIONIST, ROLES.PHARMACIST, ROLES.PATIENT),
+  validate(prescriptionIdParamSchema),
+  prescriptionController.downloadMedicines
 );
 router.post(
   '/:id/finalize',

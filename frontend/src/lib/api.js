@@ -59,6 +59,7 @@ const userApi = {
 const patientApi = {
   me: () => extractData(apiClient.get('/patients/me')),
   updateMe: (payload) => extractData(apiClient.patch('/patients/me', payload)),
+  verifyHistoryPassword: (password) => extractData(apiClient.post('/patients/me/verify-history-password', { password })),
   create: (payload) => extractData(apiClient.post('/patients', payload)),
   list: (params = {}) => extractData(apiClient.get('/patients', { params })),
   get: (id) => extractData(apiClient.get(`/patients/${id}`)),
@@ -67,7 +68,11 @@ const patientApi = {
   history: (id) => extractData(apiClient.get(`/patients/${id}/history`)),
   labs: (id, params = {}) => extractData(apiClient.get(`/patients/${id}/labs`, { params })),
   medicines: (id, params = {}) => extractData(apiClient.get(`/patients/${id}/medicines`, { params })),
-  notifications: (id, params = {}) => extractData(apiClient.get(`/patients/${id}/notifications`, { params }))
+  notifications: (id, params = {}) => extractData(apiClient.get(`/patients/${id}/notifications`, { params })),
+  uploadDocument: (patientId, payload) => extractData(apiClient.post(`/patients/${patientId}/documents`, payload)),
+  listDocuments: (patientId) => extractData(apiClient.get(`/patients/${patientId}/documents`)),
+  downloadDocument: (patientId, documentId) => extractData(apiClient.get(`/patients/${patientId}/documents/${documentId}`)),
+  deleteDocument: (patientId, documentId) => extractData(apiClient.delete(`/patients/${patientId}/documents/${documentId}`))
 };
 
 const doctorApi = {
@@ -83,7 +88,15 @@ const doctorApi = {
   getMyProfile: () => extractData(apiClient.get('/doctors/me/profile')),
   updateMyProfile: (payload) => extractData(apiClient.put('/doctors/me/profile', payload)),
   submitMyProfile: (payload) => extractData(apiClient.post('/doctors/me/submit', payload)),
-  acceptMySlot: () => extractData(apiClient.post('/doctors/me/accept-slot'))
+  acceptMySlot: () => extractData(apiClient.post('/doctors/me/accept-slot')),
+  smartSearch: (params = {}) => extractData(apiClient.get('/doctors/smart-search', { params }))
+};
+
+const receptionistApi = {
+  getMyProfile: () => extractData(apiClient.get('/receptionists/me/profile')),
+  updateMyProfile: (payload) => extractData(apiClient.put('/receptionists/me/profile', payload)),
+  submitMyProfile: (payload) => extractData(apiClient.post('/receptionists/me/submit', payload)),
+  acceptMySlot: () => extractData(apiClient.post('/receptionists/me/accept-slot'))
 };
 
 const appointmentApi = {
@@ -98,7 +111,8 @@ const appointmentApi = {
   getDoctorAvailability: (doctorId) => extractData(apiClient.get(`/doctors/${doctorId}/availability`)),
   updateDoctorAvailability: (doctorId, payload) => extractData(apiClient.put(`/doctors/${doctorId}/availability`, payload)),
   blockDoctorSlot: (doctorId, payload) => extractData(apiClient.post(`/doctors/${doctorId}/blocked-slots`, payload)),
-  getQueueStatus: (doctorId) => extractData(apiClient.get(`/appointments/queue/${doctorId}`))
+  getQueueStatus: (doctorId) => extractData(apiClient.get(`/appointments/queue/${doctorId}`)),
+  verifyPayment: (id, payload) => extractData(apiClient.post(`/appointments/${id}/verify-payment`, payload))
 };
 
 const consultationApi = {
@@ -121,6 +135,10 @@ const consultationApi = {
   requestAiSuggestions: (id, payload = {}) => extractData(apiClient.post(`/consultations/${id}/ai-suggestions`, payload)),
   reviewAiSuggestions: (id, payload) => extractData(apiClient.post(`/consultations/${id}/ai-review`, payload)),
   complete: (id, payload) => extractData(apiClient.post(`/consultations/${id}/complete`, payload)),
+  downloadPdf: (id) =>
+    apiClient.get(`/consultations/${id}/pdf`, {
+      responseType: 'blob'
+    }),
   formatNote: (id, payload) => extractData(apiClient.post(`/consultations/${id}/format-note`, payload)),
   historyByPatient: (patientId, params = {}) =>
     extractData(apiClient.get(`/consultations/patient/${patientId}/history`, { params })),
@@ -165,11 +183,32 @@ const billingApi = {
     }),
   cancelInvoice: (invoiceId, payload) => extractData(apiClient.patch(`/billing/invoices/${invoiceId}/cancel`, payload)),
   getPatientInvoices: (patientId, params = {}) =>
-    extractData(apiClient.get(`/billing/patient/${patientId}/invoices`, { params })),
+  extractData(apiClient.get(`/billing/patient/${patientId}/invoices`, { params })),
   getBillingSummary: (params = {}) => extractData(apiClient.get('/billing/summary', { params })),
   createRazorpayOrder: (invoiceId) => extractData(apiClient.post(`/billing/invoices/${invoiceId}/razorpay-order`)),
   verifyRazorpayPayment: (invoiceId, payload) => extractData(apiClient.post(`/billing/invoices/${invoiceId}/razorpay-verify`, payload)),
   recordRefund: (invoiceId, payload) => extractData(apiClient.post(`/billing/invoices/${invoiceId}/refund`, payload))
+};
+
+const paymentApi = {
+  createOrder: (payload) => extractData(apiClient.post('/payment/create-order', payload)),
+  verifyPayment: (payload) => extractData(apiClient.post('/payment/verify', payload)),
+  getPaymentById: (paymentId) => extractData(apiClient.get(`/payment/${paymentId}`)),
+  getHistory: (patientId) => extractData(apiClient.get(`/payment/history/${patientId}`)),
+  refund: (payload) => extractData(apiClient.post('/payment/refund', payload))
+};
+
+const settlementsApi = {
+  getOrganizationEarnings: () => extractData(apiClient.get('/settlements/organization')),
+  getDoctorEarnings: (doctorId) => extractData(apiClient.get(`/doctor/${doctorId}/earnings`)),
+  getDoctorPayouts: (doctorId) => extractData(apiClient.get(`/doctor/${doctorId}/payouts`)),
+  updateDoctorPayoutSettings: (doctorId, payload) => extractData(apiClient.put(`/doctor/${doctorId}/payment-settings`, payload)),
+  getDoctorPayoutSettings: (doctorId) => extractData(apiClient.get(`/doctor/${doctorId}/payment-settings`)),
+  updateOrgFinancialSettings: (organizationId, payload) => extractData(apiClient.put(`/organization/${organizationId}/financial-settings`, payload)),
+  getOrgFinancialSettings: (organizationId) => extractData(apiClient.get(`/organization/${organizationId}/financial-settings`)),
+  markPaid: (payload) => extractData(apiClient.post('/settlements/mark-paid', payload)),
+  generateSettlement: (payload) => extractData(apiClient.post('/settlements/generate', payload)),
+  getSettlementHistory: () => extractData(apiClient.get('/settlements/history'))
 };
 
 const labApi = {
@@ -183,7 +222,8 @@ const labApi = {
   getReport: (id) => extractData(apiClient.get(`/labs/reports/${id}`)),
   updateReport: (id, payload) => extractData(apiClient.patch(`/labs/reports/${id}`, payload)),
   reviewAiAnalysis: (id, payload) => extractData(apiClient.patch(`/labs/reports/${id}/ai-review`, payload)),
-  finalizeReport: (id, payload = {}) => extractData(apiClient.patch(`/labs/reports/${id}/finalize`, payload))
+  finalizeReport: (id, payload = {}) => extractData(apiClient.patch(`/labs/reports/${id}/finalize`, payload)),
+  updateTest: (id, payload) => extractData(apiClient.patch(`/labs/tests/${id}`, payload))
 };
 
 const pharmacyApi = {
@@ -196,7 +236,10 @@ const pharmacyApi = {
   dispense: (payload) => extractData(apiClient.post('/pharmacy/dispense', payload)),
   listDispensings: (params = {}) => extractData(apiClient.get('/pharmacy/dispensings', { params })),
   getDispensing: (id) => extractData(apiClient.get(`/pharmacy/dispensings/${id}`)),
-  cancelDispensing: (id, payload = {}) => extractData(apiClient.patch(`/pharmacy/dispensings/${id}/cancel`, payload))
+  cancelDispensing: (id, payload = {}) => extractData(apiClient.patch(`/pharmacy/dispensings/${id}/cancel`, payload)),
+  createOrder: (payload) => extractData(apiClient.post('/pharmacy/orders', payload)),
+  listOrders: (params = {}) => extractData(apiClient.get('/pharmacy/orders', { params })),
+  updateOrderStatus: (id, payload) => extractData(apiClient.patch(`/pharmacy/orders/${id}/status`, payload))
 };
 
 const notificationApi = {
@@ -241,14 +284,23 @@ const adminApi = {
   approveDoctor: (userId, payload) => extractData(apiClient.post(`/admin/approve-doctor/${userId}`, payload)),
   rejectDoctor: (userId) => extractData(apiClient.post(`/admin/reject-doctor/${userId}`)),
   getMyDoctorsDashboard: () => extractData(apiClient.get('/admin/my-doctors/dashboard')),
-  requestReEdit: (userId, payload) => extractData(apiClient.post(`/admin/doctors/${userId}/re-edit`, payload))
+  requestReEdit: (userId, payload) => extractData(apiClient.post(`/admin/doctors/${userId}/re-edit`, payload)),
+  listPendingReceptionists: () => extractData(apiClient.get('/admin/pending-receptionists')),
+  approveReceptionist: (userId, payload) => extractData(apiClient.post(`/admin/approve-receptionist/${userId}`, payload)),
+  rejectReceptionist: (userId) => extractData(apiClient.post(`/admin/reject-receptionist/${userId}`)),
+  requestReEditReceptionist: (userId, payload) => extractData(apiClient.post(`/admin/receptionists/${userId}/re-edit`, payload)),
+  getMyReceptionistsDashboard: () => extractData(apiClient.get('/admin/my-receptionists/dashboard'))
 };
 
 const clinicApi = {
   create: (payload) => extractData(apiClient.post('/clinics', payload)),
   list: () => extractData(apiClient.get('/clinics')),
   getDetails: (id) => extractData(apiClient.get(`/clinics/${id}/details`)),
-  update: (id, payload) => extractData(apiClient.put(`/clinics/${id}`, payload))
+  update: (id, payload) => extractData(apiClient.put(`/clinics/${id}`, payload)),
+  getHolidays: (params = {}) => extractData(apiClient.get('/holidays', { params })),
+  createHoliday: (payload) => extractData(apiClient.post('/holidays', payload)),
+  updateHoliday: (id, payload) => extractData(apiClient.put(`/holidays/${id}`, payload)),
+  deleteHoliday: (id, permanent = false) => extractData(apiClient.delete(`/holidays/${id}`, { params: { permanent } }))
 };
 
 const specializationApi = {
@@ -297,12 +349,23 @@ const organizationApi = {
   getPublic: () => extractData(apiClient.get('/organizations/public'))
 };
 
+const leaveApi = {
+  apply: (payload) => extractData(apiClient.post('/leaves', payload)),
+  list: (params = {}) => extractData(apiClient.get('/leaves', { params })),
+  review: (id, payload) => extractData(apiClient.patch(`/leaves/${id}/review`, payload)),
+  cancel: (id) => extractData(apiClient.post(`/leaves/${id}/cancel`)),
+  getPolicy: () => extractData(apiClient.get('/leaves/policy')),
+  updatePolicy: (payload) => extractData(apiClient.put('/leaves/policy', payload)),
+  getBalances: (params = {}) => extractData(apiClient.get('/leaves/balances', { params }))
+};
+
 export {
   apiClient,
   authApi,
   userApi,
   patientApi,
   doctorApi,
+  receptionistApi,
   appointmentApi,
   consultationApi,
   prescriptionApi,
@@ -318,5 +381,8 @@ export {
   aiApi,
   healthApi,
   specializationApi,
-  organizationApi
+  organizationApi,
+  leaveApi,
+  paymentApi,
+  settlementsApi
 };

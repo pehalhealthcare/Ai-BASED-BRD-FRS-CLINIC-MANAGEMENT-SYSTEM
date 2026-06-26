@@ -16,7 +16,8 @@ const {
   labReportIdParamSchema,
   updateLabReportSchema,
   reviewLabAnalysisSchema,
-  finalizeLabReportSchema
+  finalizeLabReportSchema,
+  updateLabTestSchema
 } = require('./lab.validator');
 
 const router = Router();
@@ -27,6 +28,13 @@ router.post(
   authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),
   validate(createLabTestSchema),
   labController.createLabTest
+);
+router.patch(
+  '/tests/:id',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.LAB_TECHNICIAN),
+  validate(updateLabTestSchema),
+  labController.updateLabTest
 );
 router.get(
   '/tests',

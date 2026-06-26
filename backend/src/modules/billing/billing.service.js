@@ -258,6 +258,25 @@ const createInvoice = async ({ requester, payload, requestedClinicId = null, req
     payload
   });
 
+  const appointmentId = payload.appointmentId || consultation?.appointmentId?._id || consultation?.appointmentId || appointment?._id;
+  if (appointmentId) {
+    const isConsultationInvoice = payload.serviceType === 'CONSULTATION' || 
+                                  (!payload.serviceType && (!payload.items || payload.items.some(item => item.itemType === 'consultation')));
+    if (isConsultationInvoice) {
+      const Invoice = require('./invoice.model');
+      const existingInvoice = await Invoice.findOne({
+        appointmentId,
+        $or: [
+          { serviceType: 'CONSULTATION' },
+          { 'items.itemType': 'consultation' }
+        ]
+      });
+      if (existingInvoice) {
+        throw new AppError('A consultation invoice already exists for this appointment.', HTTP_STATUS.BAD_REQUEST);
+      }
+    }
+  }
+
   const invoice = await billingRepository.createInvoice(
     buildCreatePayload({
       invoiceNumber: await generateInvoiceNumber(),
@@ -298,9 +317,17 @@ const createInvoice = async ({ requester, payload, requestedClinicId = null, req
   });
 
   try {
-    const { sendBillingDueNotification } = require('../notifications/notification.service');
+    const {
+      sendBillingDueNotification,
+      sendFinalBillEmail
+    } = require('../notifications/notification.service');
 
     await sendBillingDueNotification({
+      invoice: populatedInvoice,
+      actorUserId: requester._id
+    });
+
+    await sendFinalBillEmail({
       invoice: populatedInvoice,
       actorUserId: requester._id
     });
@@ -558,6 +585,22 @@ const recordPayment = async ({ requester, invoiceId, payload, requestedClinicId 
     userAgent: req.get('user-agent'),
     status: 'SUCCESS'
   });
+
+  try {
+    const { sendFinalBillEmail, sendConsultationReportPdf } = require('../notifications/notification.service');
+    await sendFinalBillEmail({
+      invoice: updatedInvoice,
+      actorUserId: requester._id
+    });
+    if (updatedInvoice.paymentStatus === 'paid') {
+      await sendConsultationReportPdf({
+        invoice: updatedInvoice,
+        actorUserId: requester._id
+      });
+    }
+  } catch (_error) {
+    // best effort
+  }
 
   await triggerBillingAnomalyRefresh({
     clinicId,

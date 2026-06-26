@@ -14,7 +14,10 @@ const {
   listDispensingsQuerySchema,
   medicineIdParamSchema,
   dispensingIdParamSchema,
-  cancelDispensingSchema
+  cancelDispensingSchema,
+  createPharmacyOrderSchema,
+  listPharmacyOrdersQuerySchema,
+  updatePharmacyOrderStatusSchema
 } = require('./pharmacy.validator');
 
 const router = Router();
@@ -102,6 +105,31 @@ router.patch(
   authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),
   validate(cancelDispensingSchema),
   pharmacyController.cancelDispensing
+);
+
+// Pharmacy Order endpoints
+router.post(
+  '/orders',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.PHARMACIST, ROLES.PATIENT),
+  validate(createPharmacyOrderSchema),
+  pharmacyController.createPharmacyOrder
+);
+
+router.get(
+  '/orders',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.PHARMACIST, ROLES.PATIENT),
+  validate(listPharmacyOrdersQuerySchema),
+  pharmacyController.listPharmacyOrders
+);
+
+router.patch(
+  '/orders/:id/status',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.PHARMACIST),
+  validate(updatePharmacyOrderStatusSchema),
+  pharmacyController.updatePharmacyOrderStatus
 );
 
 module.exports = router;

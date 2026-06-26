@@ -40,6 +40,15 @@ router.get(
 );
 
 router.get('/me/profile', protect, authorize(ROLES.DOCTOR), doctorController.getMyProfile);
+
+// Smart search: cross-org doctor ranking by preference
+router.get(
+  '/smart-search',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR, ROLES.PATIENT),
+  doctorController.smartSearchDoctors
+);
+
 router.put('/me/profile', protect, authorize(ROLES.DOCTOR), doctorController.updateMyProfile);
 router.post('/me/submit', protect, authorize(ROLES.DOCTOR), doctorController.submitMyProfile);
 router.post('/me/accept-slot', protect, authorize(ROLES.DOCTOR), doctorController.acceptMySlot);
@@ -78,6 +87,7 @@ router.patch(
   validate(updateDoctorSchema),
   doctorController.updateDoctor
 );
+
 router.delete(
   '/:id',
   protect,

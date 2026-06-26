@@ -27,6 +27,7 @@ const envSchema = z.object({
   TWILIO_ACCOUNT_SID: z.string().optional(),
   TWILIO_AUTH_TOKEN: z.string().optional(),
   TWILIO_PHONE_NUMBER: z.string().optional(),
+  TWILIO_WHATSAPP_NUMBER: z.string().optional(),
   RAZORPAY_KEY_ID: z.string().optional(),
   RAZORPAY_KEY_SECRET: z.string().optional(),
   ENABLE_MOCK_NOTIFICATIONS: z.preprocess((value) => {
@@ -91,6 +92,7 @@ const env = {
   twilioAccountSid: parsedEnv.TWILIO_ACCOUNT_SID,
   twilioAuthToken: parsedEnv.TWILIO_AUTH_TOKEN,
   twilioPhoneNumber: parsedEnv.TWILIO_PHONE_NUMBER,
+  twilioWhatsappNumber: parsedEnv.TWILIO_WHATSAPP_NUMBER,
   razorpayKeyId: parsedEnv.RAZORPAY_KEY_ID,
   razorpayKeySecret: parsedEnv.RAZORPAY_KEY_SECRET,
   isDevelopment: parsedEnv.NODE_ENV === 'development',

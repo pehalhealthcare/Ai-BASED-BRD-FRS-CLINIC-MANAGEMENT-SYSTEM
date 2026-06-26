@@ -5,6 +5,7 @@ const populateInvoice = (query) =>
     .populate('patientId', 'patientId firstName lastName fullName gender age phone email')
     .populate('appointmentId', 'appointmentDate startTime endTime status reasonForVisit doctorId')
     .populate('consultationId', 'chiefComplaint diagnosis treatmentPlan status doctorId')
+    .populate('doctorId', 'fullName specialization qualifications image consultationFee')
     .populate('createdBy', 'name email role')
     .populate('updatedBy', 'name email role')
     .populate('payments.receivedBy', 'name email role');

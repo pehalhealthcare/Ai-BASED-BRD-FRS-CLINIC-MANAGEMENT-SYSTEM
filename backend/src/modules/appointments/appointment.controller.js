@@ -96,6 +96,17 @@ const getQueueStatus = asyncHandler(async (req, res) => {
   return sendSuccess(res, 'Queue status retrieved successfully', data);
 });
 
+const verifyPayment = asyncHandler(async (req, res) => {
+  const appointment = await appointmentService.verifyAppointmentPayment({
+    requester: req.user,
+    appointmentId: req.params.id,
+    payload: req.body,
+    req
+  });
+
+  return sendSuccess(res, 'Appointment payment verified and confirmed successfully', { appointment });
+});
+
 module.exports = {
   createAppointment,
   listAppointments,
@@ -105,5 +116,6 @@ module.exports = {
   updateAppointmentStatus,
   rescheduleAppointment,
   cancelAppointment,
-  getQueueStatus
+  getQueueStatus,
+  verifyPayment
 };

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
 const FIELD_CLASS =
-  'w-full rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100';
+  'w-full rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 text-white';
 
 const DateRangeFilter = ({ value, onApply, isLoading = false }) => {
   const [draft, setDraft] = useState({

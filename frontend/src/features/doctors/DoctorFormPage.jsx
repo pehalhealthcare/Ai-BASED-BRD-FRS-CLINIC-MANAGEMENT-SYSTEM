@@ -151,7 +151,7 @@ const DoctorFormPage = () => {
       </div>
 
       <form className="grid gap-6" onSubmit={handleSubmit}>
-        <div className="grid gap-6 rounded-3xl border border-stone-200 bg-white p-6 shadow-lg shadow-stone-200/40 md:grid-cols-2">
+        <div className="grid gap-6 rounded-3xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 p-6 shadow-lg shadow-stone-200/40 md:grid-cols-2">
           <label className="grid gap-2 text-sm text-stone-700 dark:text-gray-100">
             First name
             <input className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 text-gray-900 dark:text-gray-100 bg-white dark:bg-stone-700" value={form.firstName} onChange={(event) => updateField('firstName', event.target.value)} />
@@ -194,7 +194,7 @@ const DoctorFormPage = () => {
           </label>
         </div>
 
-        <div className="grid gap-6 rounded-3xl border border-stone-200 bg-white p-6 shadow-lg shadow-stone-200/40">
+        <div className="grid gap-6 rounded-3xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 p-6 shadow-lg shadow-stone-200/40">
           <div>
             <h3 className="text-lg font-semibold text-stone-900">Availability</h3>
             <p className="mt-2 text-sm text-stone-600">Set baseline weekly availability for future appointment scheduling.</p>

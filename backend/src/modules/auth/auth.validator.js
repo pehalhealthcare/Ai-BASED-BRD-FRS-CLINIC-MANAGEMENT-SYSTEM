@@ -30,8 +30,28 @@ const registerSchema = z.object({
       city: z.string().trim().optional(),
       state: z.string().trim().optional(),
       pincode: z.string().trim().optional(),
-      country: z.string().trim().optional()
-    }).optional()
+      country: z.string().trim().optional(),
+      latitude: z.number().optional().nullable(),
+      longitude: z.number().optional().nullable()
+    }).optional(),
+    permanentAddress: z.object({
+      line1: z.string().trim().optional(),
+      line2: z.string().trim().optional(),
+      city: z.string().trim().optional(),
+      state: z.string().trim().optional(),
+      pincode: z.string().trim().optional(),
+      country: z.string().trim().optional(),
+      latitude: z.number().optional().nullable(),
+      longitude: z.number().optional().nullable()
+    }).optional(),
+    allergies: z.array(z.string().trim()).optional(),
+    chronicConditions: z.array(z.string().trim()).optional(),
+    currentMedications: z.array(z.any()).optional(),
+    pastSurgeries: z.array(z.any()).optional(),
+    familyHistory: z.array(z.any()).optional(),
+    lifestyle: z.any().optional(),
+    pregnancyHistory: z.string().trim().optional(),
+    lmpDate: z.coerce.string().nullable().optional()
   })
 });
 

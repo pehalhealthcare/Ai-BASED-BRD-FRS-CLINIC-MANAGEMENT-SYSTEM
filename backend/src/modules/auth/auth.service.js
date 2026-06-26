@@ -22,11 +22,12 @@ const register = async (payload, req) => {
 
   const defaultClinicId = await findDefaultClinicId();
   const isDoctorRole = requestedRole === ROLES.DOCTOR;
+  const isReceptionistRole = requestedRole === ROLES.RECEPTIONIST;
   const user = await userRepository.createUser({
     ...payload,
     role: requestedRole,
     isActive: true,
-    approvalStatus: isDoctorRole ? 'pending_profile' : 'approved',
+    approvalStatus: (isDoctorRole || isReceptionistRole) ? 'pending_profile' : 'approved',
     ...(defaultClinicId ? { clinicId: defaultClinicId } : {})
   });
 
@@ -55,7 +56,71 @@ const register = async (payload, req) => {
       isOnlineAvailable: false,
       image: '',
       documentPdf: '',
-      availability: []
+      availability: [],
+      currentAddress: {
+        line1: payload.address?.line1 || '',
+        line2: payload.address?.line2 || '',
+        city: payload.address?.city || '',
+        state: payload.address?.state || '',
+        pincode: payload.address?.pincode || '',
+        country: payload.address?.country || 'India',
+        latitude: payload.address?.latitude || null,
+        longitude: payload.address?.longitude || null
+      },
+      permanentAddress: {
+        line1: payload.permanentAddress?.line1 || payload.address?.line1 || '',
+        line2: payload.permanentAddress?.line2 || payload.address?.line2 || '',
+        city: payload.permanentAddress?.city || payload.address?.city || '',
+        state: payload.permanentAddress?.state || payload.address?.state || '',
+        pincode: payload.permanentAddress?.pincode || payload.address?.pincode || '',
+        country: payload.permanentAddress?.country || payload.address?.country || 'India',
+        latitude: payload.permanentAddress?.latitude || payload.address?.latitude || null,
+        longitude: payload.permanentAddress?.longitude || payload.address?.longitude || null
+      }
+    });
+  }
+
+  if (isReceptionistRole) {
+    const Receptionist = require('../receptionists/receptionist.model');
+    const parts = user.name ? user.name.split(' ') : ['Receptionist'];
+    const firstName = parts[0];
+    const lastName = parts.slice(1).join(' ') || '';
+
+    await Receptionist.create({
+      userId: user._id,
+      organizationId: user.organizationId || null,
+      firstName,
+      lastName,
+      fullName: user.name,
+      phone: user.phone || '9000000000',
+      email: user.email,
+      isActive: false,
+      approvalStatus: 'pending_profile',
+      qualification: '',
+      experienceYears: 0,
+      image: '',
+      documentPdf: '',
+      availability: [],
+      currentAddress: {
+        line1: payload.address?.line1 || '',
+        line2: payload.address?.line2 || '',
+        city: payload.address?.city || '',
+        state: payload.address?.state || '',
+        pincode: payload.address?.pincode || '',
+        country: payload.address?.country || 'India',
+        latitude: payload.address?.latitude || null,
+        longitude: payload.address?.longitude || null
+      },
+      permanentAddress: {
+        line1: payload.permanentAddress?.line1 || payload.address?.line1 || '',
+        line2: payload.permanentAddress?.line2 || payload.address?.line2 || '',
+        city: payload.permanentAddress?.city || payload.address?.city || '',
+        state: payload.permanentAddress?.state || payload.address?.state || '',
+        pincode: payload.permanentAddress?.pincode || payload.address?.pincode || '',
+        country: payload.permanentAddress?.country || payload.address?.country || 'India',
+        latitude: payload.permanentAddress?.latitude || payload.address?.latitude || null,
+        longitude: payload.permanentAddress?.longitude || payload.address?.longitude || null
+      }
     });
   }
 
@@ -83,8 +148,28 @@ const register = async (payload, req) => {
         city: payload.address?.city || '',
         state: payload.address?.state || '',
         pincode: payload.address?.pincode || '',
-        country: payload.address?.country || 'India'
+        country: payload.address?.country || 'India',
+        latitude: payload.address?.latitude || null,
+        longitude: payload.address?.longitude || null
       },
+      permanentAddress: {
+        line1: payload.permanentAddress?.line1 || payload.address?.line1 || '',
+        line2: payload.permanentAddress?.line2 || payload.address?.line2 || '',
+        city: payload.permanentAddress?.city || payload.address?.city || '',
+        state: payload.permanentAddress?.state || payload.address?.state || '',
+        pincode: payload.permanentAddress?.pincode || payload.address?.pincode || '',
+        country: payload.permanentAddress?.country || payload.address?.country || 'India',
+        latitude: payload.permanentAddress?.latitude || payload.address?.latitude || null,
+        longitude: payload.permanentAddress?.longitude || payload.address?.longitude || null
+      },
+      allergies: payload.allergies || [],
+      chronicConditions: payload.chronicConditions || [],
+      currentMedications: payload.currentMedications || [],
+      pastSurgeries: payload.pastSurgeries || [],
+      familyHistory: payload.familyHistory || [],
+      lifestyle: payload.lifestyle || undefined,
+      pregnancyHistory: payload.pregnancyHistory || '',
+      lmpDate: payload.lmpDate ? new Date(payload.lmpDate) : null,
       isActive: true,
       createdBy: user._id,
       updatedBy: user._id
