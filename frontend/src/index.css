@@ -746,3 +746,21 @@
   padding: 0.625rem 0.75rem;
 }
 
+/* ─── Full-page overlays support (Hiding Sidebar and Header) ─── */
+body.hide-sidebar-all aside {
+  display: none !important;
+}
+body.hide-sidebar-all header {
+  display: none !important;
+}
+body.hide-sidebar-all main {
+  padding: 0 !important;
+  margin: 0 !important;
+  max-width: 100% !important;
+  width: 100% !important;
+}
+body.hide-sidebar-all .fixed.bottom-6 {
+  display: none !important;
+}
+
+

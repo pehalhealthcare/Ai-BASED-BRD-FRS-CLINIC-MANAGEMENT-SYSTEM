@@ -3,7 +3,7 @@ import {
   Check, ShieldAlert, CreditCard, Lock, Download, Printer, Share2, 
   Phone, AlertCircle, RefreshCw, Layers, Sparkles, User, FileText, CheckCircle
 } from 'lucide-react';
-import { prescriptionApi } from '../../lib/api';
+import { prescriptionApi, pharmacyApi, labApi } from '../../lib/api';
 
 export default function PrescriptionPreview({
   consultation,
@@ -15,6 +15,8 @@ export default function PrescriptionPreview({
   onPayInvoice
 }) {
   const [downloading, setDownloading] = useState(false);
+  const [buyingMedicines, setBuyingMedicines] = useState(false);
+  const [bookingLabs, setBookingLabs] = useState(false);
 
   const handleDownloadPdf = async () => {
     if (!prescription?._id) return;
@@ -29,6 +31,110 @@ export default function PrescriptionPreview({
       alert('Failed to download prescription PDF.');
     } finally {
       setDownloading(false);
+    }
+  };
+
+  const handleBuyMedicines = async () => {
+    const medsToOrder = prescription?.medicines || [];
+    if (medsToOrder.length === 0) {
+      alert('No medicines are prescribed to buy.');
+      return;
+    }
+    setBuyingMedicines(true);
+    try {
+      let successCount = 0;
+      for (const med of medsToOrder) {
+        let medicineId = med.medicineId;
+        let clinicId = med.clinicId || consultation?.clinicId;
+        if (!medicineId) {
+          const res = await pharmacyApi.listMedicines({ search: med.medicineName.split(' ')[0], limit: 1 });
+          const match = res?.medicines?.[0] || res?.data?.medicines?.[0];
+          if (match) {
+            medicineId = match._id;
+            clinicId = match.clinicId || clinicId;
+          }
+        }
+        if (medicineId && clinicId) {
+          await pharmacyApi.createOrder({
+            medicineId,
+            quantity: med.quantity || 10,
+            prescriptionType: 'system',
+            prescriptionId: prescription._id,
+            clinicId,
+            patientId: patient?._id || consultation?.patientId?._id || consultation?.patientId
+          });
+          successCount++;
+        }
+      }
+      if (successCount > 0) {
+        alert(`Successfully added ${successCount} medicines to your cart/orders!`);
+      } else {
+        alert('Could not auto-resolve matching medicines in our catalog. Please order manually via the Pharmacy Store.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Failed to place pharmacy order automatically.');
+    } finally {
+      setBuyingMedicines(false);
+    }
+  };
+
+  const handleBookLabTests = async () => {
+    const labsToOrder = prescription?.labs || [];
+    if (labsToOrder.length === 0) {
+      alert('No lab tests are prescribed to book.');
+      return;
+    }
+    setBookingLabs(true);
+    try {
+      const testsToSubmit = [];
+      for (const lab of labsToOrder) {
+        let labTestId = lab.labTestId;
+        let name = lab.testName;
+        let category = 'Hematology';
+        let specimenType = lab.sampleRequired || 'Blood';
+        if (!labTestId) {
+          const searchName = name.toLowerCase().includes('cbc') ? 'cbc' : name.split(' ')[0];
+          const res = await labApi.listTests({ search: searchName, limit: 1 });
+          const match = res?.labTests?.[0] || res?.tests?.[0] || res?.data?.labTests?.[0] || res?.data?.tests?.[0];
+          if (match) {
+            labTestId = match._id;
+            name = match.name;
+            category = match.category || category;
+            specimenType = match.specimenType || specimenType;
+          }
+        }
+        testsToSubmit.push({
+          labTestId: labTestId || null,
+          code: lab.code || 'LABTEST',
+          name,
+          category,
+          specimenType,
+          status: 'ordered'
+        });
+      }
+
+      const clinicId = consultation?.clinicId || appointment?.clinicId;
+      if (!clinicId) {
+        alert('Could not determine clinic ID. Please try again.');
+        return;
+      }
+
+      await labApi.createOrder({
+        clinicId,
+        consultationId: consultation._id,
+        patientId: patient?._id || consultation?.patientId?._id || consultation?.patientId,
+        doctorId: doctor?._id || consultation?.doctorId?._id || consultation?.doctorId,
+        appointmentId: appointment?._id || null,
+        tests: testsToSubmit,
+        priority: 'routine'
+      });
+      alert('Lab tests order booked successfully!');
+    } catch (err) {
+      console.error(err);
+      alert('Failed to automatically book lab tests.');
+    } finally {
+      setBookingLabs(false);
     }
   };
 
@@ -542,11 +648,19 @@ export default function PrescriptionPreview({
       {/* ─── Footer Action Banner ─── */}
       <div className="bg-emerald-600 text-white rounded-2xl p-5 flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-4 text-center md:text-left">
-          <button className="flex items-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 rounded-xl font-bold transition-colors text-xs">
-            <span>🛒</span> Buy Medicines Online
+          <button 
+            onClick={handleBuyMedicines}
+            disabled={buyingMedicines}
+            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 rounded-xl font-bold transition-colors text-xs disabled:opacity-50"
+          >
+            <span>🛒</span> {buyingMedicines ? 'Ordering...' : 'Buy Medicines Online'}
           </button>
-          <button className="flex items-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 rounded-xl font-bold transition-colors text-xs">
-            <span>🔬</span> Book Lab Tests
+          <button 
+            onClick={handleBookLabTests}
+            disabled={bookingLabs}
+            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 rounded-xl font-bold transition-colors text-xs disabled:opacity-50"
+          >
+            <span>🔬</span> {bookingLabs ? 'Booking...' : 'Book Lab Tests'}
           </button>
           <button 
             onClick={handleDownloadPdf}

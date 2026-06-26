@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { pharmacyApi, labApi } from '../../lib/api';
 import LabTestSearchPanel from './LabTestSearchPanel';
+import PharmacySearchPanel from './PharmacySearchPanel';
 
 const FIELD_CLASS = 'w-full rounded-xl border border-slate-600/40 bg-slate-800/50 px-3 py-2 text-xs text-slate-200 outline-none transition-all focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/10 placeholder:text-slate-500';
 const SELECT_CLASS = 'w-full rounded-xl border border-slate-600/40 bg-slate-800/50 px-3 py-2 text-xs text-slate-200 outline-none transition-all focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/10 cursor-pointer';
@@ -23,6 +24,7 @@ export default function PrescriptionInConsultation({
   isDraft = true
 }) {
   const [isSearchPanelOpen, setIsSearchPanelOpen] = useState(false);
+  const [isPharmacySearchOpen, setIsPharmacySearchOpen] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
   const [activeSearchIndex, setActiveSearchIndex] = useState(null);
   const [availableTests, setAvailableTests] = useState([]);
@@ -160,14 +162,24 @@ export default function PrescriptionInConsultation({
             <span className="flex items-center justify-center w-5 h-5 rounded bg-emerald-500/20 text-emerald-400 text-[10px] font-bold">4</span>
             <span className="text-sm font-semibold text-slate-200">Prescription Builder</span>
           </div>
-          <button
-            type="button"
-            onClick={handleAddMedicine}
-            className="flex items-center gap-1 text-xs text-emerald-400 hover:text-emerald-300 transition-colors font-semibold"
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14"/></svg>
-            Add Medicine
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setIsPharmacySearchOpen(true)}
+              className="flex items-center gap-1 text-xs text-emerald-400 hover:text-emerald-300 transition-colors font-semibold"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+              Search & Offer Medicines
+            </button>
+            <button
+              type="button"
+              onClick={handleAddMedicine}
+              className="flex items-center gap-1 text-xs text-slate-400 hover:text-white transition-colors font-semibold"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14"/></svg>
+              Add Medicine
+            </button>
+          </div>
         </div>
 
         <div className="p-4">
@@ -341,6 +353,9 @@ export default function PrescriptionInConsultation({
                     >
                       <option value="">Select Test...</option>
                       {availableTests.map((t) => <option key={t._id} value={t.name}>{t.name}</option>)}
+                      {lab.testName && !availableTests.some(t => t.name === lab.testName) && (
+                        <option value={lab.testName}>{lab.testName}</option>
+                      )}
                     </select>
                   </div>
 
@@ -490,6 +505,17 @@ export default function PrescriptionInConsultation({
         onAddLabs={(selected) => {
           // merge selected tests into the current labs state
           setLabs([...labs, ...selected]);
+        }}
+      />
+
+      <PharmacySearchPanel
+        isOpen={isPharmacySearchOpen}
+        onClose={() => setIsPharmacySearchOpen(false)}
+        patient={patient}
+        consultation={consultation}
+        onAddMedicines={(selected) => {
+          // merge selected medicines into the current medicines state
+          setMedicines([...medicines.filter(m => m.medicineName), ...selected]);
         }}
       />
     </div>

@@ -22,7 +22,7 @@ import {
   uploadConsultationVoiceNote,
   updateConsultation
 } from './consultationApi';
-import { prescriptionApi, billingApi } from '../../lib/api';
+import { prescriptionApi, billingApi, pharmacyApi, labApi } from '../../lib/api';
 import useAuth from '../../hooks/useAuth';
 import PrescriptionPreview from './PrescriptionPreview';
 
@@ -482,7 +482,7 @@ const ConsultationPage = () => {
     } finally { setFormatting(false); }
   };
 
-  const triggerAutoFillFromSoapNote = (soap, transcriptText = '') => {
+  const triggerAutoFillFromSoapNote = async (soap, transcriptText = '') => {
     if (!soap) return;
 
     // 1. Copy SOAP notes
@@ -547,8 +547,8 @@ const ConsultationPage = () => {
     const planText = soap.plan || '';
     const lines = planText.split('\n').map(l => l.trim()).filter(Boolean);
 
-    const extractedMedicines = [];
-    const extractedLabs = [];
+    const tempMedicines = [];
+    const tempLabs = [];
     const extractedProcedures = [];
 
     lines.forEach(line => {
@@ -568,27 +568,34 @@ const ConsultationPage = () => {
         const durMatch = lowerLine.match(/for\s*(\d+\s*\w+)/i);
         if (durMatch) dur = durMatch[1];
 
-        extractedMedicines.push({
-          medicineName: name,
-          genericName: name.split(' ')[0],
-          dosage: nameParts[1] || '500mg',
-          frequency: freq,
-          duration: dur,
-          route: 'oral',
-          timing: lowerLine.includes('before') ? 'before food' : 'after food',
-          instructions: cleanLine,
-          quantity: 10,
-          isSubstituteAllowed: true
+        tempMedicines.push({
+          searchName: name.split(' ')[0],
+          fallback: {
+            medicineName: name,
+            genericName: name.split(' ')[0],
+            dosage: nameParts[1] || '500mg',
+            frequency: freq,
+            duration: dur,
+            route: 'oral',
+            timing: lowerLine.includes('before') ? 'before food' : 'after food',
+            instructions: cleanLine,
+            quantity: 10,
+            isSubstituteAllowed: true
+          }
         });
       }
       // Check if it's a lab test line
       else if (lowerLine.includes('cbc') || lowerLine.includes('lab') || lowerLine.includes('blood test') || lowerLine.includes('test')) {
+        const testSearch = lowerLine.includes('cbc') ? 'cbc' : (lowerLine.includes('lipid') ? 'lipid' : 'test');
         const testName = lowerLine.includes('cbc') ? 'Complete Blood Count (CBC)' : 'Lipid Profile';
-        extractedLabs.push({
-          testName: testName,
-          priority: lowerLine.includes('urgent') ? 'urgent' : 'routine',
-          sampleRequired: 'Blood',
-          reason: line
+        tempLabs.push({
+          searchName: testSearch,
+          fallback: {
+            testName: testName,
+            priority: lowerLine.includes('urgent') ? 'urgent' : 'routine',
+            sampleRequired: 'Blood',
+            reason: line
+          }
         });
       }
       // Check if it's a procedure line
@@ -603,8 +610,60 @@ const ConsultationPage = () => {
       }
     });
 
-    if (extractedMedicines.length > 0) setMedicines(extractedMedicines);
-    if (extractedLabs.length > 0) setLabs(extractedLabs);
+    // Resolve medicines from catalog
+    const resolvedMedicines = [];
+    for (const item of tempMedicines) {
+      try {
+        const res = await pharmacyApi.listMedicines({ search: item.searchName, limit: 1 });
+        const match = res?.medicines?.[0] || res?.data?.medicines?.[0];
+        if (match) {
+          resolvedMedicines.push({
+            medicineName: match.name,
+            genericName: match.genericName || match.name.split(' ')[0],
+            dosage: match.strength || item.fallback.dosage,
+            frequency: item.fallback.frequency,
+            duration: item.fallback.duration,
+            route: match.route || item.fallback.route,
+            timing: item.fallback.timing,
+            instructions: item.fallback.instructions,
+            quantity: item.fallback.quantity,
+            isSubstituteAllowed: item.fallback.isSubstituteAllowed,
+            medicineId: match._id,
+            clinicId: match.clinicId
+          });
+        } else {
+          resolvedMedicines.push(item.fallback);
+        }
+      } catch (err) {
+        resolvedMedicines.push(item.fallback);
+      }
+    }
+
+    // Resolve lab tests from catalog
+    const resolvedLabs = [];
+    for (const item of tempLabs) {
+      try {
+        const res = await labApi.listTests({ search: item.searchName, limit: 1 });
+        const match = res?.labTests?.[0] || res?.tests?.[0] || res?.data?.labTests?.[0] || res?.data?.tests?.[0];
+        if (match) {
+          resolvedLabs.push({
+            testName: match.name,
+            priority: item.fallback.priority,
+            sampleRequired: match.specimenType || item.fallback.sampleRequired,
+            reason: item.fallback.reason,
+            labTestId: match._id,
+            price: match.price
+          });
+        } else {
+          resolvedLabs.push(item.fallback);
+        }
+      } catch (err) {
+        resolvedLabs.push(item.fallback);
+      }
+    }
+
+    if (resolvedMedicines.length > 0) setMedicines(resolvedMedicines);
+    if (resolvedLabs.length > 0) setLabs(resolvedLabs);
     if (extractedProcedures.length > 0) setProcedures(extractedProcedures);
 
     // 7. Extract Follow Up

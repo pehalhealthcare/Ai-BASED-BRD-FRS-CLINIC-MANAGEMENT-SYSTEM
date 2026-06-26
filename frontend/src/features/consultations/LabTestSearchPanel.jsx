@@ -40,6 +40,18 @@ export default function LabTestSearchPanel({
     fetchInHouseTests();
   }, [isOpen]);
 
+  // Hide/show sidebar and header layout
+  useEffect(() => {
+    if (isOpen) {
+      document.body.classList.add('hide-sidebar-all');
+    } else {
+      document.body.classList.remove('hide-sidebar-all');
+    }
+    return () => {
+      document.body.classList.remove('hide-sidebar-all');
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   // Partner labs recommendations (real-world labs matching query)
