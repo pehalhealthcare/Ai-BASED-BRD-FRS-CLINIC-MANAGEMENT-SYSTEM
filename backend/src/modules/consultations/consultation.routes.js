@@ -53,7 +53,7 @@ router.get(
 router.get(
   '/patient/:patientId/history',
   protect,
-  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR),
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR, ROLES.PATIENT),
   validate(patientConsultationHistorySchema),
   consultationController.getPatientConsultationHistory
 );

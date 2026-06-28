@@ -1,48 +1,120 @@
+import { useMemo } from 'react';
+
 const INPUTS = [
-  { key: 'temperature', label: 'Temperature', unit: '°F', icon: '🌡️', type: 'number', step: '0.1' },
-  { key: 'bloodPressure', label: 'Blood Pressure', unit: 'mmHg', icon: '🩸', type: 'text', placeholder: '120/80' },
-  { key: 'pulse', label: 'Pulse Rate', unit: 'bpm', icon: '❤️', type: 'number' },
-  { key: 'oxygenSaturation', label: 'SpO₂', unit: '%', icon: '🫁', type: 'number' },
-  { key: 'weight', label: 'Weight', unit: 'kg', icon: '⚖️', type: 'number', step: '0.1' },
-  { key: 'height', label: 'Height', unit: 'cm', icon: '📏', type: 'number', step: '0.1' },
-  { key: 'respiratoryRate', label: 'Resp. Rate', unit: '/min', icon: '💨', type: 'number' }
+  { key: 'temperature',      label: 'Temperature', unit: '°F',    type: 'number', step: '0.1' },
+  { key: 'bloodPressure',    label: 'BP',           unit: 'mmHg', type: 'text',   placeholder: '120/80' },
+  { key: 'pulse',            label: 'Pulse',        unit: 'bpm',  type: 'number' },
+  { key: 'respiratoryRate',  label: 'Resp. Rate',   unit: '/min', type: 'number' },
+  { key: 'oxygenSaturation', label: 'SpO₂',         unit: '%',    type: 'number' },
+  { key: 'weight',           label: 'Weight',       unit: 'kg',   type: 'number', step: '0.1' },
+  { key: 'height',           label: 'Height',       unit: 'cm',   type: 'number', step: '0.1' },
+  { key: '_bmi',             label: 'BMI',          unit: 'kg/m²', type: 'text',  readOnly: true },
 ];
 
-const VitalsForm = ({ vitals = {}, onChange }) => (
-  <div className="grid gap-3 grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
-    {INPUTS.map((input) => {
-      const hasValue = vitals?.[input.key] !== '' && vitals?.[input.key] != null;
+/** 4 cells per row → 2 rows of 4 */
+const COLS = 4;
+const ROWS = Math.ceil(INPUTS.length / COLS); // 2
 
-      return (
-        <label
-          key={input.key}
-          className={`group relative grid gap-1.5 rounded-2xl border p-3.5 text-sm transition-all duration-200 cursor-text ${
-            hasValue
-              ? 'border-emerald-200 bg-emerald-50/50 dark:border-emerald-800 dark:bg-emerald-950/30'
-              : 'border-stone-200 bg-white dark:border-stone-700 dark:bg-stone-800/50'
-          } hover:border-emerald-300 hover:shadow-md`}
-        >
-          <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400">
-            <span className="text-base leading-none">{input.icon}</span>
-            {input.label}
-          </span>
-          <div className="flex items-baseline gap-1.5">
-            <input
-              className="w-full bg-transparent text-lg font-semibold text-stone-900 dark:text-stone-100 outline-none placeholder:text-stone-300 dark:placeholder:text-stone-600"
-              type={input.type}
-              step={input.step}
-              placeholder={input.placeholder || '—'}
-              value={vitals?.[input.key] ?? ''}
-              onChange={(event) => onChange(input.key, event.target.value)}
-            />
-            <span className="text-xs font-medium text-stone-400 dark:text-stone-500 whitespace-nowrap">
-              {input.unit}
+const VitalsForm = ({ vitals = {}, onChange }) => {
+  const bmi = useMemo(() => {
+    const w = parseFloat(vitals?.weight);
+    const h = parseFloat(vitals?.height);
+    return w > 0 && h > 0 ? (w / Math.pow(h / 100, 2)).toFixed(1) : '';
+  }, [vitals?.weight, vitals?.height]);
+
+  const getValue = (key) => key === '_bmi' ? bmi : (vitals?.[key] ?? '');
+
+  return (
+    <div
+      className="vitals-grid-wrapper"
+      style={{
+        display: 'grid',
+        gridTemplateColumns: `repeat(${COLS}, minmax(0, 1fr))`,
+        border: '1px solid #1f2d3d',
+        borderRadius: '10px',
+        overflow: 'hidden',
+        width: '100%',
+      }}
+    >
+      {INPUTS.map((inp, idx) => {
+        const col = idx % COLS;
+        const row = Math.floor(idx / COLS);
+        const isLastRow = row === ROWS - 1;
+        const isLastInRow = col === COLS - 1;
+
+        const value = getValue(inp.key);
+        const filled = value !== '' && value != null;
+
+        return (
+          <label
+            key={inp.key}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              padding: '10px 12px',
+              minHeight: '68px',
+              backgroundColor: '#0c1522',
+              borderRight: !isLastInRow ? '1px solid #1f2d3d' : undefined,
+              borderBottom: !isLastRow ? '1px solid #1f2d3d' : undefined,
+              cursor: inp.readOnly ? 'default' : 'text',
+              boxSizing: 'border-box',
+            }}
+          >
+            {/* Label */}
+            <span style={{
+              fontSize: '9px',
+              fontWeight: 700,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              color: '#64748b',
+              marginBottom: '4px',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}>
+              {inp.label}
             </span>
-          </div>
-        </label>
-      );
-    })}
-  </div>
-);
+
+            {/* Value + Unit */}
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '3px', flex: 1 }}>
+              <input
+                readOnly={!!inp.readOnly}
+                type={inp.readOnly ? 'text' : inp.type}
+                step={inp.step}
+                placeholder={inp.placeholder || '—'}
+                value={value}
+                onChange={inp.readOnly ? undefined : (e) => onChange(inp.key, e.target.value)}
+                style={{
+                  flex: '1 1 0%',
+                  minWidth: 0,
+                  background: 'transparent',
+                  border: 'none',
+                  outline: 'none',
+                  fontSize: '18px',
+                  fontWeight: 700,
+                  letterSpacing: '-0.3px',
+                  color: filled ? '#e2e8f0' : '#374151',
+                  fontFamily: 'inherit',
+                  padding: 0,
+                  cursor: inp.readOnly ? 'default' : 'text',
+                }}
+              />
+              <span style={{
+                flexShrink: 0,
+                fontSize: '10px',
+                fontWeight: 500,
+                color: '#4b5563',
+                whiteSpace: 'nowrap',
+                lineHeight: 1,
+              }}>
+                {inp.unit}
+              </span>
+            </div>
+          </label>
+        );
+      })}
+    </div>
+  );
+};
 
 export default VitalsForm;

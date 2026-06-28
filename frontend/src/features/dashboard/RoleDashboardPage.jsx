@@ -8,6 +8,7 @@ import DashboardPharmacyPage from './DashboardPharmacyPage';
 import DoctorDashboardPage from './DoctorDashboardPage';
 import DoctorOnboarding from '../doctors/DoctorOnboarding';
 import ReceptionistOnboarding from '../receptionists/ReceptionistOnboarding';
+import ReceptionistDashboardPage from './ReceptionistDashboardPage';
 
 const RoleDashboardPage = () => {
   const { user } = useAuth();
@@ -28,7 +29,11 @@ const RoleDashboardPage = () => {
     return <DoctorDashboardPage />;
   }
 
-  if ([ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.RECEPTIONIST].includes(user?.role)) {
+  if (user?.role === ROLES.RECEPTIONIST) {
+    return <ReceptionistDashboardPage />;
+  }
+
+  if ([ROLES.ADMIN, ROLES.SUPER_ADMIN].includes(user?.role)) {
     return <DashboardOverviewPage />;
   }
 

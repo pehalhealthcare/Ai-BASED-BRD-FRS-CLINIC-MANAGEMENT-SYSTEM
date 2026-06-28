@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-
+// Trigger restart for registering updated Mongoose schemas (consultation_completed enum)
 const app = require('./app');
 const { disconnectDB, connectDB } = require('./config/database');
 const { env } = require('./config/env');

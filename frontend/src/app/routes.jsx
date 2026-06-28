@@ -240,7 +240,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'appointments/:appointmentId/consultation',
-        element: protect(<ConsultationPage />, [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.DOCTOR])
+        element: protect(<ConsultationPage />, [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.DOCTOR, ROLES.PATIENT])
       },
       {
         path: 'consultations',

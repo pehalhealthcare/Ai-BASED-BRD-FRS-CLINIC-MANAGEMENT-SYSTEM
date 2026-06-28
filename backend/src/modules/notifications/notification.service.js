@@ -1287,11 +1287,12 @@ const sendAppointmentBookingNotifications = async ({ appointment, patient, docto
     // 2. WhatsApp and SMS via Twilio directly (with full diagnostics)
     if (patient.phone) {
       const { env } = require('../../config/env');
-      const twilio = require('twilio');
-
-      if (!env.twilioAccountSid || !env.twilioAuthToken || !env.twilioPhoneNumber) {
+      if (env.isDevelopment) {
+        logger.info(`[notification:booking] Twilio is disconnected in development. Mocking WhatsApp/SMS send to ${patient.phone}`);
+      } else if (!env.twilioAccountSid || !env.twilioAuthToken || !env.twilioPhoneNumber) {
         logger.warn('[notification:booking] Twilio not configured — skipping WhatsApp/SMS for appointment booking.');
       } else {
+        const twilio = require('twilio');
         let toPhone = String(patient.phone).replace(/\D/g, '');
         if (toPhone.length === 10) toPhone = '+91' + toPhone;
         else if (!toPhone.startsWith('+')) toPhone = '+' + toPhone;
@@ -1327,6 +1328,96 @@ const sendAppointmentBookingNotifications = async ({ appointment, patient, docto
         }
       }
     }
+  });
+
+const sendAppointmentCancelNotifications = async ({ appointment, patient, doctor, actorUserId }) =>
+  safeNotificationHook('appointment_cancel_notifications', async () => {
+    const fs = require('fs');
+    try {
+      fs.appendFileSync('d:\\Office_work\\CMS\\backend\\notification_debug.log', `[DEBUG] sendAppointmentCancelNotifications called. hasAppt: ${!!appointment}, hasPatient: ${!!patient}, patientId: ${patient?._id}, patientEmail: ${patient?.email}\n`);
+      
+      if (!appointment || !patient) {
+        fs.appendFileSync('d:\\Office_work\\CMS\\backend\\notification_debug.log', `[DEBUG] Missing appointment or patient. Returning.\n`);
+        return;
+      }
+
+      const Clinic = require('../clinics/clinic.model');
+      const { formatDate } = require('../../common/utils/slotUtils');
+      const clinic = await Clinic.findById(appointment.clinicId).populate('organizationId').lean();
+      
+      const orgName = clinic?.organizationId?.name || 'our Hospital';
+      const doctorName = doctor?.fullName || 'the Doctor';
+      const dateLabel = appointment.appointmentDate ? formatDate(appointment.appointmentDate) : '';
+      const timeLabel = appointment.startTime || '';
+
+      const customMessage = `Hello ${patient.fullName || 'Patient'},\n\nYour appointment with Dr. ${doctorName} at Hospital ${orgName} on ${dateLabel} at ${timeLabel} has been successfully cancelled.\n\nNo cancellation charges were charged. The slot has been made available for other patients.\n\nBest regards,\nAI-CMS Clinic`;
+
+      const variables = buildAppointmentVariables({ appointment, patient, doctor, clinic });
+
+      await createNotificationRecord({
+        clinicId: appointment.clinicId,
+        createdBy: actorUserId,
+        payload: {
+          patientId: patient._id,
+          appointmentId: appointment._id,
+          type: 'appointment_cancelled',
+          channel: 'email',
+          subject: `Appointment Cancellation Confirmation`,
+          body: customMessage
+        },
+        variables,
+        patient,
+        template: null,
+        scheduledFor: null,
+        sendNow: true
+      });
+      fs.appendFileSync('d:\\Office_work\\CMS\\backend\\notification_debug.log', `[DEBUG] createNotificationRecord completed successfully.\n`);
+    } catch (err) {
+      fs.appendFileSync('d:\\Office_work\\CMS\\backend\\notification_debug.log', `[ERROR] sendAppointmentCancelNotifications error: ${err.message}\n${err.stack}\n`);
+      throw err;
+    }
+  });
+
+const sendAppointmentRescheduleNotifications = async ({ oldAppointment, appointment, patient, doctor, actorUserId }) =>
+  safeNotificationHook('appointment_reschedule_notifications', async () => {
+    if (!appointment || !patient) {
+      return;
+    }
+
+    const Clinic = require('../clinics/clinic.model');
+    const { formatDate } = require('../../common/utils/slotUtils');
+    const clinic = await Clinic.findById(appointment.clinicId).populate('organizationId').lean();
+    
+    const orgName = clinic?.organizationId?.name || 'our Hospital';
+    const doctorName = doctor?.fullName || 'the Doctor';
+    
+    const oldDateLabel = oldAppointment?.appointmentDate ? formatDate(oldAppointment.appointmentDate) : '';
+    const oldTimeLabel = oldAppointment?.startTime || '';
+    
+    const newDateLabel = appointment.appointmentDate ? formatDate(appointment.appointmentDate) : '';
+    const newTimeLabel = appointment.startTime || '';
+
+    const customMessage = `Hello ${patient.fullName || 'Patient'},\n\nYour appointment with Dr. ${doctorName} at Hospital ${orgName} originally scheduled for ${oldDateLabel} at ${oldTimeLabel} has been successfully rescheduled to ${newDateLabel} at ${newTimeLabel}.\n\nNo rescheduling charges were charged. Your previous slot has been freed for other patients.\n\nBest regards,\nAI-CMS Clinic`;
+
+    const variables = buildAppointmentVariables({ appointment, patient, doctor, clinic });
+
+    await createNotificationRecord({
+      clinicId: appointment.clinicId,
+      createdBy: actorUserId,
+      payload: {
+        patientId: patient._id,
+        appointmentId: appointment._id,
+        type: 'appointment_rescheduled',
+        channel: 'email',
+        subject: `Appointment Rescheduled Confirmation`,
+        body: customMessage
+      },
+      variables,
+      patient,
+      template: null,
+      scheduledFor: null,
+      sendNow: true
+    });
   });
 
 const sendWaitTimeNotification = async ({ appointment, timeLeftMinutes, actorUserId }) => {
@@ -1475,12 +1566,7 @@ const sendFinalBillEmail = async ({ invoice, actorUserId }) =>
   safeNotificationHook('final_bill_email', async () => {
     if (!invoice) return;
 
-    // Check if the invoice is for pharmacy or lab (or contains those items)
-    const containsTargetItems = invoice.items?.some(item => ['pharmacy', 'lab'].includes(item.itemType)) || false;
-
-    if (!containsTargetItems) {
-      return; // only send for pharmacy or lab final bills
-    }
+    // Removed target items filter to allow all paid invoices (consultation, pharmacy, lab, etc.) to trigger confirmation emails.
 
     const patient = invoice.patientId?.fullName
       ? invoice.patientId
@@ -1646,6 +1732,7 @@ const sendConsultationReportPdf = async ({ invoice, actorUserId }) =>
   });
 
 module.exports = {
+  createNotificationRecord,
   createNotificationTemplate,
   listNotificationTemplates,
   sendNotification,
@@ -1665,6 +1752,8 @@ module.exports = {
   sendLabReportReadyNotification,
   renderNotificationTemplate,
   sendAppointmentBookingNotifications,
+  sendAppointmentCancelNotifications,
+  sendAppointmentRescheduleNotifications,
   scheduleWaitTimeReminder,
   sendFinalBillEmail,
   sendConsultationReportPdf,

@@ -1320,6 +1320,9 @@ const completeConsultation = async ({ requester, consultationId, payload, reques
 
     // Now, send email and WhatsApp with PDF/prescription details to patient
     try {
+      const fs = require('fs');
+      fs.appendFileSync('d:\\Office_work\\CMS\\backend\\notification_debug.log', `[DEBUG] completeConsultation email block start. patientEmail: ${patient?.email}\n`);
+      
       const { createNotificationRecord, resolveTemplateAndContent } = require('../notifications/notification.service');
       const Prescription = require('../prescriptions/prescription.model');
       
@@ -1349,8 +1352,8 @@ const completeConsultation = async ({ requester, consultationId, payload, reques
         type: 'consultation_completed',
         channel: 'email',
         variables,
-        subject: 'Your Consultation Summary & EMR',
-        body: `Hello {{patientName}}, your consultation with Dr. {{doctorName}} has been completed. Please find attached the PDF summary of your consultation. You can also view it here: {{pdfUrl}}${prescriptionDetails}`
+        subject: 'Consultation Completed - Actions Required',
+        body: `Hello {{patientName}},\n\nYour appointment has been completed with Dr. {{doctorName}}.\n\nThe doctor has provided your consultation suggestions and treatment details. Please go to your dashboard to pay the fees directly or visit the clinic receptionist to complete your billing and unlock full access to your EMR consultation records and prescription details.\n\nBest regards,\nAI-CMS Clinic`
       });
 
       await createNotificationRecord({
@@ -1400,6 +1403,8 @@ const completeConsultation = async ({ requester, consultationId, payload, reques
         });
       }
     } catch (notifyErr) {
+      const fs = require('fs');
+      fs.appendFileSync('d:\\Office_work\\CMS\\backend\\notification_debug.log', `[ERROR] completeConsultation notifyErr: ${notifyErr.message}\n${notifyErr.stack}\n`);
       console.error('Failed to send consultation completed notification:', notifyErr);
     }
   } catch (pdfError) {

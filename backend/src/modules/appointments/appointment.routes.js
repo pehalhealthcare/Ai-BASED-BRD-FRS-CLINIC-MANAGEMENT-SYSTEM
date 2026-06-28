@@ -102,7 +102,7 @@ router.patch(
 router.patch(
   '/:id/reschedule',
   protect,
-  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RECEPTIONIST),
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.PATIENT),
   validate(rescheduleAppointmentSchema),
   appointmentController.rescheduleAppointment
 );

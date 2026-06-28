@@ -6,6 +6,9 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Avatar from '../../../components/ui/Avatar';
+import RescheduleModal from './RescheduleModal';
+import CancelConfirmDialog from './CancelConfirmDialog';
+import AppointmentDetailsModal from './AppointmentDetailsModal';
 
 export default function Appointments({
   appointments,
@@ -21,6 +24,11 @@ export default function Appointments({
   invoices
 }) {
   const now = new Date();
+
+  // Modal states
+  const [reschedulingAppt, setReschedulingAppt] = useState(null);
+  const [cancellingAppt, setCancellingAppt] = useState(null);
+  const [selectedApptDetails, setSelectedApptDetails] = useState(null);
 
   // Custom Date Range State
   const [startVal, setStartVal] = useState('');
@@ -49,13 +57,6 @@ export default function Appointments({
           const eDate = new Date(endVal);
           eDate.setHours(23, 59, 59, 999);
           if (apptTime > eDate) return false;
-        }
-      } else {
-        // Fallback: Default to only show current calendar month's appointments
-        const calYear = calendarMonth.getFullYear();
-        const calMon = calendarMonth.getMonth();
-        if (apptTime.getFullYear() !== calYear || apptTime.getMonth() !== calMon) {
-          return false;
         }
       }
     }
@@ -127,6 +128,7 @@ export default function Appointments({
   const primaryClinic = clinics[0];
 
   return (
+    <>
     <div className="flex flex-col lg:flex-row gap-5 w-full">
       {/* LEFT: Main Content */}
       <div className="flex-1 min-w-0 space-y-5">
@@ -249,10 +251,51 @@ export default function Appointments({
 
           {/* Appointment List (Cards Layout) */}
           <div className="p-4 space-y-4 bg-slate-50/30 dark:bg-navy-900/10 border-t border-slate-100 dark:border-white/[0.04]">
+            {/* Scrollable Pending Fee Notifications (Yellow / Amber) */}
+            {(() => {
+              const pendingInvoices = (invoices || []).filter(inv => inv.serviceType === 'CONSULTATION' && inv.paymentStatus !== 'paid');
+              if (pendingInvoices.length === 0) return null;
+              return (
+                <div className="rounded-2xl border border-amber-500/25 bg-amber-500/5 p-4 space-y-2 mb-4">
+                  <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 mb-2">
+                    <Bell size={15} />
+                    <h4 className="text-xs font-extrabold uppercase tracking-wider">Pending Doctor / Consultation Fees</h4>
+                  </div>
+                  <div className="max-h-[150px] overflow-y-auto space-y-2 pr-1 scrollbar-thin scrollbar-thumb-amber-500/30">
+                    {pendingInvoices.map(inv => {
+                      const drName = inv.doctorId?.fullName || inv.appointmentId?.doctorId?.fullName || 'Doctor';
+                      return (
+                        <div key={inv._id} className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between gap-3 text-amber-900 dark:text-amber-200">
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold">Consultation Fee Pending: Dr. {drName}</p>
+                            <p className="text-[10px] text-amber-700/80 dark:text-amber-450 mt-0.5">Please pay doctor fees of ₹{inv.dueAmount || inv.totalAmount} to access EMR consultation records.</p>
+                          </div>
+                          <Link
+                            to={`/billing/${inv._id}/checkout`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="px-3.5 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-[10px] shrink-0 transition"
+                          >
+                            Pay Fees
+                          </Link>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+
             {filteredAppts.length > 0 ? (
               filteredAppts.map(apt => {
                 const isCancelled = apt.status?.toLowerCase() === 'cancelled';
                 const isCompleted = apt.status?.toLowerCase() === 'completed';
+                const relatedInvoice = (invoices || []).find(
+                  (inv) =>
+                    String(inv.appointmentId?._id || inv.appointmentId) === String(apt._id) ||
+                    String(inv.consultationId?._id || inv.consultationId) === String(apt.consultationId?._id || apt.consultationId)
+                );
+                const isPaid = !relatedInvoice || relatedInvoice.paymentStatus === 'paid';
+
                 const apptDate = apt.appointmentDate ? new Date(apt.appointmentDate) : null;
                 const dayNum = apptDate?.toLocaleDateString('en-IN', { day: '2-digit' });
                 const monthYear = apptDate?.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }) || '';
@@ -263,12 +306,13 @@ export default function Appointments({
                 return (
                   <div
                     key={apt._id}
+                    onClick={() => setSelectedApptDetails(apt)}
                     className={`
                       p-5 rounded-2xl border
                       bg-white dark:bg-navy-800
                       border-slate-200 dark:border-white/[0.08]
                       hover:border-aura-400 dark:hover:border-aura-500/50
-                      hover:shadow-sm transition-all duration-150
+                      hover:shadow-sm transition-all duration-150 cursor-pointer
                       grid grid-cols-1 md:grid-cols-[110px_minmax(180px,_1fr)_200px_140px] gap-5 items-start md:items-center
                       ${isCancelled ? 'opacity-70' : ''}
                     `}
@@ -304,6 +348,14 @@ export default function Appointments({
                           }`}>
                           {apt.status ? apt.status.toUpperCase() : 'UPCOMING'}
                         </span>
+                        {isCompleted && (
+                          <span className={`inline-block ml-2 px-2.5 py-0.5 rounded-lg text-[9px] font-bold uppercase tracking-wider mb-2 border ${isPaid
+                              ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/10'
+                              : 'bg-amber-500/10 text-amber-500 border-amber-500/10'
+                            }`}>
+                            {isPaid ? 'PAID' : 'PAYMENT PENDING'}
+                          </span>
+                        )}
 
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <h4 className="text-sm font-bold text-slate-900 dark:text-white">Dr. {apt.doctorId?.fullName || 'Unknown Doctor'}</h4>
@@ -333,7 +385,7 @@ export default function Appointments({
                         <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 mt-0.5 truncate max-w-[180px]">{apt.reasonForVisit || 'Regular Checkup'}</p>
                       </div>
                       <button
-                        onClick={() => alert(`Appointment Details:\nID: ${apptId}\nDoctor: Dr. ${apt.doctorId?.fullName}\nReason: ${apt.reasonForVisit || 'Regular Checkup'}\nTime: ${timeString}\nDate: ${apptDate?.toDateString()}`)}
+                        onClick={(e) => { e.stopPropagation(); setSelectedApptDetails(apt); }}
                         className="inline-flex items-center gap-1.5 text-[11px] font-bold text-aura-500 dark:text-aura-400 hover:underline mt-1 self-start"
                       >
                         <Eye size={12} />
@@ -346,38 +398,43 @@ export default function Appointments({
                       {isCompleted ? (
                         <>
                           {(() => {
-                            const relatedInvoice = (invoices || []).find(
-                              (inv) =>
-                                String(inv.appointmentId?._id || inv.appointmentId) === String(apt._id) ||
-                                String(inv.consultationId?._id || inv.consultationId) === String(apt.consultationId?._id || apt.consultationId)
-                            );
-                            const isPaid = relatedInvoice?.paymentStatus === 'paid';
                             const consultationId = apt.consultationId?._id || apt.consultationId || relatedInvoice?.consultationId?._id || relatedInvoice?.consultationId;
 
                             return (
                               <>
-                                {!isPaid && relatedInvoice ? (
+                                {!isPaid && relatedInvoice && (
                                   <Link
                                     to={`/billing/${relatedInvoice._id}/checkout`}
+                                    onClick={(e) => e.stopPropagation()}
                                     className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white transition text-center"
                                   >
                                     <CreditCard size={12} />
-                                    Pay Appointment fees
+                                    Pay Doctor Fees
                                   </Link>
-                                ) : (
-                                  <div className="w-full text-center py-1.5 px-3 rounded-xl text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                                    Fees Paid
-                                  </div>
                                 )}
 
                                 {consultationId && (
-                                  <Link
-                                    to={`/consultations/${consultationId}`}
-                                    className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-aura-600 dark:bg-aura-500 text-white hover:bg-aura-700 dark:hover:bg-aura-600 transition text-center"
-                                  >
-                                    <Eye size={12} />
-                                    View Consultation
-                                  </Link>
+                                  isPaid ? (
+                                    <Link
+                                      to={`/consultations/${consultationId}`}
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-aura-600 dark:bg-aura-500 text-white hover:bg-aura-700 dark:hover:bg-aura-600 transition text-center"
+                                    >
+                                      <Eye size={12} />
+                                      View Consultation
+                                    </Link>
+                                  ) : (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        alert('Please pay the doctor fees first to access your consultation details.');
+                                      }}
+                                      className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-slate-800 border border-white/[0.05] text-slate-500 hover:text-slate-400 transition text-center"
+                                    >
+                                      <Eye size={12} />
+                                      View Consultation
+                                    </button>
+                                  )
                                 )}
                               </>
                             );
@@ -387,7 +444,7 @@ export default function Appointments({
                         <>
                           {!isCancelled && (
                             <button
-                              onClick={() => alert('To reschedule, please cancel this slot and book a new one using the Symptom Checker.')}
+                              onClick={(e) => { e.stopPropagation(); setReschedulingAppt(apt); }}
                               className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-aura-600 dark:bg-aura-500 text-white hover:bg-aura-700 dark:hover:bg-aura-600 transition"
                             >
                               <CalendarPlus size={12} />
@@ -397,29 +454,17 @@ export default function Appointments({
 
                           {!isCancelled && (
                             <button
-                              onClick={async () => {
-                                if (window.confirm('Are you sure you want to cancel this appointment?')) {
-                                  setCancellingApptId(apt._id);
-                                  try {
-                                    await appointmentApi.cancelAppointment(apt._id, { reason: 'Cancelled by patient' });
-                                    loadPortal(false);
-                                  } catch (err) {
-                                    alert(err.response?.data?.message || 'Failed to cancel appointment');
-                                  } finally {
-                                    setCancellingApptId(null);
-                                  }
-                                }
-                              }}
-                              disabled={cancellingApptId === apt._id}
+                              onClick={(e) => { e.stopPropagation(); setCancellingAppt(apt); }}
                               className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 text-slate-700 dark:text-slate-300 transition"
                             >
-                              {cancellingApptId === apt._id ? <RotateCcw size={12} className="animate-spin" /> : <XCircle size={12} />}
+                              <XCircle size={12} />
                               Cancel
                             </button>
                           )}
 
                           <button
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               const event = {
                                 title: `Appt with Dr. ${apt.doctorId?.fullName || 'Doctor'}`,
                                 date: apt.appointmentDate,
@@ -557,7 +602,17 @@ export default function Appointments({
               <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Can't make it to your appointment? Reschedule anytime, hassle-free.</p>
             </div>
           </div>
-          <button onClick={() => alert('To reschedule, please cancel your existing slot and book a new one.')} className="block text-center w-full py-2.5 rounded-xl text-xs font-bold border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 text-slate-700 dark:text-slate-300 transition">Reschedule Appointment</button>
+          <button
+            onClick={() => {
+              // Open reschedule modal for the first upcoming appointment
+              const upcoming = appointments.find(a => a.status !== 'cancelled' && a.status !== 'completed');
+              if (upcoming) setReschedulingAppt(upcoming);
+              else alert('No upcoming appointments to reschedule.');
+            }}
+            className="block text-center w-full py-2.5 rounded-xl text-xs font-bold border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 text-slate-700 dark:text-slate-300 transition"
+          >
+            Reschedule Appointment
+          </button>
         </div>
 
         {/* Clinic Info */}
@@ -595,5 +650,35 @@ export default function Appointments({
         )}
       </div>
     </div>
+
+    {reschedulingAppt && (
+      <RescheduleModal
+        appointment={reschedulingAppt}
+        appointmentApi={appointmentApi}
+        onClose={() => setReschedulingAppt(null)}
+        onSuccess={() => {
+          setReschedulingAppt(null);
+          loadPortal(false);
+        }}
+      />
+    )}
+    {cancellingAppt && (
+      <CancelConfirmDialog
+        appointment={cancellingAppt}
+        appointmentApi={appointmentApi}
+        onClose={() => setCancellingAppt(null)}
+        onSuccess={() => {
+          setCancellingAppt(null);
+          loadPortal(false);
+        }}
+      />
+    )}
+    {selectedApptDetails && (
+      <AppointmentDetailsModal
+        appointment={selectedApptDetails}
+        onClose={() => setSelectedApptDetails(null)}
+      />
+    )}
+    </>
   );
 }

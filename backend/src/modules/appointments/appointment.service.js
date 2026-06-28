@@ -783,6 +783,7 @@ const updateAppointmentStatus = async ({ requester, appointmentId, payload, requ
     requestedClinicId,
     populateDetails: true
   });
+  
   const previousStatus = appointment.status;
   const nextStatuses = APPOINTMENT_STATUS_TRANSITIONS[appointment.status] || [];
 
@@ -876,6 +877,19 @@ const cancelAppointment = async ({ requester, appointmentId, payload, requestedC
     clinicId,
     populateDetails: true
   });
+
+  try {
+    const { sendAppointmentCancelNotifications } = require('../notifications/notification.service');
+    await sendAppointmentCancelNotifications({
+      appointment: updatedAppt,
+      patient: updatedAppt.patientId,
+      doctor: updatedAppt.doctorId,
+      actorUserId: requester._id
+    });
+  } catch (err) {
+    // best-effort
+  }
+
   return resolveAppointmentDoctorImage(updatedAppt);
 };
 
@@ -994,19 +1008,9 @@ const rescheduleAppointment = async ({ requester, appointmentId, payload, reques
   });
 
   try {
-    const {
-      scheduleAppointmentReminderIntent,
-      sendAppointmentBookingNotifications
-    } = require('../notifications/notification.service');
-
-    await scheduleAppointmentReminderIntent({
-      appointment: rescheduledAppt,
-      patient: rescheduledAppt?.patientId || appointment.patientId,
-      doctor: rescheduledAppt?.doctorId || doctor,
-      actorUserId: requester._id
-    });
-
-    await sendAppointmentBookingNotifications({
+    const { sendAppointmentRescheduleNotifications } = require('../notifications/notification.service');
+    await sendAppointmentRescheduleNotifications({
+      oldAppointment: appointment,
       appointment: rescheduledAppt,
       patient: rescheduledAppt?.patientId || appointment.patientId,
       doctor: rescheduledAppt?.doctorId || doctor,

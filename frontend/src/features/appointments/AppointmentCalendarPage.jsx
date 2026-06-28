@@ -43,10 +43,16 @@ const getTodayStr = (d = new Date()) => {
   return `${year}-${month}-${day}`;
 };
 
+import ReceptionistAppointmentsPage from './ReceptionistAppointmentsPage';
+
 const AppointmentCalendarPage = () => {
   const { user } = useAuth();
   const isDoctor = user?.role === ROLES.DOCTOR;
   const navigate = useNavigate();
+
+  if (user?.role === ROLES.RECEPTIONIST) {
+    return <ReceptionistAppointmentsPage />;
+  }
 
   // Selected date & doctor filters
   const [selectedDate, setSelectedDate] = useState(new Date());

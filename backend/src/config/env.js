@@ -28,6 +28,16 @@ const envSchema = z.object({
   TWILIO_AUTH_TOKEN: z.string().optional(),
   TWILIO_PHONE_NUMBER: z.string().optional(),
   TWILIO_WHATSAPP_NUMBER: z.string().optional(),
+  EMAIL_HOST: z.string().optional(),
+  EMAIL_PORT: z.coerce.number().int().positive().optional(),
+  EMAIL_SECURE: z.preprocess((val) => {
+    if (val === 'true') return true;
+    if (val === 'false') return false;
+    return val;
+  }, z.boolean().optional()),
+  EMAIL_USER: z.string().optional(),
+  EMAIL_PASS: z.string().optional(),
+  EMAIL_FROM: z.string().optional(),
   RAZORPAY_KEY_ID: z.string().optional(),
   RAZORPAY_KEY_SECRET: z.string().optional(),
   ENABLE_MOCK_NOTIFICATIONS: z.preprocess((value) => {
@@ -93,6 +103,12 @@ const env = {
   twilioAuthToken: parsedEnv.TWILIO_AUTH_TOKEN,
   twilioPhoneNumber: parsedEnv.TWILIO_PHONE_NUMBER,
   twilioWhatsappNumber: parsedEnv.TWILIO_WHATSAPP_NUMBER,
+  emailHost: parsedEnv.EMAIL_HOST,
+  emailPort: parsedEnv.EMAIL_PORT,
+  emailSecure: parsedEnv.EMAIL_SECURE,
+  emailUser: parsedEnv.EMAIL_USER,
+  emailPass: parsedEnv.EMAIL_PASS,
+  emailFrom: parsedEnv.EMAIL_FROM,
   razorpayKeyId: parsedEnv.RAZORPAY_KEY_ID,
   razorpayKeySecret: parsedEnv.RAZORPAY_KEY_SECRET,
   isDevelopment: parsedEnv.NODE_ENV === 'development',

@@ -1,4 +1,5 @@
 const twilio = require('twilio');
+const nodemailer = require('nodemailer');
 const { env } = require('../../config/env');
 const { logger } = require('../../common/utils/logger');
 
@@ -47,23 +48,68 @@ const consoleProvider = {
   }
 };
 
-const emailPlaceholderProvider = {
+const emailProvider = {
   name: 'email',
   async send(payload) {
-    // eslint-disable-next-line no-console
-    console.info('[notification:email-placeholder]', {
-      subject: payload.subject || '',
-      recipient: payload.recipient,
-      body: payload.body
-    });
+    if (!env.emailHost || !env.emailUser || !env.emailPass) {
+      logger.warn('[notification:email] Missing SMTP credentials (EMAIL_HOST, EMAIL_USER, EMAIL_PASS), falling back to console log.');
+      // eslint-disable-next-line no-console
+      console.info('[notification:email-fallback]', {
+        subject: payload.subject || '',
+        recipient: payload.recipient,
+        body: payload.body
+      });
+      return buildProviderResult('email', payload.channel);
+    }
 
-    return buildProviderResult('email', payload.channel);
+    try {
+      const transporter = nodemailer.createTransport({
+        host: env.emailHost,
+        port: env.emailPort || 587,
+        secure: !!env.emailSecure,
+        auth: {
+          user: env.emailUser,
+          pass: env.emailPass
+        }
+      });
+
+      const recipientEmail = typeof payload.recipient === 'object' ? payload.recipient.email : payload.recipient;
+      if (!recipientEmail) {
+        throw new Error('Recipient email is missing.');
+      }
+
+      const mailOptions = {
+        from: env.emailFrom || `"AI-CMS Clinic" <noreply@aicms.local>`,
+        to: recipientEmail,
+        subject: payload.subject || 'Notification from AI-CMS',
+        text: payload.body,
+        html: payload.body.replace(/\n/g, '<br>')
+      };
+
+      const info = await transporter.sendMail(mailOptions);
+      logger.info(`[notification:email] Email sent successfully: MessageId=${info.messageId}`);
+
+      return {
+        status: 'sent',
+        provider: 'email',
+        providerMessageId: info.messageId,
+        channel: payload.channel
+      };
+    } catch (error) {
+      logger.error('[notification:email] Failed to send email via SMTP', error);
+      throw error;
+    }
   }
 };
 
 const twilioProvider = {
   name: 'twilio',
   async send(payload) {
+    if (env.isDevelopment) {
+      logger.info('[notification:twilio] Twilio provider is disconnected in development. Mocking send.');
+      return mockProvider.send(payload);
+    }
+
     if (!env.twilioAccountSid || !env.twilioAuthToken || !env.twilioPhoneNumber) {
       logger.warn('[notification:twilio] Missing Twilio configuration, falling back to mock.');
       return mockProvider.send(payload);
@@ -113,7 +159,7 @@ const twilioProvider = {
 const providers = {
   mock: mockProvider,
   console: consoleProvider,
-  email: emailPlaceholderProvider,
+  email: emailProvider,
   twilio: twilioProvider
 };
 

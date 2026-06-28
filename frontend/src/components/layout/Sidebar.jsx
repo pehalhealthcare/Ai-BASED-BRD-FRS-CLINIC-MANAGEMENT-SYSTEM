@@ -5,7 +5,7 @@ import {
   LayoutGrid, UserCircle, CreditCard, ChevronRight,
   Building2, UserCog, Sun, Moon, LogOut, ClipboardList,
   Activity, Syringe, FileText, RotateCcw, HelpCircle, Headphones,
-  TrendingUp
+  TrendingUp, Plus, UserX
 } from 'lucide-react';
 
 import { NAV_ITEMS, ROUTES } from '../../constants/routes';
@@ -93,6 +93,178 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout }) => {
     }
     return location.pathname === item.path || location.pathname.startsWith(item.path + '/');
   };
+
+  if (role === 'RECEPTIONIST') {
+    const receptionistNavItems = [
+      { label: "Today's Appointments", path: ROUTES.dashboard, icon: <Calendar size={18} />, count: null },
+      { label: 'Waiting Patients', path: `${ROUTES.patients}?status=waiting`, icon: <Users size={18} />, count: 8 },
+      { label: 'Checked-In Patients', path: `${ROUTES.patients}?status=checked-in`, icon: <Users size={18} />, count: 5 },
+      { label: 'Walk-In Patients', path: `${ROUTES.patients}?type=walk-in`, icon: <Users size={18} />, count: 3 },
+      { label: 'Doctors Available Today', path: ROUTES.clinicSettings, icon: <Stethoscope size={18} />, count: null },
+      { label: 'Doctors On Leave', path: '/admin/leaves-review', icon: <UserX size={18} />, count: 2 },
+      { label: 'Upcoming Appointments', path: ROUTES.appointments, icon: <Calendar size={18} />, count: null },
+      { label: 'Pending Bills', path: ROUTES.billing, icon: <CreditCard size={18} />, count: 7 },
+      { label: 'Pending Reports', path: ROUTES.labOrders, icon: <FileText size={18} />, count: 4 },
+      { label: 'Notifications', path: '/dashboard/notifications', icon: <Bell size={18} />, count: 12 },
+      { label: "Today's Revenue", path: '/dashboard/revenue', icon: <TrendingUp size={18} />, count: null },
+    ];
+
+    const isReceptionistItemActive = (item) => {
+      if (item.path === ROUTES.dashboard) {
+        return location.pathname === ROUTES.dashboard || location.pathname === '/dashboard';
+      }
+      return location.pathname === item.path || location.pathname.startsWith(item.path + '?') || location.pathname.startsWith(item.path + '/');
+    };
+
+    return (
+      <>
+        <aside
+          className={`
+            fixed inset-y-0 left-0 z-40 flex flex-col w-[270px]
+            bg-[#0C1222] border-r border-white/[0.06]
+            transition-transform duration-300 ease-spring
+            lg:sticky lg:top-0 lg:h-screen lg:translate-x-0
+            ${open ? 'translate-x-0' : '-translate-x-full'}
+          `}
+        >
+          {/* Brand Header */}
+          <div className="px-5 pt-6 pb-4 shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center shadow-[0_0_15px_rgba(20,184,166,0.1)] shrink-0">
+                <div className="w-6 h-6 rounded-lg bg-teal-500 flex items-center justify-center text-white font-bold text-lg">
+                  +
+                </div>
+              </div>
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-teal-400">AI-CMS</p>
+                <p className="text-sm font-semibold text-white leading-tight">
+                  Health Clinic
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* User Profile info */}
+          <div className="px-5 py-4 border-b border-white/[0.05] shrink-0">
+            <div className="flex items-center gap-3 flex-row">
+              <Avatar name={user?.name || "Priya Sharma"} size="md" className="shrink-0 ring-2 ring-teal-500/20" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-white truncate">{user?.name || 'Priya Sharma'}</p>
+                <p className="text-[11px] text-white/50 leading-tight">Receptionist</p>
+                <div className="flex items-center gap-1.5 mt-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 border border-emerald-400/20" />
+                  <span className="text-xs text-emerald-400 font-medium">Online</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Main Menu Nav Section */}
+          <div className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+            <div className="px-3 mb-2">
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/30">MAIN MENU</p>
+            </div>
+            {receptionistNavItems.map((item, idx) => {
+              const active = isReceptionistItemActive(item);
+              return (
+                <NavLink
+                  key={idx}
+                  to={item.path}
+                  onClick={onNavigate}
+                  className={() =>
+                    `flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 ${
+                      active
+                        ? 'bg-teal-500/10 text-teal-400 border border-teal-500/20'
+                        : 'text-white/60 hover:text-white hover:bg-white/[0.04]'
+                    }`
+                  }
+                >
+                  <div className="flex items-center gap-3">
+                    <span className={`shrink-0 ${active ? 'text-teal-400' : 'text-white/40'}`}>
+                      {item.icon}
+                    </span>
+                    <span className="text-[13px]">{item.label}</span>
+                  </div>
+                  {item.count !== null && item.count !== undefined && (
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      item.label === 'Doctors On Leave' 
+                        ? 'bg-amber-500/20 text-amber-400' 
+                        : item.label === 'Waiting Patients'
+                        ? 'bg-indigo-500/20 text-indigo-400'
+                        : item.label === 'Checked-In Patients'
+                        ? 'bg-emerald-500/20 text-emerald-400'
+                        : item.label === 'Notifications'
+                        ? 'bg-red-500/20 text-red-400'
+                        : 'bg-white/10 text-white/60'
+                    }`}>
+                      {item.count}
+                    </span>
+                  )}
+                </NavLink>
+              );
+            })}
+
+            {/* Quick Actions */}
+            <div className="pt-4 border-t border-white/[0.05] mt-4 space-y-2">
+              <div className="px-3 mb-2">
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/30">Quick Actions</p>
+              </div>
+              <NavLink
+                to="/patients/new"
+                onClick={onNavigate}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-600 text-white text-xs font-semibold shadow-md transition-all"
+              >
+                <Plus size={14} />
+                Add Walk-In Patient
+              </NavLink>
+              <NavLink
+                to="/appointments?view=calendar"
+                onClick={onNavigate}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-white/10 hover:bg-white/5 text-white/80 hover:text-white text-xs font-semibold transition-all"
+              >
+                <Calendar size={14} />
+                Appointments Calendar
+              </NavLink>
+              <NavLink
+                to="/billing"
+                onClick={onNavigate}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-white/10 hover:bg-white/5 text-white/80 hover:text-white text-xs font-semibold transition-all"
+              >
+                <CreditCard size={14} />
+                Billing
+              </NavLink>
+            </div>
+          </div>
+
+          {/* Footer & Toggle Theme */}
+          <div className="px-3 pb-4 pt-2 shrink-0 space-y-2 border-t border-white/[0.05]">
+            <button
+              onClick={toggleTheme}
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-white/40 hover:text-white hover:bg-white/[0.04] transition-all duration-150"
+            >
+              {isDark ? <Sun size={14} className="text-amber-400" /> : <Moon size={14} className="text-indigo-400" />}
+              <span>{isDark ? 'Light Mode' : 'Dark Mode'}</span>
+            </button>
+            <div className="flex items-center justify-between px-3">
+              <div className="text-[10px] text-white/30">
+                <p>AI-CMS Clinic</p>
+                <p>© 2026 All rights reserved</p>
+              </div>
+              {onLogout && (
+                <button
+                  onClick={onLogout}
+                  className="p-1.5 rounded-lg text-white/30 hover:text-rose-400 hover:bg-rose-500/10 transition"
+                  title="Logout"
+                >
+                  <LogOut size={15} />
+                </button>
+              )}
+            </div>
+          </div>
+        </aside>
+      </>
+    );
+  }
 
   return (
     <>
