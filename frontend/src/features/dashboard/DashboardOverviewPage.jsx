@@ -186,6 +186,24 @@ const DashboardOverviewPage = () => {
         ))}
       />
 
+      {isDoctor && doctorProfile && !(doctorProfile.bankAccount?.accountNumber && doctorProfile.bankAccount?.ifscCode && doctorProfile.bankAccount?.bankName && doctorProfile.bankAccount?.accountHolderName && doctorProfile.bankAccount?.passbookCopy) && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/50 p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 text-amber-900 dark:text-amber-200 dark:bg-amber-950/20 dark:border-amber-900/30">
+          <div className="flex items-start md:items-center gap-3">
+            <span className="text-xl shrink-0">⚠️</span>
+            <div>
+              <p className="text-sm font-bold">Bank Account Details Required</p>
+              <p className="text-xs text-stone-600 dark:text-slate-400 mt-0.5">Please update your bank account details in your profile settings to get paid. Patient payments will still be recorded and held in your earnings balance.</p>
+            </div>
+          </div>
+          <Link
+            to="/doctor/profile"
+            className="inline-flex shrink-0 items-center justify-center rounded-xl bg-amber-600 px-4 py-2 text-xs font-bold text-white hover:bg-amber-700 transition"
+          >
+            Add Bank Details
+          </Link>
+        </div>
+      )}
+
       <DateRangeFilter value={filters} onApply={setFilters} isLoading={loading} />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">

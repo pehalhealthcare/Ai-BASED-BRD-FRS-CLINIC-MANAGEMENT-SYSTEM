@@ -368,9 +368,9 @@ const PatientPortalPage = () => {
       setPaymentMethods(patient.paymentMethods || []);
 
       const [apptRes, rxRes, invRes, notifRes, clinicsRes, paymentHistoryRes] = await Promise.all([
-        appointmentApi.getAppointments({ limit: 10 }),
-        prescriptionApi.getByPatient(patient._id, { status: 'finalized', limit: 10 }),
-        billingApi.getPatientInvoices(patient._id, { limit: 10 }),
+        appointmentApi.getAppointments({ limit: 100 }),
+        prescriptionApi.getByPatient(patient._id, { status: 'finalized', limit: 100 }),
+        billingApi.getPatientInvoices(patient._id, { limit: 100 }),
         patientApi.notifications(patient._id).catch(() => ({ data: { notificationLogs: [] } })),
         clinicApi.list().catch(() => ({ data: { clinics: [] } })),
         paymentApi.getHistory(patient._id).catch(() => ({ data: { payments: [] } }))
@@ -577,6 +577,7 @@ const PatientPortalPage = () => {
       await appointmentApi.createAppointment({
         patientId: profile._id,
         doctorId: bookingDoctor._id,
+        clinicId: bookingDoctor?.clinic?._id || bookingDoctor?.clinicId || undefined,
         appointmentDate: bookingDate,
         startTime: selectedSlot,
         durationMinutes: 15,

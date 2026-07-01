@@ -238,10 +238,15 @@ const getDoctorForRequester = async ({ requester, clinicId }) => {
 };
 
 const ensurePatientAndDoctor = async ({ clinicId, patientId, doctorId }) => {
-  const [patient, doctor] = await Promise.all([
-    patientRepository.findPatientByIdAndClinic({ patientId, clinicId }),
-    doctorRepository.findDoctorByIdAndClinic({ doctorId, clinicId })
-  ]);
+  const patient = await patientRepository.findPatientByIdAndClinic({ patientId, clinicId });
+  
+  // Support patients booking cross-clinic or checking doctor in their assigned clinics directly
+  let doctor = await doctorRepository.findDoctorByIdAndClinic({ doctorId, clinicId });
+  if (!doctor) {
+    // If not found in patient's primary clinic, search by doctor ID generally (doctors can work across multiple clinics)
+    const Doctor = require('../doctors/doctor.model');
+    doctor = await Doctor.findById(doctorId);
+  }
 
   if (!patient || !patient.isActive) {
     throw new AppError('Patient not found.', HTTP_STATUS.NOT_FOUND);
@@ -255,14 +260,11 @@ const ensurePatientAndDoctor = async ({ clinicId, patientId, doctorId }) => {
     throw new AppError('Doctor is inactive and cannot accept appointments.', HTTP_STATUS.BAD_REQUEST);
   }
 
-  const hasBankDetails = doctor.bankAccount?.accountNumber &&doctor.bankAccount?.ifscCode &&doctor.bankAccount?.bankName &&doctor.bankAccount?.accountHolderName &&doctor.bankAccount?.passbookCopy;
-
-
-  console.log(hasBankDetails);
-
-  if (!hasBankDetails) {
-    throw new AppError("This doctor has not completed their bank account setup or passbook upload, and cannot accept appointments at this time.", HTTP_STATUS.BAD_REQUEST);
-  }
+  // const hasBankDetails = doctor.bankAccount?.accountNumber &&doctor.bankAccount?.ifscCode &&doctor.bankAccount?.bankName &&doctor.bankAccount?.accountHolderName &&doctor.bankAccount?.passbookCopy;
+  // console.log(hasBankDetails);
+  // if (!hasBankDetails) {
+  //   throw new AppError("This doctor has not completed their bank account setup or passbook upload, and cannot accept appointments at this time.", HTTP_STATUS.BAD_REQUEST);
+  // }
 
   return { patient, doctor };
 };
@@ -470,6 +472,15 @@ const createAppointment = async ({ requester, payload, requestedClinicId = null,
     appointmentType: payload.appointmentType,
     patientAppointmentHistory
   });
+  const crypto = require('crypto');
+  const checkinToken = crypto.randomUUID();
+  
+  // Calculate expiration time (appointment date + start time)
+  const apptDate = normalizeDate(slot.appointmentDate);
+  const [startHour, startMin] = payload.startTime.split(':').map(Number);
+  const checkinExpiresAt = new Date(apptDate);
+  checkinExpiresAt.setHours(startHour, startMin, 0, 0);
+
   const appointment = await appointmentRepository.createAppointment({
     clinicId,
     patientId: patient._id,
@@ -487,7 +498,9 @@ const createAppointment = async ({ requester, payload, requestedClinicId = null,
     noShowRisk,
     notes: payload.notes || '',
     isEarlyBooking: payload.isEarlyBooking || false,
-    earlyBookingReason: payload.earlyBookingReason || 'none'
+    earlyBookingReason: payload.earlyBookingReason || 'none',
+    checkin_token_uuid: checkinToken,
+    checkinTokenExpiresAt: checkinExpiresAt
   });
 
   if (predictionResponseData) {
@@ -803,6 +816,35 @@ const updateAppointmentStatus = async ({ requester, appointmentId, payload, requ
     }
   }
 
+  if (payload.status === APPOINTMENT_STATUSES.CHECKED_IN) {
+    if (appointment.appointmentType === 'teleconsultation') {
+      const now = new Date();
+      const [startH, startM] = appointment.startTime.split(':').map(Number);
+      const apptStartTime = new Date(appointment.appointmentDate);
+      apptStartTime.setHours(startH, startM, 0, 0);
+
+      const diffMs = apptStartTime.getTime() - now.getTime();
+      const diffMins = diffMs / (1000 * 60);
+
+      if (diffMins > 10) {
+        throw new AppError('Online check-in is only allowed 10 minutes before the consultation start time.', HTTP_STATUS.BAD_REQUEST);
+      }
+    } else {
+      const AppointmentModel = require('./appointment.model');
+      const tokenCount = await AppointmentModel.countDocuments({
+        clinicId,
+        doctorId: appointment.doctorId?._id || appointment.doctorId,
+        appointmentDate: appointment.appointmentDate,
+        status: APPOINTMENT_STATUSES.CHECKED_IN
+      });
+      const tokenNumber = tokenCount + 1;
+      appointment.meta = {
+        ...(appointment.meta || {}),
+        tokenNumber
+      };
+    }
+  }
+
   appointment.status = payload.status;
   appointment.notes = appendNote(appointment.notes, payload.note);
   await appointment.save();
@@ -849,13 +891,19 @@ const cancelAppointment = async ({ requester, appointmentId, payload, requestedC
     requestedClinicId,
     populateDetails: false
   });
+  if (['completed', 'cancelled', 'patient_cancelled', 'clinic_cancelled'].includes(appointment.status)) {
+    throw new AppError('This appointment is already cancelled or completed and cannot be cancelled.', HTTP_STATUS.BAD_REQUEST);
+  }
+
   const nextStatuses = APPOINTMENT_STATUS_TRANSITIONS[appointment.status] || [];
 
-  if (!nextStatuses.includes(APPOINTMENT_STATUSES.CANCELLED)) {
+  if (!nextStatuses.includes(APPOINTMENT_STATUSES.CANCELLED) &&
+      !nextStatuses.includes(APPOINTMENT_STATUSES.PATIENT_CANCELLED) &&
+      !nextStatuses.includes(APPOINTMENT_STATUSES.CLINIC_CANCELLED)) {
     throw new AppError('Only booked or confirmed appointments can be cancelled.', HTTP_STATUS.BAD_REQUEST);
   }
 
-  appointment.status = APPOINTMENT_STATUSES.CANCELLED;
+  appointment.status = requester.role === ROLES.PATIENT ? APPOINTMENT_STATUSES.PATIENT_CANCELLED : APPOINTMENT_STATUSES.CLINIC_CANCELLED;
   appointment.cancellationReason = payload.cancellationReason;
   await appointment.save();
 
@@ -902,8 +950,12 @@ const rescheduleAppointment = async ({ requester, appointmentId, payload, reques
   });
   const nextStatuses = APPOINTMENT_STATUS_TRANSITIONS[appointment.status] || [];
 
-  if (!nextStatuses.includes(APPOINTMENT_STATUSES.RESCHEDULED)) {
-    const isCancelledDueToLeave = appointment.status === APPOINTMENT_STATUSES.CANCELLED &&
+  if (!nextStatuses.includes(APPOINTMENT_STATUSES.RESCHEDULED) &&
+      !nextStatuses.includes(APPOINTMENT_STATUSES.PATIENT_RESCHEDULED) &&
+      !nextStatuses.includes(APPOINTMENT_STATUSES.CLINIC_RESCHEDULED)) {
+    const isCancelledDueToLeave = (appointment.status === APPOINTMENT_STATUSES.CANCELLED ||
+                                   appointment.status === APPOINTMENT_STATUSES.PATIENT_CANCELLED ||
+                                   appointment.status === APPOINTMENT_STATUSES.CLINIC_CANCELLED) &&
       appointment.cancellationReason &&
       appointment.cancellationReason.includes('Doctor on leave');
 
@@ -983,7 +1035,7 @@ const rescheduleAppointment = async ({ requester, appointmentId, payload, reques
     );
   }
 
-  appointment.status = APPOINTMENT_STATUSES.RESCHEDULED;
+  appointment.status = requester.role === ROLES.PATIENT ? APPOINTMENT_STATUSES.PATIENT_RESCHEDULED : APPOINTMENT_STATUSES.CLINIC_RESCHEDULED;
   appointment.notes = appendNote(appointment.notes, `Rescheduled to ${formatDate(slot.appointmentDate)} ${payload.startTime}. Reason: ${payload.reason}`);
   await appointment.save();
 
@@ -1138,6 +1190,90 @@ const verifyAppointmentPayment = async ({ requester, appointmentId, payload, req
   return resolveAppointmentDoctorImage(populated);
 };
 
+const scanCheckin = async ({ requester, token, requestedClinicId }) => {
+  const Appointment = require('./appointment.model');
+  const Clinic = require('../clinics/clinic.model');
+  const Doctor = require('../doctors/doctor.model');
+  const Patient = require('../patients/patient.model');
+
+  // Locate the appointment by checkin_token_uuid
+  const appointment = await Appointment.findOne({ checkin_token_uuid: token })
+    .populate('patientId')
+    .populate('doctorId')
+    .populate('clinicId');
+
+  if (!appointment) {
+    throw new AppError('Invalid or expired check-in token.', HTTP_STATUS.NOT_FOUND);
+  }
+
+  // Enforce clinic check: Only scan QR in the clinic's reception for which the appointment has been created
+  const receptionistClinicId = resolveClinicContext({ user: requester, requestedClinicId });
+  if (String(appointment.clinicId?._id || appointment.clinicId) !== String(receptionistClinicId)) {
+    throw new AppError('Check-in failed. This appointment belongs to another clinic and cannot be checked in here.', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  // Validate the appointment date is today (it only gets scanned when appointment is of that day)
+  const todayStr = new Date().toDateString();
+  const appointmentDateStr = new Date(appointment.appointmentDate).toDateString();
+  if (todayStr !== appointmentDateStr) {
+    throw new AppError('Check-in failed. This appointment is scheduled for another day.', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  // If already checked in, throw error or return details
+  if (appointment.status === APPOINTMENT_STATUSES.CHECKED_IN || appointment.status === APPOINTMENT_STATUSES.IN_CONSULTATION) {
+    return {
+      message: 'Already Checked In',
+      appointment: await resolveAppointmentDoctorImage(appointment)
+    };
+  }
+
+  // Generate queue-based token number: ClinicName-SpecialistFirstLetter-sequencenumber
+  const clinic = appointment.clinicId;
+  const doctor = appointment.doctorId;
+  const clinicCode = clinic?.name ? clinic.name.replace(/\s+/g, '') : 'Clinic';
+  const specLetter = doctor?.specialization ? doctor.specialization.trim().charAt(0).toUpperCase() : 'G';
+
+  // Count active checked-in or completed appointments for this doctor on today's date
+  const startOfDay = new Date();
+  startOfDay.setHours(0,0,0,0);
+  const endOfDay = new Date();
+  endOfDay.setHours(23,59,59,999);
+
+  const countToday = await Appointment.countDocuments({
+    clinicId: appointment.clinicId?._id || appointment.clinicId,
+    doctorId: appointment.doctorId?._id || appointment.doctorId,
+    appointmentDate: { $gte: startOfDay, $lte: endOfDay },
+    status: { $in: [APPOINTMENT_STATUSES.CHECKED_IN, APPOINTMENT_STATUSES.IN_CONSULTATION, APPOINTMENT_STATUSES.COMPLETED] }
+  });
+
+  const nextSeq = countToday + 1;
+  const tokenNumber = `${clinicCode}-${specLetter}-${nextSeq}`;
+
+  // Update room number - default to AB-101 if not present
+  const roomNumber = appointment.meta?.roomNumber || 'AB-101';
+
+  // Update appointment status to checked_in, save token and room in meta, and delete token to prevent duplicate scans
+  appointment.status = APPOINTMENT_STATUSES.CHECKED_IN;
+  appointment.checkin_token_uuid = ''; // delete checkin token from db immediately
+  appointment.meta = {
+    ...appointment.meta,
+    queueTokenNumber: tokenNumber,
+    tokenNumber,
+    roomNumber
+  };
+  await appointment.save();
+
+  return {
+    message: 'Check-in successful',
+    appointment: await resolveAppointmentDoctorImage(appointment),
+    patientName: appointment.patientId?.fullName || `${appointment.patientId?.firstName} ${appointment.patientId?.lastName}`,
+    doctorName: appointment.doctorId?.fullName,
+    clinicName: appointment.clinicId?.name,
+    roomNumber,
+    tokenNumber
+  };
+};
+
 module.exports = {
   createAppointment,
   listAppointments,
@@ -1148,5 +1284,6 @@ module.exports = {
   cancelAppointment,
   rescheduleAppointment,
   getQueueStatus,
-  verifyAppointmentPayment
+  verifyAppointmentPayment,
+  scanCheckin
 };

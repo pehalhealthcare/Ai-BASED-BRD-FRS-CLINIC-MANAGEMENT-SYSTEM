@@ -754,37 +754,20 @@ const PatientAppointmentsPage = () => {
   // RENDER CLINIC DETAILS DASHBOARD VIEW (when view === 'clinic')
   // ══════════════════════════════════════════════════════════════════
   if (view === 'clinic') {
-    // Merge database clinics with visual mock data
-    const mockNearest = [
-      { id: '1', name: 'AI-CMS Health Clinic', rating: '4.8', reviews: '128', dist: '0.8 km', type: 'Multi-specialty Clinic', specs: 'General, Cardiology, Pediatrics', img: 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=400&auto=format&fit=crop&q=60', isNearest: true, phone: '+91 98765 43210', email: 'info@aicmsclinic.com', web: 'www.aicmsclinic.com' },
-      { id: '2', name: 'CityCare Hospital', rating: '4.6', reviews: '240', dist: '1.2 km', type: 'Multi-specialty Hospital', specs: 'Cardiology, Orthopedics, Neurology', img: 'https://images.unsplash.com/photo-1587351021759-3e566b6af7cc?w=400&auto=format&fit=crop&q=60', phone: '+91 98765 43220', email: 'citycare@hospital.com', web: 'www.citycarehospital.com' },
-      { id: '3', name: 'MedPrime Clinic', rating: '4.5', reviews: '86', dist: '1.9 km', type: 'Specialty Clinic', specs: 'Dermatology, Gynecology', img: 'https://images.unsplash.com/photo-1629909613654-28e377c37b09?w=400&auto=format&fit=crop&q=60', phone: '+91 98765 43230', email: 'medprime@clinic.com', web: 'www.medprimeclinic.com' },
-      { id: '4', name: 'LifeLine Hospital', rating: '4.4', reviews: '312', dist: '2.4 km', type: 'Multi-specialty Hospital', specs: 'Emergency, Surgery, ICU', img: 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=400&auto=format&fit=crop&q=60', phone: '+91 98765 43240', email: 'lifeline@hospital.com', web: 'www.lifelinehospital.com' }
-    ];
-
-    const mockTopHospitals = [
-      { id: 'h1', name: 'Max Super Speciality Hospital', location: 'Sector 26, Gurgaon', type: 'Multi-specialty', status: '24x7 Emergency', img: 'https://images.unsplash.com/photo-1587351021759-3e566b6af7cc?w=400&auto=format&fit=crop&q=60', phone: '+91 98765 11111', email: 'max@hospital.com', web: 'www.maxhospital.com' },
-      { id: 'h2', name: 'Fortis Memorial Hospital', location: 'Sector 44, Gurgaon', type: 'Multi-specialty', status: '24x7 Emergency', img: 'https://images.unsplash.com/photo-1629909613654-28e377c37b09?w=400&auto=format&fit=crop&q=60', phone: '+91 98765 22222', email: 'fortis@hospital.com', web: 'www.fortishospital.com' },
-      { id: 'h3', name: 'Artemis Hospital', location: 'Sector 51, Gurgaon', type: 'Multi-specialty', status: '24x7 Emergency', img: 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=400&auto=format&fit=crop&q=60', phone: '+91 98765 33333', email: 'artemis@hospital.com', web: 'www.artemishospital.com' },
-      { id: 'h4', name: 'CK Birla Hospital', location: 'Sector 35, Gurgaon', type: 'Multi-specialty', status: '24x7 Emergency', img: 'https://images.unsplash.com/photo-1586015555751-63bb77f4322a?w=400&auto=format&fit=crop&q=60', phone: '+91 98765 44444', email: 'ckbirla@hospital.com', web: 'www.ckbirlahospital.com' }
-    ];
-
-    const displayClinics = dbClinics.length > 0 
-      ? dbClinics.map((c, i) => ({
-          id: c._id || String(i),
-          name: c.name,
-          rating: c?.rating || '4.7',
-          reviews: c?.reviews || '90',
-          dist: `${(0.8 + i * 0.4).toFixed(1)} km`,
-          type: 'AuraCare Clinic',
-          specs: 'General Consultation, Triage',
-          img: mockNearest[i % mockNearest.length].img,
-          isNearest: i === 0,
-          phone: c.phone || '+91 98765 43210',
-          email: c.email || 'info@auracare.com',
-          web: c.web || 'www.auracare.com'
-        }))
-      : mockNearest;
+    const displayClinics = dbClinics.map((c, i) => ({
+      id: c._id || String(i),
+      name: c.name,
+      rating: c?.rating || '4.7',
+      reviews: c?.reviews || '90',
+      dist: `${(0.8 + i * 0.4).toFixed(1)} km`,
+      type: 'AuraCare Clinic',
+      specs: 'General Consultation, Triage',
+      img: 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=400&auto=format&fit=crop&q=60',
+      isNearest: i === 0,
+      phone: c.phone || '+91 98765 43210',
+      email: c.email || 'info@auracare.com',
+      web: c.web || 'www.auracare.com'
+    }));
 
     // DETAILED CLINIC VIEW
     if (selectedClinic) {
@@ -1000,26 +983,15 @@ const PatientAppointmentsPage = () => {
               {/* Doctors Tab Content */}
               {activeClinicTab === 'doctors' && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {(clinicDoctors.length > 0
-                    ? clinicDoctors.map(doc => ({
-                        _id: doc._id,
-                        fullName: doc.fullName,
-                        specialization: doc.specialization || 'General Physician',
-                        experience: doc.experience || 5,
-                        rating: doc.rating || 4.8,
-                        slots: ['09:00 AM', '11:00 AM', '02:00 PM', '04:00 PM']
-                      }))
-                    : (dbClinics.length === 0 ? [
-                        { fullName: 'Rajeev Kumar', specialization: 'Cardiology', experience: 12, rating: 4.9, slots: ['09:30 AM', '11:00 AM'] },
-                        { fullName: 'Anita Desai', specialization: 'Pediatrics', experience: 10, rating: 4.8, slots: ['10:00 AM', '02:30 PM'] },
-                        { fullName: 'Sunita Gupta', specialization: 'Dermatology', experience: 8, rating: 4.7, slots: ['03:00 PM', '04:30 PM'] },
-                        { fullName: 'Vikram Malhotra', specialization: 'Orthopedics', experience: 15, rating: 4.9, slots: ['01:00 PM', '05:30 PM'] },
-                        { fullName: 'Meera Sen', specialization: 'Gynecology', experience: 11, rating: 4.8, slots: ['09:00 AM', '11:30 AM'] },
-                        { fullName: 'Amit Shah', specialization: 'General Physician', experience: 9, rating: 4.6, slots: ['10:30 AM', '12:00 PM'] },
-                        { fullName: 'Rohan Mehra', specialization: 'Diagnostics', experience: 7, rating: 4.5, slots: ['08:30 AM', '10:00 AM'] },
-                        { fullName: 'Pooja Bhatia', specialization: 'Physiotherapy', experience: 6, rating: 4.7, slots: ['02:00 PM', '06:00 PM'] }
-                      ] : [])
-                  ).map((doc, idx) => (
+                  {clinicDoctors.map((doc, idx) => ({
+                    ...doc,
+                    _id: doc._id || String(idx),
+                    fullName: doc.fullName,
+                    specialization: doc.specialization || 'General Physician',
+                    experience: doc.experience || 5,
+                    rating: doc.rating || 4.8,
+                    slots: ['09:00 AM', '11:00 AM', '02:00 PM', '04:00 PM']
+                  })).map((doc, idx) => (
                     <div key={doc._id || idx} className="p-4 rounded-2xl bg-[#060d18] border border-white/[0.06] flex items-center justify-between gap-4">
                       <div className="space-y-1">
                         <h4 className="text-xs font-bold text-white">Dr. {doc.fullName}</h4>
@@ -1281,63 +1253,30 @@ const PatientAppointmentsPage = () => {
               </div>
             </div>
 
-            {/* Nearest to You */}
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">Nearest to You</h3>
-                <button className="text-xs font-bold text-aura-500 hover:text-aura-600">View All</button>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                {displayClinics.map(c => (
-                  <div key={c.id} className="rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-navy-800 overflow-hidden flex flex-col justify-between hover:border-aura-400 transition-all duration-150">
-                    <div className="w-full h-24 bg-slate-100 dark:bg-navy-900 relative">
-                      <img src={c.img} alt={c.name} className="w-full h-full object-cover" />
-                      <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded text-[8px] font-bold bg-slate-900/80 text-white border border-white/10">{c.dist}</span>
-                    </div>
-                    <div className="p-3.5 space-y-2 flex-1 flex flex-col justify-between">
-                      <div>
-                        <div className="flex justify-between items-start gap-1">
-                          <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 line-clamp-1">{c.name}</h4>
-                          <span className="flex items-center gap-0.5 text-[9px] text-amber-500 shrink-0 font-bold"><Star size={10} fill="currentColor" />{c.rating}</span>
-                        </div>
-                        <p className="text-[10px] text-slate-400 mt-0.5">{c.type}</p>
-                        <p className="text-[9px] text-slate-500 mt-1 line-clamp-1">{c.specs}</p>
-                      </div>
-                      <button onClick={() => setSelectedClinic(c)}
-                        className="w-full mt-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 text-[10px] font-bold text-slate-700 dark:text-slate-300 transition text-center">
-                        View Details
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* In Your City */}
-            {dbClinics.length === 0 && (
+            {displayClinics.length > 0 ? (
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">In Your City (Top Hospitals)</h3>
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">Nearest to You</h3>
                   <button className="text-xs font-bold text-aura-500 hover:text-aura-600">View All</button>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                  {mockTopHospitals.map(h => (
-                    <div key={h.id} className="rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-navy-800 overflow-hidden flex flex-col justify-between hover:border-aura-400 transition-all duration-150">
-                      <div className="w-full h-24 bg-slate-100 dark:bg-navy-900">
-                        <img src={h.img} alt={h.name} className="w-full h-full object-cover" />
+                  {displayClinics.map(c => (
+                    <div key={c.id} className="rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-navy-800 overflow-hidden flex flex-col justify-between hover:border-aura-400 transition-all duration-150">
+                      <div className="w-full h-24 bg-slate-100 dark:bg-navy-900 relative">
+                        <img src={c.img} alt={c.name} className="w-full h-full object-cover" />
+                        <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded text-[8px] font-bold bg-slate-900/80 text-white border border-white/10">{c.dist}</span>
                       </div>
                       <div className="p-3.5 space-y-2 flex-1 flex flex-col justify-between">
                         <div>
-                          <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 line-clamp-1">{h.name}</h4>
-                          <p className="text-[9px] text-slate-400 mt-0.5">{h.location}</p>
-                          <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-                            <span className="px-1.5 py-0.5 rounded text-[8px] font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/10">{h.type}</span>
-                            <span className="px-1.5 py-0.5 rounded text-[8px] font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/10">{h.status}</span>
+                          <div className="flex justify-between items-start gap-1">
+                            <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 line-clamp-1">{c.name}</h4>
+                            <span className="flex items-center gap-0.5 text-[9px] text-amber-500 shrink-0 font-bold"><Star size={10} fill="currentColor" />{c.rating}</span>
                           </div>
+                          <p className="text-[10px] text-slate-400 mt-0.5">{c.type}</p>
+                          <p className="text-[9px] text-slate-500 mt-1 line-clamp-1">{c.specs}</p>
                         </div>
-                        <button onClick={() => setSelectedClinic({ id: h.id, name: h.name, rating: '4.6', reviews: '240', dist: '1.2 km', type: h.type, specs: 'Cardiology, Orthopedics, Neurology, Emergency, Surgery, ICU', img: h.img, phone: h.phone, email: h.email, web: h.web })}
+                        <button onClick={() => setSelectedClinic(c)}
                           className="w-full mt-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 text-[10px] font-bold text-slate-700 dark:text-slate-300 transition text-center">
                           View Details
                         </button>
@@ -1345,6 +1284,10 @@ const PatientAppointmentsPage = () => {
                     </div>
                   ))}
                 </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <p className="text-sm text-slate-400 font-semibold">no hospital or clinic's are to been show here</p>
               </div>
             )}
 

@@ -448,6 +448,15 @@ const consultationSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       default: null
+    },
+    reedit_code: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    reeditCodeExpiresAt: {
+      type: Date,
+      default: null
     }
   },
   {

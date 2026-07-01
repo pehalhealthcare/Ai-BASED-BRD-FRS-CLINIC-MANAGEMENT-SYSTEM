@@ -175,6 +175,25 @@ const downloadConsultationPdf = asyncHandler(async (req, res) => {
   fs.createReadStream(filePath).pipe(res);
 });
 
+const requestReedit = asyncHandler(async (req, res) => {
+  const data = await consultationService.requestReedit({
+    requester: req.user,
+    consultationId: req.params.id,
+    requestedClinicId: req.query.clinicId
+  });
+  return sendSuccess(res, 'Re-edit verification code generated and sent successfully', data);
+});
+
+const verifyReedit = asyncHandler(async (req, res) => {
+  const data = await consultationService.verifyReedit({
+    requester: req.user,
+    consultationId: req.params.id,
+    code: req.body.code,
+    requestedClinicId: req.query.clinicId
+  });
+  return sendSuccess(res, 'Re-edit verification code verified successfully', data);
+});
+
 module.exports = {
   createConsultation,
   listConsultations,
@@ -191,6 +210,8 @@ module.exports = {
   rejectAiNote,
   completeConsultation,
   downloadConsultationPdf,
+  requestReedit,
+  verifyReedit,
   // Backward-compatible alias
   getPatientConsultations: getPatientConsultationHistory
 };

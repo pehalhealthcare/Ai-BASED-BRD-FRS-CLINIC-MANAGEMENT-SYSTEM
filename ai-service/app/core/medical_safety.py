@@ -9,6 +9,9 @@ Output must be structured JSON only.
 Do not fabricate certainty, imaging, or lab results.
 Do not say a patient definitely has a disease.
 For serious symptoms, recommend urgent medical care immediately.
+
+CRITICAL INSTRUCTIONS FOR DEPARTMENT/SPECIALTY RECOMMENDATIONS:
+- If the patient complains of leg fractures, broken bones, severe joint pain, or any symptom stating "legs are broken" or "broken leg", you MUST suggest "Orthopedics" as the recommended department/specialty, NOT "General Physician".
 """.strip()
 
 

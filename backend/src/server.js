@@ -99,13 +99,25 @@ const startOnlinePaymentTimeoutChecker = () => {
             apt.cancellationReason = 'Cancelled automatically due to unpaid online consultation fee within 20 minutes.';
             await apt.save();
             console.log(`[Timeout Checker] Cancelled upcoming appointment: ${apt._id}`);
-          }
         }
+      }
+    }
+
+      // Clean up checkin_token_uuid if expired past 10 minutes
+      const tenMinsAgo = new Date(Date.now() - 10 * 60 * 1000);
+      const expiredTokensApts = await Appointment.find({
+        checkin_token_uuid: { $ne: '' },
+        checkinTokenExpiresAt: { $lt: tenMinsAgo }
+      });
+      for (const apt of expiredTokensApts) {
+        console.log(`[Token Cleanup] Removing expired check-in token for appointment: ${apt._id}`);
+        apt.checkin_token_uuid = '';
+        await apt.save();
       }
     } catch (err) {
       console.error('[Timeout Checker] Error in online payment timeout background checker:', err);
-    }
-  }, 60000); // Check every 60 seconds
+    }},60000) // Check every 60 seconds
+    
 };
 
 const startInsuranceCoverageResetJob = () => {

@@ -35,6 +35,35 @@ export default function Appointments({
   const [endVal, setEndVal] = useState('');
   const [pickerOpen, setPickerOpen] = useState(false);
 
+  const isNotAttended = (apt) => {
+    const status = apt?.status?.toLowerCase() || '';
+    if (status === 'no_show') return true;
+    if (['booked', 'confirmed', 'scheduled'].includes(status)) {
+      if (!apt.appointmentDate) return false;
+      const today = new Date();
+      
+      const dateStr = typeof apt.appointmentDate === 'string' 
+        ? apt.appointmentDate.split('T')[0] 
+        : new Date(apt.appointmentDate).toISOString().split('T')[0];
+      const [year, month, day] = dateStr.split('-').map(Number);
+      
+      let hours = 9, minutes = 0;
+      if (apt.startTime) {
+        const parts = apt.startTime.split(':');
+        hours = Number(parts[0]);
+        minutes = Number(parts[1]) || 0;
+      }
+      
+      const apptDate = new Date(year, month - 1, day, hours, minutes, 0, 0);
+      const duration = Number(apt.durationMinutes) || 15;
+      const buffer = 15;
+      const expirationDate = new Date(apptDate.getTime() + (duration + buffer) * 60 * 1000);
+      
+      return expirationDate < today;
+    }
+    return false;
+  };
+
   const filteredAppts = appointments.filter(apt => {
     const status = apt.status?.toLowerCase() || 'scheduled';
     const doctorName = apt.doctorId?.fullName?.toLowerCase() || '';
@@ -61,13 +90,24 @@ export default function Appointments({
       }
     }
 
-    if (apptFilterTab === 'upcoming') return status !== 'cancelled' && status !== 'completed';
+    if (apptFilterTab === 'upcoming') return !status.includes('cancel') && status !== 'completed' && !isNotAttended(apt);
     if (apptFilterTab === 'completed') return status === 'completed';
-    if (apptFilterTab === 'cancelled') return status === 'cancelled';
+    if (apptFilterTab === 'cancelled') return status.includes('cancel') || isNotAttended(apt);
     return true;
   }).sort((a, b) => {
+    const isNotAttendedA = isNotAttended(a);
+    const isNotAttendedB = isNotAttended(b);
+    if (isNotAttendedA !== isNotAttendedB) {
+      return isNotAttendedA ? 1 : -1; // Not attended goes to the end
+    }
+
     if (apptFilterTab === 'all') {
-      const statusOrder = { scheduled: 0, booked: 0, confirmed: 0, checked_in: 0, in_consultation: 0, completed: 1, cancelled: 2, no_show: 3 };
+      const statusOrder = { 
+        scheduled: 0, booked: 0, confirmed: 0, checked_in: 0, in_consultation: 0, 
+        completed: 1, 
+        cancelled: 2, patient_cancelled: 2, clinic_cancelled: 2, 
+        no_show: 3 
+      };
       const statusA = a.status?.toLowerCase() || 'scheduled';
       const statusB = b.status?.toLowerCase() || 'scheduled';
       const orderA = statusOrder[statusA] ?? 99;
@@ -95,9 +135,9 @@ export default function Appointments({
     return 0;
   });
 
-  const upcomingCount = appointments.filter(a => a.status !== 'cancelled' && a.status !== 'completed').length;
+  const upcomingCount = appointments.filter(a => !a.status?.toLowerCase()?.includes('cancel') && a.status !== 'completed' && !isNotAttended(a)).length;
   const completedCount = appointments.filter(a => a.status === 'completed').length;
-  const cancelledCount = appointments.filter(a => a.status === 'cancelled').length;
+  const cancelledCount = appointments.filter(a => a.status?.toLowerCase()?.includes('cancel') || isNotAttended(a)).length;
 
   const calYear = calendarMonth.getFullYear();
   const calMon = calendarMonth.getMonth();
@@ -122,7 +162,7 @@ export default function Appointments({
     if (!a.appointmentDate) return false;
     const d = new Date(a.appointmentDate);
     const diff = (d - now) / (1000 * 60 * 60 * 24);
-    return diff >= 0 && diff <= 7 && a.status !== 'cancelled';
+    return diff >= 0 && diff <= 7 && !a.status?.toLowerCase()?.includes('cancel');
   }).sort((a, b) => new Date(a.appointmentDate) - new Date(b.appointmentDate));
 
   const primaryClinic = clinics[0];
@@ -253,7 +293,18 @@ export default function Appointments({
           <div className="p-4 space-y-4 bg-slate-50/30 dark:bg-navy-900/10 border-t border-slate-100 dark:border-white/[0.04]">
             {/* Scrollable Pending Fee Notifications (Yellow / Amber) */}
             {(() => {
-              const pendingInvoices = (invoices || []).filter(inv => inv.serviceType === 'CONSULTATION' && inv.paymentStatus !== 'paid');
+              const pendingInvoices = (invoices || []).filter(inv => {
+                if (inv.serviceType !== 'CONSULTATION' || inv.paymentStatus === 'paid') return false;
+                // If there's an associated appointment, check if its status is 'completed'
+                const appt = appointments.find(a => 
+                  String(a._id) === String(inv.appointmentId?._id || inv.appointmentId)
+                );
+                // If appointment is found, only show if status is completed
+                if (appt && appt.status?.toLowerCase() !== 'completed') {
+                  return false;
+                }
+                return true;
+              });
               if (pendingInvoices.length === 0) return null;
               return (
                 <div className="rounded-2xl border border-amber-500/25 bg-amber-500/5 p-4 space-y-2 mb-4">
@@ -287,7 +338,8 @@ export default function Appointments({
 
             {filteredAppts.length > 0 ? (
               filteredAppts.map(apt => {
-                const isCancelled = apt.status?.toLowerCase() === 'cancelled';
+                const isUnattended = isNotAttended(apt);
+                const isCancelled = apt.status?.toLowerCase()?.includes('cancel') || isUnattended;
                 const isCompleted = apt.status?.toLowerCase() === 'completed';
                 const relatedInvoice = (invoices || []).find(
                   (inv) =>
@@ -340,14 +392,29 @@ export default function Appointments({
                         size="xl"
                       />
                       <div className="min-w-0">
-                        <span className={`inline-block px-2.5 py-0.5 rounded-lg text-[9px] font-bold uppercase tracking-wider mb-2 border ${isCancelled
-                            ? 'bg-rose-500/10 text-rose-500 border-rose-500/10'
-                            : isCompleted
-                              ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/10'
-                              : 'bg-indigo-500/10 text-indigo-500 border-indigo-500/10'
+                        <span className={`inline-block px-2.5 py-0.5 rounded-lg text-[9px] font-bold uppercase tracking-wider mb-2 border ${
+                            isUnattended
+                            ? 'bg-amber-500/10 text-amber-600 border-amber-500/10'
+                            : isCancelled
+                              ? 'bg-rose-500/10 text-rose-500 border-rose-500/10'
+                              : isCompleted
+                                ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/10'
+                                : apt.status === 'called'
+                                  ? 'bg-violet-500/10 text-violet-600 border-violet-500/20 animate-pulse'
+                                  : 'bg-indigo-500/10 text-indigo-500 border-indigo-500/10'
                           }`}>
-                          {apt.status ? apt.status.toUpperCase() : 'UPCOMING'}
+                          {isUnattended ? 'NOT ATTENDED' : isCancelled ? 'CANCELLED' : apt.status === 'called' ? '🔔 CALLED — GO TO DOCTOR' : (apt.status ? apt.status.replace(/_/g, ' ').toUpperCase() : 'UPCOMING')}
                         </span>
+                        {apt.status === 'called' && apt.meta?.otp && (
+                          <div className="w-full mb-2 p-3 rounded-xl bg-violet-50 dark:bg-violet-500/10 border border-violet-200 dark:border-violet-500/20 flex items-center justify-between gap-3">
+                            <div>
+                              <p className="text-[9px] font-black uppercase tracking-wider text-violet-500 dark:text-violet-400">Consultation OTP</p>
+                              <p className="text-xl font-black text-violet-700 dark:text-violet-300 tracking-[0.3em] mt-0.5">{apt.meta.otp}</p>
+                              <p className="text-[9px] text-violet-500 dark:text-violet-400 mt-0.5">Show this OTP to the doctor to start your consultation</p>
+                            </div>
+                            <Shield size={22} className="text-violet-400 shrink-0" />
+                          </div>
+                        )}
                         {isCompleted && (
                           <span className={`inline-block ml-2 px-2.5 py-0.5 rounded-lg text-[9px] font-bold uppercase tracking-wider mb-2 border ${isPaid
                               ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/10'
@@ -440,6 +507,14 @@ export default function Appointments({
                             );
                           })()}
                         </>
+                      ) : isUnattended ? (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setReschedulingAppt(apt); }}
+                          className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-white shadow-sm transition"
+                        >
+                          <CalendarPlus size={12} />
+                          Reschedule your appointment for next date
+                        </button>
                       ) : (
                         <>
                           {!isCancelled && (
@@ -676,7 +751,12 @@ export default function Appointments({
     {selectedApptDetails && (
       <AppointmentDetailsModal
         appointment={selectedApptDetails}
+        invoices={invoices}
         onClose={() => setSelectedApptDetails(null)}
+        onReschedule={(apt) => {
+          setSelectedApptDetails(null);
+          setReschedulingAppt(apt);
+        }}
       />
     )}
     </>

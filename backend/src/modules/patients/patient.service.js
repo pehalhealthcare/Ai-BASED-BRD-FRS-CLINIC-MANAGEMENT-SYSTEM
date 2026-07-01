@@ -165,6 +165,28 @@ const createPatient = async ({ requester, payload, requestedClinicId = null, req
     requestedClinicId: requestedClinicId || payload.clinicId
   });
 
+  const phone = payload.phone ? String(payload.phone).trim() : '';
+  if (phone) {
+    const email = `${phone}@test.com`;
+    const password = phone;
+    const userRepository = require('../users/user.repository');
+    
+    let existingUser = await userRepository.findByEmail(email);
+    if (!existingUser) {
+      await userRepository.createUser({
+        name: [payload.firstName, payload.lastName].filter(Boolean).join(' ').trim() || 'Walk-In Patient',
+        email,
+        phone,
+        password,
+        role: ROLES.PATIENT,
+        clinicId,
+        isActive: true,
+        approvalStatus: 'approved'
+      });
+    }
+    payload.email = email;
+  }
+
   const patient = await patientRepository.createPatient({
     ...payload,
     clinicId,

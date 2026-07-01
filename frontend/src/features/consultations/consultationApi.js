@@ -16,5 +16,7 @@ export const downloadConsultationPdf = (id) => consultationApi.downloadPdf(id);
 export const formatConsultationNote = (id, payload) => consultationApi.formatNote(id, payload);
 export const getPatientConsultationHistory = (patientId, params) => consultationApi.historyByPatient(patientId, params);
 export const getPatientClinicalHistory = (patientId) => consultationApi.getClinicalHistoryByPatient(patientId);
+export const requestConsultationReedit = (id) => consultationApi.requestReedit(id);
+export const verifyConsultationReedit = (id, payload) => consultationApi.verifyReedit(id, payload);
 
 export default consultationApi;

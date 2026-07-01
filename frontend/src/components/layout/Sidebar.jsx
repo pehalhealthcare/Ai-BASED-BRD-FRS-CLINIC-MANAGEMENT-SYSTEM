@@ -2,10 +2,10 @@ import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Users, Calendar, Stethoscope, FlaskConical,
   Pill, ShieldAlert, ScrollText, Bell, ListChecks, Bot,
-  LayoutGrid, UserCircle, CreditCard, ChevronRight,
+  LayoutGrid, UserCircle, CreditCard, ChevronRight, ChevronDown,
   Building2, UserCog, Sun, Moon, LogOut, ClipboardList,
   Activity, Syringe, FileText, RotateCcw, HelpCircle, Headphones,
-  TrendingUp, Plus, UserX
+  TrendingUp, Plus, UserX, Bed, Clock, AlertCircle, CheckSquare, UserPlus
 } from 'lucide-react';
 
 import { NAV_ITEMS, ROUTES } from '../../constants/routes';
@@ -58,7 +58,7 @@ const PATIENT_NAV = [
   { label: 'View Clinic & Details', path: `${ROUTES.patientAppointments}?view=clinic`, iconKey: 'View Clinic & Details' },
 ];
 
-const Sidebar = ({ role, open, onNavigate, user, onLogout }) => {
+const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
   const { isDark, toggleTheme } = useTheme();
   const location = useLocation();
 
@@ -75,8 +75,8 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout }) => {
   const visibleItems = (isPendingDoctor || isPendingReceptionist)
     ? []
     : isPatient
-    ? PATIENT_NAV
-    : NAV_ITEMS.filter((item) => canAccessRole(role, item.roles));
+      ? PATIENT_NAV
+      : NAV_ITEMS.filter((item) => canAccessRole(role, item.roles));
 
   const isItemActive = (item) => {
     if (isPatient) {
@@ -95,49 +95,87 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout }) => {
   };
 
   if (role === 'RECEPTIONIST') {
-    const receptionistNavItems = [
-      { label: "Today's Appointments", path: ROUTES.dashboard, icon: <Calendar size={18} />, count: null },
-      { label: 'Waiting Patients', path: `${ROUTES.patients}?status=waiting`, icon: <Users size={18} />, count: 8 },
-      { label: 'Checked-In Patients', path: `${ROUTES.patients}?status=checked-in`, icon: <Users size={18} />, count: 5 },
-      { label: 'Walk-In Patients', path: `${ROUTES.patients}?type=walk-in`, icon: <Users size={18} />, count: 3 },
-      { label: 'Doctors Available Today', path: ROUTES.clinicSettings, icon: <Stethoscope size={18} />, count: null },
-      { label: 'Doctors On Leave', path: '/admin/leaves-review', icon: <UserX size={18} />, count: 2 },
-      { label: 'Upcoming Appointments', path: ROUTES.appointments, icon: <Calendar size={18} />, count: null },
-      { label: 'Pending Bills', path: ROUTES.billing, icon: <CreditCard size={18} />, count: 7 },
-      { label: 'Pending Reports', path: ROUTES.labOrders, icon: <FileText size={18} />, count: 4 },
-      { label: 'Notifications', path: '/dashboard/notifications', icon: <Bell size={18} />, count: 12 },
-      { label: "Today's Revenue", path: '/dashboard/revenue', icon: <TrendingUp size={18} />, count: null },
-    ];
+    const isItemActive = (path) => {
+      if (path.includes('?')) {
+        const [basePath, search] = path.split('?');
+        const params = new URLSearchParams(search);
+        const currentParams = new URLSearchParams(location.search);
 
-    const isReceptionistItemActive = (item) => {
-      if (item.path === ROUTES.dashboard) {
+        const matchPath = location.pathname === basePath;
+        let matchParams = true;
+        for (const [key, value] of params.entries()) {
+          if (currentParams.get(key) !== value) {
+            matchParams = false;
+            break;
+          }
+        }
+        return matchPath && matchParams;
+      }
+
+      if (path === ROUTES.dashboard) {
         return location.pathname === ROUTES.dashboard || location.pathname === '/dashboard';
       }
-      return location.pathname === item.path || location.pathname.startsWith(item.path + '?') || location.pathname.startsWith(item.path + '/');
+      return location.pathname === path;
     };
+
+    const sections = [
+      {
+        title: 'APPOINTMENTS',
+        items: [
+          { label: 'Appointments Overview', path: ROUTES.appointments, icon: <LayoutGrid size={16} /> },
+          { label: "Today's Appointments", path: ROUTES.dashboard, icon: <Calendar size={16} />, badge: 12 },
+          { label: 'Upcoming Appointments', path: '/appointments?view=upcoming', icon: <Calendar size={16} />, hasChevron: true },
+          { label: 'Waiting Patients', path: `${ROUTES.patients}?status=waiting`, icon: <Users size={16} />, badge: 7 },
+          { label: 'Appointment Calendar', path: '/appointments?view=calendar', icon: <Calendar size={16} />, hasChevron: true },
+        ]
+      },
+      {
+        title: 'OPERATIONS',
+        items: [
+          { label: 'Check-In Patients', path: `${ROUTES.patients}?status=checked-in`, icon: <CheckSquare size={16} />, hasChevron: true },
+          { label: 'Walk-In Patients', path: `${ROUTES.patients}?type=walk-in`, icon: <UserCircle size={16} />, hasChevron: true },
+          { label: 'Patient Queue', path: `${ROUTES.patients}?view=queue`, icon: <Users size={16} />, hasChevron: true },
+          { label: 'Bed / Room Management', path: '/rooms', icon: <Bed size={16} />, hasChevron: true },
+          { label: 'Reports & Analytics', path: ROUTES.dashboardRevenue, icon: <TrendingUp size={16} />, hasChevron: true },
+        ]
+      },
+      {
+        title: 'DOCTORS',
+        items: [
+          { label: 'Doctors List', path: ROUTES.adminDoctorsDashboard, icon: <UserCircle size={16} />, hasChevron: true },
+          { label: 'Doctors Schedule', path: ROUTES.adminLeavesReview, icon: <Calendar size={16} />, hasChevron: true },
+          { label: 'Doctor Availability', path: '/doctors/availability', icon: <Clock size={16} />, hasChevron: true },
+        ]
+      },
+      {
+        title: 'EMERGENCY CASES',
+        items: [
+          { label: 'Emergency Cases', path: '/emergencies', icon: <AlertCircle size={16} />, badge: 3, isEmergency: true },
+          { label: 'Active Emergencies', path: '/emergencies/active', icon: <Activity size={16} />, badge: 1, isEmergency: true },
+        ]
+      }
+    ];
 
     return (
       <>
         <aside
           className={`
             fixed inset-y-0 left-0 z-40 flex flex-col w-[270px]
-            bg-[#0C1222] border-r border-white/[0.06]
+            bg-[#0b0f19] border-r border-white/[0.06]
             transition-transform duration-300 ease-spring
             lg:sticky lg:top-0 lg:h-screen lg:translate-x-0
             ${open ? 'translate-x-0' : '-translate-x-full'}
           `}
         >
           {/* Brand Header */}
-          <div className="px-5 pt-6 pb-4 shrink-0">
+          <div className="px-6 pt-7 pb-4 shrink-0">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center shadow-[0_0_15px_rgba(20,184,166,0.1)] shrink-0">
-                <div className="w-6 h-6 rounded-lg bg-teal-500 flex items-center justify-center text-white font-bold text-lg">
-                  +
-                </div>
+              <div className="w-9 h-9 rounded-xl bg-[#0dd5b8] flex items-center justify-center shadow-[0_0_15px_rgba(13,213,184,0.35)] shrink-0">
+                <span className="text-white font-extrabold text-lg leading-none">+</span>
               </div>
               <div>
-                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-teal-400">AI-CMS</p>
-                <p className="text-sm font-semibold text-white leading-tight">
+                <p className="text-xs font-black uppercase tracking-[0.15em] text-[#0dd5b8] leading-none">AI-CMS</p>
+                <p className="text-sm font-black text-white mt-1 leading-none">
                   Health Clinic
                 </p>
               </div>
@@ -145,126 +183,124 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout }) => {
           </div>
 
           {/* User Profile info */}
-          <div className="px-5 py-4 border-b border-white/[0.05] shrink-0">
-            <div className="flex items-center gap-3 flex-row">
-              <Avatar name={user?.name || "Priya Sharma"} size="md" className="shrink-0 ring-2 ring-teal-500/20" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-white truncate">{user?.name || 'Priya Sharma'}</p>
-                <p className="text-[11px] text-white/50 leading-tight">Receptionist</p>
-                <div className="flex items-center gap-1.5 mt-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 border border-emerald-400/20" />
-                  <span className="text-xs text-emerald-400 font-medium">Online</span>
+          <div className="px-6 py-4 border-b border-white/[0.06] shrink-0">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-[#4f46e5] border border-[#6366f1]/20 flex items-center justify-center text-white font-bold text-sm shrink-0">
+                  {user?.name ? user.name.charAt(0).toUpperCase() : 'R'}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-white leading-snug truncate">{user?.name || 'Receptionist'}</p>
+                  <p className="text-[10px] text-slate-400 font-semibold leading-tight">Front Desk</p>
+                  <div className="flex items-center gap-1 mt-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#0dd5b8] shadow-[0_0_8px_rgba(13,213,184,0.5)]" />
+                    <span className="text-[10px] text-[#0dd5b8] font-bold">Online</span>
+                  </div>
                 </div>
               </div>
+              <ChevronDown size={14} className="text-slate-400 cursor-pointer" />
             </div>
           </div>
 
           {/* Main Menu Nav Section */}
-          <div className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-            <div className="px-3 mb-2">
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/30">MAIN MENU</p>
-            </div>
-            {receptionistNavItems.map((item, idx) => {
-              const active = isReceptionistItemActive(item);
-              return (
-                <NavLink
-                  key={idx}
-                  to={item.path}
-                  onClick={onNavigate}
-                  className={() =>
-                    `flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 ${
-                      active
-                        ? 'bg-teal-500/10 text-teal-400 border border-teal-500/20'
-                        : 'text-white/60 hover:text-white hover:bg-white/[0.04]'
-                    }`
-                  }
-                >
-                  <div className="flex items-center gap-3">
-                    <span className={`shrink-0 ${active ? 'text-teal-400' : 'text-white/40'}`}>
-                      {item.icon}
-                    </span>
-                    <span className="text-[13px]">{item.label}</span>
-                  </div>
-                  {item.count !== null && item.count !== undefined && (
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                      item.label === 'Doctors On Leave' 
-                        ? 'bg-amber-500/20 text-amber-400' 
-                        : item.label === 'Waiting Patients'
-                        ? 'bg-indigo-500/20 text-indigo-400'
-                        : item.label === 'Checked-In Patients'
-                        ? 'bg-emerald-500/20 text-emerald-400'
-                        : item.label === 'Notifications'
-                        ? 'bg-red-500/20 text-red-400'
-                        : 'bg-white/10 text-white/60'
-                    }`}>
-                      {item.count}
-                    </span>
-                  )}
-                </NavLink>
-              );
-            })}
+          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6 scrollbar-thin scrollbar-thumb-white/[0.05]">
+            {sections.map((section, sIdx) => (
+              <div key={sIdx} className="space-y-1">
+                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500 px-2 pb-1.5">{section.title}</p>
+                {section.items.map((item, idx) => {
+                  const active = isItemActive(item.path);
+                  return (
+                    <NavLink
+                      key={idx}
+                      to={item.path}
+                      onClick={onNavigate}
+                      className={() =>
+                        `flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all duration-150 ${active
+                          ? 'bg-[#0dd5b8]/10 text-white border border-[#0dd5b8]/20 shadow-[inset_0_0_10px_rgba(13,213,184,0.05)]'
+                          : 'text-slate-400 hover:text-white hover:bg-white/[0.02]'
+                        }`
+                      }
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className={`shrink-0 ${active ? 'text-[#0dd5b8]' : 'text-slate-500'}`}>
+                          {item.icon}
+                        </span>
+                        <span>{item.label}</span>
+                      </div>
 
-            {/* Quick Actions */}
-            <div className="pt-4 border-t border-white/[0.05] mt-4 space-y-2">
-              <div className="px-3 mb-2">
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/30">Quick Actions</p>
+                      {item.badge !== undefined && (
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black leading-none ${item.isEmergency
+                          ? 'bg-red-500 text-white shadow-[0_0_8px_rgba(239,68,68,0.3)]'
+                          : 'bg-[#211a44] text-[#a5b4fc]'
+                          }`}>
+                          {item.badge}
+                        </span>
+                      )}
+
+                      {item.hasChevron && !active && (
+                        <ChevronRight size={12} className="text-slate-600" />
+                      )}
+                    </NavLink>
+                  );
+                })}
               </div>
+            ))}
+
+            {/* Quick Actions Section */}
+            <div className="space-y-2 border-t border-white/[0.06] pt-5">
+              <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500 px-2 pb-1">QUICK ACTIONS</p>
+
+              {/* Billing card */}
               <NavLink
-                to="/patients/new"
+                to={ROUTES.billing}
                 onClick={onNavigate}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-600 text-white text-xs font-semibold shadow-md transition-all"
+                className="flex items-center justify-between px-4 py-3 rounded-xl bg-[#1e293b]/50 hover:bg-[#1e293b]/80 border border-white/[0.05] transition-all duration-150 group"
               >
-                <Plus size={14} />
-                Add Walk-In Patient
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-[#38bdf8]/10 border border-[#38bdf8]/20 flex items-center justify-center text-[#38bdf8]">
+                    <FileText size={15} />
+                  </div>
+                  <span className="text-xs font-bold text-white">Billing</span>
+                </div>
+                <ChevronRight size={13} className="text-slate-500 group-hover:text-white transition" />
               </NavLink>
-              <NavLink
-                to="/appointments?view=calendar"
-                onClick={onNavigate}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-white/10 hover:bg-white/5 text-white/80 hover:text-white text-xs font-semibold transition-all"
+
+              {/* Add Walk-In Patient card */}
+              <button
+                onClick={() => {
+                  if (onNavigate) onNavigate();
+                  if (onAddWalkIn) onAddWalkIn();
+                }}
+                className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-[#115e59]/70 hover:bg-[#115e59]/90 border border-teal-500/20 transition-all duration-150 group text-left"
               >
-                <Calendar size={14} />
-                Appointments Calendar
-              </NavLink>
-              <NavLink
-                to="/billing"
-                onClick={onNavigate}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-white/10 hover:bg-white/5 text-white/80 hover:text-white text-xs font-semibold transition-all"
-              >
-                <CreditCard size={14} />
-                Billing
-              </NavLink>
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-[#0dd5b8]/20 border border-[#0dd5b8]/30 flex items-center justify-center text-[#0dd5b8]">
+                    <UserPlus size={15} />
+                  </div>
+                  <span className="text-xs font-bold text-white">Add Walk-In Patient</span>
+                </div>
+                <ChevronRight size={13} className="text-[#0dd5b8] group-hover:text-white transition" />
+              </button>
             </div>
           </div>
 
           {/* Footer & Toggle Theme */}
-          <div className="px-3 pb-4 pt-2 shrink-0 space-y-2 border-t border-white/[0.05]">
-            <button
-              onClick={toggleTheme}
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-white/40 hover:text-white hover:bg-white/[0.04] transition-all duration-150"
-            >
-              {isDark ? <Sun size={14} className="text-amber-400" /> : <Moon size={14} className="text-indigo-400" />}
-              <span>{isDark ? 'Light Mode' : 'Dark Mode'}</span>
-            </button>
-            <div className="flex items-center justify-between px-3">
-              <div className="text-[10px] text-white/30">
-                <p>AI-CMS Clinic</p>
-                <p>© 2026 All rights reserved</p>
-              </div>
-              {onLogout && (
-                <button
-                  onClick={onLogout}
-                  className="p-1.5 rounded-lg text-white/30 hover:text-rose-400 hover:bg-rose-500/10 transition"
-                  title="Logout"
-                >
-                  <LogOut size={15} />
-                </button>
-              )}
-            </div>
+          <div className="px-4 pb-4 pt-3 shrink-0 space-y-2 border-t border-white/[0.06]">
+            {onLogout && (
+              <button
+                onClick={onLogout}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-all duration-150"
+              >
+                <LogOut size={15} className="shrink-0" />
+                <span>Logout</span>
+              </button>
+            )}
           </div>
         </aside>
       </>
     );
   }
+
 
   return (
     <>

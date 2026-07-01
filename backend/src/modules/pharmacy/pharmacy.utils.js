@@ -15,7 +15,12 @@ const isBatchExpired = (expiryDate, today = new Date()) => {
     return false;
   }
 
-  return toDayEnd(expiryDate).getTime() < toDayStart(today).getTime();
+  const expiry = toDayEnd(expiryDate).getTime();
+  const start = toDayStart(today).getTime();
+  const diffDays = Math.ceil((expiry - start) / (24 * 60 * 60 * 1000));
+
+  // Treat as expired/unavailable if actual date is in the past OR if less than 30 days (1 month) are left
+  return diffDays <= 30;
 };
 
 const getNearExpiryStatus = (expiryDate, today = new Date()) => {

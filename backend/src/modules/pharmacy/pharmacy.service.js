@@ -341,12 +341,25 @@ const createMedicine = async ({ requester, payload, requestedClinicId = null, re
 };
 
 const listMedicines = async ({ requester, query = {}, requestedClinicId = null }) => {
-  const clinicId = resolveClinicContext({
-    user: requester,
-    requestedClinicId: requestedClinicId || query.clinicId
-  });
   const { page, limit } = getPagination(query);
-  const filter = { clinicId };
+  const filter = {};
+
+  if (
+    (query.allClinics === true || query.allClinics === 'true') &&
+    requester?.organizationId &&
+    (requester.role === ROLES.SUPER_ADMIN || requester.role === ROLES.ADMIN || requester.role === ROLES.PHARMACIST)
+  ) {
+    const Clinic = require('../clinics/clinic.model');
+    const clinics = await Clinic.find({ organizationId: requester.organizationId, isActive: true }).select('_id');
+    const clinicIds = clinics.map(c => c._id);
+    filter.clinicId = { $in: clinicIds };
+  } else {
+    const clinicId = resolveClinicContext({
+      user: requester,
+      requestedClinicId: requestedClinicId || query.clinicId
+    });
+    filter.clinicId = clinicId;
+  }
 
   if (query.category) {
     filter.category = query.category.trim();

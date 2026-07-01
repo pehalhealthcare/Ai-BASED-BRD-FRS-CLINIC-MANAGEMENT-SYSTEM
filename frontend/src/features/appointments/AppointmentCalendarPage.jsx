@@ -768,13 +768,59 @@ const AppointmentCalendarPage = () => {
               </div>
 
               <div className="flex flex-col gap-2.5">
-                <button
-                  onClick={() => handleStartConsultation(selectedAppointment)}
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition shadow-lg shadow-emerald-600/10"
-                >
-                  <Play size={12} fill="white" /> Start Consultation
-                </button>
-                {selectedAppointment.status !== 'cancelled' && (
+                {(() => {
+                  const status = selectedAppointment.status;
+                  if (status === 'completed') {
+                    return (
+                      <button
+                        disabled
+                        className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-slate-900 border border-white/5 text-slate-500 font-bold text-xs cursor-not-allowed"
+                      >
+                        <CheckCircle size={12} className="text-emerald-500" /> Consultation is completed
+                      </button>
+                    );
+                  }
+                  if (['cancelled', 'patient_cancelled', 'clinic_cancelled'].includes(status)) {
+                    return (
+                      <button
+                        disabled
+                        className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-rose-950/20 border border-rose-500/10 text-rose-450/70 font-bold text-xs cursor-not-allowed"
+                      >
+                        <XCircle size={12} className="text-rose-500" /> Patient has canceled the appointment
+                      </button>
+                    );
+                  }
+                  if (status === 'in_consultation') {
+                    return (
+                      <button
+                        onClick={() => handleStartConsultation(selectedAppointment)}
+                        className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs transition"
+                      >
+                        <Play size={12} fill="white" /> Resume Consultation
+                      </button>
+                    );
+                  }
+                  if (status === 'checked_in') {
+                    return (
+                      <button
+                        onClick={() => handleStartConsultation(selectedAppointment)}
+                        className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition shadow-lg shadow-emerald-600/10"
+                      >
+                        <Play size={12} fill="white" /> Start Consultation
+                      </button>
+                    );
+                  }
+                  return (
+                    <button
+                      disabled
+                      className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-slate-800 border border-slate-700 text-slate-500 font-bold text-xs cursor-not-allowed"
+                      title="Patient must check in at reception first"
+                    >
+                      <Play size={12} className="opacity-30" /> Patient not checked-in
+                    </button>
+                  );
+                })()}
+                {!['completed', 'cancelled', 'patient_cancelled', 'clinic_cancelled'].includes(selectedAppointment.status) && (
                   <button
                     onClick={() => handleCancel(selectedAppointment._id)}
                     className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border border-rose-500/30 hover:bg-rose-500/10 text-rose-400 font-bold text-xs transition"

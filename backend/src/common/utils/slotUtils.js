@@ -100,7 +100,7 @@ const generateSlots = ({
     return [];
   }
 
-  const slotDuration = Number(durationMinutes || dayAvailability.slotDurationMinutes || 30);
+  const slotDuration = Number(dayAvailability.slotDurationMinutes) === 15 ? 15 : 20;
   const dayStart = parseTimeToMinutes(dayAvailability.startTime);
   const dayEnd = parseTimeToMinutes(dayAvailability.endTime);
   const targetDate = formatDate(date);

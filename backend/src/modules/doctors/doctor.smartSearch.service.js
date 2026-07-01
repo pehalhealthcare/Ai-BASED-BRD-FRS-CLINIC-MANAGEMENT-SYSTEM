@@ -155,40 +155,50 @@ const smartSearchDoctors = async ({ specialization, preference, lat, lng }) => {
     });
 
   // 4. Rank by preference
-  const sorted = [...enriched];
+  let sorted = [...enriched];
 
-  switch (preference) {
-    case 'nearest':
-      sorted.sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity));
-      break;
-
-    case 'earliest': {
-      sorted.sort((a, b) => {
-        const dateA = a.earliestSlotDate ? new Date(a.earliestSlotDate) : new Date('2099-12-31');
-        const dateB = b.earliestSlotDate ? new Date(b.earliestSlotDate) : new Date('2099-12-31');
-        return dateA - dateB;
-      });
-      break;
+  if (preference === 'nearest') {
+    // If nearest option is selected, fetch patient location dynamically or query according to distance
+    if (lat != null && lng != null) {
+      // Return only doctors within 50km
+      sorted = sorted.filter(doc => doc.distance != null && doc.distance <= 50);
     }
-
-    case 'online':
-      sorted.sort((a, b) => {
-        // Online-available first
-        if (a.isOnlineAvailable !== b.isOnlineAvailable) {
-          return a.isOnlineAvailable ? -1 : 1;
-        }
-        // Then by lowest fee
-        return a.consultationFee - b.consultationFee;
-      });
-      break;
-
-    case 'lowest_fee':
-      sorted.sort((a, b) => a.consultationFee - b.consultationFee);
-      break;
-
-    default:
-      // fallback: sort by experience descending
-      sorted.sort((a, b) => b.experienceYears - a.experienceYears);
+    sorted.sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity));
+  } else if (preference === 'earliest') {
+    // Rank by earliest availability date/time first
+    sorted.sort((a, b) => {
+      const dateA = a.earliestSlotDate ? new Date(a.earliestSlotDate) : new Date('2099-12-31');
+      const dateB = b.earliestSlotDate ? new Date(b.earliestSlotDate) : new Date('2099-12-31');
+      return dateA - dateB;
+    });
+  } else if (preference === 'online') {
+    // Return doctors available online for online teleconsultation
+    sorted = sorted.filter(doc => doc.isOnlineAvailable === true);
+    sorted.sort((a, b) => a.consultationFee - b.consultationFee);
+  } else if (preference === 'lowest_fee') {
+    // Consider lowest consultation fee first
+    sorted.sort((a, b) => a.consultationFee - b.consultationFee);
+  } else if (preference === 'best_option') {
+    // Custom recommendation: Rank using combined factors: Online/offline match, distance, soonest slot, and lowest consultation fee
+    sorted.sort((a, b) => {
+      // 1. Availability soonest
+      const dateA = a.earliestSlotDate ? new Date(a.earliestSlotDate) : new Date('2099-12-31');
+      const dateB = b.earliestSlotDate ? new Date(b.earliestSlotDate) : new Date('2099-12-31');
+      if (dateA.getTime() !== dateB.getTime()) {
+        return dateA - dateB;
+      }
+      // 2. Nearest distance
+      const distA = a.distance ?? 99999;
+      const distB = b.distance ?? 99999;
+      if (distA !== distB) {
+        return distA - distB;
+      }
+      // 3. Lowest consultation fee
+      return a.consultationFee - b.consultationFee;
+    });
+  } else {
+    // Fallback: sort by experience descending
+    sorted.sort((a, b) => b.experienceYears - a.experienceYears);
   }
 
   return sorted.slice(0, 10);

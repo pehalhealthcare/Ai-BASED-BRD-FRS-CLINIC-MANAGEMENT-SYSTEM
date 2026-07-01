@@ -95,6 +95,31 @@ const cancelAppointmentSchema = z.object({
   })
 });
 
+const checkInAppointmentSchema = z.object({
+  params: appointmentIdParamSchema.shape.params,
+  body: z.object({
+    method: z.enum(['QR', 'Reception']).default('Reception'),
+    isEmergency: z.boolean().optional()
+  })
+});
+
+const reorderQueueSchema = z.object({
+  body: z.object({
+    tokenId: z.string(),
+    newPosition: z.number(),
+    reason: z.string().trim().min(1, 'Reason is required')
+  })
+});
+
+const updateDoctorQueueSettingsSchema = z.object({
+  body: z.object({
+    earlyCheckInMins: z.number().min(0),
+    lateGraceMins: z.number().min(0),
+    noShowTimeoutMins: z.number().min(0),
+    tokenFormat: z.string().trim().min(1)
+  })
+});
+
 module.exports = {
   createAppointmentSchema,
   listAppointmentsQuerySchema,
@@ -104,5 +129,8 @@ module.exports = {
   updateAppointmentStatusSchema,
   rescheduleAppointmentSchema,
   cancelAppointmentSchema,
-  doctorIdParamSchema
+  doctorIdParamSchema,
+  checkInAppointmentSchema,
+  reorderQueueSchema,
+  updateDoctorQueueSettingsSchema
 };

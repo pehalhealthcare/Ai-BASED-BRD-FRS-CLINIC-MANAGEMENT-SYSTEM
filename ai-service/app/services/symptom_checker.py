@@ -45,6 +45,13 @@ CONDITION_RULES = (
         specialization="Dermatology",
     ),
     ConditionRule(
+        name="Bone Fracture or Musculoskeletal Injury",
+        keywords=("broken", "broken leg", "fracture", "bone break"),
+        confidence=0.90,
+        reason="Severe pain, deformity, or inability to bear weight after a bone injury suggests a fracture.",
+        specialization="Orthopedics",
+    ),
+    ConditionRule(
         name="Inflammatory Joint Condition",
         keywords=("joint pain", "fatigue", "swelling"),
         confidence=0.63,
@@ -59,6 +66,10 @@ SPECIALIZATION_OVERRIDES = {
     "skin rash": "Dermatology",
     "joint pain": "Orthopedics",
     "stomach pain": "Gastroenterology",
+    "broken leg": "Orthopedics",
+    "broken": "Orthopedics",
+    "fracture": "Orthopedics",
+    "bone break": "Orthopedics",
 }
 
 

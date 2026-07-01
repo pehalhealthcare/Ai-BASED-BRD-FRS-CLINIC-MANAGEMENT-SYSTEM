@@ -5,6 +5,7 @@ import { ROLES } from '../constants/roles';
 import UsersAdminPage from '../features/admin/UsersAdminPage';
 import OrganizationSettingsPage from '../features/admin/OrganizationSettingsPage';
 import DoctorReview from '../features/admin/DoctorReview';
+import DoctorEditPage from '../features/admin/DoctorEditPage';
 import ReceptionistReview from '../features/admin/ReceptionistReview';
 import MyReceptionistsDashboard from '../features/admin/MyReceptionistsDashboard';
 import ClinicSettingsPage from '../features/admin/ClinicSettingsPage';
@@ -371,6 +372,7 @@ export const router = createBrowserRouter([
         element: protect(<DoctorFormPage />, [ROLES.ADMIN, ROLES.SUPER_ADMIN])
       },
       { path: 'admin/doctors/:doctorId/review', element: protect(<DoctorReview />, [ROLES.ADMIN]) },
+      { path: 'admin/doctors/:id/edit', element: protect(<DoctorEditPage />, [ROLES.ADMIN, ROLES.SUPER_ADMIN]) },
       { path: 'admin/receptionists/:receptionistId/review', element: protect(<ReceptionistReview />, [ROLES.ADMIN]) },
       { path: 'doctors/:id/availability', element: protect(<DoctorAvailabilityEditor />, [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.RECEPTIONIST]) },
       {

@@ -25,6 +25,7 @@ import {
 import useAuth from '../../hooks/useAuth';
 import { appointmentApi } from '../../lib/api';
 import { getDashboardOverview } from './dashboardApi';
+import { Html5Qrcode } from 'html5-qrcode';
 
 const ReceptionistDashboardPage = () => {
   const { user } = useAuth();
@@ -38,6 +39,7 @@ const ReceptionistDashboardPage = () => {
   const [scanning, setScanning] = useState(false);
   const [scanSuccess, setScanSuccess] = useState(false);
   const [scannedPatient, setScannedPatient] = useState(null);
+  const [html5QrCode, setHtml5QrCode] = useState(null);
 
   // Stats / Dashboard Data states
   const [stats, setStats] = useState({
@@ -52,117 +54,16 @@ const ReceptionistDashboardPage = () => {
     pendingReports: 4
   });
 
-  // Mock list of today's appointments that matches the user design precisely
-  const initialAppointments = [
-    {
-      id: '1',
-      time: '09:00 AM',
-      duration: '15 min',
-      patientName: 'Raj Sharma',
-      initials: 'RS',
-      age: 32,
-      gender: 'Male',
-      phone: '9876543210',
-      doctorName: 'Dr. Alpha Doctor',
-      specialty: 'General Physician',
-      type: 'Offline',
-      status: 'Confirmed',
-    },
-    {
-      id: '2',
-      time: '09:30 AM',
-      duration: '15 min',
-      patientName: 'Priya Kapoor',
-      initials: 'PK',
-      age: 28,
-      gender: 'Female',
-      phone: '9876543211',
-      doctorName: 'Dr. Beta Doctor',
-      specialty: 'Dermatologist',
-      type: 'Offline',
-      status: 'Confirmed',
-    },
-    {
-      id: '3',
-      time: '10:00 AM',
-      duration: '20 min',
-      patientName: 'Amit Singh',
-      initials: 'AS',
-      age: 45,
-      gender: 'Male',
-      phone: '9876543212',
-      doctorName: 'Dr. Alpha Doctor',
-      specialty: 'General Physician',
-      type: 'Offline',
-      status: 'Arrived',
-    },
-    {
-      id: '4',
-      time: '10:30 AM',
-      duration: '15 min',
-      patientName: 'Neha Gupta',
-      initials: 'NG',
-      age: 34,
-      gender: 'Female',
-      phone: '9876543213',
-      doctorName: 'Dr. Gamma Doctor',
-      specialty: 'Orthopedist',
-      type: 'Offline',
-      status: 'Upcoming',
-    },
-    {
-      id: '5',
-      time: '11:00 AM',
-      duration: '15 min',
-      patientName: 'Vikram Kumar',
-      initials: 'VK',
-      age: 50,
-      gender: 'Male',
-      phone: '9876543214',
-      doctorName: 'Dr. Alpha Doctor',
-      specialty: 'General Physician',
-      type: 'Offline',
-      status: 'Upcoming',
-    },
-    {
-      id: '6',
-      time: '11:30 AM',
-      duration: '20 min',
-      patientName: 'Rahul Verma',
-      initials: 'RV',
-      age: 29,
-      gender: 'Male',
-      phone: '9876543215',
-      doctorName: 'Dr. Beta Doctor',
-      specialty: 'Dermatologist',
-      type: 'Online',
-      status: 'Confirmed',
-    },
-    {
-      id: '7',
-      time: '12:00 PM',
-      duration: '15 min',
-      patientName: 'Kajal Patel',
-      initials: 'KP',
-      age: 31,
-      gender: 'Female',
-      phone: '9876543216',
-      doctorName: 'Dr. Gamma Doctor',
-      specialty: 'Orthopedist',
-      type: 'Online',
-      status: 'Completed',
-    }
-  ];
+  const [appointments, setAppointments] = useState([]);
 
-  const [appointments, setAppointments] = useState(initialAppointments);
-
-  // Fetch real data on load and blend with mock details
+  // Fetch real data on load
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
+        const todayStr = new Date().toISOString().split('T')[0];
         const [overviewRes, apptsRes] = await Promise.all([
           getDashboardOverview().catch(() => null),
-          appointmentApi.getAppointments({ limit: 50 }).catch(() => null)
+          appointmentApi.getAppointments({ limit: 100, date: todayStr }).catch(() => null)
         ]);
 
         if (overviewRes?.data?.cards) {
@@ -177,32 +78,29 @@ const ReceptionistDashboardPage = () => {
           }));
         }
 
-        if (apptsRes?.data && apptsRes.data.length > 0) {
+        if (apptsRes?.data) {
           const formatted = apptsRes.data.map((app, index) => {
             const timeStr = app.slotId?.startTime 
               ? new Date(app.slotId.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-              : '09:00 AM';
+              : app.startTime || '09:00 AM';
             
             return {
               id: app._id || String(index + 1),
               time: timeStr,
-              duration: app.slotId?.durationMinutes ? `${app.slotId.durationMinutes} min` : '15 min',
+              duration: app.slotId?.durationMinutes ? `${app.slotId.durationMinutes} min` : `${app.durationMinutes || 15} min`,
               patientName: app.patientId?.userId?.name || app.patientName || 'Walk-In Patient',
               initials: (app.patientId?.userId?.name || 'WP').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase(),
               age: app.patientId?.age || 30,
               gender: app.patientId?.gender || 'Male',
-              phone: app.patientId?.userId?.phone || '9876543210',
+              phone: app.patientId?.userId?.phone || app.patientId?.phone || '9876543210',
               doctorName: app.doctorId?.userId?.name || 'Dr. Alpha Doctor',
               specialty: app.doctorId?.specialty || 'General Physician',
-              type: app.mode === 'online' ? 'Online' : 'Offline',
-              status: app.status === 'booked' ? 'Confirmed' : app.status === 'checked_in' ? 'Arrived' : app.status === 'completed' ? 'Completed' : 'Upcoming'
+              type: app.appointmentType === 'teleconsultation' ? 'Online' : 'Offline',
+              status: app.status === 'booked' ? 'Confirmed' : app.status === 'checked_in' ? 'Arrived' : app.status === 'completed' ? 'Completed' : 'Upcoming',
+              tokenNumber: app.meta?.tokenNumber
             };
           });
-          
-          const merged = [...formatted, ...initialAppointments].filter(
-            (v, i, a) => a.findIndex(t => t.patientName === v.patientName) === i
-          );
-          setAppointments(merged);
+          setAppointments(formatted);
         }
       } catch (err) {
         console.error("Error loading receptionist dashboard api data: ", err);
@@ -237,33 +135,173 @@ const ReceptionistDashboardPage = () => {
     return ['All Doctors', ...new Set(docNames)];
   }, [appointments]);
 
-  const handleOpenScanner = () => {
-    setShowScannerModal(true);
-    setScanning(true);
-    setScanSuccess(false);
+  const handleManualCheckIn = async (appointmentId, isEmergency = false) => {
+    try {
+      const res = await appointmentApi.checkInPatient(appointmentId, { method: 'Reception', isEmergency });
+      alert(`Check-in successful! Token generated: ${res.token?.tokenNumber}`);
+      window.location.reload();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Check-in failed.');
+    }
+  };
 
-    setTimeout(() => {
-      setScanning(false);
+  const handlePrintToken = (app) => {
+    const printWindow = window.open('', '_blank', 'width=400,height=500');
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Token Receipt</title>
+          <style>
+            body { font-family: monospace; text-align: center; padding: 20px; color: #000; }
+            .token { font-size: 48px; font-weight: bold; margin: 20px 0; border: 2px dashed #000; padding: 10px; }
+            .details { font-size: 14px; text-align: left; margin: 20px auto; max-width: 250px; line-height: 1.6; }
+            .footer { font-size: 11px; margin-top: 30px; border-top: 1px solid #ccc; padding-top: 10px; }
+          </style>
+        </head>
+        <body>
+          <h2>AI-CMS CLINIC</h2>
+          <p>QUEUE TOKEN RECEIPT</p>
+          <div class="token">${app.tokenNumber || 'T-XXX'}</div>
+          <div class="details">
+            <strong>Patient:</strong> ${app.patientName}<br/>
+            <strong>Doctor:</strong> ${app.doctorName}<br/>
+            <strong>Date/Time:</strong> ${new Date().toLocaleString()}<br/>
+            <strong>Appt Time:</strong> ${app.time}
+          </div>
+          <div class="footer">
+            Please wait for your token to be called.<br/>Thank you!
+          </div>
+          <script>window.print();</script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
+  const handleScanCheckin = async (token) => {
+    try {
+      setScanning(true);
+      const res = await appointmentApi.scanCheckin({ token });
       setScanSuccess(true);
       setScannedPatient({
-        name: 'Raj Sharma',
-        age: 32,
-        gender: 'Male',
-        phone: '9876543210',
-        status: 'Arrived'
+        name: res.patientName || 'Checked-in Patient',
+        phone: res.roomNumber || 'Assigned Room',
+        status: `Token: ${res.tokenNumber || 'Success'}`,
+        roomNumber: res.roomNumber,
+        tokenNumber: res.tokenNumber,
+        doctorName: res.doctorName,
+        clinicName: res.clinicName
       });
+      
+      // Update appointments list status
       setAppointments((prev) =>
         prev.map((app) =>
-          app.patientName === 'Raj Sharma' ? { ...app, status: 'Arrived' } : app
+          app.id === res.appointment?._id || app.patientName.includes(res.patientName)
+            ? { ...app, status: 'Arrived', tokenNumber: res.tokenNumber }
+            : app
         )
       );
+
+      // Increment stats
       setStats((prev) => ({
         ...prev,
         checkedIn: prev.checkedIn + 1,
         waiting: prev.waiting + 1
       }));
-    }, 2000);
+    } catch (err) {
+      console.error(err);
+      alert(err?.response?.data?.message || 'Check-in verification failed.');
+      setShowScannerModal(false);
+    } finally {
+      setScanning(false);
+    }
   };
+
+  const handleOpenScanner = () => {
+    setShowScannerModal(true);
+    setScanning(true);
+    setScanSuccess(false);
+    setScannedPatient(null);
+  };
+
+  const closeScannerModal = async () => {
+    if (html5QrCode) {
+      try {
+        await html5QrCode.stop();
+      } catch (e) {}
+      setHtml5QrCode(null);
+    }
+    setShowScannerModal(false);
+    setScanning(false);
+    setScanSuccess(false);
+  };
+
+  const handleFileUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    setShowScannerModal(true);
+    setScanning(true);
+    setScanSuccess(false);
+    setScannedPatient(null);
+
+    const html5QrCodeForFile = new Html5Qrcode("dashboard-qr-reader-file-temp");
+    try {
+      const decodedText = await html5QrCodeForFile.scanFile(file, true);
+      await handleScanCheckin(decodedText);
+    } catch (err) {
+      console.error("File scanning error: ", err);
+      alert("No QR/barcode found in the uploaded image. Please try again.");
+      setShowScannerModal(false);
+    } finally {
+      try {
+        html5QrCodeForFile.clear();
+      } catch (e) {}
+    }
+  };
+
+  useEffect(() => {
+    let qrScanner = null;
+    if (showScannerModal && scanning && !scanSuccess) {
+      const timer = setTimeout(async () => {
+        const element = document.getElementById("dashboard-qr-reader");
+        if (element) {
+          try {
+            qrScanner = new Html5Qrcode("dashboard-qr-reader");
+            setHtml5QrCode(qrScanner);
+            await qrScanner.start(
+              { facingMode: "environment" },
+              {
+                fps: 10,
+                qrbox: { width: 250, height: 250 }
+              },
+              async (decodedText) => {
+                try {
+                  await qrScanner.stop();
+                } catch (e) {}
+                setHtml5QrCode(null);
+                handleScanCheckin(decodedText);
+              },
+              (errorMessage) => {
+                // ignore
+              }
+            );
+          } catch (err) {
+            console.error("Scanner start error: ", err);
+          }
+        }
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [showScannerModal, scanning, scanSuccess]);
+
+  useEffect(() => {
+    return () => {
+      if (html5QrCode) {
+        html5QrCode.stop().catch(err => console.error("Error stopping qr scanner on unmount: ", err));
+      }
+    };
+  }, [html5QrCode]);
 
   return (
     <div className="space-y-6 pb-12 bg-[#F8FAFC] min-h-screen text-slate-800 p-2 md:p-4">
@@ -513,27 +551,60 @@ const ReceptionistDashboardPage = () => {
                   <div className="flex items-center justify-between sm:justify-end gap-4">
                     <span className="text-xs text-slate-400 font-semibold">{app.type}</span>
 
-                    <span
-                      className={`text-xs font-bold px-3 py-1 rounded-full ${
-                        app.status === 'Arrived'
-                          ? 'bg-amber-100 text-amber-600'
-                          : app.status === 'Confirmed'
-                          ? 'bg-teal-50 text-teal-600'
-                          : app.status === 'Completed'
-                          ? 'bg-emerald-50 text-emerald-600'
-                          : 'bg-slate-100 text-slate-500'
-                      }`}
-                    >
-                      {app.status}
-                    </span>
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      <span
+                        className={`text-xs font-bold px-3 py-1 rounded-full ${
+                          app.status === 'Arrived'
+                            ? 'bg-amber-100 text-amber-600'
+                            : app.status === 'Confirmed'
+                            ? 'bg-teal-50 text-teal-600'
+                            : app.status === 'Completed'
+                            ? 'bg-emerald-50 text-emerald-600'
+                            : 'bg-slate-100 text-slate-500'
+                        }`}
+                      >
+                        {app.status}
+                      </span>
+                      {(app.tokenNumber || app.meta?.tokenNumber) && (
+                        <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-indigo-500 text-white tracking-wide uppercase">
+                          Token {app.tokenNumber || app.meta?.tokenNumber}
+                        </span>
+                      )}
+                    </div>
 
-                    <button
-                      onClick={handleOpenScanner}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-teal-500/20 hover:border-teal-500 text-teal-600 text-[11px] font-bold bg-teal-55/30 hover:bg-teal-50 transition-all"
-                    >
-                      <QrCode size={13} />
-                      Scan QR
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {['Arrived', 'Completed'].includes(app.status) || app.tokenNumber ? (
+                        <>
+                          <button
+                            onClick={() => handlePrintToken(app)}
+                            className="px-3 py-1.5 rounded-xl border border-indigo-500/20 hover:border-indigo-500 text-indigo-600 text-[11px] font-bold bg-indigo-50/50 transition-all"
+                          >
+                            Print Token
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => handleManualCheckIn(app.id, false)}
+                            className="px-3 py-1.5 rounded-xl bg-teal-650 hover:bg-teal-700 text-white text-[11px] font-bold transition-all"
+                          >
+                            Check-In
+                          </button>
+                          <button
+                            onClick={() => handleManualCheckIn(app.id, true)}
+                            className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold transition-all"
+                          >
+                            Emergency
+                          </button>
+                          <button
+                            onClick={handleOpenScanner}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 hover:border-teal-500 text-slate-600 hover:text-teal-600 text-[11px] font-bold bg-slate-50 transition-all"
+                          >
+                            <QrCode size={13} />
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))
@@ -587,10 +658,16 @@ const ReceptionistDashboardPage = () => {
               <div className="h-px bg-slate-100 flex-1" />
             </div>
 
-            <button className="w-full flex items-center justify-center gap-2 py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-slate-800 text-xs font-bold rounded-xl transition-all">
+            <label className="w-full flex items-center justify-center gap-2 py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-slate-800 text-xs font-bold rounded-xl transition-all cursor-pointer">
               <Upload size={13} />
-              Upload QR Image
-            </button>
+              <span>Upload QR Image</span>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+            </label>
           </div>
 
           {/* Card 2: Appointment Summary Donut Chart */}
@@ -792,8 +869,8 @@ const ReceptionistDashboardPage = () => {
             </div>
 
             {scanning ? (
-              <div className="py-6 flex justify-center">
-                <div className="w-8 h-8 border-4 border-teal-500 border-t-transparent rounded-full animate-spin" />
+              <div className="py-2 flex justify-center w-full">
+                <div id="dashboard-qr-reader" className="w-full rounded-2xl overflow-hidden bg-slate-900 border border-slate-800 aspect-square"></div>
               </div>
             ) : (
               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-left text-xs font-semibold space-y-2">
@@ -803,8 +880,8 @@ const ReceptionistDashboardPage = () => {
                   <span className="text-slate-800 font-bold">{scannedPatient?.name}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-500">Phone</span>
-                  <span className="text-slate-800 font-bold">{scannedPatient?.phone}</span>
+                  <span className="text-slate-500">Room</span>
+                  <span className="text-slate-800 font-bold">{scannedPatient?.roomNumber}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">Status</span>
@@ -813,17 +890,16 @@ const ReceptionistDashboardPage = () => {
               </div>
             )}
 
-            {!scanning && (
-              <button
-                onClick={() => setShowScannerModal(false)}
-                className="w-full py-2.5 bg-teal-500 hover:bg-teal-600 text-white text-xs font-bold rounded-xl transition-all"
-              >
-                Close
-              </button>
-            )}
+            <button
+              onClick={closeScannerModal}
+              className="w-full py-2.5 bg-teal-500 hover:bg-teal-600 text-white text-xs font-bold rounded-xl transition-all"
+            >
+              {scanning ? 'Cancel' : 'Close'}
+            </button>
           </div>
         </div>
       )}
+      <div id="dashboard-qr-reader-file-temp" style={{ display: 'none' }}></div>
     </div>
   );
 };

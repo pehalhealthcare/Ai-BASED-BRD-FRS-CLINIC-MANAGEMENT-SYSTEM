@@ -2,50 +2,50 @@ const Patient = require('./patient.model');
 
 const createPatient = (payload) => Patient.create(payload);
 
-const findPatientByIdAndClinic = ({ patientId, clinicId }) => Patient.findOne({ _id: patientId, clinicId });
+const findPatientByIdAndClinic = ({ patientId, clinicId }) => Patient.findOne({ _id: patientId });
 
-const findPatientByContact = ({ clinicId, email, phone }) => {
-  const filters = [];
-
+const findPatientByContact = async ({ clinicId, email, phone }) => {
   if (email) {
-    filters.push({ email: String(email).trim().toLowerCase() });
+    const patientByEmail = await Patient.findOne({
+      clinicId,
+      isActive: { $ne: false },
+      email: String(email).trim().toLowerCase()
+    });
+    if (patientByEmail) return patientByEmail;
   }
 
   if (phone) {
-    filters.push({ phone: String(phone).trim() });
+    const patientByPhone = await Patient.findOne({
+      clinicId,
+      isActive: { $ne: false },
+      phone: String(phone).trim()
+    });
+    if (patientByPhone) return patientByPhone;
   }
 
-  if (!filters.length) {
-    return null;
-  }
-
-  return Patient.findOne({
-    clinicId,
-    isActive: { $ne: false },
-    $or: filters
-  });
+  return null;
 };
 
-const findPatientByContactWithPassword = ({ clinicId, email, phone }) => {
-  const filters = [];
-
+const findPatientByContactWithPassword = async ({ clinicId, email, phone }) => {
   if (email) {
-    filters.push({ email: String(email).trim().toLowerCase() });
+    const patientByEmail = await Patient.findOne({
+      clinicId,
+      isActive: { $ne: false },
+      email: String(email).trim().toLowerCase()
+    }).select('+medicalHistoryPassword');
+    if (patientByEmail) return patientByEmail;
   }
 
   if (phone) {
-    filters.push({ phone: String(phone).trim() });
+    const patientByPhone = await Patient.findOne({
+      clinicId,
+      isActive: { $ne: false },
+      phone: String(phone).trim()
+    }).select('+medicalHistoryPassword');
+    if (patientByPhone) return patientByPhone;
   }
 
-  if (!filters.length) {
-    return null;
-  }
-
-  return Patient.findOne({
-    clinicId,
-    isActive: { $ne: false },
-    $or: filters
-  }).select('+medicalHistoryPassword');
+  return null;
 };
 
 const listPatients = async ({ filter, page, limit, sort = { createdAt: -1 } }) => {

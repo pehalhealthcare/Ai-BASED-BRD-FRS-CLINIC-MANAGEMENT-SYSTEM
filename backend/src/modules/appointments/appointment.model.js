@@ -159,6 +159,15 @@ const appointmentSchema = new mongoose.Schema(
     meta: {
       type: Object,
       default: {}
+    },
+    checkin_token_uuid: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    checkinTokenExpiresAt: {
+      type: Date,
+      default: null
     }
   },
   {

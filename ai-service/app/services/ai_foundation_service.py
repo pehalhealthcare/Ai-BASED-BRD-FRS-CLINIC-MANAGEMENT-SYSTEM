@@ -209,6 +209,12 @@ def legacy_symptom_response_from_standard(payload: SymptomCheckRequest, standard
             legacy["redFlags"] = standard_response.output["red_flags"]
         if "disclaimer" in standard_response.output:
             legacy["disclaimer"] = standard_response.output["disclaimer"]
+
+    # Safety override sanity checks to ensure broken bones always point to Orthopedics in the final response
+    norm_symptoms = (payload.symptoms or "").lower()
+    if any(k in norm_symptoms for k in ["broken leg", "broken", "fracture", "bone break"]):
+        legacy["recommendedSpecialization"] = "Orthopedics"
+        legacy["recommended_specialization"] = "Orthopedics"
             
     return legacy
 

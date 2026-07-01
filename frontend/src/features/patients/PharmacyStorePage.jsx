@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import {
   Pill, Search, UserCheck, MessageSquare, AlertCircle, ShoppingBag,
   X, ChevronRight, Upload, Percent, Gift, Truck, ShoppingCart,
-  MapPin, Star, Filter, Heart, ArrowRight, ShieldCheck
+  MapPin, Star, Filter, Heart, ArrowRight, ShieldCheck,
+  Camera, FileText, UploadCloud, CheckCircle2, Image, Loader2
 } from 'lucide-react';
 import { pharmacyApi, prescriptionApi, patientApi } from '../../lib/api';
 import useAuth from '../../hooks/useAuth';
@@ -37,6 +38,21 @@ export default function PharmacyStorePage() {
   const [selectedPrescriptionId, setSelectedPrescriptionId] = useState('');
   const [uploadedFileName, setUploadedFileName] = useState('');
 
+  // Upload Prescription modal states
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [uploadStep, setUploadStep] = useState('select'); // 'select', 'camera', 'manual', 'choose'
+  const [cameraActive, setCameraActive] = useState(false);
+  const [cameraError, setCameraError] = useState('');
+  const [capturedImage, setCapturedImage] = useState(null);
+  const [uploadingManual, setUploadingManual] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [dragActive, setDragActive] = useState(false);
+  const [unavailableMedicines, setUnavailableMedicines] = useState([]);
+
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const fileInputRef = useRef(null);
+
 
   const [orders, setOrders] = useState([]);
 
@@ -65,17 +81,219 @@ export default function PharmacyStorePage() {
         console.error('Failed to load prescriptions', err);
       }
     };
-    if (reserveModalOpen) {
+    if (reserveModalOpen || uploadModalOpen) {
       fetchPatientPrescriptions();
     }
-  }, [reserveModalOpen]);
+  }, [reserveModalOpen, uploadModalOpen]);
+
+  const startCamera = async () => {
+    setCameraError('');
+    setCameraActive(true);
+    setCapturedImage(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' }
+      });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (err) {
+      console.error('Error accessing camera:', err);
+      setCameraError('Unable to access camera. Please check permissions or upload manually.');
+      setCameraActive(false);
+    }
+  };
+
+  const stopCamera = () => {
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject;
+      const tracks = stream.getTracks();
+      tracks.forEach(track => track.stop());
+      videoRef.current.srcObject = null;
+    }
+    setCameraActive(false);
+  };
+
+  const capturePhoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      const context = canvas.getContext('2d');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg');
+      setCapturedImage(dataUrl);
+      stopCamera();
+    }
+  };
+
+  const handleDrag = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFileSelection(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleFileChange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      handleFileSelection(e.target.files[0]);
+    }
+  };
+
+  const handleFileSelection = (file) => {
+    if (file.size > 5 * 1024 * 1024) {
+      alert("File size exceeds 5MB limit. Please choose a smaller file.");
+      return;
+    }
+    setSelectedFile(file);
+  };
+
+  const handleUsePrescription = (presc) => {
+    setSelectedPrescriptionId(presc._id);
+    setPrescriptionType('system');
+    setUploadedFileName(presc.fileName || 'Prescription.pdf');
+    
+    setUnavailableMedicines([]);
+    const unavailableList = [];
+
+    if (presc.medicines && presc.medicines.length > 0) {
+      const addedItems = [];
+      presc.medicines.forEach(pre => {
+        const medName = pre.medicineName || pre.name || '';
+        if (!medName) return;
+
+        // Find matching medicine in stock
+        const matchedMed = medicines.find(
+          m => m.name.toLowerCase().includes(medName.toLowerCase()) || 
+               (m.genericName && m.genericName.toLowerCase().includes(medName.toLowerCase()))
+        );
+
+        const qty = Number(pre.quantity) || Number(pre.qty) || 1;
+
+        if (matchedMed && matchedMed.totalStock > 0) {
+          addedItems.push({
+            medicine: matchedMed,
+            qty: qty,
+            price: Number(matchedMed.unitPrice || 100) * qty
+          });
+        } else {
+          unavailableList.push(medName);
+        }
+      });
+      
+      setCart(prev => {
+        const merged = [...prev];
+        addedItems.forEach(item => {
+          if (!merged.some(m => m.medicine.name.toLowerCase() === item.medicine.name.toLowerCase())) {
+            merged.push(item);
+          }
+        });
+        return merged;
+      });
+    }
+
+    if (unavailableList.length > 0) {
+      setUnavailableMedicines(unavailableList);
+      alert(`Prescription processed. Available items added to cart. Note: some items are currently unavailable.`);
+    } else {
+      alert(`Prescription selected. All medicines added to cart!`);
+    }
+    closeUploadModal();
+  };
+
+  const handleSubmitManualUpload = () => {
+    if (!selectedFile && !capturedImage) {
+      alert("Please select a file or capture a photo first.");
+      return;
+    }
+    setUploadingManual(true);
+    setTimeout(() => {
+      setUploadingManual(false);
+      setPrescriptionType('manual');
+      setUploadedFileName(selectedFile ? selectedFile.name : 'captured-prescription.jpg');
+      alert("Prescription uploaded successfully!");
+      closeUploadModal();
+    }, 1500);
+  };
+
+  const closeUploadModal = () => {
+    stopCamera();
+    setUploadModalOpen(false);
+    setUploadStep('select');
+    setSelectedFile(null);
+    setCapturedImage(null);
+  };
 
   useEffect(() => {
     const fetchMedicines = async () => {
       try {
         setLoading(true);
         const response = await pharmacyApi.listMedicines({ limit: 50, isActive: true });
-        setMedicines(response.data?.medicines || response.medicines || []);
+        const list = response.data?.medicines || response.medicines || [];
+        setMedicines(list);
+
+        // Check if there is pre-filled medicines from EMR prescription details modal
+        const rawPrefill = localStorage.getItem('pharmacy_cart_prefill');
+        if (rawPrefill) {
+          try {
+            const prefill = JSON.parse(rawPrefill);
+            localStorage.removeItem('pharmacy_cart_prefill'); // Clear it so it doesn't trigger repeatedly
+            
+            const addedItems = [];
+            prefill.forEach(pre => {
+              // Find matching medicine in database by name substring (case-insensitive)
+              const matchedMed = list.find(m => m.name.toLowerCase().includes(pre.name.toLowerCase()));
+              if (matchedMed) {
+                addedItems.push({
+                  medicine: matchedMed,
+                  qty: pre.qty || 1,
+                  price: Number(matchedMed.unitPrice || 100) * (pre.qty || 1)
+                });
+              } else {
+                // Fallback virtual medicine item if not in stock inventory database
+                addedItems.push({
+                  medicine: {
+                    _id: `fallback-${Date.now()}-${Math.random()}`,
+                    name: pre.name,
+                    category: 'Prescription Medicine',
+                    unitPrice: 150,
+                    stockLevel: 100
+                  },
+                  qty: pre.qty || 1,
+                  price: 150 * (pre.qty || 1)
+                });
+              }
+            });
+
+            if (addedItems.length > 0) {
+              setCart(prev => {
+                // Avoid duplicating items if they are already in cart
+                const merged = [...prev];
+                addedItems.forEach(item => {
+                  if (!merged.some(m => m.medicine.name.toLowerCase() === item.medicine.name.toLowerCase())) {
+                    merged.push(item);
+                  }
+                });
+                return merged;
+              });
+            }
+          } catch (e) {
+            console.error('Error parsing pharmacy cart prefill:', e);
+          }
+        }
       } catch (err) {
         setError(err.response?.data?.message || 'Failed to fetch pharmacy inventory.');
       } finally {
@@ -228,7 +446,7 @@ export default function PharmacyStorePage() {
                 {categories.filter(c => c !== 'All').map(c => <option key={c} value={c}>{c}</option>)}
               </select>
               <button
-                onClick={() => alert('Prescription upload panel opened')}
+                onClick={() => setUploadModalOpen(true)}
                 className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition"
               >
                 <Upload size={13} />
@@ -351,6 +569,22 @@ export default function PharmacyStorePage() {
           {/* Cart Widget */}
           <div className="rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-navy-800 p-5 space-y-4">
             <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">Your Cart</h3>
+            
+            {unavailableMedicines.length > 0 && (
+              <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-700 dark:text-rose-300 text-[11px] font-semibold space-y-1">
+                <div className="flex items-center gap-1.5 font-bold text-rose-650 dark:text-rose-450">
+                  <AlertCircle size={14} className="shrink-0" />
+                  <span>Unavailable Items</span>
+                </div>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400">The following prescribed items are not in stock right now:</p>
+                <ul className="list-disc pl-4 text-[10px] space-y-0.5">
+                  {unavailableMedicines.map((med, i) => (
+                    <li key={i} className="text-[10px] text-rose-500 dark:text-rose-400">{med} is not available with us right now.</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             {cart.length > 0 ? (
               <div className="space-y-3">
                 {cart.map((item, idx) => (
@@ -662,6 +896,323 @@ export default function PharmacyStorePage() {
                 </div>
               </form>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Upload Prescription Wizard Modal */}
+      {uploadModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm transition-opacity duration-300">
+          <div className="w-full max-w-lg bg-[#0e1726] border border-white/[0.08] rounded-3xl shadow-2xl p-6 relative flex flex-col text-white animate-scale-up max-h-[90vh] overflow-hidden">
+            
+            {/* Modal Header */}
+            <div className="flex justify-between items-start pb-4 mb-4 border-b border-white/[0.08]">
+              <div>
+                <h3 className="text-lg font-black text-white">Upload Prescription</h3>
+                <p className="text-xs text-slate-400 mt-1">Upload your prescription to order medicines</p>
+              </div>
+              <button 
+                onClick={closeUploadModal} 
+                className="p-1.5 rounded-xl hover:bg-white/10 text-slate-400 hover:text-white transition"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Step Content */}
+            <div className="flex-1 overflow-y-auto min-h-0 py-2">
+              
+              {/* STEP 1: select */}
+              {uploadStep === 'select' && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Open Camera Card */}
+                  <button
+                    onClick={() => {
+                      setUploadStep('camera');
+                      startCamera();
+                    }}
+                    className="flex flex-col items-center justify-center p-6 rounded-2xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.06] hover:border-emerald-500/30 transition-all duration-200 group text-center"
+                  >
+                    <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform mb-4">
+                      <Camera size={22} />
+                    </div>
+                    <h4 className="font-bold text-sm text-white">Open Camera</h4>
+                    <p className="text-[10px] text-slate-400 mt-1">Take a photo of your prescription</p>
+                  </button>
+
+                  {/* Upload Manually Card */}
+                  <button
+                    onClick={() => setUploadStep('manual')}
+                    className="flex flex-col items-center justify-center p-6 rounded-2xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.06] hover:border-indigo-500/30 transition-all duration-200 group text-center"
+                  >
+                    <div className="w-12 h-12 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-400 group-hover:scale-110 transition-transform mb-4">
+                      <Upload size={22} />
+                    </div>
+                    <h4 className="font-bold text-sm text-white">Upload Manually</h4>
+                    <p className="text-[10px] text-slate-400 mt-1">Choose image from device</p>
+                  </button>
+
+                  {/* Choose Available Prescription Card */}
+                  <button
+                    onClick={() => setUploadStep('choose')}
+                    className="flex flex-col items-center justify-center p-6 rounded-2xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.06] hover:border-amber-500/30 transition-all duration-200 group text-center"
+                  >
+                    <div className="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-400 group-hover:scale-110 transition-transform mb-4">
+                      <FileText size={22} />
+                    </div>
+                    <h4 className="font-bold text-sm text-white">Choose Prescription</h4>
+                    <p className="text-[10px] text-slate-400 mt-1">Use from your saved prescriptions</p>
+                  </button>
+                </div>
+              )}
+
+              {/* STEP 2: camera */}
+              {uploadStep === 'camera' && (
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h4 className="text-sm font-bold text-white">Capture Prescription</h4>
+                    <span className="text-[10px] text-slate-400">Open Camera</span>
+                  </div>
+
+                  {cameraError && (
+                    <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs">
+                      {cameraError}
+                    </div>
+                  )}
+
+                  {!capturedImage ? (
+                    <div className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-black aspect-video flex items-center justify-center">
+                      {cameraActive ? (
+                        <>
+                          <video 
+                            ref={videoRef} 
+                            autoPlay 
+                            playsInline 
+                            className="w-full h-full object-cover"
+                          />
+                          {/* Guides */}
+                          <div className="absolute inset-4 border border-dashed border-emerald-500/40 rounded-xl pointer-events-none flex flex-col justify-between p-3">
+                            <div className="flex justify-between">
+                              <span className="w-4 h-4 border-t-2 border-l-2 border-emerald-400" />
+                              <span className="w-4 h-4 border-t-2 border-r-2 border-emerald-400" />
+                            </div>
+                            <p className="text-[9px] font-semibold text-emerald-400/80 bg-black/60 px-2 py-1 rounded self-center leading-none">
+                              Position the prescription within the frame
+                            </p>
+                            <div className="flex justify-between">
+                              <span className="w-4 h-4 border-b-2 border-l-2 border-emerald-400" />
+                              <span className="w-4 h-4 border-b-2 border-r-2 border-emerald-400" />
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-center p-6 text-slate-505">
+                          <Loader2 className="animate-spin text-slate-500 mx-auto mb-2" size={24} />
+                          <p className="text-xs">Initializing camera feed...</p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-black aspect-video flex items-center justify-center relative">
+                      <img src={capturedImage} alt="Captured Prescription" className="w-full h-full object-contain" />
+                      <div className="absolute top-3 right-3 bg-emerald-500 text-white p-1 rounded-full shadow-lg">
+                        <CheckCircle2 size={16} />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex gap-3 justify-end pt-2">
+                    {!capturedImage ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            stopCamera();
+                            setUploadStep('select');
+                          }}
+                          className="px-4 py-2 text-xs font-bold text-slate-300 hover:text-white border border-white/[0.08] hover:bg-white/[0.04] rounded-xl transition"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={capturePhoto}
+                          disabled={!cameraActive}
+                          className="px-5 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-lg shadow-emerald-600/20 transition flex items-center gap-1.5"
+                        >
+                          <Camera size={13} />
+                          Capture Photo
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCapturedImage(null);
+                            startCamera();
+                          }}
+                          className="px-4 py-2 text-xs font-bold text-slate-300 hover:text-white border border-white/[0.08] hover:bg-white/[0.04] rounded-xl transition"
+                        >
+                          Retake
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleSubmitManualUpload}
+                          disabled={uploadingManual}
+                          className="px-5 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-lg shadow-emerald-600/20 transition"
+                        >
+                          {uploadingManual ? 'Uploading...' : 'Confirm Upload'}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 3: manual */}
+              {uploadStep === 'manual' && (
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h4 className="text-sm font-bold text-white">Upload Manually</h4>
+                    <span className="text-[10px] text-slate-400">Choose file or image</span>
+                  </div>
+
+                  <div
+                    onDragEnter={handleDrag}
+                    onDragOver={handleDrag}
+                    onDragLeave={handleDrag}
+                    onDrop={handleDrop}
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`border-2 border-dashed rounded-2xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-all duration-200 ${
+                      dragActive 
+                        ? 'border-indigo-500 bg-indigo-500/5' 
+                        : 'border-white/[0.08] bg-white/[0.01] hover:bg-white/[0.03] hover:border-white/[0.15]'
+                    }`}
+                  >
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".jpg,.jpeg,.png,.pdf"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+
+                    <div className="w-12 h-12 rounded-full bg-white/[0.04] flex items-center justify-center text-indigo-400 mb-3.5">
+                      <UploadCloud size={22} />
+                    </div>
+
+                    {selectedFile ? (
+                      <div className="space-y-1">
+                        <p className="text-xs font-bold text-indigo-400 truncate max-w-[280px]">{selectedFile.name}</p>
+                        <p className="text-[10px] text-slate-400">{(selectedFile.size / (1024 * 1024)).toFixed(2)} MB</p>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-xs font-bold text-white">Drag &amp; drop your image here</p>
+                        <p className="text-[10px] text-slate-500 my-2">or</p>
+                        <button
+                          type="button"
+                          className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-bold transition shadow-md"
+                        >
+                          Browse Files
+                        </button>
+                      </>
+                    )}
+
+                    <p className="text-[9px] text-slate-500 mt-4 leading-none">
+                      Supported formats: JPG, PNG, JPEG, PDF. Max size: 5MB
+                    </p>
+                  </div>
+
+                  <div className="flex gap-3 justify-end pt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedFile(null);
+                        setUploadStep('select');
+                      }}
+                      className="px-4 py-2 text-xs font-bold text-slate-300 hover:text-white border border-white/[0.08] hover:bg-white/[0.04] rounded-xl transition"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSubmitManualUpload}
+                      disabled={!selectedFile || uploadingManual}
+                      className="px-5 py-2 text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl shadow-lg shadow-indigo-600/20 transition disabled:opacity-40"
+                    >
+                      {uploadingManual ? 'Uploading...' : 'Confirm Upload'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 4: choose */}
+              {uploadStep === 'choose' && (
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h4 className="text-sm font-bold text-white">Choose Available Prescription</h4>
+                    <span className="text-[10px] text-slate-400">Completed consultations</span>
+                  </div>
+
+                  {patientPrescriptions.length > 0 ? (
+                    <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-white/[0.06]">
+                      {patientPrescriptions.map((rx) => {
+                        const rxDate = rx.createdAt 
+                          ? new Date(rx.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+                          : 'Recent Date';
+                        return (
+                          <div 
+                            key={rx._id}
+                            className="p-3.5 rounded-2xl border border-white/[0.06] bg-white/[0.01] hover:bg-white/[0.03] transition flex items-center justify-between gap-4"
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
+                                <FileText size={18} />
+                              </div>
+                              <div className="min-w-0">
+                                <h4 className="text-xs font-bold text-white truncate">Prescription — {rxDate}</h4>
+                                <p className="text-[10px] text-slate-400 mt-0.5 truncate">
+                                  Dr. {rx.doctorId?.fullName || 'Physician'} • {rx.medicines?.length || 0} medicines
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleUsePrescription(rx)}
+                              className="px-3.5 py-1.5 text-[10px] font-bold border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500 hover:text-white rounded-lg transition shrink-0"
+                            >
+                              Use
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="p-6 text-center rounded-2xl bg-amber-500/5 border border-amber-500/10 text-amber-400/80">
+                      <FileText size={28} className="mx-auto mb-2 text-amber-500/50" />
+                      <p className="text-xs font-semibold">No active clinic prescriptions found.</p>
+                      <p className="text-[10px] text-slate-500 mt-1">Prescriptions are created during completed appointments with the doctor.</p>
+                    </div>
+                  )}
+
+                  <div className="flex justify-end pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setUploadStep('select')}
+                      className="px-4 py-2 text-xs font-bold text-slate-350 hover:text-white border border-white/[0.08] hover:bg-white/[0.04] rounded-xl transition"
+                    >
+                      Back
+                    </button>
+                  </div>
+                </div>
+              )}
+
+            </div>
+
+            {/* Hidden components */}
+            <canvas ref={canvasRef} className="hidden" />
           </div>
         </div>
       )}

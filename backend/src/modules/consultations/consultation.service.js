@@ -322,6 +322,16 @@ const createConsultation = async ({ requester, payload, requestedClinicId = null
     doctorId
   });
 
+  // Block starting consultation if appointment is not checked in
+  if (
+    appointment.appointmentType !== 'teleconsultation' &&
+    appointment.appointmentType !== 'emergency' &&
+    appointment.status !== APPOINTMENT_STATUSES.CHECKED_IN &&
+    appointment.status !== APPOINTMENT_STATUSES.IN_CONSULTATION
+  ) {
+    throw new AppError('Consultation cannot be started. Patient has not checked in at reception.', HTTP_STATUS.BAD_REQUEST);
+  }
+
   await assertDoctorCanMutate({
     requester,
     clinicId,
@@ -1458,6 +1468,89 @@ const downloadConsultationPdf = async ({ requester, consultationId, requestedCli
   };
 };
 
+const requestReedit = async ({ requester, consultationId, requestedClinicId }) => {
+  const { consultation, clinicId } = await getScopedConsultation({
+    requester,
+    consultationId,
+    requestedClinicId,
+    populateDetails: true
+  });
+
+  const Appointment = require('../appointments/appointment.model');
+  const Patient = require('../patients/patient.model');
+  const Doctor = require('../doctors/doctor.model');
+  const Clinic = require('../clinics/clinic.model');
+  const notificationService = require('../notifications/notification.service');
+
+  const appt = await Appointment.findById(consultation.appointmentId);
+  const patientObj = await Patient.findById(consultation.patientId);
+  const doctorObj = await Doctor.findById(consultation.doctorId);
+  const clinicObj = await Clinic.findById(consultation.clinicId);
+
+  // Generate 6-digit random code
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  consultation.reedit_code = code;
+  consultation.reeditCodeExpiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 mins expiry
+  await consultation.save();
+
+  // Send email to patient
+  if (patientObj?.email) {
+    const emailBody = `your appoinment whose appoinment number is ${appt?.appointmentId || 'N/A'} with the doctor ${doctorObj?.fullName || 'the Doctor'} which is scheduled on ${appt?.appointmentDate ? new Date(appt.appointmentDate).toLocaleDateString('en-GB') : 'N/A'} ${appt?.startTime || ''} at clinic ${clinicObj?.name || 'Clinic'} for problem ${appt?.reasonForVisit || 'General Health'} for which doctor has tried to generate a unique digit of code to re-edit your consultation do you want it to get edit then give this code ${code}`;
+    
+    // Log to file for verification
+    const fs = require('fs');
+    fs.appendFileSync('d:/Office_work/CMS/backend/notification_debug.log', `[Re-edit Email] Code: ${code}. Sent to: ${patientObj.email}\nBody: ${emailBody}\n`);
+
+    try {
+      await notificationService.createNotificationRecord({
+        clinicId: consultation.clinicId,
+        createdBy: requester._id,
+        payload: {
+          patientId: patientObj._id,
+          consultationId: consultation._id,
+          type: 'reedit_otp',
+          channel: 'email',
+          subject: 'Authorization Code for Consultation Re-edit',
+          body: emailBody
+        },
+        variables: {},
+        patient: patientObj,
+        scheduledFor: null,
+        sendNow: true
+      });
+    } catch (e) {
+      console.error('[Re-edit Notification] Failed to dispatch verification email:', e);
+    }
+  }
+
+  return { message: 'Verification code sent successfully to patient' };
+};
+
+const verifyReedit = async ({ requester, consultationId, code, requestedClinicId }) => {
+  const { consultation } = await getScopedConsultation({
+    requester,
+    consultationId,
+    requestedClinicId,
+    populateDetails: false
+  });
+
+  if (!consultation.reedit_code || consultation.reedit_code !== String(code).trim()) {
+    throw new AppError('Invalid verification code.', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  if (consultation.reeditCodeExpiresAt && new Date() > consultation.reeditCodeExpiresAt) {
+    throw new AppError('Verification code has expired.', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  // Clear code and reset status to in_progress to allow doctor editing
+  consultation.status = 'in_progress';
+  consultation.reedit_code = '';
+  consultation.reeditCodeExpiresAt = null;
+  await consultation.save();
+
+  return { message: 'Verification successful. Consultation status set back to in-progress.' };
+};
+
 module.exports = {
   createConsultation,
   listConsultations,
@@ -1474,6 +1567,8 @@ module.exports = {
   rejectAiNote,
   completeConsultation,
   downloadConsultationPdf,
+  requestReedit,
+  verifyReedit,
   // Backward-compatible aliases used by existing patient routes and earlier Phase 6 code
   getPatientConsultations: getPatientConsultationHistory
 };

@@ -102,7 +102,8 @@ const listMedicinesQuerySchema = z.object({
     lowStock: booleanQuerySchema,
     nearExpiry: booleanQuerySchema,
     isActive: booleanQuerySchema,
-    clinicId: objectIdSchema.optional()
+    clinicId: objectIdSchema.optional(),
+    allClinics: booleanQuerySchema
   })
 });
 

@@ -5,6 +5,7 @@ const { protect } = require('../../common/middlewares/auth.middleware');
 const { authorize } = require('../../common/middlewares/role.middleware');
 const { validate } = require('../../common/middlewares/validate.middleware');
 const appointmentController = require('./appointment.controller');
+const queueController = require('./queue.controller');
 const {
   createAppointmentSchema,
   listAppointmentsQuerySchema,
@@ -14,7 +15,10 @@ const {
   updateAppointmentStatusSchema,
   rescheduleAppointmentSchema,
   cancelAppointmentSchema,
-  doctorIdParamSchema
+  doctorIdParamSchema,
+  checkInAppointmentSchema,
+  reorderQueueSchema,
+  updateDoctorQueueSettingsSchema
 } = require('./appointment.validator');
 
 const router = Router();
@@ -122,10 +126,101 @@ router.get(
 );
 
 router.post(
-  '/:id/verify-payment',
+  '/scan-checkin',
   protect,
-  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.PATIENT),
-  appointmentController.verifyPayment
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RECEPTIONIST),
+  appointmentController.scanCheckin
+);
+
+// Queue & Check-In endpoints
+router.post(
+  '/:id/checkin',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RECEPTIONIST),
+  validate(checkInAppointmentSchema),
+  queueController.checkInPatient
+);
+
+router.get(
+  '/queue-sorted/:doctorId',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR, ROLES.PATIENT),
+  validate(doctorIdParamSchema),
+  queueController.getDoctorQueue
+);
+
+router.post(
+  '/queue-sorted/:doctorId/call-next',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR),
+  validate(doctorIdParamSchema),
+  queueController.callNext
+);
+
+router.post(
+  '/queue-sorted/start/:tokenId',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR),
+  queueController.startConsultation
+);
+
+router.post(
+  '/queue-sorted/complete/:tokenId',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR),
+  queueController.completeConsultation
+);
+
+router.post(
+  '/queue-sorted/skip/:tokenId',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR),
+  queueController.skipPatient
+);
+
+router.post(
+  '/queue-sorted/recall/:tokenId',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR),
+  queueController.recallPatient
+);
+
+router.post(
+  '/queue-sorted/reorder',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR),
+  validate(reorderQueueSchema),
+  queueController.reorderPatient
+);
+
+router.put(
+  '/queue-sorted/settings/:doctorId',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR),
+  validate(updateDoctorQueueSettingsSchema),
+  queueController.updateDoctorSettings
+);
+
+router.get(
+  '/queue-sorted/settings/:doctorId',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR),
+  validate(doctorIdParamSchema),
+  queueController.getDoctorSettings
+);
+
+router.post(
+  '/queue-sorted/verify-otp',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR),
+  queueController.verifyOtp
+);
+
+router.post(
+  '/queue-sorted/reassign',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR),
+  queueController.reassignSkipped
 );
 
 module.exports = router;

@@ -401,6 +401,7 @@ const FloatingChatbot = () => {
       await appointmentApi.createAppointment({
         patientId: patientProfile?._id || patientProfile?.id,
         doctorId: selectedDoc?._id || selectedDoc?.id,
+        clinicId: selectedDoc?.clinic?._id || selectedDoc?.clinicId || undefined,
         appointmentDate: bookingDate,
         startTime: bookingTime,
         durationMinutes: 15,

@@ -137,6 +137,19 @@ router.get(
   consultationController.downloadConsultationPdf
 );
 
+router.post(
+  '/:id/request-reedit',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR),
+  consultationController.requestReedit
+);
+router.post(
+  '/:id/verify-reedit',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR),
+  consultationController.verifyReedit
+);
+
 // Backward-compatible aliases kept for earlier Phase 6 route usage.
 router.patch(
   '/:id/complete',

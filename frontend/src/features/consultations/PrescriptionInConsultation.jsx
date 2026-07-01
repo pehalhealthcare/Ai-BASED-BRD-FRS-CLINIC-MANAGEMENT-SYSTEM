@@ -153,8 +153,10 @@ export default function PrescriptionInConsultation({
     setProcedures(updated);
   };
 
+  const isReadOnly = consultation?.status === 'completed';
+
   return (
-    <div className="grid gap-4">
+    <div className={`grid gap-4 ${isReadOnly ? 'opacity-80 pointer-events-none' : ''}`}>
       {/* ─── Prescription Builder ─── */}
       <div className="cons-section">
         <div className="flex items-center justify-between px-4 py-3 bg-slate-800/20 border-b border-slate-700/30">

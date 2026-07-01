@@ -193,7 +193,10 @@ export default function RescheduleModal({ appointment, appointmentApi, onClose, 
     try {
       const res = await appointmentApi.getAvailableSlots({ doctorId: doctor._id, date: dateStr });
       const slots = Array.isArray(res) ? res : (res?.slots || res?.data?.slots || []);
-      const normalized = slots.map(s => (typeof s === 'string' ? s : s.startTime || s.time || '')).filter(Boolean);
+      const normalized = slots
+        .filter(s => typeof s === 'string' || s.available !== false)
+        .map(s => (typeof s === 'string' ? s : s.startTime || s.time || ''))
+        .filter(Boolean);
       setAvailableSlots(normalized.length > 0 ? normalized : ALL_SLOTS);
     } catch {
       setAvailableSlots(ALL_SLOTS);

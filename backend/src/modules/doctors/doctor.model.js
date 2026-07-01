@@ -247,6 +247,12 @@ const doctorSchema = new mongoose.Schema(
       type: [blockedSlotSchema],
       default: []
     },
+    queueSettings: {
+      earlyCheckInMins: { type: Number, default: 30 },
+      lateGraceMins: { type: Number, default: 15 },
+      noShowTimeoutMins: { type: Number, default: 30 },
+      tokenFormat: { type: String, default: 'T-000' }
+    },
     isActive: {
       type: Boolean,
       default: false

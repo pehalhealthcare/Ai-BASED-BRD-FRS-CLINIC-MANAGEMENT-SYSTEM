@@ -187,7 +187,11 @@ class PaymentService {
       const invoice = await billingRepository.findInvoiceById(invId);
       if (invoice && invoice.appointmentId) {
         try {
-          await Appointment.findByIdAndUpdate(invoice.appointmentId, { status: 'confirmed' });
+          const appt = await Appointment.findById(invoice.appointmentId);
+          if (appt && appt.status === 'booked') {
+            appt.status = 'confirmed';
+            await appt.save();
+          }
         } catch (err) {
           console.error('Failed to auto-confirm appointment:', err);
         }

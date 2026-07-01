@@ -14,23 +14,23 @@ const resolveClinicContext = ({ user, requestedClinicId = null }) => {
   const userClinicId = normalizeClinicId(user?.clinicId);
   const requested = normalizeClinicId(requestedClinicId);
 
-  if (user?.role === ROLES.SUPER_ADMIN || user?.role === ROLES.ADMIN) {
-    if (requested) {
-      return requested;
+  // If user is receptionist or doctor, restrict access to their assigned clinicId ONLY
+  if (user && (user.role === ROLES.RECEPTIONIST || user.role === ROLES.DOCTOR)) {
+    if (!userClinicId) {
+      throw new AppError('Clinic context is required for this operation.', HTTP_STATUS.FORBIDDEN);
     }
-
-    if (userClinicId) {
-      return userClinicId;
-    }
-
-    throw new AppError('Clinic context is required for this operation.', HTTP_STATUS.FORBIDDEN);
+    return userClinicId;
   }
 
-  if (!userClinicId) {
-    throw new AppError('Clinic context is required for this operation.', HTTP_STATUS.FORBIDDEN);
+  if (requested) {
+    return requested;
   }
 
-  return userClinicId;
+  if (userClinicId) {
+    return userClinicId;
+  }
+
+  throw new AppError('Clinic context is required for this operation.', HTTP_STATUS.FORBIDDEN);
 };
 
 const findPatientClinicId = async (user) => {

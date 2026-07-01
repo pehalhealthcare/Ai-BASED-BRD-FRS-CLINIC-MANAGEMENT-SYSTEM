@@ -20,7 +20,9 @@ import {
   requestConsultationAiSuggestions,
   reviewConsultationAiSuggestions,
   uploadConsultationVoiceNote,
-  updateConsultation
+  updateConsultation,
+  requestConsultationReedit,
+  verifyConsultationReedit
 } from './consultationApi';
 import { prescriptionApi, billingApi, pharmacyApi, labApi } from '../../lib/api';
 import useAuth from '../../hooks/useAuth';
@@ -122,6 +124,9 @@ const ConsultationPage = () => {
   const [moreActionsOpen, setMoreActionsOpen] = useState(false);
   const moreActionsRef = useRef(null);
   const [invoice, setInvoice] = useState(null);
+  const [reeditRequested, setReeditRequested] = useState(false);
+  const [reeditCodeInput, setReeditCodeInput] = useState('');
+  const [verifyingReedit, setVerifyingReedit] = useState(false);
 
   const applyConsultationToState = (responseData) => {
     const nextConsultation = responseData.consultation;
@@ -294,6 +299,8 @@ const ConsultationPage = () => {
     if (appointmentId) { loadAppointmentWorkflow(); return; }
     setLoading(false);
   }, [appointmentId, consultationId]);
+
+  const needsCheckIn = appointment && !consultation?._id && !['checked_in', 'late_check_in', 'called', 'in_consultation', 'completed'].includes(appointment.status);
 
   // Close more actions dropdown on outside click
   useEffect(() => {
@@ -950,6 +957,38 @@ const ConsultationPage = () => {
     } finally { setCompleting(false); }
   };
 
+  const handleRequestReedit = async () => {
+    if (!consultation?._id) return;
+    setError('');
+    try {
+      await requestConsultationReedit(consultation._id);
+      setReeditRequested(true);
+      alert('A 6-digit authorization code has been sent to the patient\'s registered email address.');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to request re-edit authorization code.');
+    }
+  };
+
+  const handleVerifyReedit = async (e) => {
+    e?.preventDefault();
+    if (!consultation?._id || !reeditCodeInput.trim()) return;
+    setVerifyingReedit(true);
+    setError('');
+    try {
+      const response = await verifyConsultationReedit(consultation._id, { code: reeditCodeInput });
+      applyConsultationToState({ consultation: response.consultation || response.data?.consultation || consultation });
+      setReeditRequested(false);
+      setReeditCodeInput('');
+      
+      // Reload workspace
+      window.location.reload();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Verification failed. Please check the code.');
+    } finally {
+      setVerifyingReedit(false);
+    }
+  };
+
   const handlePayInvoice = (invoiceId) => {
     navigate(`/billing/${invoiceId}/checkout`);
   };
@@ -1092,22 +1131,28 @@ const ConsultationPage = () => {
         </div>
 
         {/* Save Actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          {needsCheckIn && (
+            <span className="text-xs font-bold text-rose-450 bg-rose-500/10 border border-rose-500/25 px-3.5 py-2 rounded-xl flex items-center gap-1.5 animate-pulse">
+              ⚠️ Patient hasn't checked in at reception yet.
+            </span>
+          )}
           {user?.role?.toLowerCase() !== 'patient' && consultation?.status !== 'completed' && (
             <>
               <button
                 type="button"
                 onClick={(e) => handleSubmit(e, false)}
-                disabled={saving}
-                className="cons-btn cons-btn-ghost"
+                disabled={saving || needsCheckIn}
+                className="cons-btn cons-btn-ghost disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {saving ? 'Saving...' : 'Save as Draft'}
               </button>
               <button
                 type="button"
                 onClick={(e) => handleSubmit(e, true)}
-                disabled={saving}
-                className="cons-btn cons-btn-save"
+                disabled={saving || needsCheckIn}
+                className="cons-btn cons-btn-save disabled:opacity-40 disabled:bg-slate-800 disabled:border-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed flex items-center gap-1.5"
+                title={needsCheckIn ? "Patient must check in at reception first" : ""}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 13l4 4L19 7"/></svg>
                 {saving ? 'Saving...' : consultation?._id ? 'Save & Continue' : 'Start Consultation'}
@@ -1151,6 +1196,51 @@ const ConsultationPage = () => {
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
           {error}
           <button type="button" onClick={() => setError('')} className="ml-auto text-red-400 hover:text-red-300">✕</button>
+        </div>
+      )}
+
+      {/* ─── Re-edit Lock Panel for Completed Consultations ─── */}
+      {user?.role?.toLowerCase() !== 'patient' && consultation?.status === 'completed' && (
+        <div className="mb-4 p-5 rounded-2xl border border-amber-500/30 bg-amber-500/5 backdrop-blur-md flex flex-col md:flex-row items-center justify-between gap-4 animate-fade-in">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-white">Consultation Finalized & Locked</h4>
+              <p className="text-xs text-slate-400 mt-1">This consultation is completed. To unlock and re-edit the consultation notes, request an authorization code from the patient.</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 w-full md:w-auto">
+            {!reeditRequested ? (
+              <button
+                type="button"
+                onClick={handleRequestReedit}
+                className="w-full md:w-auto px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs transition"
+              >
+                Send Request Code
+              </button>
+            ) : (
+              <form onSubmit={handleVerifyReedit} className="flex items-center gap-2 w-full md:w-auto">
+                <input
+                  type="text"
+                  placeholder="Enter 6-Digit Code"
+                  value={reeditCodeInput}
+                  onChange={(e) => setReeditCodeInput(e.target.value)}
+                  maxLength={6}
+                  className="px-3 py-1.5 rounded-xl border border-white/10 bg-slate-950 text-white font-mono text-xs w-32 focus:outline-none focus:border-amber-500 text-center"
+                />
+                <button
+                  type="submit"
+                  disabled={verifyingReedit}
+                  className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs transition"
+                >
+                  {verifyingReedit ? 'Verifying...' : 'Verify'}
+                </button>
+              </form>
+            )}
+          </div>
         </div>
       )}
 

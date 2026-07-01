@@ -6,7 +6,7 @@ const createAppointment = asyncHandler(async (req, res) => {
   const appointment = await appointmentService.createAppointment({
     requester: req.user,
     payload: req.body,
-    requestedClinicId: req.query.clinicId,
+    requestedClinicId: req.query.clinicId || req.body.clinicId,
     req
   });
 
@@ -107,6 +107,16 @@ const verifyPayment = asyncHandler(async (req, res) => {
   return sendSuccess(res, 'Appointment payment verified and confirmed successfully', { appointment });
 });
 
+const scanCheckin = asyncHandler(async (req, res) => {
+  const data = await appointmentService.scanCheckin({
+    requester: req.user,
+    token: req.body.token,
+    requestedClinicId: req.query.clinicId
+  });
+
+  return sendSuccess(res, 'Check-in processed successfully', data);
+});
+
 module.exports = {
   createAppointment,
   listAppointments,
@@ -117,5 +127,5 @@ module.exports = {
   rescheduleAppointment,
   cancelAppointment,
   getQueueStatus,
-  verifyPayment
+  scanCheckin
 };

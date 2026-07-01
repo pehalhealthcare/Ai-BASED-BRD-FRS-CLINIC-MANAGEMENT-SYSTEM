@@ -8,6 +8,7 @@ import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 import FloatingChatbot from './FloatingChatbot';
 import BottomFloatingNavBar from './BottomFloatingNavBar';
+import WalkInPatientModal from '../../features/dashboard/WalkInPatientModal';
 
 const pageTitles = {
   [ROUTES.dashboard]: 'Dashboard',
@@ -36,6 +37,7 @@ const DashboardLayout = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [walkInModalOpen, setWalkInModalOpen] = useState(false);
 
   const activeTitle =
     Object.entries(pageTitles).find(
@@ -56,6 +58,7 @@ const DashboardLayout = () => {
         open={sidebarOpen}
         onNavigate={() => setSidebarOpen(false)}
         onLogout={handleLogout}
+        onAddWalkIn={() => setWalkInModalOpen(true)}
       />
 
       {/* Mobile Overlay */}
@@ -82,6 +85,13 @@ const DashboardLayout = () => {
         {user?.role === ROLES.PATIENT && <FloatingChatbot />}
         <BottomFloatingNavBar />
       </div>
+      <WalkInPatientModal
+        isOpen={walkInModalOpen}
+        onClose={() => setWalkInModalOpen(false)}
+        onSuccess={() => {
+          window.location.reload();
+        }}
+      />
     </div>
   );
 };

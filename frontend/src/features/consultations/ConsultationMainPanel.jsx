@@ -113,8 +113,10 @@ const ConsultationMainPanel = ({
     }
   };
 
+  const isReadOnly = consultation?.status === 'completed';
+
   return (
-    <div className="grid gap-4">
+    <div className={`grid gap-4 ${isReadOnly ? 'opacity-80 pointer-events-none' : ''}`}>
 
       {/* ─── AI Voice Dictation & Audio Upload Panel ─── */}
       <div className="cons-section p-4 bg-slate-800/30 border border-slate-700/40 rounded-2xl">

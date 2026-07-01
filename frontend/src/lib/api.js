@@ -112,7 +112,20 @@ const appointmentApi = {
   updateDoctorAvailability: (doctorId, payload) => extractData(apiClient.put(`/doctors/${doctorId}/availability`, payload)),
   blockDoctorSlot: (doctorId, payload) => extractData(apiClient.post(`/doctors/${doctorId}/blocked-slots`, payload)),
   getQueueStatus: (doctorId) => extractData(apiClient.get(`/appointments/queue/${doctorId}`)),
-  verifyPayment: (id, payload) => extractData(apiClient.post(`/appointments/${id}/verify-payment`, payload))
+  verifyPayment: (id, payload) => extractData(apiClient.post(`/appointments/${id}/verify-payment`, payload)),
+  scanCheckin: (payload) => extractData(apiClient.post('/appointments/scan-checkin', payload)),
+  checkInPatient: (id, payload = {}) => extractData(apiClient.post(`/appointments/${id}/checkin`, payload)),
+  getDoctorQueue: (doctorId) => extractData(apiClient.get(`/appointments/queue-sorted/${doctorId}`)),
+  callNext: (doctorId) => extractData(apiClient.post(`/appointments/queue-sorted/${doctorId}/call-next`)),
+  startTokenConsultation: (tokenId) => extractData(apiClient.post(`/appointments/queue-sorted/start/${tokenId}`)),
+  completeTokenConsultation: (tokenId) => extractData(apiClient.post(`/appointments/queue-sorted/complete/${tokenId}`)),
+  skipPatient: (tokenId) => extractData(apiClient.post(`/appointments/queue-sorted/skip/${tokenId}`)),
+  recallPatient: (tokenId, payload = {}) => extractData(apiClient.post(`/appointments/queue-sorted/recall/${tokenId}`, payload)),
+  reorderPatient: (payload) => extractData(apiClient.post('/appointments/queue-sorted/reorder', payload)),
+  updateDoctorSettings: (doctorId, payload) => extractData(apiClient.put(`/appointments/queue-sorted/settings/${doctorId}`, payload)),
+  getDoctorSettings: (doctorId) => extractData(apiClient.get(`/appointments/queue-sorted/settings/${doctorId}`)),
+  verifyOtp: (payload) => extractData(apiClient.post('/appointments/queue-sorted/verify-otp', payload)),
+  reassignSkipped: (payload) => extractData(apiClient.post('/appointments/queue-sorted/reassign', payload))
 };
 
 const consultationApi = {
@@ -143,6 +156,8 @@ const consultationApi = {
   historyByPatient: (patientId, params = {}) =>
     extractData(apiClient.get(`/consultations/patient/${patientId}/history`, { params })),
   getClinicalHistoryByPatient: (patientId) => extractData(apiClient.get(`/patients/${patientId}/clinical-history`)),
+  requestReedit: (id) => extractData(apiClient.post(`/consultations/${id}/request-reedit`)),
+  verifyReedit: (id, payload) => extractData(apiClient.post(`/consultations/${id}/verify-reedit`, payload)),
   // Backward-compatible alias kept for earlier component imports.
   decideAiSuggestion: (consultationId, _suggestionId, payload) =>
     extractData(
