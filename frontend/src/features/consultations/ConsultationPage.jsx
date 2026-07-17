@@ -173,6 +173,8 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
 
   // Active workspace tab (defaults to Laboratory)
   const [workspaceTab, setWorkspaceTab] = useState('Laboratory');
+  // Chrome-like dynamic extra tabs list
+  const [openExtraTabs, setOpenExtraTabs] = useState([]);
 
   // Prescription builder state
   const [prescription, setPrescription] = useState(null);
@@ -1263,16 +1265,42 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                 <h3 className="text-xs font-black uppercase tracking-wider text-slate-450">PATIENT OVERVIEW</h3>
                 <div className="flex flex-col gap-1 text-xs">
                   <button onClick={() => setWorkspaceTab('History')} className={`w-full text-left py-2 px-3 rounded-lg font-bold flex justify-between ${workspaceTab === 'History' ? 'bg-indigo-50 border-l-2 border-indigo-650 text-indigo-707 font-extrabold' : 'hover:bg-slate-50 text-slate-650'}`}>Overview</button>
-                  <button onClick={() => setWorkspaceTab('Allergies')} className={`w-full text-left py-2 px-3 rounded-lg font-bold flex justify-between ${workspaceTab === 'Allergies' ? 'bg-indigo-50 border-l-2 border-indigo-650 text-indigo-707 font-extrabold' : 'hover:bg-slate-50 text-slate-650'}`}>
+                  <button
+                    onClick={() => {
+                      setWorkspaceTab('Allergies');
+                      if (!openExtraTabs.includes('Allergies')) setOpenExtraTabs([...openExtraTabs, 'Allergies']);
+                    }}
+                    className={`w-full text-left py-2 px-3 rounded-lg font-bold flex justify-between ${workspaceTab === 'Allergies' ? 'bg-indigo-50 border-l-2 border-indigo-650 text-indigo-707 font-extrabold' : 'hover:bg-slate-50 text-slate-650'}`}
+                  >
                     Allergies ({patient?.allergies?.length || 2}) <span className="bg-rose-50 text-rose-600 px-1.5 py-0.5 rounded text-[10px] font-black">{patient?.allergies?.length || 2}</span>
                   </button>
-                  <button onClick={() => setWorkspaceTab('Current Medicines')} className={`w-full text-left py-2 px-3 rounded-lg font-bold flex justify-between ${workspaceTab === 'Current Medicines' ? 'bg-indigo-50 border-l-2 border-indigo-650 text-indigo-707 font-extrabold' : 'hover:bg-slate-50 text-slate-650'}`}>
+                  <button
+                    onClick={() => {
+                      setWorkspaceTab('Current Medicines');
+                      if (!openExtraTabs.includes('Current Medicines')) setOpenExtraTabs([...openExtraTabs, 'Current Medicines']);
+                    }}
+                    className={`w-full text-left py-2 px-3 rounded-lg font-bold flex justify-between ${workspaceTab === 'Current Medicines' ? 'bg-indigo-50 border-l-2 border-indigo-650 text-indigo-707 font-extrabold' : 'hover:bg-slate-50 text-slate-650'}`}
+                  >
                     Current Medicines ({patient?.currentMedications?.length || 4}) <span className="bg-indigo-50 text-indigo-605 px-1.5 py-0.5 rounded text-[10px] font-black">{patient?.currentMedications?.length || 4}</span>
                   </button>
-                  <button onClick={() => setWorkspaceTab('Chronic Conditions')} className={`w-full text-left py-2 px-3 rounded-lg font-bold flex justify-between ${workspaceTab === 'Chronic Conditions' ? 'bg-indigo-50 border-l-2 border-indigo-650 text-indigo-707 font-extrabold' : 'hover:bg-slate-50 text-slate-650'}`}>
+                  <button
+                    onClick={() => {
+                      setWorkspaceTab('Chronic Conditions');
+                      if (!openExtraTabs.includes('Chronic Conditions')) setOpenExtraTabs([...openExtraTabs, 'Chronic Conditions']);
+                    }}
+                    className={`w-full text-left py-2 px-3 rounded-lg font-bold flex justify-between ${workspaceTab === 'Chronic Conditions' ? 'bg-indigo-50 border-l-2 border-indigo-650 text-indigo-707 font-extrabold' : 'hover:bg-slate-50 text-slate-650'}`}
+                  >
                     Chronic Conditions ({patient?.chronicConditions?.length || 2}) <span className="bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded text-[10px] font-black">{patient?.chronicConditions?.length || 2}</span>
                   </button>
-                  <button onClick={() => setWorkspaceTab('Previous Visits')} className={`w-full text-left py-2 px-3 rounded-lg font-bold ${workspaceTab === 'Previous Visits' ? 'bg-indigo-50 border-l-2 border-indigo-650 text-indigo-707 font-extrabold' : 'hover:bg-slate-50 text-slate-655'}`}>Previous Visits</button>
+                  <button
+                    onClick={() => {
+                      setWorkspaceTab('Previous Visits');
+                      if (!openExtraTabs.includes('Previous Visits')) setOpenExtraTabs([...openExtraTabs, 'Previous Visits']);
+                    }}
+                    className={`w-full text-left py-2 px-3 rounded-lg font-bold ${workspaceTab === 'Previous Visits' ? 'bg-indigo-50 border-l-2 border-indigo-650 text-indigo-707 font-extrabold' : 'hover:bg-slate-50 text-slate-655'}`}
+                  >
+                    Previous Visits
+                  </button>
                   <button onClick={() => setWorkspaceTab('Laboratory')} className={`w-full text-left py-2 px-3 rounded-lg font-bold ${workspaceTab === 'Laboratory' ? 'bg-indigo-50 border-l-2 border-indigo-650 text-indigo-707 font-extrabold' : 'hover:bg-slate-50 text-slate-655'}`}>Lab History</button>
                   <button className="w-full text-left py-2 px-3 hover:bg-slate-50 text-slate-655 font-bold rounded-lg flex justify-between">
                     Documents ({patient?.documents?.length || 4}) <span className="text-slate-400">{patient?.documents?.length || 4}</span>
@@ -1351,7 +1379,8 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
 
           {/* Workspace Tab Headers */}
           <div className="flex border-b border-slate-200 overflow-x-auto pb-0.5 gap-2 shrink-0">
-            {['History', 'Examination', 'Diagnosis', 'Prescription', 'Laboratory', 'Procedures', 'Advice', 'Follow-up', 'Previous Visits', 'Current Medicines', 'Chronic Conditions', 'Allergies'].map((tab) => (
+            {/* Core Tabs (always visible) */}
+            {['History', 'Examination', 'Diagnosis', 'Prescription', 'Laboratory', 'Procedures', 'Advice', 'Follow-up'].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setWorkspaceTab(tab)}
@@ -1362,6 +1391,38 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
               >
                 {tab}
               </button>
+            ))}
+
+            {/* Chrome-like Dynamic Tabs */}
+            {openExtraTabs.map((tab) => (
+              <div
+                key={tab}
+                className={`flex items-center gap-1 pb-3 px-3 border-b-2 whitespace-nowrap group transition ${workspaceTab === tab
+                  ? 'border-indigo-650 text-indigo-705 font-black'
+                  : 'border-transparent text-slate-405 hover:text-slate-700'
+                }`}
+              >
+                <button
+                  onClick={() => setWorkspaceTab(tab)}
+                  className="font-bold text-xs"
+                >
+                  {tab}
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const remaining = openExtraTabs.filter(t => t !== tab);
+                    setOpenExtraTabs(remaining);
+                    // Switch back to History if closed tab was active
+                    if (workspaceTab === tab) {
+                      setWorkspaceTab('History');
+                    }
+                  }}
+                  className="p-0.5 hover:bg-slate-100 rounded text-slate-400 hover:text-rose-600 transition"
+                >
+                  <X size={10} strokeWidth={3} />
+                </button>
+              </div>
             ))}
           </div>
 
