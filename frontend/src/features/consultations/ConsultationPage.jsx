@@ -1263,18 +1263,18 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                 <div className="flex flex-col gap-1 text-xs">
                   <button onClick={() => setWorkspaceTab('History')} className={`w-full text-left py-2 px-3 rounded-lg font-bold flex justify-between ${workspaceTab === 'History' ? 'bg-indigo-50 border-l-2 border-indigo-650 text-indigo-707 font-extrabold' : 'hover:bg-slate-50 text-slate-650'}`}>Overview</button>
                   <button className="w-full text-left py-2 px-3 hover:bg-slate-50 text-slate-650 font-bold rounded-lg flex justify-between">
-                    Allergies (2) <span className="bg-rose-50 text-rose-600 px-1.5 py-0.5 rounded text-[10px] font-black">2</span>
+                    Allergies ({patient?.allergies?.length || 2}) <span className="bg-rose-50 text-rose-600 px-1.5 py-0.5 rounded text-[10px] font-black">{patient?.allergies?.length || 2}</span>
                   </button>
                   <button onClick={() => setWorkspaceTab('Current Medicines')} className={`w-full text-left py-2 px-3 rounded-lg font-bold flex justify-between ${workspaceTab === 'Current Medicines' ? 'bg-indigo-50 border-l-2 border-indigo-650 text-indigo-707 font-extrabold' : 'hover:bg-slate-50 text-slate-650'}`}>
-                    Current Medicines (4) <span className="bg-indigo-50 text-indigo-605 px-1.5 py-0.5 rounded text-[10px] font-black">4</span>
+                    Current Medicines ({patient?.currentMedications?.length || 4}) <span className="bg-indigo-50 text-indigo-605 px-1.5 py-0.5 rounded text-[10px] font-black">{patient?.currentMedications?.length || 4}</span>
                   </button>
                   <button onClick={() => setWorkspaceTab('Chronic Conditions')} className={`w-full text-left py-2 px-3 rounded-lg font-bold flex justify-between ${workspaceTab === 'Chronic Conditions' ? 'bg-indigo-50 border-l-2 border-indigo-650 text-indigo-707 font-extrabold' : 'hover:bg-slate-50 text-slate-650'}`}>
-                    Chronic Conditions (2) <span className="bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded text-[10px] font-black">2</span>
+                    Chronic Conditions ({patient?.chronicConditions?.length || 2}) <span className="bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded text-[10px] font-black">{patient?.chronicConditions?.length || 2}</span>
                   </button>
                   <button onClick={() => setWorkspaceTab('Previous Visits')} className={`w-full text-left py-2 px-3 rounded-lg font-bold ${workspaceTab === 'Previous Visits' ? 'bg-indigo-50 border-l-2 border-indigo-650 text-indigo-707 font-extrabold' : 'hover:bg-slate-50 text-slate-655'}`}>Previous Visits</button>
                   <button onClick={() => setWorkspaceTab('Laboratory')} className={`w-full text-left py-2 px-3 rounded-lg font-bold ${workspaceTab === 'Laboratory' ? 'bg-indigo-50 border-l-2 border-indigo-650 text-indigo-707 font-extrabold' : 'hover:bg-slate-50 text-slate-655'}`}>Lab History</button>
                   <button className="w-full text-left py-2 px-3 hover:bg-slate-50 text-slate-655 font-bold rounded-lg flex justify-between">
-                    Documents (4) <span className="text-slate-400">4</span>
+                    Documents ({patient?.documents?.length || 4}) <span className="text-slate-400">{patient?.documents?.length || 4}</span>
                   </button>
                   <button className="w-full text-left py-2 px-3 hover:bg-slate-50 text-slate-655 font-bold rounded-lg">Family History</button>
                   <button className="w-full text-left py-2 px-3 hover:bg-slate-50 text-slate-655 font-bold rounded-lg">Vaccinations</button>

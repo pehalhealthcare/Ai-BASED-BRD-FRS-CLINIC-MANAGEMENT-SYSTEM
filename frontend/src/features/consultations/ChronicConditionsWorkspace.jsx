@@ -4,106 +4,9 @@ import {
   AlertTriangle, Play, Calendar, Clock, RefreshCw, Trash2, Edit2, AlertCircle
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import consultationApi from '../../api/consultationApi';
 
-// Mock Patient Chronic Disease Registry entries mirroring active patient medical states
-const MOCK_CHRONIC_REGISTRY = [
-  {
-    _id: "ch-001",
-    conditionName: "Hypertension",
-    genericName: "High Blood Pressure",
-    diagnosedDate: "2024-01-10",
-    yearsSinceDiagnosis: "1y 6m",
-    diagnosedBy: "Dr. Shyam Verma",
-    clinic: "Ram's Dental Clinic",
-    branch: "Indirapuram Branch",
-    currentStatus: "Active",
-    controlLevel: "Well Controlled",
-    lastReviewed: "2026-07-15",
-    treatmentSummary: "BP well controlled with medication.",
-    currentMedicines: ["Telmisartan 40 mg", "Amlodipine 5 mg"],
-    nextReviewDate: "2026-08-15",
-    severity: "Moderate",
-    stage: "Stage 1",
-    riskIndicator: "Moderate Risk",
-    timeline: [
-      { event: "Diagnosed", date: "10 Jan 2024", done: true },
-      { event: "Treatment Started", date: "10 Jan 2024", done: true },
-      { event: "BP Controlled", date: "15 Jul 2026", done: true },
-      { event: "Still Active", date: "Present", done: true }
-    ]
-  },
-  {
-    _id: "ch-002",
-    conditionName: "Type 2 Diabetes Mellitus",
-    genericName: "Diabetes",
-    diagnosedDate: "2023-03-05",
-    yearsSinceDiagnosis: "2y 4m",
-    diagnosedBy: "Dr. Shyam Verma",
-    clinic: "Ram's Dental Clinic",
-    branch: "Indirapuram Branch",
-    currentStatus: "Active",
-    controlLevel: "Moderately Controlled",
-    lastReviewed: "2026-07-08",
-    treatmentSummary: "Sugars improving. Monitoring regularly.",
-    currentMedicines: ["Metformin 500 mg"],
-    nextReviewDate: "2026-08-08",
-    severity: "Moderate",
-    stage: "Unspecified",
-    riskIndicator: "Moderate Risk",
-    timeline: [
-      { event: "Diagnosed", date: "05 Mar 2023", done: true },
-      { event: "Treatment Started", date: "05 Mar 2023", done: true },
-      { event: "Stable", date: "08 Jul 2026", done: true }
-    ]
-  },
-  {
-    _id: "ch-003",
-    conditionName: "Asthma",
-    genericName: "Bronchial Asthma",
-    diagnosedDate: "2022-05-12",
-    yearsSinceDiagnosis: "2y 0m",
-    diagnosedBy: "Dr. Shyam Verma",
-    clinic: "Ram's Dental Clinic",
-    branch: "Indirapuram Branch",
-    currentStatus: "Resolved",
-    controlLevel: "Resolved",
-    lastReviewed: "2024-05-12",
-    treatmentSummary: "Symptoms resolved and no medication required.",
-    currentMedicines: [],
-    nextReviewDate: "None",
-    severity: "Mild",
-    stage: "Intermittent",
-    riskIndicator: "Low Risk",
-    timeline: [
-      { event: "Diagnosed", date: "12 May 2022", done: true },
-      { event: "Treatment Started", date: "12 May 2022", done: true },
-      { event: "Resolved", date: "12 May 2024", done: true }
-    ]
-  },
-  {
-    _id: "ch-004",
-    conditionName: "Tibia Fracture (Left)",
-    genericName: "Lower Leg Fracture",
-    diagnosedDate: "2021-08-20",
-    yearsSinceDiagnosis: "3m",
-    diagnosedBy: "Dr. Shyam Verma",
-    clinic: "Ram's Dental Clinic",
-    branch: "Indirapuram Branch",
-    currentStatus: "Ended",
-    controlLevel: "Resolved",
-    lastReviewed: "2021-11-20",
-    treatmentSummary: "Fracture healed completely.",
-    currentMedicines: [],
-    nextReviewDate: "None",
-    severity: "Severe",
-    stage: "Post-op",
-    riskIndicator: "Low Risk",
-    timeline: [
-      { event: "Diagnosed", date: "20 Aug 2021", done: true },
-      { event: "Ended", date: "20 Nov 2021", done: true }
-    ]
-  }
-];
+
 
 export default function ChronicConditionsWorkspace({
   patient, currentUser, navigate, currentMedicines, setMedicines, setIsDirty
@@ -186,24 +89,13 @@ export default function ChronicConditionsWorkspace({
         });
 
         if (mappedConditions.length === 0) {
-          // Map mock items to correct date formats as fallback
-          const formattedMocks = MOCK_CHRONIC_REGISTRY.map(mock => ({
-            ...mock,
-            diagnosedDate: formatDateLabel(mock.diagnosedDate),
-            lastReviewed: formatDateLabel(mock.lastReviewed)
-          }));
-          setConditions(formattedMocks);
+          setConditions([]);
         } else {
           setConditions(mappedConditions);
         }
       } catch (err) {
         console.error('Failed to load chronic conditions:', err);
-        const formattedMocks = MOCK_CHRONIC_REGISTRY.map(mock => ({
-          ...mock,
-          diagnosedDate: formatDateLabel(mock.diagnosedDate),
-          lastReviewed: formatDateLabel(mock.lastReviewed)
-        }));
-        setConditions(formattedMocks);
+        setConditions([]);
       } finally {
         setLoading(false);
       }
