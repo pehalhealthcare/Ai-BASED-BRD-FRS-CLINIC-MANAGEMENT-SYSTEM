@@ -35,6 +35,7 @@ import CurrentMedicinesWorkspace from './CurrentMedicinesWorkspace';
 import ChronicConditionsWorkspace from './ChronicConditionsWorkspace';
 import AllergiesWorkspace from './AllergiesWorkspace';
 import DocumentsWorkspace from './DocumentsWorkspace';
+import VaccinationsWorkspace from './VaccinationsWorkspace';
 
 /* ─── FontAwesome Icon Prefix Compatibility Mapping ─── */
 const byPrefixAndName = {
@@ -1220,7 +1221,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
       </div>
 
       {/* ─── 3 Column Grid Layout ─── */}
-      <div className={`flex-1 grid grid-cols-1 ${['Previous Visits', 'Current Medicines', 'Chronic Conditions', 'Allergies', 'Documents'].includes(workspaceTab) ? 'lg:grid-cols-[280px_1fr]' : 'lg:grid-cols-[280px_1fr_320px]'} gap-6 p-6 items-stretch`}>
+      <div className={`flex-1 grid grid-cols-1 ${['Previous Visits', 'Current Medicines', 'Chronic Conditions', 'Allergies', 'Documents', 'Vaccinations'].includes(workspaceTab) ? 'lg:grid-cols-[280px_1fr]' : 'lg:grid-cols-[280px_1fr_320px]'} gap-6 p-6 items-stretch`}>
 
         {/* LEFT COLUMN: Dynamic Patient Summary/Lab Overview */}
         <div className="flex flex-col gap-5">
@@ -1324,7 +1325,15 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                   >
                     Family History
                   </button>
-                  <button className="w-full text-left py-2 px-3 hover:bg-slate-50 text-slate-655 font-bold rounded-lg">Vaccinations</button>
+                  <button
+                    onClick={() => {
+                      setWorkspaceTab('Vaccinations');
+                      if (!openExtraTabs.includes('Vaccinations')) setOpenExtraTabs([...openExtraTabs, 'Vaccinations']);
+                    }}
+                    className={`w-full text-left py-2 px-3 rounded-lg font-bold flex justify-between ${workspaceTab === 'Vaccinations' ? 'bg-indigo-50 border-l-2 border-indigo-650 text-indigo-707 font-extrabold' : 'hover:bg-slate-50 text-slate-655'}`}
+                  >
+                    Vaccinations ({patient?.vaccinations?.length || 5}) <span className="bg-indigo-50 text-indigo-605 px-1.5 py-0.5 rounded text-[10px] font-black">{patient?.vaccinations?.length || 5}</span>
+                  </button>
                 </div>
               </div>
 
@@ -3987,6 +3996,17 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                 setIsDirty={setIsDirty}
               />
             )}
+
+            {workspaceTab === 'Vaccinations' && (
+              <VaccinationsWorkspace
+                patient={patient}
+                currentUser={doctor}
+                navigate={navigate}
+                currentMedicines={medicines}
+                setMedicines={setMedicines}
+                setIsDirty={setIsDirty}
+              />
+            )}
           </div>
 
           {/* Unsaved Changes Indicator */}
@@ -3998,7 +4018,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
         </div>
 
         {/* RIGHT COLUMN: Premium AI Clinical Assistant & Alerts */}
-        {!['Previous Visits', 'Current Medicines', 'Chronic Conditions', 'Allergies', 'Documents'].includes(workspaceTab) && (
+        {!['Previous Visits', 'Current Medicines', 'Chronic Conditions', 'Allergies', 'Documents', 'Vaccinations'].includes(workspaceTab) && (
           <div className="flex flex-col gap-5">
           {/* AI Clinical Assistant (Gated by subscription) */}
           <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm space-y-4">
