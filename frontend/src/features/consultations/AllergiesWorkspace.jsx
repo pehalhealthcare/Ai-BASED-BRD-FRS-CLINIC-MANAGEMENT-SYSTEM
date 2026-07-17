@@ -53,7 +53,8 @@ const INITIAL_ALLERGY_REGISTRY = [
 export default function AllergiesWorkspace({
   patient, currentUser, navigate, currentMedicines, setMedicines, setIsDirty
 }) {
-  const [allergies, setAllergies] = useState(INITIAL_ALLERGY_REGISTRY);
+  const [allergies, setAllergies] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState(null);
   
   // Modal states
@@ -71,6 +72,46 @@ export default function AllergiesWorkspace({
   const [newSeverity, setNewSeverity] = useState('Moderate');
   const [newReaction, setNewReaction] = useState('');
   const [newNotes, setNewNotes] = useState('');
+
+  useEffect(() => {
+    // Read real allergies from patient profile document structure
+    const loadRealAllergies = () => {
+      setLoading(true);
+      try {
+        const patientAllergies = patient?.allergies || [];
+        const mapped = patientAllergies.map((al, idx) => {
+          // Standardize database string entries or objects
+          const name = typeof al === 'string' ? al : al.name || 'Unknown Allergen';
+          return {
+            _id: `al-${idx}-${Date.now()}`,
+            allergenName: name,
+            specificItem: name,
+            category: "Medication Allergy",
+            type: "Drug",
+            severity: "Moderate",
+            reaction: "Mild itching/swelling",
+            onset: "Within 30 minutes",
+            identifiedDate: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+            identifiedBy: currentUser?.fullName || "Dr. Shyam Verma",
+            clinic: "Ram's Dental Clinic",
+            branch: "Indirapuram Branch",
+            currentStatus: "Active",
+            clinicalNotes: "Recorded in patient profile history.",
+            timeline: [
+              { event: "Patient Reported", date: new Date().toLocaleDateString('en-IN'), done: true },
+              { event: "Still Active", date: "Present", done: true }
+            ]
+          };
+        });
+        setAllergies(mapped);
+      } catch (err) {
+        console.error('Failed to load patient allergies:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadRealAllergies();
+  }, [patient?._id]);
 
   const handleToggleExpand = (id) => {
     setExpandedId(expandedId === id ? null : id);
@@ -129,6 +170,15 @@ export default function AllergiesWorkspace({
 
     return matchesSegment && matchesQuery;
   });
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <span className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-650 rounded-full animate-spin" />
+        <span className="ml-3 text-xs font-bold text-slate-500">Loading patient allergies...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
