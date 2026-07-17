@@ -1378,7 +1378,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
         <div className="bg-white border border-slate-200 rounded-3xl shadow-sm p-6 flex flex-col gap-6 items-stretch">
 
           {/* Workspace Tab Headers */}
-          <div className="flex border-b border-slate-200 overflow-x-auto pb-0.5 gap-2 shrink-0">
+          <div className="flex border-b border-slate-200 overflow-x-auto scrollbar-none pb-0.5 gap-2 shrink-0 max-w-full [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {/* Core Tabs (always visible) */}
             {['History', 'Examination', 'Diagnosis', 'Prescription', 'Laboratory', 'Procedures', 'Advice', 'Follow-up'].map((tab) => (
               <button
