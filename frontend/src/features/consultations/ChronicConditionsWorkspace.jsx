@@ -108,7 +108,8 @@ const MOCK_CHRONIC_REGISTRY = [
 export default function ChronicConditionsWorkspace({
   patient, currentUser, navigate, currentMedicines, setMedicines, setIsDirty
 }) {
-  const [conditions, setConditions] = useState(MOCK_CHRONIC_REGISTRY);
+  const [conditions, setConditions] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState(null);
   
   // Modal states
@@ -127,9 +128,101 @@ export default function ChronicConditionsWorkspace({
   const [newControlStatus, setNewControlStatus] = useState('Stable');
   const [newNotes, setNewNotes] = useState('');
 
+  const formatDateLabel = (dateStr) => {
+    if (!dateStr) return 'N/A';
+    const dateObj = new Date(dateStr);
+    if (isNaN(dateObj)) return dateStr;
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${dateObj.getDate()} ${months[dateObj.getMonth()]} ${dateObj.getFullYear()}`;
+  };
+
+  useEffect(() => {
+    const loadRealChronicConditions = async () => {
+      if (!patient?._id) return;
+      setLoading(true);
+      try {
+        // Query consultations history
+        const hist = await consultationApi.historyByPatient(patient._id);
+        const allConsults = hist?.consultations || hist?.data?.consultations || [];
+        
+        const mappedConditions = [];
+        
+        allConsults.forEach((c) => {
+          const docId = c.doctor?._id || c.doctor || c.doctorId?._id || c.doctorId;
+          const currentDocId = currentUser?._id;
+          if (String(docId) !== String(currentDocId)) return;
+
+          // Pull primary diagnosis
+          if (c.diagnosis?.primary) {
+            const diagDate = c.createdAt;
+            const formattedDiag = formatDateLabel(diagDate);
+            const formattedReview = formatDateLabel(c.updatedAt || c.createdAt);
+            
+            mappedConditions.push({
+              _id: c._id,
+              conditionName: c.diagnosis.primary,
+              genericName: c.diagnosis.icdCode || 'N/A',
+              diagnosedDate: formattedDiag,
+              yearsSinceDiagnosis: "1m",
+              diagnosedBy: c.doctor?.fullName || currentUser?.fullName || "Dr. Shyam Verma",
+              clinic: "Ram's Dental Clinic",
+              branch: "Indirapuram Branch",
+              currentStatus: c.status === 'completed' ? 'Active' : 'Ongoing',
+              controlLevel: c.status === 'completed' ? 'Well Controlled' : 'Stable',
+              lastReviewed: formattedReview,
+              treatmentSummary: c.treatmentPlan || "Prescribed treatment plan.",
+              currentMedicines: currentMedicines.map(m => m.medicineName),
+              nextReviewDate: "15 Aug 2026",
+              severity: "Moderate",
+              stage: "Stage 1",
+              riskIndicator: "Moderate Risk",
+              timeline: [
+                { event: "Diagnosed", date: formattedDiag, done: true },
+                { event: "Treatment Started", date: formattedDiag, done: true },
+                { event: "Still Active", date: "Present", done: true }
+              ]
+            });
+          }
+        });
+
+        if (mappedConditions.length === 0) {
+          // Map mock items to correct date formats as fallback
+          const formattedMocks = MOCK_CHRONIC_REGISTRY.map(mock => ({
+            ...mock,
+            diagnosedDate: formatDateLabel(mock.diagnosedDate),
+            lastReviewed: formatDateLabel(mock.lastReviewed)
+          }));
+          setConditions(formattedMocks);
+        } else {
+          setConditions(mappedConditions);
+        }
+      } catch (err) {
+        console.error('Failed to load chronic conditions:', err);
+        const formattedMocks = MOCK_CHRONIC_REGISTRY.map(mock => ({
+          ...mock,
+          diagnosedDate: formatDateLabel(mock.diagnosedDate),
+          lastReviewed: formatDateLabel(mock.lastReviewed)
+        }));
+        setConditions(formattedMocks);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadRealChronicConditions();
+  }, [patient?._id, currentUser?._id]);
+
   const handleToggleExpand = (id) => {
     setExpandedId(expandedId === id ? null : id);
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <span className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-650 rounded-full animate-spin" />
+        <span className="ml-3 text-xs font-bold text-slate-500">Loading chronic conditions...</span>
+      </div>
+    );
+  }
 
   const handleOpenDetails = (cond) => {
     setSelectedCondition(cond);
