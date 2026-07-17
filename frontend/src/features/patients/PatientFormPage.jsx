@@ -62,6 +62,49 @@ const PatientFormPage = () => {
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
+  const [existingPatient, setExistingPatient] = useState(null);
+  const [checkingExists, setCheckingExists] = useState(false);
+
+  const handlePhoneChange = async (value) => {
+    updateField('phone', value);
+    const cleaned = value.trim();
+    if (cleaned.length === 10) {
+      setCheckingExists(true);
+      try {
+        const response = await patientApi.checkExists(cleaned);
+        const exists = response.exists ?? response.data?.exists;
+        const patientData = response.patient ?? response.data?.patient;
+        if (exists && patientData) {
+          setExistingPatient(patientData);
+        } else {
+          setExistingPatient(null);
+        }
+      } catch (err) {
+        console.error('Failed to check existing patient:', err);
+      } finally {
+        setCheckingExists(false);
+      }
+    } else {
+      setExistingPatient(null);
+    }
+  };
+
+  const handleConfirmAssociation = async () => {
+    if (!existingPatient?._id) return;
+    setSubmitting(true);
+    setError('');
+    try {
+      await patientApi.associate(existingPatient._id);
+      setSuccessMessage('Patient associated with clinic successfully.');
+      navigate(`/patients/${existingPatient._id}`, { replace: true });
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to associate patient with clinic.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+
   const standardConditions = ['Diabetes', 'Hypertension', 'Asthma', 'Thyroid', 'Heart Disease', 'Kidney Disease', 'Cancer'];
   const standardAllergies = ['Penicillin', 'Dust', 'Peanuts', 'Milk'];
 
@@ -287,6 +330,50 @@ const PatientFormPage = () => {
 
       <PatientDocumentOcrPanel onApply={handleOcrApply} />
 
+      {existingPatient && (
+        <div className="flex flex-col gap-4 rounded-3xl border border-amber-200 bg-amber-50 p-6 shadow-lg shadow-amber-100 animate-fade-in">
+          <div>
+            <h3 className="text-lg font-bold text-amber-900">Existing patient found.</h3>
+            <p className="text-sm text-amber-700 mt-1">Please confirm patient identity before linking with this clinic. Medical records from other clinics are not visible.</p>
+          </div>
+          <div className="grid grid-cols-3 gap-4 bg-white/60 p-4 rounded-2xl border border-amber-100">
+            <div>
+              <span className="text-xs text-stone-500 font-bold uppercase tracking-wider">Name</span>
+              <p className="text-sm font-semibold text-stone-800 mt-0.5">{existingPatient.fullName || `${existingPatient.firstName} ${existingPatient.lastName}`}</p>
+            </div>
+            <div>
+              <span className="text-xs text-stone-500 font-bold uppercase tracking-wider">Date of Birth</span>
+              <p className="text-sm font-semibold text-stone-800 mt-0.5">{existingPatient.dateOfBirth ? new Date(existingPatient.dateOfBirth).toLocaleDateString() : 'N/A'}</p>
+            </div>
+            <div>
+              <span className="text-xs text-stone-500 font-bold uppercase tracking-wider">Gender</span>
+              <p className="text-sm font-semibold text-stone-800 mt-0.5 capitalize">{existingPatient.gender}</p>
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={handleConfirmAssociation}
+              className="px-5 py-2.5 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm shadow-sm transition disabled:opacity-50"
+            >
+              Confirm and Associate with Clinic
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setExistingPatient(null);
+                updateField('phone', '');
+              }}
+              className="px-5 py-2.5 rounded-2xl border border-stone-300 hover:bg-stone-50 text-stone-700 font-bold text-sm transition"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+
       <form className="grid gap-6" onSubmit={handleSubmit}>
         {/* Core Profile */}
         <div className="grid gap-6 rounded-3xl border border-stone-200 bg-white p-6 shadow-lg shadow-stone-200/40 md:grid-cols-2">
@@ -314,7 +401,8 @@ const PatientFormPage = () => {
           </label>
           <label className="grid gap-2 text-sm text-stone-700">
             Phone
-            <input className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" value={form.phone} onChange={(event) => updateField('phone', event.target.value)} required />
+            <input className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" value={form.phone} onChange={(event) => handlePhoneChange(event.target.value)} required />
+            {checkingExists && <span className="text-xs text-stone-400">Checking patient database...</span>}
           </label>
           <label className="grid gap-2 text-sm text-stone-700">
             Email

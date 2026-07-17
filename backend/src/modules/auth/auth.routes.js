@@ -27,6 +27,7 @@ router.post('/register', validate(registerSchema), authController.register);
  */
 router.post('/login', validate(loginSchema), authController.login);
 router.post('/reset-password', validate(resetPasswordSchema), authController.resetPassword);
+router.post('/verify-first-login-otp', authController.verifyFirstLoginOtp);
 router.get('/me', protect, authController.me);
 router.post('/logout', protect, authController.logout);
 

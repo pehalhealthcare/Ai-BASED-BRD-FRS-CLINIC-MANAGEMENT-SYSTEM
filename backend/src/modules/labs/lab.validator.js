@@ -35,12 +35,19 @@ const dateStringSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be i
 const createLabTestSchema = z.object({
   body: z.object({
     code: z.string().trim().min(1, 'code is required').max(30),
-    name: z.string().trim().min(1, 'name is required').max(200),
-    category: z.string().trim().min(1, 'category is required').max(120),
-    specimenType: z.string().trim().min(1, 'specimenType is required').max(120),
+    name: z.string().trim().max(200).optional(),
+    category: z.string().trim().max(120).optional(),
+    specimenType: z.string().trim().max(120).optional(),
     unit: optionalTrimmedString(60),
-    normalRange: normalRangeSchema,
+    normalRange: normalRangeSchema.optional(),
     price: z.coerce.number().min(0).optional(),
+    testPrice: z.coerce.number().min(0).optional(),
+    globalLabTestId: objectIdSchema.optional(),
+    labTestMasterId: objectIdSchema.optional(),
+    turnaroundTime: z.string().optional(),
+    homeCollectionAvailable: z.boolean().optional(),
+    sampleCollectionFee: z.coerce.number().min(0).optional(),
+    availableDays: z.array(z.string()).optional(),
     isActive: z.boolean().optional(),
     clinicId: objectIdSchema.optional()
   })
@@ -201,4 +208,98 @@ module.exports = {
   finalizeLabReportSchema,
   patientLabHistorySchema,
   updateLabTestSchema
+};
+
+const createLabConsumableSchema = z.object({
+  body: z.object({
+    name: z.string().trim().min(1, 'Name is required').max(150),
+    category: z.enum([
+      'Test Kit',
+      'Reagent',
+      'Chemical',
+      'Collection Tube',
+      'Slide',
+      'Needle',
+      'Syringe',
+      'Container',
+      'PPE',
+      'Other Consumable'
+    ]),
+    unit: z.string().trim().min(1, 'Unit is required').max(60),
+    minimumStock: z.coerce.number().min(0).optional(),
+    reorderLevel: z.coerce.number().min(0).optional(),
+    maximumStock: z.coerce.number().min(0).optional(),
+    isActive: z.boolean().optional(),
+    branchId: objectIdSchema.optional()
+  })
+});
+
+const updateLabConsumableSchema = z.object({
+  params: objectIdParamSchema('id').shape.params,
+  body: z.object({
+    name: z.string().trim().max(150).optional(),
+    category: z.enum([
+      'Test Kit',
+      'Reagent',
+      'Chemical',
+      'Collection Tube',
+      'Slide',
+      'Needle',
+      'Syringe',
+      'Container',
+      'PPE',
+      'Other Consumable'
+    ]).optional(),
+    unit: z.string().trim().max(60).optional(),
+    minimumStock: z.coerce.number().min(0).optional(),
+    reorderLevel: z.coerce.number().min(0).optional(),
+    maximumStock: z.coerce.number().min(0).optional(),
+    isActive: z.boolean().optional()
+  }).optional()
+});
+
+const addConsumableBatchSchema = z.object({
+  params: objectIdParamSchema('id').shape.params,
+  body: z.object({
+    batchNumber: z.string().trim().min(1, 'Batch number is required').max(80),
+    supplierId: objectIdSchema.optional().nullable(),
+    expiryDate: z.string().trim(),
+    quantity: z.coerce.number().int().positive(),
+    purchasePrice: z.coerce.number().min(0).optional(),
+    sellingPrice: z.coerce.number().min(0).optional(),
+    invoiceNumber: z.string().trim().max(80).optional(),
+    remarks: z.string().trim().max(250).optional(),
+    isOpeningStock: z.boolean().optional()
+  })
+});
+
+const adjustConsumableStockSchema = z.object({
+  body: z.object({
+    consumableId: objectIdSchema,
+    batchId: objectIdSchema,
+    quantity: z.coerce.number(),
+    adjustmentType: z.enum(['Adjustment', 'Damage', 'Expired', 'Returned']),
+    reason: z.string().trim().optional(),
+    notes: z.string().trim().optional()
+  })
+});
+
+module.exports = {
+  createLabTestSchema,
+  listLabTestQuerySchema,
+  createLabOrderSchema,
+  listLabOrderQuerySchema,
+  labOrderIdParamSchema,
+  updateLabOrderStatusSchema,
+  createLabReportSchema,
+  labReportIdParamSchema,
+  updateLabReportSchema,
+  reviewLabAnalysisSchema,
+  finalizeLabReportSchema,
+  patientLabHistorySchema,
+  updateLabTestSchema,
+  createLabConsumableSchema,
+  updateLabConsumableSchema,
+  addConsumableBatchSchema,
+  adjustConsumableStockSchema
 };

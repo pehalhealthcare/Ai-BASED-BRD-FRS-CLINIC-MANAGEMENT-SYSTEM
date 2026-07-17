@@ -124,33 +124,21 @@ const seed = async () => {
     logger.info(`Clinic 1 Resolved: ${c1.name} (${c1._id})`);
     logger.info(`Clinic 2 Resolved: ${c2.name} (${c2._id})`);
 
-    // Clean existing medicines and lab tests
-    await Medicine.deleteMany({ clinicId: { $in: [c1._id, c2._id] } });
-    await LabTest.deleteMany({ clinicId: { $in: [c1._id, c2._id] } });
+    // Clean existing medicines and lab tests for all clinics
+    const clinicIds = clinics.map(c => c._id);
+    await Medicine.deleteMany({ clinicId: { $in: clinicIds } });
+    await LabTest.deleteMany({ clinicId: { $in: clinicIds } });
     logger.info('Cleaned old records successfully.');
 
     // Seed Medicines
     const medicinesToInsert = [];
     allMedicinesData.forEach((med, idx) => {
-      // Medicines 0 to 39: Clinic 1 only
-      // Medicines 40 to 79: Clinic 2 only
-      // Medicines 80 to 99: Both Clinics
-      const targets = [];
-      if (idx < 40) {
-        targets.push(c1._id);
-      } else if (idx < 80) {
-        targets.push(c2._id);
-      } else {
-        targets.push(c1._id, c2._id);
-      }
-
-      targets.forEach(clinicId => {
+      clinicIds.forEach(clinicId => {
         // Create batch to ensure totalStock > 0
-        const isC1 = String(clinicId) === String(c1._id);
-        const quantity = isC1 ? 50 : 30; // vary stock
+        const quantity = 50; 
         const batches = [
           {
-            batchNumber: `B-${med.code}-${isC1 ? '1' : '2'}`,
+            batchNumber: `B-${med.code}-${clinicId.toString().slice(-4)}`,
             quantity,
             expiryDate: new Date('2028-12-31'),
             purchasePrice: Math.round(med.unitPrice * 0.7),
@@ -159,13 +147,14 @@ const seed = async () => {
           }
         ];
 
-        // Also make some medicines have 0 stock or inactive to test availability
         const isActive = idx % 10 !== 0; // 10% medicines are inactive
         const finalBatches = (idx % 15 === 0) ? [] : batches; // some have 0 stock
 
         medicinesToInsert.push({
           ...med,
           clinicId,
+          brandId: new (require('mongoose').Types.ObjectId)(),
+          globalMedicineId: new (require('mongoose').Types.ObjectId)(),
           isActive,
           batches: finalBatches,
           totalStock: finalBatches.reduce((acc, b) => acc + b.quantity, 0)
@@ -179,8 +168,7 @@ const seed = async () => {
     // Seed Lab Tests
     const labTestsToInsert = [];
     LAB_TEST_TEMPLATES.forEach((test, idx) => {
-      // Seed all tests for both clinics
-      [c1._id, c2._id].forEach(clinicId => {
+      clinicIds.forEach(clinicId => {
         const isActive = idx % 8 !== 0; // Some tests inactive to check availability
         labTestsToInsert.push({
           clinicId,

@@ -1,41 +1,5 @@
 const mongoose = require('mongoose');
 
-const { recalculateTotalStock } = require('./pharmacy.utils');
-
-const medicineBatchSchema = new mongoose.Schema(
-  {
-    batchNumber: {
-      type: String,
-      trim: true,
-      required: true
-    },
-    quantity: {
-      type: Number,
-      min: 0,
-      required: true
-    },
-    expiryDate: {
-      type: Date,
-      default: null
-    },
-    purchasePrice: {
-      type: Number,
-      min: 0,
-      default: 0
-    },
-    sellingPrice: {
-      type: Number,
-      min: 0,
-      default: 0
-    },
-    receivedAt: {
-      type: Date,
-      default: Date.now
-    }
-  },
-  { _id: true }
-);
-
 const medicineSchema = new mongoose.Schema(
   {
     clinicId: {
@@ -44,11 +8,18 @@ const medicineSchema = new mongoose.Schema(
       required: true,
       index: true
     },
-    code: {
-      type: String,
-      trim: true,
-      default: ''
+    brandId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'BrandMaster',
+      required: false // Make optional to support new global reference flow
     },
+    globalMedicineId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'GlobalMedicine',
+      default: null,
+      index: true
+    },
+    // Denormalized fields from Brand & Generic Master for 100% backward compatibility
     name: {
       type: String,
       trim: true,
@@ -84,37 +55,70 @@ const medicineSchema = new mongoose.Schema(
       trim: true,
       default: ''
     },
+    // Clinic specific attributes
+    distributor: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    purchasePrice: {
+      type: Number,
+      default: 0
+    },
+    sellingPrice: {
+      type: Number,
+      default: 0
+    },
     unitPrice: {
       type: Number,
-      min: 0,
+      default: 0
+    },
+    gst: {
+      type: Number,
+      default: 0
+    },
+    discount: {
+      type: Number,
+      default: 0
+    },
+    minimumStock: {
+      type: Number,
+      default: 0
+    },
+    maximumStock: {
+      type: Number,
       default: 0
     },
     reorderLevel: {
       type: Number,
-      min: 0,
       default: 0
     },
     supplierLeadTimeDays: {
       type: Number,
-      min: 0,
-      default: 7
+      default: 0
+    },
+    rackNumber: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    storageLocation: {
+      type: String,
+      trim: true,
+      default: ''
     },
     isActive: {
       type: Boolean,
       default: true
     },
-    requiresPrescription: {
-      type: Boolean,
-      default: true
-    },
-    batches: {
-      type: [medicineBatchSchema],
-      default: []
-    },
     totalStock: {
       type: Number,
       min: 0,
       default: 0
+    },
+    requiresPrescription: {
+      type: Boolean,
+      default: true
     },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
@@ -129,23 +133,53 @@ const medicineSchema = new mongoose.Schema(
   },
   {
     collection: 'medicines',
-    timestamps: true
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
   }
 );
 
-medicineSchema.pre('validate', function preValidate(next) {
-  this.totalStock = recalculateTotalStock(this);
+// Virtual Populate for Medicine Batches
+medicineSchema.virtual('batches', {
+  ref: 'MedicineBatch',
+  localField: '_id',
+  foreignField: 'inventoryId'
+});
+
+medicineSchema.pre('save', async function (next) {
+  if (this.batches && Array.isArray(this.batches) && this.batches.length > 0 && !this._batchesSaved) {
+    const MedicineBatch = mongoose.model('MedicineBatch');
+    let totalStock = 0;
+    for (const b of this.batches) {
+      const exists = await MedicineBatch.findOne({ inventoryId: this._id, batchNumber: b.batchNumber });
+      if (!exists) {
+        await MedicineBatch.create({
+          inventoryId: this._id,
+          batchNumber: b.batchNumber,
+          manufacturingDate: b.manufacturingDate || b.receivedAt || new Date(),
+          expiryDate: b.expiryDate,
+          purchaseQuantity: b.purchaseQuantity || b.quantity || 0,
+          availableStock: b.availableStock || b.quantity || 0,
+          quantity: b.quantity || b.purchaseQuantity || 0,
+          purchasePrice: b.purchasePrice || 0,
+          sellingPrice: b.sellingPrice || 0,
+          supplier: b.supplier || '',
+          invoiceNumber: b.invoiceNumber || ''
+        });
+      }
+      totalStock += Number(b.availableStock || b.quantity || 0);
+    }
+    this.totalStock = totalStock;
+    this._batchesSaved = true;
+  }
   next();
 });
 
-medicineSchema.index(
-  { clinicId: 1, code: 1 },
-  { unique: true, partialFilterExpression: { code: { $type: 'string', $ne: '' } } }
-);
 medicineSchema.index({ clinicId: 1, name: 1 });
 medicineSchema.index({ clinicId: 1, genericName: 1 });
+medicineSchema.index({ clinicId: 1, brandId: 1 }, { unique: true, sparse: true });
+medicineSchema.index({ clinicId: 1, globalMedicineId: 1 }, { unique: true, sparse: true });
 medicineSchema.index({ name: 'text', genericName: 'text', brandName: 'text', category: 'text' });
 
 const Medicine = mongoose.models.Medicine || mongoose.model('Medicine', medicineSchema);
-
 module.exports = Medicine;

@@ -89,8 +89,11 @@ const createConsultationSchema = z.object({
     treatmentPlan: optionalTrimmedString(5000),
     followUp: followUpSchema,
     formattedClinicalNotes: formattedClinicalNotesSchema,
+    transcript_text: z.string().trim().max(10000).optional().or(z.literal('')),
+    ai_soap_note: z.object({}).passthrough().optional(),
+    voiceNoteLanguage: z.enum(['auto', 'en', 'hi', 'es', 'fr', 'de']).optional(),
     status: z.enum(['draft', 'in_progress']).optional()
-  })
+  }).passthrough()
 });
 
 const consultationIdParamSchema = objectIdParamSchema('id');
@@ -113,8 +116,18 @@ const updateConsultationSchema = z.object({
       diagnosis: diagnosisSchema,
       treatmentPlan: optionalTrimmedString(5000),
       followUp: followUpSchema,
-      status: z.enum(['draft', 'in_progress', 'cancelled']).optional()
+      transcript_text: z.string().trim().max(10000).optional().or(z.literal('')),
+      ai_soap_note: z.object({}).passthrough().optional(),
+      voiceNoteLanguage: z.enum(['auto', 'en', 'hi', 'es', 'fr', 'de']).optional(),
+      status: z.enum(['draft', 'in_progress', 'cancelled']).optional(),
+      pastMedicalHistory: z.array(z.string()).optional(),
+      familyHistory: z.array(z.object({}).passthrough()).optional(),
+      socialHistory: z.array(z.object({}).passthrough()).optional(),
+      lifestyleHistory: z.array(z.string()).optional(),
+      systemicExamination: z.array(z.object({}).passthrough()).optional(),
+      customVitalsList: z.array(z.object({}).passthrough()).optional()
     })
+    .passthrough()
     .refine((payload) => Object.keys(payload).length > 0, {
       message: 'At least one field must be provided for update'
     })
@@ -154,14 +167,28 @@ const reviewAiSuggestionsSchema = z.object({
 const completeConsultationSchema = z.object({
   params: consultationIdParamSchema.shape.params,
   body: z.object({
+    chiefComplaint: z.string().trim().min(1).max(500).optional(),
+    symptoms: z.array(symptomSchema).optional(),
+    vitals: vitalsSchema.optional(),
+    clinicalNotes: optionalTrimmedString(5000),
+    formattedClinicalNotes: formattedClinicalNotesSchema.optional(),
     diagnosis: z.object({
-      primary: z.string().trim().min(1, 'diagnosis.primary is required'),
+      primary: z.string().trim().max(500),
       secondary: z.array(z.string().trim().min(1)).optional(),
       notes: z.string().trim().max(3000).optional()
     }),
-    treatmentPlan: z.string().trim().min(1, 'treatmentPlan is required').max(5000),
-    followUp: followUpSchema.optional()
-  })
+    treatmentPlan: z.string().trim().max(5000),
+    followUp: followUpSchema.optional(),
+    transcript_text: z.string().trim().max(10000).optional().or(z.literal('')),
+    ai_soap_note: z.object({}).passthrough().optional(),
+    voiceNoteLanguage: z.enum(['auto', 'en', 'hi', 'es', 'fr', 'de']).optional(),
+    pastMedicalHistory: z.array(z.string()).optional(),
+    familyHistory: z.array(z.object({}).passthrough()).optional(),
+    socialHistory: z.array(z.object({}).passthrough()).optional(),
+    lifestyleHistory: z.array(z.string()).optional(),
+    systemicExamination: z.array(z.object({}).passthrough()).optional(),
+    customVitalsList: z.array(z.object({}).passthrough()).optional()
+  }).passthrough()
 });
 
 const formatClinicalNoteSchema = z.object({

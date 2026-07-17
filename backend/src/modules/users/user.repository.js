@@ -20,7 +20,15 @@ const createUser = (payload) =>
   });
 
 const findByEmail = (email, options = {}) => {
-  const query = User.findOne(buildBaseFilter({ email: normalizeEmail(email) }));
+  const normalized = normalizeEmail(email);
+  const query = User.findOne(
+    buildBaseFilter({
+      $or: [
+        { email: normalized },
+        { phone: normalized }
+      ]
+    })
+  );
 
   if (options.includePassword) {
     query.select('+password');

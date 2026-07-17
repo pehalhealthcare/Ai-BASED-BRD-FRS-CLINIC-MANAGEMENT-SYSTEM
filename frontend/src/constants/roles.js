@@ -5,10 +5,22 @@ export const ROLES = {
   DOCTOR: 'DOCTOR',
   PHARMACIST: 'PHARMACIST',
   LAB_TECHNICIAN: 'LAB_TECHNICIAN',
+  NURSE: 'NURSE',
+  ACCOUNTANT: 'ACCOUNTANT',
+  CLINIC_MANAGER: 'CLINIC_MANAGER',
   PATIENT: 'PATIENT'
 };
 
 export const ADMIN_ROLES = [ROLES.SUPER_ADMIN, ROLES.ADMIN];
+
+export const STAFF_ROLES = [
+  ROLES.RECEPTIONIST,
+  ROLES.PHARMACIST,
+  ROLES.LAB_TECHNICIAN,
+  ROLES.NURSE,
+  ROLES.ACCOUNTANT,
+  ROLES.CLINIC_MANAGER
+];
 
 export const canAccessRole = (role, allowedRoles = []) => {
   if (!allowedRoles.length) {

@@ -195,15 +195,41 @@ const triggerBillingAnomalyRefresh = async ({ clinicId, invoiceId, requesterId }
 };
 
 const loadScopedInvoice = async ({ requester, invoiceId, requestedClinicId = null }) => {
-  const clinicId = resolveClinicContext({
-    user: requester,
-    requestedClinicId
-  });
-  const invoice = await billingRepository.findInvoiceById({
-    id: invoiceId,
-    clinicId,
-    populateDetails: true
-  });
+  const isPatient = requester.role === ROLES.PATIENT;
+  let clinicId;
+  let invoice;
+
+  if (isPatient) {
+    invoice = await billingRepository.findInvoiceById({
+      id: invoiceId,
+      populateDetails: true
+    });
+    if (!invoice) {
+      throw new AppError('Invoice not found.', HTTP_STATUS.NOT_FOUND);
+    }
+    clinicId = String(invoice.clinicId);
+
+    const Patient = require('../../modules/patients/patient.model');
+    const patientProfile = await Patient.findById(invoice.patientId);
+    if (!patientProfile) {
+      throw new AppError(RESPONSE_MESSAGES.ACCESS_DENIED, HTTP_STATUS.FORBIDDEN);
+    }
+    const emailMatches = patientProfile.email && String(patientProfile.email).trim().toLowerCase() === String(requester.email).trim().toLowerCase();
+    const phoneMatches = patientProfile.phone && String(patientProfile.phone).trim() === String(requester.phone).trim();
+    if (!emailMatches && !phoneMatches) {
+      throw new AppError(RESPONSE_MESSAGES.ACCESS_DENIED, HTTP_STATUS.FORBIDDEN);
+    }
+  } else {
+    clinicId = resolveClinicContext({
+      user: requester,
+      requestedClinicId
+    });
+    invoice = await billingRepository.findInvoiceById({
+      id: invoiceId,
+      clinicId,
+      populateDetails: true
+    });
+  }
 
   if (!invoice) {
     throw new AppError('Invoice not found.', HTTP_STATUS.NOT_FOUND);
@@ -571,6 +597,47 @@ const recordPayment = async ({ requester, invoiceId, payload, requestedClinicId 
     populateDetails: true
   });
 
+  // Update linked appointment payment details
+  if (updatedInvoice.appointmentId) {
+    try {
+      const Appointment = require('../appointments/appointment.model');
+      const appointment = await Appointment.findById(updatedInvoice.appointmentId);
+      if (appointment) {
+        appointment.amountPaid = (appointment.amountPaid || 0) + amount;
+        appointment.paymentDate = new Date();
+        appointment.paymentMethod = payload.paymentMode || 'digital';
+        
+        if (appointment.waiverType === 'partial') {
+          if (appointment.amountPaid >= appointment.remainingAmount) {
+            appointment.paymentStatus = 'paid';
+          } else {
+            appointment.paymentStatus = 'partially_waived';
+          }
+        } else if (appointment.waiverType === 'full') {
+          appointment.paymentStatus = 'fully_waived';
+        } else {
+          if (appointment.amountPaid >= appointment.consultationFee) {
+            appointment.paymentStatus = 'paid';
+          } else {
+            appointment.paymentStatus = 'pending';
+          }
+        }
+        await appointment.save();
+      }
+    } catch (apptErr) {
+      console.error('Failed to update appointment payment details on invoice payment:', apptErr);
+    }
+  }
+
+  if (updatedInvoice.paymentStatus === 'paid' && updatedInvoice.consultationId) {
+    try {
+      const prescriptionService = require('../prescriptions/prescription.service');
+      await prescriptionService.unlockPrescription(updatedInvoice.consultationId?._id || updatedInvoice.consultationId);
+    } catch (unlockErr) {
+      console.warn('Failed to unlock prescription on payment completion:', unlockErr);
+    }
+  }
+
   await createAuditLog({
     actorUserId: requester._id,
     action: 'PAYMENT_RECORDED',
@@ -821,10 +888,11 @@ const getPatientInvoices = async ({ requester, patientId, query = {}, requestedC
     };
   }
 
+  const isPatient = requester.role === ROLES.PATIENT;
   const { page, limit } = getPagination(query);
   const { invoices, total } = await billingRepository.findByPatient({
     patientId,
-    clinicId,
+    clinicId: (isPatient && !query.clinicId) ? undefined : clinicId,
     queryOptions: {
       page,
       limit,

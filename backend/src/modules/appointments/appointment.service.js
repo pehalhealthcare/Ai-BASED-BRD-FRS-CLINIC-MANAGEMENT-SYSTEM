@@ -43,8 +43,11 @@ const assertDateNotPast = ({ appointmentDate, appointmentType }) => {
   }
 };
 
-const buildAppointmentFilter = ({ clinicId, query }) => {
-  const filter = { clinicId };
+const buildAppointmentFilter = ({ clinicId, query, requester }) => {
+  const filter = {};
+  if (requester?.role !== ROLES.PATIENT || query.clinicId) {
+    filter.clinicId = clinicId;
+  }
 
   if (query.date) {
     filter.appointmentDate = normalizeDate(query.date);
@@ -90,6 +93,35 @@ const getNoShowRecommendedAction = (level) => {
   }
 
   return 'Standard reminder is sufficient.';
+};
+
+const ensureAppointmentInvoice = async (appointment, requester) => {
+  if (appointment.paymentStatus === 'pending' && appointment.consultationFee > 0) {
+    const Invoice = require('../billing/invoice.model');
+    const existingInvoice = await Invoice.findOne({ appointmentId: appointment._id });
+    if (!existingInvoice) {
+      try {
+        const billingService = require('../billing/billing.service');
+        await billingService.createInvoice({
+          requester: { _id: appointment.createdBy || requester?._id, role: 'PATIENT' },
+          payload: {
+            patientId: appointment.patientId?._id || appointment.patientId,
+            appointmentId: appointment._id,
+            items: [{
+              itemType: 'consultation',
+              name: 'Doctor Consultation Fee',
+              quantity: 1,
+              unitPrice: appointment.consultationFee
+            }],
+            dueDate: new Date(Date.now() + 24 * 3650 * 24 * 3600 * 1000)
+          },
+          requestedClinicId: appointment.clinicId
+        });
+      } catch (err) {
+        console.error('Failed to auto-create missing invoice:', err);
+      }
+    }
+  }
 };
 
 const combineAppointmentDateTime = (appointmentDate, startTime) => {
@@ -324,7 +356,6 @@ const assertSlotIsBookable = async ({
   }
 
   const dayAvailability = getDayAvailability(doctor.availability || [], normalizedDate, clinicId);
-
   if (!allowOutsideAvailability) {
     if (!dayAvailability) {
       throw new AppError('Doctor is not available on the selected date.', HTTP_STATUS.CONFLICT);
@@ -378,19 +409,28 @@ const assertSlotIsBookable = async ({
 };
 
 const getScopedAppointment = async ({ requester, appointmentId, requestedClinicId = null, populateDetails = true }) => {
-  const clinicId = resolveClinicContext({
+  const isPatient = requester.role === ROLES.PATIENT;
+  const clinicId = isPatient ? null : resolveClinicContext({
     user: requester,
     requestedClinicId
   });
   const appointment = await appointmentRepository.findAppointmentByIdAndClinic({
     appointmentId,
-    clinicId,
+    clinicId: isPatient ? undefined : clinicId,
     populateDetails
   });
 
   if (!appointment) {
     throw new AppError('Appointment not found.', HTTP_STATUS.NOT_FOUND);
   }
+
+  // Check and apply any timed-out discount/waiver approvals or payments on the fly
+  if (!appointment.populated('clinicId')) {
+    await appointment.populate('clinicId');
+  }
+  const { checkAndApplyExpiries } = require('./discount.service');
+  await checkAndApplyExpiries(appointment);
+  await ensureAppointmentInvoice(appointment, requester);
 
   if (requester.role === ROLES.DOCTOR) {
     const doctor = await getDoctorForRequester({ requester, clinicId });
@@ -448,6 +488,9 @@ const createAppointment = async ({ requester, payload, requestedClinicId = null,
     patientId: payload.patientId,
     doctorId: payload.doctorId
   });
+
+  const targetClinicId = doctor.clinicId ? String(doctor.clinicId) : clinicId;
+
   const allowOutsideAvailability = payload.appointmentType === 'walk_in' || payload.isEarlyBooking === true;
   const slot = await assertSlotIsBookable({
     appointmentDate: payload.appointmentDate,
@@ -455,15 +498,15 @@ const createAppointment = async ({ requester, payload, requestedClinicId = null,
     durationMinutes: payload.durationMinutes,
     appointmentType: payload.appointmentType,
     doctor,
-    clinicId,
+    clinicId: targetClinicId,
     allowOutsideAvailability
   });
   const patientAppointmentHistory = await buildPatientAppointmentHistory({
-    clinicId,
+    clinicId: targetClinicId,
     patientId: patient._id
   });
   const { noShowRisk, predictionPayload, predictionResponseData } = await resolveNoShowRisk({
-    clinicId,
+    clinicId: targetClinicId,
     patient,
     doctor,
     payload,
@@ -481,8 +524,69 @@ const createAppointment = async ({ requester, payload, requestedClinicId = null,
   const checkinExpiresAt = new Date(apptDate);
   checkinExpiresAt.setHours(startHour, startMin, 0, 0);
 
+  const { generateScopedSequenceCode } = require('../../common/utils/generateScopedSequenceCode');
+  const appointmentCode = await generateScopedSequenceCode({
+    prefix: 'APT',
+    scope: 'appointment',
+    clinicId: targetClinicId
+  });
+
+  const dayAppointments = await appointmentRepository.findDoctorAppointmentsForDate({
+    clinicId: targetClinicId,
+    doctorId: doctor._id,
+    appointmentDate: slot.appointmentDate,
+    statuses: Object.values(APPOINTMENT_STATUSES)
+  });
+  const queueNumber = dayAppointments.length + 1;
+  const tokenNumber = dayAppointments.length + 1;
+  const qrCode = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${appointmentCode}`;
+
+  let fee = doctor.consultationFee || 0;
+  let followUpDetails = null;
+
+  const policy = (doctor.clinicPolicies || []).find(
+    (p) => String(p.clinicId) === String(targetClinicId)
+  );
+
+  if (policy) {
+    fee = policy.consultationFee !== undefined ? policy.consultationFee : (doctor.consultationFee || 0);
+
+    if (policy.followUpWindowDays > 0) {
+      const ConsultationModel = require('../consultations/consultation.model');
+      const lastConsultation = await ConsultationModel.findOne({
+        patientId: patient._id,
+        doctorId: doctor._id,
+        clinicId: targetClinicId,
+        status: 'completed'
+      }).sort({ completedAt: -1 });
+
+      if (lastConsultation && lastConsultation.completedAt) {
+        const diffMs = new Date(slot.appointmentDate).getTime() - new Date(lastConsultation.completedAt).getTime();
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+        if (diffDays >= 0 && diffDays <= policy.followUpWindowDays) {
+          followUpDetails = {
+            isFollowUp: true,
+            lastCompletedConsultationDate: lastConsultation.completedAt,
+            followUpAppliedPolicy: policy.followUpPolicy,
+            followUpWindowDays: policy.followUpWindowDays,
+            diffDays
+          };
+
+          if (policy.followUpPolicy === 'free') {
+            fee = 0;
+          } else if (policy.followUpPolicy === 'discounted') {
+            fee = policy.followUpFee || 0;
+          } else if (policy.followUpPolicy === 'full') {
+            fee = policy.consultationFee !== undefined ? policy.consultationFee : (doctor.consultationFee || 0);
+          }
+        }
+      }
+    }
+  }
+
   const appointment = await appointmentRepository.createAppointment({
-    clinicId,
+    clinicId: targetClinicId,
     patientId: patient._id,
     doctorId: doctor._id,
     createdBy: requester._id,
@@ -490,7 +594,7 @@ const createAppointment = async ({ requester, payload, requestedClinicId = null,
     startTime: payload.startTime,
     endTime: slot.endTime,
     durationMinutes: payload.durationMinutes,
-    appointmentType: payload.appointmentType,
+    appointmentType: followUpDetails ? 'follow_up' : (payload.appointmentType || 'scheduled'),
     status: APPOINTMENT_STATUSES.BOOKED,
     reasonForVisit: payload.reasonForVisit || '',
     symptomsSummary: payload.symptomsSummary || '',
@@ -500,13 +604,21 @@ const createAppointment = async ({ requester, payload, requestedClinicId = null,
     isEarlyBooking: payload.isEarlyBooking || false,
     earlyBookingReason: payload.earlyBookingReason || 'none',
     checkin_token_uuid: checkinToken,
-    checkinTokenExpiresAt: checkinExpiresAt
+    checkinTokenExpiresAt: checkinExpiresAt,
+    consultationFee: fee,
+    remainingAmount: fee,
+    paymentStatus: fee === 0 ? 'paid' : 'pending',
+    appointmentCode,
+    queueNumber,
+    tokenNumber,
+    qrCode,
+    meta: followUpDetails ? { ...followUpDetails } : {}
   });
 
   if (predictionResponseData) {
     await AIPrediction.create(
       buildPredictionPersistenceRecord({
-        clinicId,
+        clinicId: targetClinicId,
         patientId: patient._id,
         appointmentId: appointment._id,
         inputData: predictionPayload,
@@ -536,7 +648,7 @@ const createAppointment = async ({ requester, payload, requestedClinicId = null,
 
   const populatedAppointment = await appointmentRepository.findAppointmentByIdAndClinic({
     appointmentId: appointment._id,
-    clinicId,
+    clinicId: targetClinicId,
     populateDetails: true
   });
 
@@ -544,7 +656,7 @@ const createAppointment = async ({ requester, payload, requestedClinicId = null,
   let invoiceId = null;
 
   const isPatientBooking = requester.role === ROLES.PATIENT || payload.source === 'chatbot' || payload.source === 'patient_app';
-  if (isPatientBooking && doctor.consultationFee > 0) {
+  if (isPatientBooking && fee > 0) {
     try {
       const billingService = require('../billing/billing.service');
       const invoice = await billingService.createInvoice({
@@ -556,11 +668,11 @@ const createAppointment = async ({ requester, payload, requestedClinicId = null,
             itemType: 'consultation',
             name: 'Doctor Consultation Fee',
             quantity: 1,
-            unitPrice: doctor.consultationFee
+            unitPrice: fee
           }],
           dueDate: new Date(Date.now() + 24 * 3600 * 1000)
         },
-        requestedClinicId: clinicId,
+        requestedClinicId: targetClinicId,
         req
       });
       invoiceId = invoice._id;
@@ -568,7 +680,7 @@ const createAppointment = async ({ requester, payload, requestedClinicId = null,
       const orderData = await billingService.createRazorpayOrder({
         requester,
         invoiceId: invoice._id,
-        requestedClinicId: clinicId
+        requestedClinicId: targetClinicId
       });
       razorpayOrder = orderData;
     } catch (billingErr) {
@@ -615,6 +727,28 @@ const listAppointments = async ({ requester, query }) => {
     user: requester,
     requestedClinicId: query.clinicId
   });
+
+  // Automatically mark past unattended appointments as not_attended
+  try {
+    const AppointmentModel = require('./appointment.model');
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const activeStatuses = ['booked', 'confirmed', 'checked_in', 'waiting', 'called', 'in_consultation', 'consultation_started'];
+    
+    await AppointmentModel.updateMany(
+      {
+        ...(clinicId ? { clinicId } : {}),
+        appointmentDate: { $lt: todayStart },
+        status: { $in: activeStatuses }
+      },
+      {
+        $set: { status: 'not_attended' }
+      }
+    );
+  } catch (err) {
+    console.error('Failed to auto-mark unattended appointments:', err);
+  }
+
   const doctor = await getDoctorForRequester({ requester, clinicId });
 
   if (doctor) {
@@ -628,7 +762,7 @@ const listAppointments = async ({ requester, query }) => {
   }
 
   const { page, limit } = getPagination(query);
-  const filter = buildAppointmentFilter({ clinicId, query });
+  const filter = buildAppointmentFilter({ clinicId, query, requester });
   const { appointments, total } = await appointmentRepository.listAppointments({
     filter,
     page,
@@ -636,7 +770,10 @@ const listAppointments = async ({ requester, query }) => {
   });
 
   const resolvedAppointments = await Promise.all(
-    appointments.map((apt) => resolveAppointmentDoctorImage(apt))
+    appointments.map(async (apt) => {
+      await ensureAppointmentInvoice(apt, requester);
+      return resolveAppointmentDoctorImage(apt);
+    })
   );
 
   return {
@@ -748,7 +885,6 @@ const getAvailableSlots = async ({ requester, query }) => {
     start_datetime: { $lt: new Date(appointmentDate.getTime() + 24 * 60 * 60 * 1000) },
     end_datetime: { $gt: appointmentDate }
   });
-
   const slots = generateSlots({
     availability: doctor.availability || [],
     existingAppointments,
@@ -907,6 +1043,16 @@ const cancelAppointment = async ({ requester, appointmentId, payload, requestedC
   appointment.cancellationReason = payload.cancellationReason;
   await appointment.save();
 
+  try {
+    const Invoice = require('../billing/invoice.model');
+    await Invoice.updateMany(
+      { appointmentId: appointment._id, paymentStatus: { $in: ['unpaid', 'pending', 'UNPAID', 'PENDING'] } },
+      { $set: { paymentStatus: 'cancelled', invoiceStatus: 'cancelled', cancellationReason: payload.cancellationReason || 'Appointment cancelled' } }
+    );
+  } catch (err) {
+    console.error('Failed to cancel unpaid invoice on appointment cancel:', err);
+  }
+
   await createAuditLog({
     actorUserId: requester._id,
     action: 'appointment_cancelled',
@@ -997,6 +1143,12 @@ const rescheduleAppointment = async ({ requester, appointmentId, payload, reques
     patientAppointmentHistory
   });
 
+  const originalPaid = appointment.paymentStatus === 'paid' || 
+                       appointment.paymentStatus === 'fully_waived' ||
+                       (appointment.paymentStatus === 'partially_waived' && (appointment.amountPaid || 0) >= (appointment.remainingAmount || 0));
+  const isRefunded = appointment.refundStatus === 'refunded';
+  const transferPayment = originalPaid && !isRefunded && appointment.paymentTransferStatus !== 'transferred';
+
   const newAppointment = await appointmentRepository.createAppointment({
     clinicId,
     patientId: appointment.patientId?._id || appointment.patientId,
@@ -1019,7 +1171,13 @@ const rescheduleAppointment = async ({ requester, appointmentId, payload, reques
     meta: {
       ...(appointment.meta || {}),
       rescheduleReason: payload.reason
-    }
+    },
+    consultationFee: appointment.consultationFee,
+    paymentStatus: transferPayment ? appointment.paymentStatus : ((appointment.consultationFee || 0) === 0 ? 'paid' : 'pending'),
+    amountPaid: transferPayment ? appointment.amountPaid : 0,
+    remainingAmount: transferPayment ? appointment.remainingAmount : (appointment.consultationFee || 0),
+    paymentTransferStatus: transferPayment ? 'received_transfer' : 'none',
+    transferredFromAppointmentId: transferPayment ? appointment._id : null
   });
 
   if (predictionResponseData) {
@@ -1035,7 +1193,13 @@ const rescheduleAppointment = async ({ requester, appointmentId, payload, reques
     );
   }
 
-  appointment.status = requester.role === ROLES.PATIENT ? APPOINTMENT_STATUSES.PATIENT_RESCHEDULED : APPOINTMENT_STATUSES.CLINIC_RESCHEDULED;
+  if (transferPayment) {
+    appointment.status = APPOINTMENT_STATUSES.NOT_ATTENDED;
+    appointment.paymentTransferStatus = 'transferred';
+    appointment.transferredToAppointmentId = newAppointment._id;
+  } else {
+    appointment.status = requester.role === ROLES.PATIENT ? APPOINTMENT_STATUSES.PATIENT_RESCHEDULED : APPOINTMENT_STATUSES.CLINIC_RESCHEDULED;
+  }
   appointment.notes = appendNote(appointment.notes, `Rescheduled to ${formatDate(slot.appointmentDate)} ${payload.startTime}. Reason: ${payload.reason}`);
   await appointment.save();
 
@@ -1178,6 +1342,17 @@ const verifyAppointmentPayment = async ({ requester, appointmentId, payload, req
     throw new AppError('Appointment not found.', HTTP_STATUS.NOT_FOUND);
   }
 
+  const doctorDoc = await require('../doctors/doctor.model').findById(appointment.doctorId);
+  await assertSlotIsBookable({
+    appointmentDate: appointment.appointmentDate,
+    startTime: appointment.startTime,
+    durationMinutes: appointment.durationMinutes || 30,
+    appointmentType: appointment.appointmentType || 'scheduled',
+    doctor: doctorDoc,
+    clinicId: appointment.clinicId._id || appointment.clinicId,
+    excludeAppointmentId: appointment._id
+  });
+
   appointment.status = APPOINTMENT_STATUSES.CONFIRMED;
   await appointment.save();
 
@@ -1274,6 +1449,252 @@ const scanCheckin = async ({ requester, token, requestedClinicId }) => {
   };
 };
 
+const applyWaiver = async ({ requester, appointmentId, payload }) => {
+  const { waiverType, waiverAmount, waiverReason, waiverAdminNotes } = payload;
+  const Doctor = require('../doctors/doctor.model');
+  
+  const appointment = await Appointment.findById(appointmentId);
+  if (!appointment) {
+    throw new AppError('Appointment not found.', HTTP_STATUS.NOT_FOUND);
+  }
+
+  const isDoctor = requester.role === ROLES.DOCTOR;
+  const isAdmin = [ROLES.ADMIN, ROLES.SUPER_ADMIN].includes(requester.role);
+
+  if (isDoctor) {
+    const doctorUser = await Doctor.findOne({ userId: requester._id });
+    if (!doctorUser || String(appointment.doctorId) !== String(doctorUser._id)) {
+      throw new AppError('Unauthorized: You can only apply waivers to your own appointments.', HTTP_STATUS.FORBIDDEN);
+    }
+  }
+
+  if (!isDoctor && !isAdmin) {
+    throw new AppError('Unauthorized to manage consultation fee waivers.', HTTP_STATUS.FORBIDDEN);
+  }
+
+  appointment.waiverType = waiverType;
+  if (waiverType === 'full') {
+    appointment.waiverAmount = appointment.consultationFee;
+    appointment.remainingAmount = 0;
+    appointment.paymentStatus = 'fully_waived';
+  } else if (waiverType === 'partial') {
+    const amount = Number(waiverAmount || 0);
+    if (amount < 0 || amount > appointment.consultationFee) {
+      throw new AppError('Invalid waiver amount.', HTTP_STATUS.BAD_REQUEST);
+    }
+    appointment.waiverAmount = amount;
+    appointment.remainingAmount = appointment.consultationFee - amount;
+    
+    if ((appointment.amountPaid || 0) >= appointment.remainingAmount) {
+      appointment.paymentStatus = 'paid';
+    } else {
+      appointment.paymentStatus = 'partially_waived';
+    }
+  } else {
+    appointment.waiverAmount = 0;
+    appointment.remainingAmount = appointment.consultationFee;
+    if ((appointment.amountPaid || 0) >= appointment.consultationFee) {
+      appointment.paymentStatus = 'paid';
+    } else {
+      appointment.paymentStatus = 'pending';
+    }
+  }
+
+  appointment.waiverReason = waiverReason || '';
+  if (isDoctor) {
+    const doctorUser = await Doctor.findOne({ userId: requester._id });
+    appointment.waivedByDoctorId = doctorUser ? doctorUser._id : null;
+  }
+  if (isAdmin) {
+    appointment.waivedByAdminId = requester._id;
+    if (waiverAdminNotes !== undefined) {
+      appointment.waiverAdminNotes = waiverAdminNotes;
+    }
+  }
+  appointment.waiverLastUpdated = new Date();
+  await appointment.save();
+
+  // Update associated invoice if it exists
+  try {
+    const Invoice = require('../billing/invoice.model');
+    const invoice = await Invoice.findOne({ appointmentId: appointment._id });
+    if (invoice) {
+      invoice.discountType = waiverType === 'none' ? 'none' : 'flat';
+      invoice.discountValue = appointment.waiverAmount;
+      
+      const { calculateInvoiceTotals } = require('../../common/utils/billingCalculator');
+      const totals = calculateInvoiceTotals({
+        items: invoice.items,
+        discountType: invoice.discountType,
+        discountValue: invoice.discountValue,
+        gstRate: invoice.gstRate,
+        payments: invoice.payments
+      });
+      
+      invoice.discountAmount = totals.discountAmount;
+      invoice.taxableAmount = totals.taxableAmount;
+      invoice.gstAmount = totals.gstAmount;
+      invoice.totalAmount = totals.totalAmount;
+      invoice.dueAmount = totals.dueAmount;
+      invoice.paymentStatus = totals.paymentStatus;
+      
+      if (invoice.totalAmount === 0 || invoice.dueAmount === 0) {
+        invoice.paymentStatus = 'paid';
+      }
+      await invoice.save();
+    }
+  } catch (invErr) {
+    console.error('Failed to update invoice totals on waiver application:', invErr);
+  }
+
+  return appointment;
+};
+
+const requestRefund = async ({ requester, appointmentId, requestedClinicId = null }) => {
+  const { appointment } = await getScopedAppointment({
+    requester,
+    appointmentId,
+    requestedClinicId,
+    populateDetails: false
+  });
+
+  if (['in_consultation', 'completed'].includes(appointment.status)) {
+    throw new AppError('This consultation has already started or completed. Refund not eligible.', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  const isPaid = appointment.paymentStatus === 'paid' || 
+                 appointment.paymentStatus === 'fully_waived' ||
+                 (appointment.paymentStatus === 'partially_waived' && (appointment.amountPaid || 0) >= (appointment.remainingAmount || 0));
+
+  if (!isPaid) {
+    throw new AppError('No payment found for this appointment.', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  if (appointment.refundStatus === 'refunded') {
+    throw new AppError('This appointment has already been refunded.', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  if (appointment.paymentTransferStatus === 'transferred') {
+    throw new AppError('Payment has already been transferred to a rescheduled appointment.', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  appointment.status = APPOINTMENT_STATUSES.NOT_ATTENDED;
+  appointment.refundStatus = 'refunded';
+  appointment.refundAmount = appointment.amountPaid || appointment.consultationFee;
+  appointment.refundProcessedAt = new Date();
+  appointment.refundProcessedBy = requester.role === ROLES.PATIENT ? 'patient' : 'admin';
+  appointment.refundTransactionId = 'REF-' + Math.random().toString(36).substring(2, 10).toUpperCase();
+  await appointment.save();
+
+  try {
+    const Invoice = require('../billing/invoice.model');
+    const invoice = await Invoice.findOne({ appointmentId: appointment._id });
+    if (invoice) {
+      invoice.paymentStatus = 'refunded';
+      invoice.invoiceStatus = 'cancelled';
+      invoice.refundAmount = appointment.refundAmount;
+      invoice.refundedAt = appointment.refundProcessedAt;
+      await invoice.save();
+    }
+  } catch (err) {
+    console.error('Failed to update invoice on refund:', err);
+  }
+
+  return appointment;
+};
+
+const processEndOfDayRefunds = async () => {
+  const Appointment = require('./appointment.model');
+  const eligibleAppts = await Appointment.find({
+    status: APPOINTMENT_STATUSES.NOT_ATTENDED,
+    paymentStatus: { $in: ['paid', 'partially_waived'] },
+    refundStatus: { $ne: 'refunded' },
+    paymentTransferStatus: { $ne: 'transferred' }
+  });
+
+  for (const appt of eligibleAppts) {
+    appt.refundStatus = 'refunded';
+    appt.refundAmount = appt.amountPaid || appt.consultationFee;
+    appt.refundProcessedAt = new Date();
+    appt.refundProcessedBy = 'system';
+    appt.refundTransactionId = 'REF-' + Math.random().toString(36).substring(2, 10).toUpperCase();
+    await appt.save();
+
+    try {
+      const Invoice = require('../billing/invoice.model');
+      const invoice = await Invoice.findOne({ appointmentId: appt._id });
+      if (invoice) {
+        invoice.paymentStatus = 'refunded';
+        invoice.invoiceStatus = 'cancelled';
+        invoice.refundAmount = appt.refundAmount;
+        invoice.refundedAt = appt.refundProcessedAt;
+        await invoice.save();
+      }
+    } catch (err) {
+      console.error('Failed to update invoice on end-of-day refund:', err);
+    }
+  }
+  return eligibleAppts.length;
+};
+
+const checkFollowUp = async ({ requester, patientId, doctorId, clinicId = null }) => {
+  const targetClinicId = resolveClinicContext({
+    user: requester,
+    requestedClinicId: clinicId
+  });
+
+  const DoctorModel = require('../doctors/doctor.model');
+  const doctor = await DoctorModel.findById(doctorId);
+  if (!doctor) {
+    throw new AppError('Doctor not found', HTTP_STATUS.NOT_FOUND);
+  }
+
+  const policy = (doctor.clinicPolicies || []).find(
+    (p) => String(p.clinicId) === String(targetClinicId)
+  );
+
+  let isFollowUp = false;
+  let fee = policy ? (policy.consultationFee !== undefined ? policy.consultationFee : doctor.consultationFee) : doctor.consultationFee;
+  let lastCompletedConsultationDate = null;
+  let policyType = policy ? policy.followUpPolicy : 'free';
+  let followUpWindowDays = policy ? policy.followUpWindowDays : 0;
+  let diffDays = null;
+
+  if (policy && policy.followUpWindowDays > 0) {
+    const ConsultationModel = require('../consultations/consultation.model');
+    const lastConsultation = await ConsultationModel.findOne({
+      patientId,
+      doctorId,
+      clinicId: targetClinicId,
+      status: 'completed'
+    }).sort({ completedAt: -1 });
+
+    if (lastConsultation && lastConsultation.completedAt) {
+      lastCompletedConsultationDate = lastConsultation.completedAt;
+      const diffMs = Date.now() - new Date(lastConsultation.completedAt).getTime();
+      diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+      if (diffDays >= 0 && diffDays <= policy.followUpWindowDays) {
+        isFollowUp = true;
+        if (policy.followUpPolicy === 'free') {
+          fee = 0;
+        } else if (policy.followUpPolicy === 'discounted') {
+          fee = policy.followUpFee || 0;
+        }
+      }
+    }
+  }
+
+  return {
+    isFollowUp,
+    fee,
+    lastCompletedConsultationDate,
+    policyType,
+    followUpWindowDays,
+    diffDays
+  };
+};
+
 module.exports = {
   createAppointment,
   listAppointments,
@@ -1285,5 +1706,10 @@ module.exports = {
   rescheduleAppointment,
   getQueueStatus,
   verifyAppointmentPayment,
-  scanCheckin
+  scanCheckin,
+  applyWaiver,
+  requestRefund,
+  processEndOfDayRefunds,
+  checkFollowUp,
+  assertSlotIsBookable
 };

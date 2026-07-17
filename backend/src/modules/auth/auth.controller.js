@@ -14,7 +14,7 @@ const login = asyncHandler(async (req, res) => {
 
 const me = asyncHandler(async (req, res) => {
   return sendSuccess(res, 'Current user retrieved successfully', {
-    user: authService.getCurrentUser(req.user)
+    user: await authService.getCurrentUser(req.user)
   });
 });
 
@@ -27,10 +27,16 @@ const resetPassword = asyncHandler(async (req, res) => {
   return sendSuccess(res, 'Password changed successfully', data);
 });
 
+const verifyFirstLoginOtp = asyncHandler(async (req, res) => {
+  const data = await authService.verifyFirstLoginOtp(req.body, req);
+  return sendSuccess(res, 'OTP verified and password updated successfully', data);
+});
+
 module.exports = {
   register,
   login,
   me,
   logout,
-  resetPassword
+  resetPassword,
+  verifyFirstLoginOtp
 };

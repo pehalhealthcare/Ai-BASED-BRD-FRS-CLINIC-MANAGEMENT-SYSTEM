@@ -23,7 +23,7 @@ const booleanQuerySchema = z.preprocess((value) => {
 const phoneSchema = z
   .string()
   .trim()
-  .regex(/^\d{10,15}$/, 'Phone number must be between 10 and 15 digits');
+  .regex(/^\+?[\d\s-]{10,15}$/, 'Phone number must be between 10 and 15 digits');
 
 const timeSchema = z
   .string()
@@ -90,21 +90,23 @@ const bankAccountSchema = z
   .optional();
 
 const doctorPayloadSchema = z.object({
-  firstName: z.string().trim().min(1, 'First name is required'),
+  fullName: z.string().trim().min(1, 'Name is required').optional(),
+  firstName: z.string().trim().optional(),
   lastName: z.string().trim().optional(),
   gender: genderSchema.optional(),
-  phone: phoneSchema,
-  email: z.string().trim().email('Invalid email address').optional(),
-  specialization: z.string().trim().min(1, 'Specialization is required'),
+  phone: phoneSchema.optional().or(z.literal('')),
+  email: z.string().trim().email('Invalid email address'),
+  specialization: z.string().trim().optional(),
   qualification: z.string().trim().optional(),
   experienceYears: z.coerce.number().min(0, 'Experience cannot be negative').optional(),
   consultationFee: z.coerce.number().min(0, 'Consultation fee cannot be negative').optional(),
   availability: z.array(availabilityItemSchema).optional(),
   userId: objectIdSchema.optional(),
+  password: z.string().min(6, 'Password must be at least 6 characters').optional(),
   clinicId: objectIdSchema.optional(),
   assignedClinics: z.array(objectIdSchema).optional(),
   isActive: z.boolean().optional(),
-  bankAccount: bankAccountSchema
+  bankAccount: bankAccountSchema.default({})
 });
 
 const createDoctorSchema = z.object({
@@ -144,11 +146,12 @@ const createDoctorBlockedSlotSchema = z.object({
 const listDoctorQuerySchema = z.object({
   query: z.object({
     page: z.coerce.number().int().positive().default(1),
-    limit: z.coerce.number().int().positive().max(100).default(10),
+    limit: z.coerce.number().int().positive().max(1000).default(10),
     search: z.string().trim().optional(),
     specialization: z.string().trim().optional(),
     isActive: booleanQuerySchema,
-    clinicId: objectIdSchema.optional()
+    clinicId: objectIdSchema.optional(),
+    approvalStatus: z.enum(['pending_profile', 'pending_approval', 'approved', 'rejected', 're_edit']).optional()
   })
 });
 

@@ -10,7 +10,11 @@ const populateAppointment = (query) =>
 const createAppointment = (payload) => Appointment.create(payload);
 
 const findAppointmentByIdAndClinic = ({ appointmentId, clinicId, populateDetails = false }) => {
-  const query = Appointment.findOne({ _id: appointmentId, clinicId });
+  const filter = { _id: appointmentId };
+  if (clinicId) {
+    filter.clinicId = clinicId;
+  }
+  const query = Appointment.findOne(filter);
   return populateDetails ? populateAppointment(query) : query;
 };
 

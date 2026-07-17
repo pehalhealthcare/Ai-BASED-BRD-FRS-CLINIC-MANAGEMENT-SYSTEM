@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import LoadingState from '../../components/common/LoadingState';
 import ErrorState from '../../components/common/ErrorState';
-import { receptionistApi, organizationApi, clinicApi } from '../../lib/api';
+import { receptionistApi, staffApi, organizationApi, clinicApi } from '../../lib/api';
 import MapPicker from '../../components/common/MapPicker';
 
 const FIELD_CLASS =
@@ -9,7 +9,7 @@ const FIELD_CLASS =
 
 const StepsProgress = ({ currentStatus }) => {
   const steps = [
-    { title: 'Sign up as Receptionist', desc: 'Account created', completed: true },
+    { title: 'Sign up as Staff', desc: 'Account created', completed: true },
     { 
       title: 'Fill Profile Form', 
       desc: currentStatus === 'pending_profile' || currentStatus === 're_edit' ? 'In Progress' : 'Completed', 
@@ -52,7 +52,7 @@ const StepsProgress = ({ currentStatus }) => {
   );
 };
 
-const ReceptionistOnboarding = ({ onProfileStatusChange }) => {
+const ReceptionistOnboarding = ({ user, onProfileStatusChange }) => {
   const [mapOpenFor, setMapOpenFor] = useState(null); // 'current' | 'permanent' | null
   const openMap = (type) => setMapOpenFor(type);
   const closeMap = () => setMapOpenFor(null);
@@ -87,6 +87,9 @@ const ReceptionistOnboarding = ({ onProfileStatusChange }) => {
   };
 
   const [profile, setProfile] = useState(null);
+  const displayRole = profile?.role
+    ? profile.role.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())
+    : 'Staff';
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -132,16 +135,20 @@ const ReceptionistOnboarding = ({ onProfileStatusChange }) => {
 
   const loadProfile = async () => {
     try {
-      const [profileRes, orgsRes, clinicsRes] = await Promise.all([
-        receptionistApi.getMyProfile(),
-        organizationApi.getPublic(),
+      const isReceptionist = user?.role === 'RECEPTIONIST';
+      const [profileRes, clinicsRes] = await Promise.all([
+        isReceptionist ? receptionistApi.getMyProfile() : staffApi.getMyProfile(),
         clinicApi.list().catch(() => ({ clinics: [] }))
       ]);
       
       const rec = profileRes.data?.profile;
       setProfile(rec);
-      setOrganizations(orgsRes.data?.organizations || []);
       setClinics(clinicsRes.data?.clinics || clinicsRes.clinics || []);
+
+      if (rec && rec.approvalStatus !== 'approved') {
+        const orgsRes = await organizationApi.getPublic().catch(() => ({ data: { organizations: [] } }));
+        setOrganizations(orgsRes.data?.organizations || []);
+      }
 
       if (rec) {
         setQualification(rec.qualification || '');
@@ -320,9 +327,17 @@ const ReceptionistOnboarding = ({ onProfileStatusChange }) => {
   const handleAcceptSlot = async () => {
     setError('');
     try {
-      await receptionistApi.acceptMySlot();
-      if (onProfileStatusChange) {
-        onProfileStatusChange('approved');
+      if (profile?.role === 'RECEPTIONIST') {
+        await receptionistApi.acceptMySlot();
+        if (onProfileStatusChange) {
+          onProfileStatusChange('approved');
+        }
+        window.location.replace('/appointments');
+      } else {
+        await staffApi.acceptMySlot();
+        if (onProfileStatusChange) {
+          onProfileStatusChange('approved');
+        }
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to accept schedule details.');
@@ -384,7 +399,7 @@ const ReceptionistOnboarding = ({ onProfileStatusChange }) => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138" />
                 </svg>
               </div>
-              <h1 className="text-3xl md:text-4xl font-black text-white mb-2 tracking-tight">Congratulations, Onboarded Receptionist!</h1>
+              <h1 className="text-3xl md:text-4xl font-black text-white mb-2 tracking-tight">Congratulations, Onboarded {displayRole}!</h1>
               <p className="text-indigo-100 text-base font-medium">You have been successfully verified and approved by the clinic admin.</p>
               <p className="text-white/70 text-sm mt-1">Please review your official venue assignment & working hours shift schedule below.</p>
             </div>

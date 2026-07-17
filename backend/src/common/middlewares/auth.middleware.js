@@ -15,9 +15,21 @@ const protect = async (req, _res, next) => {
 
     const token = authHeader.split(' ')[1];
     const payload = verifyAccessToken(token);
-    const user = await userRepository.findActiveUserById(payload.sub);
+    const user = await userRepository.findById(payload.sub);
 
-    if (!user || !user.isActive || user.deletedAt) {
+    if (!user || user.deletedAt) {
+      return next(new AppError(RESPONSE_MESSAGES.AUTHENTICATION_REQUIRED, HTTP_STATUS.UNAUTHORIZED));
+    }
+
+    const isOnboardingOrPending = [
+      'pending_profile',
+      'onboarding_in_progress',
+      'pending_approval',
+      're_edit',
+      'changes_requested'
+    ].includes(user.approvalStatus);
+
+    if (!user.isActive && !isOnboardingOrPending) {
       return next(new AppError(RESPONSE_MESSAGES.AUTHENTICATION_REQUIRED, HTTP_STATUS.UNAUTHORIZED));
     }
 

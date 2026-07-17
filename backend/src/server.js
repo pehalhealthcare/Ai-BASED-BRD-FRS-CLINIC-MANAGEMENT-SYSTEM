@@ -155,6 +155,12 @@ const startServer = async () => {
     await fs.promises.mkdir(path.resolve(process.cwd(), env.prescriptionPdfDir), { recursive: true });
     await fs.promises.mkdir(path.resolve(process.cwd(), env.invoiceStorageDir), { recursive: true });
     await connectDB();
+    try {
+      const { seedPlans } = require('./modules/subscriptions/subscription.service');
+      await seedPlans();
+    } catch (seedErr) {
+      logger.error('Failed to seed subscription plans:', seedErr);
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Database connection failed during startup.';
 
@@ -172,6 +178,8 @@ const startServer = async () => {
     logger.info(`Swagger docs available at http://localhost:${env.port}/api-docs`);
     startOnlinePaymentTimeoutChecker();
     startInsuranceCoverageResetJob();
+    const { startSubscriptionMonitor } = require('./modules/subscriptions/subscriptionMonitor');
+    startSubscriptionMonitor();
   });
 };
 

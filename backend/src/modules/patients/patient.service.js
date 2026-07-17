@@ -38,6 +38,45 @@ const processAndSaveFile = async (patient, field, newContent, filename) => {
   }
 };
 
+const resolvePatientClinicRecord = async (patient, clinicId) => {
+  if (!patient) return patient;
+  const PatientClinicRecord = require('./patientClinicRecord.model');
+  let record = await PatientClinicRecord.findOne({ patientId: patient._id, clinicId });
+  if (!record) {
+    record = await PatientClinicRecord.create({
+      patientId: patient._id,
+      clinicId
+    });
+  }
+  
+  const patObj = typeof patient.toObject === 'function' ? patient.toObject() : patient;
+  patObj.allergies = record.allergies || [];
+  patObj.chronicConditions = record.chronicConditions || [];
+  patObj.currentMedications = record.currentMedications || [];
+  patObj.pastSurgeries = record.pastSurgeries || [];
+  patObj.familyHistory = record.familyHistory || [];
+  patObj.lifestyle = record.lifestyle || { smoking: 'no', alcohol: 'no', exerciseFrequency: '', dietType: '' };
+  patObj.pregnancyHistory = record.pregnancyHistory || '';
+  patObj.lmpDate = record.lmpDate || null;
+  return patObj;
+};
+
+const savePatientClinicRecord = async (patientId, clinicId, payload) => {
+  const PatientClinicRecord = require('./patientClinicRecord.model');
+  let record = await PatientClinicRecord.findOne({ patientId, clinicId });
+  if (!record) {
+    record = new PatientClinicRecord({ patientId, clinicId });
+  }
+  const fields = ['allergies', 'chronicConditions', 'currentMedications', 'pastSurgeries', 'familyHistory', 'lifestyle', 'pregnancyHistory', 'lmpDate'];
+  fields.forEach(field => {
+    if (payload[field] !== undefined) {
+      record[field] = payload[field];
+    }
+  });
+  await record.save();
+  return record;
+};
+
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 const buildPatientFilter = ({ clinicId, search, gender, isActive }) => {
@@ -52,7 +91,12 @@ const buildPatientFilter = ({ clinicId, search, gender, isActive }) => {
   }
 
   if (search) {
-    const pattern = new RegExp(escapeRegex(search), 'i');
+    let cleanSearch = search.trim();
+    if (cleanSearch.includes('_')) {
+      const parts = cleanSearch.split('_');
+      cleanSearch = parts[1] || cleanSearch;
+    }
+    const pattern = new RegExp(escapeRegex(cleanSearch), 'i');
     filter.$or = [
       { patientId: pattern },
       { firstName: pattern },
@@ -156,7 +200,24 @@ const getScopedPatient = async ({ requester, patientId, requestedClinicId = null
     throw new AppError('Patient not found', HTTP_STATUS.NOT_FOUND);
   }
 
-  return patient;
+  if (requester.role !== ROLES.SUPER_ADMIN) {
+    const ClinicMembership = require('./clinicMembership.model');
+    const membership = await ClinicMembership.findOne({ patientId: patient._id, clinicId, status: 'active' });
+    if (!membership) {
+      // Check if patient themselves is checking their own profile
+      if (requester.role === ROLES.PATIENT) {
+        // Patients are allowed if associated with the clinic
+        const isAssociated = await ClinicMembership.findOne({ patientId: patient._id, clinicId, status: 'active' });
+        if (!isAssociated) {
+          throw new AppError('You are not associated with this clinic', HTTP_STATUS.FORBIDDEN);
+        }
+      } else {
+        throw new AppError('Patient is not associated with this clinic', HTTP_STATUS.FORBIDDEN);
+      }
+    }
+  }
+
+  return resolvePatientClinicRecord(patient, clinicId);
 };
 
 const createPatient = async ({ requester, payload, requestedClinicId = null, req }) => {
@@ -166,38 +227,82 @@ const createPatient = async ({ requester, payload, requestedClinicId = null, req
   });
 
   const phone = payload.phone ? String(payload.phone).trim() : '';
-  if (phone) {
-    const email = `${phone}@test.com`;
-    const password = phone;
-    const userRepository = require('../users/user.repository');
-    
-    let existingUser = await userRepository.findByEmail(email);
-    if (!existingUser) {
-      await userRepository.createUser({
-        name: [payload.firstName, payload.lastName].filter(Boolean).join(' ').trim() || 'Walk-In Patient',
-        email,
-        phone,
-        password,
-        role: ROLES.PATIENT,
-        clinicId,
-        isActive: true,
-        approvalStatus: 'approved'
-      });
-    }
-    payload.email = email;
+  if (!phone) {
+    throw new AppError('Mobile number is required', HTTP_STATUS.BAD_REQUEST);
   }
 
+  const Patient = require('./patient.model');
+  const existingPatient = await Patient.findOne({ phone });
+  if (existingPatient) {
+    throw new AppError('A patient with this mobile number already exists globally.', HTTP_STATUS.CONFLICT);
+  }
+
+  const email = payload.email ? String(payload.email).trim().toLowerCase() : `${phone}@test.com`;
+
+  // Determine DOB-based temporary password
+  let tempPassword = 'Password123';
+  if (payload.dateOfBirth) {
+    try {
+      const dobDate = new Date(payload.dateOfBirth);
+      if (!isNaN(dobDate.getTime())) {
+        tempPassword = dobDate.toISOString().split('T')[0];
+      }
+    } catch (_) {
+      tempPassword = 'Password123';
+    }
+  }
+
+  const userRepository = require('../users/user.repository');
+  let user = await userRepository.findByEmail(email);
+  if (!user) {
+    user = await userRepository.createUser({
+      name: [payload.firstName, payload.lastName].filter(Boolean).join(' ').trim() || 'Walk-In Patient',
+      email,
+      phone,
+      password: tempPassword,
+      role: ROLES.PATIENT,
+      clinicId,
+      isActive: true,
+      approvalStatus: 'approved',
+      mustResetPassword: true
+    });
+  }
+
+  // Create global Patient profile
   const patient = await patientRepository.createPatient({
-    ...payload,
-    clinicId,
+    clinicId, // registration clinic context
     patientId: await generatePatientId(clinicId),
+    firstName: payload.firstName,
+    lastName: payload.lastName || '',
+    fullName: [payload.firstName, payload.lastName].filter(Boolean).join(' ').trim(),
+    gender: payload.gender,
+    dateOfBirth: payload.dateOfBirth ? new Date(payload.dateOfBirth) : null,
+    phone,
+    email,
+    address: payload.address,
+    permanentAddress: payload.permanentAddress,
+    bloodGroup: payload.bloodGroup,
+    emergencyContact: payload.emergencyContact,
     createdBy: requester._id,
     updatedBy: requester._id
   });
 
+  // Create ClinicMembership
+  const ClinicMembership = require('./clinicMembership.model');
+  await ClinicMembership.create({
+    patientId: patient._id,
+    clinicId,
+    status: 'active',
+    membershipDate: new Date(),
+    primaryClinic: true
+  });
+
+  // Create PatientClinicRecord
+  await savePatientClinicRecord(patient._id, clinicId, payload);
+
   await createAuditLog({
     actorUserId: requester._id,
-    action: 'PATIENT_CREATED',
+    action: 'PATIENT_REGISTERED',
     entity: 'Patient',
     entityId: patient._id,
     metadata: {
@@ -209,7 +314,81 @@ const createPatient = async ({ requester, payload, requestedClinicId = null, req
     status: 'SUCCESS'
   });
 
-  return patient;
+  return resolvePatientClinicRecord(patient, clinicId);
+};
+
+const checkExists = async ({ phone }) => {
+  if (!phone) {
+    throw new AppError('Phone number is required', HTTP_STATUS.BAD_REQUEST);
+  }
+  const Patient = require('./patient.model');
+  const patient = await Patient.findOne({ phone: String(phone).trim() });
+  if (!patient) {
+    return { exists: false };
+  }
+  return {
+    exists: true,
+    patient: {
+      _id: patient._id,
+      patientId: patient.patientId,
+      firstName: patient.firstName,
+      lastName: patient.lastName,
+      fullName: patient.fullName,
+      dateOfBirth: patient.dateOfBirth,
+      gender: patient.gender,
+      phone: patient.phone
+    }
+  };
+};
+
+const associatePatient = async ({ requester, patientId, requestedClinicId = null, req }) => {
+  const clinicId = resolveClinicContext({
+    user: requester,
+    requestedClinicId
+  });
+
+  const Patient = require('./patient.model');
+  const patient = await Patient.findById(patientId);
+  if (!patient) {
+    throw new AppError('Patient not found', HTTP_STATUS.NOT_FOUND);
+  }
+
+  const ClinicMembership = require('./clinicMembership.model');
+  let membership = await ClinicMembership.findOne({ patientId: patient._id, clinicId });
+  if (!membership) {
+    membership = await ClinicMembership.create({
+      patientId: patient._id,
+      clinicId,
+      status: 'active',
+      membershipDate: new Date(),
+      primaryClinic: false
+    });
+  }
+
+  const PatientClinicRecord = require('./patientClinicRecord.model');
+  let record = await PatientClinicRecord.findOne({ patientId: patient._id, clinicId });
+  if (!record) {
+    record = await PatientClinicRecord.create({
+      patientId: patient._id,
+      clinicId
+    });
+  }
+
+  await createAuditLog({
+    actorUserId: requester._id,
+    action: 'PATIENT_ASSOCIATED',
+    entity: 'Patient',
+    entityId: patient._id,
+    metadata: {
+      patientId: patient.patientId,
+      clinicId: String(clinicId)
+    },
+    ipAddress: req?.ip,
+    userAgent: req?.get ? req.get('user-agent') : null,
+    status: 'SUCCESS'
+  });
+
+  return { membership, record };
 };
 
 const listPatients = async ({ requester, query }) => {
@@ -218,16 +397,30 @@ const listPatients = async ({ requester, query }) => {
     requestedClinicId: query.clinicId
   });
   const { page, limit } = getPagination(query);
+
+  const ClinicMembership = require('./clinicMembership.model');
+  const memberships = await ClinicMembership.find({ clinicId, status: 'active' }).select('patientId');
+  const patientIds = memberships.map(m => m.patientId);
+
   const filter = buildPatientFilter({
     clinicId,
     search: query.search,
     gender: query.gender,
     isActive: query.isActive
   });
+
+  // Scope listing to patients associated with this clinic
+  delete filter.clinicId;
+  filter._id = { $in: patientIds };
+
   const { patients, total } = await patientRepository.listPatients({ filter, page, limit });
 
+  const resolvedPatients = await Promise.all(
+    patients.map(p => resolvePatientClinicRecord(p, clinicId))
+  );
+
   return {
-    patients,
+    patients: resolvedPatients,
     pagination: buildPaginationMeta({ page, limit, total })
   };
 };
@@ -237,11 +430,29 @@ const resolvePatientForRequester = async ({ requester, clinicId }) => {
     return null;
   }
 
-  const patient = await patientRepository.findPatientByContact({
+  let patient = await patientRepository.findPatientByContact({
     clinicId,
     email: requester.email,
     phone: requester.phone
   });
+
+  // Fallback to global search by contact across clinics if not found under specified clinicId
+  if (!patient) {
+    const Patient = require('./patient.model');
+    const filters = [];
+    if (requester.email) {
+      filters.push({ email: String(requester.email).trim().toLowerCase() });
+    }
+    if (requester.phone) {
+      filters.push({ phone: String(requester.phone).trim() });
+    }
+    if (filters.length > 0) {
+      patient = await Patient.findOne({
+        isActive: { $ne: false },
+        $or: filters
+      }).sort({ updatedAt: -1 });
+    }
+  }
 
   if (!patient) {
     throw new AppError(
@@ -349,14 +560,6 @@ const updateMyPatientProfile = async ({ requester, payload, requestedClinicId = 
     dateOfBirth: payload.dateOfBirth,
     address: payload.address,
     bloodGroup: payload.bloodGroup,
-    allergies: payload.allergies,
-    chronicConditions: payload.chronicConditions,
-    currentMedications: payload.currentMedications,
-    pastSurgeries: payload.pastSurgeries,
-    familyHistory: payload.familyHistory,
-    lifestyle: payload.lifestyle,
-    pregnancyHistory: payload.pregnancyHistory,
-    lmpDate: payload.lmpDate,
     emergencyContact: payload.emergencyContact,
     insuranceDetails: payload.insuranceDetails,
     paymentMethods: payload.paymentMethods
@@ -371,6 +574,9 @@ const updateMyPatientProfile = async ({ requester, payload, requestedClinicId = 
   patient.updatedBy = requester._id;
   await patient.save();
 
+  // Save clinical EMR details in clinic-specific record
+  await savePatientClinicRecord(patient._id, clinicId, payload);
+
   await createAuditLog({
     actorUserId: requester._id,
     action: 'PATIENT_PROFILE_UPDATED',
@@ -384,7 +590,8 @@ const updateMyPatientProfile = async ({ requester, payload, requestedClinicId = 
     status: 'SUCCESS'
   });
 
-  return resolvePatientFiles(patient);
+  const resolved = await resolvePatientFiles(patient);
+  return resolvePatientClinicRecord(resolved, clinicId);
 };
 
 const getPatientById = async ({ requester, patientId, requestedClinicId = null }) => {
@@ -401,12 +608,36 @@ const getPatientById = async ({ requester, patientId, requestedClinicId = null }
 };
 
 const updatePatient = async ({ requester, patientId, payload, requestedClinicId = null, req }) => {
+  const clinicId = resolveClinicContext({
+    user: requester,
+    requestedClinicId
+  });
   const patient = await getScopedPatient({ requester, patientId, requestedClinicId });
 
-  Object.assign(patient, payload, {
-    updatedBy: requester._id
+  const allowedGlobalUpdates = {
+    firstName: payload.firstName,
+    lastName: payload.lastName,
+    gender: payload.gender,
+    dateOfBirth: payload.dateOfBirth,
+    address: payload.address,
+    bloodGroup: payload.bloodGroup,
+    emergencyContact: payload.emergencyContact,
+    insuranceDetails: payload.insuranceDetails,
+    paymentMethods: payload.paymentMethods,
+    isActive: payload.isActive
+  };
+
+  Object.keys(allowedGlobalUpdates).forEach((key) => {
+    if (allowedGlobalUpdates[key] !== undefined) {
+      patient[key] = allowedGlobalUpdates[key];
+    }
   });
+
+  patient.updatedBy = requester._id;
   await patient.save();
+
+  // Save clinical EMR details in clinic-specific record
+  await savePatientClinicRecord(patient._id, clinicId, payload);
 
   await createAuditLog({
     actorUserId: requester._id,
@@ -421,7 +652,7 @@ const updatePatient = async ({ requester, patientId, payload, requestedClinicId 
     status: 'SUCCESS'
   });
 
-  return patient;
+  return resolvePatientClinicRecord(patient, clinicId);
 };
 
 const deletePatient = async ({ requester, patientId, requestedClinicId = null, req }) => {
@@ -817,9 +1048,28 @@ const verifyHistoryPassword = async ({ requester, password, requestedClinicId = 
   return patient;
 };
 
+const getMyClinics = async ({ requester }) => {
+  const { ensureUserClinicContext } = require('../../common/utils/clinicContext');
+  await ensureUserClinicContext(requester);
+
+  const patient = await resolvePatientForRequester({ requester });
+  if (!patient) {
+    throw new AppError('Patient profile not found.', HTTP_STATUS.NOT_FOUND);
+  }
+
+  const ClinicMembership = require('./clinicMembership.model');
+  const memberships = await ClinicMembership.find({ patientId: patient._id, status: 'active' }).populate('clinicId');
+
+  const clinics = memberships.map(m => m.clinicId).filter(Boolean);
+  return { clinics };
+};
+
 module.exports = {
   createPatient,
+  checkExists,
+  associatePatient,
   listPatients,
+  getMyClinics,
   getMyPatientProfile,
   updateMyPatientProfile,
   resolvePatientForRequester,
@@ -833,3 +1083,4 @@ module.exports = {
   deletePatientDocument,
   verifyHistoryPassword
 };
+

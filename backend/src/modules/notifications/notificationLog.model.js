@@ -66,7 +66,7 @@ const notificationLogSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ['appointment_reminder', 'follow_up', 'prescription_ready', 'billing_due', 'lab_report_ready', 'appointment_booked', 'appointment_cancelled', 'appointment_rescheduled', 'consultation_completed', 'final_bill', 'custom'],
+      enum: ['appointment_reminder', 'follow_up', 'prescription_ready', 'billing_due', 'lab_report_ready', 'appointment_booked', 'appointment_cancelled', 'appointment_rescheduled', 'consultation_completed', 'final_bill', 'custom', 'feature_request'],
       required: true
     },
     channel: {

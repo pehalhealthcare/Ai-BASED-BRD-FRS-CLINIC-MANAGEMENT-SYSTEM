@@ -11,5 +11,10 @@ export const rescheduleAppointment = (id, payload) => appointmentApi.rescheduleA
 export const getDoctorAvailability = (doctorId) => appointmentApi.getDoctorAvailability(doctorId);
 export const updateDoctorAvailability = (doctorId, payload) => appointmentApi.updateDoctorAvailability(doctorId, payload);
 export const blockDoctorSlot = (doctorId, payload) => appointmentApi.blockDoctorSlot(doctorId, payload);
+export const applyWaiver = (id, payload) => appointmentApi.applyWaiver(id, payload);
+export const verifyPayment = (id, payload) => appointmentApi.verifyPayment(id, payload);
+export const requestRefund = (id) => appointmentApi.requestRefund(id);
+export const decideDiscount = (id, payload) => appointmentApi.decideDiscount(id, payload);
+export const requestDiscount = (id, payload) => appointmentApi.requestDiscount(id, payload);
 
 export default appointmentApi;

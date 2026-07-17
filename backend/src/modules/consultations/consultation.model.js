@@ -61,6 +61,7 @@ const vitalsSchema = new mongoose.Schema(
   },
   {
     _id: false,
+    strict: false,
     toJSON: { virtuals: true },
     toObject: { virtuals: true }
   }
@@ -362,6 +363,11 @@ const consultationSchema = new mongoose.Schema(
       trim: true,
       default: ''
     },
+    voiceNoteLanguage: {
+      type: String,
+      enum: ['auto', 'en', 'hi', 'es', 'fr', 'de'],
+      default: 'auto'
+    },
     ai_soap_note: {
       type: aiSoapNoteSchema,
       default: () => ({})
@@ -457,6 +463,34 @@ const consultationSchema = new mongoose.Schema(
     reeditCodeExpiresAt: {
       type: Date,
       default: null
+    },
+    pastMedicalHistory: {
+      type: [String],
+      default: []
+    },
+    familyHistory: {
+      type: [mongoose.Schema.Types.Mixed],
+      default: []
+    },
+    socialHistory: {
+      type: [mongoose.Schema.Types.Mixed],
+      default: []
+    },
+    lifestyleHistory: {
+      type: [String],
+      default: []
+    },
+    systemicExamination: {
+      type: [mongoose.Schema.Types.Mixed],
+      default: []
+    },
+    customVitalsList: {
+      type: [mongoose.Schema.Types.Mixed],
+      default: []
+    },
+    editCompleted: {
+      type: Boolean,
+      default: false
     }
   },
   {

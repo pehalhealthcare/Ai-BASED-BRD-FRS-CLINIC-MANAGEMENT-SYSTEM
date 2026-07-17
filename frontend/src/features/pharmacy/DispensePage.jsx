@@ -194,14 +194,56 @@ const DispensePage = () => {
                   <p className="text-sm font-semibold text-stone-900">{item.prescribedName || `Prescription item ${index + 1}`}</p>
                   <div className="mt-4 grid gap-4 md:grid-cols-2">
                     <label className="grid gap-2 text-sm font-medium text-stone-700 md:col-span-2">
-                      <span>Select medicine</span>
+                      <div className="flex justify-between items-center">
+                        <span>Select medicine</span>
+                        {prescription.medicines?.[index]?.isSubstituteAllowed === false ? (
+                          <span className="text-[10px] bg-rose-50 text-rose-700 border border-rose-200 px-2 py-0.5 rounded font-black uppercase">Substitution Disabled</span>
+                        ) : (
+                          <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded font-black uppercase text-right">Substitution Suggested</span>
+                        )}
+                      </div>
                       <select className={FIELD_CLASS} value={item.medicineId} onChange={(event) => handleItemChange(index, 'medicineId', event.target.value)} required>
                         <option value="">Choose from catalog</option>
-                        {medicines.map((medicine) => (
-                          <option key={medicine._id} value={medicine._id}>
-                            {medicine.name} ({medicine.totalStock ?? 0} in stock)
-                          </option>
-                        ))}
+                        {(() => {
+                          const prescribedItem = prescription.medicines?.[index] || {};
+                          const prescribedGeneric = (prescribedItem.genericName || prescribedItem.medicineName || '').toLowerCase();
+                          const isSubAllowed = prescribedItem.isSubstituteAllowed !== false;
+
+                          // Filter options: if substitution is disabled, only allow exact match by name. Otherwise allow generic matches.
+                          let filtered = medicines;
+                          if (!isSubAllowed) {
+                            filtered = medicines.filter(m => m.name.toLowerCase() === (prescribedItem.medicineName || '').toLowerCase());
+                          } else if (prescribedGeneric) {
+                            // Smart suggestion: filter medicines matching genericName or brand composition
+                            filtered = medicines.filter(m =>
+                              m.genericName?.toLowerCase() === prescribedGeneric ||
+                              m.name?.toLowerCase() === prescribedGeneric
+                            );
+                          }
+
+                          // If no direct matches are found, fallback to the entire list to not block dispensing
+                          if (filtered.length === 0) {
+                            filtered = medicines;
+                          }
+
+                          // Sort: Highest stock, Nearest Expiry (FEFO)
+                          const sorted = [...filtered].sort((a, b) => {
+                            // Sort by stock descending
+                            if ((b.totalStock || 0) !== (a.totalStock || 0)) {
+                              return (b.totalStock || 0) - (a.totalStock || 0);
+                            }
+                            // FEFO: Sort by expiry ascending
+                            const expA = a.batches?.[0]?.expiryDate ? new Date(a.batches[0].expiryDate).getTime() : Infinity;
+                            const expB = b.batches?.[0]?.expiryDate ? new Date(b.batches[0].expiryDate).getTime() : Infinity;
+                            return expA - expB;
+                          });
+
+                          return sorted.map((medicine) => (
+                            <option key={medicine._id} value={medicine._id}>
+                              {medicine.name} ({medicine.totalStock ?? 0} in stock)
+                            </option>
+                          ));
+                        })()}
                       </select>
                     </label>
                     <label className="grid gap-2 text-sm font-medium text-stone-700">

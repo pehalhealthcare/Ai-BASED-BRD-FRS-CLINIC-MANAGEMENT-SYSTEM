@@ -11,6 +11,8 @@ const Clinic = require('../clinics/clinic.model');
 const Specialization = require('../specializations/specialization.model');
 const Receptionist = require('../receptionists/receptionist.model');
 const receptionistService = require('../receptionists/receptionist.service');
+const Staff = require('../staff/staff.model');
+const staffService = require('../staff/staff.service');
 const { generateReceptionistCode } = require('../../common/utils/generateReceptionistCode');
 
 const listBillingAnomalies = asyncHandler(async (req, res) => {
@@ -68,7 +70,6 @@ const listPendingDoctors = asyncHandler(async (req, res) => {
 
 const approveDoctor = asyncHandler(async (req, res) => {
   const { userId } = req.params;
-  const { clinicId, assignedClinics, specialization, qualification, experienceYears, consultationFee, availability } = req.body;
 
   const user = await User.findById(userId);
   if (!user) {
@@ -83,6 +84,10 @@ const approveDoctor = asyncHandler(async (req, res) => {
     throw new AppError('Doctor is already approved', HTTP_STATUS.BAD_REQUEST);
   }
 
+  if (user.approvalStatus !== 'pending_approval') {
+    throw new AppError('Doctor has not completed and submitted their profile for approval yet.', HTTP_STATUS.BAD_REQUEST);
+  }
+
   if (req.user?.organizationId && String(user.organizationId) !== String(req.user.organizationId)) {
     throw new AppError('Unauthorized access to this doctor', HTTP_STATUS.FORBIDDEN);
   }
@@ -90,89 +95,107 @@ const approveDoctor = asyncHandler(async (req, res) => {
   // Find or create Doctor profile
   let doctor = await Doctor.findOne({ userId: user._id });
 
-  // Clinic Specialization Check
+  // Determine clinic: admin's clinic is used if not specified
+  const clinicId = req.body.clinicId || req.user.clinicId;
+  if (!clinicId) {
+    throw new AppError('No clinic found. Admin must be assigned to a clinic.', HTTP_STATUS.BAD_REQUEST);
+  }
+
   const clinic = await Clinic.findById(clinicId);
   if (!clinic) {
     throw new AppError('Clinic not found', HTTP_STATUS.NOT_FOUND);
   }
 
-  const chosenSpecialization = specialization || (doctor ? doctor.specialization : '');
-  if (!chosenSpecialization || !chosenSpecialization.trim()) {
-    throw new AppError('Specialization is required to approve the doctor profile', HTTP_STATUS.BAD_REQUEST);
-  }
+  // For new invitation flow (pending_approval): doctor has filled profile, use existing data
+  // For legacy flow: admin supplies all details via request body
+  const isNewInvitationFlow = user.approvalStatus === 'pending_approval' && (!req.body.availability || req.body.availability.length === 0);
 
-  const specDoc = await Specialization.findOne({
-    name: { $regex: new RegExp(`^${chosenSpecialization.trim()}$`, 'i') },
-    isActive: true
-  });
-  if (!specDoc) {
-    throw new AppError(`Specialization "${chosenSpecialization}" is either not defined or inactive.`, HTTP_STATUS.BAD_REQUEST);
-  }
+  if (isNewInvitationFlow) {
+    // Validate that doctor has filled in required profile fields
+    if (!doctor) {
+      throw new AppError('Doctor profile record not found. Cannot approve.', HTTP_STATUS.BAD_REQUEST);
+    }
+    if (!doctor.specialization?.trim()) {
+      throw new AppError('Doctor has not filled in their specialization. Ask them to complete their profile first.', HTTP_STATUS.BAD_REQUEST);
+    }
+    if (!doctor.qualification?.trim()) {
+      throw new AppError('Doctor has not filled in their qualification. Ask them to complete their profile first.', HTTP_STATUS.BAD_REQUEST);
+    }
+  } else {
+    // Legacy flow: Admin provides all details
+    const { assignedClinics, specialization, qualification, experienceYears, consultationFee, availability, clinicPolicies } = req.body;
 
-  const clinicHasSpec = clinic.specializations && clinic.specializations.some(
-    (id) => id.toString() === specDoc._id.toString()
-  );
-  if (!clinicHasSpec) {
-    throw new AppError(
-      `Specialization "${chosenSpecialization}" is not assigned to the clinic "${clinic.name}". Admin can only assign the doctor to a clinic that has this specialization.`,
-      HTTP_STATUS.BAD_REQUEST
-    );
-  }
+    const chosenSpecialization = specialization || (doctor ? doctor.specialization : '');
+    if (!chosenSpecialization || !chosenSpecialization.trim()) {
+      throw new AppError('Specialization is required to approve the doctor profile', HTTP_STATUS.BAD_REQUEST);
+    }
 
-  if (!availability || !Array.isArray(availability) || availability.length === 0) {
-    throw new AppError('Weekly availability slots must be compulsorily assigned during approval.', HTTP_STATUS.BAD_REQUEST);
-  }
-
-  const activeSlots = availability.filter((a) => a.isAvailable);
-  if (activeSlots.length === 0) {
-    throw new AppError('At least one weekly slot must be marked as available.', HTTP_STATUS.BAD_REQUEST);
-  }
-
-  // Find or create Doctor profile
-  const doctorCode = await generateDoctorCode(clinicId);
-  const parts = user.name ? user.name.split(' ') : ['Doctor'];
-  const firstName = parts[0];
-  const lastName = parts.slice(1).join(' ') || '';
-
-  if (!doctor) {
-    doctor = new Doctor({
-      userId: user._id,
-      firstName,
-      lastName,
-      fullName: user.name,
-      phone: user.phone || '9000000000',
-      email: user.email,
-      organizationId: req.user?.organizationId || user.organizationId,
-      createdBy: req.user._id
+    const specDoc = await Specialization.findOne({
+      name: { $regex: new RegExp(`^${chosenSpecialization.trim()}$`, 'i') },
+      isActive: true
     });
+    if (!specDoc) {
+      throw new AppError(`Specialization "${chosenSpecialization}" is either not defined or inactive.`, HTTP_STATUS.BAD_REQUEST);
+    }
+
+    if (!availability || !Array.isArray(availability) || availability.length === 0) {
+      throw new AppError('Weekly availability slots must be assigned during approval.', HTTP_STATUS.BAD_REQUEST);
+    }
+
+    const activeSlots = availability.filter((a) => a.isAvailable);
+    if (activeSlots.length === 0) {
+      throw new AppError('At least one weekly slot must be marked as available.', HTTP_STATUS.BAD_REQUEST);
+    }
+
+    // Create doctor profile if not exists
+    const parts = user.name ? user.name.split(' ') : ['Doctor'];
+    const firstName = parts[0];
+    const lastName = parts.slice(1).join(' ') || '';
+
+    if (!doctor) {
+      doctor = new Doctor({
+        userId: user._id,
+        firstName,
+        lastName,
+        fullName: user.name,
+        phone: user.phone || '9000000000',
+        email: user.email,
+        organizationId: req.user?.organizationId || user.organizationId,
+        createdBy: req.user._id
+      });
+    }
+
+    const resolvedAssignedClinics = Array.from(new Set([
+      clinicId.toString(),
+      ...(assignedClinics || []).map((id) => id.toString())
+    ]));
+    doctor.assignedClinics = resolvedAssignedClinics;
+
+    if (specialization) doctor.specialization = specialization;
+    if (qualification) doctor.qualification = qualification;
+    if (experienceYears !== undefined) doctor.experienceYears = Number(experienceYears);
+    if (consultationFee !== undefined) doctor.consultationFee = Number(consultationFee);
+    if (clinicPolicies !== undefined) doctor.clinicPolicies = clinicPolicies;
+
+    await doctorService.validateAvailabilitySlots(doctor, availability);
+    doctor.availability = availability;
   }
 
-  // Combine assigned clinics ensuring primary clinicId is included
-  const resolvedAssignedClinics = Array.from(new Set([
-    clinicId.toString(),
-    ...(assignedClinics || []).map((id) => id.toString())
-  ]));
+  // Generate doctor code if not already assigned
+  if (!doctor.doctorCode) {
+    doctor.doctorCode = await generateDoctorCode(clinicId);
+  }
 
-  // Update profile with Super Admin appointed details
+  // Apply shared updates
   doctor.clinicId = clinicId;
-  doctor.assignedClinics = resolvedAssignedClinics;
-  doctor.doctorCode = doctorCode;
+  if (!doctor.assignedClinics || !doctor.assignedClinics.length) {
+    doctor.assignedClinics = [clinicId];
+  }
   doctor.isActive = true;
   doctor.approvalStatus = 'approved';
   doctor.hasAcceptedSlot = false;
   doctor.initialSlotAccepted = false;
   doctor.organizationId = req.user?.organizationId || user.organizationId || doctor.organizationId;
-  
-  if (specialization) doctor.specialization = specialization;
-  if (qualification) doctor.qualification = qualification;
-  if (experienceYears !== undefined) doctor.experienceYears = Number(experienceYears);
-  if (consultationFee !== undefined) doctor.consultationFee = Number(consultationFee);
-  
-  // Validate timing slots & distance constraints
-  await doctorService.validateAvailabilitySlots(doctor, availability);
-  
-  doctor.availability = availability;
-
   doctor.updatedBy = req.user._id;
   await doctor.save();
 
@@ -189,6 +212,7 @@ const approveDoctor = asyncHandler(async (req, res) => {
 
   return sendSuccess(res, 'Doctor approved and appointed successfully', { doctor: resolvedDoctor });
 });
+
 
 const rejectDoctor = asyncHandler(async (req, res) => {
   const { userId } = req.params;
@@ -254,13 +278,17 @@ const reEditDoctor = asyncHandler(async (req, res) => {
 });
 
 const getMyDoctorsDashboard = asyncHandler(async (req, res) => {
-  const orgFilter = req.user?.organizationId ? { organizationId: req.user.organizationId } : {};
+  const clinicIds = [req.user.clinicId];
+  const Clinic = require('../clinics/clinic.model');
+  const branches = await Clinic.find({ parentClinicId: req.user.clinicId }).select('_id');
+  branches.forEach(b => clinicIds.push(b._id));
+  const clinicFilter = { clinicId: { $in: clinicIds } };
 
   // 1. Fetch approved doctors
-  const approvedDoctors = await Doctor.find({ approvalStatus: 'approved', ...orgFilter }).populate('clinicId', 'name code').lean();
+  const approvedDoctors = await Doctor.find({ approvalStatus: 'approved', ...clinicFilter }).populate('clinicId', 'name code').lean();
 
   // 2. Fetch pending/re-edit doctors
-  const pendingUsers = await User.find({ role: 'DOCTOR', approvalStatus: { $in: ['pending_profile', 'pending_approval', 're_edit'] }, ...orgFilter }).lean();
+  const pendingUsers = await User.find({ role: 'DOCTOR', approvalStatus: { $in: ['pending_profile', 'pending_approval', 're_edit'] }, ...clinicFilter }).lean();
   const userIds = pendingUsers.map((u) => u._id);
   const doctorProfiles = await Doctor.find({ userId: { $in: userIds } }).lean();
   const resolvedPendingProfiles = await Promise.all(
@@ -358,7 +386,7 @@ const getMyDoctorsDashboard = asyncHandler(async (req, res) => {
     for (const topDocRevenue of doctorRevenues) {
       const bestDocProfile = await Doctor.findById(topDocRevenue._id).populate('clinicId', 'name code').lean();
       if (bestDocProfile) {
-        if (!req.user?.organizationId || String(bestDocProfile.organizationId) === String(req.user.organizationId)) {
+        if (!req.user?.clinicId || clinicIds.map(String).includes(String(bestDocProfile.clinicId))) {
           const resolvedBestDoc = await doctorService.resolveDoctorFiles(bestDocProfile);
           bestDoctor = {
             ...resolvedBestDoc,
@@ -380,23 +408,37 @@ const getMyDoctorsDashboard = asyncHandler(async (req, res) => {
 
 const listPendingReceptionists = asyncHandler(async (req, res) => {
   const orgFilter = req.user?.organizationId ? { organizationId: req.user.organizationId } : {};
-  const pendingUsers = await User.find({ role: 'RECEPTIONIST', approvalStatus: { $in: ['pending_profile', 'pending_approval', 're_edit'] }, ...orgFilter }).lean();
+  const { STAFF_ROLES } = require('../../common/constants/roles');
+  
+  const pendingUsers = await User.find({
+    role: { $in: STAFF_ROLES },
+    approvalStatus: { $in: ['pending_profile', 'pending_approval', 're_edit', 'pending_invitation', 'otp_verification_pending', 'onboarding_in_progress', 'changes_requested'] },
+    ...orgFilter
+  }).lean();
+
   const userIds = pendingUsers.map((u) => u._id);
+  const staffProfiles = await Staff.find({ userId: { $in: userIds } }).lean();
   const receptionistProfiles = await Receptionist.find({ userId: { $in: userIds } }).lean();
 
-  const resolvedProfiles = await Promise.all(
+  const resolvedStaffProfiles = await Promise.all(
+    staffProfiles.map((p) => staffService.resolveStaffFiles(p))
+  );
+  const resolvedRecProfiles = await Promise.all(
     receptionistProfiles.map((p) => receptionistService.resolveReceptionistFiles(p))
   );
 
   const combined = pendingUsers.map((user) => {
-    const profile = resolvedProfiles.find((p) => String(p.userId) === String(user._id));
+    let profile = resolvedStaffProfiles.find((p) => String(p.userId) === String(user._id));
+    if (!profile) {
+      profile = resolvedRecProfiles.find((p) => String(p.userId) === String(user._id));
+    }
     return {
       ...user,
       profile
     };
   });
 
-  return sendSuccess(res, 'Pending receptionists retrieved successfully', { pendingReceptionists: combined });
+  return sendSuccess(res, 'Pending staff retrieved successfully', { pendingReceptionists: combined });
 });
 
 const approveReceptionist = asyncHandler(async (req, res) => {
@@ -408,18 +450,20 @@ const approveReceptionist = asyncHandler(async (req, res) => {
     throw new AppError('User not found', HTTP_STATUS.NOT_FOUND);
   }
 
-  if (user.role !== 'RECEPTIONIST') {
-    throw new AppError('User is not registered as a receptionist', HTTP_STATUS.BAD_REQUEST);
+  const { STAFF_ROLES } = require('../../common/constants/roles');
+  if (!STAFF_ROLES.includes(user.role)) {
+    throw new AppError('User is not registered as a staff member', HTTP_STATUS.BAD_REQUEST);
   }
 
   if (user.approvalStatus === 'approved') {
-    throw new AppError('Receptionist is already approved', HTTP_STATUS.BAD_REQUEST);
+    throw new AppError('Staff member is already approved', HTTP_STATUS.BAD_REQUEST);
   }
 
   if (req.user?.organizationId && String(user.organizationId) !== String(req.user.organizationId)) {
-    throw new AppError('Unauthorized access to this receptionist', HTTP_STATUS.FORBIDDEN);
+    throw new AppError('Unauthorized access to this staff member', HTTP_STATUS.FORBIDDEN);
   }
 
+  let staff = await Staff.findOne({ userId: user._id });
   let receptionist = await Receptionist.findOne({ userId: user._id });
 
   const clinic = await Clinic.findById(clinicId);
@@ -436,12 +480,26 @@ const approveReceptionist = asyncHandler(async (req, res) => {
     throw new AppError('At least one shift slot must be marked as available.', HTTP_STATUS.BAD_REQUEST);
   }
 
-  const receptionistCode = await generateReceptionistCode(clinicId);
-  const parts = user.name ? user.name.split(' ') : ['Receptionist'];
+  const staffCode = `STF-${String(user._id).slice(-4).toUpperCase()}`;
+  const parts = user.name ? user.name.split(' ') : ['Staff'];
   const firstName = parts[0];
   const lastName = parts.slice(1).join(' ') || '';
 
-  if (!receptionist) {
+  if (!staff) {
+    staff = new Staff({
+      userId: user._id,
+      firstName,
+      lastName,
+      fullName: user.name,
+      phone: user.phone || '9000000000',
+      email: user.email,
+      role: user.role,
+      organizationId: req.user?.organizationId || user.organizationId,
+      createdBy: req.user._id
+    });
+  }
+
+  if (user.role === 'RECEPTIONIST' && !receptionist) {
     receptionist = new Receptionist({
       userId: user._id,
       firstName,
@@ -460,7 +518,7 @@ const approveReceptionist = asyncHandler(async (req, res) => {
   ]));
 
   if (resolvedAssignedClinics.length > 1) {
-    throw new AppError('Receptionist can be assigned to at most one clinic branch.', HTTP_STATUS.BAD_REQUEST);
+    throw new AppError('Staff can be assigned to at most one clinic branch.', HTTP_STATUS.BAD_REQUEST);
   }
 
   if (availability && Array.isArray(availability)) {
@@ -471,21 +529,37 @@ const approveReceptionist = asyncHandler(async (req, res) => {
     }
   }
 
-  receptionist.clinicId = clinicId;
-  receptionist.assignedClinics = resolvedAssignedClinics;
-  receptionist.receptionistCode = receptionistCode;
-  receptionist.isActive = true;
-  receptionist.approvalStatus = 'approved';
-  receptionist.hasAcceptedSlot = false;
-  receptionist.initialSlotAccepted = false;
-  receptionist.organizationId = req.user?.organizationId || user.organizationId || receptionist.organizationId;
-  
-  if (qualification) receptionist.qualification = qualification;
-  if (experienceYears !== undefined) receptionist.experienceYears = Number(experienceYears);
-  receptionist.availability = availability;
+  // Update unified staff model
+  staff.clinicId = clinicId;
+  staff.assignedClinics = resolvedAssignedClinics;
+  staff.staffCode = staffCode;
+  staff.isActive = true;
+  staff.approvalStatus = 'approved';
+  staff.hasAcceptedSlot = false; // Require staff to accept their assigned shift
+  staff.initialSlotAccepted = false;
+  staff.organizationId = req.user?.organizationId || user.organizationId || staff.organizationId;
+  if (qualification) staff.qualification = qualification;
+  if (experienceYears !== undefined) staff.experienceYears = Number(experienceYears);
+  staff.availability = availability;
+  staff.updatedBy = req.user._id;
+  await staff.save();
 
-  receptionist.updatedBy = req.user._id;
-  await receptionist.save();
+  // If receptionist, update legacy receptionist model too
+  if (receptionist) {
+    receptionist.clinicId = clinicId;
+    receptionist.assignedClinics = resolvedAssignedClinics;
+    receptionist.receptionistCode = staffCode;
+    receptionist.isActive = true;
+    receptionist.approvalStatus = 'approved';
+    receptionist.hasAcceptedSlot = false;
+    receptionist.initialSlotAccepted = false;
+    receptionist.organizationId = req.user?.organizationId || user.organizationId || receptionist.organizationId;
+    if (qualification) receptionist.qualification = qualification;
+    if (experienceYears !== undefined) receptionist.experienceYears = Number(experienceYears);
+    receptionist.availability = availability;
+    receptionist.updatedBy = req.user._id;
+    await receptionist.save();
+  }
 
   user.isActive = true;
   user.clinicId = clinicId;
@@ -495,9 +569,9 @@ const approveReceptionist = asyncHandler(async (req, res) => {
   user.organizationId = req.user?.organizationId || user.organizationId;
   await user.save();
 
-  const resolvedReceptionist = await receptionistService.resolveReceptionistFiles(receptionist);
+  const resolvedStaff = await staffService.resolveStaffFiles(staff);
 
-  return sendSuccess(res, 'Receptionist approved and appointed successfully', { receptionist: resolvedReceptionist });
+  return sendSuccess(res, 'Staff approved and appointed successfully', { receptionist: resolvedStaff });
 });
 
 const rejectReceptionist = asyncHandler(async (req, res) => {
@@ -508,17 +582,25 @@ const rejectReceptionist = asyncHandler(async (req, res) => {
     throw new AppError('User not found', HTTP_STATUS.NOT_FOUND);
   }
 
-  if (user.role !== 'RECEPTIONIST') {
-    throw new AppError('User is not registered as a receptionist', HTTP_STATUS.BAD_REQUEST);
+  const { STAFF_ROLES } = require('../../common/constants/roles');
+  if (!STAFF_ROLES.includes(user.role)) {
+    throw new AppError('User is not registered as a staff member', HTTP_STATUS.BAD_REQUEST);
   }
 
   if (req.user?.organizationId && String(user.organizationId) !== String(req.user.organizationId)) {
-    throw new AppError('Unauthorized access to this receptionist', HTTP_STATUS.FORBIDDEN);
+    throw new AppError('Unauthorized access to this staff member', HTTP_STATUS.FORBIDDEN);
   }
 
   user.approvalStatus = 'rejected';
   user.isActive = false;
   await user.save();
+
+  const staff = await Staff.findOne({ userId: user._id });
+  if (staff) {
+    staff.approvalStatus = 'rejected';
+    staff.isActive = false;
+    await staff.save();
+  }
 
   const receptionist = await Receptionist.findOne({ userId: user._id });
   if (receptionist) {
@@ -527,7 +609,7 @@ const rejectReceptionist = asyncHandler(async (req, res) => {
     await receptionist.save();
   }
 
-  return sendSuccess(res, 'Receptionist registration request rejected successfully');
+  return sendSuccess(res, 'Staff registration request rejected successfully');
 });
 
 const reEditReceptionist = asyncHandler(async (req, res) => {
@@ -539,56 +621,94 @@ const reEditReceptionist = asyncHandler(async (req, res) => {
     throw new AppError('User not found', HTTP_STATUS.NOT_FOUND);
   }
 
-  if (user.role !== 'RECEPTIONIST') {
-    throw new AppError('User is not registered as a receptionist', HTTP_STATUS.BAD_REQUEST);
+  const { STAFF_ROLES } = require('../../common/constants/roles');
+  if (!STAFF_ROLES.includes(user.role)) {
+    throw new AppError('User is not registered as a staff member', HTTP_STATUS.BAD_REQUEST);
   }
 
   if (req.user?.organizationId && String(user.organizationId) !== String(req.user.organizationId)) {
-    throw new AppError('Unauthorized access to this receptionist', HTTP_STATUS.FORBIDDEN);
+    throw new AppError('Unauthorized access to this staff member', HTTP_STATUS.FORBIDDEN);
   }
 
-  user.approvalStatus = 're_edit';
+  user.approvalStatus = 'changes_requested';
   user.reEditFields = reEditFields || {};
   user.reEditComments = reEditComments || '';
   await user.save();
 
+  const staff = await Staff.findOne({ userId });
+  if (staff) {
+    staff.approvalStatus = 'changes_requested';
+    staff.reEditFields = reEditFields || {};
+    staff.reEditComments = reEditComments || '';
+    await staff.save();
+  }
+
   const receptionist = await Receptionist.findOne({ userId });
   if (receptionist) {
-    receptionist.approvalStatus = 're_edit';
+    receptionist.approvalStatus = 'changes_requested';
     receptionist.reEditFields = reEditFields || {};
     receptionist.reEditComments = reEditComments || '';
     await receptionist.save();
   }
 
-  return sendSuccess(res, 'Receptionist profile marked for re-edit successfully', { user });
+  return sendSuccess(res, 'Staff profile marked for changes request successfully', { user });
 });
 
 const getMyReceptionistsDashboard = asyncHandler(async (req, res) => {
-  const orgFilter = req.user?.organizationId ? { organizationId: req.user.organizationId } : {};
+  const clinicIds = [req.user.clinicId];
+  const Clinic = require('../clinics/clinic.model');
+  const branches = await Clinic.find({ parentClinicId: req.user.clinicId }).select('_id');
+  branches.forEach(b => clinicIds.push(b._id));
+  const clinicFilter = { clinicId: { $in: clinicIds } };
 
-  const approvedReceptionists = await Receptionist.find({ approvalStatus: 'approved', ...orgFilter }).populate('clinicId', 'name code').lean();
+  const { STAFF_ROLES } = require('../../common/constants/roles');
 
-  const pendingUsers = await User.find({ role: 'RECEPTIONIST', approvalStatus: { $in: ['pending_profile', 'pending_approval', 're_edit'] }, ...orgFilter }).lean();
+  const approvedStaff = await Staff.find({ approvalStatus: 'approved', ...clinicFilter }).populate('clinicId', 'name code').populate('userId').lean();
+
+  const pendingUsers = await User.find({
+    role: { $in: STAFF_ROLES },
+    approvalStatus: { $in: ['pending_profile', 'pending_approval', 're_edit', 'pending_invitation', 'otp_verification_pending', 'onboarding_in_progress', 'changes_requested'] },
+    ...clinicFilter
+  }).lean();
+
   const userIds = pendingUsers.map((u) => u._id);
+  const staffProfiles = await Staff.find({ userId: { $in: userIds } }).lean();
   const receptionistProfiles = await Receptionist.find({ userId: { $in: userIds } }).lean();
+
   const resolvedPendingProfiles = await Promise.all(
+    staffProfiles.map((p) => staffService.resolveStaffFiles(p))
+  );
+  const resolvedRecProfiles = await Promise.all(
     receptionistProfiles.map((p) => receptionistService.resolveReceptionistFiles(p))
   );
-  const pendingReceptionistsCombined = pendingUsers.map((user) => {
-    const profile = resolvedPendingProfiles.find((p) => String(p.userId) === String(user._id));
+
+  const pendingStaffCombined = pendingUsers.map((user) => {
+    let profile = resolvedPendingProfiles.find((p) => String(p.userId) === String(user._id));
+    if (!profile) {
+      profile = resolvedRecProfiles.find((p) => String(p.userId) === String(user._id));
+    }
     return {
       ...user,
       profile
     };
   });
 
-  const resolvedApprovedReceptionists = await Promise.all(
-    approvedReceptionists.map((doc) => receptionistService.resolveReceptionistFiles(doc))
+  const resolvedApprovedStaff = await Promise.all(
+    approvedStaff.map((doc) => staffService.resolveStaffFiles(doc))
   );
 
-  return sendSuccess(res, 'My Receptionists Dashboard data retrieved successfully', {
-    receptionists: resolvedApprovedReceptionists,
-    pendingReceptionists: pendingReceptionistsCombined
+  // If approvedStaff is empty, fallback to legacy receptionists for backward compatibility
+  let finalApproved = resolvedApprovedStaff;
+  if (finalApproved.length === 0) {
+    const approvedReceptionists = await Receptionist.find({ approvalStatus: 'approved', ...clinicFilter }).populate('clinicId', 'name code').populate('userId').lean();
+    finalApproved = await Promise.all(
+      approvedReceptionists.map((doc) => receptionistService.resolveReceptionistFiles(doc))
+    );
+  }
+
+  return sendSuccess(res, 'My Staff Dashboard data retrieved successfully', {
+    receptionists: finalApproved,
+    pendingReceptionists: pendingStaffCombined
   });
 });
 

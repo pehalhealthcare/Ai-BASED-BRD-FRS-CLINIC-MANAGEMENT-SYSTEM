@@ -25,6 +25,7 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401) {
       clearToken();
       clearCurrentUser();
+      window.dispatchEvent(new Event('ai-cms:unauthorized'));
     }
 
     return Promise.reject(error);
@@ -45,6 +46,7 @@ const authApi = {
   register: (payload) => extractData(apiClient.post('/auth/register', payload)),
   login: (payload) => extractData(apiClient.post('/auth/login', payload)),
   resetPassword: (payload) => extractData(apiClient.post('/auth/reset-password', payload)),
+  verifyFirstLoginOtp: (payload) => extractData(apiClient.post('/auth/verify-first-login-otp', payload)),
   me: () => extractData(apiClient.get('/auth/me')),
   logout: () => extractData(apiClient.post('/auth/logout'))
 };
@@ -52,8 +54,10 @@ const authApi = {
 const userApi = {
   list: (params = {}) => extractData(apiClient.get('/users', { params })),
   get: (id) => extractData(apiClient.get(`/users/${id}`)),
+  create: (payload) => extractData(apiClient.post('/users', payload)),
   updateRole: (id, payload) => extractData(apiClient.patch(`/users/${id}/role`, payload)),
-  updateStatus: (id, payload) => extractData(apiClient.patch(`/users/${id}/status`, payload))
+  updateStatus: (id, payload) => extractData(apiClient.patch(`/users/${id}/status`, payload)),
+  remove: (id) => extractData(apiClient.delete(`/users/${id}`))
 };
 
 const patientApi = {
@@ -72,8 +76,12 @@ const patientApi = {
   uploadDocument: (patientId, payload) => extractData(apiClient.post(`/patients/${patientId}/documents`, payload)),
   listDocuments: (patientId) => extractData(apiClient.get(`/patients/${patientId}/documents`)),
   downloadDocument: (patientId, documentId) => extractData(apiClient.get(`/patients/${patientId}/documents/${documentId}`)),
-  deleteDocument: (patientId, documentId) => extractData(apiClient.delete(`/patients/${patientId}/documents/${documentId}`))
+  deleteDocument: (patientId, documentId) => extractData(apiClient.delete(`/patients/${patientId}/documents/${documentId}`)),
+  getMyClinics: () => extractData(apiClient.get('/patients/me/clinics')),
+  checkExists: (phone) => extractData(apiClient.get('/patients/check-exists', { params: { phone } })),
+  associate: (id) => extractData(apiClient.post(`/patients/${id}/associate`))
 };
+
 
 const doctorApi = {
   create: (payload) => extractData(apiClient.post('/doctors', payload)),
@@ -99,6 +107,13 @@ const receptionistApi = {
   acceptMySlot: () => extractData(apiClient.post('/receptionists/me/accept-slot'))
 };
 
+const staffApi = {
+  getMyProfile: () => extractData(apiClient.get('/staff/me/profile')),
+  updateMyProfile: (payload) => extractData(apiClient.put('/staff/me/profile', payload)),
+  submitMyProfile: (payload) => extractData(apiClient.post('/staff/me/submit', payload)),
+  acceptMySlot: () => extractData(apiClient.post('/staff/me/accept-slot'))
+};
+
 const appointmentApi = {
   createAppointment: (payload) => extractData(apiClient.post('/appointments', payload)),
   getAppointments: (params = {}) => extractData(apiClient.get('/appointments', { params })),
@@ -113,6 +128,8 @@ const appointmentApi = {
   blockDoctorSlot: (doctorId, payload) => extractData(apiClient.post(`/doctors/${doctorId}/blocked-slots`, payload)),
   getQueueStatus: (doctorId) => extractData(apiClient.get(`/appointments/queue/${doctorId}`)),
   verifyPayment: (id, payload) => extractData(apiClient.post(`/appointments/${id}/verify-payment`, payload)),
+  applyWaiver: (id, payload) => extractData(apiClient.post(`/appointments/${id}/waiver`, payload)),
+  requestRefund: (id) => extractData(apiClient.post(`/appointments/${id}/request-refund`)),
   scanCheckin: (payload) => extractData(apiClient.post('/appointments/scan-checkin', payload)),
   checkInPatient: (id, payload = {}) => extractData(apiClient.post(`/appointments/${id}/checkin`, payload)),
   getDoctorQueue: (doctorId) => extractData(apiClient.get(`/appointments/queue-sorted/${doctorId}`)),
@@ -125,7 +142,12 @@ const appointmentApi = {
   updateDoctorSettings: (doctorId, payload) => extractData(apiClient.put(`/appointments/queue-sorted/settings/${doctorId}`, payload)),
   getDoctorSettings: (doctorId) => extractData(apiClient.get(`/appointments/queue-sorted/settings/${doctorId}`)),
   verifyOtp: (payload) => extractData(apiClient.post('/appointments/queue-sorted/verify-otp', payload)),
-  reassignSkipped: (payload) => extractData(apiClient.post('/appointments/queue-sorted/reassign', payload))
+  reassignSkipped: (payload) => extractData(apiClient.post('/appointments/queue-sorted/reassign', payload)),
+  checkFollowUp: (patientId, doctorId, params = {}) => extractData(apiClient.get(`/appointments/check-follow-up/${patientId}/${doctorId}`, { params })),
+  requestDiscount: (id, payload) => extractData(apiClient.post(`/appointments/${id}/request-discount`, payload)),
+  decideDiscount: (id, payload) => extractData(apiClient.post(`/appointments/${id}/decide-discount`, payload)),
+  collectPayment: (id, payload) => extractData(apiClient.post(`/appointments/${id}/collect-payment`, payload)),
+  getPendingApprovals: () => extractData(apiClient.get('/appointments/pending-approvals'))
 };
 
 const consultationApi = {
@@ -238,7 +260,19 @@ const labApi = {
   updateReport: (id, payload) => extractData(apiClient.patch(`/labs/reports/${id}`, payload)),
   reviewAiAnalysis: (id, payload) => extractData(apiClient.patch(`/labs/reports/${id}/ai-review`, payload)),
   finalizeReport: (id, payload = {}) => extractData(apiClient.patch(`/labs/reports/${id}/finalize`, payload)),
-  updateTest: (id, payload) => extractData(apiClient.patch(`/labs/tests/${id}`, payload))
+  updateTest: (id, payload) => extractData(apiClient.patch(`/labs/tests/${id}`, payload)),
+  listLabTestMasters: (params = {}) => extractData(apiClient.get('/labs/masters/tests', { params })),
+  searchAllLabs: (params = {}) => extractData(apiClient.get('/labs/search', { params })),
+  createCustomRequest: (payload) => extractData(apiClient.post('/labs/custom-request', payload)),
+  listCustomRequests: () => extractData(apiClient.get('/labs/custom-requests')),
+  // Lab Consumables
+  getInventoryDashboard: () => extractData(apiClient.get('/labs/inventory/dashboard')),
+  createConsumable: (payload) => extractData(apiClient.post('/labs/consumables', payload)),
+  listConsumables: (params = {}) => extractData(apiClient.get('/labs/consumables', { params })),
+  updateConsumable: (id, payload) => extractData(apiClient.put(`/labs/consumables/${id}`, payload)),
+  addConsumableBatch: (id, payload) => extractData(apiClient.post(`/labs/consumables/${id}/batches`, payload)),
+  adjustConsumableStock: (payload) => extractData(apiClient.post('/labs/consumables/adjust', payload)),
+  listConsumableLedgers: (params = {}) => extractData(apiClient.get('/labs/consumables/ledger', { params }))
 };
 
 const pharmacyApi = {
@@ -254,7 +288,27 @@ const pharmacyApi = {
   cancelDispensing: (id, payload = {}) => extractData(apiClient.patch(`/pharmacy/dispensings/${id}/cancel`, payload)),
   createOrder: (payload) => extractData(apiClient.post('/pharmacy/orders', payload)),
   listOrders: (params = {}) => extractData(apiClient.get('/pharmacy/orders', { params })),
-  updateOrderStatus: (id, payload) => extractData(apiClient.patch(`/pharmacy/orders/${id}/status`, payload))
+  updateOrderStatus: (id, payload) => extractData(apiClient.patch(`/pharmacy/orders/${id}/status`, payload)),
+  listMedicineMasters: (params = {}) => extractData(apiClient.get('/pharmacy/masters/medicines', { params })),
+  listBrandMasters: (params = {}) => extractData(apiClient.get('/pharmacy/masters/brands', { params })),
+  // Pharmacy Inventory
+  getInventoryDashboard: () => extractData(apiClient.get('/pharmacy/inventory/dashboard')),
+  adjustStock: (payload) => extractData(apiClient.post('/pharmacy/inventory/adjust', payload)),
+  listLedgers: (params = {}) => extractData(apiClient.get('/pharmacy/inventory/ledger', { params })),
+  // Suppliers
+  listSuppliers: (params = {}) => extractData(apiClient.get('/pharmacy/suppliers', { params })),
+  createSupplier: (payload) => extractData(apiClient.post('/pharmacy/suppliers', payload)),
+  updateSupplier: (id, payload) => extractData(apiClient.put(`/pharmacy/suppliers/${id}`, payload)),
+  deleteSupplier: (id) => extractData(apiClient.delete(`/pharmacy/suppliers/${id}`)),
+  // Purchase Orders
+  listPurchaseOrders: (params = {}) => extractData(apiClient.get('/pharmacy/purchase-orders', { params })),
+  createPurchaseOrder: (payload) => extractData(apiClient.post('/pharmacy/purchase-orders', payload)),
+  receivePurchaseOrder: (id, payload) => extractData(apiClient.post(`/pharmacy/purchase-orders/${id}/receive`, payload)),
+  // Procurement Requests & Search-All
+  searchAll: (search, clinicId) => extractData(apiClient.get('/pharmacy/search-all', { params: { search, clinicId } })),
+  createProcurementRequest: (payload, clinicId) => extractData(apiClient.post('/pharmacy/procurement-requests', payload, { params: { clinicId } })),
+  listProcurementRequests: (clinicId) => extractData(apiClient.get('/pharmacy/procurement-requests', { params: { clinicId } })),
+  updateProcurementRequestStatus: (id, status, clinicId) => extractData(apiClient.patch(`/pharmacy/procurement-requests/${id}/status`, { status }, { params: { clinicId } }))
 };
 
 const notificationApi = {
@@ -312,10 +366,51 @@ const clinicApi = {
   list: () => extractData(apiClient.get('/clinics')),
   getDetails: (id) => extractData(apiClient.get(`/clinics/${id}/details`)),
   update: (id, payload) => extractData(apiClient.put(`/clinics/${id}`, payload)),
+  getOnboardingFlow: (id) => extractData(apiClient.get(`/clinics/${id}/onboarding-flow`)),
+  activateTrialFeature: (id, payload) => extractData(apiClient.post(`/clinics/${id}/trial-features`, payload)),
   getHolidays: (params = {}) => extractData(apiClient.get('/holidays', { params })),
   createHoliday: (payload) => extractData(apiClient.post('/holidays', payload)),
   updateHoliday: (id, payload) => extractData(apiClient.put(`/holidays/${id}`, payload)),
-  deleteHoliday: (id, permanent = false) => extractData(apiClient.delete(`/holidays/${id}`, { params: { permanent } }))
+  deleteHoliday: (id, permanent = false) => extractData(apiClient.delete(`/holidays/${id}`, { params: { permanent } })),
+  // Onboarding & Super Admin
+  getRegistrationPlans: () => extractData(apiClient.get('/clinics/register/plans')),
+  submitRegistration: (payload) => extractData(apiClient.post('/clinics/register/submit', payload)),
+  validateEmail: (payload) => extractData(apiClient.post('/clinics/register/validate-email', payload)),
+  sendOtp: (payload) => extractData(apiClient.post('/clinics/register/send-otp', payload)),
+  verifyOtp: (payload) => extractData(apiClient.post('/clinics/register/verify-otp', payload)),
+  getPendingRequests: () => extractData(apiClient.get('/clinics/requests/pending')),
+  approveRequest: (id) => extractData(apiClient.post(`/clinics/requests/${id}/approve`)),
+  rejectRequest: (id, payload) => extractData(apiClient.post(`/clinics/requests/${id}/reject`, payload)),
+  resubmitRegistration: (id, payload) => extractData(apiClient.post(`/clinics/requests/${id}/resubmit`, payload)),
+  requestRefund: (id, payload) => extractData(apiClient.post(`/clinics/requests/${id}/refund`, payload)),
+  updateRefundStatus: (id, payload) => extractData(apiClient.post(`/clinics/requests/${id}/refund/status`, payload)),
+  getSuperAdminStats: () => extractData(apiClient.get('/clinics/dashboard/stats')),
+  superAdminCreateClinic: (payload) => extractData(apiClient.post('/clinics/super-admin/create', payload)),
+  suspendClinic: (id) => extractData(apiClient.post(`/clinics/${id}/suspend`)),
+  activateClinic: (id) => extractData(apiClient.post(`/clinics/${id}/activate`)),
+  changePlan: (id, payload) => extractData(apiClient.post(`/clinics/${id}/change-plan`, payload)),
+  extendSubscription: (id, payload) => extractData(apiClient.post(`/clinics/${id}/extend`, payload)),
+  resetPassword: (id, payload) => extractData(apiClient.post(`/clinics/${id}/reset-password`, payload)),
+  deleteClinic: (id) => extractData(apiClient.delete(`/clinics/${id}`)),
+  getBillingSettings: (id) => extractData(apiClient.get(`/clinics/${id}/billing-settings`)),
+  updateBillingSettings: (id, payload) => extractData(apiClient.patch(`/clinics/${id}/billing-settings`, payload))
+};
+
+const subscriptionApi = {
+  getPublicPlans: () => extractData(apiClient.get('/subscriptions/plans')),
+  getAllPlans: () => extractData(apiClient.get('/subscriptions/plans/all')),
+  createPlan: (payload) => extractData(apiClient.post('/subscriptions/plans', payload)),
+  updatePlan: (id, payload) => extractData(apiClient.put(`/subscriptions/plans/${id}`, payload)),
+  duplicatePlan: (id) => extractData(apiClient.post(`/subscriptions/plans/${id}/duplicate`)),
+  archivePlan: (id) => extractData(apiClient.post(`/subscriptions/plans/${id}/archive`))
+};
+
+const promoApi = {
+  getAll: () => extractData(apiClient.get('/subscriptions/promo-codes')),
+  create: (payload) => extractData(apiClient.post('/subscriptions/promo-codes', payload)),
+  update: (id, payload) => extractData(apiClient.put(`/subscriptions/promo-codes/${id}`, payload)),
+  remove: (id) => extractData(apiClient.delete(`/subscriptions/promo-codes/${id}`)),
+  validate: (payload) => extractData(apiClient.post('/subscriptions/promo-codes/validate', payload))
 };
 
 const specializationApi = {
@@ -374,6 +469,42 @@ const leaveApi = {
   getBalances: (params = {}) => extractData(apiClient.get('/leaves/balances', { params }))
 };
 
+const healthcareCatalogApi = {
+  getCategories: (params = {}) => extractData(apiClient.get('/healthcare-catalog/categories', { params })),
+  createCategory: (payload) => extractData(apiClient.post('/healthcare-catalog/categories', payload)),
+  getLabTests: (params = {}) => extractData(apiClient.get('/healthcare-catalog/labs', { params })),
+  createLabTest: (payload) => extractData(apiClient.post('/healthcare-catalog/labs', payload)),
+  updateLabTest: (id, payload) => extractData(apiClient.put(`/healthcare-catalog/labs/${id}`, payload)),
+  getMedicines: (params = {}) => extractData(apiClient.get('/healthcare-catalog/medicines', { params })),
+  createMedicine: (payload) => extractData(apiClient.post('/healthcare-catalog/medicines', payload)),
+  updateMedicine: (id, payload) => extractData(apiClient.put(`/healthcare-catalog/medicines/${id}`, payload)),
+  getBrands: (params = {}) => extractData(apiClient.get('/healthcare-catalog/brands', { params })),
+  createBrand: (payload) => extractData(apiClient.post('/healthcare-catalog/brands', payload)),
+  previewImport: (payload) => extractData(apiClient.post('/healthcare-catalog/import/preview', payload)),
+  confirmImport: (payload) => extractData(apiClient.post('/healthcare-catalog/import/confirm', payload)),
+  classifyMedicine: (id, payload) => extractData(apiClient.put(`/healthcare-catalog/medicines/${id}/classify`, payload)),
+  // Read-only search endpoints accessible to Clinic Admins for importing from Global Catalog
+  searchLabTests: (params = {}) => extractData(apiClient.get('/healthcare-catalog/search/labs', { params })),
+  searchMedicines: (params = {}) => extractData(apiClient.get('/healthcare-catalog/search/medicines', { params })),
+  searchCategories: (params = {}) => extractData(apiClient.get('/healthcare-catalog/search/categories', { params })),
+};
+
+const providersApi = {
+  getProviders: (params = {}) => extractData(apiClient.get('/providers', { params })),
+  getProvider: (id) => extractData(apiClient.get(`/providers/${id}`)),
+  createProvider: (payload) => extractData(apiClient.post('/providers', payload)),
+  updateProvider: (id, payload) => extractData(apiClient.put(`/providers/${id}`, payload)),
+  archiveProvider: (id) => extractData(apiClient.delete(`/providers/${id}`)),
+  changeStatus: (id, status) => extractData(apiClient.patch(`/providers/${id}/status`, { status })),
+  getBranches: () => extractData(apiClient.get('/providers/branches')),
+  
+  getMappings: (providerId, params = {}) => extractData(apiClient.get(`/providers/${providerId}/mappings`, { params })),
+  createMapping: (payload) => extractData(apiClient.post('/providers/mappings', payload)),
+  updateMapping: (id, payload) => extractData(apiClient.put(`/providers/mappings/${id}`, payload)),
+  deleteMapping: (id) => extractData(apiClient.delete(`/providers/mappings/${id}`)),
+  previewImportMapping: (payload) => extractData(apiClient.post('/providers/mappings/import/preview', payload))
+};
+
 export {
   apiClient,
   authApi,
@@ -381,6 +512,7 @@ export {
   patientApi,
   doctorApi,
   receptionistApi,
+  staffApi,
   appointmentApi,
   consultationApi,
   prescriptionApi,
@@ -399,5 +531,9 @@ export {
   organizationApi,
   leaveApi,
   paymentApi,
-  settlementsApi
+  settlementsApi,
+  subscriptionApi,
+  promoApi,
+  healthcareCatalogApi,
+  providersApi
 };

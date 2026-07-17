@@ -17,6 +17,23 @@ const createPatient = asyncHandler(async (req, res) => {
   return sendSuccess(res, 'Patient created successfully', { patient }, 201);
 });
 
+const checkExists = asyncHandler(async (req, res) => {
+  const { phone } = req.query;
+  const data = await patientService.checkExists({ phone });
+  return sendSuccess(res, 'Patient exist check completed', data);
+});
+
+const associatePatient = asyncHandler(async (req, res) => {
+  const patientId = req.params.id;
+  const result = await patientService.associatePatient({
+    requester: req.user,
+    patientId,
+    requestedClinicId: req.query.clinicId,
+    req
+  });
+  return sendSuccess(res, 'Patient associated with clinic successfully', result, 201);
+});
+
 const listPatients = asyncHandler(async (req, res) => {
   const data = await patientService.listPatients({
     requester: req.user,
@@ -34,6 +51,14 @@ const getPatientById = asyncHandler(async (req, res) => {
   });
 
   return sendSuccess(res, 'Patient retrieved successfully', data);
+});
+
+const getMyClinics = asyncHandler(async (req, res) => {
+  const data = await patientService.getMyClinics({
+    requester: req.user
+  });
+
+  return sendSuccess(res, 'Associated clinics retrieved successfully', data);
 });
 
 const getMyPatientProfile = asyncHandler(async (req, res) => {
@@ -189,7 +214,10 @@ const verifyHistoryPassword = asyncHandler(async (req, res) => {
 
 module.exports = {
   createPatient,
+  checkExists,
+  associatePatient,
   listPatients,
+  getMyClinics,
   getMyPatientProfile,
   updateMyPatientProfile,
   getPatientById,

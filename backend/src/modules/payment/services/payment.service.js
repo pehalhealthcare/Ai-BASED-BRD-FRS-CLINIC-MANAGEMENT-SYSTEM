@@ -188,12 +188,18 @@ class PaymentService {
       if (invoice && invoice.appointmentId) {
         try {
           const appt = await Appointment.findById(invoice.appointmentId);
-          if (appt && appt.status === 'booked') {
-            appt.status = 'confirmed';
+          if (appt) {
+            appt.paymentStatus = 'paid';
+            appt.amountPaid = appt.consultationFee || invoice.totalAmount;
+            appt.paymentDate = new Date();
+            appt.paymentMethod = 'digital';
+            if (appt.status === 'booked') {
+              appt.status = 'confirmed';
+            }
             await appt.save();
           }
         } catch (err) {
-          console.error('Failed to auto-confirm appointment:', err);
+          console.error('Failed to auto-confirm and mark appointment paid:', err);
         }
 
         // Send Consultation EMR Report if generated
@@ -288,6 +294,20 @@ class PaymentService {
       invoiceStatus: 'cancelled',
       paymentStatus: 'refunded'
     });
+
+    const invoiceDoc = await billingRepository.findInvoiceById(payment.invoiceId);
+    if (invoiceDoc && invoiceDoc.appointmentId) {
+      try {
+        const appt = await Appointment.findById(invoiceDoc.appointmentId);
+        if (appt) {
+          appt.paymentStatus = 'refunded';
+          appt.status = 'cancelled';
+          await appt.save();
+        }
+      } catch (err) {
+        console.error('Failed to update appointment status on refund:', err);
+      }
+    }
 
     // Log Audit
     await createAuditLog({

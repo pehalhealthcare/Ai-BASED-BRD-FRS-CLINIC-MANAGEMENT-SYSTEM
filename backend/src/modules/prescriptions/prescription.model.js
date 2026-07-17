@@ -49,6 +49,27 @@ const prescriptionItemSchema = new mongoose.Schema(
     isSubstituteAllowed: {
       type: Boolean,
       default: false
+    },
+    isManualEntry: {
+      type: Boolean,
+      default: false
+    },
+    globalMedicineId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'GlobalMedicine',
+      default: null
+    },
+    brandName: {
+      type: String,
+      default: ''
+    },
+    strength: {
+      type: String,
+      default: ''
+    },
+    dosageForm: {
+      type: String,
+      default: ''
     }
   },
   { _id: false }
@@ -96,6 +117,16 @@ const labRecommendationSchema = new mongoose.Schema(
       default: 'Blood'
     },
     reason: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    globalLabTestId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'GlobalLabTest',
+      default: null
+    },
+    code: {
       type: String,
       trim: true,
       default: ''
@@ -262,6 +293,10 @@ const prescriptionSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: ''
+    },
+    isLocked: {
+      type: Boolean,
+      default: false
     },
     finalizedAt: {
       type: Date,

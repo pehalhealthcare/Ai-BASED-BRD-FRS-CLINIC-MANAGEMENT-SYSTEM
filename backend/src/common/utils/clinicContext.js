@@ -1,4 +1,4 @@
-const { ROLES } = require('../constants/roles');
+const { ROLES, STAFF_ROLES } = require('../constants/roles');
 const { HTTP_STATUS } = require('../constants/httpStatus');
 const { AppError } = require('./AppError');
 
@@ -14,8 +14,8 @@ const resolveClinicContext = ({ user, requestedClinicId = null }) => {
   const userClinicId = normalizeClinicId(user?.clinicId);
   const requested = normalizeClinicId(requestedClinicId);
 
-  // If user is receptionist or doctor, restrict access to their assigned clinicId ONLY
-  if (user && (user.role === ROLES.RECEPTIONIST || user.role === ROLES.DOCTOR)) {
+  // If user is staff or doctor, restrict access to their assigned clinicId ONLY
+  if (user && (STAFF_ROLES.includes(user.role) || user.role === ROLES.DOCTOR)) {
     if (!userClinicId) {
       throw new AppError('Clinic context is required for this operation.', HTTP_STATUS.FORBIDDEN);
     }

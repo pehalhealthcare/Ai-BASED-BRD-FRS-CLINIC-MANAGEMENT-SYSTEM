@@ -14,7 +14,14 @@ export const consultationApi = {
     unwrapResponse(await axiosClient.post(`/consultations/${id}/ai-review`, payload)),
   formatNote: async (id, payload) => unwrapResponse(await axiosClient.post(`/consultations/${id}/format-note`, payload)),
   historyByPatient: async (patientId, params = {}) =>
-    unwrapResponse(await axiosClient.get(`/consultations/patient/${patientId}/history`, { params }))
+    unwrapResponse(await axiosClient.get(`/consultations/patient/${patientId}/history`, { params })),
+  downloadPdf: async (id) =>
+    unwrapResponse(
+      await axiosClient.get(`/consultations/${id}/pdf`, {
+        responseType: 'blob'
+      })
+    )
 };
 
 export default consultationApi;
+

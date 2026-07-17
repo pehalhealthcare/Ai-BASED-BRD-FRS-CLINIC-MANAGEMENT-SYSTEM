@@ -5,7 +5,11 @@ const DispensingRecord = require('./dispensingRecord.model');
 const PharmacySale = require('./pharmacySale.model');
 
 const populateMedicine = (query) =>
-  query.populate('createdBy', 'name email role').populate('updatedBy', 'name email role');
+  query
+    .populate('createdBy', 'name email role')
+    .populate('updatedBy', 'name email role')
+    .populate('globalMedicineId')
+    .populate('batches');
 
 const populateDispensingRecord = (query) =>
   query
@@ -27,7 +31,7 @@ const createMedicine = (data) => Medicine.create(data);
 
 const findMedicineDocumentById = ({ id, clinicId }) => Medicine.findOne({ _id: id, clinicId });
 
-const findMedicineDocumentsByIds = ({ ids, clinicId }) => Medicine.find({ _id: { $in: ids }, clinicId });
+const findMedicineDocumentsByIds = ({ ids, clinicId }) => Medicine.find({ _id: { $in: ids }, clinicId }).populate('batches');
 
 const findMedicineById = ({ id, clinicId, populateDetails = true, lean = false }) => {
   let query = Medicine.findOne({ _id: id, clinicId });

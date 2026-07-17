@@ -36,15 +36,25 @@ const userSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       default: null
     },
-    organizationId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Organization',
-      default: null
-    },
     approvalStatus: {
       type: String,
-      enum: ['pending_profile', 'pending_approval', 'approved', 'rejected', 're_edit'],
+      enum: [
+        'pending_profile',
+        'pending_approval',
+        'approved',
+        'rejected',
+        're_edit',
+        'pending_invitation',
+        'otp_verification_pending',
+        'onboarding_in_progress',
+        'changes_requested',
+        'disabled'
+      ],
       default: 'approved'
+    },
+    mustResetPassword: {
+      type: Boolean,
+      default: false
     },
     hasAcceptedSlot: {
       type: Boolean,
@@ -81,6 +91,18 @@ const userSchema = new mongoose.Schema(
     deletedAt: {
       type: Date,
       default: null
+    },
+    emailOtp: {
+      type: String,
+      default: null
+    },
+    emailOtpExpires: {
+      type: Date,
+      default: null
+    },
+    isEmailVerified: {
+      type: Boolean,
+      default: false
     }
   },
   {
@@ -95,6 +117,11 @@ userSchema.index({ isActive: 1 });
 
 userSchema.pre('save', async function save(next) {
   if (!this.isModified('password')) {
+    return next();
+  }
+
+  // Prevent double hashing if the password is already hashed (starts with $2a$, $2b$, or $2y$)
+  if (typeof this.password === 'string' && (this.password.startsWith('$2a$') || this.password.startsWith('$2b$') || this.password.startsWith('$2y$'))) {
     return next();
   }
 

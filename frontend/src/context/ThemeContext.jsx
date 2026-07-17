@@ -1,47 +1,32 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect } from 'react';
 
 const ThemeContext = createContext({
-  theme: /** @type {'light' | 'dark'} */ ('light'),
+  theme: 'light',
   toggleTheme: () => {},
   isDark: false,
 });
 
 /**
- * ThemeProvider — wraps the app and manages dark/light mode.
- * Persists the preference to localStorage and applies the `dark` class to <html>.
+ * ThemeProvider — locked to light mode.
+ * Dark mode will be re-introduced with a new theme system in a future release.
  */
 export const ThemeProvider = ({ children }) => {
-  const [theme, setTheme] = useState(() => {
-    const stored = localStorage.getItem('aura-theme');
-    if (stored === 'dark' || stored === 'light') return stored;
-    // Respect OS preference as default
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  });
-
   useEffect(() => {
-    const root = document.documentElement;
-    if (theme === 'dark') {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
-    localStorage.setItem('aura-theme', theme);
-  }, [theme]);
-
-  const toggleTheme = () => {
-    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
-  };
+    // Always enforce light mode — remove any previously stored dark class
+    document.documentElement.classList.remove('dark');
+    localStorage.setItem('aura-theme', 'light');
+  }, []);
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, isDark: theme === 'dark' }}>
+    <ThemeContext.Provider value={{ theme: 'light', toggleTheme: () => {}, isDark: false }}>
       {children}
     </ThemeContext.Provider>
   );
 };
 
 /**
- * useTheme — access the current theme and toggle function.
- * @returns {{ theme: 'light' | 'dark', toggleTheme: () => void, isDark: boolean }}
+ * useTheme — always returns light mode until new dark theme is implemented.
+ * @returns {{ theme: 'light', toggleTheme: () => void, isDark: false }}
  */
 export const useTheme = () => useContext(ThemeContext);
 

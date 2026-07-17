@@ -28,9 +28,9 @@ const approveDoctorSchema = z.object({
     userId: objectIdSchema
   }),
   body: z.object({
-    clinicId: objectIdSchema,
+    clinicId: objectIdSchema.optional(),
     assignedClinics: z.array(objectIdSchema).optional().default([]),
-    specialization: z.string().trim().min(2).max(100),
+    specialization: z.string().trim().min(2).max(100).optional(),
     qualification: z.string().trim().optional().default(''),
     experienceYears: z.number().int().nonnegative().optional().default(0),
     consultationFee: z.number().nonnegative().optional().default(0),
@@ -42,8 +42,15 @@ const approveDoctorSchema = z.object({
       slotDurationMinutes: z.number().int().default(30),
       clinicId: objectIdSchema.optional().nullable(),
       consultationMode: z.enum(['offline', 'online']).default('offline').optional()
+    })).optional().default([]),
+    clinicPolicies: z.array(z.object({
+      clinicId: objectIdSchema,
+      consultationFee: z.number().nonnegative().optional().default(0),
+      followUpFee: z.number().nonnegative().optional().default(0),
+      followUpWindowDays: z.number().int().min(0).max(365).optional().default(7),
+      followUpPolicy: z.enum(['free', 'discounted', 'full']).optional().default('free')
     })).optional().default([])
-  })
+  }).optional().default({})
 });
 
 const approveReceptionistSchema = z.object({

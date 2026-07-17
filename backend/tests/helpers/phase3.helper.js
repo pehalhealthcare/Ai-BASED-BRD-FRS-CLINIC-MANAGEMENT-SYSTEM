@@ -2,9 +2,20 @@ const createClinic = async (overrides = {}) => {
   const Clinic = require('../../src/modules/clinics/clinic.model');
   const suffix = `${Date.now()}${Math.floor(Math.random() * 1000)}`;
 
+  const now = new Date();
+  const expiryDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+  const trialFeatures = [
+    { featureCode: 'pharmacy', isActive: true, expiryDate },
+    { featureCode: 'labs', isActive: true, expiryDate },
+    { featureCode: 'lab_recommendations', isActive: true, expiryDate },
+    { featureCode: 'consultation_assistant', isActive: true, expiryDate }
+  ];
+
   return Clinic.create({
     name: `Clinic ${suffix}`,
     code: `CL${suffix}`.slice(-10),
+    approvalStatus: 'approved',
+    trialFeatures,
     ...overrides
   });
 };

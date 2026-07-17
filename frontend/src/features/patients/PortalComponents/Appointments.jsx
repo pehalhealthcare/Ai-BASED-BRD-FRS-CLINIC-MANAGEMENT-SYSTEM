@@ -35,9 +35,20 @@ export default function Appointments({
   const [endVal, setEndVal] = useState('');
   const [pickerOpen, setPickerOpen] = useState(false);
 
+  const handleRequestRefund = async (appointmentId) => {
+    try {
+      if (!window.confirm("Are you sure you want to request a refund for this consultation?")) return;
+      await appointmentApi.requestRefund(appointmentId);
+      alert("Refund request processed successfully!");
+      if (loadPortal) loadPortal();
+    } catch (err) {
+      alert(err.response?.data?.message || err.message || "Failed to process refund.");
+    }
+  };
+
   const isNotAttended = (apt) => {
     const status = apt?.status?.toLowerCase() || '';
-    if (status === 'no_show') return true;
+    if (status === 'not_attended' || status === 'no_show') return true;
     if (['booked', 'confirmed', 'scheduled'].includes(status)) {
       if (!apt.appointmentDate) return false;
       const today = new Date();
@@ -346,7 +357,11 @@ export default function Appointments({
                     String(inv.appointmentId?._id || inv.appointmentId) === String(apt._id) ||
                     String(inv.consultationId?._id || inv.consultationId) === String(apt.consultationId?._id || apt.consultationId)
                 );
-                const isPaid = !relatedInvoice || relatedInvoice.paymentStatus === 'paid';
+                const isPaid = apt.paymentStatus === 'paid' || 
+                               apt.paymentStatus === 'fully_waived' || 
+                               (apt.paymentStatus === 'partially_waived' && (apt.amountPaid || 0) >= (apt.remainingAmount || 0)) ||
+                               (apt.consultationFee || 0) === 0 ||
+                               (relatedInvoice && relatedInvoice.paymentStatus === 'paid');
 
                 const apptDate = apt.appointmentDate ? new Date(apt.appointmentDate) : null;
                 const dayNum = apptDate?.toLocaleDateString('en-IN', { day: '2-digit' });
@@ -438,6 +453,52 @@ export default function Appointments({
                           <MapPin size={11} className="text-slate-400 shrink-0" />
                           <span className="text-[11px] font-medium">{apt.clinicId?.name || 'AI-CMS Health Clinic'}, {apt.clinicId?.address?.city || 'Gurugram'}</span>
                         </div>
+
+                        {/* Payment & Waiver Breakdown display */}
+                        <div className="mt-3 pt-3 border-t border-slate-100 dark:border-white/[0.06] text-xs space-y-1">
+                          <div className="flex justify-between max-w-[280px]">
+                            <span className="text-slate-400 dark:text-slate-500 font-medium">Original Fee:</span>
+                            <span className="font-bold text-slate-700 dark:text-slate-350">₹{apt.consultationFee || apt.doctorId?.consultationFee || 500}</span>
+                          </div>
+                          {apt.waiverAmount > 0 && (
+                            <div className="flex justify-between max-w-[280px] text-emerald-600 dark:text-emerald-400 font-semibold">
+                              <span>Waiver ({apt.waiverType === 'full' ? 'Full' : 'Partial'}):</span>
+                              <span>-₹{apt.waiverAmount}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between max-w-[280px]">
+                            <span className="text-slate-500 dark:text-slate-400 font-bold">Amount Payable:</span>
+                            <span className="font-black text-slate-800 dark:text-slate-200">₹{apt.remainingAmount !== undefined ? apt.remainingAmount : (apt.consultationFee || 500)}</span>
+                          </div>
+                          <div className="flex justify-between max-w-[280px] pt-1 border-t border-dashed border-slate-100 dark:border-white/[0.04]">
+                            <span className="text-slate-400 dark:text-slate-500 font-medium">Payment Status:</span>
+                            <span className={`font-black uppercase text-[10px] ${
+                              isPaid ? 'text-emerald-500' : 'text-amber-500'
+                            }`}>
+                              {apt.paymentStatus ? apt.paymentStatus.replace(/_/g, ' ') : (isPaid ? 'Paid' : 'Pending')}
+                            </span>
+                          </div>
+                          {apt.status === 'not_attended' && (
+                            <div className="flex justify-between max-w-[280px]">
+                              <span className="text-slate-400 dark:text-slate-500 font-medium">Refund Status:</span>
+                              <span className="font-extrabold text-amber-500 text-[10px] uppercase">
+                                {apt.refundStatus === 'refunded' ? 'Refunded' : 'Scheduled for End-of-Day Refund'}
+                              </span>
+                            </div>
+                          )}
+                          {apt.paymentTransferStatus === 'transferred' && (
+                            <div className="flex justify-between max-w-[280px] text-indigo-500 dark:text-indigo-400">
+                              <span className="font-medium">Transfer Status:</span>
+                              <span className="font-extrabold text-[10px] uppercase">Payment Transferred</span>
+                            </div>
+                          )}
+                          {apt.paymentTransferStatus === 'received_transfer' && (
+                            <div className="flex justify-between max-w-[280px] text-emerald-500 dark:text-emerald-400">
+                              <span className="font-medium">Transfer Status:</span>
+                              <span className="font-extrabold text-[10px] uppercase">Already Paid (Transferred)</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -462,59 +523,76 @@ export default function Appointments({
 
                     {/* Action Buttons */}
                     <div className="flex flex-col gap-2 shrink-0 w-full md:w-auto md:min-w-[130px] md:border-l md:border-slate-100 md:dark:border-white/[0.06] md:pl-5">
-                      {isCompleted ? (
+                      {!isCancelled && (
                         <>
-                          {(() => {
-                            const consultationId = apt.consultationId?._id || apt.consultationId || relatedInvoice?.consultationId?._id || relatedInvoice?.consultationId;
-
-                            return (
-                              <>
-                                {!isPaid && relatedInvoice && (
-                                  <Link
-                                    to={`/billing/${relatedInvoice._id}/checkout`}
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white transition text-center"
-                                  >
-                                    <CreditCard size={12} />
-                                    Pay Doctor Fees
-                                  </Link>
-                                )}
-
-                                {consultationId && (
-                                  isPaid ? (
-                                    <Link
-                                      to={`/consultations/${consultationId}`}
-                                      onClick={(e) => e.stopPropagation()}
-                                      className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-aura-600 dark:bg-aura-500 text-white hover:bg-aura-700 dark:hover:bg-aura-600 transition text-center"
-                                    >
-                                      <Eye size={12} />
-                                      View Consultation
-                                    </Link>
-                                  ) : (
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        alert('Please pay the doctor fees first to access your consultation details.');
-                                      }}
-                                      className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-slate-800 border border-white/[0.05] text-slate-500 hover:text-slate-400 transition text-center"
-                                    >
-                                      <Eye size={12} />
-                                      View Consultation
-                                    </button>
-                                  )
-                                )}
-                              </>
-                            );
-                          })()}
+                          {/* Pay consultation charges before starting */}
+                          {!isPaid ? (
+                            relatedInvoice ? (
+                              <Link
+                                to={`/billing/${relatedInvoice._id}/checkout`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white transition text-center shadow-md shadow-amber-500/10"
+                              >
+                                <CreditCard size={12} />
+                                Pay Consultation Fee
+                              </Link>
+                            ) : (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  alert('Invoice is being generated. Please refresh the page or contact support.');
+                                }}
+                                className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-slate-800 text-slate-400 border border-white/[0.05] cursor-not-allowed"
+                              >
+                                <CreditCard size={12} />
+                                Pending Invoice
+                              </button>
+                            )
+                          ) : (
+                            /* Paid or Waived -> Show Consultation details/access */
+                            <Link
+                              to={`/appointments/${apt._id}/consultation`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-aura-600 dark:bg-aura-500 text-white hover:bg-aura-700 dark:hover:bg-aura-600 transition text-center shadow-md"
+                            >
+                              <Eye size={12} />
+                              Consultation Details
+                            </Link>
+                          )}
                         </>
-                      ) : isUnattended ? (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setReschedulingAppt(apt); }}
-                          className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-white shadow-sm transition"
-                        >
-                          <CalendarPlus size={12} />
-                          Reschedule your appointment for next date
-                        </button>
+                      )}
+
+                      {isUnattended ? (
+                        <div className="space-y-1.5 w-full">
+                          {apt.refundStatus !== 'refunded' && apt.paymentTransferStatus !== 'transferred' ? (
+                            <>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setReschedulingAppt(apt); }}
+                                className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-750 text-white shadow-sm transition"
+                              >
+                                <CalendarPlus size={12} />
+                                Reschedule (Uses Existing Payment)
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleRequestRefund(apt._id); }}
+                                className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-sm transition"
+                              >
+                                <CreditCard size={12} />
+                                Request Refund
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setReschedulingAppt(apt); }}
+                                className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-sm transition"
+                              >
+                                <CalendarPlus size={12} />
+                                Reschedule (Payment Required)
+                              </button>
+                            </>
+                          )}
+                        </div>
                       ) : (
                         <>
                           {!isCancelled && (

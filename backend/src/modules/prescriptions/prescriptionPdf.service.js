@@ -283,20 +283,20 @@ const drawThreeColGrid = (doc, prescription, consultation, y) => {
   doc.font(FONTS.bold).fontSize(7.5).fillColor(COLORS.primary);
   doc.text('LAB TESTS', labX + 6, y + 6);
   
-  const defaultLabs = [
-    { testName: 'CBC (Complete Blood Count)', sampleRequired: 'Blood', reason: 'Rule out infection' },
-    { testName: 'CRP (C-Reactive Protein)', sampleRequired: 'Blood', reason: 'Inflammation marker' },
-    { testName: 'COVID-19 RT-PCR', sampleRequired: 'Swab', reason: 'Exclude COVID-19' }
-  ];
-  const labsToRender = prescription?.labs && prescription.labs.length > 0 ? prescription.labs : defaultLabs;
+  const labsToRender = prescription?.labs || [];
   let labY = y + 16;
-  labsToRender.slice(0, 3).forEach(lab => {
-    doc.font(FONTS.bold).fontSize(6.5).fillColor(COLORS.heading);
-    doc.text(lab.testName, labX + 6, labY + 4, { width: colW - 12, lineBreak: false });
-    doc.font(FONTS.regular).fontSize(5.5).fillColor(COLORS.muted);
-    doc.text(`${lab.sampleRequired || 'Blood'} • ${lab.reason || 'General'}`, labX + 6, labY + 11, { width: colW - 12, lineBreak: false });
-    labY += 20;
-  });
+  if (labsToRender.length === 0) {
+    doc.font(FONTS.regular).fontSize(6.5).fillColor(COLORS.muted);
+    doc.text('No lab tests ordered.', labX + 6, labY + 4, { width: colW - 12 });
+  } else {
+    labsToRender.slice(0, 3).forEach(lab => {
+      doc.font(FONTS.bold).fontSize(6.5).fillColor(COLORS.heading);
+      doc.text(lab.testName, labX + 6, labY + 4, { width: colW - 12, lineBreak: false });
+      doc.font(FONTS.regular).fontSize(5.5).fillColor(COLORS.muted);
+      doc.text(`${lab.sampleRequired || 'Blood'} • ${lab.reason || 'General'}`, labX + 6, labY + 11, { width: colW - 12, lineBreak: false });
+      labY += 20;
+    });
+  }
 
   // Column 2: Diagnosis
   const diagX = PAGE.marginLeft + colW + 8;

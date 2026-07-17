@@ -43,7 +43,13 @@ const batchSchema = z.object({
   expiryDate: futureOrPresentDateSchema.optional(),
   purchasePrice: z.coerce.number().min(0).optional(),
   sellingPrice: z.coerce.number().min(0).optional(),
-  receivedAt: z.string().trim().optional()
+  receivedAt: z.string().trim().optional(),
+  isOpeningStock: z.boolean().optional(),
+  supplier: z.string().trim().optional(),
+  invoiceNumber: z.string().trim().optional(),
+  remarks: z.string().trim().optional(),
+  notes: z.string().trim().optional(),
+  branchId: objectIdSchema.optional()
 });
 
 const createMedicineSchema = z.object({
@@ -184,6 +190,89 @@ const updatePharmacyOrderStatusSchema = z.object({
   })
 });
 
+const createSupplierSchema = z.object({
+  body: z.object({
+    name: z.string().trim().min(1, 'Name is required').max(150),
+    contactPerson: z.string().trim().max(100).optional(),
+    phone: z.string().trim().max(30).optional(),
+    email: z.string().trim().max(100).optional(),
+    gstNumber: z.string().trim().max(40).optional(),
+    address: z.object({
+      line1: z.string().trim().optional(),
+      line2: z.string().trim().optional(),
+      city: z.string().trim().optional(),
+      state: z.string().trim().optional(),
+      pincode: z.string().trim().optional(),
+      country: z.string().trim().optional()
+    }).optional(),
+    paymentTerms: z.string().trim().max(100).optional(),
+    isActive: z.boolean().optional()
+  })
+});
+
+const updateSupplierSchema = z.object({
+  params: objectIdParamSchema('id').shape.params,
+  body: z.object({
+    name: z.string().trim().max(150).optional(),
+    contactPerson: z.string().trim().max(100).optional(),
+    phone: z.string().trim().max(30).optional(),
+    email: z.string().trim().max(100).optional(),
+    gstNumber: z.string().trim().max(40).optional(),
+    address: z.object({
+      line1: z.string().trim().optional(),
+      line2: z.string().trim().optional(),
+      city: z.string().trim().optional(),
+      state: z.string().trim().optional(),
+      pincode: z.string().trim().optional(),
+      country: z.string().trim().optional()
+    }).optional(),
+    paymentTerms: z.string().trim().max(100).optional(),
+    isActive: z.boolean().optional()
+  }).optional()
+});
+
+const createPurchaseOrderSchema = z.object({
+  body: z.object({
+    supplierId: objectIdSchema,
+    branchId: objectIdSchema.optional(),
+    remarks: z.string().trim().optional(),
+    status: z.enum(['Draft', 'Pending Approval', 'Submitted']).optional(),
+    items: z.array(z.object({
+      medicineId: objectIdSchema,
+      quantity: z.coerce.number().int().positive(),
+      unitCost: z.coerce.number().min(0)
+    })).min(1, 'At least one medicine is required')
+  })
+});
+
+const receivePurchaseOrderSchema = z.object({
+  params: objectIdParamSchema('id').shape.params,
+  body: z.object({
+    invoiceNumber: z.string().trim().optional(),
+    items: z.array(z.object({
+      medicineId: objectIdSchema,
+      quantityReceived: z.coerce.number().int().positive(),
+      batchNumber: z.string().trim().min(1, 'Batch number is required'),
+      manufacturingDate: z.string().trim().optional(),
+      expiryDate: z.string().trim(),
+      purchasePrice: z.coerce.number().min(0).optional(),
+      sellingPrice: z.coerce.number().min(0).optional()
+    })).min(1, 'At least one item is required')
+  })
+});
+
+const adjustStockSchema = z.object({
+  body: z.object({
+    medicineId: objectIdSchema,
+    batchId: objectIdSchema,
+    branchId: objectIdSchema.optional(),
+    quantity: z.coerce.number(), // positive to add, negative to subtract
+    adjustmentType: z.enum(['Adjustment', 'Damage', 'Expired', 'Returned']),
+    reason: z.string().trim().optional(),
+    notes: z.string().trim().optional()
+  })
+});
+
 module.exports = {
   createMedicineSchema,
   updateMedicineSchema,
@@ -197,5 +286,11 @@ module.exports = {
   patientMedicineHistorySchema,
   createPharmacyOrderSchema,
   listPharmacyOrdersQuerySchema,
-  updatePharmacyOrderStatusSchema
+  updatePharmacyOrderStatusSchema,
+  createSupplierSchema,
+  updateSupplierSchema,
+  createPurchaseOrderSchema,
+  receivePurchaseOrderSchema,
+  adjustStockSchema
 };
+

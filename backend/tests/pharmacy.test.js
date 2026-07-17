@@ -93,8 +93,12 @@ beforeAll(() => {
   app = require('../src/app');
 });
 
-beforeEach(() => {
+beforeEach(async () => {
   jest.restoreAllMocks();
+  const collections = Object.values(require('mongoose').connection.collections);
+  for (const collection of collections) {
+    await collection.deleteMany({});
+  }
 });
 
 describe('Pharmacy routes', () => {
@@ -459,7 +463,6 @@ describe('Pharmacy routes', () => {
         ],
         notes: 'Dispensed from clinic pharmacy'
       });
-
     expect(response.status).toBe(201);
     expect(response.body.success).toBe(true);
     expect(response.body.data.dispensingRecord.status).toBe('dispensed');
@@ -468,7 +471,7 @@ describe('Pharmacy routes', () => {
     expect(response.body.data.dispensingRecord.items[1].batchNumber).toBe('PCM-LATE');
     expect(response.body.data.pharmacySale.amount).toBe(25);
 
-    const refreshedMedicine = await require('../src/modules/pharmacy/medicine.model').findById(medicine._id);
+    const refreshedMedicine = await require('../src/modules/pharmacy/medicine.model').findById(medicine._id).populate('batches');
     expect(refreshedMedicine.totalStock).toBe(6);
     expect(refreshedMedicine.batches.find((batch) => batch.batchNumber === 'PCM-EARLY').quantity).toBe(0);
     expect(refreshedMedicine.batches.find((batch) => batch.batchNumber === 'PCM-LATE').quantity).toBe(6);

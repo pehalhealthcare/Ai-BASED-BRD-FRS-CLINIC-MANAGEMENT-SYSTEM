@@ -10,6 +10,12 @@ const consultationRepository = require('../consultations/consultation.repository
 const doctorRepository = require('../doctors/doctor.repository');
 const patientRepository = require('../patients/patient.repository');
 const labRepository = require('./lab.repository');
+const LabTestMaster = require('./labTestMaster.model');
+const LabTest = require('./labTest.model');
+const LabConsumable = require('./labConsumable.model');
+const LabConsumableBatch = require('./labConsumableBatch.model');
+const LabStockLedger = require('./labStockLedger.model');
+const Supplier = require('../pharmacy/supplier.model');
 
 const ORDER_STATUS_TRANSITIONS = {
   ordered: ['sample_collected', 'cancelled'],
@@ -413,15 +419,61 @@ const createLabTest = async ({ requester, payload, requestedClinicId = null, req
     requestedClinicId: requestedClinicId || payload.clinicId
   });
 
+  const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  let globalTest = null;
+  let master = null;
+  
+  if (payload.globalLabTestId) {
+    const GlobalLabTest = require('../healthcare-catalog/globalLabTest.model');
+    globalTest = await GlobalLabTest.findById(payload.globalLabTestId).populate('category');
+    if (!globalTest) {
+      throw new AppError('Global lab test not found.', HTTP_STATUS.NOT_FOUND);
+    }
+  } else {
+    if (payload.labTestMasterId) {
+      master = await LabTestMaster.findById(payload.labTestMasterId);
+      if (!master) {
+        throw new AppError('Lab test master not found.', HTTP_STATUS.NOT_FOUND);
+      }
+    } else {
+      // Legacy support: resolve or create lab test master by name
+      master = await LabTestMaster.findOne({ name: { $regex: new RegExp(`^${escapeRegex(payload.name.trim())}$`, 'i') } });
+      if (!master) {
+        master = await LabTestMaster.create({
+          name: payload.name.trim(),
+          category: payload.category || 'General',
+          sampleType: payload.specimenType || 'Blood',
+          normalRange: { text: payload.normalRange?.text || '' }
+        });
+      }
+    }
+  }
+
+  // Prevent double import of same global lab test in the same clinic
+  if (globalTest) {
+    const existing = await LabTest.findOne({ clinicId, globalLabTestId: globalTest._id });
+    if (existing) {
+      throw new AppError('This lab test has already been imported into your clinic catalog', HTTP_STATUS.CONFLICT);
+    }
+  }
+
   const labTest = await labRepository.createLabTest({
     clinicId,
-    code: payload.code.trim().toUpperCase(),
-    name: payload.name.trim(),
-    category: payload.category.trim(),
-    specimenType: payload.specimenType.trim(),
-    unit: payload.unit?.trim?.() || '',
-    normalRange: normalizeNormalRange(payload.normalRange || {}),
+    labTestMasterId: master ? master._id : undefined,
+    globalLabTestId: globalTest ? globalTest._id : undefined,
+    code: payload.code?.trim?.().toUpperCase() || (globalTest ? globalTest.globalId : (master.name.slice(0, 3).toUpperCase() + '-' + Math.floor(100 + Math.random() * 900))),
+    name: globalTest ? globalTest.name : master.name,
+    category: globalTest ? (globalTest.category?.name || '') : (master.category || payload.category || ''),
+    specimenType: globalTest ? globalTest.sampleType : (master.sampleType || payload.specimenType || ''),
+    unit: payload.unit || (globalTest ? '' : (master.normalRange?.unit || '')),
+    normalRange: normalizeNormalRange(payload.normalRange || (globalTest ? {} : (master.normalRange || {}))),
     price: typeof payload.price === 'number' ? payload.price : null,
+    testPrice: typeof payload.testPrice === 'number' ? payload.testPrice : (typeof payload.price === 'number' ? payload.price : 0),
+    turnaroundTime: payload.turnaroundTime || (globalTest ? globalTest.normalReportingTime : '24 Hours'),
+    homeCollectionAvailable: typeof payload.homeCollectionAvailable === 'boolean' ? payload.homeCollectionAvailable : false,
+    sampleCollectionFee: typeof payload.sampleCollectionFee === 'number' ? payload.sampleCollectionFee : 0,
+    availableDays: payload.availableDays || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
     isActive: typeof payload.isActive === 'boolean' ? payload.isActive : true,
     createdBy: requester._id,
     updatedBy: requester._id
@@ -1173,7 +1225,417 @@ const getPatientLabHistory = async ({ requester, patientId, query = {}, requeste
   };
 };
 
+
+// ─── LABORATORY CONSUMABLE SERVICES ──────────────────────────────────────────
+
+const createLabConsumable = async ({ requester, payload, requestedClinicId = null }) => {
+  const clinicId = resolveClinicContext({ user: requester, requestedClinicId });
+  const existing = await LabConsumable.findOne({ clinicId, name: new RegExp(`^${payload.name.trim()}$`, 'i') });
+  if (existing) {
+    throw new AppError('A consumable with this name already exists.', HTTP_STATUS.CONFLICT);
+  }
+  return LabConsumable.create({
+    ...payload,
+    clinicId,
+    createdBy: requester._id
+  });
+};
+
+const listLabConsumables = async ({ requester, query = {}, requestedClinicId = null }) => {
+  const clinicId = resolveClinicContext({ user: requester, requestedClinicId });
+  const filter = { clinicId };
+  if (query.category) filter.category = query.category;
+  if (query.search) {
+    filter.name = new RegExp(query.search, 'i');
+  }
+  if (query.branchId) filter.branchId = query.branchId;
+
+  const items = await LabConsumable.find(filter).sort({ name: 1 });
+  
+  // Virtual populate batches manually
+  const populated = [];
+  for (const item of items) {
+    const batches = await LabConsumableBatch.find({ consumableId: item._id }).populate('supplierId');
+    const doc = item.toObject();
+    doc.batches = batches;
+    populated.push(doc);
+  }
+  return populated;
+};
+
+const updateLabConsumable = async ({ requester, consumableId, payload, requestedClinicId = null }) => {
+  const clinicId = resolveClinicContext({ user: requester, requestedClinicId });
+  const consumable = await LabConsumable.findOne({ _id: consumableId, clinicId });
+  if (!consumable) {
+    throw new AppError('Consumable not found.', HTTP_STATUS.NOT_FOUND);
+  }
+  return LabConsumable.findByIdAndUpdate(consumableId, payload, { new: true });
+};
+
+// ─── LAB CONSUMABLE BATCH MANAGEMENT ──────────────────────────────────────────
+
+const addConsumableBatch = async ({ requester, consumableId, payload, requestedClinicId = null }) => {
+  const clinicId = resolveClinicContext({ user: requester, requestedClinicId });
+  const consumable = await LabConsumable.findOne({ _id: consumableId, clinicId });
+  if (!consumable) {
+    throw new AppError('Consumable not found.', HTTP_STATUS.NOT_FOUND);
+  }
+
+  const exists = await LabConsumableBatch.findOne({ consumableId, batchNumber: payload.batchNumber.trim() });
+  if (exists) {
+    throw new AppError('This batch number already exists for this consumable.', HTTP_STATUS.CONFLICT);
+  }
+
+  const previousStock = consumable.totalStock || 0;
+  const batchQty = Number(payload.quantity || 0);
+
+  const batch = await LabConsumableBatch.create({
+    consumableId,
+    batchNumber: payload.batchNumber.trim(),
+    supplierId: payload.supplierId || null,
+    expiryDate: payload.expiryDate,
+    receivedQuantity: batchQty,
+    availableStock: batchQty,
+    quantity: batchQty,
+    purchasePrice: payload.purchasePrice || 0,
+    sellingPrice: payload.sellingPrice || 0,
+    invoiceNumber: payload.invoiceNumber || '',
+    remarks: payload.remarks || ''
+  });
+
+  const allBatches = await LabConsumableBatch.find({ consumableId });
+  const updatedStock = allBatches.reduce((sum, b) => sum + b.availableStock, 0);
+  consumable.totalStock = updatedStock;
+  await consumable.save();
+
+  // Log stock ledger entry
+  await LabStockLedger.create({
+    clinicId,
+    branchId: consumable.branchId || null,
+    consumableId,
+    batchId: batch._id,
+    movementType: payload.isOpeningStock ? 'Initial Opening Stock' : 'Stock In',
+    quantity: batchQty,
+    previousStock,
+    updatedStock,
+    reason: payload.remarks || 'New consumable batch registered',
+    notes: payload.notes || '',
+    userId: requester._id
+  });
+
+  const doc = consumable.toObject();
+  doc.batches = allBatches;
+  return doc;
+};
+
+// ─── LAB CONSUMABLE STOCK ADJUSTMENTS ─────────────────────────────────────────
+
+const adjustConsumableStock = async ({ requester, payload, requestedClinicId = null, req }) => {
+  const clinicId = resolveClinicContext({ user: requester, requestedClinicId });
+  
+  const { consumableId, batchId, quantity, adjustmentType, reason, notes } = payload;
+  const consumable = await LabConsumable.findOne({ _id: consumableId, clinicId });
+  if (!consumable) {
+    throw new AppError('Consumable not found.', HTTP_STATUS.NOT_FOUND);
+  }
+
+  const batch = await LabConsumableBatch.findOne({ _id: batchId, consumableId });
+  if (!batch) {
+    throw new AppError('Batch not found for this consumable.', HTTP_STATUS.NOT_FOUND);
+  }
+
+  const previousStock = consumable.totalStock || 0;
+  const changeQty = Number(quantity);
+
+  // Adjust batch stock
+  batch.availableStock = Math.max(0, batch.availableStock + changeQty);
+  batch.quantity = batch.availableStock;
+  await batch.save();
+
+  // Recalculate total stock
+  const allBatches = await LabConsumableBatch.find({ consumableId });
+  const updatedStock = allBatches.reduce((sum, b) => sum + b.availableStock, 0);
+  consumable.totalStock = updatedStock;
+  await consumable.save();
+
+  // Create Stock Ledger Entry
+  const ledger = await LabStockLedger.create({
+    clinicId,
+    branchId: consumable.branchId || null,
+    consumableId,
+    batchId,
+    movementType: adjustmentType || 'Adjustment',
+    quantity: changeQty,
+    previousStock,
+    updatedStock,
+    reason: reason || 'Manual adjustment',
+    notes: notes || '',
+    userId: requester._id
+  });
+
+  return { consumable, batch, ledger };
+};
+
+// ─── LAB STOCK LEDGER LIST ────────────────────────────────────────────────────
+
+const listLabStockLedgers = async ({ requester, query = {}, requestedClinicId = null }) => {
+  const clinicId = resolveClinicContext({ user: requester, requestedClinicId });
+  const filter = { clinicId };
+
+  if (query.consumableId) filter.consumableId = query.consumableId;
+  if (query.movementType) filter.movementType = query.movementType;
+  if (query.branchId) filter.branchId = query.branchId;
+
+  return LabStockLedger.find(filter)
+    .populate('consumableId')
+    .populate('batchId')
+    .populate('userId', 'name role')
+    .sort({ createdAt: -1 });
+};
+
+// ─── LAB INVENTORY DASHBOARD STATISTICS ───────────────────────────────────────
+
+const getLabInventoryDashboard = async ({ requester, requestedClinicId = null }) => {
+  const clinicId = resolveClinicContext({ user: requester, requestedClinicId });
+  
+  const consumables = await LabConsumable.find({ clinicId, isActive: true });
+  
+  let totalConsumables = consumables.length;
+  let totalValue = 0;
+  let lowStock = 0;
+  
+  const now = new Date();
+  const thirtyDaysLater = new Date();
+  thirtyDaysLater.setDate(thirtyDaysLater.getDate() + 30);
+  
+  let expiring = 0;
+
+  for (const item of consumables) {
+    if (item.totalStock <= (item.reorderLevel || 10)) {
+      lowStock++;
+    }
+
+    const batches = await LabConsumableBatch.find({ consumableId: item._id });
+    for (const batch of batches) {
+      totalValue += (batch.availableStock || 0) * (batch.purchasePrice || 0);
+      if (batch.availableStock > 0 && batch.expiryDate) {
+        const expDate = new Date(batch.expiryDate);
+        if (expDate <= thirtyDaysLater) {
+          expiring++;
+        }
+      }
+    }
+  }
+
+  return {
+    totalConsumables,
+    totalValue: Math.round(totalValue),
+    lowStock,
+    expiring,
+    pendingPurchaseOrders: 0 // Draft/basic PO mock value or 0
+  };
+};
+
+const CustomLabRequest = require('./customLabRequest.model');
+const { createNotificationRecord } = require('../notifications/notification.service');
+const User = require('../users/user.model');
+
+// Mock Connected Laboratory APIs Search
+const searchConnectedApis = async (searchQuery) => {
+  if (!searchQuery?.trim()) return [];
+  const query = searchQuery.trim().toLowerCase();
+  
+  const partnerTemplates = [
+    { name: 'CBC (Complete Blood Count)', partner: 'Thyrocare', price: 299, tat: '6 Hours', prep: 'No Fasting' },
+    { name: 'CBC with Peripheral Smear', partner: 'Thyrocare', price: 550, tat: '24 Hours', prep: 'No Fasting' },
+    { name: 'CBC (Automation)', partner: 'Dr. Lal PathLabs', price: 325, tat: 'Today', prep: 'No Fasting' },
+    { name: 'CBC with Reticulocyte Count', partner: 'Redcliffe Labs', price: 600, tat: '24 Hours', prep: 'No Fasting' },
+    { name: 'Lipid Profile (Standard)', partner: 'Thyrocare', price: 650, tat: '24 Hours', prep: 'Fasting required (10-12 hours)' },
+    { name: 'HbA1c (Glycated Haemoglobin)', partner: 'Dr. Lal PathLabs', price: 390, tat: '24 Hours', prep: 'No Fasting' },
+    { name: 'Liver Function Test (LFT)', partner: 'Metropolis', price: 700, tat: '12 Hours', prep: 'Fasting required' },
+    { name: 'Kidney Function Test (KFT)', partner: 'Metropolis', price: 750, tat: '12 Hours', prep: 'No Fasting' },
+    { name: 'Thyroid Profile (T3, T4, TSH)', partner: 'Apollo Diagnostics', price: 699, tat: '24 Hours', prep: 'No Fasting' },
+    { name: 'Vitamin D (25-OH)', partner: 'Orange Health', price: 1100, tat: '18 Hours', prep: 'No Fasting' },
+    { name: 'Vitamin B12', partner: 'Orange Health', price: 999, tat: '18 Hours', prep: 'No Fasting' }
+  ];
+
+  return partnerTemplates.filter(t => 
+    t.name.toLowerCase().includes(query) || 
+    t.partner.toLowerCase().includes(query)
+  );
+};
+
+const searchAllLabs = async ({ requester, query = {}, requestedClinicId = null }) => {
+  const clinicId = resolveClinicContext({
+    user: requester,
+    requestedClinicId: requestedClinicId || query.clinicId
+  });
+  
+  const searchVal = query.search?.trim() || '';
+  
+  // 1. Fetch Clinic Laboratory Catalog (Priority 1)
+  let localFilter = { clinicId };
+  if (searchVal) {
+    const pattern = new RegExp(escapeRegex(searchVal), 'i');
+    localFilter.$or = [{ code: pattern }, { name: pattern }, { category: pattern }, { specimenType: pattern }];
+  }
+  const locals = await LabTest.find(localFilter).lean();
+  
+  const clinicResults = locals.map(t => ({
+    _id: t._id,
+    name: t.name,
+    code: t.code,
+    category: t.category || 'General',
+    sampleType: t.specimenType || 'Blood',
+    tat: t.turnaroundTime || 'Same Day',
+    preparation: 'No Fasting Required',
+    price: t.price || 300,
+    provider: 'Clinic Laboratory',
+    availability: t.isActive ? 'Available' : 'Unavailable',
+    source: 'Clinic Laboratory',
+    inHouse: true
+  }));
+
+  // 2. Fetch Connected APIs (Priority 2)
+  const partnerResults = [];
+  if (searchVal) {
+    const apis = await searchConnectedApis(searchVal);
+    apis.forEach((p, idx) => {
+      partnerResults.push({
+        _id: `partner-${idx}-${Date.now()}`,
+        name: p.name,
+        code: p.name.split(' ')[0].toUpperCase(),
+        category: 'Diagnostic',
+        sampleType: 'Blood',
+        tat: p.tat,
+        preparation: p.prep,
+        price: p.price,
+        provider: p.partner,
+        availability: 'Available',
+        source: 'Connected API',
+        inHouse: false
+      });
+    });
+  }
+
+  // 3. Fetch Global Master (Priority 3)
+  let globalFilter = { isActive: true };
+  if (searchVal) {
+    const pattern = new RegExp(escapeRegex(searchVal), 'i');
+    globalFilter.$or = [{ name: pattern }, { category: pattern }, { department: pattern }];
+  }
+  const globals = await LabTestMaster.find(globalFilter).limit(50).lean();
+  const globalResults = globals.map(g => ({
+    _id: g._id,
+    name: g.name,
+    code: g.name.slice(0, 5).toUpperCase(),
+    category: g.category || 'Diagnostic',
+    sampleType: g.sampleType || 'Blood',
+    tat: '24 Hours',
+    preparation: g.preparationInstructions || 'No Fasting Required',
+    price: null,
+    provider: 'No Laboratory Assigned',
+    availability: 'Global Test',
+    source: 'Global Diagnostic Master',
+    inHouse: false
+  }));
+
+  // 4. Fetch Custom Requested Tests (Priority 4)
+  let customFilter = { clinicId };
+  if (searchVal) {
+    customFilter.testName = new RegExp(escapeRegex(searchVal), 'i');
+  }
+  const customs = await CustomLabRequest.find(customFilter).lean();
+  const customResults = customs.map(c => ({
+    _id: c._id,
+    name: c.testName,
+    code: 'CUSTOM',
+    category: 'Custom',
+    sampleType: 'Blood',
+    tat: 'Pending Verification',
+    preparation: 'N/A',
+    price: null,
+    provider: 'Clinic Custom',
+    availability: 'Limited Availability',
+    source: 'Custom Test',
+    inHouse: false
+  }));
+
+  // Merge and Deduplicate by name/provider
+  const merged = [];
+  const seenKeys = new Set();
+
+  const addUnique = (list) => {
+    for (const item of list) {
+      const key = `${item.name.toLowerCase()}-${(item.provider || '').toLowerCase()}`;
+      if (!seenKeys.has(key)) {
+        seenKeys.add(key);
+        merged.push(item);
+      }
+    }
+  };
+
+  // Rank in order: Clinic -> Connected -> Global -> Custom
+  addUnique(clinicResults);
+  addUnique(partnerResults);
+  addUnique(globalResults);
+  addUnique(customResults);
+
+  return { results: merged };
+};
+
+const createCustomLabRequest = async ({ requester, payload }) => {
+  const clinicId = resolveClinicContext({
+    user: requester,
+    requestedClinicId: payload.clinicId
+  });
+
+  const request = await CustomLabRequest.create({
+    clinicId,
+    doctorId: requester._id,
+    testName: payload.testName,
+    isGlobalRequest: !!payload.isGlobalRequest
+  });
+
+  // Notify Clinic Admins
+  const admins = await User.find({ clinicId, role: ROLES.ADMIN, isActive: true });
+  for (const admin of admins) {
+    await createNotificationRecord({
+      clinicId,
+      payload: {
+        type: 'custom_lab_request',
+        channel: 'in_app',
+        subject: 'Custom Lab Test Requested',
+        body: `Doctor Dr. ${requester.name} has requested a new laboratory test: **${payload.testName}** (Type: ${payload.isGlobalRequest ? 'Global Catalogue Request' : 'Custom Laboratory Test'}).\n\nRequested On: ${new Date().toLocaleString()}\n\nAction Required: Add to Clinic Laboratory Catalogue or review.`,
+        metadata: {
+          doctorId: requester._id,
+          doctorName: requester.name,
+          testName: payload.testName,
+          requestId: request._id
+        }
+      }
+    });
+  }
+
+  return request;
+};
+
+const listCustomLabRequests = async ({ requester }) => {
+  const clinicId = resolveClinicContext({
+    user: requester
+  });
+  const list = await CustomLabRequest.find({ clinicId }).populate('doctorId', 'name email');
+  return list;
+};
+
 module.exports = {
+  createLabConsumable,
+  listLabConsumables,
+  updateLabConsumable,
+  addConsumableBatch,
+  adjustConsumableStock,
+  listLabStockLedgers,
+  getLabInventoryDashboard,
   createLabTest,
   updateLabTest,
   listLabTests,
@@ -1186,5 +1648,8 @@ module.exports = {
   updateLabReport,
   reviewLabAnalysis,
   finalizeLabReport,
-  getPatientLabHistory
+  getPatientLabHistory,
+  searchAllLabs,
+  createCustomLabRequest,
+  listCustomLabRequests
 };

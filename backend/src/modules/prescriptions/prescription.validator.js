@@ -19,7 +19,12 @@ const prescriptionItemSchema = z.object({
   timing: z.string().trim().optional(),
   instructions: z.string().trim().optional(),
   quantity: z.coerce.number().positive().optional(),
-  isSubstituteAllowed: z.boolean().optional()
+  isSubstituteAllowed: z.boolean().optional(),
+  isManualEntry: z.boolean().optional(),
+  globalMedicineId: objectIdSchema.nullish(),
+  brandName: z.string().trim().optional(),
+  strength: z.string().trim().optional(),
+  dosageForm: z.string().trim().optional()
 });
 
 const aiAssistSchema = z
@@ -32,6 +37,22 @@ const aiAssistSchema = z
   .partial()
   .optional();
 
+const labItemSchema = z.object({
+  testName: z.string().trim().min(1, 'testName is required'),
+  priority: z.enum(['routine', 'urgent', 'stat']).optional(),
+  sampleRequired: z.string().trim().optional(),
+  reason: z.string().trim().optional(),
+  globalLabTestId: objectIdSchema.nullish(),
+  code: z.string().trim().optional()
+});
+
+const procedureItemSchema = z.object({
+  name: z.string().trim().min(1, 'name is required'),
+  code: z.string().trim().optional(),
+  fee: z.coerce.number().min(0).optional(),
+  status: z.string().trim().optional()
+});
+
 const createPrescriptionSchema = z.object({
   body: z.object({
     patientId: objectIdSchema,
@@ -40,6 +61,8 @@ const createPrescriptionSchema = z.object({
     doctorId: objectIdSchema.optional(),
     notes: z.string().trim().max(4000).optional(),
     medicines: z.array(prescriptionItemSchema).optional(),
+    labs: z.array(labItemSchema).optional(),
+    procedures: z.array(procedureItemSchema).optional(),
     advice: z.string().trim().max(4000).optional(),
     followUpDate: futureOrTodayDateSchema.nullish(),
     aiAssist: aiAssistSchema,
@@ -53,11 +76,14 @@ const updatePrescriptionSchema = z.object({
     .object({
       notes: z.string().trim().max(4000).optional(),
       medicines: z.array(prescriptionItemSchema).optional(),
+      labs: z.array(labItemSchema).optional(),
+      procedures: z.array(procedureItemSchema).optional(),
       advice: z.string().trim().max(4000).optional(),
       followUpDate: futureOrTodayDateSchema.nullish(),
       aiAssist: aiAssistSchema,
       overrideReason: z.string().trim().max(1000).optional()
     })
+    .passthrough()
     .refine((payload) => Object.keys(payload).length > 0, {
       message: 'At least one field must be provided for update'
     })
@@ -74,7 +100,7 @@ const finalizePrescriptionSchema = z.object({
         message: 'doctorConfirmation must be true to finalize the prescription'
       })
     })
-  })
+  }).passthrough()
 });
 
 const cancelPrescriptionSchema = z.object({

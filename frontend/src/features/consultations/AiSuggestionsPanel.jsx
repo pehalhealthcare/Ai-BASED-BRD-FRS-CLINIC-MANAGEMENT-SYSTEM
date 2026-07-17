@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useFeatureAccess } from '../../hooks/useFeatureAccess';
+import PremiumFeaturePlaceholder from '../../components/PremiumFeaturePlaceholder';
 
 const normalizeSelectionState = (review = {}) => ({
   accepted: review.acceptedSuggestions || [],
@@ -87,24 +89,45 @@ const AiSuggestionsPanel = ({
     failed: 'bg-red-500/20 text-red-300 border border-red-500/30'
   };
 
+  const { getFeatureDetail, refresh } = useFeatureAccess();
+  const assistantFeature = getFeatureDetail('consultation_assistant');
+
   return (
     <div className="xl:sticky xl:top-4 self-start">
       {/* Header */}
       <div className="ai-panel-header">
-        <div className="flex items-center gap-2 mb-1">
-          <div className="w-7 h-7 rounded-lg bg-violet-500/20 flex items-center justify-center">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-violet-400"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+        <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-violet-500/20 flex items-center justify-center">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-violet-400"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+            </div>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-violet-400">AI Consultation</p>
+              <span className="ml-1 inline-flex items-center rounded px-1 py-0 text-[9px] font-bold bg-violet-500/20 text-violet-300">NEW</span>
+            </div>
           </div>
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-violet-400">AI Consultation</p>
-            <span className="ml-1 inline-flex items-center rounded px-1 py-0 text-[9px] font-bold bg-violet-500/20 text-violet-300">NEW</span>
-          </div>
+          {assistantFeature.isTrial && (
+            <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-bold bg-emerald-500/20 text-emerald-400 mr-2">
+              ⭐ Trial: {assistantFeature.daysRemaining}d
+            </span>
+          )}
         </div>
         <p className="text-xs text-slate-400">Get AI-powered insights and suggestions for better clinical decisions</p>
       </div>
 
       {/* AI Assistant Panel */}
       <div className="ai-panel-body">
+        {!assistantFeature.enabled ? (
+          <div className="p-4 bg-slate-900/40 rounded-2xl">
+            <PremiumFeaturePlaceholder
+              featureCode="consultation_assistant"
+              featureName="AI Consultation Assistant"
+              description="Provides real-time clinical assistance and treatment suggestions."
+              onRequested={refresh}
+            />
+          </div>
+        ) : (
+          <>
 
         {/* Patient Summary */}
         <div className="ai-panel-section">
@@ -305,6 +328,8 @@ const AiSuggestionsPanel = ({
             </button>
           )}
         </div>
+          </>
+        )}
       </div>
     </div>
   );

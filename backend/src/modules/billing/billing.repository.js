@@ -13,7 +13,11 @@ const populateInvoice = (query) =>
 const createInvoice = (data) => Invoice.create(data);
 
 const findInvoiceById = ({ id, clinicId, populateDetails = true, lean = false }) => {
-  let query = Invoice.findOne({ _id: id, clinicId });
+  const queryFilter = { _id: id };
+  if (clinicId !== undefined && clinicId !== null) {
+    queryFilter.clinicId = clinicId;
+  }
+  let query = Invoice.findOne(queryFilter);
 
   if (populateDetails) {
     query = populateInvoice(query);
@@ -52,7 +56,10 @@ const updateInvoice = ({ id, clinicId, data, populateDetails = true }) => {
 const findByPatient = async ({ patientId, clinicId, queryOptions = {} }) => {
   const { page = 1, limit = 10, invoiceStatus, paymentStatus } = queryOptions;
   const skip = (page - 1) * limit;
-  const filter = { patientId, clinicId };
+  const filter = { patientId };
+  if (clinicId) {
+    filter.clinicId = clinicId;
+  }
 
   if (invoiceStatus) {
     filter.invoiceStatus = invoiceStatus;

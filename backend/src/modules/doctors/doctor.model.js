@@ -88,12 +88,6 @@ const doctorSchema = new mongoose.Schema(
         ref: 'Clinic'
       }
     ],
-    organizationId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Organization',
-      required: false,
-      default: null
-    },
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
@@ -152,6 +146,33 @@ const doctorSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: ''
+    },
+    medicalCouncil: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    subSpeciality: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    biography: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    languagesSpoken: {
+      type: [String],
+      default: []
+    },
+    dob: {
+      type: Date,
+      default: null
+    },
+    consultationDuration: {
+      type: Number,
+      default: 15
     },
     experienceYears: {
       type: Number,
@@ -253,6 +274,15 @@ const doctorSchema = new mongoose.Schema(
       noShowTimeoutMins: { type: Number, default: 30 },
       tokenFormat: { type: String, default: 'T-000' }
     },
+    clinicPolicies: [
+      {
+        clinicId: { type: mongoose.Schema.Types.ObjectId, ref: 'Clinic', required: true },
+        consultationFee: { type: Number, default: 0 },
+        followUpFee: { type: Number, default: 0 },
+        followUpWindowDays: { type: Number, default: 7 },
+        followUpPolicy: { type: String, enum: ['free', 'discounted', 'full'], default: 'free' }
+      }
+    ],
     isActive: {
       type: Boolean,
       default: false

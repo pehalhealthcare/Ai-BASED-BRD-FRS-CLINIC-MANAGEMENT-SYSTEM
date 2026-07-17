@@ -17,10 +17,38 @@ const {
   updateLabReportSchema,
   reviewLabAnalysisSchema,
   finalizeLabReportSchema,
-  updateLabTestSchema
+  updateLabTestSchema,
+  createLabConsumableSchema,
+  updateLabConsumableSchema,
+  addConsumableBatchSchema,
+  adjustConsumableStockSchema
 } = require('./lab.validator');
 
 const router = Router();
+
+router.get(
+  '/search',
+  protect,
+  labController.searchAllLabs
+);
+
+router.post(
+  '/custom-request',
+  protect,
+  labController.createCustomLabRequest
+);
+
+router.get(
+  '/custom-requests',
+  protect,
+  labController.listCustomLabRequests
+);
+
+router.get(
+  '/masters/tests',
+  protect,
+  labController.listLabTestMasters
+);
 
 router.post(
   '/tests',
@@ -105,6 +133,60 @@ router.patch(
   authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR, ROLES.LAB_TECHNICIAN),
   validate(finalizeLabReportSchema),
   labController.finalizeLabReport
+);
+
+// Consumables routes
+router.get(
+  '/inventory/dashboard',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.LAB_TECHNICIAN),
+  labController.getLabInventoryDashboard
+);
+
+router.post(
+  '/consumables',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.LAB_TECHNICIAN),
+  validate(createLabConsumableSchema),
+  labController.createLabConsumable
+);
+
+router.get(
+  '/consumables',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.LAB_TECHNICIAN, ROLES.DOCTOR),
+  labController.listLabConsumables
+);
+
+router.put(
+  '/consumables/:id',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.LAB_TECHNICIAN),
+  validate(updateLabConsumableSchema),
+  labController.updateLabConsumable
+);
+
+router.post(
+  '/consumables/:id/batches',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.LAB_TECHNICIAN),
+  validate(addConsumableBatchSchema),
+  labController.addConsumableBatch
+);
+
+router.post(
+  '/consumables/adjust',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.LAB_TECHNICIAN),
+  validate(adjustConsumableStockSchema),
+  labController.adjustConsumableStock
+);
+
+router.get(
+  '/consumables/ledger',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.LAB_TECHNICIAN),
+  labController.listLabStockLedgers
 );
 
 module.exports = router;

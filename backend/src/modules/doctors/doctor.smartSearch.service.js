@@ -11,7 +11,7 @@
 
 const Doctor = require('./doctor.model');
 const Clinic = require('../clinics/clinic.model');
-const Organization = require('../organizations/organization.model');
+// const Organization = require('../organizations/organization.model');
 const { normalizeDate, normalizeDayOfWeek } = require('../../common/utils/slotUtils');
 const DoctorLeave = require('../leaves/doctorLeave.model');
 
@@ -80,12 +80,7 @@ const smartSearchDoctors = async ({ specialization, preference, lat, lng }) => {
     .populate({
       path: 'clinicId',
       model: 'Clinic',
-      select: 'name code address phone organizationId image',
-      populate: {
-        path: 'organizationId',
-        model: 'Organization',
-        select: 'name logo'
-      }
+      select: 'name code address phone image'
     })
     .lean();
 
@@ -107,7 +102,7 @@ const smartSearchDoctors = async ({ specialization, preference, lat, lng }) => {
     .filter(d => !onLeaveIds.has(String(d._id)))
     .map(doc => {
       const clinic = doc.clinicId || {};
-      const org = clinic.organizationId || {};
+      const org = {};
       const clinicLat = clinic.address?.latitude;
       const clinicLng = clinic.address?.longitude;
 

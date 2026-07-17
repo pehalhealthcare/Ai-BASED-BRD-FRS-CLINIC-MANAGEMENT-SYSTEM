@@ -181,11 +181,14 @@ const getSortedQueue = async (doctorId) => {
   const endOfDay = new Date();
   endOfDay.setHours(23, 59, 59, 999);
 
-  // Self-healing: Find all checked_in/late_check_in appointments for today that don't have a token, and create one
+  // Self-healing: Find all checked_in/late_check_in/confirmed walk_in appointments for today that don't have a token, and create one
   const todayAppointments = await Appointment.find({
     doctorId,
     appointmentDate: { $gte: startOfDay, $lte: endOfDay },
-    status: { $in: [APPOINTMENT_STATUSES.CHECKED_IN, APPOINTMENT_STATUSES.LATE_CHECK_IN] }
+    $or: [
+      { status: { $in: [APPOINTMENT_STATUSES.CHECKED_IN, APPOINTMENT_STATUSES.LATE_CHECK_IN] } },
+      { appointmentType: 'walk_in', status: APPOINTMENT_STATUSES.CONFIRMED, paymentStatus: { $in: ['paid', 'fully_waived'] } }
+    ]
   });
 
   for (const appt of todayAppointments) {
@@ -209,6 +212,11 @@ const getSortedQueue = async (doctorId) => {
         status: 'waiting',
         generatedTime: new Date()
       });
+
+      if (appt.status === APPOINTMENT_STATUSES.CONFIRMED) {
+        appt.status = APPOINTMENT_STATUSES.CHECKED_IN;
+        await appt.save();
+      }
     }
   }
 
@@ -250,6 +258,18 @@ const getSortedQueue = async (doctorId) => {
   return tokens;
 };
 
+const isPaymentCompleted = (appointment) => {
+  if (!appointment) return true;
+  const status = appointment.paymentStatus;
+  const fee = appointment.consultationFee || 0;
+  if (fee === 0) return true;
+  if (status === 'paid' || status === 'fully_waived') return true;
+  if (status === 'partially_waived') {
+    return (appointment.amountPaid || 0) >= (appointment.remainingAmount || 0);
+  }
+  return false;
+};
+
 /**
  * Call Next Patient in queue
  */
@@ -271,9 +291,16 @@ const callNextPatient = async (doctorId) => {
     throw new AppError('No waiting patients in the queue.', HTTP_STATUS.BAD_REQUEST);
   }
 
+  const nextToken = await Token.findById(nextTokenRaw._id);
+  if (nextToken.appointmentId) {
+    const appt = await Appointment.findById(nextToken.appointmentId);
+    if (appt && !isPaymentCompleted(appt)) {
+      throw new AppError('Cannot call next patient. Consultation payment is pending.', HTTP_STATUS.BAD_REQUEST);
+    }
+  }
+
   const otp = String(Math.floor(100000 + Math.random() * 900000));
 
-  const nextToken = await Token.findById(nextTokenRaw._id);
   nextToken.status = 'called';
   nextToken.calledTime = new Date();
   nextToken.otp = otp;
@@ -319,43 +346,11 @@ const startTokenConsultation = async (tokenId) => {
   const token = await Token.findById(tokenId);
   if (!token) throw new AppError('Token not found.', HTTP_STATUS.NOT_FOUND);
 
-  if (token.status === 'waiting') {
-    const otp = String(Math.floor(100000 + Math.random() * 900000));
-    token.status = 'called';
-    token.calledTime = new Date();
-    token.otp = otp;
-    token.otpAttempts = 0;
-    await token.save();
-
-    if (token.appointmentId) {
-      const appt = await Appointment.findById(token.appointmentId).populate('patientId');
-      if (appt) {
-        appt.status = APPOINTMENT_STATUSES.CALLED;
-        appt.meta = {
-          ...appt.meta,
-          tokenNumber: token.tokenNumber,
-          otp: otp
-        };
-        await appt.save();
-
-        // Dispatch patient notification email
-        try {
-          const { emailProvider } = require('../notifications/notification.providers');
-          const recipientEmail = appt.patientId?.userId?.email || appt.patientId?.email;
-          if (recipientEmail) {
-            await emailProvider.send({
-              recipient: recipientEmail,
-              subject: `Your Token ${token.tokenNumber} is Called!`,
-              body: `Hello ${appt.patientId?.userId?.name || appt.patientId?.fullName || 'Patient'},\n\nYou are called by the doctor. Please proceed to the doctor's cabin.\nTell the doctor your Consultation OTP: ${otp} to start your consultation.\n\nRoom Number: AB-101\n\nThank you!`,
-              channel: 'email'
-            });
-          }
-        } catch (err) {
-          console.error('Failed to send call-next email:', err);
-        }
-      }
+  if (token.appointmentId) {
+    const appt = await Appointment.findById(token.appointmentId);
+    if (appt && !isPaymentCompleted(appt)) {
+      throw new AppError('Cannot start consultation. Consultation payment is pending.', HTTP_STATUS.BAD_REQUEST);
     }
-    return token;
   }
 
   token.status = 'in_consultation';
@@ -412,6 +407,13 @@ const skipToken = async (tokenId) => {
 const verifyPatientOtp = async (tokenId, enteredOtp) => {
   const token = await Token.findById(tokenId);
   if (!token) throw new AppError('Token not found.', HTTP_STATUS.NOT_FOUND);
+
+  if (token.appointmentId) {
+    const appt = await Appointment.findById(token.appointmentId);
+    if (appt && !isPaymentCompleted(appt)) {
+      throw new AppError('Cannot verify OTP. Consultation payment is pending.', HTTP_STATUS.BAD_REQUEST);
+    }
+  }
 
   if (token.otpAttempts >= 3) {
     throw new AppError('Maximum OTP attempts reached. Please request receptionist assistance.', HTTP_STATUS.BAD_REQUEST);

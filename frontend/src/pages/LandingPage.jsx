@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { 
-  Calendar, Pill, FlaskConical, AlertTriangle, Shield, ArrowRight, 
-  Facebook, Twitter, Linkedin, Instagram, Youtube, HelpCircle, 
-  MessageSquare, X, Laptop, User, Building2, Eye, Phone, Heart, Activity
+  Heart, Building2, User, Sparkles, Shield, Cloud, 
+  TrendingUp, Users, ArrowRight, Activity, Calendar, 
+  FileText, Pill, FlaskConical, BarChart3, HelpCircle, Check, 
+  ChevronDown, Search, LogIn, ChevronRight, CheckCircle2,
+  Smartphone, CreditCard, MessageSquare, Database, X
 } from 'lucide-react';
 import useAuth from '../hooks/useAuth';
 import { getDefaultRouteForRole } from '../constants/routes';
@@ -11,7 +13,6 @@ import { getDefaultRouteForRole } from '../constants/routes';
 export default function LandingPage() {
   const navigate = useNavigate();
   const { isAuthenticated, user } = useAuth();
-  const [showAiBubble, setShowAiBubble] = useState(true);
 
   const handleGetStarted = () => {
     if (isAuthenticated && user) {
@@ -21,356 +22,519 @@ export default function LandingPage() {
     }
   };
 
-  const scrollToFeatures = () => {
-    document.getElementById('features-section')?.scrollIntoView({ behavior: 'smooth' });
-  };
-
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans">
+    <div className="min-h-screen bg-[#f8fafc] text-slate-800 flex flex-col font-sans antialiased">
+      
       {/* ── HEADER ── */}
-      <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-100 px-6 py-4 flex items-center justify-between shadow-sm">
-        <div className="flex items-center gap-3">
+      <header className="sticky top-0 z-50 bg-white/85 backdrop-blur-md border-b border-slate-100 px-6 py-4 md:px-12 flex items-center justify-between shadow-sm">
+        {/* Logo */}
+        <div className="flex items-center gap-2.5">
           <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
             <Heart size={20} fill="currentColor" />
           </div>
-          <span className="text-lg font-black tracking-tight text-slate-900">
-            Smart Clinic <span className="text-blue-600 font-bold">Management System</span>
-          </span>
+          <div>
+            <span className="text-lg font-black tracking-tight text-slate-900 block leading-tight">
+              AICMS
+            </span>
+            <span className="text-[9px] font-bold text-slate-400 block tracking-wider uppercase">
+              AI Clinic Management System
+            </span>
+          </div>
         </div>
 
-        <nav className="hidden lg:flex items-center gap-8 text-sm font-bold text-slate-600">
-          <Link to="/login" className="hover:text-blue-600 transition flex items-center gap-1.5">
-            <User size={16} className="text-blue-600" /> Find Doctor
-          </Link>
-          <Link to="/login" className="hover:text-blue-600 transition flex items-center gap-1.5">
-            <Pill size={16} className="text-emerald-600" /> Order Medicine
-          </Link>
-          <Link to="/login" className="hover:text-blue-600 transition flex items-center gap-1.5">
-            <FlaskConical size={16} className="text-purple-600" /> Lab Test
-          </Link>
-          <Link to="/login" className="hover:text-blue-600 transition flex items-center gap-1.5 text-rose-600">
-            <AlertTriangle size={16} className="text-rose-500" /> Emergency
-          </Link>
+        {/* Navigation Menu */}
+        <nav className="hidden lg:flex items-center gap-7 text-xs font-bold text-slate-605 text-slate-600">
+          <a href="#solutions" className="hover:text-blue-600 transition flex items-center gap-1">Solutions <ChevronDown size={12} /></a>
+          <a href="#features" className="hover:text-blue-600 transition">Features</a>
+          <a href="#ai-modules" className="hover:text-blue-600 transition">AI Modules</a>
+          <a href="#pricing" className="hover:text-blue-600 transition">Pricing</a>
+          <a href="#resources" className="hover:text-blue-600 transition flex items-center gap-1">Resources <ChevronDown size={12} /></a>
+          <a href="#company" className="hover:text-blue-600 transition flex items-center gap-1">Company <ChevronDown size={12} /></a>
         </nav>
 
-        <button 
-          onClick={handleGetStarted}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold shadow-md shadow-blue-500/25 hover:shadow-blue-500/35 transition cursor-pointer"
-        >
-          {isAuthenticated ? 'Go to Dashboard' : 'Get Started'} <ArrowRight size={16} />
-        </button>
+        {/* Action Buttons */}
+        <div className="flex items-center gap-3">
+          <Link 
+            to="/login?type=patient" 
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-slate-700 hover:text-blue-600 text-xs font-extrabold transition cursor-pointer border border-slate-200 hover:border-blue-105 bg-white shadow-sm"
+          >
+            <Search size={14} className="text-slate-400" /> Find a Clinic
+          </Link>
+          <Link 
+            to="/login?type=staff" 
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-slate-700 hover:text-blue-600 text-xs font-extrabold transition cursor-pointer border border-slate-200 hover:border-blue-105 bg-white shadow-sm"
+          >
+            <LogIn size={14} className="text-slate-400" /> Staff Login
+          </Link>
+          <Link 
+            to="/set-your-clinic" 
+            className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/25 transition cursor-pointer"
+          >
+            Set Up Your Clinic
+          </Link>
+        </div>
       </header>
 
       {/* ── HERO SECTION ── */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-6 py-12 lg:py-20 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-        {/* Left Content */}
-        <div className="lg:col-span-6 space-y-6">
-          <div className="inline-flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-full px-3 py-1 text-xs font-bold text-blue-600">
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-            Smart Healthcare, Redefined
-          </div>
-          <h1 className="text-4xl sm:text-5xl font-black tracking-tight text-slate-900 leading-tight">
-            Smart Care, <br />
-            <span className="text-blue-600">Simplified for You</span>
-          </h1>
-          <p className="text-base text-slate-500 leading-relaxed max-w-xl">
-            Smart Clinic Management System is an all-in-one platform that connects patients, doctors, clinics, and hospitals in a smarter way.
-          </p>
+      <section className="relative overflow-hidden bg-white pt-16 lg:pt-20 pb-20 px-6 md:px-12">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+          
+          {/* Left Text Column */}
+          <div className="lg:col-span-5 space-y-6">
+            <div className="inline-flex items-center gap-2 bg-blue-50 border border-blue-100/60 rounded-full px-4.5 py-1.5 text-[10px] font-bold text-blue-600 tracking-wide uppercase">
+              <Sparkles className="w-3.5 h-3.5" /> Smart. Simple. AI-Powered.
+            </div>
+            
+            <h1 className="text-4xl sm:text-5xl font-black text-slate-900 leading-[1.12] tracking-tight">
+              Run Your Clinic <br />
+              <span className="text-blue-600">Smarter</span> with AI
+            </h1>
+            
+            <p className="text-slate-500 leading-relaxed text-sm max-w-xl">
+              Everything you need to manage appointments, patients, doctors, billing, pharmacy, labs and AI-powered workflows from one intelligent platform.
+            </p>
 
-          {/* Bullet Points */}
-          <div className="space-y-3.5">
-            {[
-              'Book appointments in seconds',
-              'Order medicines & track delivery',
-              'Book lab tests at home',
-              'Get emergency help, anytime'
-            ].map((text, idx) => (
-              <div key={idx} className="flex items-center gap-3 text-sm font-bold text-slate-700">
-                <div className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-black shadow-sm">
-                  ✓
+            <div className="flex flex-wrap items-center gap-3 pt-2">
+              <Link 
+                to="/set-your-clinic" 
+                className="flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-lg shadow-blue-500/20 hover:shadow-blue-500/35 transition duration-200"
+              >
+                Set Up Your Clinic <ArrowRight size={14} />
+              </Link>
+              <Link 
+                to="/login?type=patient" 
+                className="flex items-center gap-2 px-6 py-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold shadow-sm transition duration-200"
+              >
+                <Calendar size={14} /> Book Appointment
+              </Link>
+            </div>
+
+            {/* Benefit badges */}
+            <div className="grid grid-cols-2 gap-y-4 gap-x-6 pt-8 border-t border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
+                  <Sparkles size={14} />
                 </div>
-                <span>{text}</span>
+                <span className="font-bold text-slate-750 text-xs">AI-Powered Automation</span>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
+                  <Shield size={14} />
+                </div>
+                <span className="font-bold text-slate-750 text-xs">Secure & Cloud Based</span>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
+                  <Activity size={14} />
+                </div>
+                <span className="font-bold text-slate-750 text-xs">Easy to Use Anywhere</span>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
+                  <Users size={14} />
+                </div>
+                <span className="font-bold text-slate-750 text-xs">Loved by 500+ Clinics</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Dashboard Mockup Column */}
+          <div className="lg:col-span-7 relative flex justify-center items-center">
+            
+            {/* Visual Screen Mockup Grid */}
+            <div className="relative w-full max-w-2xl aspect-[4/3] rounded-3xl bg-slate-900/5 p-2 overflow-hidden flex items-center justify-center">
+              
+              {/* Main Desktop Dashboard Replica */}
+              <div className="w-[85%] bg-white rounded-2xl shadow-2xl border border-slate-150 flex overflow-hidden">
+                {/* Mini Sidebar */}
+                <div className="w-16 bg-[#0f172a] p-3 flex flex-col items-center gap-4 text-slate-400">
+                  <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center text-white font-extrabold text-xs">A</div>
+                  <div className="w-6 h-6 bg-slate-800 rounded-lg flex items-center justify-center text-blue-400"><Activity size={12} /></div>
+                  <div className="w-6 h-6 rounded-lg flex items-center justify-center"><Users size={12} /></div>
+                  <div className="w-6 h-6 rounded-lg flex items-center justify-center"><Calendar size={12} /></div>
+                  <div className="w-6 h-6 rounded-lg flex items-center justify-center"><FileText size={12} /></div>
+                </div>
+                {/* Mini Content */}
+                <div className="flex-1 p-4 bg-[#f8fafc]">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-3">
+                    <span className="text-[10px] font-black text-slate-700 uppercase tracking-wider">Welcome back, Dr. Owner 👋</span>
+                    <div className="w-5 h-5 rounded-full bg-slate-200"></div>
+                  </div>
+                  {/* Grid cards */}
+                  <div className="grid grid-cols-3 gap-2.5 mb-4">
+                    <div className="bg-white p-2.5 rounded-xl border border-slate-100 shadow-sm">
+                      <span className="text-[8px] text-slate-400 font-bold block uppercase">Today's Appts</span>
+                      <span className="text-base font-black text-slate-850">24</span>
+                    </div>
+                    <div className="bg-white p-2.5 rounded-xl border border-slate-100 shadow-sm">
+                      <span className="text-[8px] text-slate-400 font-bold block uppercase">New Patients</span>
+                      <span className="text-base font-black text-slate-855">8</span>
+                    </div>
+                    <div className="bg-white p-2.5 rounded-xl border border-slate-100 shadow-sm">
+                      <span className="text-[8px] text-slate-400 font-bold block uppercase">Revenue</span>
+                      <span className="text-base font-black text-slate-855">₹18,750</span>
+                    </div>
+                  </div>
+                  {/* Assistant and graph */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex flex-col justify-between">
+                      <span className="text-[9px] font-bold text-slate-700 block">AI Assistant</span>
+                      <div className="bg-blue-50/50 text-blue-700 text-[8px] p-1.5 rounded-lg border border-blue-100 mt-2 font-medium">
+                        "Suggest next follow-up slot?"
+                      </div>
+                    </div>
+                    <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex flex-col justify-between">
+                      <span className="text-[9px] font-bold text-slate-700 block">Patient Flow</span>
+                      <div className="h-10 bg-slate-50 rounded-lg flex items-end gap-1 p-1">
+                        <div className="bg-blue-600 h-1/2 flex-1 rounded-sm"></div>
+                        <div className="bg-blue-400 h-3/4 flex-1 rounded-sm"></div>
+                        <div className="bg-blue-500 h-full flex-1 rounded-sm"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Mobile Phone Mockup Overlay */}
+              <div className="absolute right-4 bottom-4 w-[28%] bg-slate-900 rounded-3xl p-1.5 shadow-2xl border-4 border-slate-800 transform rotate-2">
+                <div className="aspect-[9/19] bg-white rounded-[20px] overflow-hidden flex flex-col justify-between p-2.5">
+                  <div className="w-1/2 h-2.5 bg-slate-900 rounded-full mx-auto mb-2"></div>
+                  <div className="flex-1 space-y-2 mt-1">
+                    <div className="text-[9px] font-black text-slate-850">Book Appointment</div>
+                    <div className="bg-slate-50 border border-slate-150 p-1.5 rounded-lg text-[7px] text-slate-500 leading-snug">
+                      Search local doctors & clinics...
+                    </div>
+                    <div className="bg-blue-600 text-white rounded-lg p-2 text-center text-[7px] font-bold shadow-md cursor-pointer">
+                      Confirm Booking
+                    </div>
+                  </div>
+                  <div className="h-1.5 bg-slate-850 rounded-full w-1/3 mx-auto mt-2"></div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      {/* ── ROLE CHOOSE SECTION ── */}
+      <section className="bg-slate-50 py-16 px-6 border-t border-slate-100 text-center">
+        <div className="max-w-7xl mx-auto space-y-10">
+          <div className="space-y-2">
+            <h3 className="text-xl font-black text-slate-900">How would you like to use AI-CMS?</h3>
+            <p className="text-slate-500 text-xs font-semibold">Select your profile to access specialized dashboards and services.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* Box 1: Owner */}
+            <div className="bg-white rounded-3xl p-8 border border-slate-200/60 shadow-sm hover:shadow-lg hover:-translate-y-1 transition duration-200 flex flex-col justify-between items-center text-center">
+              <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mb-6">
+                <Building2 size={32} />
+              </div>
+              <div className="space-y-2 mb-6">
+                <h4 className="text-lg font-bold text-slate-800">I Own a Clinic</h4>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Digitize your clinic, manage staff, schedule appointments, and grow your medical practice.
+                </p>
+              </div>
+              <Link 
+                to="/set-your-clinic"
+                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs font-bold transition flex items-center justify-center gap-1"
+              >
+                Set Up Clinic <ChevronRight size={14} />
+              </Link>
+            </div>
+
+            {/* Box 2: Staff */}
+            <div className="bg-white rounded-3xl p-8 border border-slate-200/60 shadow-sm hover:shadow-lg hover:-translate-y-1 transition duration-200 flex flex-col justify-between items-center text-center">
+              <div className="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-6">
+                <Users size={32} />
+              </div>
+              <div className="space-y-2 mb-6">
+                <h4 className="text-lg font-bold text-slate-800">I'm a Doctor / Staff</h4>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Log in to access your clinic appointments, consultations, electronic medical records, and pharmacy.
+                </p>
+              </div>
+              <Link 
+                to="/login?type=staff"
+                className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-bold transition flex items-center justify-center gap-1"
+              >
+                Staff Login <ChevronRight size={14} />
+              </Link>
+            </div>
+
+            {/* Box 3: Patient */}
+            <div className="bg-white rounded-3xl p-8 border border-slate-200/60 shadow-sm hover:shadow-lg hover:-translate-y-1 transition duration-200 flex flex-col justify-between items-center text-center">
+              <div className="w-16 h-16 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center mb-6">
+                <User size={32} />
+              </div>
+              <div className="space-y-2 mb-6">
+                <h4 className="text-lg font-bold text-slate-800">I'm a Patient</h4>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Search nearby clinics, book appointments with top doctors, and manage your health records.
+                </p>
+              </div>
+              <Link 
+                to="/login?type=patient"
+                className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-2xl text-xs font-bold transition flex items-center justify-center gap-1"
+              >
+                Find a Clinic <ChevronRight size={14} />
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── FEATURES SECTION ── */}
+      <section id="features" className="bg-white py-20 px-6 border-t border-slate-100">
+        <div className="max-w-7xl mx-auto space-y-12">
+          
+          <div className="text-center space-y-2">
+            <span className="text-[10px] font-bold text-blue-600 uppercase tracking-widest bg-blue-50 px-3.5 py-1.5 rounded-full">System Capabilities</span>
+            <h2 className="text-2xl font-black text-slate-900 pt-2">Powerful Features Built for Modern Clinics</h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              { title: 'AI Appointment Scheduling', desc: 'Reduce no-shows and optimize calendar flows with automated smart scheduling.', icon: <Calendar size={18} />, color: 'text-blue-600 bg-blue-50' },
+              { title: 'Digital EMR & Patient Records', desc: 'Securely manage medical records, consult histories, and patient timelines.', icon: <FileText size={18} />, color: 'text-emerald-600 bg-emerald-50' },
+              { title: 'Billing & Invoicing', desc: 'Generate paperless invoices and support integrated multi-channel payments.', icon: <CreditCard size={18} />, color: 'text-purple-600 bg-purple-50' },
+              { title: 'Pharmacy & Inventory', desc: 'Track medicines, trigger reorder alerts, and manage stock.', icon: <Pill size={18} />, color: 'text-amber-600 bg-amber-50' },
+              { title: 'Lab Management & Reports', desc: 'Order tests and deliver structured lab results straight to patients.', icon: <FlaskConical size={18} />, color: 'text-indigo-600 bg-indigo-50' },
+              { title: 'WhatsApp Integration', desc: 'Keep patients updated with automated reminders via WhatsApp.', icon: <MessageSquare size={18} />, color: 'text-teal-600 bg-teal-50' },
+              { title: 'AI Consultation Assistant', desc: 'Translate voice prescriptions to clinical records automatically.', icon: <Sparkles size={18} />, color: 'text-rose-600 bg-rose-50' },
+              { title: 'Cloud Backup & Security', desc: 'Keep data secure and accessible from anywhere with robust encryption.', icon: <Database size={18} />, color: 'text-slate-650 bg-slate-100' }
+            ].map((feature, idx) => (
+              <div key={idx} className="bg-white rounded-3xl p-6 border border-slate-150 hover:shadow-md transition duration-200 flex flex-col gap-4">
+                <div className={`w-10 h-10 rounded-xl ${feature.color} flex items-center justify-center shrink-0`}>
+                  {feature.icon}
+                </div>
+                <h4 className="text-xs font-extrabold text-slate-800 leading-snug">{feature.title}</h4>
+                <p className="text-[11px] text-slate-400 leading-relaxed">{feature.desc}</p>
               </div>
             ))}
           </div>
 
-          {/* CTAs */}
-          <div className="flex flex-wrap items-center gap-4 pt-4">
-            <button 
-              onClick={handleGetStarted}
-              className="flex items-center gap-2 px-6 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition cursor-pointer"
-            >
-              Get Started <ArrowRight size={16} />
-            </button>
-            <button 
-              onClick={scrollToFeatures}
-              className="px-6 py-3.5 rounded-xl border-2 border-blue-100 hover:border-blue-600 text-blue-600 hover:bg-blue-50/50 text-sm font-bold transition cursor-pointer"
-            >
-              Explore Features
-            </button>
-          </div>
         </div>
+      </section>
 
-        {/* Right Graphic: Connected Services Diagram with central Laptop */}
-        <div className="lg:col-span-6 relative flex justify-center items-center py-10">
-          <div className="relative w-80 sm:w-[500px] h-80 sm:h-[500px] flex justify-center items-center">
-            
-            {/* SVG Connecting Lines */}
-            <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 500 500">
-              {/* Laptop position: Center (250, 250) */}
-              {/* Top Node (Find Doctor): (250, 60) */}
-              <line x1="250" y1="250" x2="250" y2="70" stroke="#bfdbfe" strokeWidth="2" strokeDasharray="6 6" />
-              {/* Right-Top Node (Order Medicine): (410, 160) */}
-              <line x1="250" y1="250" x2="410" y2="160" stroke="#bfdbfe" strokeWidth="2" strokeDasharray="6 6" />
-              {/* Right-Bottom Node (Lab Test): (410, 340) */}
-              <line x1="250" y1="250" x2="410" y2="340" stroke="#bfdbfe" strokeWidth="2" strokeDasharray="6 6" />
-              {/* Bottom Node (Clinics & Hospitals): (250, 440) */}
-              <line x1="250" y1="250" x2="250" y2="430" stroke="#bfdbfe" strokeWidth="2" strokeDasharray="6 6" />
-              {/* Left-Bottom Node (Emergency): (90, 340) */}
-              <line x1="250" y1="250" x2="90" y2="340" stroke="#bfdbfe" strokeWidth="2" strokeDasharray="6 6" />
-              {/* Left-Top Node (Patient): (90, 160) */}
-              <line x1="250" y1="250" x2="90" y2="160" stroke="#bfdbfe" strokeWidth="2" strokeDasharray="6 6" />
-            </svg>
-
-            {/* Central Laptop Hub */}
-            <div className="absolute z-10 flex flex-col items-center justify-center scale-90 sm:scale-100">
-              {/* Screen */}
-              <div className="w-48 h-32 bg-slate-900 rounded-t-xl p-2 border-[5px] border-slate-800 shadow-2xl flex flex-col items-center justify-center relative">
-                <div className="w-full h-full bg-white rounded flex flex-col items-center justify-center p-2 relative overflow-hidden">
-                  <div className="absolute inset-0 bg-[radial-gradient(#e2e8f0_1.5px,transparent_1.5px)] [background-size:10px_10px] opacity-40" />
-                  
-                  {/* Blue Cross Logo */}
-                  <div className="relative z-10 w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-md mb-1">
-                    <Heart size={18} fill="currentColor" className="text-white" />
-                  </div>
-                  
-                  <span className="relative z-10 text-[9px] font-black tracking-wider text-blue-600 uppercase">Smart Clinic</span>
-                  <span className="relative z-10 text-[7px] font-bold text-slate-400 tracking-tight uppercase">Management System</span>
-                </div>
-              </div>
-              {/* Base */}
-              <div className="w-60 h-2.5 bg-slate-700 rounded-b-xl relative shadow-md">
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-14 h-1 bg-slate-500 rounded-b-sm" />
-              </div>
+      {/* ── STATS SECTION ── */}
+      <section className="bg-slate-50 py-16 px-6 border-t border-b border-slate-100 text-center">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="space-y-1">
+              <div className="text-3xl font-black text-blue-600">500+</div>
+              <p className="text-xs font-semibold text-slate-400">Clinics Onboarded</p>
             </div>
-
-            {/* Node 1: Find Doctor (Top) */}
-            <Link to="/login" className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-4 flex flex-col items-center group z-20">
-              <div className="w-14 h-14 rounded-full bg-white shadow-lg flex items-center justify-center text-blue-600 border border-slate-100 group-hover:scale-110 group-hover:shadow-blue-200 transition duration-300">
-                <User size={24} className="text-blue-600" />
-              </div>
-              <span className="text-[10px] font-black text-slate-700 mt-2 bg-white px-2 py-0.5 rounded-full shadow-sm border border-slate-100">Find Doctor</span>
-            </Link>
-
-            {/* Node 2: Order Medicine (Right Top) */}
-            <Link to="/login" className="absolute top-[80px] right-2 sm:right-6 flex flex-col items-center group z-20">
-              <div className="w-14 h-14 rounded-full bg-white shadow-lg flex items-center justify-center text-emerald-600 border border-slate-100 group-hover:scale-110 group-hover:shadow-emerald-200 transition duration-300">
-                <Pill size={24} className="text-emerald-600" />
-              </div>
-              <span className="text-[10px] font-black text-slate-700 mt-2 bg-white px-2 py-0.5 rounded-full shadow-sm border border-slate-100">Order Medicine</span>
-            </Link>
-
-            {/* Node 3: Lab Test (Right Bottom) */}
-            <Link to="/login" className="absolute bottom-[80px] right-2 sm:right-6 flex flex-col items-center group z-20">
-              <div className="w-14 h-14 rounded-full bg-white shadow-lg flex items-center justify-center text-purple-600 border border-slate-100 group-hover:scale-110 group-hover:shadow-purple-200 transition duration-300">
-                <FlaskConical size={24} className="text-purple-600" />
-              </div>
-              <span className="text-[10px] font-black text-slate-700 mt-2 bg-white px-2 py-0.5 rounded-full shadow-sm border border-slate-100">Lab Test</span>
-            </Link>
-
-            {/* Node 4: Clinics & Hospitals (Bottom) */}
-            <Link to="/login" className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-4 flex flex-col items-center group z-20">
-              <div className="w-14 h-14 rounded-full bg-white shadow-lg flex items-center justify-center text-indigo-600 border border-slate-100 group-hover:scale-110 group-hover:shadow-indigo-200 transition duration-300">
-                <Building2 size={24} className="text-indigo-600" />
-              </div>
-              <span className="text-[10px] font-black text-slate-700 mt-2 bg-white px-2 py-0.5 rounded-full shadow-sm border border-slate-100">Clinics & Hospitals</span>
-            </Link>
-
-            {/* Node 5: Emergency (Left Bottom) */}
-            <Link to="/login" className="absolute bottom-[80px] left-2 sm:left-6 flex flex-col items-center group z-20">
-              <div className="w-14 h-14 rounded-full bg-white shadow-lg flex items-center justify-center text-rose-600 border border-slate-100 group-hover:scale-110 group-hover:shadow-rose-200 transition duration-300">
-                <AlertTriangle size={24} className="text-rose-600" />
-              </div>
-              <span className="text-[10px] font-black text-slate-700 mt-2 bg-white px-2 py-0.5 rounded-full shadow-sm border border-slate-100">Emergency</span>
-            </Link>
-
-            {/* Node 6: Patient (Left Top) */}
-            <Link to="/login" className="absolute top-[80px] left-2 sm:left-6 flex flex-col items-center group z-20">
-              <div className="w-14 h-14 rounded-full bg-white shadow-lg flex items-center justify-center text-teal-600 border border-slate-100 group-hover:scale-110 group-hover:shadow-teal-200 transition duration-300">
-                <User size={24} className="text-teal-600" />
-              </div>
-              <span className="text-[10px] font-black text-slate-700 mt-2 bg-white px-2 py-0.5 rounded-full shadow-sm border border-slate-100">Patient</span>
-            </Link>
+            <div className="space-y-1">
+              <div className="text-3xl font-black text-blue-600">50K+</div>
+              <p className="text-xs font-semibold text-slate-400">Patients Managed</p>
+            </div>
+            <div className="space-y-1">
+              <div className="text-3xl font-black text-blue-600">120+</div>
+              <p className="text-xs font-semibold text-slate-400">Cities Reached</p>
+            </div>
+            <div className="space-y-1">
+              <div className="text-3xl font-black text-blue-600">99.9%</div>
+              <p className="text-xs font-semibold text-slate-400">Uptime Guarantee</p>
+            </div>
           </div>
         </div>
-      </main>
+      </section>
 
-      {/* Floating AI Assistant Notification */}
-      {showAiBubble && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-white p-3.5 rounded-2xl shadow-2xl border border-slate-100">
-          <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
-            <MessageSquare size={18} />
+      {/* ── PRICING SECTION ── */}
+      <section id="pricing" className="bg-white py-20 px-6">
+        <div className="max-w-7xl mx-auto space-y-12">
+          <div className="text-center space-y-2">
+            <h2 className="text-2xl font-black text-slate-900">Choose the Right Plan for Your Clinic</h2>
+            <p className="text-slate-400 text-xs">Flexible plans designed to grow with your practice.</p>
           </div>
-          <div>
-            <p className="text-[10px] font-bold text-slate-400">AI Assistant</p>
-            <p className="text-sm font-bold text-slate-800">Hi, I'm your assistance 👋</p>
-          </div>
-          <button 
-            onClick={() => setShowAiBubble(false)}
-            className="p-1 rounded-lg text-slate-400 hover:bg-slate-50 transition ml-2 cursor-pointer"
-          >
-            <X size={16} />
-          </button>
-        </div>
-      )}
 
-      {/* ── WHY SMART CLINIC SECTION ── */}
-      <section id="features-section" className="bg-white border-t border-b border-slate-100 py-16 lg:py-24 px-6">
-        <div className="max-w-7xl w-full mx-auto text-center space-y-4">
-          <h2 className="text-3xl font-black text-slate-900 relative inline-block pb-3">
-            Why Smart Clinic?
-            <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-16 h-1 bg-blue-600 rounded" />
-          </h2>
-          <p className="text-sm text-slate-500 max-w-xl mx-auto pt-2">
-            We simplify healthcare operations and improve patient experience with powerful, easy-to-use solutions.
-          </p>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 pt-12">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             {[
-              {
-                title: 'Easy Appointment Booking',
-                desc: 'Book appointments with the best doctors near you in just a few clicks.',
-                icon: <Calendar size={24} className="text-blue-600" />,
-                bg: 'bg-blue-50 border-blue-100'
-              },
-              {
-                title: 'Medicine Delivery',
-                desc: 'Order medicines online and get them delivered fast at your doorstep.',
-                icon: <Pill size={24} className="text-emerald-600" />,
-                bg: 'bg-emerald-50 border-emerald-100'
-              },
-              {
-                title: 'Lab Tests at Home',
-                desc: 'Book lab tests with home sample collection and digital reports.',
-                icon: <FlaskConical size={24} className="text-purple-600" />,
-                bg: 'bg-purple-50 border-purple-100'
-              },
-              {
-                title: '24/7 Emergency',
-                desc: 'Get instant help in emergencies with our 24/7 support system.',
-                icon: <AlertTriangle size={24} className="text-rose-600" />,
-                bg: 'bg-rose-50 border-rose-100'
-              },
-              {
-                title: 'Secure & Private',
-                desc: 'Your health data is 100% secure and confidential with us.',
-                icon: <Shield size={24} className="text-indigo-600" />,
-                bg: 'bg-indigo-50 border-indigo-100'
-              }
-            ].map((card, idx) => (
-              <div key={idx} className="bg-white rounded-2xl border border-slate-100 p-6 flex flex-col items-center text-center space-y-4 hover:shadow-xl hover:-translate-y-1 transition duration-300">
-                <div className={`w-12 h-12 rounded-2xl ${card.bg} border flex items-center justify-center shrink-0`}>
-                  {card.icon}
+              { name: 'AI Starter Clinic', desc: 'Single doctor clinic solution.', price: '₹999', users: 'Upto 2 Users' },
+              { name: 'AI Professional Clinic', desc: '1-3 doctors. Best for growing clinics.', price: '₹2,499', users: 'Upto 10 Users', popular: true },
+              { name: 'AI Premium Clinic', desc: 'Multi-speciality advanced solution.', price: '₹4,999', users: 'Upto 25 Users' },
+              { name: 'Enterprise Clinic', desc: 'Unlimited scalability and features.', price: 'Custom', users: 'Unlimited Users', custom: true }
+            ].map((plan, idx) => (
+              <div 
+                key={idx} 
+                className={`rounded-3xl p-6 border flex flex-col justify-between text-center relative ${
+                  plan.popular 
+                    ? "border-blue-600 bg-blue-50/10 shadow-md" 
+                    : "border-slate-200"
+                }`}
+              >
+                {plan.popular && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[9px] font-bold uppercase tracking-wider px-3 py-1 rounded-full">
+                    Most Popular
+                  </div>
+                )}
+                <div>
+                  <h4 className="text-xs font-bold text-slate-800 mb-1">{plan.name}</h4>
+                  <p className="text-[10px] text-slate-400 mb-6">{plan.desc}</p>
+                  <div className="mb-4">
+                    <span className="text-2xl font-black text-slate-900">{plan.price}</span>
+                    {!plan.custom && <span className="text-[10px] text-slate-400">/month</span>}
+                  </div>
+                  <div className="inline-block px-3 py-1 bg-slate-50 border border-slate-100 rounded-lg text-[10px] text-slate-500 font-bold mb-6">
+                    {plan.users}
+                  </div>
                 </div>
-                <h4 className="text-sm font-black text-slate-900">{card.title}</h4>
-                <p className="text-xs text-slate-500 leading-relaxed">{card.desc}</p>
+                <button 
+                  type="button" 
+                  onClick={() => navigate('/set-your-clinic')}
+                  className={`w-full py-2.5 rounded-xl text-xs font-bold border transition ${
+                    plan.popular 
+                      ? "bg-blue-600 hover:bg-blue-700 text-white border-blue-600" 
+                      : "bg-white hover:bg-slate-50 text-slate-700 border-slate-200"
+                  }`}
+                >
+                  {plan.custom ? "Contact Sales" : "Choose Plan"}
+                </button>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── FOOTER ── */}
-      <footer className="bg-slate-900 text-white border-t border-slate-800 py-16 px-6">
-        <div className="max-w-7xl w-full mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-10">
-          
-          {/* Logo & Description */}
-          <div className="lg:col-span-4 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md">
-                <Heart size={20} fill="currentColor" />
+      {/* ── HOW IT WORKS SECTION ── */}
+      <section className="bg-slate-50 py-20 px-6 border-t border-slate-100">
+        <div className="max-w-7xl mx-auto space-y-12">
+          <div className="text-center space-y-2">
+            <h2 className="text-2xl font-black text-slate-900">How It Works</h2>
+            <p className="text-slate-400 text-xs font-bold">Simple, transparent processes for both clinics and patients.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+            {/* Owner workflow */}
+            <div className="bg-white rounded-3xl p-8 border border-slate-150 shadow-sm space-y-6">
+              <h4 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                <Building2 size={16} className="text-blue-600" /> For Clinic Owners
+              </h4>
+              <div className="grid grid-cols-5 gap-1.5 text-center">
+                {[
+                  { step: 'Register Clinic', icon: <Building2 size={14} /> },
+                  { step: 'Choose Plan', icon: <CreditCard size={14} /> },
+                  { step: 'Approval & Activation', icon: <CheckCircle2 size={14} /> },
+                  { step: 'Setup Clinic', icon: <Users size={14} /> },
+                  { step: 'Start Managing', icon: <Activity size={14} /> }
+                ].map((item, idx) => (
+                  <div key={idx} className="flex flex-col items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-slate-50 text-slate-500 border border-slate-100 flex items-center justify-center shrink-0">
+                      {item.icon}
+                    </div>
+                    <span className="text-[8px] font-bold text-slate-500 leading-tight block">{item.step}</span>
+                  </div>
+                ))}
               </div>
-              <span className="text-lg font-black tracking-tight">Smart Clinic</span>
             </div>
-            <p className="text-xs text-slate-400 leading-relaxed max-w-sm">
-              A complete solution for clinics, hospitals, and patients to manage healthcare smarter and better.
-            </p>
-            {/* Social Icons */}
-            <div className="flex items-center gap-3.5 pt-2">
-              {[
-                { icon: <Facebook size={16} />, href: '#' },
-                { icon: <Twitter size={16} />, href: '#' },
-                { icon: <Linkedin size={16} />, href: '#' },
-                { icon: <Instagram size={16} />, href: '#' },
-                { icon: <Youtube size={16} />, href: '#' }
-              ].map((s, idx) => (
-                <a key={idx} href={s.href} className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:bg-blue-600 hover:text-white transition">
-                  {s.icon}
-                </a>
-              ))}
+
+            {/* Patient workflow */}
+            <div className="bg-white rounded-3xl p-8 border border-slate-150 shadow-sm space-y-6">
+              <h4 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                <User size={16} className="text-purple-650 text-purple-650" /> For Patients
+              </h4>
+              <div className="grid grid-cols-5 gap-1.5 text-center">
+                {[
+                  { step: 'Search Clinic', icon: <Search size={14} /> },
+                  { step: 'Book Appt', icon: <Calendar size={14} /> },
+                  { step: 'Visit Doctor', icon: <Users size={14} /> },
+                  { step: 'Digital Rx', icon: <FileText size={14} /> },
+                  { step: 'Lab Reports', icon: <FlaskConical size={14} /> }
+                ].map((item, idx) => (
+                  <div key={idx} className="flex flex-col items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-slate-50 text-slate-500 border border-slate-100 flex items-center justify-center shrink-0">
+                      {item.icon}
+                    </div>
+                    <span className="text-[8px] font-bold text-slate-500 leading-tight block">{item.step}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-
-          {/* Links Column 1: For Doctors */}
-          <div className="lg:col-span-2 space-y-3">
-            <h5 className="text-xs font-black uppercase tracking-wider text-slate-400">For Doctors</h5>
-            <ul className="text-xs text-slate-400 space-y-2">
-              <li><Link to="/login" className="hover:text-blue-400">Join as Doctor</Link></li>
-              <li><Link to="/login" className="hover:text-blue-400">Doctor Dashboard</Link></li>
-              <li><Link to="/login" className="hover:text-blue-400">Manage Appointments</Link></li>
-              <li><Link to="/login" className="hover:text-blue-400">Patient Records</Link></li>
-              <li><Link to="/login" className="hover:text-blue-400">E-Prescription</Link></li>
-            </ul>
-          </div>
-
-          {/* Links Column 2: For Clinics */}
-          <div className="lg:col-span-2 space-y-3">
-            <h5 className="text-xs font-black uppercase tracking-wider text-slate-400">For Clinics</h5>
-            <ul className="text-xs text-slate-400 space-y-2">
-              <li><Link to="/login" className="hover:text-blue-400">Create Your Own Clinic</Link></li>
-              <li><Link to="/login" className="hover:text-blue-400">Clinic Dashboard</Link></li>
-              <li><Link to="/login" className="hover:text-blue-400">Manage Staff</Link></li>
-              <li><Link to="/login" className="hover:text-blue-400">Appointments</Link></li>
-              <li><Link to="/login" className="hover:text-blue-400">Billing & Invoices</Link></li>
-            </ul>
-          </div>
-
-          {/* Links Column 3: For Hospitals */}
-          <div className="lg:col-span-2 space-y-3">
-            <h5 className="text-xs font-black uppercase tracking-wider text-slate-400">For Hospitals</h5>
-            <ul className="text-xs text-slate-400 space-y-2">
-              <li><Link to="/login" className="hover:text-blue-400">Hospital Management System</Link></li>
-              <li><Link to="/login" className="hover:text-blue-400">Bed Management</Link></li>
-              <li><Link to="/login" className="hover:text-blue-400">Department Management</Link></li>
-              <li><Link to="/login" className="hover:text-blue-400">Staff Management</Link></li>
-              <li><Link to="/login" className="hover:text-blue-400">Reports & Analytics</Link></li>
-            </ul>
-          </div>
-
-          {/* Links Column 4: For Patients */}
-          <div className="lg:col-span-2 space-y-3">
-            <h5 className="text-xs font-black uppercase tracking-wider text-slate-400">For Patients</h5>
-            <ul className="text-xs text-slate-400 space-y-2">
-              <li><Link to="/login" className="hover:text-blue-400">Find Doctor</Link></li>
-              <li><Link to="/login" className="hover:text-blue-400">Order Medicine</Link></li>
-              <li><Link to="/login" className="hover:text-blue-400">Book Lab Test</Link></li>
-              <li><Link to="/login" className="hover:text-blue-400">Health Records</Link></li>
-              <li><Link to="/login" className="hover:text-blue-400">Emergency Support</Link></li>
-            </ul>
           </div>
         </div>
+      </section>
 
-        {/* Legal & Copyright */}
-        <div className="max-w-7xl w-full mx-auto border-t border-slate-800 mt-12 pt-8 flex flex-col sm:flex-row justify-between items-center gap-4 text-[11px] text-slate-500 font-bold">
-          <span>&copy; 2026 Smart Clinic Management System. All rights reserved.</span>
-          <div className="flex items-center gap-6">
-            <a href="#" className="hover:text-white">Privacy Policy</a>
-            <a href="#" className="hover:text-white">Terms & Conditions</a>
-            <a href="#" className="hover:text-white">Contact Us</a>
-            <a href="#" className="hover:text-white">Help Center</a>
+      {/* ── READY TO DIGITIZE SECTION ── */}
+      <section className="bg-blue-600 text-white py-12 px-6">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="space-y-1">
+            <h3 className="text-xl font-black">Ready to Digitize Your Clinic?</h3>
+            <p className="text-blue-100 text-xs font-semibold">Join hundreds of smart clinics using AI-CMS to deliver better care and grow their practice.</p>
+          </div>
+          <Link 
+            to="/set-your-clinic" 
+            className="px-6 py-3 bg-white text-blue-600 hover:bg-slate-50 text-xs font-bold rounded-xl transition shadow-md whitespace-nowrap"
+          >
+            Set Up Your Clinic Now
+          </Link>
+        </div>
+      </section>
+
+      {/* ── FOOTER ── */}
+      <footer className="bg-[#0f172a] text-slate-400 py-16 px-6 border-t border-slate-800">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
+          {/* Col 1 */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-white">
+              <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center text-white font-extrabold text-xs">
+                <Heart size={14} fill="currentColor" />
+              </div>
+              <span className="text-base font-black">AICMS</span>
+            </div>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              A complete AI-powered solution to manage your clinic efficiently and deliver exceptional patient care.
+            </p>
+          </div>
+          {/* Col 2 */}
+          <div className="space-y-3">
+            <h5 className="text-xs font-bold text-white uppercase tracking-wider">Solutions</h5>
+            <ul className="space-y-2 text-xs">
+              <li><a href="#" className="hover:text-white transition">For Clinics</a></li>
+              <li><a href="#" className="hover:text-white transition">For Doctors</a></li>
+              <li><a href="#" className="hover:text-white transition">For Patients</a></li>
+              <li><a href="#" className="hover:text-white transition">For Labs</a></li>
+            </ul>
+          </div>
+          {/* Col 3 */}
+          <div className="space-y-3">
+            <h5 className="text-xs font-bold text-white uppercase tracking-wider">Features</h5>
+            <ul className="space-y-2 text-xs">
+              <li><a href="#" className="hover:text-white transition">Appointments</a></li>
+              <li><a href="#" className="hover:text-white transition">EMR</a></li>
+              <li><a href="#" className="hover:text-white transition">Pharmacy</a></li>
+              <li><a href="#" className="hover:text-white transition">Billing</a></li>
+            </ul>
+          </div>
+          {/* Col 4 */}
+          <div className="space-y-3">
+            <h5 className="text-xs font-bold text-white uppercase tracking-wider">Newsletter</h5>
+            <p className="text-[11px] text-slate-500 leading-relaxed">Subscribe to get updates and healthcare insights.</p>
+            <div className="flex gap-2">
+              <input 
+                type="email" 
+                placeholder="Enter your email" 
+                className="bg-slate-800 border border-slate-700 text-xs px-3.5 py-2 rounded-xl text-white outline-none w-full"
+              />
+              <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition">
+                Subscribe
+              </button>
+            </div>
+          </div>
+        </div>
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4 text-[10px] text-slate-600 border-t border-slate-800/80 pt-8 pt-8">
+          <span>&copy; 2026 AICMS. All rights reserved.</span>
+          <div className="flex items-center gap-6 font-bold">
+            <a href="#" className="hover:text-white transition">Privacy Policy</a>
+            <a href="#" className="hover:text-white transition">Terms of Service</a>
+            <a href="#" className="hover:text-white transition">Refund Policy</a>
           </div>
         </div>
       </footer>
+
     </div>
   );
 }

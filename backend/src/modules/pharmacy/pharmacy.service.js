@@ -2,7 +2,7 @@ const { roundCurrency } = require('../../common/utils/billingCalculator');
 const { HTTP_STATUS } = require('../../common/constants/httpStatus');
 const { ROLES } = require('../../common/constants/roles');
 const { AppError } = require('../../common/utils/AppError');
-const { resolveClinicContext } = require('../../common/utils/clinicContext');
+const { resolveClinicContext, ensureUserClinicContext } = require('../../common/utils/clinicContext');
 const { buildPaginationMeta, getPagination } = require('../../common/utils/pagination');
 const AIPrediction = require('../ai/aiPrediction.model');
 const aiService = require('../ai/ai.service');
@@ -12,6 +12,13 @@ const patientRepository = require('../patients/patient.repository');
 const prescriptionRepository = require('../prescriptions/prescription.repository');
 const pharmacyRepository = require('./pharmacy.repository');
 const PharmacyOrder = require('./pharmacyOrder.model');
+const MedicineMaster = require('./medicineMaster.model');
+const BrandMaster = require('./brandMaster.model');
+const MedicineBatch = require('./medicineBatch.model');
+const Medicine = require('./medicine.model');
+const StockMovementLedger = require('./stockMovementLedger.model');
+const Supplier = require('./supplier.model');
+const PurchaseOrder = require('./purchaseOrder.model');
 const {
   allocateDispensingBatches,
   getMedicineStockFlags,
@@ -244,18 +251,21 @@ const serializeMedicine = (medicine, today = new Date()) => {
   };
 };
 
-const serializeDispensingRecord = (dispensingRecord, pharmacySale = null) => ({
-  ...dispensingRecord,
-  pharmacySale: pharmacySale
-    ? {
-        _id: pharmacySale._id,
-        amount: pharmacySale.amount,
-        paymentStatus: pharmacySale.paymentStatus,
-        paymentMethod: pharmacySale.paymentMethod,
-        invoiceId: pharmacySale.invoiceId || null
-      }
-    : null
-});
+const serializeDispensingRecord = (dispensingRecord, pharmacySale = null) => {
+  const doc = typeof dispensingRecord.toObject === 'function' ? dispensingRecord.toObject() : dispensingRecord;
+  return {
+    ...doc,
+    pharmacySale: pharmacySale
+      ? {
+          _id: pharmacySale._id,
+          amount: pharmacySale.amount,
+          paymentStatus: pharmacySale.paymentStatus,
+          paymentMethod: pharmacySale.paymentMethod,
+          invoiceId: pharmacySale.invoiceId || null
+        }
+      : null
+  };
+};
 
 const getScopedMedicine = async ({ medicineId, requester, requestedClinicId = null, asDocument = false }) => {
   const clinicId = resolveClinicContext({
@@ -300,27 +310,109 @@ const createMedicine = async ({ requester, payload, requestedClinicId = null, re
     user: requester,
     requestedClinicId: requestedClinicId || payload.clinicId
   });
+
+  let globalMed = null;
+  let brand = null;
+  
+  if (payload.globalMedicineId) {
+    const GlobalMedicine = require('../healthcare-catalog/globalMedicine.model');
+    globalMed = await GlobalMedicine.findById(payload.globalMedicineId).populate('category');
+    if (!globalMed) {
+      throw new AppError('Global medicine not found.', HTTP_STATUS.NOT_FOUND);
+    }
+  } else {
+    if (payload.brandId) {
+      brand = await BrandMaster.findById(payload.brandId).populate('genericMedicineId');
+      if (!brand) {
+        throw new AppError('Brand not found in global master.', HTTP_STATUS.NOT_FOUND);
+      }
+    } else {
+      // Legacy support: resolve or create generic medicine & brand on the fly
+      const genericName = payload.genericName || payload.name || 'Unknown Generic';
+      const brandName = payload.brandName || payload.name || 'Unknown Brand';
+
+      let masterGen = await MedicineMaster.findOne({ genericName: { $regex: new RegExp(`^${escapeRegex(genericName)}$`, 'i') } });
+      if (!masterGen) {
+        masterGen = await MedicineMaster.create({
+          genericName,
+          drugCategory: payload.category || 'General',
+          strengths: [payload.strength || '500mg'],
+          dosageForms: [payload.form || 'Tablet']
+        });
+      }
+
+      brand = await BrandMaster.findOne({ brandName: { $regex: new RegExp(`^${escapeRegex(brandName)}$`, 'i') } });
+      if (!brand) {
+        brand = await BrandMaster.create({
+          brandName,
+          manufacturer: payload.manufacturer || 'Unknown',
+          genericMedicineId: masterGen._id,
+          availableStrengths: [payload.strength || '500mg'],
+          dosageForm: payload.form || 'Tablet'
+        });
+      }
+      brand = await BrandMaster.findById(brand._id).populate('genericMedicineId');
+    }
+  }
+
+  // Prevent double import of same global medicine in the same clinic
+  if (globalMed) {
+    const existing = await Medicine.findOne({ clinicId, globalMedicineId: globalMed._id });
+    if (existing) {
+      throw new AppError('This medicine has already been imported into your clinic inventory', HTTP_STATUS.CONFLICT);
+    }
+  }
+
   const medicine = await pharmacyRepository.createMedicine({
     clinicId,
+    brandId: brand ? brand._id : undefined,
+    globalMedicineId: globalMed ? globalMed._id : undefined,
     code: payload.code?.trim?.().toUpperCase() || '',
-    name: payload.name.trim(),
-    genericName: payload.genericName?.trim?.() || '',
-    brandName: payload.brandName?.trim?.() || '',
-    category: payload.category?.trim?.() || '',
-    form: payload.form?.trim?.() || '',
-    strength: payload.strength?.trim?.() || '',
-    manufacturer: payload.manufacturer?.trim?.() || '',
+    name: globalMed ? globalMed.displayName : (payload.name || brand.brandName),
+    genericName: globalMed ? globalMed.genericName : (brand.genericMedicineId?.genericName || ''),
+    brandName: globalMed ? globalMed.brandName : brand.brandName,
+    category: globalMed ? (globalMed.category?.name || '') : (brand.genericMedicineId?.drugCategory || payload.category || ''),
+    form: globalMed ? globalMed.dosageForm : (brand.dosageForm || payload.form || ''),
+    strength: globalMed ? globalMed.strength : (payload.strength || brand.availableStrengths?.[0] || ''),
+    manufacturer: globalMed ? globalMed.manufacturer : (brand.manufacturer || payload.manufacturer || ''),
+    distributor: payload.distributor || '',
+    purchasePrice: typeof payload.purchasePrice !== 'undefined' ? Number(payload.purchasePrice) : (typeof payload.unitPrice !== 'undefined' ? Number(payload.unitPrice) : 0),
+    sellingPrice: typeof payload.sellingPrice !== 'undefined' ? Number(payload.sellingPrice) : (typeof payload.unitPrice !== 'undefined' ? Number(payload.unitPrice) : 0),
     unitPrice: typeof payload.unitPrice !== 'undefined' ? Number(payload.unitPrice) : 0,
+    gst: typeof payload.gst !== 'undefined' ? Number(payload.gst) : 0,
+    discount: typeof payload.discount !== 'undefined' ? Number(payload.discount) : 0,
+    minimumStock: typeof payload.minimumStock !== 'undefined' ? Number(payload.minimumStock) : 0,
+    maximumStock: typeof payload.maximumStock !== 'undefined' ? Number(payload.maximumStock) : 0,
     reorderLevel: typeof payload.reorderLevel !== 'undefined' ? Number(payload.reorderLevel) : 0,
-    supplierLeadTimeDays:
-      typeof payload.supplierLeadTimeDays !== 'undefined' ? Number(payload.supplierLeadTimeDays) : 7,
+    rackNumber: payload.rackNumber || '',
+    storageLocation: payload.storageLocation || '',
     isActive: typeof payload.isActive === 'boolean' ? payload.isActive : true,
-    requiresPrescription:
-      typeof payload.requiresPrescription === 'boolean' ? payload.requiresPrescription : true,
-    batches: (payload.batches || []).map(normalizeBatch),
+    requiresPrescription: typeof payload.requiresPrescription === 'boolean' ? payload.requiresPrescription : true,
     createdBy: requester._id,
     updatedBy: requester._id
   });
+
+  const batches = (payload.batches || []).map(normalizeBatch);
+  let totalStock = 0;
+  for (const b of batches) {
+    await MedicineBatch.create({
+      inventoryId: medicine._id,
+      batchNumber: b.batchNumber,
+      manufacturingDate: b.receivedAt,
+      expiryDate: b.expiryDate,
+      purchaseQuantity: b.quantity,
+      availableStock: b.quantity,
+      quantity: b.quantity,
+      purchasePrice: b.purchasePrice,
+      sellingPrice: b.sellingPrice
+    });
+    totalStock += b.quantity;
+  }
+
+  medicine.totalStock = totalStock;
+  await medicine.save();
+
+  const populatedMed = await pharmacyRepository.findMedicineById({ id: medicine._id, clinicId });
 
   await createAuditLog({
     actorUserId: requester._id,
@@ -337,7 +429,7 @@ const createMedicine = async ({ requester, payload, requestedClinicId = null, re
     status: 'SUCCESS'
   });
 
-  return serializeMedicine(medicine);
+  return serializeMedicine(populatedMed);
 };
 
 const listMedicines = async ({ requester, query = {}, requestedClinicId = null }) => {
@@ -361,6 +453,8 @@ const listMedicines = async ({ requester, query = {}, requestedClinicId = null }
     filter.clinicId = clinicId;
   }
 
+  console.log('listMedicines QUERY FILTER:', JSON.stringify(filter));
+
   if (query.category) {
     filter.category = query.category.trim();
   }
@@ -381,17 +475,21 @@ const listMedicines = async ({ requester, query = {}, requestedClinicId = null }
   }
 
   const medicines = await pharmacyRepository.listMedicines({ filter });
+  console.log('listMedicines RAW DB RESULT LENGTH:', medicines.length);
+  console.log('listMedicines RAW DB RESULT:', JSON.stringify(medicines));
   let serializedMedicines = medicines.map((medicine) => serializeMedicine(medicine));
 
-  if (typeof query.lowStock === 'boolean') {
+  if (typeof query.lowStock !== 'undefined') {
+    const isLowStock = query.lowStock === true || query.lowStock === 'true';
     serializedMedicines = serializedMedicines.filter(
-      (medicine) => medicine.stockFlags.lowStock === query.lowStock
+      (medicine) => medicine.stockFlags.lowStock === isLowStock
     );
   }
 
-  if (typeof query.nearExpiry === 'boolean') {
+  if (typeof query.nearExpiry !== 'undefined') {
+    const isNearExpiry = query.nearExpiry === true || query.nearExpiry === 'true';
     serializedMedicines = serializedMedicines.filter(
-      (medicine) => medicine.stockFlags.nearExpiry === query.nearExpiry
+      (medicine) => medicine.stockFlags.nearExpiry === isNearExpiry
     );
   }
 
@@ -523,11 +621,29 @@ const updateMedicine = async ({ requester, medicineId, payload, requestedClinicI
     medicine.requiresPrescription = Boolean(payload.requiresPrescription);
   }
   if (payload.batches) {
-    medicine.batches = payload.batches.map(normalizeBatch);
+    await MedicineBatch.deleteMany({ inventoryId: medicine._id });
+    const normalizedBatches = payload.batches.map(normalizeBatch);
+    for (const b of normalizedBatches) {
+      await MedicineBatch.create({
+        inventoryId: medicine._id,
+        batchNumber: b.batchNumber,
+        manufacturingDate: b.receivedAt,
+        expiryDate: b.expiryDate,
+        purchaseQuantity: b.quantity,
+        availableStock: b.quantity,
+        quantity: b.quantity,
+        purchasePrice: b.purchasePrice,
+        sellingPrice: b.sellingPrice
+      });
+    }
   }
+  
+  const allBatches = await MedicineBatch.find({ inventoryId: medicine._id });
+  medicine.totalStock = allBatches.reduce((sum, b) => sum + b.availableStock, 0);
   medicine.updatedBy = requester._id;
-  medicine.totalStock = recalculateTotalStock(medicine);
   await medicine.save();
+
+  const populatedMed = await pharmacyRepository.findMedicineById({ id: medicine._id, clinicId });
 
   await createAuditLog({
     actorUserId: requester._id,
@@ -544,7 +660,7 @@ const updateMedicine = async ({ requester, medicineId, payload, requestedClinicI
     status: 'SUCCESS'
   });
 
-  return serializeMedicine(medicine);
+  return serializeMedicine(populatedMed);
 };
 
 const addMedicineBatch = async ({ requester, medicineId, payload, requestedClinicId = null, req }) => {
@@ -555,14 +671,50 @@ const addMedicineBatch = async ({ requester, medicineId, payload, requestedClini
     asDocument: true
   });
 
-  if ((medicine.batches || []).some((batch) => batch.batchNumber === payload.batchNumber.trim())) {
+  const exists = await MedicineBatch.findOne({ inventoryId: medicine._id, batchNumber: payload.batchNumber.trim() });
+  if (exists) {
     throw new AppError('This batchNumber already exists for the selected medicine.', HTTP_STATUS.CONFLICT);
   }
 
-  medicine.batches.push(normalizeBatch(payload));
+  const normalized = normalizeBatch(payload);
+  const previousStock = medicine.totalStock || 0;
+  
+  const batch = await MedicineBatch.create({
+    inventoryId: medicine._id,
+    batchNumber: normalized.batchNumber,
+    manufacturingDate: normalized.receivedAt,
+    expiryDate: normalized.expiryDate,
+    purchaseQuantity: normalized.quantity,
+    availableStock: normalized.quantity,
+    quantity: normalized.quantity,
+    purchasePrice: normalized.purchasePrice,
+    sellingPrice: normalized.sellingPrice,
+    supplier: payload.supplier || '',
+    invoiceNumber: payload.invoiceNumber || ''
+  });
+
+  const allBatches = await MedicineBatch.find({ inventoryId: medicine._id });
+  const updatedStock = allBatches.reduce((sum, b) => sum + b.availableStock, 0);
+  medicine.totalStock = updatedStock;
   medicine.updatedBy = requester._id;
-  medicine.totalStock = recalculateTotalStock(medicine);
   await medicine.save();
+
+  // Create Stock Ledger Entry
+  await StockMovementLedger.create({
+    clinicId,
+    branchId: payload.branchId || null,
+    medicineId: medicine._id,
+    batchId: batch._id,
+    movementType: payload.isOpeningStock ? 'Initial Opening Stock' : 'Stock In',
+    quantity: normalized.quantity,
+    previousStock,
+    updatedStock,
+    reason: payload.remarks || 'New stock batch added',
+    notes: payload.notes || '',
+    userId: requester._id
+  });
+
+  const populatedMed = await pharmacyRepository.findMedicineById({ id: medicine._id, clinicId });
 
   await createAuditLog({
     actorUserId: requester._id,
@@ -579,7 +731,7 @@ const addMedicineBatch = async ({ requester, medicineId, payload, requestedClini
     status: 'SUCCESS'
   });
 
-  return serializeMedicine(medicine);
+  return serializeMedicine(populatedMed);
 };
 
 const findPrescriptionInstructions = ({ prescription, medicine }) => {
@@ -726,6 +878,13 @@ const dispensePrescription = async ({ requester, payload, requestedClinicId = nu
 
     for (const medicine of medicines) {
       await medicine.save();
+      if (medicine.batches && medicine.batches.length > 0) {
+        for (const batch of medicine.batches) {
+          if (batch.save) {
+            await batch.save();
+          }
+        }
+      }
     }
     medicinesSaved = true;
 
@@ -769,47 +928,31 @@ const dispensePrescription = async ({ requester, payload, requestedClinicId = nu
 
     await createAuditLog({
       actorUserId: requester._id,
-      action: 'DISPENSING_CREATED',
+      action: 'PRESCRIPTION_DISPENSED',
       entity: 'DispensingRecord',
       entityId: dispensingRecord._id,
       metadata: {
         clinicId: String(clinicId),
-        prescriptionId: String(prescription._id),
-        patientId: String(patient._id),
-        subtotal
+        prescriptionId: String(prescription._id)
       },
       ipAddress: req.ip,
       userAgent: req.get('user-agent'),
       status: 'SUCCESS'
     });
 
-    await createAuditLog({
-      actorUserId: requester._id,
-      action: 'PHARMACY_SALE_CREATED',
-      entity: 'PharmacySale',
-      entityId: pharmacySale._id,
-      metadata: {
-        clinicId: String(clinicId),
-        dispensingRecordId: String(dispensingRecord._id),
-        amount: subtotal
-      },
-      ipAddress: req.ip,
-      userAgent: req.get('user-agent'),
-      status: 'SUCCESS'
-    });
-
-    const populatedDispensingRecord = await pharmacyRepository.findDispensingRecordById({
-      id: dispensingRecord._id,
-      clinicId,
-      populateDetails: true,
-      lean: true
-    });
-    const populatedSale = await pharmacyRepository.findSaleByDispensingId({
-      dispensingRecordId: dispensingRecord._id,
-      clinicId,
-      populateDetails: true,
-      lean: true
-    });
+    const [populatedDispensingRecord, populatedSale] = await Promise.all([
+      pharmacyRepository.findDispensingRecordById({
+        id: dispensingRecord._id,
+        clinicId,
+        populateDetails: true
+      }),
+      pharmacyRepository.findSaleByDispensingId({
+        dispensingRecordId: dispensingRecord._id,
+        clinicId,
+        populateDetails: true,
+        lean: true
+      })
+    ]);
 
     return {
       dispensingRecord: serializeDispensingRecord(populatedDispensingRecord, populatedSale),
@@ -825,7 +968,21 @@ const dispensePrescription = async ({ requester, payload, requestedClinicId = nu
             return;
           }
 
-          medicine.batches = snapshot.batches;
+          await MedicineBatch.deleteMany({ inventoryId: medicine._id });
+          for (const b of snapshot.batches) {
+            await MedicineBatch.create({
+              inventoryId: medicine._id,
+              batchNumber: b.batchNumber,
+              manufacturingDate: b.receivedAt || b.manufacturingDate,
+              expiryDate: b.expiryDate,
+              purchaseQuantity: b.purchaseQuantity || b.quantity || 0,
+              availableStock: b.availableStock || b.quantity || 0,
+              quantity: b.quantity || b.availableStock || 0,
+              purchasePrice: b.purchasePrice || 0,
+              sellingPrice: b.sellingPrice || 0
+            });
+          }
+
           medicine.totalStock = snapshot.totalStock;
           medicine.updatedBy = requester._id;
 
@@ -1060,6 +1217,11 @@ const createPharmacyOrder = async ({ requester, payload, req }) => {
   }
 
   await medicine.save();
+  if (medicine.batches && medicine.batches.length > 0) {
+    for (const batch of medicine.batches) {
+      if (batch.save) await batch.save();
+    }
+  }
 
   const totalPrice = Number((medicine.unitPrice || 0) * payload.quantity);
 
@@ -1102,13 +1264,7 @@ const listPharmacyOrders = async ({ requester, query = {} }) => {
   const { page, limit } = getPagination(query);
   const filter = { clinicId };
 
-  if (requester.role === ROLES.PATIENT) {
-    const patient = await patientRepository.findPatientByUserId({ userId: requester._id });
-    if (!patient) {
-      return { pharmacyOrders: [], pagination: buildPaginationMeta({ page, limit, total: 0 }) };
-    }
-    filter.patientId = patient._id;
-  } else if (query.patientId) {
+  if (query.patientId) {
     filter.patientId = query.patientId;
   }
 
@@ -1119,8 +1275,11 @@ const listPharmacyOrders = async ({ requester, query = {} }) => {
   const skip = (page - 1) * limit;
   const [orders, total] = await Promise.all([
     PharmacyOrder.find(filter)
-      .populate('patientId', 'firstName lastName fullName phone')
-      .populate('medicineId', 'name genericName unitPrice category form strength')
+      .populate('patientId', 'firstName lastName fullName phone email')
+      .populate({
+        path: 'medicineId',
+        select: 'name genericName brandName form strength manufacturer unitPrice'
+      })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
@@ -1129,7 +1288,7 @@ const listPharmacyOrders = async ({ requester, query = {} }) => {
   ]);
 
   return {
-    pharmacyOrders: orders,
+    orders,
     pagination: buildPaginationMeta({ page, limit, total })
   };
 };
@@ -1152,19 +1311,25 @@ const updatePharmacyOrderStatus = async ({ requester, orderId, status, req }) =>
   if (status === 'cancelled' && oldStatus !== 'cancelled') {
     const medicine = await Medicine.findById(order.medicineId);
     if (medicine) {
-      if (medicine.batches && medicine.batches.length > 0) {
-        medicine.batches[0].quantity += order.quantity;
+      let batch = await MedicineBatch.findOne({ inventoryId: medicine._id }).sort({ expiryDate: -1 });
+      if (batch) {
+        batch.quantity += order.quantity;
+        batch.availableStock += order.quantity;
+        await batch.save();
       } else {
-        medicine.batches.push({
+        await MedicineBatch.create({
+          inventoryId: medicine._id,
           batchNumber: `RESTOCK-ORD-${order._id}`,
-          quantity: order.quantity,
           expiryDate: new Date('2028-12-31'),
+          purchaseQuantity: order.quantity,
+          availableStock: order.quantity,
+          quantity: order.quantity,
           purchasePrice: Math.round(medicine.unitPrice * 0.7),
-          sellingPrice: medicine.unitPrice,
-          receivedAt: new Date()
+          sellingPrice: medicine.unitPrice
         });
       }
-      medicine.totalStock = recalculateTotalStock(medicine);
+      const allBatches = await MedicineBatch.find({ inventoryId: medicine._id });
+      medicine.totalStock = allBatches.reduce((sum, b) => sum + b.availableStock, 0);
       await medicine.save();
     }
   }
@@ -1187,7 +1352,307 @@ const updatePharmacyOrderStatus = async ({ requester, orderId, status, req }) =>
   return order;
 };
 
+// ─── SUPPLIER MANAGEMENT SERVICES ──────────────────────────────────────────────
+
+const createSupplier = async ({ requester, payload, requestedClinicId = null }) => {
+  const clinicId = resolveClinicContext({ user: requester, requestedClinicId });
+  const existing = await Supplier.findOne({ clinicId, name: new RegExp(`^${payload.name.trim()}$`, 'i') });
+  if (existing) {
+    throw new AppError('A supplier with this name already exists.', HTTP_STATUS.CONFLICT);
+  }
+  return Supplier.create({ ...payload, clinicId });
+};
+
+const listSuppliers = async ({ requester, query = {}, requestedClinicId = null }) => {
+  const clinicId = resolveClinicContext({ user: requester, requestedClinicId });
+  const filter = { clinicId };
+  if (query.search) {
+    filter.name = new RegExp(query.search, 'i');
+  }
+  if (typeof query.isActive === 'boolean') {
+    filter.isActive = query.isActive;
+  }
+  return Supplier.find(filter).sort({ name: 1 });
+};
+
+const updateSupplier = async ({ requester, supplierId, payload, requestedClinicId = null }) => {
+  const clinicId = resolveClinicContext({ user: requester, requestedClinicId });
+  const supplier = await Supplier.findOne({ _id: supplierId, clinicId });
+  if (!supplier) {
+    throw new AppError('Supplier not found.', HTTP_STATUS.NOT_FOUND);
+  }
+  return Supplier.findByIdAndUpdate(supplierId, payload, { new: true });
+};
+
+const deleteSupplier = async ({ requester, supplierId, requestedClinicId = null }) => {
+  const clinicId = resolveClinicContext({ user: requester, requestedClinicId });
+  const supplier = await Supplier.findOne({ _id: supplierId, clinicId });
+  if (!supplier) {
+    throw new AppError('Supplier not found.', HTTP_STATUS.NOT_FOUND);
+  }
+  await Supplier.findByIdAndDelete(supplierId);
+  return { success: true };
+};
+
+// ─── PURCHASE ORDER SERVICES ──────────────────────────────────────────────────
+
+const createPurchaseOrder = async ({ requester, payload, requestedClinicId = null }) => {
+  const clinicId = resolveClinicContext({ user: requester, requestedClinicId });
+  
+  // Generate PO number
+  const count = await PurchaseOrder.countDocuments({ clinicId });
+  const poNumber = `PO-${String(count + 1).padStart(6, '0')}`;
+
+  const po = await PurchaseOrder.create({
+    poNumber,
+    clinicId,
+    branchId: payload.branchId || null,
+    supplierId: payload.supplierId,
+    items: payload.items || [],
+    status: payload.status || 'Draft',
+    remarks: payload.remarks || '',
+    createdBy: requester._id
+  });
+
+  return po;
+};
+
+const listPurchaseOrders = async ({ requester, query = {}, requestedClinicId = null }) => {
+  const clinicId = resolveClinicContext({ user: requester, requestedClinicId });
+  const filter = { clinicId };
+  
+  if (query.status) filter.status = query.status;
+  if (query.supplierId) filter.supplierId = query.supplierId;
+  if (query.branchId) filter.branchId = query.branchId;
+
+  return PurchaseOrder.find(filter)
+    .populate('supplierId')
+    .populate('items.medicineId')
+    .sort({ createdAt: -1 });
+};
+
+const receivePurchaseOrder = async ({ requester, poId, payload, requestedClinicId = null, req }) => {
+  const clinicId = resolveClinicContext({ user: requester, requestedClinicId });
+  const po = await PurchaseOrder.findOne({ _id: poId, clinicId });
+  if (!po) {
+    throw new AppError('Purchase order not found.', HTTP_STATUS.NOT_FOUND);
+  }
+
+  // payload.items format: [{ medicineId, quantityReceived, batchNumber, manufacturingDate, expiryDate, purchasePrice, sellingPrice }]
+  for (const item of payload.items || []) {
+    const poItem = po.items.find(i => String(i.medicineId) === String(item.medicineId));
+    if (!poItem) continue;
+
+    poItem.receivedQuantity = (poItem.receivedQuantity || 0) + Number(item.quantityReceived);
+    if (poItem.receivedQuantity >= poItem.quantity) {
+      poItem.status = 'Received';
+    } else if (poItem.receivedQuantity > 0) {
+      poItem.status = 'Partially Received';
+    }
+
+    // Add batch to medicine
+    const medicine = await Medicine.findOne({ _id: item.medicineId, clinicId });
+    if (medicine) {
+      const exists = await MedicineBatch.findOne({ inventoryId: medicine._id, batchNumber: item.batchNumber.trim() });
+      let batch;
+      if (exists) {
+        exists.quantity += Number(item.quantityReceived);
+        exists.availableStock += Number(item.quantityReceived);
+        await exists.save();
+        batch = exists;
+      } else {
+        batch = await MedicineBatch.create({
+          inventoryId: medicine._id,
+          batchNumber: item.batchNumber.trim(),
+          manufacturingDate: item.manufacturingDate || null,
+          expiryDate: item.expiryDate,
+          purchaseQuantity: Number(item.quantityReceived),
+          availableStock: Number(item.quantityReceived),
+          quantity: Number(item.quantityReceived),
+          purchasePrice: item.purchasePrice || poItem.unitCost || 0,
+          sellingPrice: item.sellingPrice || medicine.sellingPrice || 0,
+          supplier: po.supplierId ? (await Supplier.findById(po.supplierId))?.name : '',
+          invoiceNumber: payload.invoiceNumber || ''
+        });
+      }
+
+      // Recalculate totalStock
+      const previousStock = medicine.totalStock || 0;
+      const allBatches = await MedicineBatch.find({ inventoryId: medicine._id });
+      const updatedStock = allBatches.reduce((sum, b) => sum + b.availableStock, 0);
+      medicine.totalStock = updatedStock;
+      await medicine.save();
+
+      // Create Ledger Record
+      await StockMovementLedger.create({
+        clinicId,
+        branchId: po.branchId || null,
+        medicineId: medicine._id,
+        batchId: batch._id,
+        movementType: 'Stock In',
+        quantity: Number(item.quantityReceived),
+        previousStock,
+        updatedStock,
+        reason: `Received from Purchase Order ${po.poNumber}`,
+        notes: po.remarks || '',
+        userId: requester._id
+      });
+    }
+  }
+
+  // Update PO status
+  const allReceived = po.items.every(i => i.status === 'Received');
+  const someReceived = po.items.some(i => i.status === 'Received' || i.status === 'Partially Received');
+  po.status = allReceived ? 'Received' : (someReceived ? 'Partially Received' : 'Submitted');
+  await po.save();
+
+  return po;
+};
+
+// ─── STOCK ADJUSTMENT SERVICES ───────────────────────────────────────────────
+
+const adjustStock = async ({ requester, payload, requestedClinicId = null, req }) => {
+  const clinicId = resolveClinicContext({ user: requester, requestedClinicId });
+  
+  const { medicineId, batchId, quantity, adjustmentType, reason, notes } = payload;
+  const medicine = await Medicine.findOne({ _id: medicineId, clinicId });
+  if (!medicine) {
+    throw new AppError('Medicine not found.', HTTP_STATUS.NOT_FOUND);
+  }
+
+  const batch = await MedicineBatch.findOne({ _id: batchId, inventoryId: medicineId });
+  if (!batch) {
+    throw new AppError('Batch not found for this medicine.', HTTP_STATUS.NOT_FOUND);
+  }
+
+  const previousStock = medicine.totalStock || 0;
+  const changeQty = Number(quantity); // can be positive or negative
+
+  // Adjust batch stock
+  batch.availableStock = Math.max(0, batch.availableStock + changeQty);
+  batch.quantity = batch.availableStock;
+  await batch.save();
+
+  // Recalculate medicine total stock
+  const allBatches = await MedicineBatch.find({ inventoryId: medicineId });
+  const updatedStock = allBatches.reduce((sum, b) => sum + b.availableStock, 0);
+  medicine.totalStock = updatedStock;
+  await medicine.save();
+
+  // Log stock movement ledger entry
+  const ledger = await StockMovementLedger.create({
+    clinicId,
+    branchId: payload.branchId || null,
+    medicineId,
+    batchId,
+    movementType: adjustmentType || 'Adjustment', // e.g. 'Adjustment', 'Damage', 'Expired', 'Returned'
+    quantity: changeQty,
+    previousStock,
+    updatedStock,
+    reason: reason || 'Manual adjustment',
+    notes: notes || '',
+    userId: requester._id
+  });
+
+  return { medicine, batch, ledger };
+};
+
+// ─── STOCK LEDGER SERVICES ────────────────────────────────────────────────────
+
+const listStockLedgers = async ({ requester, query = {}, requestedClinicId = null }) => {
+  const clinicId = resolveClinicContext({ user: requester, requestedClinicId });
+  const filter = { clinicId };
+
+  if (query.medicineId) filter.medicineId = query.medicineId;
+  if (query.movementType) filter.movementType = query.movementType;
+  if (query.branchId) filter.branchId = query.branchId;
+
+  return StockMovementLedger.find(filter)
+    .populate('medicineId')
+    .populate('batchId')
+    .populate('userId', 'name role')
+    .sort({ createdAt: -1 });
+};
+
+// ─── INVENTORY DASHBOARD STATISTICS ──────────────────────────────────────────
+
+const getPharmacyInventoryDashboard = async ({ requester, requestedClinicId = null }) => {
+  const clinicId = resolveClinicContext({ user: requester, requestedClinicId });
+  
+  const medicines = await Medicine.find({ clinicId, isActive: true }).populate('batches');
+  
+  let totalMedicines = medicines.length;
+  let totalInventoryValue = 0;
+  let availableStock = 0;
+  let lowStock = 0;
+  let outOfStock = 0;
+
+  const now = new Date();
+  const thirtyDaysLater = new Date();
+  thirtyDaysLater.setDate(thirtyDaysLater.getDate() + 30);
+
+  let expiring30Days = 0;
+  let expiredMedicines = 0;
+
+  for (const med of medicines) {
+    const stock = med.totalStock || 0;
+    availableStock += stock;
+    
+    if (stock === 0) {
+      outOfStock++;
+    } else if (stock <= (med.reorderLevel || 10)) {
+      lowStock++;
+    }
+
+    let purchasePrice = med.purchasePrice || 0;
+    
+    // Add up value from batches
+    if (med.batches && med.batches.length > 0) {
+      for (const batch of med.batches) {
+        totalInventoryValue += (batch.availableStock || 0) * (batch.purchasePrice || purchasePrice);
+        
+        if (batch.availableStock > 0 && batch.expiryDate) {
+          const expDate = new Date(batch.expiryDate);
+          if (expDate < now) {
+            expiredMedicines++;
+          } else if (expDate <= thirtyDaysLater) {
+            expiring30Days++;
+          }
+        }
+      }
+    } else {
+      totalInventoryValue += stock * purchasePrice;
+    }
+  }
+
+  const purchaseOrdersPending = await PurchaseOrder.countDocuments({
+    clinicId,
+    status: { $in: ['Draft', 'Pending Approval', 'Submitted', 'Partially Received'] }
+  });
+
+  return {
+    totalMedicines,
+    totalInventoryValue: Math.round(totalInventoryValue),
+    availableStock,
+    lowStock,
+    outOfStock,
+    expiring30Days,
+    expiredMedicines,
+    purchaseOrdersPending
+  };
+};
+
 module.exports = {
+  createSupplier,
+  listSuppliers,
+  updateSupplier,
+  deleteSupplier,
+  createPurchaseOrder,
+  listPurchaseOrders,
+  receivePurchaseOrder,
+  adjustStock,
+  listStockLedgers,
+  getPharmacyInventoryDashboard,
   createMedicine,
   listMedicines,
   getMedicineById,
@@ -1201,5 +1666,114 @@ module.exports = {
   getPatientMedicineHistory,
   createPharmacyOrder,
   listPharmacyOrders,
-  updatePharmacyOrderStatus
+  updatePharmacyOrderStatus,
+  searchAllMedicines: async ({ requester, search, clinicId: requestedClinicId }) => {
+    // Use async ensureUserClinicContext so that if clinicId is missing from the JWT
+    // (e.g. token issued before the field was set), the Doctor collection is consulted.
+    const clinicId = requestedClinicId
+      ? String(requestedClinicId)
+      : await ensureUserClinicContext(requester);
+
+    if (!clinicId) {
+      throw new AppError('Clinic context is required for this operation.', HTTP_STATUS.FORBIDDEN);
+    }
+
+    const cleanSearch = (search || '').trim();
+    if (!cleanSearch) {
+      return { generics: [], brands: [], clinicInventory: [] };
+    }
+
+    const regex = new RegExp(escapeRegex(cleanSearch), 'i');
+
+    // 1. Search Medicine Masters (Generics)
+    const generics = await MedicineMaster.find({
+      genericName: regex
+    }).limit(10);
+
+    // 2. Search Brand Masters (Brands)
+    const brands = await BrandMaster.find({
+      $or: [{ brandName: regex }, { manufacturer: regex }]
+    }).populate('genericMedicineId').limit(10);
+
+    // 3. Search Clinic Inventory
+    const clinicInventory = await Medicine.find({
+      clinicId,
+      $or: [{ name: regex }, { genericName: regex }, { brandName: regex }]
+    }).populate('batches').limit(10);
+
+    return {
+      generics,
+      brands,
+      clinicInventory: clinicInventory.map(med => serializeMedicine(med))
+    };
+  },
+  createProcurementRequest: async ({ requester, payload, clinicId: requestedClinicId }) => {
+    const clinicId = requestedClinicId
+      ? String(requestedClinicId)
+      : await ensureUserClinicContext(requester);
+
+    if (!clinicId) {
+      throw new AppError('Clinic context is required for this operation.', HTTP_STATUS.FORBIDDEN);
+    }
+
+    const PharmacyProcurementRequest = require('./pharmacyProcurementRequest.model');
+
+    // Use findOneAndUpdate to increment count if same generic, strength, dosageForm exists
+    const request = await PharmacyProcurementRequest.findOneAndUpdate(
+      {
+        clinicId,
+        genericName: payload.genericName.trim(),
+        strength: (payload.strength || '').trim(),
+        dosageForm: (payload.dosageForm || '').trim()
+      },
+      {
+        $addToSet: {
+          prescribedBy: requester._id,
+          patients: payload.patientId ? payload.patientId : []
+        },
+        $inc: { requestCount: 1 },
+        $set: { status: 'Pending' }
+      },
+      { new: true, upsert: true }
+    );
+
+    return request;
+  },
+  listProcurementRequests: async ({ requester, clinicId: requestedClinicId }) => {
+    const clinicId = requestedClinicId
+      ? String(requestedClinicId)
+      : await ensureUserClinicContext(requester);
+
+    if (!clinicId) {
+      throw new AppError('Clinic context is required for this operation.', HTTP_STATUS.FORBIDDEN);
+    }
+
+    const PharmacyProcurementRequest = require('./pharmacyProcurementRequest.model');
+    return PharmacyProcurementRequest.find({ clinicId })
+      .populate('prescribedBy', 'fullName name')
+      .populate('patients', 'fullName patientId')
+      .sort({ requestCount: -1 });
+  },
+  updateProcurementRequestStatus: async ({ requester, requestId, status, clinicId: requestedClinicId }) => {
+    const clinicId = requestedClinicId
+      ? String(requestedClinicId)
+      : await ensureUserClinicContext(requester);
+
+    if (!clinicId) {
+      throw new AppError('Clinic context is required for this operation.', HTTP_STATUS.FORBIDDEN);
+    }
+
+    const PharmacyProcurementRequest = require('./pharmacyProcurementRequest.model');
+    const request = await PharmacyProcurementRequest.findOneAndUpdate(
+      { _id: requestId, clinicId },
+      { $set: { status } },
+      { new: true }
+    );
+
+    if (!request) {
+      throw new AppError('Procurement request not found.', HTTP_STATUS.NOT_FOUND);
+    }
+
+    return request;
+  }
 };

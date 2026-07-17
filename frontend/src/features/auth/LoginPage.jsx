@@ -30,6 +30,11 @@ const LoginPage = () => {
     setError('');
     try {
       const response = await authApi.login(form);
+      // Doctor first-login: OTP verification required
+      if (response.data?.requiresOtp) {
+        navigate('/doctor-verify-otp', { state: { email: response.data.email }, replace: true });
+        return;
+      }
       setToken(response.data.accessToken);
       setCurrentUser(response.data.user);
       navigate(location.state?.from?.pathname || '/dashboard', { replace: true });

@@ -1,5 +1,7 @@
 import { useState, useRef } from 'react';
 import VitalsForm from './VitalsForm';
+import { useFeatureAccess } from '../../hooks/useFeatureAccess';
+import PremiumFeaturePlaceholder from '../../components/PremiumFeaturePlaceholder';
 
 /* ─── Field class ─── */
 const FC = 'w-full rounded-xl border border-slate-600/40 bg-slate-800/50 px-3.5 py-2.5 text-sm text-slate-200 outline-none transition-all focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/10 placeholder:text-slate-500';
@@ -46,10 +48,12 @@ const ConsultationMainPanel = ({
   const [soapActiveTab, setSoapActiveTab] = useState('subjective');
   const [activeNotesMode, setActiveNotesMode] = useState('free'); // 'free' | 'soap'
   const [isRecording, setIsRecording] = useState(false);
+  const [dictatingField, setDictatingField] = useState(null);
   
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
   const recognitionRef = useRef(null);
+  const inlineRecognitionRef = useRef(null);
 
   const startRecording = async () => {
     try {
@@ -112,6 +116,94 @@ const ConsultationMainPanel = ({
       recognitionRef.current = null;
     }
   };
+  
+  const toggleFieldDictation = (fieldName, currentValue, onUpdate) => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert('Your browser does not support Speech Recognition.');
+      return;
+    }
+
+    if (dictatingField === fieldName) {
+      if (inlineRecognitionRef.current) {
+        inlineRecognitionRef.current.stop();
+      }
+      setDictatingField(null);
+      return;
+    }
+
+    if (inlineRecognitionRef.current) {
+      inlineRecognitionRef.current.stop();
+    }
+
+    setDictatingField(fieldName);
+
+    const rec = new SpeechRecognition();
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.lang = 'en-US';
+
+    let initialVal = currentValue || '';
+    let accumulatedText = '';
+
+    rec.onresult = (event) => {
+      let interimTrans = '';
+      let finalTrans = '';
+
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          finalTrans += event.results[i][0].transcript + ' ';
+        } else {
+          interimTrans += event.results[i][0].transcript;
+        }
+      }
+
+      if (finalTrans) {
+        accumulatedText += finalTrans;
+      }
+
+      const sessionText = (accumulatedText + interimTrans).trim();
+      const updatedValue = initialVal ? (initialVal + ' ' + sessionText).trim() : sessionText;
+      onUpdate(updatedValue);
+    };
+
+    rec.onend = () => {
+      setDictatingField(null);
+    };
+
+    rec.onerror = (e) => {
+      console.error(e);
+      setDictatingField(null);
+    };
+
+    rec.start();
+    inlineRecognitionRef.current = rec;
+  };
+
+  const renderMicButton = (fieldName, currentValue, onUpdate, isTextArea = false) => {
+    const isListening = dictatingField === fieldName;
+    return (
+      <button
+        type="button"
+        onClick={() => toggleFieldDictation(fieldName, currentValue, onUpdate)}
+        className={`absolute right-3 text-slate-400 hover:text-emerald-400 transition-all ${
+          isTextArea ? 'top-3' : 'top-1/2 -translate-y-1/2'
+        } ${isListening ? 'text-red-500 animate-pulse scale-110' : ''}`}
+        title={isListening ? 'Listening... Click to stop' : 'Click to dictate'}
+      >
+        {isListening ? (
+          <span className="relative flex h-4 w-4 items-center justify-center">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+          </span>
+        ) : (
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+          </svg>
+        )}
+      </button>
+    );
+  };
 
   const isReadOnly = consultation?.status === 'completed';
 
@@ -119,82 +211,111 @@ const ConsultationMainPanel = ({
     <div className={`grid gap-4 ${isReadOnly ? 'opacity-80 pointer-events-none' : ''}`}>
 
       {/* ─── AI Voice Dictation & Audio Upload Panel ─── */}
-      <div className="cons-section p-4 bg-slate-800/30 border border-slate-700/40 rounded-2xl">
-        <div className="flex items-center gap-2 mb-2">
-          <span className="text-sm">🎙️</span>
-          <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-400">AI Clinical Dictation & Audio Upload</h3>
-        </div>
-        <p className="text-[11px] text-slate-400 mb-3.5">
-          Record or upload a patient consultation recording. The AI will transcribe and automatically extract vitals, symptoms, diagnosis, and prescriptions.
-        </p>
+      {(() => {
+        const { getFeatureDetail, refresh } = useFeatureAccess();
+        const voiceFeature = getFeatureDetail('voice_to_text');
+        
+        return (
+          <div className="cons-section p-4 bg-slate-800/30 border border-slate-700/40 rounded-2xl">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <span className="text-sm">🎙️</span>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-400">AI Clinical Dictation & Audio Upload</h3>
+              </div>
+              {voiceFeature.isTrial && (
+                <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-bold bg-emerald-500/20 text-emerald-400">
+                  ⭐ Trial Feature: {voiceFeature.daysRemaining} Days Remaining
+                </span>
+              )}
+            </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3 items-end mb-3">
-          {/* File Upload Dropzone */}
-          <div>
-            <label className="block text-[9px] uppercase font-bold text-slate-400 mb-1">Audio File</label>
-            <input
-              type="file"
-              accept=".wav,.mp3,.m4a,.webm,.ogg,audio/*"
-              onChange={(e) => onAudioSelected(e.target.files?.[0] || null)}
-              className="w-full text-xs text-slate-300 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-[10px] file:font-semibold file:bg-emerald-500/10 file:text-emerald-400 hover:file:bg-emerald-500/20 cursor-pointer"
-            />
-            {selectedAudioFile && (
-              <p className="text-[10px] text-emerald-400 mt-1 truncate">📄 Selected: {selectedAudioFile.name}</p>
+            {!voiceFeature.enabled ? (
+              <PremiumFeaturePlaceholder
+                featureCode="voice_to_text"
+                featureName="Voice-to-Text Consultation"
+                description="Converts the doctor's voice into structured consultation notes."
+                onRequested={refresh}
+              />
+            ) : (
+              <>
+                <p className="text-[11px] text-slate-400 mb-3.5">
+                  Record or upload a patient consultation recording. The AI will transcribe and automatically extract vitals, symptoms, diagnosis, and prescriptions.
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3 items-end mb-3">
+                  {/* File Upload Dropzone */}
+                  <div>
+                    <label className="block text-[9px] uppercase font-bold text-slate-400 mb-1">Audio File</label>
+                    <input
+                      type="file"
+                      accept=".wav,.mp3,.m4a,.webm,.ogg,audio/*"
+                      onChange={(e) => onAudioSelected(e.target.files?.[0] || null)}
+                      className="w-full text-xs text-slate-300 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-[10px] file:font-semibold file:bg-emerald-500/10 file:text-emerald-400 hover:file:bg-emerald-500/20 cursor-pointer"
+                    />
+                    {selectedAudioFile && (
+                      <p className="text-[10px] text-emerald-400 mt-1 truncate">📄 Selected: {selectedAudioFile.name}</p>
+                    )}
+                  </div>
+
+                  {/* Controls */}
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={isRecording ? stopRecording : startRecording}
+                      className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${isRecording ? 'bg-red-600 text-white' : 'bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700'}`}
+                    >
+                      <span className={`w-2 h-2 rounded-full ${isRecording ? 'bg-white animate-pulse' : 'bg-red-500'}`} />
+                      {isRecording ? 'Stop' : 'Record Mic'}
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={voiceUploading || (!selectedAudioFile && !form.transcript_text?.trim())}
+                      onClick={onUploadVoiceNote}
+                      className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                    >
+                      {voiceUploading ? (
+                        <>
+                          <div className="w-3.5 h-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                          <span>Processing...</span>
+                        </>
+                      ) : (
+                        <span>🚀 Transcribe & Auto-fill EMR</span>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Live Transcript text field */}
+                <div>
+                  <label className="block text-[9px] uppercase font-bold text-slate-400 mb-1">Live Transcript Preview</label>
+                  <textarea
+                    className="w-full rounded-xl border border-slate-600/40 bg-slate-900/40 px-3 py-2 text-xs font-mono text-slate-300 outline-none placeholder:text-slate-600 min-h-[60px]"
+                    value={form.transcript_text}
+                    onChange={(e) => onFieldChange('transcript_text', e.target.value)}
+                    placeholder="Dictated transcription or typed text ready for AI extraction..."
+                  />
+                </div>
+              </>
             )}
           </div>
-
-          {/* Controls */}
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={isRecording ? stopRecording : startRecording}
-              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${isRecording ? 'bg-red-600 text-white' : 'bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700'}`}
-            >
-              <span className={`w-2 h-2 rounded-full ${isRecording ? 'bg-white animate-pulse' : 'bg-red-500'}`} />
-              {isRecording ? 'Stop' : 'Record Mic'}
-            </button>
-
-            <button
-              type="button"
-              disabled={voiceUploading || (!selectedAudioFile && !form.transcript_text?.trim())}
-              onClick={onUploadVoiceNote}
-              className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-            >
-              {voiceUploading ? (
-                <>
-                  <div className="w-3.5 h-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                  <span>Processing...</span>
-                </>
-              ) : (
-                <span>🚀 Transcribe & Auto-fill EMR</span>
-              )}
-            </button>
-          </div>
-        </div>
-
-        {/* Live Transcript text field */}
-        <div>
-          <label className="block text-[9px] uppercase font-bold text-slate-400 mb-1">Live Transcript Preview</label>
-          <textarea
-            className="w-full rounded-xl border border-slate-600/40 bg-slate-900/40 px-3 py-2 text-xs font-mono text-slate-300 outline-none placeholder:text-slate-600 min-h-[60px]"
-            value={form.transcript_text}
-            onChange={(e) => onFieldChange('transcript_text', e.target.value)}
-            placeholder="Dictated transcription or typed text ready for AI extraction..."
-          />
-        </div>
-      </div>
+        );
+      })()}
 
       {/* ─── Section 1: Chief Complaint ─── */}
       <Section number="1" title="Chief Complaint">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
           <div>
             <label className="block text-xs font-medium text-slate-400 mb-1.5">Chief Complaint *</label>
-            <input
-              className={FC}
-              value={form.chiefComplaint}
-              onChange={(e) => onFieldChange('chiefComplaint', e.target.value)}
-              placeholder="Enter chief complaint..."
-            />
+            <div className="relative">
+              <input
+                className={`${FC} pr-10`}
+                value={form.chiefComplaint}
+                onChange={(e) => onFieldChange('chiefComplaint', e.target.value)}
+                placeholder="Enter chief complaint..."
+              />
+              {renderMicButton('chiefComplaint', form.chiefComplaint, (val) => onFieldChange('chiefComplaint', val))}
+            </div>
           </div>
           <div>
             <label className="block text-xs font-medium text-slate-400 mb-1.5">Duration</label>
@@ -294,13 +415,32 @@ const ConsultationMainPanel = ({
             <label className="block text-xs font-medium text-slate-400 mb-1.5">Primary Diagnosis</label>
             <div className="relative">
               <input
-                className={FC}
+                className={`${FC} pr-14`}
                 value={form.diagnosis.primary}
                 onChange={(e) => onFieldChange('diagnosis.primary', e.target.value)}
                 placeholder="Enter primary diagnosis"
               />
+              <button
+                type="button"
+                onClick={() => toggleFieldDictation('diagnosis.primary', form.diagnosis.primary, (val) => onFieldChange('diagnosis.primary', val))}
+                className={`absolute right-8 top-1/2 -translate-y-1/2 text-slate-400 hover:text-emerald-400 transition-all ${
+                  dictatingField === 'diagnosis.primary' ? 'text-red-500 animate-pulse scale-110' : ''
+                }`}
+                title={dictatingField === 'diagnosis.primary' ? 'Listening... Click to stop' : 'Click to dictate'}
+              >
+                {dictatingField === 'diagnosis.primary' ? (
+                  <span className="relative flex h-4 w-4 items-center justify-center">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                  </span>
+                ) : (
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                  </svg>
+                )}
+              </button>
               <button type="button" className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
               </button>
             </div>
           </div>
@@ -321,12 +461,15 @@ const ConsultationMainPanel = ({
         </div>
         <div className="mt-3">
           <label className="block text-xs font-medium text-slate-400 mb-1.5">Treatment Plan *</label>
-          <textarea
-            className={`${FC} min-h-[60px] resize-y`}
-            value={form.treatmentPlan}
-            onChange={(e) => onFieldChange('treatmentPlan', e.target.value)}
-            placeholder="Enter treatment plan (medicines, lifestyle, advice)..."
-          />
+          <div className="relative">
+            <textarea
+              className={`${FC} min-h-[60px] resize-y pr-10`}
+              value={form.treatmentPlan}
+              onChange={(e) => onFieldChange('treatmentPlan', e.target.value)}
+              placeholder="Enter treatment plan (medicines, lifestyle, advice)..."
+            />
+            {renderMicButton('treatmentPlan', form.treatmentPlan, (val) => onFieldChange('treatmentPlan', val), true)}
+          </div>
         </div>
         <div className="mt-3">
           <label className="flex items-center gap-2 cursor-pointer">
@@ -379,12 +522,15 @@ const ConsultationMainPanel = ({
                 {formatting ? 'Formatting...' : '✨ Format to SOAP'}
               </button>
             </div>
-            <textarea
-              className={`${FC} min-h-[140px] resize-y`}
-              value={form.clinicalNotes}
-              onChange={(e) => onFieldChange('clinicalNotes', e.target.value)}
-              placeholder="Write clinical notes, examination findings, treatment plan, advice..."
-            />
+            <div className="relative">
+              <textarea
+                className={`${FC} min-h-[140px] resize-y pr-10`}
+                value={form.clinicalNotes}
+                onChange={(e) => onFieldChange('clinicalNotes', e.target.value)}
+                placeholder="Write clinical notes, examination findings, treatment plan, advice..."
+              />
+              {renderMicButton('clinicalNotes', form.clinicalNotes, (val) => onFieldChange('clinicalNotes', val), true)}
+            </div>
           </div>
         ) : (
           <div>
@@ -401,12 +547,20 @@ const ConsultationMainPanel = ({
                 </button>
               ))}
             </div>
-            <textarea
-              className={`${FC} min-h-[120px] resize-y`}
-              value={form.formattedClinicalNotes[soapActiveTab] || ''}
-              onChange={(e) => onFormattedNoteChange(soapActiveTab, e.target.value)}
-              placeholder={`Enter ${SOAP_TABS.find(t => t.key === soapActiveTab)?.full} notes...`}
-            />
+            <div className="relative">
+              <textarea
+                className={`${FC} min-h-[120px] resize-y pr-10`}
+                value={form.formattedClinicalNotes[soapActiveTab] || ''}
+                onChange={(e) => onFormattedNoteChange(soapActiveTab, e.target.value)}
+                placeholder={`Enter ${SOAP_TABS.find(t => t.key === soapActiveTab)?.full} notes...`}
+              />
+              {renderMicButton(
+                `formattedClinicalNotes.${soapActiveTab}`,
+                form.formattedClinicalNotes[soapActiveTab],
+                (val) => onFormattedNoteChange(soapActiveTab, val),
+                true
+              )}
+            </div>
           </div>
         )}
       </Section>

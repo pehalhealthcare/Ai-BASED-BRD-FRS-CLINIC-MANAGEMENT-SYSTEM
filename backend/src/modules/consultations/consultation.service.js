@@ -111,7 +111,18 @@ const buildConsultationPayload = (payload = {}) => ({
     ? { treatmentPlan: payload.treatmentPlan?.trim?.() || '' }
     : {}),
   ...(payload.followUp ? { followUp: normalizeFollowUp(payload.followUp) } : {}),
-  ...(payload.status ? { status: payload.status } : {})
+  ...(payload.status ? { status: payload.status } : {}),
+  // Dynamic history & examination fields
+  ...(Array.isArray(payload.pastMedicalHistory) ? { pastMedicalHistory: payload.pastMedicalHistory } : {}),
+  ...(Array.isArray(payload.familyHistory) ? { familyHistory: payload.familyHistory } : {}),
+  ...(Array.isArray(payload.socialHistory) ? { socialHistory: payload.socialHistory } : {}),
+  ...(Array.isArray(payload.lifestyleHistory) ? { lifestyleHistory: payload.lifestyleHistory } : {}),
+  ...(Array.isArray(payload.systemicExamination) ? { systemicExamination: payload.systemicExamination } : {}),
+  ...(Array.isArray(payload.customVitalsList) ? { customVitalsList: payload.customVitalsList } : {}),
+  // Voice note and AI SOAP fields
+  ...(payload.transcript_text ? { transcript_text: payload.transcript_text.trim() } : {}),
+  ...(payload.ai_soap_note ? { ai_soap_note: payload.ai_soap_note } : {}),
+  ...(payload.voiceNoteLanguage ? { voiceNoteLanguage: payload.voiceNoteLanguage } : {})
 });
 
 const getRequesterDoctorProfile = async ({ requester, clinicId }) => {
@@ -202,19 +213,19 @@ const getScopedConsultation = async ({
   requestedClinicId = null,
   populateDetails = true
 }) => {
-  const clinicId = resolveClinicContext({
-    user: requester,
-    requestedClinicId
-  });
-  const consultation = await consultationRepository.findById({
-    id: consultationId,
-    clinicId,
-    populateDetails
-  });
+  const Consultation = require('./consultation.model');
+  let query = Consultation.findById(consultationId);
+  if (populateDetails) {
+    query = query.populate('patientId doctorId appointmentId');
+  }
+  const consultation = await query;
 
   if (!consultation) {
     throw new AppError('Consultation not found.', HTTP_STATUS.NOT_FOUND);
   }
+
+  // Resolve clinicId context based on the consultation itself
+  const clinicId = consultation.clinicId ? String(consultation.clinicId) : null;
 
   // Ensure patients can only view their own consultations
   if (requester.role === ROLES.PATIENT) {
@@ -222,6 +233,15 @@ const getScopedConsultation = async ({
     const linkedPatient = await resolvePatientForRequester({ requester, clinicId });
     if (String(consultation.patientId?._id || consultation.patientId) !== String(linkedPatient._id)) {
       throw new AppError('You do not have permission to access this consultation.', HTTP_STATUS.FORBIDDEN);
+    }
+  } else {
+    // Multi-tenant isolation for staff/doctors
+    const requesterClinicId = resolveClinicContext({
+      user: requester,
+      requestedClinicId
+    });
+    if (String(consultation.clinicId) !== String(requesterClinicId)) {
+      throw new AppError('Consultation not found.', HTTP_STATUS.NOT_FOUND);
     }
   }
 
@@ -459,42 +479,73 @@ const getConsultationById = async ({ requester, consultationId, requestedClinicI
     });
   }
 
+  const prescriptionRepository = require('../prescriptions/prescription.repository');
+  const prescriptions = await prescriptionRepository.findByConsultation({
+    consultationId,
+    clinicId,
+    populateDetails: true
+  });
+  const prescription = prescriptions && prescriptions.length > 0 ? prescriptions[0] : null;
+
   return {
     consultation,
     patient: consultation.patientId,
     doctor: consultation.doctorId,
-    appointment: consultation.appointmentId
+    appointment: consultation.appointmentId,
+    prescription
   };
 };
 
 const getAppointmentConsultation = async ({ requester, appointmentId, requestedClinicId = null }) => {
-  const clinicId = resolveClinicContext({
-    user: requester,
-    requestedClinicId
-  });
-  const consultation = await consultationRepository.findByAppointmentId({
-    appointmentId,
-    clinicId,
-    populateDetails: true
-  });
+  const Consultation = require('./consultation.model');
+  const consultation = await Consultation.findOne({ appointmentId }).populate('patientId doctorId appointmentId');
 
   if (!consultation) {
     throw new AppError('Consultation not found for this appointment.', HTTP_STATUS.NOT_FOUND);
   }
 
-  if (requester.role === ROLES.DOCTOR) {
-    await assertDoctorCanMutate({
-      requester,
-      clinicId,
-      doctorId: consultation.doctorId?._id || consultation.doctorId
+  const clinicId = consultation.clinicId ? String(consultation.clinicId) : null;
+
+  // Ensure patients can only view their own consultations
+  if (requester.role === ROLES.PATIENT) {
+    const { resolvePatientForRequester } = require('../patients/patient.service');
+    const linkedPatient = await resolvePatientForRequester({ requester, clinicId });
+    if (String(consultation.patientId?._id || consultation.patientId) !== String(linkedPatient._id)) {
+      throw new AppError('You do not have permission to access this consultation.', HTTP_STATUS.FORBIDDEN);
+    }
+  } else {
+    // Multi-tenant isolation for staff/doctors
+    const requesterClinicId = resolveClinicContext({
+      user: requester,
+      requestedClinicId
     });
+    if (String(consultation.clinicId) !== String(requesterClinicId)) {
+      throw new AppError('Consultation not found.', HTTP_STATUS.NOT_FOUND);
+    }
+
+    if (requester.role === ROLES.DOCTOR) {
+      await assertDoctorCanMutate({
+        requester,
+        clinicId: requesterClinicId,
+        doctorId: consultation.doctorId?._id || consultation.doctorId
+      });
+    }
   }
+
+  const prescriptionRepository = require('../prescriptions/prescription.repository');
+  const prescriptions = await prescriptionRepository.findByConsultation({
+    consultationId: consultation._id,
+    clinicId,
+    populateDetails: true
+  });
+  const prescription = prescriptions && prescriptions.length > 0 ? prescriptions[0] : null;
 
   return {
     consultation,
     patient: consultation.patientId,
     doctor: consultation.doctorId,
-    appointment: consultation.appointmentId
+    appointment: consultation.appointmentId,
+    prescription
   };
 };
 
@@ -512,7 +563,7 @@ const updateConsultation = async ({ requester, consultationId, payload, requeste
     doctorId: consultation.doctorId?._id || consultation.doctorId
   });
 
-  if (!['draft', 'in_progress'].includes(consultation.status)) {
+  if (!['draft', 'in_progress'].includes(consultation.status) && !(consultation.status === 'completed' && payload.isEdit)) {
     throw new AppError('Only draft or in-progress consultations can be updated.', HTTP_STATUS.BAD_REQUEST);
   }
 
@@ -1103,25 +1154,43 @@ const completeConsultation = async ({ requester, consultationId, payload, reques
     doctorId: consultation.doctorId?._id || consultation.doctorId
   });
 
-  if (consultation.status === 'completed') {
+  if (consultation.status === 'completed' && !payload.isEdit) {
     throw new AppError('Consultation is already completed and cannot be modified.', HTTP_STATUS.BAD_REQUEST);
   }
 
-  consultation.diagnosis = normalizeDiagnosis(payload.diagnosis);
-  consultation.treatmentPlan = payload.treatmentPlan.trim();
+  // Validate required fields before completing
+  const primaryDiagnosis = payload.diagnosis?.primary?.trim() || consultation.diagnosis?.primary?.trim();
+  const treatmentPlanText = payload.treatmentPlan?.trim() || consultation.treatmentPlan?.trim();
+
+  if (!primaryDiagnosis) {
+    throw new AppError('Primary diagnosis is required before completing consultation.', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  if (!treatmentPlanText) {
+    throw new AppError('Treatment plan is required before completing consultation.', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  // Apply all payload fields to consultation
+  const updatedPayload = buildConsultationPayload(payload);
+  Object.assign(consultation, updatedPayload);
+
+  consultation.diagnosis = normalizeDiagnosis(payload.diagnosis || consultation.diagnosis || {});
+  consultation.treatmentPlan = treatmentPlanText;
   if (payload.followUp) {
     consultation.followUp = normalizeFollowUp(payload.followUp);
   }
 
-  if (!consultation.diagnosis?.primary?.trim()) {
-    throw new AppError('diagnosis.primary is required before completing a consultation.', HTTP_STATUS.BAD_REQUEST);
-  }
-
-  if (!consultation.treatmentPlan?.trim()) {
-    throw new AppError('treatmentPlan is required before completing a consultation.', HTTP_STATUS.BAD_REQUEST);
-  }
+  if (payload.pastMedicalHistory !== undefined) consultation.pastMedicalHistory = payload.pastMedicalHistory;
+  if (payload.familyHistory !== undefined) consultation.familyHistory = payload.familyHistory;
+  if (payload.socialHistory !== undefined) consultation.socialHistory = payload.socialHistory;
+  if (payload.lifestyleHistory !== undefined) consultation.lifestyleHistory = payload.lifestyleHistory;
+  if (payload.systemicExamination !== undefined) consultation.systemicExamination = payload.systemicExamination;
+  if (payload.customVitalsList !== undefined) consultation.customVitalsList = payload.customVitalsList;
 
   consultation.status = 'completed';
+  if (payload.isEdit) {
+    consultation.editCompleted = true;
+  }
   consultation.completedAt = new Date();
   if (!consultation.startedAt) {
     consultation.startedAt = new Date();
@@ -1231,6 +1300,8 @@ const completeConsultation = async ({ requester, consultationId, payload, reques
     const Invoice = require('../billing/invoice.model');
     const billingService = require('../billing/billing.service');
     const Doctor = require('../doctors/doctor.model');
+    const doctorId = consultation.doctorId?._id || consultation.doctorId;
+    const doctorDoc = await Doctor.findById(doctorId).lean();
     const appointmentId = consultation.appointmentId?._id || consultation.appointmentId;
     let invoice = await Invoice.findOne({
       $or: [
@@ -1438,13 +1509,20 @@ const downloadConsultationPdf = async ({ requester, consultationId, requestedCli
 
   const Clinic = require('../clinics/clinic.model');
   const Prescription = require('../prescriptions/prescription.model');
-  const clinic = await Clinic.findById(clinicId).lean();
-  const patient = consultation.patientId;
-  const doctor = consultation.doctorId;
   const prescription = await Prescription.findOne({
     consultationId: consultation._id,
     clinicId
   }).sort({ updatedAt: -1 }).lean();
+
+  // Prescription isLocked check removed for pre-consultation payment flow
+
+  const clinic = await Clinic.findById(clinicId).lean();
+  const patient = consultation.patientId;
+  const doctor = consultation.doctorId;
+  // const prescription = await Prescription.findOne({
+  //   consultationId: consultation._id,
+  //   clinicId
+  // }).sort({ updatedAt: -1 }).lean();
 
   const { generateConsultationPdf } = require('./consultationPdf.service');
   const { filePath, relativePath } = await generateConsultationPdf({

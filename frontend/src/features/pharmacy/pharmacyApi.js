@@ -12,5 +12,7 @@ export const getDispensing = (id) => pharmacyApi.getDispensing(id);
 export const cancelDispensing = (id, payload) => pharmacyApi.cancelDispensing(id, payload);
 export const getPatientMedicineHistory = (patientId, params) => patientApi.medicines(patientId, params);
 export const getPrescription = (id) => prescriptionApi.get(id);
+export const listMedicineMasters = (params) => pharmacyApi.listMedicineMasters(params);
+export const listBrandMasters = (params) => pharmacyApi.listBrandMasters(params);
 
 export default pharmacyApi;

@@ -119,11 +119,11 @@ const patientPayloadSchema = z.object({
     .optional(),
   pregnancyHistory: z.string().trim().optional(),
   lmpDate: z.coerce.date().nullable().optional(),
-  emergencyContact: emergencyContactSchema,
+  emergencyContact: emergencyContactSchema.optional(),
   documents: z.array(documentSchema).optional(),
   isActive: z.boolean().optional(),
   clinicId: objectIdSchema.optional(),
-  insuranceDetails: insuranceDetailsSchema,
+  insuranceDetails: insuranceDetailsSchema.optional(),
   paymentMethods: z.array(paymentMethodSchema).optional()
 });
 

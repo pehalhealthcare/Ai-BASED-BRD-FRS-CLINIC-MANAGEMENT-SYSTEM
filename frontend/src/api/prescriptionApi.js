@@ -12,6 +12,10 @@ export const prescriptionApi = {
   downloadPdf: async (id) =>
     axiosClient.get(`/prescriptions/${id}/download`, {
       responseType: 'blob'
+    }),
+  download: async (id) =>
+    axiosClient.get(`/prescriptions/${id}/download`, {
+      responseType: 'blob'
     })
 };
 

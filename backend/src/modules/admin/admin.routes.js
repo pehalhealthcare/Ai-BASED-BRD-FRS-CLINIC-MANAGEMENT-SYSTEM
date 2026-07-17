@@ -52,69 +52,10 @@ router.patch(
 );
 
 router.get(
-  '/pending-doctors',
-  protect,
-  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),
-  adminController.listPendingDoctors
-);
-
-router.post(
-  '/approve-doctor/:userId',
-  protect,
-  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),
-  validate(approveDoctorSchema),
-  adminController.approveDoctor
-);
-
-router.post(
-  '/reject-doctor/:userId',
-  protect,
-  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),
-  adminController.rejectDoctor
-);
-
-router.get(
   '/my-doctors/dashboard',
   protect,
   authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),
   adminController.getMyDoctorsDashboard
-);
-
-router.post(
-  '/doctors/:userId/re-edit',
-  protect,
-  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),
-  adminController.reEditDoctor
-);
-
-// Receptionist approval & dashboard routes
-router.get(
-  '/pending-receptionists',
-  protect,
-  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),
-  adminController.listPendingReceptionists
-);
-
-router.post(
-  '/approve-receptionist/:userId',
-  protect,
-  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),
-  validate(approveReceptionistSchema),
-  adminController.approveReceptionist
-);
-
-router.post(
-  '/reject-receptionist/:userId',
-  protect,
-  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),
-  adminController.rejectReceptionist
-);
-
-router.post(
-  '/receptionists/:userId/re-edit',
-  protect,
-  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),
-  adminController.reEditReceptionist
 );
 
 router.get(
@@ -122,6 +63,60 @@ router.get(
   protect,
   authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),
   adminController.getMyReceptionistsDashboard
+);
+
+// Doctor approval workflow
+router.get(
+  '/pending-doctors',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),
+  adminController.listPendingDoctors
+);
+router.post(
+  '/approve-doctor/:userId',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),
+  validate(approveDoctorSchema),
+  adminController.approveDoctor
+);
+router.post(
+  '/reject-doctor/:userId',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),
+  adminController.rejectDoctor
+);
+router.post(
+  '/doctors/:userId/re-edit',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),
+  adminController.reEditDoctor
+);
+
+// Receptionist approval workflow
+router.get(
+  '/pending-receptionists',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),
+  adminController.listPendingReceptionists
+);
+router.post(
+  '/approve-receptionist/:userId',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),
+  validate(approveReceptionistSchema),
+  adminController.approveReceptionist
+);
+router.post(
+  '/reject-receptionist/:userId',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),
+  adminController.rejectReceptionist
+);
+router.post(
+  '/receptionists/:userId/re-edit',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),
+  adminController.reEditReceptionist
 );
 
 module.exports = router;

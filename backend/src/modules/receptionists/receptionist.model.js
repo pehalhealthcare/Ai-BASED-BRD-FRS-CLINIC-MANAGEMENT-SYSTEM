@@ -47,12 +47,6 @@ const receptionistSchema = new mongoose.Schema(
         ref: 'Clinic'
       }
     ],
-    organizationId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Organization',
-      required: false,
-      default: null
-    },
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
@@ -87,8 +81,9 @@ const receptionistSchema = new mongoose.Schema(
     },
     phone: {
       type: String,
-      required: true,
-      trim: true
+      required: false,
+      trim: true,
+      default: ''
     },
     email: {
       type: String,
@@ -136,7 +131,18 @@ const receptionistSchema = new mongoose.Schema(
     availability: [receptionistAvailabilitySchema],
     approvalStatus: {
       type: String,
-      enum: ['pending_profile', 'pending_approval', 'approved', 'rejected', 're_edit'],
+      enum: [
+        'pending_profile',
+        'pending_approval',
+        'approved',
+        'rejected',
+        're_edit',
+        'pending_invitation',
+        'otp_verification_pending',
+        'onboarding_in_progress',
+        'changes_requested',
+        'disabled'
+      ],
       default: 'pending_profile'
     },
     hasAcceptedSlot: {

@@ -19,8 +19,8 @@ const isBatchExpired = (expiryDate, today = new Date()) => {
   const start = toDayStart(today).getTime();
   const diffDays = Math.ceil((expiry - start) / (24 * 60 * 60 * 1000));
 
-  // Treat as expired/unavailable if actual date is in the past OR if less than 30 days (1 month) are left
-  return diffDays <= 30;
+  // Treat as expired/unavailable if actual date is in the past
+  return diffDays <= 0;
 };
 
 const getNearExpiryStatus = (expiryDate, today = new Date()) => {
@@ -35,8 +35,11 @@ const getNearExpiryStatus = (expiryDate, today = new Date()) => {
   return diffDays <= 30;
 };
 
-const recalculateTotalStock = (medicine, today = new Date()) =>
-  (medicine?.batches || []).reduce((total, batch) => {
+const recalculateTotalStock = (medicine, today = new Date()) => {
+  if (!medicine?.batches || medicine.batches.length === 0) {
+    return medicine?.totalStock || 0;
+  }
+  return medicine.batches.reduce((total, batch) => {
     const quantity = Number(batch?.quantity || 0);
 
     if (quantity <= 0 || isBatchExpired(batch?.expiryDate, today)) {
@@ -45,6 +48,7 @@ const recalculateTotalStock = (medicine, today = new Date()) =>
 
     return total + quantity;
   }, 0);
+};
 
 const getMedicineStockFlags = (medicine, today = new Date()) => {
   const totalStock = recalculateTotalStock(medicine, today);
@@ -85,6 +89,7 @@ const allocateDispensingBatches = ({ medicine, requestedQuantity, today = new Da
     }
 
     medicine.batches[candidate.index].quantity = availableQuantity - allocatedQuantity;
+    medicine.batches[candidate.index].availableStock = availableQuantity - allocatedQuantity;
     allocations.push({
       batchNumber: candidate.batch.batchNumber,
       quantity: allocatedQuantity,

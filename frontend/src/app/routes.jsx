@@ -10,9 +10,11 @@ import ReceptionistReview from '../features/admin/ReceptionistReview';
 import MyReceptionistsDashboard from '../features/admin/MyReceptionistsDashboard';
 import ClinicSettingsPage from '../features/admin/ClinicSettingsPage';
 import SpecialitiesAdminPage from '../features/admin/SpecialitiesAdminPage';
+import BranchesAdminPage from '../features/admin/BranchesAdminPage';
 import SuperAdminDashboard from '../features/super-admin/SuperAdminDashboard';
 import MyDoctorsDashboard from '../features/super-admin/MyDoctorsDashboard';
-import OrganizationsPage from '../features/super-admin/OrganizationsPage';
+// import SuperAdminClinics from '../features/super-admin/SuperAdminClinics';
+import ClinicOnboarding from '../features/clinics/ClinicOnboarding';
 import PatientPortalPage from '../features/patients/PatientPortalPage';
 import AppointmentCreatePage from '../features/appointments/AppointmentCreatePage';
 import AppointmentDetailsPage from '../features/appointments/AppointmentDetailsPage';
@@ -34,6 +36,7 @@ import LabOrderDetailPage from '../features/labs/LabOrderDetailPage';
 import LabOrdersPage from '../features/labs/LabOrdersPage';
 import LabReportPage from '../features/labs/LabReportPage';
 import LabTestCatalogPage from '../features/labs/LabTestCatalogPage';
+import LabConsumablesPage from '../features/labs/LabConsumablesPage';
 import FollowUpTasksPage from '../features/notifications/FollowUpTasksPage';
 import NotificationLogsPage from '../features/notifications/NotificationLogsPage';
 import NotificationTemplatesPage from '../features/notifications/NotificationTemplatesPage';
@@ -48,6 +51,7 @@ import MedicineCatalogPage from '../features/pharmacy/MedicineCatalogPage';
 import MedicineDetailPage from '../features/pharmacy/MedicineDetailPage';
 import MedicineFormPage from '../features/pharmacy/MedicineFormPage';
 import PatientMedicineHistory from '../features/pharmacy/PatientMedicineHistory';
+import PharmacyAdminPage from '../features/pharmacy/PharmacyAdminPage';
 import CreateInvoicePage from '../features/billing/CreateInvoicePage';
 import InvoiceDetailPage from '../features/billing/InvoiceDetailPage';
 import PaymentCheckoutPage from '../features/billing/PaymentCheckoutPage';
@@ -62,6 +66,8 @@ import ChatbotPage from '../pages/ai/ChatbotPage';
 import LabTestsPage from '../features/patients/LabTestsPage';
 import PharmacyStorePage from '../features/patients/PharmacyStorePage';
 import useAuth from '../hooks/useAuth';
+import ProvidersPage from '../features/providers/ProvidersPage';
+import ProviderMappingPage from '../features/providers/ProviderMappingPage';
 
 const LabTestsRoute = () => {
   const { user } = useAuth();
@@ -76,10 +82,33 @@ const PharmacyRoute = () => {
   if (user?.role === ROLES.PATIENT) {
     return <PharmacyStorePage />;
   }
+  if (user?.role === ROLES.ADMIN) {
+    return <PharmacyAdminPage />;
+  }
   return <MedicineCatalogPage />;
+};
+
+const BillingRoute = () => {
+  const { user } = useAuth();
+  if (user?.role === ROLES.ADMIN) {
+    return <BillingAdminPage />;
+  }
+  return <BillingPage />;
+};
+
+const NotificationsRoute = () => {
+  const { user } = useAuth();
+  if (user?.role === ROLES.ADMIN) {
+    return <NotificationsAdminPage />;
+  }
+  return <NotificationLogsPage />;
 };
 import AppointmentCalendarPage from '../pages/appointments/AppointmentCalendarPage';
 import BillingPage from '../pages/billing/BillingPage';
+import BillingAdminPage from '../features/billing/BillingAdminPage';
+import NotificationsAdminPage from '../features/notifications/NotificationsAdminPage';
+import SettingsAdminPage from '../features/admin/SettingsAdminPage';
+import EmergencyPage from '../pages/emergency/EmergencyPage';
 import ConsultationPage from '../pages/consultations/ConsultationPage';
 import DashboardPage from '../pages/DashboardPage';
 import LoginPage from '../pages/LoginPage';
@@ -92,8 +121,36 @@ import DoctorLeavesPage from '../features/doctors/DoctorLeavesPage';
 import DoctorEarningsPage from '../features/doctors/DoctorEarningsPage';
 import AdminLeavesReviewPage from '../features/admin/AdminLeavesReviewPage';
 import AdminLeavePolicyPage from '../features/admin/AdminLeavePolicyPage';
+import DepartmentsPage from '../features/admin/DepartmentsPage';
+import ReportsPage from '../features/admin/ReportsPage';
+import SubscriptionPage from '../features/admin/SubscriptionPage';
 import PatientAppointmentsPage from '../features/patients/PatientAppointmentsPage';
 import LandingPage from '../pages/LandingPage';
+import ClinicWizard from '../features/clinics/ClinicWizard';
+import SuperAdminClinics from '../features/super-admin/SuperAdminClinics';
+import SuperAdminPlans from '../features/super-admin/SuperAdminPlans';
+import SuperAdminPromoCodes from '../features/super-admin/SuperAdminPromoCodes';
+import GlobalLabTestsPage from '../features/healthcare-catalog/GlobalLabTestsPage';
+import GlobalMedicinePage from '../features/healthcare-catalog/GlobalMedicinePage';
+import ClinicStatusDashboard from '../features/clinics/ClinicStatusDashboard';
+import ClinicCorrectionsPortal from '../features/clinics/ClinicCorrectionsPortal';
+import ClinicSuspendedExpired from '../features/clinics/ClinicSuspendedExpired';
+import DoctorOtpVerification from '../features/doctors/DoctorOtpVerification';
+import StaffOtpVerification from '../features/auth/StaffOtpVerification';
+
+const PremiumPlaceholderPage = ({ title }) => (
+  <div className="p-8 bg-white rounded-3xl border border-slate-100 shadow-sm max-w-xl mx-auto my-12 text-center space-y-4">
+    <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto">
+      <Sparkles className="w-6 h-6" />
+    </div>
+    <h3 className="text-base font-black text-slate-900">{title} Module</h3>
+    <p className="text-xs text-slate-400">
+      This module is enabled in your subscription plan. The full dashboard visual layouts for {title} will be configured in the next phase.
+    </p>
+  </div>
+);
+
+import { Sparkles } from 'lucide-react';
 
 const protect = (element, allowedRoles = []) => (
   <ProtectedRoute allowedRoles={allowedRoles}>{element}</ProtectedRoute>
@@ -105,12 +162,45 @@ export const router = createBrowserRouter([
     element: <LandingPage />
   },
   {
+    path: '/set-your-clinic',
+    element: <ClinicWizard />
+  },
+  {
     path: '/login',
     element: <LoginPage />
+  },
+  // Clinic Admin status portals (no sidebar – full-page)
+  {
+    path: '/clinic/status',
+    element: protect(<ClinicStatusDashboard />, [ROLES.ADMIN])
+  },
+  {
+    path: '/clinic/corrections',
+    element: protect(<ClinicCorrectionsPortal />, [ROLES.ADMIN])
+  },
+  {
+    path: '/clinic/suspended',
+    element: protect(<ClinicSuspendedExpired mode="suspended" />, [ROLES.ADMIN])
+  },
+  {
+    path: '/clinic/expired',
+    element: protect(<ClinicSuspendedExpired mode="expired" />, [ROLES.ADMIN])
+  },
+  {
+    path: '/clinic/onboarding',
+    element: protect(<ClinicOnboarding />, [ROLES.ADMIN])
   },
   {
     path: '/register',
     element: <RegisterPage />
+  },
+  {
+    path: '/doctor-verify-otp',
+    element: <DoctorOtpVerification />
+  },
+  {
+    path: '/staff-verify-otp',
+    element: <StaffOtpVerification />
   },
   {
     element: protect(<DashboardLayout />),
@@ -128,8 +218,24 @@ export const router = createBrowserRouter([
         element: protect(<UsersAdminPage />, [ROLES.ADMIN])
       },
       {
-        path: 'super-admin/dashboard',
-        element: protect(<OrganizationsPage />, [ROLES.SUPER_ADMIN])
+        path: 'super-admin/clinics',
+        element: protect(<SuperAdminClinics />, [ROLES.SUPER_ADMIN])
+      },
+      {
+        path: 'super-admin/plans',
+        element: protect(<SuperAdminPlans />, [ROLES.SUPER_ADMIN])
+      },
+      {
+        path: 'super-admin/promo-codes',
+        element: protect(<SuperAdminPromoCodes />, [ROLES.SUPER_ADMIN])
+      },
+      {
+        path: 'super-admin/healthcare-catalog/labs',
+        element: protect(<GlobalLabTestsPage />, [ROLES.SUPER_ADMIN])
+      },
+      {
+        path: 'super-admin/healthcare-catalog/medicines',
+        element: protect(<GlobalMedicinePage />, [ROLES.SUPER_ADMIN])
       },
       {
         path: 'admin/clinics-dashboard',
@@ -144,6 +250,14 @@ export const router = createBrowserRouter([
         element: protect(<MyReceptionistsDashboard />, [ROLES.ADMIN])
       },
       {
+        path: 'admin/providers',
+        element: protect(<ProvidersPage />, [ROLES.ADMIN])
+      },
+      {
+        path: 'admin/providers/:providerId/mapping',
+        element: protect(<ProviderMappingPage />, [ROLES.ADMIN])
+      },
+      {
         path: 'admin/organization-settings',
         element: protect(<OrganizationSettingsPage />, [ROLES.ADMIN])
       },
@@ -154,6 +268,26 @@ export const router = createBrowserRouter([
       {
         path: 'admin/specialities',
         element: protect(<SpecialitiesAdminPage />, [ROLES.ADMIN])
+      },
+      {
+        path: 'admin/branches',
+        element: protect(<BranchesAdminPage />, [ROLES.ADMIN])
+      },
+      {
+        path: 'admin/subscription',
+        element: protect(<SubscriptionPage />, [ROLES.ADMIN])
+      },
+      {
+        path: 'admin/departments',
+        element: protect(<DepartmentsPage />, [ROLES.ADMIN])
+      },
+      {
+        path: 'admin/reports',
+        element: protect(<ReportsPage />, [ROLES.ADMIN])
+      },
+      {
+        path: 'admin/settings',
+        element: protect(<SettingsAdminPage />, [ROLES.ADMIN])
       },
       {
         path: 'dashboard',
@@ -260,6 +394,10 @@ export const router = createBrowserRouter([
         element: protect(<LabTestsRoute />, [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.DOCTOR, ROLES.RECEPTIONIST, ROLES.LAB_TECHNICIAN, ROLES.PATIENT])
       },
       {
+        path: 'labs/consumables',
+        element: protect(<LabConsumablesPage />, [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.LAB_TECHNICIAN])
+      },
+      {
         path: 'labs/orders',
         element: protect(<LabOrdersPage />, [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.DOCTOR, ROLES.RECEPTIONIST, ROLES.LAB_TECHNICIAN])
       },
@@ -301,7 +439,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'notifications/logs',
-        element: protect(<NotificationLogsPage />, [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR])
+        element: protect(<NotificationsRoute />, [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR])
       },
       {
         path: 'notifications/send',
@@ -329,7 +467,11 @@ export const router = createBrowserRouter([
       },
       {
         path: 'billing',
-        element: protect(<BillingPage />, [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.RECEPTIONIST])
+        element: protect(<BillingRoute />, [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.RECEPTIONIST])
+      },
+      {
+        path: 'emergency',
+        element: protect(<EmergencyPage />, [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.RECEPTIONIST])
       },
       {
         path: 'billing/create',

@@ -348,8 +348,8 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
     try {
       const [profileRes, specsRes, orgsRes, clinicsRes] = await Promise.all([
         doctorApi.getMyProfile(),
-        specializationApi.list(),
-        organizationApi.getPublic(),
+        specializationApi.list().catch(() => ({ data: { specializations: [] } })),
+        organizationApi.getPublic().catch(() => ({ data: { organizations: [] } })),
         clinicApi.list().catch(() => ({ clinics: [] }))
       ]);
       

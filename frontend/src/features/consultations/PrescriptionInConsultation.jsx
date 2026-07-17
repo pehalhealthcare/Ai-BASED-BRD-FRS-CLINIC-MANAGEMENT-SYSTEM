@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { pharmacyApi, labApi } from '../../lib/api';
+import { labApi } from '../../lib/api';
 import LabTestSearchPanel from './LabTestSearchPanel';
-import PharmacySearchPanel from './PharmacySearchPanel';
+import SmartPrescriptionSearch from './SmartPrescriptionSearch';
 
 const FIELD_CLASS = 'w-full rounded-xl border border-slate-600/40 bg-slate-800/50 px-3 py-2 text-xs text-slate-200 outline-none transition-all focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/10 placeholder:text-slate-500';
 const SELECT_CLASS = 'w-full rounded-xl border border-slate-600/40 bg-slate-800/50 px-3 py-2 text-xs text-slate-200 outline-none transition-all focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/10 cursor-pointer';
@@ -24,9 +24,7 @@ export default function PrescriptionInConsultation({
   isDraft = true
 }) {
   const [isSearchPanelOpen, setIsSearchPanelOpen] = useState(false);
-  const [isPharmacySearchOpen, setIsPharmacySearchOpen] = useState(false);
-  const [searchResults, setSearchResults] = useState([]);
-  const [activeSearchIndex, setActiveSearchIndex] = useState(null);
+  const [isSmartSearchOpen, setIsSmartSearchOpen] = useState(false);
   const [availableTests, setAvailableTests] = useState([]);
 
   // Load available lab tests for selection
@@ -42,30 +40,14 @@ export default function PrescriptionInConsultation({
     fetchTests();
   }, []);
 
-  const handleMedicineSearch = async (index, query) => {
-    handleMedicineChange(index, 'medicineName', query);
-    if (!query.trim()) {
-      setSearchResults([]);
-      setActiveSearchIndex(null);
-      return;
-    }
-    try {
-      const res = await pharmacyApi.listMedicines({ search: query, limit: 5, isActive: true });
-      if (res?.medicines) {
-        setSearchResults(res.medicines);
-        setActiveSearchIndex(index);
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const selectMedicine = (index, med) => {
-    handleMedicineChange(index, 'medicineName', med.name);
-    handleMedicineChange(index, 'genericName', med.genericName || '');
-    handleMedicineChange(index, 'dosage', med.strength || '');
-    setSearchResults([]);
-    setActiveSearchIndex(null);
+  // When SmartPrescriptionSearch saves, merge the rows into medicines
+  const handleSmartPrescriptionSave = (rows) => {
+    const existingNamed = medicines.filter(m => m.medicineName?.trim());
+    const merged = [
+      ...existingNamed,
+      ...rows.filter(r => !existingNamed.some(e => e.medicineName === r.medicineName))
+    ];
+    setMedicines(merged.length ? merged : rows);
   };
 
   const handleMedicineChange = (index, field, value) => {
@@ -167,11 +149,11 @@ export default function PrescriptionInConsultation({
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => setIsPharmacySearchOpen(true)}
-              className="flex items-center gap-1 text-xs text-emerald-400 hover:text-emerald-300 transition-colors font-semibold"
+              onClick={() => setIsSmartSearchOpen(true)}
+              className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white transition-all shadow-md shadow-violet-900/30 active:scale-95"
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-              Search & Offer Medicines
+              Search Medicine
             </button>
             <button
               type="button"
@@ -179,7 +161,7 @@ export default function PrescriptionInConsultation({
               className="flex items-center gap-1 text-xs text-slate-400 hover:text-white transition-colors font-semibold"
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14"/></svg>
-              Add Medicine
+              Add
             </button>
           </div>
         </div>
@@ -188,30 +170,16 @@ export default function PrescriptionInConsultation({
           <div className="grid gap-3">
             {medicines.map((med, idx) => (
               <div key={idx} className="relative p-3 rounded-xl border border-slate-700/30 bg-slate-900/20 grid grid-cols-1 md:grid-cols-12 gap-2.5 items-end">
-                {/* Medicine Name with Autocomplete */}
+                
+                {/* Medicine Name */}
                 <div className="md:col-span-4">
                   <label className="block text-[10px] text-slate-400 mb-1">Medicine Name *</label>
                   <input
                     className={FIELD_CLASS}
                     value={med.medicineName}
-                    onChange={(e) => handleMedicineSearch(idx, e.target.value)}
-                    placeholder="Search medicine..."
+                    onChange={(e) => handleMedicineChange(idx, 'medicineName', e.target.value)}
+                    placeholder="Medicine name"
                   />
-                  {activeSearchIndex === idx && searchResults.length > 0 && (
-                    <div className="absolute z-50 left-3 right-3 md:left-auto md:w-64 mt-1 rounded-xl border border-slate-700 bg-slate-900 shadow-2xl overflow-hidden max-h-48 overflow-y-auto">
-                      {searchResults.map((result) => (
-                        <button
-                          key={result._id}
-                          type="button"
-                          onClick={() => selectMedicine(idx, result)}
-                          className="w-full text-left px-3.5 py-2 text-xs text-slate-200 hover:bg-slate-800/80 transition-colors border-b border-slate-800/40 last:border-0"
-                        >
-                          <p className="font-semibold text-emerald-400">{result.name}</p>
-                          <p className="text-[10px] text-slate-400 font-mono">{result.genericName} - {result.strength}</p>
-                        </button>
-                      ))}
-                    </div>
-                  )}
                 </div>
 
                 <div className="md:col-span-2">
@@ -298,13 +266,24 @@ export default function PrescriptionInConsultation({
 
                 <div className="md:col-span-2">
                   <label className="block text-[10px] text-slate-400 mb-1">Qty</label>
-                  <input
-                    type="number"
-                    className={FIELD_CLASS}
-                    value={med.quantity}
-                    onChange={(e) => handleMedicineChange(idx, 'quantity', e.target.value ? Number(e.target.value) : '')}
-                    placeholder="Qty"
-                  />
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      className={FIELD_CLASS}
+                      value={med.quantity}
+                      onChange={(e) => handleMedicineChange(idx, 'quantity', e.target.value ? Number(e.target.value) : '')}
+                      placeholder="Qty"
+                    />
+                    <label className="flex items-center gap-1.5 cursor-pointer select-none text-[10px] text-slate-300 font-semibold shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={med.isSubstituteAllowed !== false}
+                        onChange={(e) => handleMedicineChange(idx, 'isSubstituteAllowed', e.target.checked)}
+                        className="rounded bg-slate-800 border-slate-700 text-emerald-500 focus:ring-0"
+                      />
+                      Sub Allowed
+                    </label>
+                  </div>
                 </div>
               </div>
             ))}
@@ -510,15 +489,11 @@ export default function PrescriptionInConsultation({
         }}
       />
 
-      <PharmacySearchPanel
-        isOpen={isPharmacySearchOpen}
-        onClose={() => setIsPharmacySearchOpen(false)}
-        patient={patient}
-        consultation={consultation}
-        onAddMedicines={(selected) => {
-          // merge selected medicines into the current medicines state
-          setMedicines([...medicines.filter(m => m.medicineName), ...selected]);
-        }}
+      <SmartPrescriptionSearch
+        isOpen={isSmartSearchOpen}
+        onClose={() => setIsSmartSearchOpen(false)}
+        onSavePrescription={handleSmartPrescriptionSave}
+        initialCart={[]}
       />
     </div>
   );

@@ -29,7 +29,7 @@ const RegisterPage = () => {
     email: '',
     phone: '',
     password: '',
-    role: 'RECEPTIONIST',
+    role: 'PATIENT',
     gender: 'male',
     dateOfBirth: '',
     age: '',
@@ -334,32 +334,19 @@ const RegisterPage = () => {
       {/* ── HEADER ── */}
       <header className="bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between shadow-sm shrink-0">
         <Link to="/" className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-teal-600 flex items-center justify-center text-white shadow-md shadow-teal-500/20">
+          <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
             <Heart size={20} fill="currentColor" />
           </div>
           <span className="text-lg font-black tracking-tight text-slate-900">
-            Smart Clinic <span className="text-teal-600 font-bold">Management System</span>
+            AICMS <span className="text-blue-600 font-bold">Portal</span>
           </span>
         </Link>
 
-        <nav className="hidden md:flex items-center gap-8 text-sm font-bold text-slate-600">
-          <Link to="/" className="hover:text-teal-600 transition flex items-center gap-1.5">
-            <User size={16} /> Find Doctor
+        <div className="flex items-center gap-2">
+          <Link to="/" className="text-xs font-bold text-slate-600 hover:text-blue-650 transition">
+            Back to Home
           </Link>
-          <Link to="/" className="hover:text-teal-600 transition flex items-center gap-1.5">
-            <Pill size={16} /> Order Medicine
-          </Link>
-          <Link to="/" className="hover:text-teal-600 transition flex items-center gap-1.5">
-            <FlaskConical size={16} /> Lab Test
-          </Link>
-          <Link to="/" className="hover:text-teal-600 transition flex items-center gap-1.5 text-rose-600">
-            <AlertTriangle size={16} /> Emergency
-          </Link>
-        </nav>
-
-        <Link to="/" className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-sm font-bold transition shadow-sm">
-          Get Started
-        </Link>
+        </div>
       </header>
 
       {/* ── SPLIT BODY ── */}
@@ -368,15 +355,15 @@ const RegisterPage = () => {
         {/* Left Side: Benefits and Stats */}
         <div className="flex-1 bg-white border border-slate-200/60 rounded-3xl p-8 flex flex-col justify-between shadow-sm">
           <div className="space-y-6">
-            <span className="inline-block px-3 py-1 rounded-full bg-teal-50 border border-teal-100 text-[10px] font-bold text-teal-600 uppercase tracking-wider">
-              Your Health, Our Priority
+            <span className="inline-block px-3 py-1 rounded-full bg-purple-50 border border-purple-100 text-[10px] font-bold text-purple-650 uppercase tracking-wider">
+              Patient Portal Access
             </span>
             <h2 className="text-3xl font-black text-slate-900 leading-tight">
               Smart Healthcare, <br />
-              <span className="text-teal-600">Simplified for You</span>
+              <span className="text-purple-600">Simplified for You</span>
             </h2>
             <p className="text-sm text-slate-500 leading-relaxed max-w-md">
-              Smart Clinic Management System connects you with the best doctors, clinics, and health services – all in one place. Book appointments, order medicines, run lab tests and get emergency help anytime, anywhere.
+              Access your prescriptions, schedule clinic visits, receive lab results, and chat with our smart triage assistant.
             </p>
 
             {/* Benefits Grid */}
@@ -497,22 +484,8 @@ const RegisterPage = () => {
                 />
               </label>
 
-              <label className="grid gap-2 text-sm font-medium text-stone-700">
-                <span>Role</span>
-                <select
-                  value={form.role}
-                  onChange={(event) => updateField('role', event.target.value)}
-                  className="w-full rounded-2xl border border-stone-300 bg-white text-stone-900 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                >
-                  {REGISTRATION_ROLES.map((role) => (
-                    <option key={role.value} value={role.value}>
-                      {role.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <div className="md:col-span-2 rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-600">
-                Receptionist and doctor accounts unlock the clinic workflow modules. Patient accounts stay focused on the symptom chatbot.
+              <div className="md:col-span-2 rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-xs text-stone-605 text-stone-600 font-semibold">
+                This is a dedicated Patient account registration. Staff, receptionist, and doctor accounts are created directly by the clinic administrator.
               </div>
 
               {form.role === 'PATIENT' && (
@@ -1065,14 +1038,14 @@ const RegisterPage = () => {
       </div>
 
       {/* ── FOOTER BAR ── */}
-      <footer className="bg-gradient-to-r from-teal-950 via-teal-900 to-teal-950 text-[11px] font-bold text-teal-100/80 py-5 px-6 flex flex-col md:flex-row items-center justify-between gap-4 shrink-0 shadow-inner">
+      <footer className="bg-slate-905 bg-slate-900 text-[11px] font-bold text-slate-450 py-5 px-6 flex flex-col md:flex-row items-center justify-between gap-4 shrink-0 shadow-inner">
         <div className="flex items-center gap-2">
-          <div className="w-5 h-5 rounded-md bg-white flex items-center justify-center text-teal-900 shadow-sm">
+          <div className="w-5 h-5 rounded-md bg-blue-600 flex items-center justify-center text-white shadow-sm">
             <Heart size={10} fill="currentColor" />
           </div>
-          <span>Smart Clinic Management System. Your trusted partner in health and wellness.</span>
+          <span className="text-slate-400">AICMS Portal. Your trusted partner in health and wellness.</span>
         </div>
-        <div className="flex items-center gap-6 text-teal-200">
+        <div className="flex items-center gap-6 text-slate-500">
           <span>🛡 Trusted & Secure</span>
           <span>🔒 Privacy Protected</span>
           <span>📞 24/7 Support</span>

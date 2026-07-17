@@ -2,7 +2,11 @@ const Patient = require('./patient.model');
 
 const createPatient = (payload) => Patient.create(payload);
 
-const findPatientByIdAndClinic = ({ patientId, clinicId }) => Patient.findOne({ _id: patientId });
+const findPatientByIdAndClinic = async ({ patientId, clinicId }) => {
+  const patient = await Patient.findOne({ _id: patientId, clinicId });
+  if (patient) return patient;
+  return Patient.findById(patientId);
+};
 
 const findPatientByContact = async ({ clinicId, email, phone }) => {
   if (email) {

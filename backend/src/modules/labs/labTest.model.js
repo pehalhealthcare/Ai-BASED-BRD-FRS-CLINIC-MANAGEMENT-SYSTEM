@@ -27,6 +27,18 @@ const labTestSchema = new mongoose.Schema(
       required: true,
       index: true
     },
+    labTestMasterId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'LabTestMaster',
+      required: false // Make optional to support new global reference flow
+    },
+    globalLabTestId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'GlobalLabTest',
+      default: null,
+      index: true
+    },
+    // Denormalized fields from LabTestMaster for 100% backward compatibility
     code: {
       type: String,
       required: true,
@@ -57,9 +69,30 @@ const labTestSchema = new mongoose.Schema(
       type: normalRangeSchema,
       default: () => ({})
     },
+    // Clinic specific attributes
     price: {
       type: Number,
       default: null
+    },
+    testPrice: {
+      type: Number,
+      default: 0
+    },
+    turnaroundTime: {
+      type: String,
+      default: '24 Hours'
+    },
+    homeCollectionAvailable: {
+      type: Boolean,
+      default: false
+    },
+    sampleCollectionFee: {
+      type: Number,
+      default: 0
+    },
+    availableDays: {
+      type: [String],
+      default: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
     },
     isActive: {
       type: Boolean,
@@ -83,6 +116,8 @@ const labTestSchema = new mongoose.Schema(
 );
 
 labTestSchema.index({ clinicId: 1, code: 1 }, { unique: true });
+labTestSchema.index({ clinicId: 1, labTestMasterId: 1 }, { unique: true, sparse: true });
+labTestSchema.index({ clinicId: 1, globalLabTestId: 1 }, { unique: true, sparse: true });
 labTestSchema.index({ clinicId: 1, name: 1 });
 labTestSchema.index({ clinicId: 1, category: 1 });
 labTestSchema.index({
@@ -93,5 +128,4 @@ labTestSchema.index({
 });
 
 const LabTest = mongoose.models.LabTest || mongoose.model('LabTest', labTestSchema);
-
 module.exports = LabTest;

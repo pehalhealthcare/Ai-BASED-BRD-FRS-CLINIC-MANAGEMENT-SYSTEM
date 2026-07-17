@@ -75,17 +75,22 @@ const ensureDoctorSelfAccess = async ({ requester, clinicId, doctor }) => {
 
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-const buildDoctorFilter = ({ clinicId, search, specialization, isActive }) => {
+const buildDoctorFilter = ({ clinicIds, search, specialization, isActive, approvalStatus = 'approved' }) => {
   const filter = {
     $and: [
       {
         $or: [
-          { clinicId },
-          { 'availability.clinicId': clinicId }
+          { clinicId: { $in: clinicIds } },
+          { 'availability.clinicId': { $in: clinicIds } },
+          { assignedClinics: { $in: clinicIds } }
         ]
       }
     ]
   };
+
+  if (approvalStatus) {
+    filter.approvalStatus = approvalStatus;
+  }
 
   if (specialization) {
     filter.specialization = { $regex: escapeRegex(specialization), $options: 'i' };
@@ -140,30 +145,105 @@ const createDoctor = async ({ requester, payload, requestedClinicId = null, req 
     requestedClinicId: requestedClinicId || payload.clinicId
   });
 
+  const User = require('../users/user.model');
+  const Clinic = require('../clinics/clinic.model');
+  const bcrypt = require('bcryptjs');
+  const nodemailer = require('nodemailer');
+  const { env } = require('../../config/env');
+  const { logger } = require('../../common/utils/logger');
+
+  const fullName = payload.fullName || `${payload.firstName || 'Doctor'} ${payload.lastName || ''}`.trim();
+  const existingUser = await User.findOne({ email: payload.email.toLowerCase() });
+  let newUser;
+
+  if (existingUser) {
+    // Check if a doctor profile already exists for this user ID
+    const Doctor = require('./doctor.model');
+    const existingDocProfile = await Doctor.findOne({ userId: existingUser._id });
+    if (existingDocProfile) {
+      throw new AppError('A doctor profile with this email address already exists', HTTP_STATUS.CONFLICT);
+    }
+    // If user exists (e.g. pre-created) but has no doctor profile, link to this user
+    newUser = existingUser;
+    if (newUser.role !== ROLES.DOCTOR) {
+      newUser.role = ROLES.DOCTOR;
+      await newUser.save();
+    }
+  } else {
+    const hashedPassword = await bcrypt.hash(payload.phone, 10);
+    newUser = await User.create({
+      name: fullName,
+      email: payload.email.toLowerCase(),
+      phone: payload.phone,
+      password: hashedPassword,
+      role: ROLES.DOCTOR,
+      clinicId,
+      isActive: true,
+      approvalStatus: 'pending_profile'
+    });
+  }
+
   const assignedClinics = payload.assignedClinics && payload.assignedClinics.length > 0
     ? payload.assignedClinics
     : [clinicId];
 
+  const parts = fullName ? fullName.split(' ') : ['Doctor'];
+  const firstName = parts[0];
+  const lastName = parts.slice(1).join(' ') || '';
+
   const doctor = await doctorRepository.createDoctor({
-    ...payload,
+    firstName,
+    lastName,
+    fullName,
     clinicId,
+    userId: newUser._id,
     assignedClinics,
-    availability: normalizeAvailability(payload.availability || []),
+    email: payload.email.toLowerCase(),
+    phone: payload.phone,
+    approvalStatus: 'pending_profile',
+    isActive: false,
     doctorCode: await generateDoctorCode(clinicId),
     createdBy: requester._id,
-    updatedBy: requester._id,
-    image: '',
-    documentPdf: ''
+    updatedBy: requester._id
   });
 
-  if (payload.image) {
-    await processAndSaveFile(doctor, 'image', payload.image, 'doctor_photo');
-  }
-  if (payload.documentPdf) {
-    await processAndSaveFile(doctor, 'documentPdf', payload.documentPdf, 'doctor_document');
-  }
-  if (payload.image || payload.documentPdf) {
-    await doctor.save();
+  const clinic = await Clinic.findById(clinicId);
+  const clinicName = clinic ? clinic.name : 'Gupta\'s CLlinic';
+
+  const subject = `Welcome to ${clinicName}`;
+  const body = `Hello ${fullName},
+
+${clinicName} has invited you to join their clinic as a Doctor on AI-CMS.
+
+Use the following credentials to activate your account:
+
+* Email: ${newUser.email}
+* Temporary Password: ${payload.phone}
+
+During your first login, an OTP will be sent to your registered email address for verification.
+
+After verification, you will complete your professional profile before it is reviewed by the Clinic Admin.`;
+
+  try {
+    const transporter = nodemailer.createTransport({
+      host: env.emailHost,
+      port: env.emailPort || 587,
+      secure: !!env.emailSecure,
+      auth: {
+        user: env.emailUser,
+        pass: env.emailPass
+      }
+    });
+    await transporter.sendMail({
+      from: env.emailFrom || `"AI-CMS Clinic" <noreply@aicms.local>`,
+      to: newUser.email,
+      subject,
+      text: body,
+      html: body.replace(/\n/g, '<br>')
+    });
+    logger.info(`[doctor:invite] Sent successfully to ${newUser.email}`);
+  } catch (error) {
+    logger.error('[doctor:invite] Failed to send email via SMTP', error);
   }
 
   await createAuditLog({
@@ -175,8 +255,8 @@ const createDoctor = async ({ requester, payload, requestedClinicId = null, req 
       doctorCode: doctor.doctorCode,
       clinicId: String(clinicId)
     },
-    ipAddress: req.ip,
-    userAgent: req.get('user-agent'),
+    ipAddress: req?.ip || '127.0.0.1',
+    userAgent: req?.get ? req.get('user-agent') : 'unknown',
     status: 'SUCCESS'
   });
 
@@ -184,16 +264,26 @@ const createDoctor = async ({ requester, payload, requestedClinicId = null, req 
 };
 
 const listDoctors = async ({ requester, query }) => {
+  const mongoose = require('mongoose');
   const clinicId = resolveClinicContext({
     user: requester,
     requestedClinicId: query.clinicId
   });
+  
+  const clinicIds = [new mongoose.Types.ObjectId(clinicId)];
+  if (requester.role === ROLES.SUPER_ADMIN || requester.role === ROLES.ADMIN) {
+    const Clinic = require('../clinics/clinic.model');
+    const branches = await Clinic.find({ parentClinicId: clinicId }).select('_id');
+    branches.forEach((b) => clinicIds.push(b._id));
+  }
+
   const { page, limit } = getPagination(query);
   const filter = buildDoctorFilter({
-    clinicId,
+    clinicIds,
     search: query.search,
     specialization: query.specialization,
-    isActive: query.isActive
+    isActive: query.isActive,
+    approvalStatus: query.approvalStatus || 'approved'
   });
   const { doctors, total } = await doctorRepository.listDoctors({ filter, page, limit });
 
@@ -475,18 +565,23 @@ const updateMyProfile = async ({ requester, payload }) => {
 
   const allowedFields = [
     'specialization',
+    'subSpeciality',
     'qualification',
     'medicalRegistrationNumber',
+    'medicalCouncil',
     'experienceYears',
     'consultationFee',
     'followUpFee',
+    'consultationDuration',
+    'biography',
     'isOnlineAvailable',
     'organizationId',
     'currentAddress',
     'permanentAddress',
     'preferredPracticeLocation',
     'phone',
-    'signature'
+    'signature',
+    'gender'
   ];
 
   for (const field of allowedFields) {
@@ -494,7 +589,36 @@ const updateMyProfile = async ({ requester, payload }) => {
       doctor[field] = payload[field];
     }
   }
-  
+
+  // Handle fullName -> firstName/lastName split
+  if (payload.fullName) {
+    const parts = payload.fullName.trim().split(' ');
+    doctor.firstName = parts[0];
+    doctor.lastName = parts.slice(1).join(' ') || '';
+    doctor.fullName = payload.fullName.trim();
+  }
+
+  // Handle dob as date
+  if (payload.dob) {
+    doctor.dob = new Date(payload.dob);
+  }
+
+  // Handle languagesSpoken (string or array)
+  if (payload.languagesSpoken !== undefined) {
+    if (typeof payload.languagesSpoken === 'string') {
+      doctor.languagesSpoken = payload.languagesSpoken
+        ? payload.languagesSpoken.split(',').map((s) => s.trim()).filter(Boolean)
+        : [];
+    } else if (Array.isArray(payload.languagesSpoken)) {
+      doctor.languagesSpoken = payload.languagesSpoken;
+    }
+  }
+
+  // Handle availability slots
+  if (payload.availability && Array.isArray(payload.availability)) {
+    doctor.availability = payload.availability;
+  }
+
   // Handle bank account updates explicitly
   if (payload.bankAccount) {
     if (!doctor.bankAccount) doctor.bankAccount = {};
@@ -536,24 +660,58 @@ const submitMyProfile = async ({ requester, payload }) => {
 
   const allowedFields = [
     'specialization',
+    'subSpeciality',
     'qualification',
     'medicalRegistrationNumber',
+    'medicalCouncil',
     'experienceYears',
     'consultationFee',
     'followUpFee',
+    'consultationDuration',
+    'biography',
     'isOnlineAvailable',
     'organizationId',
     'currentAddress',
     'permanentAddress',
     'preferredPracticeLocation',
     'phone',
-    'signature'
+    'signature',
+    'gender'
   ];
 
   for (const field of allowedFields) {
     if (payload[field] !== undefined) {
       doctor[field] = payload[field];
     }
+  }
+
+  // Handle fullName -> firstName/lastName split
+  if (payload.fullName) {
+    const parts = payload.fullName.trim().split(' ');
+    doctor.firstName = parts[0];
+    doctor.lastName = parts.slice(1).join(' ') || '';
+    doctor.fullName = payload.fullName.trim();
+  }
+
+  // Handle dob as date
+  if (payload.dob) {
+    doctor.dob = new Date(payload.dob);
+  }
+
+  // Handle languagesSpoken (string or array)
+  if (payload.languagesSpoken !== undefined) {
+    if (typeof payload.languagesSpoken === 'string') {
+      doctor.languagesSpoken = payload.languagesSpoken
+        ? payload.languagesSpoken.split(',').map((s) => s.trim()).filter(Boolean)
+        : [];
+    } else if (Array.isArray(payload.languagesSpoken)) {
+      doctor.languagesSpoken = payload.languagesSpoken;
+    }
+  }
+
+  // Handle availability slots
+  if (payload.availability && Array.isArray(payload.availability)) {
+    doctor.availability = payload.availability;
   }
 
   if (payload.organizationId !== undefined) {
@@ -569,12 +727,6 @@ const submitMyProfile = async ({ requester, payload }) => {
   }
   if (!doctor.medicalRegistrationNumber?.trim()) {
     throw new AppError('Medical Registration Number is required for submission.', HTTP_STATUS.BAD_REQUEST);
-  }
-  if (!doctor.documentPdf?.trim()) {
-    throw new AppError('Document PDF is compulsory and must be uploaded.', HTTP_STATUS.BAD_REQUEST);
-  }
-  if (!doctor.organizationId) {
-    throw new AppError('Organization selection is required for submission.', HTTP_STATUS.BAD_REQUEST);
   }
 
   // Update status to pending_approval

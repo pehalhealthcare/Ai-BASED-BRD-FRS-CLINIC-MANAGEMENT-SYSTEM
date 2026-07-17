@@ -11,6 +11,9 @@ const ReceptionistReview = () => {
   const navigate = useNavigate();
   
   const [receptionist, setReceptionist] = useState(null);
+  const displayRole = receptionist?.role
+    ? receptionist.role.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())
+    : 'Staff';
   const [clinics, setClinics] = useState([]);
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -53,7 +56,7 @@ const ReceptionistReview = () => {
         const found = pendingList.find((r) => String(r._id) === String(receptionistId));
         
         if (!found) {
-          toast.error('Receptionist not found in pending list');
+          toast.error('Staff not found in pending list');
           navigate('/admin/clinics-dashboard');
           return;
         }
@@ -68,7 +71,7 @@ const ReceptionistReview = () => {
         setClinics(filtered);
       } catch (err) {
         console.error(err);
-        toast.error('Error loading receptionist data');
+        toast.error('Error loading staff data');
       } finally {
         setLoading(false);
       }
@@ -129,7 +132,7 @@ const ReceptionistReview = () => {
 
   const validateAssignments = () => {
     if (assignedClinicIds.length === 0) {
-      toast.error('Please assign at least one clinic to the receptionist');
+      toast.error('Please assign at least one clinic to the staff');
       return false;
     }
 
@@ -167,11 +170,11 @@ const ReceptionistReview = () => {
       };
 
       await adminApi.approveReceptionist(receptionist._id, payload);
-      toast.success('Receptionist registration approved successfully!');
+      toast.success('Staff registration approved successfully!');
       navigate('/admin/clinics-dashboard');
     } catch (err) {
       console.error(err);
-      toast.error(err.response?.data?.message || 'Failed to approve receptionist');
+      toast.error(err.response?.data?.message || 'Failed to approve staff');
     } finally {
       setIsSubmitting(false);
     }
@@ -183,11 +186,11 @@ const ReceptionistReview = () => {
     setIsSubmitting(true);
     try {
       await adminApi.rejectReceptionist(receptionist._id);
-      toast.success('Receptionist registration request rejected.');
+      toast.success('Staff registration request rejected.');
       navigate('/admin/clinics-dashboard');
     } catch (err) {
       console.error(err);
-      toast.error(err.response?.data?.message || 'Failed to reject receptionist');
+      toast.error(err.response?.data?.message || 'Failed to reject staff');
     } finally {
       setIsSubmitting(false);
     }
@@ -232,7 +235,7 @@ const ReceptionistReview = () => {
   const downloadDocument = () => {
     const docPdf = receptionist?.profile?.documentPdf;
     if (!docPdf) return;
-    const docName = receptionist?.name || 'Receptionist';
+    const docName = receptionist?.name || 'Staff';
     const link = document.createElement('a');
     link.href = docPdf;
     link.download = `License_${docName.replace(/\s+/g, '_')}.pdf`;
@@ -274,7 +277,7 @@ const ReceptionistReview = () => {
               <div className="grid gap-6 flex-1">
                 <div>
                   <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">
-                    Receptionist's Name
+                    {displayRole}'s Name
                   </label>
                   <input readOnly className={FIELD_CLASS} value={receptionist.name || ''} />
                 </div>
@@ -576,7 +579,7 @@ const ReceptionistReview = () => {
             Verification Controls
           </h3>
           <p className="text-xs text-stone-500 leading-relaxed">
-            Review receptionist certificates and addresses. Request re-edits if any documents are blurry or wrong, otherwise approve registration.
+            Review {displayRole.toLowerCase()} certificates and addresses. Request re-edits if any documents are blurry or wrong, otherwise approve registration.
           </p>
         </div>
 
@@ -658,7 +661,7 @@ const ReceptionistReview = () => {
     <div className="container mx-auto px-4 py-8 max-w-7xl">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-2xl font-black text-stone-900 tracking-tight text-white">Review Receptionist Application</h1>
+          <h1 className="text-2xl font-black text-stone-900 tracking-tight text-white">Review {displayRole} Application</h1>
           <p className="text-gray-300 text-sm mt-1">Verify details, assign clinic venues, and configure shift schedules.</p>
         </div>
 

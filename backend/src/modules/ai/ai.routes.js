@@ -5,6 +5,7 @@ const { ROLES } = require('../../common/constants/roles');
 const { protect } = require('../../common/middlewares/auth.middleware');
 const { authorize } = require('../../common/middlewares/role.middleware');
 const { validate } = require('../../common/middlewares/validate.middleware');
+const { checkSubscriptionFeature } = require('../../common/middlewares/subscription.middleware');
 const aiController = require('./ai.controller');
 const {
   symptomCheckSchema,
@@ -23,52 +24,11 @@ const multipartUpload = express.raw({
   limit: '20mb'
 });
 
-/**
- * @swagger
- * /api/v1/ai/symptom-check:
- *   post:
- *     summary: Proxy symptom checking to the AI service
- *
- * /api/v1/ai/no-show:
- *   post:
- *     summary: Proxy no-show scoring to the AI service
- *
- * /api/v1/ai/no-show-predict:
- *   post:
- *     summary: Proxy no-show prediction to the AI service
- *
- * /api/v1/ai/format-clinical-note:
- *   post:
- *     summary: Proxy clinical note formatting to the AI service
- *
- * /api/v1/ai/drug-safety-check:
- *   post:
- *     summary: Proxy drug safety screening to the AI service
- *
- * /api/v1/ai/ocr-extract:
- *   post:
- *     summary: Proxy OCR document extraction to the AI service
- *
- * /api/v1/ai/lab-report-extract:
- *   post:
- *     summary: Proxy lab report extraction to the AI service
- *
- * /api/v1/ai/clinical/diagnosis-suggestions:
- *   post:
- *     summary: Proxy diagnosis suggestions to the AI service
- *
- * /api/v1/ai/clinical/format-note:
- *   post:
- *     summary: Proxy clinical note SOAP formatting to the AI service
- *
- * /api/v1/ai/prescription/format-advice:
- *   post:
- *     summary: Proxy prescription advice formatting to the AI service
- */
 router.post(
   '/symptom-check',
   protect,
   authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR, ROLES.PATIENT),
+  checkSubscriptionFeature('symptom_checker'),
   validate(symptomCheckSchema),
   aiController.symptomCheck
 );
@@ -90,6 +50,7 @@ router.post(
   '/format-clinical-note',
   protect,
   authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR),
+  checkSubscriptionFeature('voice_to_text'),
   validate(clinicalNoteSchema),
   aiController.formatClinicalNote
 );
@@ -123,6 +84,7 @@ router.post(
   '/clinical/diagnosis-suggestions',
   protect,
   authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR),
+  checkSubscriptionFeature('diagnostic_suggestions'),
   validate(diagnosisSuggestionsSchema),
   aiController.getDiagnosisSuggestions
 );
@@ -130,6 +92,7 @@ router.post(
   '/clinical/format-note',
   protect,
   authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR),
+  checkSubscriptionFeature('consultation_summary'),
   validate(consultationFormatNoteSchema),
   aiController.formatConsultationNote
 );
@@ -137,6 +100,7 @@ router.post(
   '/prescription/format-advice',
   protect,
   authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR),
+  checkSubscriptionFeature('prescription_suggestions'),
   validate(prescriptionAdviceSchema),
   aiController.formatPrescriptionAdvice
 );
@@ -144,15 +108,16 @@ router.post(
   '/lab-test-recommendations',
   protect,
   authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR),
+  checkSubscriptionFeature('lab_recommendations'),
   validate(labTestRecommendationSchema),
   aiController.getLabTestRecommendations
 );
 
-// Backward-compatible alias for the earlier Phase 6 route name.
 router.post(
   '/clinical/consultation-suggestions',
   protect,
   authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR),
+  checkSubscriptionFeature('consultation_assistant'),
   validate(diagnosisSuggestionsSchema),
   aiController.getDiagnosisSuggestions
 );

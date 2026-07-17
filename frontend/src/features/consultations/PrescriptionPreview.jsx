@@ -380,11 +380,7 @@ export default function PrescriptionPreview({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {(prescription?.medicines || [
-                { medicineName: 'Paracetamol 650 mg', dosage: '650 mg', frequency: '1-0-1', duration: '3 Days', timing: 'after food', route: 'oral', instructions: 'Take after meals with water', quantity: 9 },
-                { medicineName: 'Cough Syrup 100ml', dosage: '10 ml', frequency: '1-0-1', duration: '5 Days', timing: 'after food', route: 'oral', instructions: 'Shake well before use', quantity: 1 },
-                { medicineName: 'Cetirizine 10 mg', dosage: '10 mg', frequency: '0-0-1', duration: '5 Days', timing: 'before sleep', route: 'oral', instructions: 'Take at night', quantity: 5 }
-              ]).map((med, idx) => {
+              {(prescription?.medicines || []).map((med, idx) => {
                 const stockInfo = getBranchStock(med.medicineName);
                 return (
                   <tr key={idx} className="hover:bg-slate-50/40">
@@ -452,12 +448,7 @@ export default function PrescriptionPreview({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {(prescription?.labs || [
-                { testName: 'CBC', priority: 'routine', sampleRequired: 'Blood', reason: 'Rule out infection' },
-                { testName: 'CRP', priority: 'urgent', sampleRequired: 'Blood', reason: 'Inflammation' },
-                { testName: 'COVID RTPCR', priority: 'if needed', sampleRequired: 'Swab', reason: 'If fever persists' },
-                { testName: 'ESR', priority: 'routine', sampleRequired: 'Blood', reason: 'General screening' }
-              ]).map((lab, idx) => (
+              {(prescription?.labs || []).map((lab, idx) => (
                 <tr key={idx} className="text-slate-600">
                   <td className="py-2 pl-1 font-bold text-slate-900">{lab.testName}</td>
                   <td className="py-2 capitalize">{lab.priority}</td>
@@ -491,11 +482,7 @@ export default function PrescriptionPreview({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {(prescription?.procedures || [
-                { name: 'Nebulization', code: 'PROC001', fee: 350, status: 'completed' },
-                { name: 'ECG', code: 'PROC002', fee: 600, status: 'completed' },
-                { name: 'Dressing', code: 'PROC003', fee: 250, status: 'scheduled' }
-              ]).map((proc, idx) => (
+              {(prescription?.procedures || []).map((proc, idx) => (
                 <tr key={idx} className="text-slate-600">
                   <td className="py-2 pl-1 font-bold text-slate-900">{proc.name}</td>
                   <td className="py-2 font-mono text-[10px]">{proc.code || '—'}</td>

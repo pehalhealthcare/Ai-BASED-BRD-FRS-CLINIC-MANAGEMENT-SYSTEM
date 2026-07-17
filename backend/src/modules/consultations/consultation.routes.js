@@ -46,7 +46,7 @@ router.get(
 router.get(
   '/appointment/:appointmentId',
   protect,
-  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR, ROLES.RECEPTIONIST),
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR, ROLES.RECEPTIONIST, ROLES.PATIENT),
   validate(appointmentIdParamSchema),
   consultationController.getAppointmentConsultation
 );

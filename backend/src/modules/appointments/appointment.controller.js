@@ -117,6 +117,39 @@ const scanCheckin = asyncHandler(async (req, res) => {
   return sendSuccess(res, 'Check-in processed successfully', data);
 });
 
+const applyWaiver = asyncHandler(async (req, res) => {
+  const appointment = await appointmentService.applyWaiver({
+    requester: req.user,
+    appointmentId: req.params.id,
+    payload: req.body
+  });
+  return sendSuccess(res, 'Consultation fee waiver applied successfully.', { appointment });
+});
+
+const requestRefund = asyncHandler(async (req, res) => {
+  const appointment = await appointmentService.requestRefund({
+    requester: req.user,
+    appointmentId: req.params.id,
+    requestedClinicId: req.query.clinicId
+  });
+  return sendSuccess(res, 'Refund processed successfully.', { appointment });
+});
+
+const runDailyRefunds = asyncHandler(async (req, res) => {
+  const count = await appointmentService.processEndOfDayRefunds();
+  return sendSuccess(res, `Processed end of day refunds for ${count} appointments.`, { count });
+});
+
+const checkFollowUp = asyncHandler(async (req, res) => {
+  const data = await appointmentService.checkFollowUp({
+    requester: req.user,
+    patientId: req.params.patientId,
+    doctorId: req.params.doctorId,
+    clinicId: req.query.clinicId
+  });
+  return sendSuccess(res, 'Follow-up status checked successfully', data);
+});
+
 module.exports = {
   createAppointment,
   listAppointments,
@@ -127,5 +160,10 @@ module.exports = {
   rescheduleAppointment,
   cancelAppointment,
   getQueueStatus,
-  scanCheckin
+  scanCheckin,
+  verifyPayment,
+  applyWaiver,
+  requestRefund,
+  runDailyRefunds,
+  checkFollowUp
 };

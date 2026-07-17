@@ -27,7 +27,8 @@ const patientSchema = new mongoose.Schema(
     clinicId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Clinic',
-      required: true
+      required: false,
+      default: null
     },
     patientId: {
       type: String,
@@ -307,7 +308,9 @@ patientSchema.pre('validate', function setDerivedFields(next) {
   next();
 });
 
-patientSchema.index({ clinicId: 1, patientId: 1 }, { unique: true });
+patientSchema.index({ patientId: 1 }, { unique: true });
+patientSchema.index({ phone: 1 }, { unique: true });
+patientSchema.index({ clinicId: 1, patientId: 1 });
 patientSchema.index({ clinicId: 1, phone: 1 });
 patientSchema.index({ clinicId: 1, fullName: 1 });
 patientSchema.index({ clinicId: 1, email: 1 });

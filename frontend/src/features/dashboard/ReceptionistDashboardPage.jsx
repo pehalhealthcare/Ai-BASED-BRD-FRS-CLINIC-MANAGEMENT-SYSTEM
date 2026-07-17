@@ -26,6 +26,7 @@ import useAuth from '../../hooks/useAuth';
 import { appointmentApi } from '../../lib/api';
 import { getDashboardOverview } from './dashboardApi';
 import { Html5Qrcode } from 'html5-qrcode';
+import DiscountApprovalQueue from './DiscountApprovalQueue';
 
 const ReceptionistDashboardPage = () => {
   const { user } = useAuth();
@@ -87,6 +88,7 @@ const ReceptionistDashboardPage = () => {
             return {
               id: app._id || String(index + 1),
               time: timeStr,
+              startTime: app.startTime || '09:00',
               duration: app.slotId?.durationMinutes ? `${app.slotId.durationMinutes} min` : `${app.durationMinutes || 15} min`,
               patientName: app.patientId?.userId?.name || app.patientName || 'Walk-In Patient',
               initials: (app.patientId?.userId?.name || 'WP').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase(),
@@ -97,6 +99,7 @@ const ReceptionistDashboardPage = () => {
               specialty: app.doctorId?.specialty || 'General Physician',
               type: app.appointmentType === 'teleconsultation' ? 'Online' : 'Offline',
               status: app.status === 'booked' ? 'Confirmed' : app.status === 'checked_in' ? 'Arrived' : app.status === 'completed' ? 'Completed' : 'Upcoming',
+              rawStatus: app.status || 'booked',
               tokenNumber: app.meta?.tokenNumber
             };
           });
@@ -110,9 +113,9 @@ const ReceptionistDashboardPage = () => {
     fetchDashboardData();
   }, []);
 
-  // Filtered Appointments
+  // Filtered & Sorted Appointments
   const filteredAppointments = useMemo(() => {
-    return appointments.filter((app) => {
+    const list = appointments.filter((app) => {
       const matchesSearch =
         app.patientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         app.doctorName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -127,6 +130,48 @@ const ReceptionistDashboardPage = () => {
         selectedDoctor === 'All Doctors' || app.doctorName === selectedDoctor;
 
       return matchesSearch && matchesTab && matchesDoctor;
+    });
+
+    const getCategoryAndOrder = (app) => {
+      const status = app.rawStatus?.toLowerCase() || 'booked';
+      // Category 0: Booked / Confirmed / Scheduled (upcoming)
+      if (['booked', 'confirmed', 'scheduled'].includes(status)) {
+        return { category: 0, ascending: true };
+      }
+      // Category 1: Checked-In / Arrived / Called / In-Consultation
+      if (['checked_in', 'late_check_in', 'called', 'in_consultation'].includes(status)) {
+        return { category: 1, ascending: false };
+      }
+      // Category 2: Completed
+      if (status === 'completed') {
+        return { category: 2, ascending: false };
+      }
+      // Category 3: Rescheduled
+      if (['rescheduled', 'patient_rescheduled', 'clinic_rescheduled'].includes(status)) {
+        return { category: 3, ascending: false };
+      }
+      // Category 4: Cancelled / No show
+      if (['cancelled', 'patient_cancelled', 'clinic_cancelled', 'no_show'].includes(status)) {
+        return { category: 4, ascending: false };
+      }
+      return { category: 5, ascending: true };
+    };
+
+    return [...list].sort((a, b) => {
+      const catA = getCategoryAndOrder(a);
+      const catB = getCategoryAndOrder(b);
+
+      if (catA.category !== catB.category) {
+        return catA.category - catB.category;
+      }
+
+      const timeA = a.startTime || '00:00';
+      const timeB = b.startTime || '00:00';
+      if (catA.ascending) {
+        return timeA.localeCompare(timeB); // Chronological ascending
+      } else {
+        return timeB.localeCompare(timeA); // Descending order
+      }
     });
   }, [appointments, searchQuery, activeTab, selectedDoctor]);
 
@@ -619,9 +664,12 @@ const ReceptionistDashboardPage = () => {
           </div>
         </div>
 
-        {/* Right Side: QR Scanner Widget & Donut Stats */}
+        {/* Right Side: QR Scanner Widget, Discount Approvals & Donut Stats */}
         <div className="space-y-6">
           
+          {/* Discount Approval Queue */}
+          <DiscountApprovalQueue onDecisionMade={() => {}} />
+
           {/* Card 1: Scanner Code */}
           <div className="bg-white rounded-2xl border border-slate-150 shadow-sm p-5 space-y-4">
             <div>

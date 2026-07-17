@@ -1288,11 +1288,11 @@ const getSuperAdminOverview = async ({ requester } = {}) => {
   const clinics = await Clinic.find(filter).lean();
   const clinicIds = clinics.map((c) => c._id);
 
-  const totalDoctors = await Doctor.countDocuments({ clinicId: { $in: clinicIds }, isActive: true });
+  const totalDoctors = await Doctor.countDocuments({ clinicId: { $in: clinicIds }, isActive: true, approvalStatus: 'approved' });
 
   const [doctorCounts, invoiceRevenues, pharmacyRevenues, managers] = await Promise.all([
     Doctor.aggregate([
-      { $match: { clinicId: { $in: clinicIds }, isActive: true } },
+      { $match: { clinicId: { $in: clinicIds }, isActive: true, approvalStatus: 'approved' } },
       { $group: { _id: '$clinicId', count: { $sum: 1 } } }
     ]),
     Invoice.aggregate([

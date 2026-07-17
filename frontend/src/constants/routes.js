@@ -19,6 +19,7 @@ export const ROUTES = {
   consultations: '/consultations',
   labOrders: '/labs/orders',
   labTests: '/labs/tests',
+  labConsumables: '/labs/consumables',
   pharmacyMedicines: '/pharmacy/medicines',
   pharmacyDispensings: '/pharmacy/dispensings',
   notificationTemplates: '/notifications/templates',
@@ -30,63 +31,89 @@ export const ROUTES = {
   users: '/users',
   prescriptions: '/prescriptions',
   billing: '/billing',
-  superAdminDashboard: '/super-admin/dashboard',
+  emergency: '/emergency',
+  superAdminClinics: '/super-admin/clinics',
+  superAdminPlans: '/super-admin/plans',
+  superAdminPromoCodes: '/super-admin/promo-codes',
+  superAdminLabTests: '/super-admin/healthcare-catalog/labs',
+  superAdminMedicines: '/super-admin/healthcare-catalog/medicines',
   adminClinicsDashboard: '/admin/clinics-dashboard',
   adminDoctorsDashboard: '/admin/my-doctors-dashboard',
   adminReceptionistsDashboard: '/admin/my-receptionists-dashboard',
-  organizationSettings: '/admin/organization-settings',
   clinicSettings: '/clinic/settings',
   adminLeavesReview: '/admin/leaves-review',
   adminLeavePolicy: '/admin/leave-policy',
   doctorLeaves: '/doctor/leaves',
   doctorEarnings: '/doctor/earnings',
-  patientAppointments: '/patient/appointments'
+  patientAppointments: '/patient/appointments',
+  adminBranches: '/admin/branches',
+  adminSubscription: '/admin/subscription',
+  adminDepartments: '/admin/departments',
+  adminReports: '/admin/reports',
+  adminSettings: '/admin/settings',
+  adminProviders: '/admin/providers'
 };
 
 export const NAV_ITEMS = [
   {
-    label: 'Organizations',
-    path: ROUTES.superAdminDashboard,
+    label: 'Clinics',
+    path: ROUTES.superAdminClinics,
     roles: [ROLES.SUPER_ADMIN]
   },
   {
-    label: 'Clinics Dashboard',
-    path: ROUTES.adminClinicsDashboard,
-    roles: [ROLES.ADMIN]
+    label: 'Plans',
+    path: ROUTES.superAdminPlans,
+    roles: [ROLES.SUPER_ADMIN]
   },
   {
-    label: 'My Doctors',
+    label: 'Promo Codes',
+    path: ROUTES.superAdminPromoCodes,
+    roles: [ROLES.SUPER_ADMIN]
+  },
+  {
+    label: 'Global Lab Catalog',
+    path: ROUTES.superAdminLabTests,
+    roles: [ROLES.SUPER_ADMIN]
+  },
+  {
+    label: 'Global Medicine Catalog',
+    path: ROUTES.superAdminMedicines,
+    roles: [ROLES.SUPER_ADMIN]
+  },
+  {
+    label: 'Dashboard',
+    path: ROUTES.dashboard,
+    roles: [ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR, ROLES.PHARMACIST, ROLES.LAB_TECHNICIAN]
+  },
+  {
+    label: 'Appointments',
+    path: ROUTES.appointments,
+    roles: [ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR]
+  },
+  { 
+    label: 'Patients', 
+    path: ROUTES.patients, 
+    roles: [ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR] 
+  },
+  {
+    label: 'Doctors',
     path: ROUTES.adminDoctorsDashboard,
     roles: [ROLES.ADMIN]
   },
   {
-    label: 'My Receptionists',
+    label: 'Staff',
     path: ROUTES.adminReceptionistsDashboard,
     roles: [ROLES.ADMIN]
   },
-
   {
-    label: 'Dashboard',
-    path: ROUTES.dashboard,
-    roles: [ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR]
+    label: 'Departments',
+    path: ROUTES.adminDepartments,
+    roles: [ROLES.ADMIN]
   },
   {
-    label: 'Dashboard',
-    path: ROUTES.dashboardPharmacy,
-    roles: [ROLES.PHARMACIST]
-  },
-  {
-    label: 'Earnings',
-    path: ROUTES.doctorEarnings,
-    roles: [ROLES.DOCTOR]
-  },
-  { label: 'Patients', path: ROUTES.patients, roles: [ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR] },
-  { label: 'Appointments', path: ROUTES.appointments, roles: [ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR] },
-  { label: 'Consultations', path: ROUTES.consultations, roles: [ROLES.ADMIN, ROLES.DOCTOR] },
-  {
-    label: 'Labs',
-    path: ROUTES.labOrders,
-    roles: [ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR, ROLES.LAB_TECHNICIAN]
+    label: 'Healthcare Providers',
+    path: '/admin/providers',
+    roles: [ROLES.ADMIN]
   },
   {
     label: 'Pharmacy',
@@ -94,13 +121,33 @@ export const NAV_ITEMS = [
     roles: [ROLES.ADMIN, ROLES.PHARMACIST, ROLES.DOCTOR, ROLES.RECEPTIONIST]
   },
   {
-    label: 'Billing Risk',
-    path: ROUTES.dashboardBillingFraud,
+    label: 'Laboratory',
+    path: ROUTES.labOrders,
+    roles: [ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR, ROLES.LAB_TECHNICIAN]
+  },
+  {
+    label: 'Lab Consumables',
+    path: ROUTES.labConsumables,
+    roles: [ROLES.ADMIN, ROLES.LAB_TECHNICIAN]
+  },
+  {
+    label: 'Billing & Invoices',
+    path: ROUTES.billing,
+    roles: [ROLES.ADMIN, ROLES.RECEPTIONIST]
+  },
+  {
+    label: 'Reports & Analytics',
+    path: ROUTES.adminReports,
     roles: [ROLES.ADMIN]
   },
   {
-    label: 'Audit Logs',
-    path: ROUTES.dashboardAuditLogs,
+    label: 'Subscription & Plan',
+    path: ROUTES.adminSubscription,
+    roles: [ROLES.ADMIN]
+  },
+  {
+    label: 'Branches',
+    path: ROUTES.adminBranches,
     roles: [ROLES.ADMIN]
   },
   {
@@ -109,25 +156,22 @@ export const NAV_ITEMS = [
     roles: [ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR]
   },
   {
-    label: 'Follow-ups',
-    path: ROUTES.followUps,
-    roles: [ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR]
+    label: 'Settings',
+    path: ROUTES.adminSettings,
+    roles: [ROLES.ADMIN]
   },
   { label: 'My Portal', path: ROUTES.portal, roles: [ROLES.PATIENT] },
   { label: 'Lab Tests', path: ROUTES.labTests, roles: [ROLES.PATIENT] },
-  { label: 'Pharmacy Store', path: ROUTES.pharmacyMedicines, roles: [ROLES.PATIENT] },
-  { label: 'Users', path: ROUTES.users, roles: [ROLES.ADMIN] },
-  { label: 'Prescriptions', path: ROUTES.prescriptions, roles: [ROLES.ADMIN, ROLES.DOCTOR] },
-  { label: 'Billing', path: ROUTES.billing, roles: [ROLES.ADMIN, ROLES.RECEPTIONIST] }
+  { label: 'Pharmacy Store', path: ROUTES.pharmacyMedicines, roles: [ROLES.PATIENT] }
 ];
 
 export const getDefaultRouteForRole = (role) => {
   if (role === ROLES.SUPER_ADMIN) {
-    return ROUTES.superAdminDashboard;
+    return ROUTES.superAdminClinics;
   }
 
   if (role === ROLES.ADMIN) {
-    return ROUTES.adminClinicsDashboard;
+    return ROUTES.dashboard;
   }
 
   if (role === ROLES.PATIENT) {
@@ -140,6 +184,10 @@ export const getDefaultRouteForRole = (role) => {
 
   if (role === ROLES.PHARMACIST) {
     return ROUTES.dashboardPharmacy;
+  }
+
+  if (role === ROLES.RECEPTIONIST) {
+    return ROUTES.appointments;
   }
 
   return ROUTES.dashboard;

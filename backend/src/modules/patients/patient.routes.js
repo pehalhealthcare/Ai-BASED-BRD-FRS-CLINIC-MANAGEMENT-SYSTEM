@@ -24,6 +24,18 @@ const router = Router();
 
 router.post('/', protect, authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RECEPTIONIST), validate(createPatientSchema), patientController.createPatient);
 router.get(
+  '/check-exists',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RECEPTIONIST),
+  patientController.checkExists
+);
+router.get(
+  '/me/clinics',
+  protect,
+  authorize(ROLES.PATIENT),
+  patientController.getMyClinics
+);
+router.get(
   '/me',
   protect,
   authorize(ROLES.PATIENT),
@@ -48,6 +60,12 @@ router.get(
   authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR),
   validate(listPatientQuerySchema),
   patientController.listPatients
+);
+router.post(
+  '/:id/associate',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RECEPTIONIST),
+  patientController.associatePatient
 );
 router.get(
   '/:id',

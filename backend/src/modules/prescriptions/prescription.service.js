@@ -42,8 +42,11 @@ const normalizeMedicines = (medicines = []) =>
     route: medicine.route || 'oral',
     timing: medicine.timing?.trim?.() || '',
     instructions: medicine.instructions?.trim?.() || '',
-    quantity: typeof medicine.quantity !== 'undefined' ? Number(medicine.quantity) : null,
-    isSubstituteAllowed: Boolean(medicine.isSubstituteAllowed)
+    quantity: typeof medicine.quantity !== 'undefined' && medicine.quantity !== null && medicine.quantity !== '' ? Number(medicine.quantity) : null,
+    isSubstituteAllowed: typeof medicine.isSubstituteAllowed === 'boolean' ? medicine.isSubstituteAllowed : true,
+    brandName: medicine.brandName || '',
+    strength: medicine.strength || '',
+    dosageForm: medicine.dosageForm || ''
   }));
 
 const symptomsToSnapshot = (symptoms = []) =>
@@ -231,6 +234,8 @@ const getScopedPrescription = async ({ requester, prescriptionId, requestedClini
   if (!prescription) {
     throw new AppError('Prescription not found.', HTTP_STATUS.NOT_FOUND);
   }
+
+  // Prescription isLocked check removed for pre-consultation payment flow
 
   await assertDoctorAccess({
     requester,
@@ -457,6 +462,8 @@ const getPrescriptionsByPatient = async ({ requester, patientId, query = {}, req
     }
   });
 
+  // Prescription isLocked check removed for pre-consultation payment flow
+
   return {
     patient,
     prescriptions,
@@ -514,7 +521,7 @@ const updatePrescription = async ({ requester, prescriptionId, payload, requeste
     requestedClinicId
   });
 
-  if (prescription.status !== 'draft') {
+  if (prescription.status !== 'draft' && !payload.isEdit) {
     throw new AppError('Only draft prescriptions can be updated.', HTTP_STATUS.BAD_REQUEST);
   }
 
@@ -584,7 +591,7 @@ const finalizePrescription = async ({ requester, prescriptionId, payload, reques
     requestedClinicId
   });
 
-  if (prescription.status !== 'draft') {
+  if (prescription.status !== 'draft' && !payload.isEdit) {
     throw new AppError('Only draft prescriptions can be finalized.', HTTP_STATUS.BAD_REQUEST);
   }
 
@@ -784,6 +791,15 @@ const downloadMedicinesText = async ({ requester, prescriptionId, requestedClini
   return text;
 };
 
+const unlockPrescription = async (consultationId) => {
+  const Prescription = require('./prescription.model');
+  const result = await Prescription.updateMany(
+    { consultationId },
+    { $set: { isLocked: false } }
+  );
+  return result;
+};
+
 module.exports = {
   createPrescription,
   getPrescriptionById,
@@ -793,5 +809,6 @@ module.exports = {
   finalizePrescription,
   cancelPrescription,
   downloadPrescriptionPdf,
-  downloadMedicinesText
+  downloadMedicinesText,
+  unlockPrescription
 };

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import {
   X, Calendar, Clock, MapPin, Copy, Star, CheckCircle2, Shield, Video,
   Building, CheckCircle, Info, ExternalLink, Share2, CalendarPlus, Heart, Users, ShieldAlert,
@@ -41,13 +42,16 @@ export default function AppointmentDetailsModal({ appointment, invoices = [], on
   const apptId = appointment?.appointmentId || `APT-${appointment?._id?.slice(-8).toUpperCase()}`;
   const isCompleted = appointment?.status?.toLowerCase() === 'completed';
 
-  // Check if invoice for doctor fee / consultation is paid
   const relatedInvoice = (invoices || []).find(
     (inv) =>
       String(inv.appointmentId?._id || inv.appointmentId) === String(appointment?._id) ||
       String(inv.consultationId?._id || inv.consultationId) === String(appointment?.consultationId?._id || appointment?.consultationId)
   );
-  const isPaid = !relatedInvoice || relatedInvoice.paymentStatus === 'paid';
+  const isPaid = appointment?.paymentStatus === 'paid' || 
+                 appointment?.paymentStatus === 'fully_waived' || 
+                 (appointment?.paymentStatus === 'partially_waived' && (appointment?.amountPaid || 0) >= (appointment?.remainingAmount || 0)) ||
+                 (appointment?.consultationFee || 0) === 0 ||
+                 (relatedInvoice && relatedInvoice.paymentStatus === 'paid');
 
   useEffect(() => {
     if (isCompleted) {
@@ -681,68 +685,69 @@ export default function AppointmentDetailsModal({ appointment, invoices = [], on
                 </div>
               ) : (
                 <>
-                  {consultationTab === 'summary' && (
-                    <div className="grid grid-cols-1 md:grid-cols-[250px_1fr] gap-6">
-                      <div className="space-y-4 border-r border-slate-100 pr-6">
-                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Doctor Details</h4>
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-teal-50 border border-teal-100 flex items-center justify-center text-teal-600 font-extrabold text-sm shrink-0">
-                            {doctor?.fullName?.charAt(0).toUpperCase()}
-                          </div>
-                          <div>
-                            <p className="text-xs font-black text-slate-800">Dr. {doctor?.fullName || 'Neha Dhawan'}</p>
-                            <p className="text-[10px] text-slate-500 font-medium mt-0.5">{doctor?.specialization || 'General Physician'}</p>
-                            <p className="text-[9px] text-slate-400 font-semibold mt-0.5">Experience: {doctor?.experience || '10+ Years'}</p>
-                          </div>
-                        </div>
+                  {!isPaid && consultationTab !== 'payment' ? (
+                    <div className="flex flex-col items-center justify-center py-12 text-center space-y-4">
+                      <div className="w-16 h-16 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-500">
+                        <ShieldAlert size={28} />
                       </div>
-
-                      <div className="space-y-4">
-                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Consultation Notes</h4>
-                        <div className="space-y-4 text-xs">
-                          <div>
-                            <span className="font-extrabold text-slate-800 block mb-1">Chief Complaint</span>
-                            <p className="text-slate-600 bg-slate-50/50 p-3 rounded-xl border border-slate-100">{consultationData?.clinicalNotes?.chiefComplaints || appointment?.reasonForVisit || 'Patient has mild fever, sore throat and running nose.'}</p>
-                          </div>
-                          <div>
-                            <span className="font-extrabold text-slate-800 block mb-1">Diagnosis</span>
-                            <p className="text-slate-600 bg-slate-50/50 p-3 rounded-xl border border-slate-100">{consultationData?.clinicalNotes?.diagnosis || 'Viral Upper Respiratory Infection (Common Cold)'}</p>
-                          </div>
-                          <div>
-                            <span className="font-extrabold text-slate-800 block mb-1">Advice</span>
-                            <p className="text-slate-600 bg-slate-50/50 p-3 rounded-xl border border-slate-100">{consultationData?.clinicalNotes?.advice || 'Rest, drink plenty of fluids, take medicines as prescribed.'}</p>
-                          </div>
-                          <div>
-                            <span className="font-extrabold text-slate-800 block mb-1">Follow-up</span>
-                            <p className="text-slate-600 bg-slate-50/50 p-3 rounded-xl border border-slate-100">{consultationData?.clinicalNotes?.followUp || 'Visit in 5 days if symptoms persist.'}</p>
-                          </div>
-                        </div>
-                      </div>
+                      <h4 className="text-sm font-black text-slate-800">EMR Details Locked 🔒</h4>
+                      <p className="text-xs text-slate-500 max-w-[320px] leading-relaxed">
+                        Your EMR suggestions, prescriptions, and advice are locked because the doctor's consultation fee has not been paid. Please complete payment to unlock full access.
+                      </p>
+                      {relatedInvoice && (
+                        <a
+                          href={`#/billing/${relatedInvoice._id}/checkout`}
+                          onClick={onClose}
+                          className="px-5 py-2.5 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-lg transition"
+                        >
+                          Pay Doctor Fee (₹{relatedInvoice.dueAmount || 500})
+                        </a>
+                      )}
                     </div>
-                  )}
+                  ) : (
+                    <>
+                      {consultationTab === 'summary' && (
+                        <div className="grid grid-cols-1 md:grid-cols-[250px_1fr] gap-6">
+                          <div className="space-y-4 border-r border-slate-100 pr-6">
+                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Doctor Details</h4>
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-teal-50 border border-teal-100 flex items-center justify-center text-teal-600 font-extrabold text-sm shrink-0">
+                                {doctor?.fullName?.charAt(0).toUpperCase()}
+                              </div>
+                              <div>
+                                <p className="text-xs font-black text-slate-800">Dr. {doctor?.fullName || 'Neha Dhawan'}</p>
+                                <p className="text-[10px] text-slate-500 font-medium mt-0.5">{doctor?.specialization || 'General Physician'}</p>
+                                <p className="text-[9px] text-slate-400 font-semibold mt-0.5">Experience: {doctor?.experience || '10+ Years'}</p>
+                              </div>
+                            </div>
+                          </div>
 
-                  {consultationTab === 'prescription' && (
-                    !isPaid ? (
-                      <div className="flex flex-col items-center justify-center py-12 text-center space-y-4">
-                        <div className="w-16 h-16 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-500">
-                          <ShieldAlert size={28} />
+                          <div className="space-y-4">
+                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Consultation Notes</h4>
+                            <div className="space-y-4 text-xs">
+                              <div>
+                                <span className="font-extrabold text-slate-800 block mb-1">Chief Complaint</span>
+                                <p className="text-slate-600 bg-slate-50/50 p-3 rounded-xl border border-slate-100">{consultationData?.clinicalNotes?.chiefComplaints || appointment?.reasonForVisit || 'Patient has mild fever, sore throat and running nose.'}</p>
+                              </div>
+                              <div>
+                                <span className="font-extrabold text-slate-800 block mb-1">Diagnosis</span>
+                                <p className="text-slate-600 bg-slate-50/50 p-3 rounded-xl border border-slate-100">{consultationData?.clinicalNotes?.diagnosis || 'Viral Upper Respiratory Infection (Common Cold)'}</p>
+                              </div>
+                              <div>
+                                <span className="font-extrabold text-slate-800 block mb-1">Advice</span>
+                                <p className="text-slate-600 bg-slate-50/50 p-3 rounded-xl border border-slate-100">{consultationData?.clinicalNotes?.advice || 'Rest, drink plenty of fluids, take medicines as prescribed.'}</p>
+                              </div>
+                              <div>
+                                <span className="font-extrabold text-slate-800 block mb-1">Follow-up</span>
+                                <p className="text-slate-600 bg-slate-50/50 p-3 rounded-xl border border-slate-100">{consultationData?.clinicalNotes?.followUp || 'Visit in 5 days if symptoms persist.'}</p>
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                        <h4 className="text-sm font-black text-slate-800">Prescription Locked</h4>
-                        <p className="text-xs text-slate-500 max-w-[320px] leading-relaxed">
-                          Your medical prescription is locked because the doctor's consultation fee has not been paid. Please complete payment to unlock it.
-                        </p>
-                        {relatedInvoice && (
-                          <a
-                            href={`#/billing/${relatedInvoice._id}/checkout`}
-                            onClick={onClose}
-                            className="px-5 py-2.5 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-lg transition"
-                          >
-                            Pay Doctor Fee
-                          </a>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center py-6">
+                      )}
+
+                      {consultationTab === 'prescription' && (
+                        <div className="flex flex-col items-center py-6">
                         <div className="w-full max-w-lg mb-4 flex justify-end">
                           <button
                             onClick={() => {
@@ -794,9 +799,8 @@ export default function AppointmentDetailsModal({ appointment, invoices = [], on
                             <p className="font-extrabold text-teal-700 italic">Neha</p>
                             <p className="text-[9px] font-bold text-slate-400">Dr. {doctor?.fullName || 'Neha Dhawan'}</p>
                           </div>
-                        </div>
                       </div>
-                    )
+                    </div>
                   )}
 
                   {consultationTab === 'medicines' && (
@@ -991,30 +995,87 @@ export default function AppointmentDetailsModal({ appointment, invoices = [], on
                   )}
 
                   {consultationTab === 'payment' && (
-                    <div className="space-y-4">
-                      <h4 className="text-xs font-black text-slate-800 mb-3">Transaction &amp; Invoice Breakdown</h4>
-                      <div className="p-4 rounded-2xl bg-slate-50/50 border border-slate-100 space-y-3 text-xs">
-                        <div className="flex justify-between border-b border-slate-100 pb-2">
+                    <div className="space-y-4 text-left">
+                      <h4 className="text-xs font-black text-slate-800 dark:text-slate-200 mb-3">Transaction &amp; Invoice Breakdown</h4>
+                      <div className="p-4 rounded-2xl bg-slate-50/50 dark:bg-navy-900 border border-slate-100 dark:border-white/[0.06] space-y-3 text-xs">
+                        <div className="flex justify-between border-b border-slate-100 dark:border-white/[0.06] pb-2">
                           <span className="text-slate-550">Consultation Fee</span>
-                          <span className="font-bold text-slate-800">₹500.00</span>
+                          <span className="font-bold text-slate-800 dark:text-slate-200">₹{appointment?.consultationFee || 500}</span>
                         </div>
-                        <div className="flex justify-between border-b border-slate-100 pb-2">
-                          <span className="text-slate-550">CGST (9%)</span>
-                          <span className="font-bold text-slate-800">₹0.00</span>
-                        </div>
-                        <div className="flex justify-between border-b border-slate-100 pb-2">
-                          <span className="text-slate-550">SGST (9%)</span>
-                          <span className="font-bold text-slate-800">₹0.00</span>
-                        </div>
+                        {appointment?.waiverAmount > 0 && (
+                          <div className="flex justify-between border-b border-slate-100 dark:border-white/[0.06] pb-2 text-emerald-600 dark:text-emerald-400">
+                            <span>Waiver ({appointment?.waiverType})</span>
+                            <span className="font-bold">-₹{appointment?.waiverAmount}</span>
+                          </div>
+                        )}
                         <div className="flex justify-between text-sm font-black pt-1">
-                          <span className="text-slate-905">Total Amount Paid</span>
-                          <span className="text-teal-700">₹500.00</span>
+                          <span className="text-slate-905 dark:text-slate-200">Total Amount Paid</span>
+                          <span className="text-teal-700 dark:text-teal-400">₹{appointment?.amountPaid || 0}</span>
                         </div>
+                      </div>
+
+                      {/* Audit Details */}
+                      <div className="p-4 rounded-2xl bg-slate-50/50 dark:bg-navy-900 border border-slate-100 dark:border-white/[0.06] space-y-2 text-[11px] text-slate-600 dark:text-slate-400">
+                        <p className="text-xs font-bold text-slate-850 dark:text-slate-350 uppercase tracking-wider mb-2">Audit Trail Information</p>
+                        <div className="flex justify-between">
+                          <span>Appointment ID:</span>
+                          <span className="font-mono font-semibold">{appointment?._id}</span>
+                        </div>
+                        {appointment?.rescheduledFrom && (
+                          <div className="flex justify-between">
+                            <span>Original Appointment ID:</span>
+                            <span className="font-mono font-semibold">{appointment.rescheduledFrom}</span>
+                          </div>
+                        )}
+                        {appointment?.transferredToAppointmentId && (
+                          <div className="flex justify-between text-indigo-500">
+                            <span>Payment Transferred To:</span>
+                            <span className="font-mono font-semibold">{appointment.transferredToAppointmentId}</span>
+                          </div>
+                        )}
+                        {appointment?.transferredFromAppointmentId && (
+                          <div className="flex justify-between text-emerald-500">
+                            <span>Payment Transferred From:</span>
+                            <span className="font-mono font-semibold">{appointment.transferredFromAppointmentId}</span>
+                          </div>
+                        )}
+                        {appointment?.refundStatus && appointment.refundStatus !== 'none' && (
+                          <>
+                            <div className="flex justify-between">
+                              <span>Refund Status:</span>
+                              <span className="font-bold text-amber-500 uppercase">{appointment.refundStatus}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Refund Amount:</span>
+                              <span className="font-bold">₹{appointment.refundAmount || 0}</span>
+                            </div>
+                            {appointment.refundProcessedAt && (
+                              <div className="flex justify-between">
+                                <span>Refund Date & Time:</span>
+                                <span>{new Date(appointment.refundProcessedAt).toLocaleString()}</span>
+                              </div>
+                            )}
+                            {appointment.refundProcessedBy && (
+                              <div className="flex justify-between">
+                                <span>Refund Processed By:</span>
+                                <span className="capitalize">{appointment.refundProcessedBy}</span>
+                              </div>
+                            )}
+                            {appointment.refundTransactionId && (
+                              <div className="flex justify-between">
+                                <span>Refund Transaction ID:</span>
+                                <span className="font-mono">{appointment.refundTransactionId}</span>
+                              </div>
+                            )}
+                          </>
+                        )}
                       </div>
                     </div>
                   )}
                 </>
               )}
+            </>
+          )}
             </div>
           </div>
         </div>
@@ -1153,98 +1214,146 @@ export default function AppointmentDetailsModal({ appointment, invoices = [], on
               </button>
             </div>
 
-            {mode === 'offline' ? (
-              appointment?.status?.toLowerCase() === 'called' ? (
-                <div className="flex-1 flex flex-col items-center justify-center text-center space-y-4">
-                  <div className="w-12 h-12 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center">
-                    <Bell size={20} className="text-[#a5b4fc]" />
-                  </div>
-                  <h4 className="text-sm font-black text-indigo-300 uppercase tracking-wider">You Are Called!</h4>
-                  <p className="text-xs text-slate-400 max-w-[240px] leading-relaxed">
-                    Please proceed to the doctor's cabin. Tell the Doctor the OTP below to start your consultation.
-                  </p>
-
-                  <div className="space-y-2 w-full">
-                    <span className="text-[8px] font-black text-slate-550 uppercase tracking-widest block">Your Consultation OTP</span>
-                    <div className="flex justify-center gap-1.5">
-                      {(appointment?.meta?.otp || '845291').split('').map((char, index) => (
-                        <div key={index} className="w-8 h-10 rounded-lg bg-slate-950 border border-white/[0.08] flex items-center justify-center text-base font-extrabold text-white">
-                          {char}
-                        </div>
-                      ))}
-                    </div>
-                    <span className="text-[9px] text-emerald-450 block font-bold mt-1">This OTP is valid for 03:00 minutes</span>
-                  </div>
-
-                  <div className="w-full flex items-start gap-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 text-left">
-                    <AlertTriangle size={15} className="text-amber-400 shrink-0 mt-0.5" />
-                    <p className="text-[10px] text-amber-300 leading-relaxed font-semibold">
-                      Do not share this OTP with anyone except your doctor.
-                    </p>
-                  </div>
-
-                  <div className="w-full grid grid-cols-2 gap-3 pt-3 border-t border-white/[0.06]">
-                    <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-3 text-center">
-                      <p className="text-[9px] uppercase tracking-wider text-slate-500">Token Number</p>
-                      <p className="text-xs font-mono font-bold text-emerald-450 mt-1">{appointment?.meta?.tokenNumber || 'T-101'}</p>
-                    </div>
-                    <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-3 text-center">
-                      <p className="text-[9px] uppercase tracking-wider text-slate-500">Room Number</p>
-                      <p className="text-xs font-mono font-bold text-emerald-450 mt-1">{appointment?.meta?.roomNumber || 'AB-101'}</p>
-                    </div>
-                  </div>
-
-                  <p className="text-[10px] text-slate-500 mt-2">Having trouble? Contact reception for help.</p>
+            {!isPaid ? (
+              <div className="flex-1 flex flex-col items-center justify-center text-center space-y-4 py-6 px-2">
+                <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                  <CreditCard size={24} />
                 </div>
-              ) : (
-                <div className="flex-1 flex flex-col items-center justify-center text-center space-y-4">
-                  {appointment?.checkin_token_uuid ? (
-                    <div className="p-4 bg-white rounded-2xl inline-block shadow-lg">
-                      <img
-                        src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${appointment.checkin_token_uuid}`}
-                        alt="Check-in QR Code"
-                        className="w-40 h-40"
-                      />
-                    </div>
+                 <h5 className="text-sm font-black text-white uppercase tracking-wider">Payment Required</h5>
+                <div className="text-xs max-w-[320px] w-full">
+                  {appointment?.appointmentType === 'teleconsultation' ? (
+                    <span className="text-amber-400 font-bold block bg-amber-500/10 border border-amber-500/20 rounded-xl p-3.5 text-left leading-relaxed">
+                      ⚠️ This online consultation will start only when the consultation charges are paid. Please complete payment to unlock your meeting room.
+                    </span>
                   ) : (
-                    <div className="w-40 h-40 border border-dashed border-slate-700 rounded-2xl flex items-center justify-center text-slate-500 font-bold text-xs p-4">
-                      QR Code Not Active or Already Checked In
+                    <span className="text-amber-400 font-bold block bg-amber-500/10 border border-amber-500/20 rounded-xl p-3.5 text-left leading-relaxed">
+                      ⚠️ Please pay the consultation charges first to generate your check-in QR code and OTP.
+                    </span>
+                  )}
+                </div>
+
+                {/* Detailed breakdown */}
+                <div className="w-full bg-slate-950/60 border border-white/[0.06] rounded-xl p-3.5 text-xs text-slate-350 space-y-2 text-left">
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-medium">Original Consultation Fee:</span>
+                    <span className="font-extrabold text-slate-200">₹{appointment?.consultationFee || 500}</span>
+                  </div>
+                  {appointment?.waiverAmount > 0 && (
+                    <div className="flex justify-between text-emerald-400 font-bold">
+                      <span>Waiver ({appointment?.waiverType === 'full' ? 'Full' : 'Partial'}):</span>
+                      <span>-₹{appointment?.waiverAmount}</span>
                     </div>
                   )}
-                  <p className="text-xs text-slate-300 max-w-[240px] leading-relaxed">
-                    {appointment?.checkin_token_uuid ? 'Scan this QR code at clinic reception when you reach the clinic.' : 'You have already checked in or check-in is not active.'}
-                  </p>
-                  <div className="w-full grid grid-cols-2 gap-3 pt-3 border-t border-white/[0.06]">
-                    <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-3 text-center">
-                      <p className="text-[9px] uppercase tracking-wider text-slate-500">Token Number</p>
-                      <p className="text-xs font-mono font-bold text-emerald-400 mt-1">{appointment?.meta?.queueTokenNumber || appointment?.meta?.tokenNumber || 'Pending Check-in'}</p>
-                    </div>
-                    <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-3 text-center">
-                      <p className="text-[9px] uppercase tracking-wider text-slate-500">Room Number</p>
-                      <p className="text-xs font-mono font-bold text-emerald-400 mt-1">{appointment?.meta?.roomNumber || 'AB-101'}</p>
-                    </div>
+                  <div className="flex justify-between text-sm font-black text-white pt-1 border-t border-dashed border-white/[0.08]">
+                    <span>Amount Payable:</span>
+                    <span>₹{appointment?.remainingAmount !== undefined ? appointment.remainingAmount : (appointment?.consultationFee || 500)}</span>
                   </div>
-                  <div className="w-full flex items-start gap-2 rounded-xl bg-blue-500/10 border border-blue-500/20 p-3 text-left">
-                    <Info size={13} className="text-blue-400 shrink-0 mt-0.5" />
-                    <p className="text-[11px] text-blue-300 leading-relaxed">
-                      Enter the OTP to start your consultation with the doctor.
+                </div>
+
+                {relatedInvoice ? (
+                  <Link
+                    to={`/billing/${relatedInvoice._id}/checkout`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-full flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white transition text-center shadow-lg shadow-amber-500/20"
+                  >
+                    <CreditCard size={13} />
+                    Pay Consultation Fee
+                  </Link>
+                ) : (
+                  <button disabled className="w-full flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold bg-slate-800 text-slate-500 border border-white/[0.05] cursor-not-allowed">
+                    <CreditCard size={13} />
+                    Pending Invoice...
+                  </button>
+                )}
+              </div>
+            ) : (
+              mode === 'offline' ? (
+                appointment?.status?.toLowerCase() === 'called' ? (
+                  <div className="flex-1 flex flex-col items-center justify-center text-center space-y-4">
+                    <div className="w-12 h-12 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center">
+                      <Bell size={20} className="text-[#a5b4fc]" />
+                    </div>
+                    <h4 className="text-sm font-black text-indigo-300 uppercase tracking-wider">You Are Called!</h4>
+                    <p className="text-xs text-slate-400 max-w-[240px] leading-relaxed">
+                      Please proceed to the doctor's cabin. Tell the Doctor the OTP below to start your consultation.
                     </p>
+
+                    <div className="space-y-2 w-full">
+                      <span className="text-[8px] font-black text-slate-550 uppercase tracking-widest block">Your Consultation OTP</span>
+                      <div className="flex justify-center gap-1.5">
+                        {(appointment?.meta?.otp || '845291').split('').map((char, index) => (
+                          <div key={index} className="w-8 h-10 rounded-lg bg-slate-950 border border-white/[0.08] flex items-center justify-center text-base font-extrabold text-white">
+                            {char}
+                          </div>
+                        ))}
+                      </div>
+                      <span className="text-[9px] text-emerald-450 block font-bold mt-1">This OTP is valid for 03:00 minutes</span>
+                    </div>
+
+                    <div className="w-full flex items-start gap-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 text-left">
+                      <AlertTriangle size={15} className="text-amber-400 shrink-0 mt-0.5" />
+                      <p className="text-[10px] text-amber-300 leading-relaxed font-semibold">
+                        Do not share this OTP with anyone except your doctor.
+                      </p>
+                    </div>
+
+                    <div className="w-full grid grid-cols-2 gap-3 pt-3 border-t border-white/[0.06]">
+                      <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-3 text-center">
+                        <p className="text-[9px] uppercase tracking-wider text-slate-500">Token Number</p>
+                        <p className="text-xs font-mono font-bold text-white mt-1">{appointment?.meta?.tokenNumber || 'T-101'}</p>
+                      </div>
+                      <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-3 text-center">
+                        <p className="text-[9px] uppercase tracking-wider text-slate-500">Room Number</p>
+                        <p className="text-xs font-mono font-bold text-white mt-1">{appointment?.meta?.roomNumber || 'AB-101'}</p>
+                      </div>
+                    </div>
+
+                    <p className="text-[10px] text-slate-500 mt-2">Having trouble? Contact reception for help.</p>
                   </div>
+                ) : (
+                  <div className="flex-1 flex flex-col items-center justify-center text-center space-y-4">
+                    {appointment?.checkin_token_uuid ? (
+                      <div className="p-4 bg-white rounded-2xl inline-block shadow-lg">
+                        <img
+                          src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${appointment.checkin_token_uuid}`}
+                          alt="Check-in QR Code"
+                          className="w-40 h-40"
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-40 h-40 border border-dashed border-slate-700 rounded-2xl flex items-center justify-center text-slate-500 font-bold text-xs p-4">
+                        QR Code Not Active or Already Checked In
+                      </div>
+                    )}
+                    <p className="text-xs text-slate-350 max-w-[240px] leading-relaxed">
+                      {appointment?.checkin_token_uuid ? 'Scan this QR code at clinic reception when you reach the clinic.' : 'You have already checked in or check-in is not active.'}
+                    </p>
+                    <div className="w-full grid grid-cols-2 gap-3 pt-3 border-t border-white/[0.06]">
+                      <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-3 text-center">
+                        <p className="text-[9px] uppercase tracking-wider text-slate-500">Token Number</p>
+                        <p className="text-xs font-mono font-bold text-white mt-1">{appointment?.meta?.queueTokenNumber || appointment?.meta?.tokenNumber || 'Pending'}</p>
+                      </div>
+                      <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-3 text-center">
+                        <p className="text-[9px] uppercase tracking-wider text-slate-500">Room Number</p>
+                        <p className="text-xs font-mono font-bold text-white mt-1">{appointment?.meta?.roomNumber || 'AB-101'}</p>
+                      </div>
+                    </div>
+                  </div>
+                )
+              ) : (
+                <div className="flex-1 flex flex-col items-center justify-center text-center space-y-4 py-8">
+                  <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-center text-emerald-400">
+                    <Video size={28} />
+                  </div>
+                  <h5 className="text-sm font-bold text-white">Online Video Consultation</h5>
+                  <p className="text-xs text-slate-400 max-w-[240px] leading-relaxed">
+                    Your video consultation link will be activated 10 minutes prior to the scheduled appointment start time.
+                  </p>
+                  <button disabled className="px-5 py-2.5 rounded-xl text-xs font-bold bg-slate-800 text-slate-500 border border-white/[0.05] cursor-not-allowed">
+                    Join Meeting Room
+                  </button>
                 </div>
               )
-            ) : (
-              <div className="flex-1 flex flex-col items-center justify-center text-center space-y-4 py-8">
-                <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-center text-emerald-400">
-                  <Video size={28} />
-                </div>
-                <h5 className="text-sm font-bold text-white">Online Video Consultation</h5>
-                <p className="text-xs text-slate-400 max-w-[240px] leading-relaxed">
-                  Your video consultation link will be activated 10 minutes prior to the scheduled appointment start time.
-                </p>
-                <button disabled className="px-5 py-2.5 rounded-xl text-xs font-bold bg-slate-800 text-slate-500 border border-white/[0.05] cursor-not-allowed">
-                  Join Meeting Room
-                </button>
-              </div>
             )}
           </div>
 

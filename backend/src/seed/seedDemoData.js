@@ -110,7 +110,9 @@ const seedDemoData = async () => {
         city: 'Mumbai',
         state: 'Maharashtra',
         pincode: '400001',
-        country: 'India'
+        country: 'India',
+        latitude: 19.0760,
+        longitude: 72.8777
       },
       isActive: true
     }
@@ -123,8 +125,7 @@ const seedDemoData = async () => {
       ...DEMO_USERS.admin,
       clinicId: clinic._id,
       isActive: true,
-      createdBy: null,
-      updatedBy: null
+      approvalStatus: 'approved'
     },
     { includePassword: true }
   );
@@ -136,8 +137,7 @@ const seedDemoData = async () => {
       ...DEMO_USERS.receptionist,
       clinicId: clinic._id,
       isActive: true,
-      createdBy: adminUser._id,
-      updatedBy: adminUser._id
+      approvalStatus: 'approved'
     },
     { includePassword: true }
   );
@@ -149,21 +149,19 @@ const seedDemoData = async () => {
       ...DEMO_USERS.doctor,
       clinicId: clinic._id,
       isActive: true,
-      createdBy: adminUser._id,
-      updatedBy: adminUser._id
+      approvalStatus: 'approved'
     },
     { includePassword: true }
   );
 
-  await upsertDocument(
+  const patientUser = await upsertDocument(
     User,
     { email: DEMO_USERS.patient.email },
     {
       ...DEMO_USERS.patient,
       clinicId: clinic._id,
       isActive: true,
-      createdBy: adminUser._id,
-      updatedBy: adminUser._id
+      approvalStatus: 'approved'
     },
     { includePassword: true }
   );
@@ -189,6 +187,7 @@ const seedDemoData = async () => {
       blockedSlots: [],
       approvalStatus: 'approved',
       isActive: true,
+      isOnlineAvailable: true,
       createdBy: adminUser._id,
       updatedBy: adminUser._id
     }
@@ -214,6 +213,7 @@ const seedDemoData = async () => {
       blockedSlots: [],
       approvalStatus: 'approved',
       isActive: true,
+      isOnlineAvailable: true,
       createdBy: adminUser._id,
       updatedBy: adminUser._id
     }
@@ -471,7 +471,7 @@ const seedDemoData = async () => {
 
   const prescription = await upsertDocument(
     Prescription,
-    { clinicId: clinic._id, prescriptionNumber: 'RX-DEMO-000001' },
+    { prescriptionNumber: 'RX-DEMO-000001' },
     {
       clinicId: clinic._id,
       patientId: patientOne._id,
@@ -562,7 +562,7 @@ const seedDemoData = async () => {
 
   await upsertDocument(
     Invoice,
-    { clinicId: clinic._id, invoiceNumber: 'INV-DEMO-0001' },
+    { invoiceNumber: 'INV-DEMO-0001' },
     {
       invoiceNumber: 'INV-DEMO-0001',
       clinicId: clinic._id,
@@ -597,7 +597,7 @@ const seedDemoData = async () => {
 
   const labOrder = await upsertRecord({
     Model: LabOrder,
-    filter: { clinicId: clinic._id, orderNumber: 'LAB-DEMO-0001' },
+    filter: { orderNumber: 'LAB-DEMO-0001' },
     createPayload: {
       clinicId: clinic._id,
       consultationId: consultation._id,
@@ -634,7 +634,7 @@ const seedDemoData = async () => {
 
   await upsertRecord({
     Model: LabReport,
-    filter: { clinicId: clinic._id, labOrderId: labOrder._id },
+    filter: { labOrderId: labOrder._id },
     createPayload: {
       clinicId: clinic._id,
       labOrderId: labOrder._id,
@@ -680,7 +680,7 @@ const seedDemoData = async () => {
 
   const medicine = await upsertDocument(
     Medicine,
-    { clinicId: clinic._id, code: 'PCM-DEMO-500' },
+    { code: 'PCM-DEMO-500' },
     {
       clinicId: clinic._id,
       code: 'PCM-DEMO-500',
@@ -715,7 +715,7 @@ const seedDemoData = async () => {
 
   const dispensingRecord = await upsertRecord({
     Model: DispensingRecord,
-    filter: { clinicId: clinic._id, prescriptionId: prescription._id },
+    filter: { prescriptionId: prescription._id },
     createPayload: {
       clinicId: clinic._id,
       prescriptionId: prescription._id,
@@ -750,7 +750,7 @@ const seedDemoData = async () => {
 
   await upsertRecord({
     Model: PharmacySale,
-    filter: { clinicId: clinic._id, dispensingRecordId: dispensingRecord._id },
+    filter: { dispensingRecordId: dispensingRecord._id },
     createPayload: {
       clinicId: clinic._id,
       dispensingRecordId: dispensingRecord._id,

@@ -46,8 +46,12 @@ beforeAll(() => {
   app = require('../src/app');
 });
 
-beforeEach(() => {
+beforeEach(async () => {
   jest.restoreAllMocks();
+  const collections = Object.values(require('mongoose').connection.collections);
+  for (const collection of collections) {
+    await collection.deleteMany({});
+  }
 });
 
 describe('Lab routes', () => {

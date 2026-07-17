@@ -223,21 +223,150 @@ const login = async ({ email, password }, req) => {
     throw new AppError('Invalid email or password', HTTP_STATUS.UNAUTHORIZED);
   }
 
-  if (!user.isActive || user.deletedAt || user.approvalStatus === 'rejected') {
-    await logAuthEvent({
-      actorUserId: user._id,
-      action: 'USER_LOGIN_FAILED',
-      status: 'FAILURE',
-      req,
-      metadata: { email, reason: user.approvalStatus === 'rejected' ? 'REJECTED' : 'INACTIVE_OR_DELETED' }
-    });
+  const { STAFF_ROLES } = require('../../common/constants/roles');
+  const isStaffFirstLogin = STAFF_ROLES.includes(user.role) && 
+    ['pending_invitation', 'otp_verification_pending'].includes(user.approvalStatus) && 
+    !user.isEmailVerified;
 
-    throw new AppError(
-      user.approvalStatus === 'rejected'
-        ? 'Your registration request has been rejected.'
-        : 'User account is inactive',
-      HTTP_STATUS.FORBIDDEN
-    );
+  if (isStaffFirstLogin) {
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    user.emailOtp = otp;
+    user.emailOtpExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    user.approvalStatus = 'otp_verification_pending';
+    await user.save({ validateBeforeSave: false });
+
+    const nodemailer = require('nodemailer');
+    const { env } = require('../../config/env');
+    const { logger } = require('../../common/utils/logger');
+    try {
+      const transporter = nodemailer.createTransport({
+        host: env.emailHost,
+        port: env.emailPort || 587,
+        secure: !!env.emailSecure,
+        auth: {
+          user: env.emailUser,
+          pass: env.emailPass
+        }
+      });
+      await transporter.sendMail({
+        from: env.emailFrom || `"AI-CMS Clinic" <noreply@aicms.local>`,
+        to: user.email,
+        subject: 'AICMS Verification OTP',
+        text: `Your verification OTP code is: ${otp}. It is valid for 24 hours.`,
+        html: `Your verification OTP code is: <b>${otp}</b>.<br>It is valid for 24 hours.`
+      });
+      logger.info(`[staff:otp] Sent successfully to ${user.email}`);
+    } catch (err) {
+      logger.error('[staff:otp] Failed to send email via SMTP', err);
+    }
+    
+    return {
+      requiresOtp: true,
+      email: user.email,
+      role: user.role
+    };
+  }
+
+  if (user.role === ROLES.DOCTOR && user.approvalStatus === 'pending_profile' && !user.isEmailVerified) {
+    const nodemailer = require('nodemailer');
+    const { env } = require('../../config/env');
+    const { logger } = require('../../common/utils/logger');
+    const Clinic = require('../clinics/clinic.model');
+
+    const doctorClinic = user.clinicId ? await Clinic.findById(user.clinicId) : null;
+    const isAdminCreated = doctorClinic && doctorClinic.approvalStatus === 'approved';
+
+    if (isAdminCreated) {
+      user.isEmailVerified = true;
+      await user.save({ validateBeforeSave: false });
+    } else {
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      user.emailOtp = otp;
+      user.emailOtpExpires = new Date(Date.now() + 10 * 60 * 1000);
+      await user.save({ validateBeforeSave: false });
+
+      try {
+        const transporter = nodemailer.createTransport({
+          host: env.emailHost,
+          port: env.emailPort || 587,
+          secure: !!env.emailSecure,
+          auth: {
+            user: env.emailUser,
+            pass: env.emailPass
+          }
+        });
+        await transporter.sendMail({
+          from: env.emailFrom || `"AI-CMS Clinic" <noreply@aicms.local>`,
+          to: user.email,
+          subject: 'AICMS Verification OTP',
+          text: `Your verification OTP code is: ${otp}. It is valid for 10 minutes.`,
+          html: `Your verification OTP code is: <b>${otp}</b>.<br>It is valid for 10 minutes.`
+        });
+        logger.info(`[doctor:otp] Sent successfully to ${user.email}`);
+      } catch (err) {
+        logger.error('[doctor:otp] Failed to send email via SMTP', err);
+      }
+
+      return {
+        requiresOtp: true,
+        email: user.email,
+        role: user.role
+      };
+    }
+  }
+
+  const Clinic = require('../clinics/clinic.model');
+  let clinicDetails = null;
+
+  if (user.role === ROLES.ADMIN) {
+    if (user.clinicId) {
+      clinicDetails = await Clinic.findById(user.clinicId).populate('subscription.planId');
+    }
+  } else if (user.role !== ROLES.SUPER_ADMIN && user.role !== ROLES.PATIENT) {
+    // This is staff (DOCTOR, RECEPTIONIST, PHARMACIST, etc.)
+    if (!user.clinicId) {
+      throw new AppError('Staff user does not belong to any clinic.', HTTP_STATUS.FORBIDDEN);
+    }
+    const staffClinic = await Clinic.findById(user.clinicId);
+    if (!staffClinic || staffClinic.approvalStatus !== 'approved') {
+      throw new AppError('Your clinic is not approved yet. Staff login is blocked.', HTTP_STATUS.FORBIDDEN);
+    }
+    clinicDetails = staffClinic;
+    if (staffClinic.subscription?.status === 'Suspended' || staffClinic.approvalStatus === 'suspended') {
+      throw new AppError('Your clinic account is suspended. Staff login is blocked.', HTTP_STATUS.FORBIDDEN);
+    }
+    if (staffClinic.subscription?.status === 'Expired') {
+      throw new AppError('Your clinic subscription is expired. Staff login is blocked.', HTTP_STATUS.FORBIDDEN);
+    }
+  }
+
+  // Bypass inactive/rejection check for ADMIN role so they can see portals
+  const isBypassedRole = user.role === ROLES.ADMIN;
+  if (!isBypassedRole) {
+    const isOnboardingOrPending = [
+      'pending_profile',
+      'onboarding_in_progress',
+      'pending_approval',
+      're_edit',
+      'changes_requested'
+    ].includes(user.approvalStatus);
+
+    if (!isOnboardingOrPending && (!user.isActive || user.deletedAt || user.approvalStatus === 'rejected')) {
+      await logAuthEvent({
+        actorUserId: user._id,
+        action: 'USER_LOGIN_FAILED',
+        status: 'FAILURE',
+        req,
+        metadata: { email, reason: 'ACCOUNT_INACTIVE_OR_REJECTED' }
+      });
+
+      throw new AppError('Your account is inactive or rejected. Please contact support.', HTTP_STATUS.FORBIDDEN);
+    }
+  } else {
+    // If ADMIN but inactive/deleted (except rejected/pending which we want to allow for their special portals)
+    if (!user.isActive || user.deletedAt) {
+      throw new AppError('User account is inactive', HTTP_STATUS.FORBIDDEN);
+    }
   }
 
   user.lastLoginAt = new Date();
@@ -254,13 +383,52 @@ const login = async ({ email, password }, req) => {
     metadata: { email }
   });
 
+  const sanitizedUser = sanitizeUser(user);
+  if (clinicDetails) {
+    sanitizedUser.clinic = {
+      _id: clinicDetails._id,
+      name: clinicDetails.name,
+      approvalStatus: clinicDetails.approvalStatus,
+      isOnboardingCompleted: clinicDetails.isOnboardingCompleted,
+      subscription: clinicDetails.subscription,
+      rejectionReason: clinicDetails.rejectionReason,
+      rejectionComments: clinicDetails.rejectionComments,
+      incorrectFields: clinicDetails.incorrectFields,
+      requestedDocuments: clinicDetails.requestedDocuments,
+      refundStatus: clinicDetails.refundStatus,
+      refundReason: clinicDetails.refundReason
+    };
+  }
+
   return {
-    user: sanitizeUser(user),
+    user: sanitizedUser,
     accessToken: generateAccessToken(user)
   };
 };
 
-const getCurrentUser = (user) => sanitizeUser(user);
+const getCurrentUser = async (user) => {
+  const sanitizedUser = sanitizeUser(user);
+  if (user.clinicId) {
+    const Clinic = require('../clinics/clinic.model');
+    const clinicDetails = await Clinic.findById(user.clinicId).populate('subscription.planId');
+    if (clinicDetails) {
+      sanitizedUser.clinic = {
+        _id: clinicDetails._id,
+        name: clinicDetails.name,
+        approvalStatus: clinicDetails.approvalStatus,
+        isOnboardingCompleted: clinicDetails.isOnboardingCompleted,
+        subscription: clinicDetails.subscription,
+        rejectionReason: clinicDetails.rejectionReason,
+        rejectionComments: clinicDetails.rejectionComments,
+        incorrectFields: clinicDetails.incorrectFields,
+        requestedDocuments: clinicDetails.requestedDocuments,
+        refundStatus: clinicDetails.refundStatus,
+        refundReason: clinicDetails.refundReason
+      };
+    }
+  }
+  return sanitizedUser;
+};
 
 const logout = () => ({
   message: 'Logout successful'
@@ -299,10 +467,60 @@ const resetPassword = async (payload, req) => {
   return { message: 'Password updated successfully' };
 };
 
+const verifyFirstLoginOtp = async ({ email, otp, newPassword }) => {
+  const User = require('../users/user.model');
+  const bcrypt = require('bcryptjs');
+
+  const user = await User.findOne({ email: email.toLowerCase() });
+  if (!user) {
+    throw new AppError('User not found', HTTP_STATUS.NOT_FOUND);
+  }
+
+  const isDoctorEligible = user.role === ROLES.DOCTOR && user.approvalStatus === 'pending_profile';
+  const { STAFF_ROLES } = require('../../common/constants/roles');
+  const isStaffEligible = STAFF_ROLES.includes(user.role) && 
+    ['pending_invitation', 'otp_verification_pending'].includes(user.approvalStatus);
+
+  if (!isDoctorEligible && !isStaffEligible) {
+    throw new AppError('User is not eligible for first-time OTP verification', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  if (!user.emailOtp || user.emailOtp !== otp) {
+    throw new AppError('Invalid OTP code', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  if (user.emailOtpExpires < new Date()) {
+    throw new AppError('OTP code has expired', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  // OTP is valid!
+  user.isEmailVerified = true;
+  user.emailOtp = null;
+  user.emailOtpExpires = null;
+
+  if (isStaffEligible) {
+    user.approvalStatus = 'onboarding_in_progress';
+    const Staff = require('../staff/staff.model');
+    await Staff.updateOne({ userId: user._id }, { approvalStatus: 'onboarding_in_progress' });
+  }
+
+  // Force password update
+  user.password = await bcrypt.hash(newPassword, 10);
+  await user.save({ validateBeforeSave: false });
+
+  // Return generated access token for seamless experience
+  const sanitizedUser = sanitizeUser(user);
+  return {
+    user: sanitizedUser,
+    accessToken: generateAccessToken(user)
+  };
+};
+
 module.exports = {
   register,
   login,
   getCurrentUser,
   logout,
-  resetPassword
+  resetPassword,
+  verifyFirstLoginOtp
 };

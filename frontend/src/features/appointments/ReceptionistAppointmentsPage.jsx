@@ -2,9 +2,9 @@ import { useState, useEffect, useMemo } from 'react';
 import { 
   Search, Calendar, Clock, CheckCircle, Info, Copy, Check, Upload,
   SlidersHorizontal, ChevronRight, X, AlertCircle, Sparkles, QrCode,
-  Video, Building, ChevronDown, Bell, Sun, Moon, LogOut, Scan, UserCheck, UserPlus
+  Video, Building, ChevronDown, Bell, Sun, Moon, LogOut, Scan, UserCheck, UserPlus, Users
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import appointmentApi from '../../api/appointmentApi';
 import doctorApi from '../../api/doctorApi';
 import Avatar from '../../components/ui/Avatar';
@@ -15,7 +15,8 @@ import { Html5Qrcode } from 'html5-qrcode';
 
 export default function ReceptionistAppointmentsPage() {
   const { user, logout } = useAuth();
-  const [selectedSubTab, setSelectedSubTab] = useState('all'); // all, offline, todays, upcoming, completed
+  const [searchParams] = useSearchParams();
+  const [selectedSubTab, setSelectedSubTab] = useState(() => searchParams.get('tab') || 'all');
   const [appointments, setAppointments] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -77,9 +78,16 @@ export default function ReceptionistAppointmentsPage() {
   };
 
   useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab) {
+      setSelectedSubTab(tab);
+      setCurrentPage(1);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
     loadData();
     console.log(appointments);
-    
   }, []);
 
   // Format date helper for stats and display
@@ -109,15 +117,26 @@ export default function ReceptionistAppointmentsPage() {
     // Completed appointments
     const completedCount = appointments.filter(a => a.status?.toLowerCase() === 'completed').length;
 
+    // Unattended appointments
+    const unattendedCount = appointments.filter(a => a.status?.toLowerCase() === 'not_attended').length;
+
+    // Waiting Approval appointments
+    const waitingApprovalCount = appointments.filter(a => 
+      a.status === 'waiting_for_approval' || (a.discountRequest && a.discountRequest.status === 'pending')
+    ).length;
+
     // Fallbacks to match mockup if DB is empty
     return {
       all: allCount || 68,
       offline: offlineCount || 12,
       todays: todaysCount || 18,
       upcoming: upcomingCount || 25,
-      completed: completedCount || 39
+      completed: completedCount || 39,
+      unattended: unattendedCount || 0,
+      waiting_approval: waitingApprovalCount
     };
   }, [appointments, selectedDate]);
+
 
   // Fallback Mock Data matching screenshot exactly if API does not return enough items
   const displayAppointments = useMemo(() => {
@@ -146,9 +165,13 @@ export default function ReceptionistAppointmentsPage() {
         return new Date(a.appointmentDate) > today && status !== 'cancelled' && status !== 'completed';
       }
       if (selectedSubTab === 'completed') return status === 'completed';
+      if (selectedSubTab === 'waiting') return ['checked_in', 'late_check_in', 'called', 'in_consultation'].includes(a.status);
+      if (selectedSubTab === 'waiting_approval') return a.status === 'waiting_for_approval' || (a.discountRequest && a.discountRequest.status === 'pending');
+      if (selectedSubTab === 'unattended') return status === 'not_attended';
       
       return true; // all
     });
+
 
     return apiFiltered;
   }, [appointments, selectedSubTab, selectedDate, searchQuery]);
@@ -364,7 +387,11 @@ export default function ReceptionistAppointmentsPage() {
           { id: 'todays', label: "Today's Appointments", count: counts.todays },
           { id: 'upcoming', label: 'Upcoming Appointments', count: counts.upcoming },
           { id: 'completed', label: 'Completed Appointments', count: counts.completed },
+          { id: 'waiting', label: 'Waiting Patients', count: appointments.filter(a => ['checked_in', 'late_check_in', 'called', 'in_consultation'].includes(a.status)).length || 0 },
+          { id: 'waiting_approval', label: 'Waiting Approval Request', count: counts.waiting_approval },
+          { id: 'unattended', label: 'Unattended Appointments', count: counts.unattended },
         ].map((tab) => {
+
           const isActive = selectedSubTab === tab.id;
           return (
             <button
@@ -490,16 +517,28 @@ export default function ReceptionistAppointmentsPage() {
         <div className="overflow-x-auto flex-1">
           <table className="w-full text-left border-collapse min-w-[900px]">
             <thead>
-              <tr className="border-b border-white/[0.06] bg-[#080f1a]/30 text-slate-500 text-[10px] font-black uppercase tracking-[0.12em]">
-                <th className="py-4 px-5">Time</th>
-                <th className="py-4 px-5">Patient</th>
-                <th className="py-4 px-5">Doctor</th>
-                <th className="py-4 px-5">Purpose</th>
-                <th className="py-4 px-5">Status</th>
-                <th className="py-4 px-5">Mode</th>
-                <th className="py-4 px-5">Token</th>
-                <th className="py-4 px-5 text-right">Action</th>
-              </tr>
+              {selectedSubTab === 'waiting' ? (
+                <tr className="border-b border-white/[0.06] bg-[#080f1a]/30 text-slate-500 text-[10px] font-black uppercase tracking-[0.12em]">
+                  <th className="py-4 px-5">Queue No.</th>
+                  <th className="py-4 px-5">Patient Name</th>
+                  <th className="py-4 px-5">Doctor Name</th>
+                  <th className="py-4 px-5">Specialist</th>
+                  <th className="py-4 px-5">Room No.</th>
+                  <th className="py-4 px-5">Status</th>
+                  <th className="py-4 px-5 text-right">Action</th>
+                </tr>
+              ) : (
+                <tr className="border-b border-white/[0.06] bg-[#080f1a]/30 text-slate-500 text-[10px] font-black uppercase tracking-[0.12em]">
+                  <th className="py-4 px-5">Time</th>
+                  <th className="py-4 px-5">Patient</th>
+                  <th className="py-4 px-5">Doctor</th>
+                  <th className="py-4 px-5">Purpose</th>
+                  <th className="py-4 px-5">Status</th>
+                  <th className="py-4 px-5">Mode</th>
+                  <th className="py-4 px-5">Token</th>
+                  <th className="py-4 px-5 text-right">Action</th>
+                </tr>
+              )}
             </thead>
             <tbody className="divide-y divide-white/[0.04] text-xs font-bold text-slate-300">
               {paginatedAppointments.length > 0 ? (
@@ -511,6 +550,57 @@ export default function ReceptionistAppointmentsPage() {
                   const docDetail = appt.doctorId?.specialization || 'Physician';
                   const statusVal = appt.status || 'PENDING';
                   const isOffline = appt.appointmentType !== 'teleconsultation';
+
+                  if (selectedSubTab === 'waiting') {
+                    return (
+                      <tr 
+                        key={appt._id} 
+                        onClick={() => handleSelectAppointment(appt)}
+                        className={`hover:bg-white/[0.015] cursor-pointer transition-all duration-150 ${
+                          isSelected ? 'bg-[#0dd5b8]/[0.02] border-l-2 border-[#0dd5b8]' : ''
+                        }`}
+                      >
+                        {/* Queue No / Token */}
+                        <td className="py-4.5 px-5 text-white font-black text-sm">
+                          {appt.meta?.tokenNumber || 'T-X'}
+                        </td>
+                        {/* Patient Name */}
+                        <td className="py-4.5 px-5">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-[#ec4899] text-white flex items-center justify-center font-black text-xs shrink-0">
+                              {patName.split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase()}
+                            </div>
+                            <div>
+                              <p className="font-black text-white leading-tight">{patName}</p>
+                              <p className="text-[10px] text-slate-500 font-semibold mt-1">{patDetail}</p>
+                            </div>
+                          </div>
+                        </td>
+                        {/* Doctor Name */}
+                        <td className="py-4.5 px-5 text-white font-black">Dr. {docName}</td>
+                        {/* Specialist */}
+                        <td className="py-4.5 px-5 text-slate-400 font-medium">{docDetail}</td>
+                        {/* Room No. */}
+                        <td className="py-4.5 px-5">
+                          <span className="px-2.5 py-1 rounded bg-[#0dd5b8]/10 border border-[#0dd5b8]/20 text-[#0dd5b8] font-bold">
+                            {appt.meta?.roomNumber || 'AB-101'}
+                          </span>
+                        </td>
+                        {/* Status */}
+                        <td className="py-4.5 px-5">
+                          <span className={`inline-block px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider border ${getStatusStyle(statusVal)}`}>
+                            {statusVal}
+                          </span>
+                        </td>
+                        {/* Action */}
+                        <td className="py-4.5 px-5 text-right">
+                          <button className="w-7 h-7 rounded-lg flex items-center justify-center bg-white/[0.02] border border-white/[0.06] hover:bg-white/[0.06] transition text-slate-400 hover:text-white ml-auto">
+                            <ChevronRight size={13} />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  }
 
                   return (
                     <tr 
@@ -793,7 +883,7 @@ export default function ReceptionistAppointmentsPage() {
 
       {/* 7. Appointment Details Drawer / Drawer Modal */}
       {selectedAppt && !showScanModal && (
-        <div className="fixed inset-y-0 right-0 z-40 w-full max-w-md bg-[#0f172a] border-l border-white/[0.08] shadow-2xl flex flex-col animate-slide-in">
+        <div className="fixed inset-y-0 right-0 z-[999] w-full max-w-md bg-[#0f172a] border-l border-white/[0.08] shadow-2xl flex flex-col animate-slide-in">
           {/* Header */}
           <div className="p-5 border-b border-white/[0.06] flex items-center justify-between">
             <h2 className="text-sm font-black text-white uppercase tracking-wider">Appointment details</h2>

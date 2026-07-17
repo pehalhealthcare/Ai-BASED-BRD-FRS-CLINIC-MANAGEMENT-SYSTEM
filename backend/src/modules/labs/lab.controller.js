@@ -1,6 +1,7 @@
 const { sendSuccess } = require('../../common/utils/apiResponse');
 const { asyncHandler } = require('../../common/utils/asyncHandler');
 const labService = require('./lab.service');
+const LabTestMaster = require('./labTestMaster.model');
 
 const createLabTest = asyncHandler(async (req, res) => {
   const labTest = await labService.createLabTest({
@@ -145,6 +146,105 @@ const updateLabTest = asyncHandler(async (req, res) => {
   return sendSuccess(res, 'Lab test updated successfully', { labTest });
 });
 
+const listLabTestMasters = asyncHandler(async (req, res) => {
+  const query = req.query.search
+    ? { name: { $regex: new RegExp(req.query.search, 'i') } }
+    : {};
+  const masters = await LabTestMaster.find(query).limit(100);
+  return sendSuccess(res, 'Lab test masters retrieved', { masters });
+});
+
+// ─── LABORATORY CONSUMABLE CONTROLLERS ─────────────────────────────────────────
+
+const createLabConsumable = asyncHandler(async (req, res) => {
+  const consumable = await labService.createLabConsumable({
+    requester: req.user,
+    payload: req.body,
+    requestedClinicId: req.query.clinicId
+  });
+  return sendSuccess(res, 'Consumable created successfully', { consumable }, 201);
+});
+
+const listLabConsumables = asyncHandler(async (req, res) => {
+  const consumables = await labService.listLabConsumables({
+    requester: req.user,
+    query: req.query,
+    requestedClinicId: req.query.clinicId
+  });
+  return sendSuccess(res, 'Consumables retrieved successfully', { consumables });
+});
+
+const updateLabConsumable = asyncHandler(async (req, res) => {
+  const consumable = await labService.updateLabConsumable({
+    requester: req.user,
+    consumableId: req.params.id,
+    payload: req.body,
+    requestedClinicId: req.query.clinicId
+  });
+  return sendSuccess(res, 'Consumable updated successfully', { consumable });
+});
+
+const addConsumableBatch = asyncHandler(async (req, res) => {
+  const consumable = await labService.addConsumableBatch({
+    requester: req.user,
+    consumableId: req.params.id,
+    payload: req.body,
+    requestedClinicId: req.query.clinicId
+  });
+  return sendSuccess(res, 'Consumable batch registered successfully', { consumable });
+});
+
+const adjustConsumableStock = asyncHandler(async (req, res) => {
+  const result = await labService.adjustConsumableStock({
+    requester: req.user,
+    payload: req.body,
+    requestedClinicId: req.query.clinicId,
+    req
+  });
+  return sendSuccess(res, 'Consumable stock adjusted successfully', result);
+});
+
+const listLabStockLedgers = asyncHandler(async (req, res) => {
+  const ledgers = await labService.listLabStockLedgers({
+    requester: req.user,
+    query: req.query,
+    requestedClinicId: req.query.clinicId
+  });
+  return sendSuccess(res, 'Stock ledgers retrieved successfully', { ledgers });
+});
+
+const getLabInventoryDashboard = asyncHandler(async (req, res) => {
+  const stats = await labService.getLabInventoryDashboard({
+    requester: req.user,
+    requestedClinicId: req.query.clinicId
+  });
+  return sendSuccess(res, 'Laboratory inventory dashboard statistics retrieved', stats);
+});
+
+const searchAllLabs = asyncHandler(async (req, res) => {
+  const data = await labService.searchAllLabs({
+    requester: req.user,
+    query: req.query,
+    requestedClinicId: req.query.clinicId
+  });
+  return sendSuccess(res, 'Laboratory search results retrieved', data);
+});
+
+const createCustomLabRequest = asyncHandler(async (req, res) => {
+  const data = await labService.createCustomLabRequest({
+    requester: req.user,
+    payload: req.body
+  });
+  return sendSuccess(res, 'Custom laboratory request created', data, 201);
+});
+
+const listCustomLabRequests = asyncHandler(async (req, res) => {
+  const data = await labService.listCustomLabRequests({
+    requester: req.user
+  });
+  return sendSuccess(res, 'Custom laboratory requests retrieved', { requests: data });
+});
+
 module.exports = {
   createLabTest,
   updateLabTest,
@@ -158,5 +258,16 @@ module.exports = {
   updateLabReport,
   reviewLabAnalysis,
   finalizeLabReport,
-  getPatientLabHistory
+  getPatientLabHistory,
+  listLabTestMasters,
+  createLabConsumable,
+  listLabConsumables,
+  updateLabConsumable,
+  addConsumableBatch,
+  adjustConsumableStock,
+  listLabStockLedgers,
+  getLabInventoryDashboard,
+  searchAllLabs,
+  createCustomLabRequest,
+  listCustomLabRequests
 };

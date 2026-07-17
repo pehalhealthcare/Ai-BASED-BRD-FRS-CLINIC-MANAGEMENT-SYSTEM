@@ -37,13 +37,13 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
-  const refreshUser = async () => {
+  const refreshUser = async (suppressLoading = false) => {
     if (!getStoredToken()) {
-      setLoading(false);
+      if (!suppressLoading) setLoading(false);
       return null;
     }
 
-    setLoading(true);
+    if (!suppressLoading) setLoading(true);
 
     try {
       const data = await authApi.me();
@@ -54,7 +54,7 @@ export const AuthProvider = ({ children }) => {
       clearAuthState();
       return null;
     } finally {
-      setLoading(false);
+      if (!suppressLoading) setLoading(false);
     }
   };
 

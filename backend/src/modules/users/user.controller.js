@@ -38,9 +38,35 @@ const updateUserStatus = asyncHandler(async (req, res) => {
   return sendSuccess(res, 'User status updated successfully', { user });
 });
 
+const createStaff = asyncHandler(async (req, res) => {
+  const { name, email, phone, password, role, clinicId } = req.body;
+  const user = await userService.createStaffByAdmin({
+    name,
+    email,
+    phone,
+    password,
+    role,
+    requester: req.user,
+    requestedClinicId: clinicId
+  });
+
+  return sendSuccess(res, 'Staff member account created successfully', { user }, 201);
+});
+
+const deleteUser = asyncHandler(async (req, res) => {
+  await userService.deleteUser({
+    requester: req.user,
+    userId: req.params.id
+  });
+
+  return sendSuccess(res, 'Staff member account removed successfully');
+});
+
 module.exports = {
   listUsers,
   getUserById,
   updateUserRole,
-  updateUserStatus
+  updateUserStatus,
+  createStaff,
+  deleteUser
 };

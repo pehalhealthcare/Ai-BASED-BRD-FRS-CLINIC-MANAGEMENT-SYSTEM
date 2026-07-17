@@ -23,6 +23,7 @@ const router = Router();
  *       - Users
  */
 router.get('/', protect, authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN), validate(listUsersQuerySchema), userController.listUsers);
+router.post('/', protect, authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN), userController.createStaff);
 
 router.get('/:id', protect, validate(userIdParamSchema), userController.getUserById);
 
@@ -30,5 +31,7 @@ router.patch('/:id/role',protect,authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),valid
 
 router.patch('/:id/status',protect,authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),validate(updateStatusSchema),userController.updateUserStatus
 );
+
+router.delete('/:id', protect, authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN), validate(userIdParamSchema), userController.deleteUser);
 
 module.exports = router;

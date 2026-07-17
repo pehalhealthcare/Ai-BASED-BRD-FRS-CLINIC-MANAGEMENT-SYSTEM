@@ -1,6 +1,8 @@
 const { sendSuccess } = require('../../common/utils/apiResponse');
 const { asyncHandler } = require('../../common/utils/asyncHandler');
 const pharmacyService = require('./pharmacy.service');
+const MedicineMaster = require('./medicineMaster.model');
+const BrandMaster = require('./brandMaster.model');
 
 const createMedicine = asyncHandler(async (req, res) => {
   const medicine = await pharmacyService.createMedicine({
@@ -150,6 +152,128 @@ const updatePharmacyOrderStatus = asyncHandler(async (req, res) => {
   return sendSuccess(res, 'Pharmacy order status updated successfully', { pharmacyOrder });
 });
 
+const listMedicineMasters = asyncHandler(async (req, res) => {
+  const query = req.query.search
+    ? { genericName: { $regex: new RegExp(req.query.search, 'i') } }
+    : {};
+  const masters = await MedicineMaster.find(query).limit(100);
+  return sendSuccess(res, 'Medicine masters retrieved', { masters });
+});
+
+const listBrandMasters = asyncHandler(async (req, res) => {
+  const query = req.query.search
+    ? { brandName: { $regex: new RegExp(req.query.search, 'i') } }
+    : {};
+  if (req.query.genericMedicineId) {
+    query.genericMedicineId = req.query.genericMedicineId;
+  }
+  const brands = await BrandMaster.find(query).populate('genericMedicineId').limit(100);
+  return sendSuccess(res, 'Brand masters retrieved', { brands });
+});
+
+// ─── SUPPLIER MANAGEMENT CONTROLLERS ───────────────────────────────────────────
+
+const createSupplier = asyncHandler(async (req, res) => {
+  const supplier = await pharmacyService.createSupplier({
+    requester: req.user,
+    payload: req.body,
+    requestedClinicId: req.query.clinicId
+  });
+  return sendSuccess(res, 'Supplier created successfully', { supplier }, 201);
+});
+
+const listSuppliers = asyncHandler(async (req, res) => {
+  const suppliers = await pharmacyService.listSuppliers({
+    requester: req.user,
+    query: req.query,
+    requestedClinicId: req.query.clinicId
+  });
+  return sendSuccess(res, 'Suppliers retrieved successfully', { suppliers });
+});
+
+const updateSupplier = asyncHandler(async (req, res) => {
+  const supplier = await pharmacyService.updateSupplier({
+    requester: req.user,
+    supplierId: req.params.id,
+    payload: req.body,
+    requestedClinicId: req.query.clinicId
+  });
+  return sendSuccess(res, 'Supplier updated successfully', { supplier });
+});
+
+const deleteSupplier = asyncHandler(async (req, res) => {
+  const result = await pharmacyService.deleteSupplier({
+    requester: req.user,
+    supplierId: req.params.id,
+    requestedClinicId: req.query.clinicId
+  });
+  return sendSuccess(res, 'Supplier deleted successfully', result);
+});
+
+// ─── PURCHASE ORDER CONTROLLERS ───────────────────────────────────────────────
+
+const createPurchaseOrder = asyncHandler(async (req, res) => {
+  const purchaseOrder = await pharmacyService.createPurchaseOrder({
+    requester: req.user,
+    payload: req.body,
+    requestedClinicId: req.query.clinicId
+  });
+  return sendSuccess(res, 'Purchase order created successfully', { purchaseOrder }, 201);
+});
+
+const listPurchaseOrders = asyncHandler(async (req, res) => {
+  const purchaseOrders = await pharmacyService.listPurchaseOrders({
+    requester: req.user,
+    query: req.query,
+    requestedClinicId: req.query.clinicId
+  });
+  return sendSuccess(res, 'Purchase orders retrieved successfully', { purchaseOrders });
+});
+
+const receivePurchaseOrder = asyncHandler(async (req, res) => {
+  const purchaseOrder = await pharmacyService.receivePurchaseOrder({
+    requester: req.user,
+    poId: req.params.id,
+    payload: req.body,
+    requestedClinicId: req.query.clinicId,
+    req
+  });
+  return sendSuccess(res, 'Purchase order received successfully', { purchaseOrder });
+});
+
+// ─── STOCK ADJUSTMENT CONTROLLERS ─────────────────────────────────────────────
+
+const adjustStock = asyncHandler(async (req, res) => {
+  const result = await pharmacyService.adjustStock({
+    requester: req.user,
+    payload: req.body,
+    requestedClinicId: req.query.clinicId,
+    req
+  });
+  return sendSuccess(res, 'Stock adjusted successfully', result);
+});
+
+// ─── STOCK LEDGER CONTROLLERS ─────────────────────────────────────────────────
+
+const listStockLedgers = asyncHandler(async (req, res) => {
+  const ledgers = await pharmacyService.listStockLedgers({
+    requester: req.user,
+    query: req.query,
+    requestedClinicId: req.query.clinicId
+  });
+  return sendSuccess(res, 'Stock ledgers retrieved successfully', { ledgers });
+});
+
+// ─── INVENTORY DASHBOARD CONTROLLERS ──────────────────────────────────────────
+
+const getPharmacyInventoryDashboard = asyncHandler(async (req, res) => {
+  const stats = await pharmacyService.getPharmacyInventoryDashboard({
+    requester: req.user,
+    requestedClinicId: req.query.clinicId
+  });
+  return sendSuccess(res, 'Dispensary inventory dashboard statistics retrieved', stats);
+});
+
 module.exports = {
   createMedicine,
   listMedicines,
@@ -164,5 +288,49 @@ module.exports = {
   getPatientMedicineHistory,
   createPharmacyOrder,
   listPharmacyOrders,
-  updatePharmacyOrderStatus
+  updatePharmacyOrderStatus,
+  listMedicineMasters,
+  listBrandMasters,
+  createSupplier,
+  listSuppliers,
+  updateSupplier,
+  deleteSupplier,
+  createPurchaseOrder,
+  listPurchaseOrders,
+  receivePurchaseOrder,
+  adjustStock,
+  listStockLedgers,
+  getPharmacyInventoryDashboard,
+  searchAllMedicines: asyncHandler(async (req, res) => {
+    const data = await pharmacyService.searchAllMedicines({
+      requester: req.user,
+      search: req.query.search || '',
+      clinicId: req.query.clinicId
+    });
+    return sendSuccess(res, 'Grouped medicine search results retrieved', data);
+  }),
+  createProcurementRequest: asyncHandler(async (req, res) => {
+    const request = await pharmacyService.createProcurementRequest({
+      requester: req.user,
+      payload: req.body,
+      clinicId: req.query.clinicId
+    });
+    return sendSuccess(res, 'Procurement request submitted successfully', { request }, HTTP_STATUS.CREATED);
+  }),
+  listProcurementRequests: asyncHandler(async (req, res) => {
+    const requests = await pharmacyService.listProcurementRequests({
+      requester: req.user,
+      clinicId: req.query.clinicId
+    });
+    return sendSuccess(res, 'Procurement requests retrieved successfully', { requests });
+  }),
+  updateProcurementRequestStatus: asyncHandler(async (req, res) => {
+    const request = await pharmacyService.updateProcurementRequestStatus({
+      requester: req.user,
+      requestId: req.params.id,
+      status: req.body.status,
+      clinicId: req.query.clinicId
+    });
+    return sendSuccess(res, 'Procurement request status updated successfully', { request });
+  })
 };
