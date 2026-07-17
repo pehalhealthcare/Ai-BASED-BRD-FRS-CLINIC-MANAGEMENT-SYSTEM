@@ -31,6 +31,7 @@ import {
 import useAuth from '../../hooks/useAuth';
 import SmartPrescriptionSearch from './SmartPrescriptionSearch';
 import PreviousVisitsWorkspace from './PreviousVisitsWorkspace';
+import CurrentMedicinesWorkspace from './CurrentMedicinesWorkspace';
 
 /* ─── FontAwesome Icon Prefix Compatibility Mapping ─── */
 const byPrefixAndName = {
@@ -1214,7 +1215,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
       </div>
 
       {/* ─── 3 Column Grid Layout ─── */}
-      <div className={`flex-1 grid grid-cols-1 ${workspaceTab === 'Previous Visits' ? 'lg:grid-cols-[280px_1fr]' : 'lg:grid-cols-[280px_1fr_320px]'} gap-6 p-6 items-stretch`}>
+      <div className={`flex-1 grid grid-cols-1 ${['Previous Visits', 'Current Medicines'].includes(workspaceTab) ? 'lg:grid-cols-[280px_1fr]' : 'lg:grid-cols-[280px_1fr_320px]'} gap-6 p-6 items-stretch`}>
 
         {/* LEFT COLUMN: Dynamic Patient Summary/Lab Overview */}
         <div className="flex flex-col gap-5">
@@ -1263,8 +1264,8 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                   <button className="w-full text-left py-2 px-3 hover:bg-slate-50 text-slate-650 font-bold rounded-lg flex justify-between">
                     Allergies (2) <span className="bg-rose-50 text-rose-600 px-1.5 py-0.5 rounded text-[10px] font-black">2</span>
                   </button>
-                  <button className="w-full text-left py-2 px-3 hover:bg-slate-50 text-slate-650 font-bold rounded-lg flex justify-between">
-                    Current Medicines (3) <span className="bg-indigo-50 text-indigo-605 px-1.5 py-0.5 rounded text-[10px] font-black">3</span>
+                  <button onClick={() => setWorkspaceTab('Current Medicines')} className={`w-full text-left py-2 px-3 rounded-lg font-bold flex justify-between ${workspaceTab === 'Current Medicines' ? 'bg-indigo-50 border-l-2 border-indigo-650 text-indigo-707 font-extrabold' : 'hover:bg-slate-50 text-slate-650'}`}>
+                    Current Medicines (4) <span className="bg-indigo-50 text-indigo-605 px-1.5 py-0.5 rounded text-[10px] font-black">4</span>
                   </button>
                   <button className="w-full text-left py-2 px-3 hover:bg-slate-50 text-slate-650 font-bold rounded-lg flex justify-between">
                     Chronic Conditions (2) <span className="bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded text-[10px] font-black">2</span>
@@ -1348,7 +1349,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
 
           {/* Workspace Tab Headers */}
           <div className="flex border-b border-slate-200 overflow-x-auto pb-0.5 gap-2 shrink-0">
-            {['History', 'Examination', 'Diagnosis', 'Prescription', 'Laboratory', 'Procedures', 'Advice', 'Follow-up', 'Previous Visits'].map((tab) => (
+            {['History', 'Examination', 'Diagnosis', 'Prescription', 'Laboratory', 'Procedures', 'Advice', 'Follow-up', 'Previous Visits', 'Current Medicines'].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setWorkspaceTab(tab)}
@@ -3861,6 +3862,17 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                 navigate={navigate}
               />
             )}
+
+            {workspaceTab === 'Current Medicines' && (
+              <CurrentMedicinesWorkspace
+                patient={patient}
+                currentUser={doctor}
+                navigate={navigate}
+                currentMedicines={medicines}
+                setMedicines={setMedicines}
+                setIsDirty={setIsDirty}
+              />
+            )}
           </div>
 
           {/* Unsaved Changes Indicator */}
@@ -3872,7 +3884,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
         </div>
 
         {/* RIGHT COLUMN: Premium AI Clinical Assistant & Alerts */}
-        {workspaceTab !== 'Previous Visits' && (
+        {!['Previous Visits', 'Current Medicines'].includes(workspaceTab) && (
           <div className="flex flex-col gap-5">
           {/* AI Clinical Assistant (Gated by subscription) */}
           <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm space-y-4">
