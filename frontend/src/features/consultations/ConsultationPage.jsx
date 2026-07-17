@@ -1305,7 +1305,18 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                   <button className="w-full text-left py-2 px-3 hover:bg-slate-50 text-slate-655 font-bold rounded-lg flex justify-between">
                     Documents ({patient?.documents?.length || 4}) <span className="text-slate-400">{patient?.documents?.length || 4}</span>
                   </button>
-                  <button className="w-full text-left py-2 px-3 hover:bg-slate-50 text-slate-655 font-bold rounded-lg">Family History</button>
+                  <button
+                    onClick={() => {
+                      setWorkspaceTab('History');
+                      setTimeout(() => {
+                        const el = document.getElementById('emr-family-history-section');
+                        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                      }, 100);
+                    }}
+                    className="w-full text-left py-2 px-3 hover:bg-slate-50 text-slate-655 font-bold rounded-lg"
+                  >
+                    Family History
+                  </button>
                   <button className="w-full text-left py-2 px-3 hover:bg-slate-50 text-slate-655 font-bold rounded-lg">Vaccinations</button>
                 </div>
               </div>
@@ -1589,7 +1600,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                 </div>
 
                 {/* Family History */}
-                <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                <div id="emr-family-history-section" className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
                   <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50/40">
                     <div className="flex items-center gap-2.5">
                       <div className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center text-sm">👨‍👩‍👧</div>
