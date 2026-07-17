@@ -417,12 +417,18 @@ export default function CurrentMedicinesWorkspace({
                     </td>
                     <td className="p-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => handleAddToPrescriptionClick(med)}
-                          className="px-2.5 py-1.5 border border-indigo-200 text-indigo-650 hover:bg-indigo-50 rounded-xl text-[10px] font-black transition"
-                        >
-                          + Add to Prescription
-                        </button>
+                        {currentMedicines.some(m => m.medicineName.toLowerCase() === med.medicineName.toLowerCase()) ? (
+                          <span className="px-2.5 py-1.5 bg-indigo-50 border border-indigo-200 text-indigo-707 rounded-xl text-[10px] font-black flex items-center gap-1">
+                            ✓ Added to Prescription
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => handleAddToPrescriptionClick(med)}
+                            className="px-2.5 py-1.5 border border-indigo-200 text-indigo-650 hover:bg-indigo-50 rounded-xl text-[10px] font-black transition"
+                          >
+                            + Add to Prescription
+                          </button>
+                        )}
                         <button
                           onClick={() => handleToggleExpand(med._id)}
                           className="p-1 text-slate-400 hover:text-slate-600"
