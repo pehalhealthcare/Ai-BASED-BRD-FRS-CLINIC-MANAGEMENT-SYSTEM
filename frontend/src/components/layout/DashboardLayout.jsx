@@ -206,7 +206,7 @@ const DashboardLayout = () => {
           onToggleSidebar={() => setSidebarOpen((s) => !s)}
           onLogout={handleLogout}
         />
-        <main className="flex-1 p-4 md:p-6 animate-fade-in">
+        <main className="flex-1 p-4 md:p-6 overflow-x-auto animate-fade-in">
           <Outlet />
         </main>
         {user?.role === ROLES.PATIENT && <FloatingChatbot />}
