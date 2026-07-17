@@ -38,7 +38,7 @@ const DashboardLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [walkInModalOpen, setWalkInModalOpen] = useState(false);
   const [subInfo, setSubInfo] = useState(null);
 

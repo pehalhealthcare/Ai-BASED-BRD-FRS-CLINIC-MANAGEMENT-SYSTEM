@@ -554,8 +554,8 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
           fixed inset-y-0 left-0 z-40 flex flex-col w-[265px]
           bg-[#0b0f19] border-r border-white/[0.06]
           transition-transform duration-300 ease-spring
-          lg:sticky lg:top-0 lg:h-screen lg:translate-x-0
-          ${open ? 'translate-x-0' : '-translate-x-full'}
+          lg:sticky lg:top-0 lg:h-screen
+          ${open ? 'translate-x-0 lg:flex' : '-translate-x-full lg:hidden lg:w-0'}
         `}
       >
         {/* Brand Header */}
@@ -638,8 +638,8 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
           fixed inset-y-0 left-0 z-40 flex flex-col w-[265px]
           bg-white border-r border-slate-100
           transition-transform duration-300 ease-spring
-          lg:sticky lg:top-0 lg:h-screen lg:translate-x-0
-          ${open ? 'translate-x-0' : '-translate-x-full'}
+          lg:sticky lg:top-0 lg:h-screen
+          ${open ? 'translate-x-0 lg:flex' : '-translate-x-full lg:hidden lg:w-0'}
         `}
       >
         {/* Brand Header */}
