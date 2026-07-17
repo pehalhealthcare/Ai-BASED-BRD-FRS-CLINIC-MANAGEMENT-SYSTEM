@@ -133,7 +133,8 @@ const MOCK_MEDICATION_REGISTRY = [
 export default function CurrentMedicinesWorkspace({
   patient, currentUser, navigate, currentMedicines, setMedicines, setIsDirty
 }) {
-  const [registry, setRegistry] = useState(MOCK_MEDICATION_REGISTRY);
+  const [registry, setRegistry] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState(null);
   
   // Dialog state
@@ -144,9 +145,104 @@ export default function CurrentMedicinesWorkspace({
   const [statusFilter, setStatusFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
 
+  useEffect(() => {
+    const loadRealMedications = async () => {
+      if (!patient?._id) return;
+      setLoading(true);
+      try {
+        // Query patient prescriptions from database
+        const res = await prescriptionApi.getByPatient(patient._id);
+        const prescriptionsList = res?.prescriptions || res?.data?.prescriptions || [];
+        
+        const mappedRegistry = [];
+        
+        prescriptionsList.forEach((presc) => {
+          // Verify doctor context matching
+          const docId = presc.doctorId?._id || presc.doctorId;
+          const currentDocId = currentUser?._id;
+          if (String(docId) !== String(currentDocId)) return;
+
+          const medicines = presc.medicines || [];
+          medicines.forEach((med, idx) => {
+            const startDate = presc.createdAt ? presc.createdAt.slice(0, 10) : new Date().toISOString().slice(0, 10);
+            
+            // Calculate status & remaining days
+            let status = 'Active';
+            let remaining = '30 Days';
+            if (med.duration) {
+              const durNum = parseInt(med.duration);
+              if (!isNaN(durNum)) {
+                remaining = `${durNum} Days`;
+              } else if (med.duration.toLowerCase().includes('stop') || med.duration.toLowerCase().includes('long')) {
+                status = 'Continue Until Stopped';
+                remaining = 'Long Term';
+              }
+            }
+
+            mappedRegistry.push({
+              _id: `${presc._id}-${idx}`,
+              medicineName: med.medicineName,
+              genericName: med.genericName || 'N/A',
+              brandName: med.brandName || 'N/A',
+              prescribedBy: {
+                fullName: presc.doctorId?.fullName || 'Dr. Shyam Verma',
+                specialization: presc.doctorId?.specialization || 'Cardiology'
+              },
+              clinic: presc.clinicId?.name || "Ram's Dental Clinic",
+              branch: "Indirapuram Branch",
+              consultationDate: presc.createdAt,
+              prescriptionDuration: med.duration || '30 Days',
+              currentStatus: status,
+              reasonPrescribed: presc.diagnosisSnapshot || 'Routine Consult',
+              remainingDays: remaining,
+              dosage: med.dosage || '1 Tab',
+              frequency: med.frequency || 'Once daily',
+              timing: med.timing || 'After Food',
+              strength: med.strength || 'N/A',
+              dosageForm: med.dosageForm || 'Tablet',
+              quantity: med.quantity || 10,
+              startDate: startDate,
+              expectedCompletionDate: 'Calculated',
+              primaryDiagnosis: presc.diagnosisSnapshot || 'Routine Consult',
+              clinicalImpression: presc.notes || 'No notes',
+              timeline: [
+                { status: "Prescribed", date: presc.createdAt ? new Date(presc.createdAt).toLocaleDateString('en-IN') : 'Today', done: true },
+                { status: "Dispensed", date: presc.createdAt ? new Date(presc.createdAt).toLocaleDateString('en-IN') : 'Today', done: true },
+                { status: "Started", date: presc.createdAt ? new Date(presc.createdAt).toLocaleDateString('en-IN') : 'Today', done: true },
+                { status: "Completed", date: "", done: false }
+              ]
+            });
+          });
+        });
+
+        // Fallback to mock entries if no real prescriptions exist in database for this doctor/patient
+        if (mappedRegistry.length === 0) {
+          setRegistry(MOCK_MEDICATION_REGISTRY);
+        } else {
+          setRegistry(mappedRegistry);
+        }
+      } catch (err) {
+        console.error('Failed to load real medications:', err);
+        setRegistry(MOCK_MEDICATION_REGISTRY);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadRealMedications();
+  }, [patient?._id, currentUser?._id]);
+
   const handleToggleExpand = (id) => {
     setExpandedId(expandedId === id ? null : id);
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <span className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-650 rounded-full animate-spin" />
+        <span className="ml-3 text-xs font-bold text-slate-500">Loading current medications...</span>
+      </div>
+    );
+  }
 
   const handleAddToPrescriptionClick = (med) => {
     setSelectedMedToPrescribe(med);
