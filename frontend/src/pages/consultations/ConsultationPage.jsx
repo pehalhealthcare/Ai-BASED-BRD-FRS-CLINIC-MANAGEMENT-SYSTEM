@@ -177,7 +177,7 @@ const ConsultationPage = () => {
   }
 
   // If consultationId loaded but consultation is NOT completed, open EMR directly
-  if (consultationId && selectedConsultation && (!isCompleted || user?.role?.toLowerCase() === 'patient')) {
+  if (consultationId && selectedConsultation && !isCompleted) {
     return <LegacyConsultationPage />;
   }
 
@@ -251,32 +251,56 @@ const ConsultationPage = () => {
   );
   const totalPages = Math.ceil(totalCompletedResults / rowsPerPage) || 1;
 
-  // Render detail view - Dashboard style (completed consultation)
+  // Render Consultation Details - Premium Dashboard (screenshot 2 design)
   if ((consultationId || appointmentId) && selectedConsultation) {
     const consult = selectedConsultation.consultation;
-    const patientObj = selectedConsultation.patient || consult.patientId;
-    const doctorObj = selectedConsultation.doctor || consult.doctorId;
-    const appointmentObj = selectedConsultation.appointment || consult.appointmentId;
+    const patientObj = selectedConsultation.patient || consult.patientId || {};
+    const doctorObj = selectedConsultation.doctor || consult.doctorId || {};
+    const appointmentObj = selectedConsultation.appointment || consult.appointmentId || {};
 
     const age = patientObj?.age || 'N/A';
     const gender = patientObj?.gender || 'N/A';
     const patientIdStr = patientObj?.patientId || 'N/A';
     const phone = patientObj?.phone || 'N/A';
     const bloodGroup = patientObj?.bloodGroup || 'N/A';
+    const dob = patientObj?.dob || patientObj?.dateOfBirth || null;
     const allergies = patientObj?.allergies || 'No known drug allergies';
     const chiefComplaint = consult.chiefComplaint || 'No chief complaint recorded.';
     const clinicalNotes = consult.clinicalNotes || '';
     const pastMedicalHistory = consult.pastMedicalHistory || [];
     const systemicExam = consult.systemicExamination || [];
-    const primaryDiag = consult.diagnosis?.primary || 'General Health Review';
+    const primaryDiag = consult.diagnosis?.primary || 'N/A';
+    const secondaryDiag = consult.diagnosis?.secondary || [];
     const clinicalImpression = consult.diagnosis?.notes || '';
     const icdCode = consult.diagnosis?.icdCode || '';
+    const severity = consult.diagnosis?.severity || '';
     const currentMedications = selectedConsultation.prescription?.medicines || [];
     const labTests = selectedConsultation.prescription?.labs || [];
     const procedures = selectedConsultation.prescription?.procedures || [];
     const advice = selectedConsultation.prescription?.advice || '';
     const followUp = consult.followUp || {};
     const vitals = consult.vitals || {};
+
+    const visitDateObj = consult.createdAt ? new Date(consult.createdAt) : null;
+    const visitDateStr = visitDateObj
+      ? visitDateObj.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+      : 'N/A';
+    const visitTimeStr = visitDateObj
+      ? visitDateObj.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
+      : '';
+    const completedAtObj = consult.completedAt ? new Date(consult.completedAt) : visitDateObj;
+    const completedStr = completedAtObj
+      ? completedAtObj.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) + ', ' +
+        completedAtObj.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
+      : 'N/A';
+
+    const calculateBMI = () => {
+      if (vitals.weight && vitals.height) {
+        const hm = parseFloat(vitals.height) / 100;
+        return (parseFloat(vitals.weight) / (hm * hm)).toFixed(1);
+      }
+      return 'N/A';
+    };
 
     const handlePrint = async () => {
       try {
@@ -300,455 +324,693 @@ const ConsultationPage = () => {
 
     const handleShare = () => {
       navigator.clipboard.writeText(window.location.href);
-      toast.success('Consultation link copied to clipboard!');
+      toast.success('Consultation link copied!');
     };
 
-    const calculateBMI = () => {
-      if (vitals.weight && vitals.height) {
-        const hm = vitals.height / 100;
-        return (vitals.weight / (hm * hm)).toFixed(1);
-      }
-      return 'N/A';
-    };
-
-    const getStrength = (med) => {
-      if (med.strength) return med.strength;
-      const m = med.medicineName?.match(/(\d+\s*(?:mg|g|mcg|ml|tablet|tab|cap|capsule|puff|spray|unit|iu))/i);
-      return m ? m[1] : 'N/A';
-    };
-
-    const visitDate = consult.createdAt
-      ? new Date(consult.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
-      : 'N/A';
-
+    // Tracking timeline steps with dates
     const trackingSteps = [
-      { label: 'Appointment Booked', active: true },
-      { label: 'Checked In', active: true },
-      { label: 'In Consultation', active: true },
-      { label: 'Consultation Completed', active: true },
-      { label: 'Follow-up Pending', active: !!followUp.required }
+      {
+        label: 'Appointment Booked',
+        date: appointmentObj?.createdAt ? new Date(appointmentObj.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : visitDateStr,
+        time: appointmentObj?.createdAt ? new Date(appointmentObj.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) : '',
+        icon: '📅', done: true
+      },
+      {
+        label: 'Checked In',
+        date: visitDateStr, time: visitTimeStr,
+        icon: '✅', done: true
+      },
+      {
+        label: 'In Consultation',
+        date: visitDateStr, time: visitTimeStr,
+        icon: '👨‍⚕️', done: true
+      },
+      {
+        label: 'Consultation Completed',
+        date: completedAtObj ? completedAtObj.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : visitDateStr,
+        time: completedAtObj ? completedAtObj.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) : '',
+        icon: '🏁', done: true, active: true
+      },
+      {
+        label: 'Follow-up Pending',
+        date: followUp.date ? new Date(followUp.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A',
+        time: '',
+        icon: '🔄', done: !!followUp.required
+      }
     ];
 
-    return (
-      <div className="min-h-screen bg-[#070b19] text-slate-100 p-5 space-y-5">
+    // Vitals data
+    const vitalsList = [
+      { label: 'Temperature', val: vitals.temperature ? `${vitals.temperature} °F` : '98.6 °F', icon: '🌡️', color: 'text-amber-600' },
+      { label: 'Pulse Rate', val: vitals.pulse ? `${vitals.pulse} /min` : '78 /min', icon: '💓', color: 'text-rose-600' },
+      { label: 'Blood Pressure', val: vitals.bloodPressure || '120/80', unit: 'mmHg', icon: '💊', color: 'text-indigo-600' },
+      { label: 'Respiratory Rate', val: vitals.respiratoryRate ? `${vitals.respiratoryRate} /min` : '18 /min', icon: '🫁', color: 'text-blue-600' },
+      { label: 'SpO₂', val: (vitals.oxygenSaturation || vitals.spo2) ? `${vitals.oxygenSaturation || vitals.spo2} %` : '98 %', icon: '💨', color: 'text-teal-600' },
+      { label: 'Weight', val: vitals.weight ? `${vitals.weight} kg` : '65 kg', icon: '⚖️', color: 'text-orange-600' },
+      { label: 'Height', val: vitals.height ? `${vitals.height} cm` : '175 cm', icon: '📏', color: 'text-yellow-600' },
+      { label: 'BMI', val: calculateBMI(), unit: 'kg/m²', icon: '📊', color: 'text-emerald-600' },
+      { label: 'Pain Score', val: `${vitals.painScore || '0'} /10`, icon: '😣', color: 'text-red-600' },
+    ];
 
-        {/* Breadcrumbs + Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+    // Re-visit history from patientHistory
+    const recentHistory = patientHistory.filter(h => h._id !== consult._id).slice(0, 3);
+
+    return (
+      <div className="min-h-screen bg-[#f4f6fb] text-slate-800 font-sans">
+
+        {/* ── TOP HEADER BAR ── */}
+        <div className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-30 shadow-sm">
           <div>
-            <nav className="flex items-center gap-2 text-xs text-slate-400 mb-1">
-              <span
-                className="cursor-pointer hover:text-indigo-400 transition"
-                onClick={() => { navigate('/consultations'); setSelectedConsultation(null); }}
-              >Consultations</span>
-              <span className="text-slate-600">â€º</span>
-              <span className="text-indigo-400 font-semibold">Consultation Details</span>
+            <nav className="flex items-center gap-2 text-xs text-slate-400">
+              <span className="text-indigo-600 font-semibold cursor-pointer hover:underline" onClick={() => { navigate('/consultations'); setSelectedConsultation(null); }}>Consultations</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+              <span className="text-slate-600 font-semibold">Consultation Details</span>
             </nav>
-            <h1 className="text-xl font-extrabold text-white tracking-tight">Consultation Details</h1>
-            <p className="text-xs text-slate-400 mt-0.5">Completed consultation record for {patientObj?.fullName || 'Patient'}</p>
+            <h1 className="text-2xl font-black text-slate-900 mt-1 tracking-tight">Consultation Details</h1>
+            <p className="text-xs text-slate-500 mt-0.5">View full consultation record and track appointment status</p>
           </div>
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-3">
             <button
               onClick={handlePrint}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-800 hover:bg-slate-750 border border-slate-700 text-white rounded-xl text-xs font-bold transition shadow-sm"
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-xs font-bold shadow-sm hover:bg-slate-50 transition"
             >
-              <Printer className="w-3.5 h-3.5 text-slate-400" /> Print / Share
+              <Printer className="w-3.5 h-3.5" /> Print / Share
+              <ChevronRight className="w-3 h-3 text-slate-400" />
             </button>
             <button
-              onClick={() => { navigate('/consultations'); setSelectedConsultation(null); }}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-transparent border border-slate-700 text-slate-400 hover:text-slate-200 rounded-xl text-xs font-bold transition"
+              onClick={() => { navigate('/appointments'); }}
+              className="flex items-center gap-2 px-4 py-2.5 bg-transparent border border-slate-200 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-50 transition"
             >
-              <ArrowLeft className="w-3.5 h-3.5" /> Back
+              <ArrowLeft className="w-3.5 h-3.5" /> Back to Appointments
             </button>
           </div>
         </div>
 
-        {/* Status Info Bar */}
-        <div className="bg-[#0b1329] border border-slate-800 rounded-2xl px-6 py-4 grid grid-cols-2 md:grid-cols-5 gap-4">
-          <div className="flex flex-col gap-1">
-            <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Status</span>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="w-5 h-5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center text-[10px] font-black">âœ“</span>
-              <span className="text-sm font-extrabold text-emerald-400">Completed</span>
-            </div>
-            {consult.editCompleted && (
-              <span className="text-[10px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 rounded-full font-bold self-start mt-0.5">âœ“ Edited</span>
-            )}
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Consultation ID</span>
-            <span className="text-sm font-extrabold text-white font-mono">CON-{consult._id.substring(0, 8).toUpperCase()}</span>
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Appointment ID</span>
-            <span className="text-sm font-extrabold text-white font-mono">
-              APT-{appointmentObj?.appointmentCode || appointmentObj?._id?.substring(0, 8).toUpperCase() || 'N/A'}
-            </span>
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Visit Date</span>
-            <span className="text-sm font-extrabold text-white flex items-center gap-1.5">
-              <Calendar className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-              <span>{visitDate}</span>
-            </span>
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Duration</span>
-            <span className="text-sm font-extrabold text-white flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5 text-emerald-400 shrink-0" />22 mins
-            </span>
-          </div>
-        </div>
+        <div className="max-w-[1400px] mx-auto p-6 space-y-5">
 
-        {/* Appointment Tracking Timeline */}
-        <div className="bg-[#0b1329] border border-slate-800 rounded-2xl p-5 space-y-4">
-          <h2 className="text-[11px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-1.5">
-            <Activity className="w-3.5 h-3.5 text-indigo-400" /> Appointment Tracking
-          </h2>
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-0">
-            {trackingSteps.map((step, idx) => (
-              <div key={idx} className="flex sm:flex-col items-center gap-3 sm:gap-2 flex-1 relative">
-                {idx < trackingSteps.length - 1 && (
-                  <div className="hidden sm:block absolute top-3.5 left-[calc(50%+16px)] right-[calc(-50%+16px)] h-px bg-slate-700 z-0" />
-                )}
-                <div className={`w-7 h-7 rounded-full border flex items-center justify-center shrink-0 z-10 text-[10px] font-black ${
-                  step.active
-                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                    : 'bg-slate-800 text-slate-500 border-slate-700'
-                }`}>
-                  {step.active ? 'âœ“' : idx + 1}
+          {/* ── STATUS INFO ROW ── */}
+          <div className="bg-white border border-slate-200 rounded-2xl px-6 py-4 shadow-sm grid grid-cols-2 md:grid-cols-6 gap-4">
+            {/* Status */}
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] text-slate-400 uppercase font-black tracking-wider">Appointment Status</span>
+              <div className="flex items-start gap-2 flex-col mt-1">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center text-white text-[9px] font-black">✓</span>
+                  <span className="text-base font-extrabold text-emerald-600">Completed</span>
                 </div>
-                <span className={`text-[10px] font-bold sm:text-center leading-tight ${step.active ? 'text-white' : 'text-slate-500'}`}>
-                  {step.label}
-                </span>
+                <span className="text-[10px] text-slate-400 font-medium">Consultation completed successfully</span>
+                {consult.editCompleted && (
+                  <span className="text-[10px] bg-indigo-50 text-indigo-600 border border-indigo-200 px-2 py-0.5 rounded-full font-bold">✓ Edited</span>
+                )}
               </div>
-            ))}
+            </div>
+            {/* Consultation ID */}
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] text-slate-400 uppercase font-black tracking-wider">Consultation ID</span>
+              <span className="text-sm font-extrabold text-indigo-600 font-mono mt-1">CON-{new Date().getFullYear()}-{visitDateObj ? `${(visitDateObj.getMonth()+1).toString().padStart(2,'0')}${visitDateObj.getDate().toString().padStart(2,'0')}` : '0716'}-{consult._id.substring(0, 4).toUpperCase()}</span>
+            </div>
+            {/* Appointment ID */}
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] text-slate-400 uppercase font-black tracking-wider">Appointment ID</span>
+              <span className="text-sm font-extrabold text-slate-700 font-mono mt-1">
+                APT-{appointmentObj?.appointmentCode || appointmentObj?._id?.substring(0, 12).toUpperCase() || 'N/A'}
+              </span>
+            </div>
+            {/* Visit Date */}
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] text-slate-400 uppercase font-black tracking-wider">Visit Date & Time</span>
+              <div className="flex items-center gap-1.5 mt-1">
+                <Calendar className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                <span className="text-sm font-extrabold text-slate-800">{visitDateStr}{visitTimeStr ? `, ${visitTimeStr}` : ''}</span>
+              </div>
+            </div>
+            {/* Duration */}
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] text-slate-400 uppercase font-black tracking-wider">Duration</span>
+              <div className="flex items-center gap-1.5 mt-1">
+                <Clock className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                <span className="text-sm font-extrabold text-slate-800">22 mins</span>
+              </div>
+            </div>
+            {/* Type */}
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] text-slate-400 uppercase font-black tracking-wider">Consultation Type</span>
+              <span className="mt-1 text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 px-2.5 py-1 rounded-full font-bold inline-block self-start capitalize">
+                {appointmentObj?.consultationType || appointmentObj?.appointmentType || 'In-Clinic'}
+              </span>
+            </div>
           </div>
-        </div>
 
-        {/* Main 2-column Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-5">
-
-          {/* LEFT: Tabbed workspace */}
-          <div className="bg-[#0b1329] border border-slate-800 rounded-2xl p-5 flex flex-col gap-5">
-            {/* Tabs */}
-            <div className="flex flex-wrap gap-1.5 border-b border-slate-800 pb-4">
-              {[
-                { id: 'summary',      label: 'Consultation Summary' },
-                { id: 'prescription', label: `Prescription (${currentMedications.length})` },
-                { id: 'labs',         label: `Lab Tests (${labTests.length})` },
-                { id: 'procedures',   label: `Procedures (${procedures.length})` }
-              ].map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveSummaryTab(tab.id)}
-                  className={`px-4 py-1.5 rounded-xl text-xs font-black transition ${
-                    activeSummaryTab === tab.id
-                      ? 'bg-indigo-600/20 text-indigo-400 border border-indigo-500/30'
-                      : 'text-slate-400 hover:text-slate-200 border border-transparent hover:bg-slate-800/40'
-                  }`}
-                >{tab.label}</button>
+          {/* ── APPOINTMENT TRACKING TIMELINE ── */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+            <h2 className="text-xs font-black uppercase text-slate-400 tracking-widest flex items-center gap-1.5 mb-5">
+              <Activity className="w-3.5 h-3.5 text-indigo-500" /> Appointment Tracking
+            </h2>
+            <div className="flex items-stretch justify-between gap-0 overflow-x-auto">
+              {trackingSteps.map((step, idx) => (
+                <div key={idx} className="flex flex-col items-center flex-1 relative min-w-[120px]">
+                  {/* Connector line */}
+                  {idx < trackingSteps.length - 1 && (
+                    <div className={`absolute top-6 left-[calc(50%+20px)] right-0 h-0.5 ${step.done ? 'bg-emerald-400' : 'bg-slate-200'}`} />
+                  )}
+                  {/* Icon circle */}
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center text-xl z-10 border-2 ${
+                    step.active
+                      ? 'bg-indigo-600 border-indigo-600 shadow-lg shadow-indigo-200'
+                      : step.done
+                        ? 'bg-emerald-50 border-emerald-400'
+                        : 'bg-slate-50 border-slate-200'
+                  }`}>
+                    {step.icon}
+                  </div>
+                  {/* Label & date */}
+                  <div className="text-center mt-2 px-1">
+                    <p className={`text-[11px] font-extrabold ${step.active ? 'text-indigo-600' : step.done ? 'text-slate-800' : 'text-slate-400'}`}>{step.label}</p>
+                    <p className="text-[10px] text-slate-400 font-medium mt-0.5">{step.date}</p>
+                    {step.time && <p className="text-[10px] text-slate-400">{step.time}</p>}
+                  </div>
+                </div>
               ))}
             </div>
-
-            {/* Tab: Summary */}
-            {activeSummaryTab === 'summary' && (
-              <div className="space-y-5">
-                <div>
-                  <h4 className="text-[10px] font-black uppercase text-indigo-400 tracking-widest mb-2">Chief Complaint</h4>
-                  <p className="text-sm text-slate-200 bg-[#060913] border border-slate-800 rounded-xl p-4 leading-relaxed">{chiefComplaint}</p>
-                </div>
-                {clinicalNotes && (
-                  <div>
-                    <h4 className="text-[10px] font-black uppercase text-indigo-400 tracking-widest mb-2">History of Present Illness</h4>
-                    <p className="text-sm text-slate-200 bg-[#060913] border border-slate-800 rounded-xl p-4 leading-relaxed whitespace-pre-line">{clinicalNotes}</p>
-                  </div>
-                )}
-                <div>
-                  <h4 className="text-[10px] font-black uppercase text-indigo-400 tracking-widest mb-2">Past Medical History</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {pastMedicalHistory.length > 0
-                      ? pastMedicalHistory.map((item, i) => (
-                          <span key={i} className="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1 rounded-full font-semibold">{item}</span>
-                        ))
-                      : <span className="text-xs text-slate-500 italic">No significant past history.</span>
-                    }
-                  </div>
-                </div>
-                <div>
-                  <h4 className="text-[10px] font-black uppercase text-indigo-400 tracking-widest mb-2">Allergies</h4>
-                  <span className="text-xs bg-rose-500/10 text-rose-400 border border-rose-500/20 px-3 py-1.5 rounded-xl font-semibold inline-block">{allergies}</span>
-                </div>
-                {systemicExam.length > 0 && (
-                  <div>
-                    <h4 className="text-[10px] font-black uppercase text-indigo-400 tracking-widest mb-2">Systemic Examination</h4>
-                    <div className="border border-slate-800 rounded-xl overflow-hidden">
-                      <table className="w-full text-xs">
-                        <thead>
-                          <tr className="bg-slate-800/40 border-b border-slate-800">
-                            <th className="text-left py-2.5 px-4 font-black text-slate-300 w-1/3">System</th>
-                            <th className="text-left py-2.5 px-4 font-black text-slate-300">Findings</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {systemicExam.map((ex, i) => (
-                            <tr key={i} className="border-b border-slate-800/60 last:border-0 hover:bg-slate-800/20">
-                              <td className="py-2.5 px-4 font-bold text-slate-200">{ex.sys}</td>
-                              <td className="py-2.5 px-4 text-slate-400">{ex.status}{ex.note ? ` N/A ${ex.note}` : ''}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-                <div className="border-t border-slate-800 pt-4">
-                  <h4 className="text-[10px] font-black uppercase text-indigo-400 tracking-widest mb-3">Diagnosis</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div className="bg-[#060913] border border-slate-800 rounded-xl p-4 space-y-1.5">
-                      <span className="text-[10px] text-slate-500 font-black uppercase block">Primary Diagnosis</span>
-                      <strong className="text-sm font-extrabold text-white block">
-                        {primaryDiag}{icdCode ? ` (${icdCode})` : ''}
-                      </strong>
-                      <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full font-bold inline-block">Active / Mild</span>
-                    </div>
-                    {clinicalImpression && (
-                      <div className="bg-[#060913] border border-slate-800 rounded-xl p-4 space-y-1.5">
-                        <span className="text-[10px] text-slate-500 font-black uppercase block">Clinical Impression</span>
-                        <p className="text-xs text-slate-300 leading-relaxed">{clinicalImpression}</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Tab: Prescription */}
-            {activeSummaryTab === 'prescription' && (
-              <div className="space-y-3">
-                <h4 className="text-[10px] font-black uppercase text-indigo-400 tracking-widest">Medicines Prescribed</h4>
-                <div className="border border-slate-800 rounded-xl overflow-hidden">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="bg-slate-800/40 border-b border-slate-800">
-                        {['#', 'Medicine', 'Strength', 'Dose', 'Frequency', 'Duration', 'Instructions'].map(h => (
-                          <th key={h} className="py-2.5 px-3 font-black text-slate-300 text-left">{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {currentMedications.length > 0
-                        ? currentMedications.map((med, i) => (
-                            <tr key={i} className="border-b border-slate-800/60 last:border-0 hover:bg-slate-800/20">
-                              <td className="py-2.5 px-3 text-slate-500 font-bold">{i + 1}</td>
-                              <td className="py-2.5 px-3">
-                                <strong className="text-white font-bold block">{med.medicineName}</strong>
-                                {med.genericName && <span className="text-[10px] text-slate-500 italic block">{med.genericName}</span>}
-                              </td>
-                              <td className="py-2.5 px-3 text-slate-300">{getStrength(med)}</td>
-                              <td className="py-2.5 px-3 text-slate-300">{med.dosage || med.dose || '1 Tab'}</td>
-                              <td className="py-2.5 px-3 text-slate-300">{med.frequency || '1-0-1'}</td>
-                              <td className="py-2.5 px-3 text-slate-300">{med.duration || '5 days'}</td>
-                              <td className="py-2.5 px-3 text-slate-300">{med.instructions || med.timing || 'After Food'}</td>
-                            </tr>
-                          ))
-                        : <tr><td colSpan="7" className="py-6 text-center text-slate-500 italic">No medicines prescribed.</td></tr>
-                      }
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {/* Tab: Lab Tests */}
-            {activeSummaryTab === 'labs' && (
-              <div className="space-y-3">
-                <h4 className="text-[10px] font-black uppercase text-indigo-400 tracking-widest">Laboratory Investigations</h4>
-                <div className="border border-slate-800 rounded-xl overflow-hidden">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="bg-slate-800/40 border-b border-slate-800">
-                        {['Test Name', 'Sample Required', 'Purpose / Reason'].map(h => (
-                          <th key={h} className="py-2.5 px-4 font-black text-slate-300 text-left">{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {labTests.length > 0
-                        ? labTests.map((lab, i) => (
-                            <tr key={i} className="border-b border-slate-800/60 last:border-0 hover:bg-slate-800/20">
-                              <td className="py-2.5 px-4 font-bold text-white">{lab.testName}</td>
-                              <td className="py-2.5 px-4 text-slate-300">{lab.sampleRequired || 'Blood'}</td>
-                              <td className="py-2.5 px-4 text-slate-400">{lab.reason || 'N/A'}</td>
-                            </tr>
-                          ))
-                        : <tr><td colSpan="3" className="py-6 text-center text-slate-500 italic">No lab tests recommended.</td></tr>
-                      }
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {/* Tab: Procedures */}
-            {activeSummaryTab === 'procedures' && (
-              <div className="space-y-3">
-                <h4 className="text-[10px] font-black uppercase text-indigo-400 tracking-widest">Procedures Recommended</h4>
-                <div className="border border-slate-800 rounded-xl overflow-hidden">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="bg-slate-800/40 border-b border-slate-800">
-                        {['Procedure', 'Frequency'].map(h => (
-                          <th key={h} className="py-2.5 px-4 font-black text-slate-300 text-left">{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {procedures.length > 0
-                        ? procedures.map((proc, i) => (
-                            <tr key={i} className="border-b border-slate-800/60 last:border-0 hover:bg-slate-800/20">
-                              <td className="py-2.5 px-4 font-bold text-white">{proc.name}</td>
-                              <td className="py-2.5 px-4 text-slate-300">{proc.frequency || 'Once'}</td>
-                            </tr>
-                          ))
-                        : <tr><td colSpan="2" className="py-6 text-center text-slate-500 italic">No procedures recommended.</td></tr>
-                      }
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
           </div>
 
-          {/* RIGHT: Cards */}
-          <div className="space-y-4">
+          {/* ── MAIN CONTENT + RIGHT SIDEBAR ── */}
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-5">
 
-            {/* Patient Card */}
-            <div className="bg-[#0b1329] border border-slate-800 rounded-2xl p-4 space-y-3">
-              <h3 className="text-[10px] font-black uppercase text-indigo-400 tracking-widest flex items-center gap-1.5">
-                <User className="w-3.5 h-3.5" /> Patient Information
-              </h3>
-              <div className="flex items-center gap-3 border-b border-slate-800 pb-3">
-                <div className="w-11 h-11 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 text-lg font-bold shrink-0">
-                  {patientObj?.fullName?.charAt(0) || 'P'}
-                </div>
-                <div>
-                  <strong className="text-white text-sm font-extrabold block">{patientObj?.fullName || 'N/A'}</strong>
-                  <span className="text-[10px] text-indigo-400 font-bold">{patientIdStr}</span>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-2.5 text-xs">
-                <div><span className="text-[10px] text-slate-500 block font-semibold">Age & Gender</span><span className="text-slate-200 font-semibold">{age} Yrs, {gender}</span></div>
-                <div><span className="text-[10px] text-slate-500 block font-semibold">Blood Group</span><span className="text-slate-200 font-semibold">{bloodGroup}</span></div>
-                <div className="col-span-2"><span className="text-[10px] text-slate-500 block font-semibold">Phone</span><span className="text-slate-200 font-semibold">{phone}</span></div>
-              </div>
-            </div>
+            {/* ── LEFT: Tabs + Content ── */}
+            <div className="space-y-4">
 
-            {/* Doctor Card */}
-            <div className="bg-[#0b1329] border border-slate-800 rounded-2xl p-4 space-y-3">
-              <h3 className="text-[10px] font-black uppercase text-indigo-400 tracking-widest flex items-center gap-1.5">
-                <span>ðŸ©º</span> Doctor Information
-              </h3>
-              <div className="flex items-center gap-3 border-b border-slate-800 pb-3">
-                <div className="w-11 h-11 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 text-lg font-bold shrink-0">
-                  {doctorObj?.fullName?.charAt(0) || 'D'}
-                </div>
-                <div>
-                  <strong className="text-white text-sm font-extrabold block">Dr. {doctorObj?.fullName || 'N/A'}</strong>
-                  <span className="text-[10px] text-indigo-400 font-bold">Reg: {doctorObj?.medicalRegistrationNumber || 'N/A'}</span>
-                </div>
-              </div>
-              <div className="text-xs space-y-2">
-                <div><span className="text-[10px] text-slate-500 block font-semibold">Qualifications</span><span className="text-slate-200 font-semibold">{doctorObj?.qualification || doctorObj?.qualifications?.join(', ') || 'MBBS, MD'}</span></div>
-                <div><span className="text-[10px] text-slate-500 block font-semibold">Specialization</span><span className="text-slate-200 font-semibold">{doctorObj?.specialization || 'Consultant Physician'}</span></div>
-              </div>
-            </div>
-
-            {/* Vitals Card */}
-            <div className="bg-[#0b1329] border border-slate-800 rounded-2xl p-4 space-y-3">
-              <h3 className="text-[10px] font-black uppercase text-indigo-400 tracking-widest flex items-center gap-1.5">
-                <span>ðŸ“Š</span> Vitals (Recorded)
-              </h3>
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { label: 'Temp',   val: vitals.temperature ? `${vitals.temperature} Â°F` : '98.6 Â°F', color: 'text-amber-400' },
-                  { label: 'Pulse',  val: vitals.pulse ? `${vitals.pulse} /min` : '78 /min', color: 'text-rose-400' },
-                  { label: 'BP',     val: vitals.bloodPressure || '120/80', color: 'text-indigo-400' },
-                  { label: 'Resp',   val: vitals.respiratoryRate ? `${vitals.respiratoryRate} /min` : '18 /min', color: 'text-blue-400' },
-                  { label: 'SpO2',   val: (vitals.oxygenSaturation || vitals.spo2) ? `${vitals.oxygenSaturation || vitals.spo2} %` : '98 %', color: 'text-teal-400' },
-                  { label: 'Weight', val: vitals.weight ? `${vitals.weight} kg` : '65 kg', color: 'text-orange-400' },
-                  { label: 'Height', val: vitals.height ? `${vitals.height} cm` : '175 cm', color: 'text-yellow-400' },
-                  { label: 'BMI',    val: calculateBMI(), color: 'text-emerald-400' },
-                  { label: 'Pain',   val: '0 /10', color: 'text-red-400' }
-                ].map((v, i) => (
-                  <div key={i} className="bg-[#060913] border border-slate-800 rounded-xl p-2 text-center">
-                    <span className="text-[9px] text-slate-500 uppercase font-black block tracking-wider">{v.label}</span>
-                    <span className={`text-[11px] font-extrabold block mt-0.5 ${v.color}`}>{v.val}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Advice Card */}
-            {advice && (
-              <div className="bg-[#0b1329] border border-slate-800 rounded-2xl p-4 space-y-3">
-                <h3 className="text-[10px] font-black uppercase text-indigo-400 tracking-widest flex items-center gap-1.5">
-                  <span>ðŸ’¡</span> Advice (Summary)
-                </h3>
-                <ul className="text-xs text-slate-300 space-y-1.5">
-                  {advice.split('\n').filter(Boolean).map((line, i) => (
-                    <li key={i} className="flex items-start gap-1.5 leading-relaxed">
-                      <span className="text-indigo-400 mt-0.5">â€¢</span>
-                      <span>{line.replace(/^[\sâ€¢\-\d.]+/, '').trim()}</span>
-                    </li>
+              {/* Tab Bar */}
+              <div className="bg-white border border-slate-200 rounded-2xl shadow-sm">
+                <div className="flex gap-1 p-2 border-b border-slate-100 overflow-x-auto">
+                  {[
+                    { id: 'summary', label: 'Consultation Summary' },
+                    { id: 'prescription', label: `Prescription (${currentMedications.length})` },
+                    { id: 'labs', label: `Lab Tests (${labTests.length})` },
+                    { id: 'procedures', label: `Procedures (${procedures.length})` },
+                    { id: 'history', label: 'History' },
+                  ].map(tab => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveSummaryTab(tab.id)}
+                      className={`px-4 py-2 rounded-xl text-[11px] font-black whitespace-nowrap transition ${
+                        activeSummaryTab === tab.id
+                          ? 'bg-indigo-600 text-white shadow-sm'
+                          : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >{tab.label}</button>
                   ))}
-                </ul>
-              </div>
-            )}
+                </div>
 
-            {/* Follow-up Plan */}
-            <div className="bg-[#0b1329] border border-slate-800 rounded-2xl p-4 space-y-3">
-              <h3 className="text-[10px] font-black uppercase text-indigo-400 tracking-widest flex items-center gap-1.5">
-                <span>ðŸ“…</span> Follow-up Plan
-              </h3>
-              <div className="grid grid-cols-2 gap-3 text-xs">
-                <div>
-                  <span className="text-[10px] text-slate-500 block font-semibold">Follow-up Type</span>
-                  <span className="text-slate-200 font-semibold">{followUp.required ? 'In-Clinic' : 'Not Required'}</span>
+                {/* ── Tab Content ── */}
+                <div className="p-6">
+
+                  {/* SUMMARY TAB */}
+                  {activeSummaryTab === 'summary' && (
+                    <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr] gap-6">
+                      {/* Left column — clinical info */}
+                      <div className="space-y-5">
+                        {/* Chief Complaint */}
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="w-5 h-5 bg-blue-50 rounded-lg flex items-center justify-center text-xs">📋</span>
+                            <h3 className="text-xs font-black text-slate-700 uppercase tracking-wider">Chief Complaint</h3>
+                          </div>
+                          <p className="text-sm text-slate-600 leading-relaxed bg-slate-50 rounded-xl p-3">{chiefComplaint}</p>
+                        </div>
+
+                        {/* HPI */}
+                        {clinicalNotes && (
+                          <div>
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="w-5 h-5 bg-violet-50 rounded-lg flex items-center justify-center text-xs">💬</span>
+                              <h3 className="text-xs font-black text-slate-700 uppercase tracking-wider">History of Present Illness</h3>
+                            </div>
+                            <p className="text-sm text-slate-600 leading-relaxed bg-slate-50 rounded-xl p-3 whitespace-pre-line">{clinicalNotes}</p>
+                          </div>
+                        )}
+
+                        {/* Past Medical History */}
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="w-5 h-5 bg-amber-50 rounded-lg flex items-center justify-center text-xs">🏥</span>
+                            <h3 className="text-xs font-black text-slate-700 uppercase tracking-wider">Past Medical History</h3>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {pastMedicalHistory.length > 0
+                              ? pastMedicalHistory.map((item, i) => (
+                                  <span key={i} className="text-[11px] bg-green-50 text-green-700 border border-green-100 px-2.5 py-1 rounded-full font-semibold">{item}</span>
+                                ))
+                              : <span className="text-xs text-slate-400 italic">No significant past history.</span>
+                            }
+                          </div>
+                        </div>
+
+                        {/* Allergies */}
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="w-5 h-5 bg-red-50 rounded-lg flex items-center justify-center text-xs">⚠️</span>
+                            <h3 className="text-xs font-black text-slate-700 uppercase tracking-wider">Allergies</h3>
+                          </div>
+                          <span className="text-[11px] bg-red-50 text-red-700 border border-red-100 px-3 py-1.5 rounded-xl font-semibold inline-block">{allergies}</span>
+                        </div>
+
+                        {/* Systemic Examination */}
+                        {systemicExam.length > 0 && (
+                          <div>
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="w-5 h-5 bg-teal-50 rounded-lg flex items-center justify-center text-xs">🔍</span>
+                              <h3 className="text-xs font-black text-slate-700 uppercase tracking-wider">Examination Findings (Key)</h3>
+                            </div>
+                            <div className="space-y-2">
+                              {systemicExam.map((ex, i) => (
+                                <div key={i} className="grid grid-cols-[140px_1fr] gap-3 py-2 border-b border-slate-100 last:border-0 text-sm">
+                                  <span className="font-bold text-slate-700">{ex.sys}</span>
+                                  <span className="text-slate-500">{ex.status}{ex.note ? ` — ${ex.note}` : ''}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Diagnosis */}
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="w-5 h-5 bg-indigo-50 rounded-lg flex items-center justify-center text-xs">🩺</span>
+                            <h3 className="text-xs font-black text-slate-700 uppercase tracking-wider">Diagnosis</h3>
+                          </div>
+                          <div className="bg-slate-50 rounded-xl p-4 space-y-3">
+                            <div className="grid grid-cols-[1fr_auto] gap-4 items-start">
+                              <div>
+                                <span className="text-[10px] text-slate-400 block font-black uppercase tracking-wider mb-1">Primary Diagnosis</span>
+                                <strong className="text-sm font-extrabold text-slate-800">{primaryDiag}</strong>
+                              </div>
+                              {icdCode && (
+                                <div className="text-right">
+                                  <span className="text-[10px] text-slate-400 block font-black uppercase tracking-wider mb-1">ICD-10 Code</span>
+                                  <span className="text-sm font-bold text-slate-700">{icdCode}</span>
+                                </div>
+                              )}
+                            </div>
+                            {clinicalImpression && (
+                              <div>
+                                <span className="text-[10px] text-slate-400 block font-black uppercase tracking-wider mb-1">Clinical Impression</span>
+                                <p className="text-xs text-slate-600 leading-relaxed">{clinicalImpression}</p>
+                              </div>
+                            )}
+                            {severity && (
+                              <div>
+                                <span className="text-[10px] text-slate-400 block font-black uppercase tracking-wider mb-1">Severity / Risk</span>
+                                <span className="text-xs bg-green-50 text-green-700 border border-green-100 px-2.5 py-1 rounded-full font-bold">Mild / Low Risk</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right column — vitals + advice + follow-up */}
+                      <div className="space-y-5">
+                        {/* Vitals */}
+                        <div>
+                          <div className="flex items-center gap-2 mb-3">
+                            <span className="w-5 h-5 bg-rose-50 rounded-lg flex items-center justify-center text-xs">📊</span>
+                            <h3 className="text-xs font-black text-slate-700 uppercase tracking-wider">Vitals (Recorded)</h3>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2">
+                            {vitalsList.map((v, i) => (
+                              <div key={i} className="bg-white border border-slate-100 rounded-xl p-3 text-center shadow-sm">
+                                <div className="text-lg mb-1">{v.icon}</div>
+                                <span className={`text-sm font-extrabold block ${v.color}`}>{v.val}</span>
+                                {v.unit && <span className="text-[9px] text-slate-400 block">{v.unit}</span>}
+                                <span className="text-[9px] text-slate-400 font-bold block mt-0.5 uppercase tracking-wide">{v.label}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Advice */}
+                        {advice && (
+                          <div>
+                            <div className="flex items-center gap-2 mb-3">
+                              <span className="w-5 h-5 bg-yellow-50 rounded-lg flex items-center justify-center text-xs">💡</span>
+                              <h3 className="text-xs font-black text-slate-700 uppercase tracking-wider">Advice (Summary)</h3>
+                            </div>
+                            <ul className="space-y-1.5">
+                              {advice.split('\n').filter(Boolean).map((line, i) => (
+                                <li key={i} className="flex items-start gap-2 text-sm text-slate-600">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 mt-2 shrink-0" />
+                                  {line.replace(/^[\s•\-\d.]+/, '').trim()}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        {/* Follow-up Plan */}
+                        <div>
+                          <div className="flex items-center gap-2 mb-3">
+                            <span className="w-5 h-5 bg-purple-50 rounded-lg flex items-center justify-center text-xs">📅</span>
+                            <h3 className="text-xs font-black text-slate-700 uppercase tracking-wider">Follow-up Plan</h3>
+                          </div>
+                          <div className="bg-slate-50 rounded-xl p-4 space-y-2">
+                            <div className="grid grid-cols-3 gap-3 text-xs">
+                              <div>
+                                <span className="text-[10px] text-slate-400 block font-black uppercase tracking-wider">Follow-up Type</span>
+                                <span className="font-semibold text-slate-700 mt-0.5 block">{followUp.required ? 'In-Clinic' : 'Not Required'}</span>
+                              </div>
+                              <div>
+                                <span className="text-[10px] text-slate-400 block font-black uppercase tracking-wider">Follow-up After</span>
+                                <span className="font-semibold text-slate-700 mt-0.5 block">{followUp.afterDays ? `${followUp.afterDays} Days` : followUp.required ? '7 Days' : 'N/A'}</span>
+                              </div>
+                              <div>
+                                <span className="text-[10px] text-slate-400 block font-black uppercase tracking-wider">Follow-up Date</span>
+                                <span className="font-semibold text-slate-700 mt-0.5 block">
+                                  {followUp.date ? new Date(followUp.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'}
+                                </span>
+                              </div>
+                            </div>
+                            {followUp.notes && (
+                              <div className="pt-2 border-t border-slate-200">
+                                <span className="text-[10px] text-slate-400 font-black uppercase tracking-wider block mb-1">Reason</span>
+                                <p className="text-xs text-slate-600 leading-relaxed">{followUp.notes}</p>
+                              </div>
+                            )}
+                            {followUp.instructions && (
+                              <div>
+                                <span className="text-[10px] text-slate-400 font-black uppercase tracking-wider block mb-1">Instructions</span>
+                                <p className="text-xs text-slate-600 leading-relaxed">{followUp.instructions}</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* PRESCRIPTION TAB */}
+                  {activeSummaryTab === 'prescription' && (
+                    <div className="space-y-3">
+                      <h4 className="text-xs font-black uppercase text-slate-500 tracking-wider">Medicines Prescribed</h4>
+                      <div className="border border-slate-200 rounded-xl overflow-hidden">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="bg-slate-50 border-b border-slate-200">
+                              {['#', 'Medicine / Generic', 'Strength', 'Dose', 'Frequency', 'Duration', 'Instructions'].map(h => (
+                                <th key={h} className="py-3 px-3 font-black text-slate-500 text-left">{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {currentMedications.length > 0
+                              ? currentMedications.map((med, i) => (
+                                  <tr key={i} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+                                    <td className="py-3 px-3 text-slate-400 font-bold">{i + 1}</td>
+                                    <td className="py-3 px-3">
+                                      <strong className="text-slate-800 font-bold block">{med.medicineName}</strong>
+                                      {med.genericName && <span className="text-[10px] text-slate-400 italic">{med.genericName}</span>}
+                                    </td>
+                                    <td className="py-3 px-3 text-slate-600">{med.strength || med.dosage || 'N/A'}</td>
+                                    <td className="py-3 px-3 text-slate-600">{med.dose || '1 Tab'}</td>
+                                    <td className="py-3 px-3 text-slate-600">{med.frequency || '1-0-1'}</td>
+                                    <td className="py-3 px-3 text-slate-600">{med.duration || '5 days'}</td>
+                                    <td className="py-3 px-3 text-slate-600">{med.instructions || med.timing || 'After Food'}</td>
+                                  </tr>
+                                ))
+                              : <tr><td colSpan="7" className="py-8 text-center text-slate-400 italic">No medicines prescribed.</td></tr>
+                            }
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* LAB TESTS TAB */}
+                  {activeSummaryTab === 'labs' && (
+                    <div className="space-y-3">
+                      <h4 className="text-xs font-black uppercase text-slate-500 tracking-wider">Laboratory Investigations</h4>
+                      <div className="border border-slate-200 rounded-xl overflow-hidden">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="bg-slate-50 border-b border-slate-200">
+                              {['Test Name', 'Sample Required', 'Purpose / Reason'].map(h => (
+                                <th key={h} className="py-3 px-4 font-black text-slate-500 text-left">{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {labTests.length > 0
+                              ? labTests.map((lab, i) => (
+                                  <tr key={i} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+                                    <td className="py-3 px-4 font-bold text-slate-800">{lab.testName}</td>
+                                    <td className="py-3 px-4 text-slate-600">{lab.sampleRequired || 'Blood'}</td>
+                                    <td className="py-3 px-4 text-slate-500">{lab.reason || 'N/A'}</td>
+                                  </tr>
+                                ))
+                              : <tr><td colSpan="3" className="py-8 text-center text-slate-400 italic">No lab tests recommended.</td></tr>
+                            }
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* PROCEDURES TAB */}
+                  {activeSummaryTab === 'procedures' && (
+                    <div className="space-y-3">
+                      <h4 className="text-xs font-black uppercase text-slate-500 tracking-wider">Procedures Recommended</h4>
+                      <div className="border border-slate-200 rounded-xl overflow-hidden">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="bg-slate-50 border-b border-slate-200">
+                              {['Procedure', 'Frequency'].map(h => (
+                                <th key={h} className="py-3 px-4 font-black text-slate-500 text-left">{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {procedures.length > 0
+                              ? procedures.map((proc, i) => (
+                                  <tr key={i} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+                                    <td className="py-3 px-4 font-bold text-slate-800">{proc.name}</td>
+                                    <td className="py-3 px-4 text-slate-600">{proc.frequency || 'Once'}</td>
+                                  </tr>
+                                ))
+                              : <tr><td colSpan="2" className="py-8 text-center text-slate-400 italic">No procedures recommended.</td></tr>
+                            }
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* HISTORY TAB */}
+                  {activeSummaryTab === 'history' && (
+                    <div className="space-y-3">
+                      <h4 className="text-xs font-black uppercase text-slate-500 tracking-wider">Past Consultation History</h4>
+                      {recentHistory.length > 0 ? (
+                        <div className="space-y-2">
+                          {recentHistory.map((h, i) => (
+                            <div
+                              key={i}
+                              onClick={() => navigate(`/consultations/${h._id}`)}
+                              className="flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-indigo-50 hover:border-indigo-200 transition"
+                            >
+                              <div>
+                                <strong className="text-sm font-bold text-slate-800">{h.diagnosis?.primary || 'Consultation'}</strong>
+                                <span className="text-xs text-slate-400 block mt-0.5">
+                                  {h.completedAt ? new Date(h.completedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'}
+                                </span>
+                              </div>
+                              <span className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-full font-bold">Completed</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-slate-400 italic py-6 text-center">No previous consultation history available.</p>
+                      )}
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <span className="text-[10px] text-slate-500 block font-semibold">Follow-up Date</span>
-                  <span className="text-slate-200 font-semibold">
-                    {followUp.date ? new Date(followUp.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'}
-                  </span>
+              </div>
+
+              {/* ── COMPLETION FOOTER BAR ── */}
+              <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-indigo-100 border border-indigo-300 flex items-center justify-center shrink-0">
+                  <CheckCircle className="w-5 h-5 text-indigo-600" />
                 </div>
-                <div className="col-span-2">
-                  <span className="text-[10px] text-slate-500 block font-semibold">Notes</span>
-                  <span className="text-slate-400">{followUp.notes || 'Review response to treatment.'}</span>
+                <div className="text-xs text-indigo-700 leading-relaxed">
+                  <span>This consultation was completed on </span>
+                  <strong>{completedStr}</strong>
+                  <span> by </span>
+                  <strong>Dr. {doctorObj?.fullName || 'N/A'}</strong>
+                  {consult._id && (
+                    <>
+                      <span className="mx-2 text-indigo-300">•</span>
+                      <span>Consultation ID: </span>
+                      <strong>CON-{new Date().getFullYear()}-{visitDateObj ? `${(visitDateObj.getMonth()+1).toString().padStart(2,'0')}${visitDateObj.getDate().toString().padStart(2,'0')}` : '0716'}-{consult._id.substring(0, 4).toUpperCase()}</strong>
+                    </>
+                  )}
+                  <span className="mx-2 text-indigo-300">•</span>
+                  <span>Report generated on </span>
+                  <strong>{visitDateStr}</strong>
                 </div>
               </div>
             </div>
 
-            {/* Quick Actions */}
-            <div className="bg-[#0b1329] border border-slate-800 rounded-2xl p-4 space-y-2.5">
-              <h3 className="text-[10px] font-black uppercase text-indigo-400 tracking-widest">Quick Actions</h3>
-              <button
-                onClick={handlePrint}
-                className="w-full flex items-center gap-2.5 p-3 bg-indigo-600/10 border border-indigo-500/20 text-indigo-400 rounded-xl text-xs font-bold hover:bg-indigo-600/20 transition text-left"
-              ><span>ðŸ“„</span> View Full Consultation Report</button>
-              <button
-                onClick={() => setIsEditingCompletedConsultation(true)}
-                className="w-full flex items-center gap-2.5 p-3 bg-blue-600/10 border border-blue-500/20 text-blue-400 rounded-xl text-xs font-bold hover:bg-blue-600/20 transition text-left"
-              ><span>âœï¸</span> Edit Consultation</button>
-              <button
-                onClick={handleShare}
-                className="w-full flex items-center gap-2.5 p-3 bg-[#060913] border border-slate-800 text-slate-300 rounded-xl text-xs font-bold hover:bg-slate-800 transition text-left"
-              ><span>ðŸ”-</span> Share with Patient (Copy Link)</button>
-              <button
-                onClick={handleDownload}
-                className="w-full flex items-center gap-2.5 p-3 bg-rose-600/10 border border-rose-500/20 text-rose-400 rounded-xl text-xs font-bold hover:bg-rose-600/20 transition text-left"
-              ><span>ðŸ“¥</span> Download Report (PDF)</button>
-            </div>
+            {/* ── RIGHT SIDEBAR ── */}
+            <div className="space-y-4">
 
+              {/* Patient Info */}
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="w-5 h-5 bg-blue-50 rounded-lg flex items-center justify-center text-xs">👤</span>
+                  <h3 className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Patient Information</h3>
+                </div>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-black text-lg shrink-0">
+                    {patientObj?.fullName?.charAt(0) || 'P'}
+                  </div>
+                  <div>
+                    <strong className="text-slate-900 font-extrabold text-base block">{patientObj?.fullName || 'N/A'}</strong>
+                    <span className="text-[11px] text-indigo-600 font-bold">{patientIdStr}</span>
+                  </div>
+                </div>
+                <div className="space-y-2 text-xs">
+                  <div className="flex justify-between items-center py-1.5 border-b border-slate-50">
+                    <span className="text-slate-400 font-semibold">{age} Years, {gender}</span>
+                    {dob && <span className="text-slate-500">{new Date(dob).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>}
+                  </div>
+                  <div className="flex justify-between items-center py-1.5 border-b border-slate-50">
+                    <span className="text-slate-400 font-semibold">Blood Group</span>
+                    <span className="font-bold text-slate-700">{bloodGroup}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-1.5">
+                    <span className="text-slate-400 font-semibold">Phone</span>
+                    <span className="font-bold text-slate-700">+91 {phone}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Doctor Info */}
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="w-5 h-5 bg-teal-50 rounded-lg flex items-center justify-center text-xs">🩺</span>
+                  <h3 className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Doctor Information</h3>
+                </div>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 rounded-full bg-teal-50 border border-teal-100 flex items-center justify-center text-teal-600 font-black text-lg shrink-0">
+                    {doctorObj?.fullName?.charAt(0) || 'D'}
+                  </div>
+                  <div>
+                    <strong className="text-slate-900 font-extrabold text-sm block">Dr. {doctorObj?.fullName || 'N/A'}</strong>
+                    <span className="text-[11px] text-slate-500">{doctorObj?.qualification || doctorObj?.qualifications?.join(', ') || 'MBBS, MD (General Medicine)'}</span>
+                  </div>
+                </div>
+                <div className="space-y-2 text-xs">
+                  <div className="flex justify-between py-1.5 border-b border-slate-50">
+                    <span className="text-slate-400 font-semibold">Reg. No.</span>
+                    <span className="font-bold text-slate-700">{doctorObj?.medicalRegistrationNumber || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between py-1.5">
+                    <span className="text-slate-400 font-semibold">Specialization</span>
+                    <span className="font-bold text-slate-700">{doctorObj?.specialization || 'Consultant Physician'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick Actions */}
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="w-5 h-5 bg-indigo-50 rounded-lg flex items-center justify-center text-xs">⚡</span>
+                  <h3 className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Quick Actions</h3>
+                </div>
+                <div className="space-y-2.5">
+                  <button
+                    onClick={handlePrint}
+                    className="w-full flex items-center gap-3 p-3 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition"
+                  >
+                    <span className="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center shrink-0">📄</span>
+                    <div className="text-left">
+                      <span className="block font-black">View Full Consultation Report</span>
+                      <span className="text-indigo-200 text-[10px]">Open complete printable report</span>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => setIsEditingCompletedConsultation(true)}
+                    className="w-full flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold hover:bg-slate-100 transition"
+                  >
+                    <span className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">✏️</span>
+                    <div className="text-left">
+                      <span className="block font-black">Edit Consultation</span>
+                      <span className="text-slate-400 text-[10px]">Modify consultation details</span>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => toast.success('Re-visit scheduling coming soon!')}
+                    className="w-full flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold hover:bg-slate-100 transition"
+                  >
+                    <span className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center shrink-0">📅</span>
+                    <div className="text-left">
+                      <span className="block font-black">Create Re-Visit</span>
+                      <span className="text-slate-400 text-[10px]">Schedule next appointment</span>
+                    </div>
+                  </button>
+                  <button
+                    onClick={handleShare}
+                    className="w-full flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold hover:bg-slate-100 transition"
+                  >
+                    <span className="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center shrink-0">🔗</span>
+                    <div className="text-left">
+                      <span className="block font-black">Share with Patient</span>
+                      <span className="text-slate-400 text-[10px]">Copy consultation link</span>
+                    </div>
+                  </button>
+                  <button
+                    onClick={handleDownload}
+                    className="w-full flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold hover:bg-slate-100 transition"
+                  >
+                    <span className="w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center shrink-0">📥</span>
+                    <div className="text-left">
+                      <span className="block font-black">Download Report</span>
+                      <span className="text-slate-400 text-[10px]">Save as PDF</span>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              {/* Re-visit History */}
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="w-5 h-5 bg-amber-50 rounded-lg flex items-center justify-center text-xs">🔄</span>
+                  <h3 className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Re-visit History</h3>
+                </div>
+                <div className="space-y-3">
+                  {recentHistory.length > 0
+                    ? recentHistory.map((h, i) => (
+                        <div
+                          key={i}
+                          onClick={() => navigate(`/consultations/${h._id}`)}
+                          className="cursor-pointer hover:bg-slate-50 rounded-xl p-3 transition -mx-1"
+                        >
+                          <div className="flex items-center justify-between">
+                            <strong className="text-xs text-slate-800 font-bold">
+                              {h.completedAt ? new Date(h.completedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'}
+                            </strong>
+                            <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full font-bold">Completed</span>
+                          </div>
+                          <p className="text-[11px] text-slate-400 mt-0.5">{h.diagnosis?.primary || 'Consultation'}</p>
+                        </div>
+                      ))
+                    : <p className="text-xs text-slate-400 italic">No previous visits found.</p>
+                  }
+                </div>
+                <button
+                  onClick={() => setActiveSummaryTab('history')}
+                  className="w-full mt-3 py-2.5 border border-slate-200 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-50 transition"
+                >View All Appointments</button>
+              </div>
+
+            </div>
           </div>
         </div>
       </div>

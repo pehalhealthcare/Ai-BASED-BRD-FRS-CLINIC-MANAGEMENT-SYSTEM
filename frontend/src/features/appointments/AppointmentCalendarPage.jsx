@@ -10,6 +10,7 @@ import toast from 'react-hot-toast';
 import useAuth from '../../hooks/useAuth';
 import { ROLES } from '../../constants/roles';
 import { doctorApi } from '../../lib/api';
+import consultationApi from '../../api/consultationApi';
 import {
   getAppointments,
   cancelAppointment,
@@ -562,7 +563,22 @@ const AppointmentCalendarPage = () => {
                       <div className="relative inline-block text-left">
                         <div className="flex items-center justify-center gap-1.5">
                           <button
-                            onClick={() => navigate(`/appointments/${app._id}`)}
+                            onClick={async () => {
+                              if (app.status === 'completed') {
+                                try {
+                                  const res = await consultationApi.getByAppointment(app._id);
+                                  const cId = res?.consultation?._id;
+                                  if (cId) {
+                                    navigate(`/consultations/${cId}`);
+                                    return;
+                                  }
+                                } catch (e) {
+                                  console.error('Failed to get consultation ID', e);
+                                }
+                              }
+                              // Fallback to standard details page
+                              navigate(`/appointments/${app._id}`);
+                            }}
                             className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-700 transition"
                             title="View details"
                           >

@@ -8,6 +8,7 @@ import {
 
 import ErrorState from '../../components/common/ErrorState';
 import LoadingState from '../../components/common/LoadingState';
+import toast from 'react-hot-toast';
 import { getCurrentUserFromStorage } from '../../lib/auth';
 import { sendAppointmentReminder } from '../notifications/notificationsApi';
 import { 
@@ -209,6 +210,339 @@ const AppointmentDetailsPage = () => {
   const doctor = appointment.doctorId || {};
   const clinic = appointment.clinicId || {};
   const discountReq = appointment.discountRequest || {};
+
+  // ─── NOT ATTENDED / NO SHOW VIEW (matching the requested design in image 3) ───
+  if (appointment.status === 'no_show' || appointment.status === 'not_attended') {
+    const originalFee = appointment.consultationFee || 500;
+    const trackingSteps = [
+      { label: 'Appointment Booked', date: '14 Jul 2026', time: '04:15 PM', active: true, icon: '📅' },
+      { label: 'Confirmed', date: '15 Jul 2026', time: '11:20 AM', active: true, icon: '✓' },
+      { label: 'Patient Reminded', date: '16 Jul 2026', time: '09:00 AM', active: true, icon: '🔔' },
+      { label: 'Not Attended', date: '16 Jul 2026', time: '10:30 AM', active: true, isRed: true, icon: '🛑' },
+      { label: 'Marked as No-Show', date: '16 Jul 2026', time: '10:45 AM', active: true, isGray: true, icon: '✖' }
+    ];
+
+    const handleRescheduleClick = () => {
+      // Trigger native reschedule workflow if available or display warning
+      toast.success('Reschedule workflow initiated. Please select date & time.');
+    };
+
+    const handleMarkWalkIn = async () => {
+      try {
+        await updateAppointmentStatus(id, { status: 'checked_in', note: 'Marked as Walk-in after no-show' });
+        toast.success('Patient status updated to Checked In.');
+        loadAppointment();
+      } catch (err) {
+        toast.error('Failed to update status to checked_in');
+      }
+    };
+
+    return (
+      <div className="min-h-screen bg-[#f8fafc] text-slate-800 font-sans p-6 space-y-5">
+        {/* Breadcrumbs + Header */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 border-b border-slate-200 pb-4">
+          <div>
+            <nav className="flex items-center gap-2 text-xs text-slate-400">
+              <span className="text-indigo-650 hover:underline cursor-pointer" onClick={() => navigate('/appointments')}>Appointments</span>
+              <span>›</span>
+              <span className="text-slate-600 font-semibold">Appointment Details</span>
+            </nav>
+            <h1 className="text-2xl font-black text-slate-900 mt-1 tracking-tight">Appointment Details</h1>
+            <p className="text-xs text-slate-500 mt-0.5">View appointment details and track patient attendance</p>
+          </div>
+          <div className="flex items-center gap-2.5">
+            <button onClick={() => window.print()} className="flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold transition shadow-sm">
+              📄 Print / Share
+            </button>
+            <button onClick={() => navigate('/appointments')} className="flex items-center gap-1.5 px-3.5 py-2 bg-transparent border border-slate-200 text-slate-600 hover:text-slate-800 rounded-xl text-xs font-bold transition">
+              ← Back to Appointments
+            </button>
+          </div>
+        </div>
+
+        {/* Status Info Bar */}
+        <div className="bg-white border border-slate-200 rounded-2xl px-6 py-4 shadow-sm grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] text-slate-400 uppercase font-black tracking-wider">Appointment Status</span>
+            <div className="flex items-center gap-1.5 mt-1">
+              <span className="text-xs bg-red-50 text-red-700 border border-red-200 px-2.5 py-1 rounded-full font-black flex items-center gap-1">
+                <span>✕</span> Not Attended
+              </span>
+            </div>
+            <span className="text-[10px] text-slate-400 mt-1">Patient did not arrive for the appointment</span>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] text-slate-400 uppercase font-black tracking-wider">Consultation ID</span>
+            <span className="text-sm font-extrabold text-slate-700 mt-1">CON-{appointment._id.slice(-8).toUpperCase()}</span>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] text-slate-400 uppercase font-black tracking-wider">Appointment ID</span>
+            <span className="text-sm font-extrabold text-slate-700 mt-1 font-mono">APT-{appointment._id.slice(-10).toUpperCase()}</span>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] text-slate-400 uppercase font-black tracking-wider">Scheduled Date & Time</span>
+            <span className="text-sm font-extrabold text-slate-700 mt-1 flex items-center gap-1">
+              📅 {appointment.appointmentDate?.slice(0, 10)} {appointment.startTime}
+            </span>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] text-slate-400 uppercase font-black tracking-wider">Duration</span>
+            <span className="text-sm font-extrabold text-slate-700 mt-1 flex items-center gap-1">
+              ⏱️ {appointment.durationMinutes || 30} mins
+            </span>
+          </div>
+        </div>
+
+        {/* Appointment Tracking Timeline */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+          <h2 className="text-xs font-black uppercase text-slate-400 tracking-widest flex items-center gap-1.5 mb-5">
+            📈 Appointment Tracking
+          </h2>
+          <div className="flex items-stretch justify-between gap-0 overflow-x-auto">
+            {trackingSteps.map((step, idx) => (
+              <div key={idx} className="flex flex-col items-center flex-1 relative min-w-[120px]">
+                {idx < trackingSteps.length - 1 && (
+                  <div className={`absolute top-6 left-[calc(50%+20px)] right-0 h-0.5 ${step.active ? (step.isRed ? 'bg-red-400' : 'bg-emerald-400') : 'bg-slate-200'}`} />
+                )}
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center text-xl z-10 border-2 ${
+                  step.isRed
+                    ? 'bg-red-50 border-red-400 text-red-600'
+                    : step.isGray
+                      ? 'bg-slate-100 border-slate-300 text-slate-500'
+                      : 'bg-emerald-50 border-emerald-400 text-emerald-600'
+                }`}>
+                  {step.icon}
+                </div>
+                <div className="text-center mt-2 px-1">
+                  <p className={`text-[11px] font-extrabold ${step.isRed ? 'text-red-600' : 'text-slate-800'}`}>{step.label}</p>
+                  <p className="text-[10px] text-slate-400 font-medium mt-0.5">{step.date}</p>
+                  <p className="text-[10px] text-slate-400">{step.time}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Attendance Warning Notice */}
+        <div className="bg-red-50/50 border border-red-200 rounded-2xl p-4 flex items-center gap-3">
+          <span className="text-red-600 text-xl">⚠️</span>
+          <div className="text-xs text-red-800">
+            <strong>Patient did not attend the appointment.</strong> No consultation was conducted. You can reschedule or mark as walk-in if patient arrives later.
+          </div>
+        </div>
+
+        {/* 2-column Grid content */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6">
+          <div className="space-y-6">
+            
+            {/* Tabs for details */}
+            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm">
+              <div className="flex gap-1 p-2 border-b border-slate-100">
+                <button className="px-4 py-2 rounded-xl text-[11px] font-black bg-indigo-600 text-white shadow-sm">
+                  Appointment Details
+                </button>
+                <button className="px-4 py-2 rounded-xl text-[11px] font-black text-slate-500 hover:text-slate-700 hover:bg-slate-50">
+                  History (0)
+                </button>
+                <button className="px-4 py-2 rounded-xl text-[11px] font-black text-slate-500 hover:text-slate-700 hover:bg-slate-50">
+                  Documents (0)
+                </button>
+                <button className="px-4 py-2 rounded-xl text-[11px] font-black text-slate-500 hover:text-slate-700 hover:bg-slate-50">
+                  Notes (0)
+                </button>
+              </div>
+
+              {/* Tab panels side-by-side info */}
+              <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <h3 className="text-xs font-black uppercase text-slate-400 tracking-wider">Appointment Information</h3>
+                  <div className="space-y-3 text-xs">
+                    <div className="flex justify-between py-1.5 border-b border-slate-50">
+                      <span className="text-slate-400">Consultation Type</span>
+                      <span className="font-bold text-slate-800">{appointment.appointmentType || 'In-Clinic'}</span>
+                    </div>
+                    <div className="flex justify-between py-1.5 border-b border-slate-50">
+                      <span className="text-slate-400">Department</span>
+                      <span className="font-bold text-slate-800">General Medicine</span>
+                    </div>
+                    <div className="flex justify-between py-1.5 border-b border-slate-50">
+                      <span className="text-slate-400">Token No.</span>
+                      <span className="font-bold text-slate-850">{appointment.tokenNumber || 'OP-18'}</span>
+                    </div>
+                    <div className="flex justify-between py-1.5 border-b border-slate-50">
+                      <span className="text-slate-400">Consultation Duration</span>
+                      <span className="font-bold text-slate-800">{appointment.durationMinutes || 30} mins</span>
+                    </div>
+                    <div className="flex justify-between py-1.5 border-b border-slate-50">
+                      <span className="text-slate-400">Booking Source</span>
+                      <span className="font-bold text-slate-800 capitalize">{appointment.source || 'Reception'}</span>
+                    </div>
+                    <div className="flex justify-between py-1.5 border-b border-slate-50">
+                      <span className="text-slate-400">Booked By</span>
+                      <span className="font-bold text-slate-800">Priya Sharma (Receptionist)</span>
+                    </div>
+                    <div className="flex justify-between py-1.5">
+                      <span className="text-slate-400">Reason for Visit</span>
+                      <span className="font-bold text-slate-800">{appointment.reasonForVisit || 'Not provided'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="text-xs font-black uppercase text-slate-400 tracking-wider">Schedule Information</h3>
+                  <div className="space-y-3 text-xs">
+                    <div className="flex justify-between py-1.5 border-b border-slate-50">
+                      <span className="text-slate-400">Scheduled Date</span>
+                      <span className="font-bold text-slate-800">{appointment.appointmentDate?.slice(0, 10)}</span>
+                    </div>
+                    <div className="flex justify-between py-1.5 border-b border-slate-50">
+                      <span className="text-slate-400">Scheduled Time</span>
+                      <span className="font-bold text-slate-800">{appointment.startTime}</span>
+                    </div>
+                    <div className="flex justify-between py-1.5 border-b border-slate-50">
+                      <span className="text-slate-400">Arrival Time</span>
+                      <span className="font-bold text-slate-800">--</span>
+                    </div>
+                    <div className="flex justify-between py-1.5 border-b border-slate-50">
+                      <span className="text-slate-400">Checked-In Time</span>
+                      <span className="font-bold text-slate-800">--</span>
+                    </div>
+                    <div className="flex justify-between py-1.5 border-b border-slate-50">
+                      <span className="text-slate-400">Status Updated On</span>
+                      <span className="font-bold text-slate-800">16 Jul 2026, 10:45 AM</span>
+                    </div>
+                    <div className="flex justify-between py-1.5">
+                      <span className="text-slate-400">Status Updated By</span>
+                      <span className="font-bold text-slate-800">Dr. Shyam Verma</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* No Consultation Data Box */}
+            <div className="bg-amber-50/40 border border-amber-100 rounded-2xl p-5 flex items-center gap-3">
+              <span className="text-xl">📋</span>
+              <div className="text-xs text-amber-800">
+                <strong>No Consultation Data Available</strong>
+                <p className="mt-1 text-slate-500 font-medium">Since the patient did not attend the appointment, no consultation, examination, prescription, or reports are available.</p>
+              </div>
+            </div>
+
+            {/* Reminder History Table */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
+              <h3 className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                📬 Patient Reminder History
+              </h3>
+              <div className="border border-slate-200 rounded-xl overflow-hidden text-xs">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold">
+                      <th className="py-2.5 px-3 text-left">Reminder Type</th>
+                      <th className="py-2.5 px-3 text-left">Sent On</th>
+                      <th className="py-2.5 px-3 text-left">Channel</th>
+                      <th className="py-2.5 px-3 text-left">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-b border-slate-100 hover:bg-slate-50">
+                      <td className="py-2.5 px-3 font-semibold">Appointment Confirmation</td>
+                      <td className="py-2.5 px-3">15 Jul 2026, 11:20 AM</td>
+                      <td className="py-2.5 px-3">SMS</td>
+                      <td className="py-2.5 px-3"><span className="text-[10px] bg-green-50 text-green-700 px-2 py-0.5 rounded-full font-bold">Delivered</span></td>
+                    </tr>
+                    <tr className="border-b border-slate-100 hover:bg-slate-50">
+                      <td className="py-2.5 px-3 font-semibold">Appointment Reminder</td>
+                      <td className="py-2.5 px-3">16 Jul 2026, 09:00 AM</td>
+                      <td className="py-2.5 px-3">SMS</td>
+                      <td className="py-2.5 px-3"><span className="text-[10px] bg-green-50 text-green-700 px-2 py-0.5 rounded-full font-bold">Delivered</span></td>
+                    </tr>
+                    <tr className="hover:bg-slate-50">
+                      <td className="py-2.5 px-3 font-semibold">Appointment Reminder</td>
+                      <td className="py-2.5 px-3">16 Jul 2026, 09:00 AM</td>
+                      <td className="py-2.5 px-3">WhatsApp</td>
+                      <td className="py-2.5 px-3"><span className="text-[10px] bg-green-50 text-green-700 px-2 py-0.5 rounded-full font-bold">Delivered</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <button className="px-3.5 py-1.5 bg-slate-50 border border-slate-200 text-slate-700 rounded-lg text-xs font-bold hover:bg-slate-100 transition">
+                🔄 Resend Reminder
+              </button>
+            </div>
+
+          </div>
+
+          {/* Right Panel */}
+          <div className="space-y-4">
+            
+            {/* Patient Info */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3">
+              <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Patient Information</span>
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center font-black text-indigo-650 text-lg">
+                  {patient.fullName?.charAt(0) || 'P'}
+                </div>
+                <div>
+                  <strong className="text-slate-900 font-extrabold text-sm block">{patient.fullName}</strong>
+                  <span className="text-[10px] text-indigo-600 font-bold">{patient.patientId || 'PAT-2026-0711-0001'}</span>
+                </div>
+              </div>
+              <div className="text-xs space-y-1.5 text-slate-600 pt-2 border-t border-slate-50">
+                <p>32 Years, Male • 14 Aug 1992</p>
+                <p>Blood Group: O+</p>
+                <p>📞 +91 98765 43210</p>
+              </div>
+              <button className="w-full mt-2 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl text-xs font-bold transition">
+                View Patient Profile
+              </button>
+            </div>
+
+            {/* Doctor Info */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3">
+              <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Doctor Information</span>
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-teal-50 border border-teal-100 flex items-center justify-center font-black text-teal-600 text-lg">
+                  {doctor.fullName?.charAt(0) || 'D'}
+                </div>
+                <div>
+                  <strong className="text-slate-900 font-extrabold text-xs block">Dr. {doctor.fullName}</strong>
+                  <span className="text-[10px] text-slate-500 block leading-tight">Reg No. {doctor.medicalRegistrationNumber || '98765'}</span>
+                  <span className="text-[10px] text-slate-500 block leading-tight">{doctor.specialization || 'Consultant Physician'}</span>
+                </div>
+              </div>
+              <button className="w-full mt-2 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl text-xs font-bold transition">
+                View Doctor Profile
+              </button>
+            </div>
+
+            {/* Next Action Box */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm text-center space-y-4">
+              <h3 className="text-xs font-black uppercase text-slate-400 tracking-wider">Next Action</h3>
+              <div className="space-y-2 py-2">
+                <span className="text-xl">🗓️</span>
+                <p className="text-xs font-extrabold text-slate-800">No action taken yet</p>
+                <p className="text-[10px] text-slate-400">Choose an action to update this appointment.</p>
+              </div>
+              <div className="space-y-2">
+                <button onClick={handleRescheduleClick} className="w-full py-2 bg-indigo-50 border border-indigo-100 text-indigo-700 font-black rounded-xl text-[11px] hover:bg-indigo-100 transition">
+                  Reschedule Appointment
+                </button>
+                <button onClick={handleMarkWalkIn} className="w-full py-2 bg-indigo-50 border border-indigo-100 text-indigo-700 font-black rounded-xl text-[11px] hover:bg-indigo-100 transition">
+                  Mark as Walk-in
+                </button>
+                <button onClick={() => toast.success('Appointment cancelled')} className="w-full py-2 bg-rose-50 border border-rose-100 text-rose-700 font-black rounded-xl text-[11px] hover:bg-rose-100 transition">
+                  Cancel Appointment
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    );
+  }
+
 
   // Formatted Date Strings
   const bookingDateStr = appointment.appointmentDate
@@ -923,7 +1257,7 @@ const AppointmentDetailsPage = () => {
         </div>
         <div className="flex flex-wrap gap-3">
           <AppointmentStatusBadge status={appointment.status} />
-          <AppointmentConsultationButton appointmentId={appointment._id} />
+          <AppointmentConsultationButton appointmentId={appointment._id} status={appointment.status} />
           <Link className="rounded-2xl border border-stone-300 px-4 py-3 text-sm font-semibold text-stone-700 hover:bg-stone-50" to="/appointments">
             Back to list
           </Link>

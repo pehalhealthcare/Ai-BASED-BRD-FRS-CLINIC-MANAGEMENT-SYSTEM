@@ -30,6 +30,7 @@ import {
 } from './consultationApi';
 import useAuth from '../../hooks/useAuth';
 import SmartPrescriptionSearch from './SmartPrescriptionSearch';
+import PreviousVisitsWorkspace from './PreviousVisitsWorkspace';
 
 /* ─── FontAwesome Icon Prefix Compatibility Mapping ─── */
 const byPrefixAndName = {
@@ -1213,7 +1214,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
       </div>
 
       {/* ─── 3 Column Grid Layout ─── */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-[280px_1fr_320px] gap-6 p-6 items-stretch">
+      <div className={`flex-1 grid grid-cols-1 ${workspaceTab === 'Previous Visits' ? 'lg:grid-cols-[280px_1fr]' : 'lg:grid-cols-[280px_1fr_320px]'} gap-6 p-6 items-stretch`}>
 
         {/* LEFT COLUMN: Dynamic Patient Summary/Lab Overview */}
         <div className="flex flex-col gap-5">
@@ -1258,7 +1259,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
               <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm space-y-4">
                 <h3 className="text-xs font-black uppercase tracking-wider text-slate-450">PATIENT OVERVIEW</h3>
                 <div className="flex flex-col gap-1 text-xs">
-                  <button className="w-full text-left py-2 px-3 bg-indigo-50 border-l-2 border-indigo-650 text-indigo-707 font-extrabold rounded-r-lg">Overview</button>
+                  <button onClick={() => setWorkspaceTab('History')} className={`w-full text-left py-2 px-3 rounded-lg font-bold flex justify-between ${workspaceTab === 'History' ? 'bg-indigo-50 border-l-2 border-indigo-650 text-indigo-707 font-extrabold' : 'hover:bg-slate-50 text-slate-650'}`}>Overview</button>
                   <button className="w-full text-left py-2 px-3 hover:bg-slate-50 text-slate-650 font-bold rounded-lg flex justify-between">
                     Allergies (2) <span className="bg-rose-50 text-rose-600 px-1.5 py-0.5 rounded text-[10px] font-black">2</span>
                   </button>
@@ -1268,8 +1269,8 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                   <button className="w-full text-left py-2 px-3 hover:bg-slate-50 text-slate-650 font-bold rounded-lg flex justify-between">
                     Chronic Conditions (2) <span className="bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded text-[10px] font-black">2</span>
                   </button>
-                  <button className="w-full text-left py-2 px-3 hover:bg-slate-50 text-slate-655 font-bold rounded-lg">Previous Visits</button>
-                  <button className="w-full text-left py-2 px-3 hover:bg-slate-50 text-slate-655 font-bold rounded-lg">Lab History</button>
+                  <button onClick={() => setWorkspaceTab('Previous Visits')} className={`w-full text-left py-2 px-3 rounded-lg font-bold ${workspaceTab === 'Previous Visits' ? 'bg-indigo-50 border-l-2 border-indigo-650 text-indigo-707 font-extrabold' : 'hover:bg-slate-50 text-slate-655'}`}>Previous Visits</button>
+                  <button onClick={() => setWorkspaceTab('Laboratory')} className={`w-full text-left py-2 px-3 rounded-lg font-bold ${workspaceTab === 'Laboratory' ? 'bg-indigo-50 border-l-2 border-indigo-650 text-indigo-707 font-extrabold' : 'hover:bg-slate-50 text-slate-655'}`}>Lab History</button>
                   <button className="w-full text-left py-2 px-3 hover:bg-slate-50 text-slate-655 font-bold rounded-lg flex justify-between">
                     Documents (4) <span className="text-slate-400">4</span>
                   </button>
@@ -1347,7 +1348,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
 
           {/* Workspace Tab Headers */}
           <div className="flex border-b border-slate-200 overflow-x-auto pb-0.5 gap-2 shrink-0">
-            {['History', 'Examination', 'Diagnosis', 'Prescription', 'Laboratory', 'Procedures', 'Advice', 'Follow-up'].map((tab) => (
+            {['History', 'Examination', 'Diagnosis', 'Prescription', 'Laboratory', 'Procedures', 'Advice', 'Follow-up', 'Previous Visits'].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setWorkspaceTab(tab)}
@@ -3852,6 +3853,14 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                 </div>
               </div>
             )}
+            
+            {workspaceTab === 'Previous Visits' && (
+              <PreviousVisitsWorkspace
+                patient={patient}
+                currentUser={doctor}
+                navigate={navigate}
+              />
+            )}
           </div>
 
           {/* Unsaved Changes Indicator */}
@@ -3863,7 +3872,8 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
         </div>
 
         {/* RIGHT COLUMN: Premium AI Clinical Assistant & Alerts */}
-        <div className="flex flex-col gap-5">
+        {workspaceTab !== 'Previous Visits' && (
+          <div className="flex flex-col gap-5">
           {/* AI Clinical Assistant (Gated by subscription) */}
           <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm space-y-4">
             <div className="flex justify-between items-center border-b border-slate-100 pb-2">
@@ -4305,6 +4315,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
             </div>
           )}
         </div>
+        )}
 
       </div>
 
