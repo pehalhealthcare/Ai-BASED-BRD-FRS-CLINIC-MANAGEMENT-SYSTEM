@@ -1384,8 +1384,8 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
               <button
                 key={tab}
                 onClick={() => setWorkspaceTab(tab)}
-                className={`pb-3 px-4 font-bold text-xs transition border-b-2 whitespace-nowrap ${workspaceTab === tab
-                    ? 'border-indigo-650 text-indigo-705 font-black'
+                className={`pb-3 px-4 font-bold text-xs transition border-b-2 whitespace-nowrap rounded-t-lg ${workspaceTab === tab
+                    ? 'border-indigo-650 text-indigo-705 font-black bg-indigo-50/40'
                     : 'border-transparent text-slate-405 hover:text-slate-700'
                   }`}
               >
@@ -1397,8 +1397,8 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
             {openExtraTabs.map((tab) => (
               <div
                 key={tab}
-                className={`flex items-center gap-1 pb-3 px-3 border-b-2 whitespace-nowrap group transition ${workspaceTab === tab
-                  ? 'border-indigo-650 text-indigo-705 font-black'
+                className={`flex items-center gap-1 pb-3 px-3 border-b-2 whitespace-nowrap group transition rounded-t-lg ${workspaceTab === tab
+                  ? 'border-indigo-650 text-indigo-705 font-black bg-indigo-50/40'
                   : 'border-transparent text-slate-405 hover:text-slate-700'
                 }`}
               >
