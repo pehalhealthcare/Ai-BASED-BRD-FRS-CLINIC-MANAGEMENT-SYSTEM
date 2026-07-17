@@ -34,6 +34,7 @@ import PreviousVisitsWorkspace from './PreviousVisitsWorkspace';
 import CurrentMedicinesWorkspace from './CurrentMedicinesWorkspace';
 import ChronicConditionsWorkspace from './ChronicConditionsWorkspace';
 import AllergiesWorkspace from './AllergiesWorkspace';
+import DocumentsWorkspace from './DocumentsWorkspace';
 
 /* ─── FontAwesome Icon Prefix Compatibility Mapping ─── */
 const byPrefixAndName = {
@@ -1219,7 +1220,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
       </div>
 
       {/* ─── 3 Column Grid Layout ─── */}
-      <div className={`flex-1 grid grid-cols-1 ${['Previous Visits', 'Current Medicines', 'Chronic Conditions', 'Allergies'].includes(workspaceTab) ? 'lg:grid-cols-[280px_1fr]' : 'lg:grid-cols-[280px_1fr_320px]'} gap-6 p-6 items-stretch`}>
+      <div className={`flex-1 grid grid-cols-1 ${['Previous Visits', 'Current Medicines', 'Chronic Conditions', 'Allergies', 'Documents'].includes(workspaceTab) ? 'lg:grid-cols-[280px_1fr]' : 'lg:grid-cols-[280px_1fr_320px]'} gap-6 p-6 items-stretch`}>
 
         {/* LEFT COLUMN: Dynamic Patient Summary/Lab Overview */}
         <div className="flex flex-col gap-5">
@@ -1302,8 +1303,14 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                     Previous Visits
                   </button>
                   <button onClick={() => setWorkspaceTab('Laboratory')} className={`w-full text-left py-2 px-3 rounded-lg font-bold ${workspaceTab === 'Laboratory' ? 'bg-indigo-50 border-l-2 border-indigo-650 text-indigo-707 font-extrabold' : 'hover:bg-slate-50 text-slate-655'}`}>Lab History</button>
-                  <button className="w-full text-left py-2 px-3 hover:bg-slate-50 text-slate-655 font-bold rounded-lg flex justify-between">
-                    Documents ({patient?.documents?.length || 4}) <span className="text-slate-400">{patient?.documents?.length || 4}</span>
+                  <button
+                    onClick={() => {
+                      setWorkspaceTab('Documents');
+                      if (!openExtraTabs.includes('Documents')) setOpenExtraTabs([...openExtraTabs, 'Documents']);
+                    }}
+                    className={`w-full text-left py-2 px-3 rounded-lg font-bold flex justify-between ${workspaceTab === 'Documents' ? 'bg-indigo-50 border-l-2 border-indigo-650 text-indigo-707 font-extrabold' : 'hover:bg-slate-50 text-slate-655'}`}
+                  >
+                    Documents ({patient?.documents?.length || 4}) <span className="bg-indigo-50 text-indigo-605 px-1.5 py-0.5 rounded text-[10px] font-black">{patient?.documents?.length || 4}</span>
                   </button>
                   <button
                     onClick={() => {
@@ -3969,6 +3976,17 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                 setIsDirty={setIsDirty}
               />
             )}
+
+            {workspaceTab === 'Documents' && (
+              <DocumentsWorkspace
+                patient={patient}
+                currentUser={doctor}
+                navigate={navigate}
+                currentMedicines={medicines}
+                setMedicines={setMedicines}
+                setIsDirty={setIsDirty}
+              />
+            )}
           </div>
 
           {/* Unsaved Changes Indicator */}
@@ -3980,7 +3998,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
         </div>
 
         {/* RIGHT COLUMN: Premium AI Clinical Assistant & Alerts */}
-        {!['Previous Visits', 'Current Medicines', 'Chronic Conditions', 'Allergies'].includes(workspaceTab) && (
+        {!['Previous Visits', 'Current Medicines', 'Chronic Conditions', 'Allergies', 'Documents'].includes(workspaceTab) && (
           <div className="flex flex-col gap-5">
           {/* AI Clinical Assistant (Gated by subscription) */}
           <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm space-y-4">
