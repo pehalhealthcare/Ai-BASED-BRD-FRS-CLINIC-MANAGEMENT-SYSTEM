@@ -1,7 +1,0 @@
-[2026-04-22T18:45:30.319Z] [ERROR] MongoDB Atlas connection failed. Check username, password, IP whitelist, and cluster URL. bad auth : authentication failed
-[2026-04-22T18:45:30.322Z] [WARN] MongoDB Atlas connection failed. Check username, password, IP whitelist, and cluster URL.
-[2026-04-22T18:45:30.323Z] [WARN] Continuing startup without an active MongoDB connection because NODE_ENV is not production.
-[2026-04-22T18:47:09.789Z] [ERROR] MongoDB Atlas connection failed. Check username, password, IP whitelist, and cluster URL. bad auth : authentication failed
-[2026-04-22T18:47:09.790Z] [WARN] MongoDB Atlas connection failed. Check username, password, IP whitelist, and cluster URL.
-[2026-04-22T18:47:09.790Z] [WARN] Continuing startup without an active MongoDB connection because NODE_ENV is not production.
-^C

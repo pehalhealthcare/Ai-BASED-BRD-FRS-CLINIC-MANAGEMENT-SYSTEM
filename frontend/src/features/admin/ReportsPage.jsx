@@ -7,12 +7,13 @@ import {
 } from 'lucide-react';
 import {
   dashboardApi, appointmentApi, patientApi,
-  billingApi, labApi, pharmacyApi, doctorApi
+  billingApi, labApi, pharmacyApi, doctorApi, procedureApi
 } from '../../lib/api';
 import LoadingState from '../../components/common/LoadingState';
 import ErrorState from '../../components/common/ErrorState';
 import PageHeader from '../../components/layout/PageHeader';
 import useAuth from '../../hooks/useAuth';
+import ProcedureReportsPanel from './ProcedureReportsPanel';
 
 /* ─── Helpers ───────────────────────────────────────────── */
 const fmt = (n) =>
@@ -123,7 +124,7 @@ const Donut = ({ segments, total, size = 130 }) => {
 };
 
 /* ─── Report tabs ───────────────────────────────────────── */
-const TABS = ['Overview','Appointments','Patients','Revenue','Laboratory','Pharmacy','Doctors','Staff','Departments'];
+const TABS = ['Overview','Appointments','Patients','Revenue','Laboratory','Pharmacy','Procedures','Doctors','Staff','Departments'];
 
 /* ──────────────────────────────────────────────────────────
    MAIN PAGE
@@ -299,13 +300,15 @@ const ReportsPage = () => {
       </div>
 
       {/* ── Stats Row ──────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        <StatCard label="Total Appointments" value={fmtNum(stats.totalAppts)} sub="↑ 18% vs Apr 2025" icon={Calendar} color="#6366f1" />
-        <StatCard label="Total Patients"     value={fmtNum(stats.totalPatients)} sub="↑ 12% vs Apr 2025" icon={Users} color="#10b981" />
-        <StatCard label="Total Revenue"      value={fmt(stats.totalRevenue)} sub="↑ 15% vs Apr 2025" icon={IndianRupee} color="#f59e0b" />
-        <StatCard label="Lab Tests Conducted" value={fmtNum(stats.labTests)} sub="↑ 18% vs Apr 2025" icon={FlaskConical} color="#0ea5e9" />
-        <StatCard label="Medicines Sold"     value={fmtNum(stats.medSold)} sub="↑ 20% vs Apr 2025" icon={Pill} color="#ec4899" />
-      </div>
+      {activeTab !== 'Procedures' && (
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+          <StatCard label="Total Appointments" value={fmtNum(stats.totalAppts)} sub="↑ 18% vs Apr 2025" icon={Calendar} color="#6366f1" />
+          <StatCard label="Total Patients"     value={fmtNum(stats.totalPatients)} sub="↑ 12% vs Apr 2025" icon={Users} color="#10b981" />
+          <StatCard label="Total Revenue"      value={fmt(stats.totalRevenue)} sub="↑ 15% vs Apr 2025" icon={IndianRupee} color="#f59e0b" />
+          <StatCard label="Lab Tests Conducted" value={fmtNum(stats.labTests)} sub="↑ 18% vs Apr 2025" icon={FlaskConical} color="#0ea5e9" />
+          <StatCard label="Medicines Sold"     value={fmtNum(stats.medSold)} sub="↑ 20% vs Apr 2025" icon={Pill} color="#ec4899" />
+        </div>
+      )}
 
       {/* ── Report Tabs ────────────────────────────────────── */}
       <div className="flex items-center gap-1 overflow-x-auto pb-1">
@@ -325,249 +328,252 @@ const ReportsPage = () => {
       </div>
 
       {/* ── Main Grid ──────────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-
-        {/* Revenue Overview */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-sm font-bold text-slate-800">Revenue Overview</p>
-            <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded-full">This Month</span>
-          </div>
-          {stats.revTrend.length > 0 ? (
-            <>
-              <div className="flex gap-4 mb-3 text-xs">
-                <span className="flex items-center gap-1.5 text-indigo-600 font-bold">
-                  <span className="w-6 h-0.5 bg-indigo-600 inline-block" /> This Month
-                </span>
-                <span className="flex items-center gap-1.5 text-slate-300 font-bold">
-                  <span className="w-6 h-0.5 bg-slate-300 border-dashed border-b inline-block" /> Last Month
-                </span>
+      {activeTab === 'Procedures' ? (
+        <ProcedureReportsPanel />
+      ) : (
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+            {/* Revenue Overview */}
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-sm font-bold text-slate-800">Revenue Overview</p>
+                <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded-full">This Month</span>
               </div>
-              <LineChart data={stats.revTrend} color="#6366f1" h={110} />
-              <div className="flex justify-between mt-2">
-                {stats.revTrend.map(d => (
-                  <span key={d.label} className="text-[9px] text-slate-400 font-medium">{d.label}</span>
-                ))}
-              </div>
-            </>
-          ) : (
-            <div className="h-28 flex items-center justify-center text-xs text-slate-400">No revenue data yet</div>
-          )}
-        </div>
-
-        {/* Appointments Overview */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-sm font-bold text-slate-800">Appointments Overview</p>
-            <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded-full">This Month</span>
-          </div>
-          <div className="flex items-center gap-5">
-            <Donut size={120} total={stats.totalAppts} segments={[
-              { value: stats.completed, color: '#10b981' },
-              { value: stats.upcoming,  color: '#6366f1' },
-              { value: stats.cancelled, color: '#ef4444' },
-              { value: stats.noShow,    color: '#f59e0b' },
-            ]} />
-            <div className="space-y-2 flex-1">
-              {[
-                { label: 'Completed', value: stats.completed, color: '#10b981' },
-                { label: 'Upcoming',  value: stats.upcoming,  color: '#6366f1' },
-                { label: 'Cancelled', value: stats.cancelled, color: '#ef4444' },
-                { label: 'No Show',   value: stats.noShow,    color: '#f59e0b' },
-              ].map(row => (
-                <div key={row.label} className="flex items-center gap-2 text-xs">
-                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: row.color }} />
-                  <span className="text-slate-600 flex-1">{row.label}</span>
-                  <span className="font-bold text-slate-700">{fmtNum(row.value)} ({pct(row.value, stats.totalAppts)}%)</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Patients Overview */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-sm font-bold text-slate-800">Patients Overview</p>
-            <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded-full">This Month</span>
-          </div>
-          <div className="flex items-center gap-5">
-            <Donut size={120} total={stats.totalPatients} segments={[
-              { value: stats.newPatients, color: '#10b981' },
-              { value: stats.returning,   color: '#6366f1' },
-            ]} />
-            <div className="space-y-3 flex-1">
-              {[
-                { label: 'New Patients',       value: stats.newPatients, color: '#10b981' },
-                { label: 'Returning Patients', value: stats.returning,   color: '#6366f1' },
-              ].map(row => (
-                <div key={row.label} className="flex items-center gap-2 text-xs">
-                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: row.color }} />
-                  <span className="text-slate-600 flex-1">{row.label}</span>
-                  <span className="font-bold text-slate-700">{fmtNum(row.value)} ({pct(row.value, stats.totalPatients)}%)</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Department Table + Revenue Trend + Revenue Source ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-
-        {/* Department Performance */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 lg:col-span-1">
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-sm font-bold text-slate-800">Department Performance</p>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-xs">
-              <thead>
-                <tr className="border-b border-slate-100">
-                  {['Department', 'Appts', 'Done', 'Rate'].map(h => (
-                    <th key={h} className="pb-2 font-bold text-slate-400 uppercase tracking-wider text-left pr-3">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {stats.deptRows.length > 0 ? stats.deptRows.map((row, i) => (
-                  <tr key={i} className="hover:bg-slate-50/50 transition">
-                    <td className="py-2 pr-3 font-semibold text-slate-700 truncate max-w-[100px]">{row.name}</td>
-                    <td className="py-2 pr-3 text-slate-600">{fmtNum(row.total)}</td>
-                    <td className="py-2 pr-3 text-slate-600">{fmtNum(row.completed)}</td>
-                    <td className="py-2">
-                      <span className={`font-extrabold ${row.rate >= 80 ? 'text-emerald-600' : row.rate >= 50 ? 'text-amber-600' : 'text-rose-500'}`}>
-                        ↑ {row.rate}%
-                      </span>
-                    </td>
-                  </tr>
-                )) : (
-                  <tr>
-                    <td colSpan="4" className="py-6 text-center text-slate-400">No department data yet.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-          <button className="mt-3 text-xs text-indigo-600 font-bold hover:underline flex items-center gap-1 cursor-pointer">
-            View Full Department Report <ArrowUpRight size={11} />
-          </button>
-        </div>
-
-        {/* Revenue Trend — bar chart */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-sm font-bold text-slate-800">Revenue Trend</p>
-            <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded-full">Last 6 Months</span>
-          </div>
-          {stats.revTrend.length > 0 ? (
-            <>
-              <BarChart data={stats.revTrend} color="#6366f1" h={110} />
-              <div className="flex justify-between mt-2">
-                {stats.revTrend.map(d => (
-                  <span key={d.label} className="text-[9px] text-slate-400 font-medium">{d.label}</span>
-                ))}
-              </div>
-            </>
-          ) : (
-            <div className="h-28 flex items-center justify-center text-xs text-slate-400">No trend data yet</div>
-          )}
-        </div>
-
-        {/* Revenue by Source */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-sm font-bold text-slate-800">Revenue by Source</p>
-            <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded-full">This Month</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <Donut size={120} total={stats.totalRevenue} segments={stats.revenueSegments} />
-            <div className="space-y-2 flex-1">
-              {stats.revenueSegments.map(seg => (
-                <div key={seg.label} className="flex items-center gap-2 text-xs">
-                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: seg.color }} />
-                  <span className="text-slate-600 flex-1">{seg.label}</span>
-                  <span className="font-bold text-slate-700">{fmt(seg.value)}</span>
-                </div>
-              ))}
-              {stats.revenueSegments.length === 0 && (
-                <p className="text-xs text-slate-400">No revenue data yet.</p>
+              {stats.revTrend.length > 0 ? (
+                <>
+                  <div className="flex gap-4 mb-3 text-xs">
+                    <span className="flex items-center gap-1.5 text-indigo-600 font-bold">
+                      <span className="w-6 h-0.5 bg-indigo-600 inline-block" /> This Month
+                    </span>
+                    <span className="flex items-center gap-1.5 text-slate-300 font-bold">
+                      <span className="w-6 h-0.5 bg-slate-300 border-dashed border-b inline-block" /> Last Month
+                    </span>
+                  </div>
+                  <LineChart data={stats.revTrend} color="#6366f1" h={110} />
+                  <div className="flex justify-between mt-2">
+                    {stats.revTrend.map(d => (
+                      <span key={d.label} className="text-[9px] text-slate-400 font-medium">{d.label}</span>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="h-28 flex items-center justify-center text-xs text-slate-400">No revenue data yet</div>
               )}
             </div>
-          </div>
-        </div>
-      </div>
 
-      {/* ── Bottom: Recent Reports + Insights ─────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-
-        {/* Recent Reports Table */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 lg:col-span-2">
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-sm font-bold text-slate-800">Recent Reports</p>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-xs">
-              <thead>
-                <tr className="border-b border-slate-100">
-                  {['Report Name','Category','Generated On','Generated By','Actions'].map(h => (
-                    <th key={h} className="pb-2.5 font-bold text-slate-400 uppercase tracking-wider text-left pr-4">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {stats.recentReports.map((r, i) => (
-                  <tr key={i} className="hover:bg-slate-50/50 transition group">
-                    <td className="py-2.5 pr-4 font-semibold text-slate-800">{r.name}</td>
-                    <td className="py-2.5 pr-4">
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-indigo-50 text-indigo-600">{r.category}</span>
-                    </td>
-                    <td className="py-2.5 pr-4 text-slate-500">{r.date}</td>
-                    <td className="py-2.5 pr-4 text-slate-600">{adminName}</td>
-                    <td className="py-2.5">
-                      <div className="flex items-center gap-2 text-slate-400">
-                        <button className="hover:text-indigo-600 transition cursor-pointer"><Eye size={13} /></button>
-                        <button className="hover:text-indigo-600 transition cursor-pointer"><FileDown size={13} /></button>
-                        <button className="hover:text-indigo-600 transition cursor-pointer"><Printer size={13} /></button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <button className="mt-3 text-xs text-indigo-600 font-bold hover:underline flex items-center gap-1 cursor-pointer">
-            View All Reports <ArrowUpRight size={11} />
-          </button>
-        </div>
-
-        {/* Insights & Highlights */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-          <p className="text-sm font-bold text-slate-800 mb-4">Insights & Highlights</p>
-          <div className="space-y-4">
-            {[
-              { icon: '📈', color: 'text-emerald-600 bg-emerald-50',
-                text: `Revenue increased by 15% compared to last month. Great job! Keep it up.` },
-              { icon: '👥', color: 'text-blue-600 bg-blue-50',
-                text: `New patient registrations increased by 12%. Your clinic is growing!` },
-              { icon: '📅', color: 'text-amber-600 bg-amber-50',
-                text: `No-show appointments decreased by 8%. Improved patient engagement.` },
-              { icon: '💊', color: 'text-rose-600 bg-rose-50',
-                text: `Pharmacy sales increased by 20%. High demand for top medicines.` },
-            ].map((insight, i) => (
-              <div key={i} className="flex items-start gap-3">
-                <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm shrink-0 ${insight.color}`}>
-                  {insight.icon}
-                </div>
-                <p className="text-xs text-slate-600 leading-relaxed">{insight.text}</p>
+            {/* Appointments Overview */}
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-sm font-bold text-slate-800">Appointments Overview</p>
+                <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded-full">This Month</span>
               </div>
-            ))}
+              <div className="flex items-center gap-5">
+                <Donut size={120} total={stats.totalAppts} segments={[
+                  { value: stats.completed, color: '#10b981' },
+                  { value: stats.upcoming,  color: '#6366f1' },
+                  { value: stats.cancelled, color: '#ef4444' },
+                  { value: stats.noShow,    color: '#f59e0b' },
+                ]} />
+                <div className="space-y-2 flex-1">
+                  {[
+                    { label: 'Completed', value: stats.completed, color: '#10b981' },
+                    { label: 'Upcoming',  value: stats.upcoming,  color: '#6366f1' },
+                    { label: 'Cancelled', value: stats.cancelled, color: '#ef4444' },
+                    { label: 'No Show',   value: stats.noShow,    color: '#f59e0b' },
+                  ].map(row => (
+                    <div key={row.label} className="flex items-center gap-2 text-xs">
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: row.color }} />
+                      <span className="text-slate-600 flex-1">{row.label}</span>
+                      <span className="font-bold text-slate-700">{fmtNum(row.value)} ({pct(row.value, stats.totalAppts)}%)</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Patients Overview */}
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-sm font-bold text-slate-800">Patients Overview</p>
+                <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded-full">This Month</span>
+              </div>
+              <div className="flex items-center gap-5">
+                <Donut size={120} total={stats.totalPatients} segments={[
+                  { value: stats.newPatients, color: '#10b981' },
+                  { value: stats.returning,   color: '#6366f1' },
+                ]} />
+                <div className="space-y-3 flex-1">
+                  {[
+                    { label: 'New Patients',       value: stats.newPatients, color: '#10b981' },
+                    { label: 'Returning Patients', value: stats.returning,   color: '#6366f1' },
+                  ].map(row => (
+                    <div key={row.label} className="flex items-center gap-2 text-xs">
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: row.color }} />
+                      <span className="text-slate-600 flex-1">{row.label}</span>
+                      <span className="font-bold text-slate-700">{fmtNum(row.value)} ({pct(row.value, stats.totalPatients)}%)</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
-          <button className="mt-4 text-xs text-indigo-600 font-bold hover:underline flex items-center gap-1 cursor-pointer">
-            View Detailed Insights <ArrowUpRight size={11} />
-          </button>
-        </div>
-      </div>
+
+          {/* ── Department Table + Revenue Trend + Revenue Source ── */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+            {/* Department Performance */}
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 lg:col-span-1">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-sm font-bold text-slate-800">Department Performance</p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-100">
+                      {['Department', 'Appts', 'Done', 'Rate'].map(h => (
+                        <th key={h} className="pb-2 font-bold text-slate-400 uppercase tracking-wider text-left pr-3">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {stats.deptRows.length > 0 ? stats.deptRows.map((row, i) => (
+                      <tr key={i} className="hover:bg-slate-50/50 transition">
+                        <td className="py-2 pr-3 font-semibold text-slate-700 truncate max-w-[100px]">{row.name}</td>
+                        <td className="py-2 pr-3 text-slate-600">{fmtNum(row.total)}</td>
+                        <td className="py-2 pr-3 text-slate-600">{fmtNum(row.completed)}</td>
+                        <td className="py-2">
+                          <span className={`font-extrabold ${row.rate >= 80 ? 'text-emerald-600' : row.rate >= 50 ? 'text-amber-600' : 'text-rose-500'}`}>
+                            ↑ {row.rate}%
+                          </span>
+                        </td>
+                      </tr>
+                    )) : (
+                      <tr>
+                        <td colSpan="4" className="py-6 text-center text-slate-400">No department data yet.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <button className="mt-3 text-xs text-indigo-600 font-bold hover:underline flex items-center gap-1 cursor-pointer">
+                View Full Department Report <ArrowUpRight size={11} />
+              </button>
+            </div>
+
+            {/* Revenue Trend — bar chart */}
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-sm font-bold text-slate-800">Revenue Trend</p>
+                <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded-full">Last 6 Months</span>
+              </div>
+              {stats.revTrend.length > 0 ? (
+                <>
+                  <BarChart data={stats.revTrend} color="#6366f1" h={110} />
+                  <div className="flex justify-between mt-2">
+                    {stats.revTrend.map(d => (
+                      <span key={d.label} className="text-[9px] text-slate-400 font-medium">{d.label}</span>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="h-28 flex items-center justify-center text-xs text-slate-400">No trend data yet</div>
+              )}
+            </div>
+
+            {/* Revenue by Source */}
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-sm font-bold text-slate-800">Revenue by Source</p>
+                <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded-full">This Month</span>
+              </div>
+              <div className="flex items-center gap-4">
+                <Donut size={120} total={stats.totalRevenue} segments={stats.revenueSegments} />
+                <div className="space-y-2 flex-1">
+                  {stats.revenueSegments.map(seg => (
+                    <div key={seg.label} className="flex items-center gap-2 text-xs">
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: seg.color }} />
+                      <span className="text-slate-600 flex-1">{seg.label}</span>
+                      <span className="font-bold text-slate-700">{fmt(seg.value)}</span>
+                    </div>
+                  ))}
+                  {stats.revenueSegments.length === 0 && (
+                    <p className="text-xs text-slate-400">No revenue data yet.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Bottom: Recent Reports + Insights ─────────────── */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+            {/* Recent Reports Table */}
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 lg:col-span-2">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-sm font-bold text-slate-800">Recent Reports</p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-100">
+                      {['Report Name','Category','Generated On','Generated By','Actions'].map(h => (
+                        <th key={h} className="pb-2.5 font-bold text-slate-400 uppercase tracking-wider text-left pr-4">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {stats.recentReports.map((r, i) => (
+                      <tr key={i} className="hover:bg-slate-50/50 transition group">
+                        <td className="py-2.5 pr-4 font-semibold text-slate-800">{r.name}</td>
+                        <td className="py-2.5 pr-4">
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-indigo-50 text-indigo-600">{r.category}</span>
+                        </td>
+                        <td className="py-2.5 pr-4 text-slate-500">{r.date}</td>
+                        <td className="py-2.5 pr-4 text-slate-600">{adminName}</td>
+                        <td className="py-2.5">
+                          <div className="flex items-center gap-2 text-slate-400">
+                            <button className="hover:text-indigo-600 transition cursor-pointer"><Eye size={13} /></button>
+                            <button className="hover:text-indigo-600 transition cursor-pointer"><FileDown size={13} /></button>
+                            <button className="hover:text-indigo-600 transition cursor-pointer"><Printer size={13} /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <button className="mt-3 text-xs text-indigo-600 font-bold hover:underline flex items-center gap-1 cursor-pointer">
+                View All Reports <ArrowUpRight size={11} />
+              </button>
+            </div>
+
+            {/* Insights & Highlights */}
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+              <p className="text-sm font-bold text-slate-800 mb-4">Insights & Highlights</p>
+              <div className="space-y-4">
+                {[
+                  { icon: '📈', color: 'text-emerald-600 bg-emerald-50',
+                    text: `Revenue increased by 15% compared to last month. Great job! Keep it up.` },
+                  { icon: '👥', color: 'text-blue-600 bg-blue-50',
+                    text: `New patient registrations increased by 12%. Your clinic is growing!` },
+                  { icon: '📅', color: 'text-amber-600 bg-amber-50',
+                    text: `No-show appointments decreased by 8%. Improved patient engagement.` },
+                  { icon: '💊', color: 'text-rose-600 bg-rose-50',
+                    text: `Pharmacy sales increased by 20%. High demand for top medicines.` },
+                ].map((insight, i) => (
+                  <div key={i} className="flex items-start gap-3">
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm shrink-0 ${insight.color}`}>
+                      {insight.icon}
+                    </div>
+                    <p className="text-xs text-slate-600 leading-relaxed">{insight.text}</p>
+                  </div>
+                ))}
+              </div>
+              <button className="mt-4 text-xs text-indigo-600 font-bold hover:underline flex items-center gap-1 cursor-pointer">
+                View Detailed Insights <ArrowUpRight size={11} />
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };

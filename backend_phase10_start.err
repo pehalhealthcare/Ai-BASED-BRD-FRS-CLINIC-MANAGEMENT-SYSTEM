@@ -1,3 +1,0 @@
-[2026-04-22T11:06:46.250Z] [ERROR] MongoDB connection failed. Check MONGO_URI and the database server availability. connect ECONNREFUSED 127.0.0.1:27018
-[2026-04-22T11:06:46.252Z] [WARN] MongoDB connection failed. Check MONGO_URI and the database server availability.
-[2026-04-22T11:06:46.253Z] [WARN] Continuing startup without an active MongoDB connection because NODE_ENV is not production.

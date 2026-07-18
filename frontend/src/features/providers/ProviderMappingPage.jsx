@@ -70,7 +70,7 @@ const ProviderMappingPage = () => {
     try {
       setLoadingProvider(true);
       const data = await providersApi.getProvider(providerId);
-      setProvider(data);
+      setProvider(data.data || data);
     } catch (err) {
       toast.error('Failed to load provider details');
       navigate('/admin/providers');
@@ -83,12 +83,13 @@ const ProviderMappingPage = () => {
     if (!provider) return;
     try {
       setLoadingMappings(true);
-      const data = await providersApi.getMappings(providerId, {
+      const res = await providersApi.getMappings(providerId, {
         search: searchQuery,
         mappingType: provider.providerType === 'Pharmacy' ? 'Medicine' : 'LabTest',
         page,
         limit: 10
       });
+      const data = res.data || res;
       setMappings(data.items || []);
       setTotalPages(Math.ceil((data.total || 0) / 10));
 

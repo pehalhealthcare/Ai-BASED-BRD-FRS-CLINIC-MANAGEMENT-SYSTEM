@@ -58,6 +58,7 @@ const ICON_MAP = {
   'Subscription & Plan': <CreditCard size={18} />,
   'Branches': <Building2 size={18} />,
   'Settings': <UserCog size={18} />,
+  'Procedures': <Activity size={18} />,
 };
 
 // Patient-specific navigation with sections
@@ -157,11 +158,28 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
   const visibleItems = (isPendingDoctor || isPendingReceptionist)
     ? []
     : isPatient
-      ? PATIENT_NAV.map(item => {
+      ? PATIENT_NAV.filter(item => {
+          if (item.label === 'Pharmacy' || item.label === 'Pharmacy Store') {
+            return isFeatureEnabled(item.label);
+          }
+          if (item.label === 'Laboratory' || item.label === 'Lab Tests') {
+            return isFeatureEnabled(item.label);
+          }
+          return true;
+        }).map(item => {
           const enabled = isFeatureEnabled(item.label);
           return { ...item, isLocked: !enabled };
         })
-      : NAV_ITEMS.filter((item) => canAccessRole(role, item.roles)).map(item => {
+      : NAV_ITEMS.filter((item) => {
+          if (!canAccessRole(role, item.roles)) return false;
+          if (item.label === 'Pharmacy') {
+            return isFeatureEnabled('Pharmacy');
+          }
+          if (item.label === 'Laboratory') {
+            return isFeatureEnabled('Laboratory');
+          }
+          return true;
+        }).map(item => {
           const enabled = isFeatureEnabled(item.label);
           return { ...item, isLocked: !enabled };
         });
@@ -239,191 +257,179 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
   }, [role, user]);
 
   if (role === 'RECEPTIONIST') {
-    const isItemActive = (path) => {
-      if (path.includes('?')) {
-        const [basePath, search] = path.split('?');
-        const params = new URLSearchParams(search);
-        const currentParams = new URLSearchParams(location.search);
+    const hasOpRole = (roleKey) => {
+      const keys = {
+        'Procedure Management': ['Procedure Management', 'procedure_management', 'procedure', 'procedures', 'Procedure'],
+        'Billing': ['Billing', 'billing'],
+        'Laboratory': ['Laboratory', 'laboratory', 'labs', 'lab'],
+        'Pharmacy': ['Pharmacy', 'pharmacy', 'medicines']
+      };
 
-        const matchPath = location.pathname === basePath;
-        let matchParams = true;
-        for (const [key, value] of params.entries()) {
-          if (currentParams.get(key) !== value) {
-            matchParams = false;
-            break;
-          }
-        }
-        return matchPath && matchParams;
+      const matchKeys = keys[roleKey] || [roleKey];
+      
+      if (user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') return true;
+
+      if (user?.operationalRoles && Array.isArray(user.operationalRoles)) {
+        return user.operationalRoles.some(r => matchKeys.includes(r));
+      }
+      if (user?.permissions) {
+        return matchKeys.some(k => !!user.permissions[k]);
       }
 
+      // Default fallbacks:
+      if (roleKey === 'Billing') return true;
+      if (roleKey === 'Procedure Management') return true;
+      if (roleKey === 'Laboratory') return false;
+      if (roleKey === 'Pharmacy') return false;
+      return false;
+    };
+
+    const isItemActive = (path) => {
       if (path === ROUTES.dashboard) {
         return location.pathname === ROUTES.dashboard || location.pathname === '/dashboard';
       }
-      return location.pathname === path;
+      return location.pathname === path || location.pathname.startsWith(path + '/');
     };
 
-    const sections = [
-      {
-        title: 'APPOINTMENTS',
-        items: [
-          { label: 'Appointments Overview', path: ROUTES.appointments, icon: <LayoutGrid size={16} /> },
-          { label: "Today's Appointments", path: '/appointments?tab=todays', icon: <Calendar size={16} />, badge: sidebarStats.todaysAppointments > 0 ? sidebarStats.todaysAppointments : undefined },
-          { label: 'Upcoming Appointments', path: '/appointments?tab=upcoming', icon: <Calendar size={16} />, hasChevron: true },
-          { label: 'Waiting Patients', path: '/appointments?tab=waiting', icon: <Users size={16} />, badge: sidebarStats.waitingPatients > 0 ? sidebarStats.waitingPatients : undefined },
-          { label: 'Appointment Calendar', path: '/appointments?view=calendar', icon: <Calendar size={16} />, hasChevron: true },
-        ]
-      },
-      {
-        title: 'OPERATIONS',
-        items: [
-          { label: 'Check-In Patients', path: `${ROUTES.patients}?status=checked-in`, icon: <CheckSquare size={16} />, hasChevron: true },
-          { label: 'Walk-In Patients', path: `${ROUTES.patients}?type=walk-in`, icon: <UserCircle size={16} />, hasChevron: true },
-          { label: 'Patient Queue', path: `${ROUTES.patients}?view=queue`, icon: <Users size={16} />, hasChevron: true },
-          { label: 'Bed / Room Management', path: '/rooms', icon: <Bed size={16} />, hasChevron: true },
-          { label: 'Reports & Analytics', path: ROUTES.dashboardRevenue, icon: <TrendingUp size={16} />, hasChevron: true },
-        ]
-      },
-      {
-        title: 'DOCTORS',
-        items: [
-          { label: 'Doctors List', path: ROUTES.adminDoctorsDashboard, icon: <UserCircle size={16} />, hasChevron: true },
-          { label: 'Doctors Schedule', path: ROUTES.adminLeavesReview, icon: <Calendar size={16} />, hasChevron: true },
-          { label: 'Doctor Availability', path: '/doctors/availability', icon: <Clock size={16} />, hasChevron: true },
-        ]
-      },
-      {
-        title: 'EMERGENCY CASES',
-        items: [
-          { label: 'Emergency Cases', path: '/emergencies', icon: <AlertCircle size={16} />, badge: sidebarStats.emergencyCases > 0 ? sidebarStats.emergencyCases : undefined, isEmergency: true },
-          { label: 'Active Emergencies', path: '/emergencies/active', icon: <Activity size={16} />, badge: sidebarStats.activeEmergencies > 0 ? sidebarStats.activeEmergencies : undefined, isEmergency: true },
-        ]
-      }
+    // Filter items based on active operational roles
+    const navItems = [
+      { label: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={18} /> },
+      { label: 'Appointments', path: '/appointments', icon: <Calendar size={18} /> },
+      { label: 'Doctors', path: '/doctors', icon: <UserCog size={18} /> },
+      { label: 'Patients', path: '/patients', icon: <Users size={18} /> },
+      ...(hasOpRole('Procedure Management') ? [{ 
+        label: 'Procedures', 
+        path: '/procedures', 
+        icon: <Activity size={18} />,
+        badge: <span className="px-1.5 py-0.5 rounded-full text-[9px] font-black leading-none bg-emerald-500 text-white ml-auto">New</span>
+      }] : []),
+      ...(hasOpRole('Billing') ? [{ label: 'Billing', path: '/billing', icon: <CreditCard size={18} /> }] : []),
+      ...(hasOpRole('Laboratory') ? [{ label: 'Laboratory', path: '/labs/orders', icon: <FlaskConical size={18} /> }] : []),
+      ...(hasOpRole('Pharmacy') ? [{ label: 'Pharmacy', path: '/pharmacy/medicines', icon: <Pill size={18} /> }] : [])
     ];
 
+    const clinicName = user?.clinic?.name || "Ram's Dental Clinic";
+
     return (
-      <>
-        <aside
-          className={`
-            fixed inset-y-0 left-0 z-40 flex flex-col w-[270px]
-            bg-[#0b0f19] border-r border-white/[0.06]
-            transition-transform duration-300 ease-spring
-            lg:sticky lg:top-0 lg:h-screen lg:translate-x-0
-            ${open ? 'translate-x-0' : '-translate-x-full'}
-          `}
-        >
-          {/* Brand Header */}
-          <div className="px-6 pt-7 pb-4 shrink-0">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-[#0dd5b8] flex items-center justify-center shadow-[0_0_15px_rgba(13,213,184,0.35)] shrink-0">
-                <span className="text-white font-extrabold text-lg leading-none">+</span>
-              </div>
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.15em] text-[#0dd5b8] leading-none">AI-CMS</p>
-                <p className="text-sm font-black text-white mt-1 leading-none">
-                  Health Clinic
-                </p>
+      <aside
+        className={`
+          fixed inset-y-0 left-0 z-40 flex flex-col w-[270px]
+          bg-[#0b0f19] border-r border-white/[0.06]
+          transition-transform duration-300 ease-spring
+          lg:sticky lg:top-0 lg:h-screen lg:translate-x-0
+          ${open ? 'translate-x-0' : '-translate-x-full'}
+        `}
+      >
+        {/* Brand Header */}
+        <div className="px-6 pt-7 pb-4 shrink-0 border-b border-white/[0.04]">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-[#0dd5b8] flex items-center justify-center shadow-[0_0_15px_rgba(13,213,184,0.35)] shrink-0">
+              <span className="text-white font-extrabold text-lg leading-none">+</span>
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-black uppercase tracking-[0.15em] text-[#0dd5b8] leading-none">AI-CMS</p>
+              <div className="flex items-center gap-2 mt-1.5">
+                <span className="text-sm font-black text-white truncate leading-none">
+                  {clinicName}
+                </span>
+                <span className="shrink-0 bg-emerald-500/10 text-emerald-400 text-[10px] px-2 py-0.5 rounded-full font-bold">
+                  Active
+                </span>
               </div>
             </div>
           </div>
+        </div>
 
-
-
-          {/* Main Menu Nav Section */}
-          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6 scrollbar-thin scrollbar-thumb-white/[0.05]">
-            {sections.map((section, sIdx) => (
-              <div key={sIdx} className="space-y-1">
-                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500 px-2 pb-1.5">{section.title}</p>
-                {section.items.map((item, idx) => {
-                  const active = isItemActive(item.path);
-                  return (
-                    <NavLink
-                      key={idx}
-                      to={item.path}
-                      onClick={onNavigate}
-                      className={() =>
-                        `flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all duration-150 ${active
-                          ? 'bg-[#0dd5b8]/10 text-white border border-[#0dd5b8]/20 shadow-[inset_0_0_10px_rgba(13,213,184,0.05)]'
-                          : 'text-slate-400 hover:text-white hover:bg-white/[0.02]'
-                        }`
-                      }
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className={`shrink-0 ${active ? 'text-[#0dd5b8]' : 'text-slate-500'}`}>
-                          {item.icon}
-                        </span>
-                        <span>{item.label}</span>
-                      </div>
-
-                      {item.badge !== undefined && (
-                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black leading-none ${item.isEmergency
-                          ? 'bg-red-500 text-white shadow-[0_0_8px_rgba(239,68,68,0.3)]'
-                          : 'bg-[#211a44] text-[#a5b4fc]'
-                          }`}>
-                          {item.badge}
-                        </span>
-                      )}
-
-                      {item.hasChevron && !active && (
-                        <ChevronRight size={12} className="text-slate-600" />
-                      )}
-                    </NavLink>
-                  );
-                })}
+        {/* User Card */}
+        <div className="px-4 pt-4 shrink-0">
+          <div className="flex items-center gap-3 px-3 py-3 bg-white/[0.02] rounded-xl border border-white/[0.04]">
+            <Avatar src={user?.image} name={user?.name || 'Ishan'} size="md" />
+            <div className="min-w-0">
+              <h4 className="text-xs font-bold text-white leading-tight truncate">{user?.name || 'Ishan'}</h4>
+              <p className="text-[10px] text-slate-400 leading-tight">Receptionist</p>
+              <div className="flex items-center gap-1.5 mt-1">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <span className="text-[9px] font-bold text-emerald-400">Online</span>
               </div>
-            ))}
-
-            {/* Quick Actions Section */}
-            <div className="space-y-2 border-t border-white/[0.06] pt-5">
-              <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500 px-2 pb-1">QUICK ACTIONS</p>
-
-              {/* Billing card */}
-              <NavLink
-                to={ROUTES.billing}
-                onClick={onNavigate}
-                className="flex items-center justify-between px-4 py-3 rounded-xl bg-[#1e293b]/50 hover:bg-[#1e293b]/80 border border-white/[0.05] transition-all duration-150 group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-[#38bdf8]/10 border border-[#38bdf8]/20 flex items-center justify-center text-[#38bdf8]">
-                    <FileText size={15} />
-                  </div>
-                  <span className="text-xs font-bold text-white">Billing</span>
-                </div>
-                <ChevronRight size={13} className="text-slate-500 group-hover:text-white transition" />
-              </NavLink>
-
-              {/* Add Walk-In Patient card */}
-              <button
-                onClick={() => {
-                  if (onNavigate) onNavigate();
-                  if (onAddWalkIn) onAddWalkIn();
-                }}
-                className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-[#115e59]/70 hover:bg-[#115e59]/90 border border-teal-500/20 transition-all duration-150 group text-left"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-[#0dd5b8]/20 border border-[#0dd5b8]/30 flex items-center justify-center text-[#0dd5b8]">
-                    <UserPlus size={15} />
-                  </div>
-                  <span className="text-xs font-bold text-white">Add Walk-In Patient</span>
-                </div>
-                <ChevronRight size={13} className="text-[#0dd5b8] group-hover:text-white transition" />
-              </button>
             </div>
           </div>
+        </div>
 
-          {/* Footer & Toggle Theme */}
-          <div className="px-4 pb-4 pt-3 shrink-0 space-y-2 border-t border-white/[0.06]">
-            {onLogout && (
-              <button
-                onClick={onLogout}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-all duration-150"
-              >
-                <LogOut size={15} className="shrink-0" />
-                <span>Logout</span>
-              </button>
-            )}
+        {/* Navigation List */}
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2 scrollbar-thin scrollbar-thumb-white/[0.05]">
+          <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500 px-2 pb-1.5">MAIN</p>
+          <nav className="space-y-1">
+            {navItems.map((item, idx) => {
+              const active = isItemActive(item.path);
+              return (
+                <NavLink
+                  key={idx}
+                  to={item.path}
+                  onClick={onNavigate}
+                  className={() =>
+                    `flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 ${active
+                      ? 'bg-blue-600 text-white shadow-[0_0_15px_rgba(37,99,235,0.3)]'
+                      : 'text-slate-400 hover:text-white hover:bg-white/[0.02]'
+                    }`
+                  }
+                >
+                  <span className={`shrink-0 ${active ? 'text-white' : 'text-slate-500'}`}>
+                    {item.icon}
+                  </span>
+                  <span>{item.label}</span>
+                  {item.badge}
+                </NavLink>
+              );
+            })}
+          </nav>
+
+          {/* Quick Actions */}
+          <div className="pt-4 border-t border-white/[0.06] space-y-2">
+            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500 px-2 pb-1">QUICK ACTIONS</p>
+            <button
+              onClick={() => {
+                if (onNavigate) onNavigate();
+                if (onAddWalkIn) onAddWalkIn();
+              }}
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition duration-150 shadow-[0_0_15px_rgba(37,99,235,0.25)] cursor-pointer"
+            >
+              <Calendar size={15} />
+              <span>+ New Appointment</span>
+            </button>
           </div>
-        </aside>
-      </>
+        </div>
+
+        {/* Footer */}
+        <div className="px-4 pb-4 pt-3 shrink-0 space-y-1 border-t border-white/[0.06]">
+          {/* Settings */}
+          <NavLink
+            to="/clinic/settings"
+            onClick={onNavigate}
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 ${isActive
+                ? 'bg-blue-600 text-white shadow-[0_0_15px_rgba(37,99,235,0.3)]'
+                : 'text-slate-400 hover:text-white hover:bg-white/[0.02]'
+              }`
+            }
+          >
+            <UserCog size={15} className="shrink-0 text-slate-500" />
+            <span>Settings</span>
+          </NavLink>
+          {/* Logout */}
+          {onLogout && (
+            <button
+              onClick={onLogout}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-slate-400 hover:text-rose-450 hover:bg-rose-500/10 hover:text-rose-450 transition-all duration-150 cursor-pointer"
+            >
+              <LogOut size={15} className="shrink-0 text-slate-500" />
+              <span>Logout</span>
+            </button>
+          )}
+        </div>
+      </aside>
     );
   }
 
@@ -731,11 +737,16 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
                 <p className="text-[9px] text-slate-400 font-medium mt-0.5">Valid till {expiryFormatted}</p>
               </div>
             </div>
+            {(!activeFeatures.includes('pharmacy') && !activeFeatures.includes('labs')) && (
+              <div className="p-2 bg-amber-50 border border-amber-200 rounded-xl text-[10px] text-amber-850 font-bold">
+                ⚠️ Pharmacy & Labs modules are locked under your current plan.
+              </div>
+            )}
             <button
               onClick={() => navigate('/admin/subscription')}
-              className="w-full py-2 bg-white hover:bg-slate-50 border border-blue-650 text-blue-600 text-xs font-bold rounded-xl transition shadow-sm"
+              className="w-full py-2 bg-white hover:bg-slate-50 border border-blue-650 text-blue-600 text-xs font-bold rounded-xl transition shadow-sm animate-pulse"
             >
-              View Plan Details
+              {(!activeFeatures.includes('pharmacy') && !activeFeatures.includes('labs')) ? '🚀 Upgrade Plan' : 'View Plan Details'}
             </button>
           </div>
 

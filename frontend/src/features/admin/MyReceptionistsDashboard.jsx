@@ -171,13 +171,21 @@ const MyReceptionistsDashboard = () => {
       receptionistCode: p.receptionistCode || `STF-${String(p._id).slice(-4).toUpperCase()}`,
       isActive: p.isActive,
       approvalStatus: p.approvalStatus,
-      userId: p._id
+      userId: p._id,
+      availability: p.profile?.availability || [],
+      qualification: p.profile?.qualification || '',
+      experienceYears: p.profile?.experienceYears || 0,
+      currentAddress: p.profile?.currentAddress || null
     }));
 
     const approvedMapped = receptionists.map(r => ({
       ...r,
       isActive: r.isActive ?? r.userId?.isActive ?? false,
-      approvalStatus: r.approvalStatus || 'approved'
+      approvalStatus: r.approvalStatus || 'approved',
+      availability: r.availability || [],
+      qualification: r.qualification || '',
+      experienceYears: r.experienceYears || 0,
+      currentAddress: r.currentAddress || null
     }));
 
     return [...approvedMapped, ...pendingMapped];
@@ -423,8 +431,11 @@ const MyReceptionistsDashboard = () => {
                   <td className="py-4 px-2 text-center">
                     <div className="flex items-center justify-center gap-2">
                       <button
-                        onClick={() => setSelectedStaffDetails(staff)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition cursor-pointer"
+                        onClick={() => {
+                          const targetId = typeof staff.userId === 'object' && staff.userId ? staff.userId._id : staff.userId;
+                          navigate(`/admin/staff/${targetId}`);
+                        }}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-slate-655 hover:bg-slate-50 transition cursor-pointer"
                         title="View Details"
                       >
                         <Eye size={14} />
@@ -642,7 +653,7 @@ const MyReceptionistsDashboard = () => {
       {/* Staff Details Modal */}
       {selectedStaffDetails && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full border border-slate-100 shadow-2xl p-6 relative text-slate-800 space-y-6">
+          <div className="bg-white rounded-3xl max-w-lg w-full border border-slate-100 shadow-2xl p-6 relative text-slate-800 space-y-6">
             
             {/* Close Button */}
             <button 
@@ -662,30 +673,72 @@ const MyReceptionistsDashboard = () => {
               </div>
             </div>
 
-            <div className="space-y-3.5 text-xs font-semibold text-slate-600">
-              <div className="flex justify-between items-center">
-                <span>Role</span>
-                <span className="text-slate-900 font-bold">{selectedStaffDetails.role || 'Receptionist'}</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Left Column: Basic & Professional Info */}
+              <div className="space-y-3.5 text-xs font-semibold text-slate-600">
+                <span className="text-slate-500 font-bold block mb-1 uppercase text-[9px] tracking-wider">Profile Information</span>
+                <div className="flex justify-between items-center">
+                  <span>Role</span>
+                  <span className="text-slate-900 font-bold">{selectedStaffDetails.role || 'Staff'}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span>Staff Code</span>
+                  <span className="text-slate-900 font-bold">{selectedStaffDetails.receptionistCode || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span>Phone Number</span>
+                  <span className="text-slate-900 font-bold">{selectedStaffDetails.phone || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span>Active Status</span>
+                  <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase ${selectedStaffDetails.isActive ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>
+                    {selectedStaffDetails.isActive ? 'Active' : 'Suspended'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span>Registered Clinic</span>
+                  <span className="text-slate-900 font-bold">{selectedStaffDetails.clinicId?.name || 'Main Clinic'}</span>
+                </div>
+                {selectedStaffDetails.qualification && (
+                  <div className="flex justify-between items-center border-t border-slate-100 pt-3">
+                    <span>Qualification</span>
+                    <span className="text-slate-900 font-bold">{selectedStaffDetails.qualification}</span>
+                  </div>
+                )}
+                {selectedStaffDetails.experienceYears !== undefined && selectedStaffDetails.experienceYears > 0 && (
+                  <div className="flex justify-between items-center">
+                    <span>Experience</span>
+                    <span className="text-slate-900 font-bold">{selectedStaffDetails.experienceYears} Years</span>
+                  </div>
+                )}
               </div>
-              <div className="flex justify-between items-center">
-                <span>Staff Code</span>
-                <span className="text-slate-900 font-bold">{selectedStaffDetails.receptionistCode || 'N/A'}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span>Phone Number</span>
-                <span className="text-slate-900 font-bold">{selectedStaffDetails.phone || 'N/A'}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span>Active Status</span>
-                <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase ${selectedStaffDetails.isActive ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>
-                  {selectedStaffDetails.isActive ? 'Active' : 'Suspended'}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span>Registered Clinic</span>
-                <span className="text-slate-900 font-bold">{selectedStaffDetails.clinicId?.name || 'Garg Clinic'}</span>
+
+              {/* Right Column: Work Slots Allotted */}
+              <div className="space-y-3">
+                <span className="text-slate-500 font-bold block mb-1 uppercase text-[9px] tracking-wider">Allotted Work Slots</span>
+                {selectedStaffDetails.availability && selectedStaffDetails.availability.length > 0 ? (
+                  <div className="space-y-1.5 max-h-[200px] overflow-y-auto pr-1">
+                    {selectedStaffDetails.availability.map((slot, i) => (
+                      <div key={i} className="p-2 bg-slate-50 border border-slate-100 rounded-xl text-[11px] font-semibold text-slate-700 capitalize flex justify-between items-center">
+                        <span className="text-slate-500">{slot.dayOfWeek?.slice(0, 3)}</span>
+                        <span className="text-slate-900 font-bold">{slot.startTime} - {slot.endTime}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400 italic">No working shifts scheduled yet.</p>
+                )}
               </div>
             </div>
+
+            {selectedStaffDetails.currentAddress?.line1 && (
+              <div className="flex flex-col gap-0.5 border-t border-slate-105 pt-4 text-xs">
+                <span className="text-slate-500 uppercase text-[9px] tracking-wider font-bold">Residential Address</span>
+                <span className="text-slate-900 font-bold leading-relaxed mt-1">
+                  {selectedStaffDetails.currentAddress.line1}, {selectedStaffDetails.currentAddress.city}, {selectedStaffDetails.currentAddress.state} - {selectedStaffDetails.currentAddress.pincode}
+                </span>
+              </div>
+            )}
 
             <button 
               onClick={() => setSelectedStaffDetails(null)}

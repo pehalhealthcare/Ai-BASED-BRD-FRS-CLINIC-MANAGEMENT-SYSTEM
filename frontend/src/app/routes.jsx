@@ -60,6 +60,9 @@ import PaymentFailurePage from '../features/billing/PaymentFailurePage';
 import FinancialDashboard from '../features/billing/FinancialDashboard';
 import PrescriptionCreatePage from '../features/prescriptions/PrescriptionCreatePage';
 import PrescriptionDetailPage from '../features/prescriptions/PrescriptionDetailPage';
+import ProcedureQueuePage from '../features/procedures/ProcedureQueuePage';
+import ProcedureManagementPage from '../features/procedures/ProcedureManagementPage';
+import ProcedureDetailPage from '../features/procedures/ProcedureDetailPage';
 import ProtectedRoute from './ProtectedRoute';
 import RoleHomeRedirect from './RoleHomeRedirect';
 import ChatbotPage from '../pages/ai/ChatbotPage';
@@ -103,11 +106,20 @@ const NotificationsRoute = () => {
   }
   return <NotificationLogsPage />;
 };
+
+const ProcedureRoute = () => {
+  const { user } = useAuth();
+  if (user?.role === ROLES.RECEPTIONIST) {
+    return <ProcedureManagementPage />;
+  }
+  return <ProcedureQueuePage />;
+};
 import AppointmentCalendarPage from '../pages/appointments/AppointmentCalendarPage';
 import BillingPage from '../pages/billing/BillingPage';
 import BillingAdminPage from '../features/billing/BillingAdminPage';
 import NotificationsAdminPage from '../features/notifications/NotificationsAdminPage';
 import SettingsAdminPage from '../features/admin/SettingsAdminPage';
+import StaffDetailPage from '../features/admin/StaffDetailPage';
 import EmergencyPage from '../pages/emergency/EmergencyPage';
 import ConsultationPage from '../pages/consultations/ConsultationPage';
 import DashboardPage from '../pages/DashboardPage';
@@ -210,6 +222,14 @@ export const router = createBrowserRouter([
         element: protect(<PatientPortalPage />, [ROLES.PATIENT])
       },
       {
+        path: 'procedures',
+        element: protect(<ProcedureRoute />, [ROLES.ADMIN, ROLES.DOCTOR, ROLES.NURSE, ROLES.LAB_TECHNICIAN, ROLES.RECEPTIONIST])
+      },
+      {
+        path: 'procedures/:procedureId',
+        element: protect(<ProcedureDetailPage />, [ROLES.ADMIN, ROLES.DOCTOR, ROLES.NURSE, ROLES.LAB_TECHNICIAN, ROLES.RECEPTIONIST])
+      },
+      {
         path: 'patient/appointments',
         element: protect(<PatientAppointmentsPage />, [ROLES.PATIENT])
       },
@@ -248,6 +268,10 @@ export const router = createBrowserRouter([
       {
         path: 'admin/my-receptionists-dashboard',
         element: protect(<MyReceptionistsDashboard />, [ROLES.ADMIN])
+      },
+      {
+        path: 'admin/staff/:staffId',
+        element: protect(<StaffDetailPage />, [ROLES.ADMIN])
       },
       {
         path: 'admin/providers',
@@ -291,7 +315,17 @@ export const router = createBrowserRouter([
       },
       {
         path: 'dashboard',
-        element: protect(<DashboardPage />, [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR, ROLES.PHARMACIST])
+        element: protect(<DashboardPage />, [
+          ROLES.ADMIN,
+          ROLES.SUPER_ADMIN,
+          ROLES.RECEPTIONIST,
+          ROLES.DOCTOR,
+          ROLES.PHARMACIST,
+          ROLES.NURSE,
+          ROLES.LAB_TECHNICIAN,
+          ROLES.ACCOUNTANT,
+          ROLES.CLINIC_MANAGER
+        ])
       },
       {
         path: 'dashboard/appointments',

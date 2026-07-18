@@ -119,6 +119,14 @@ const providerSchema = new mongoose.Schema(
       type: String,
       default: ''
     },
+    licenseNumber: {
+      type: String,
+      default: ''
+    },
+    gstin: {
+      type: String,
+      default: ''
+    },
     status: {
       type: String,
       enum: ['Active', 'Inactive', 'Suspended', 'Archived'],

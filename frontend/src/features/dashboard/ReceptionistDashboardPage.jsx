@@ -27,6 +27,7 @@ import { appointmentApi } from '../../lib/api';
 import { getDashboardOverview } from './dashboardApi';
 import { Html5Qrcode } from 'html5-qrcode';
 import DiscountApprovalQueue from './DiscountApprovalQueue';
+import PendingProcedurePayments from './PendingProcedurePayments';
 
 const ReceptionistDashboardPage = () => {
   const { user } = useAuth();
@@ -669,6 +670,9 @@ const ReceptionistDashboardPage = () => {
           
           {/* Discount Approval Queue */}
           <DiscountApprovalQueue onDecisionMade={() => {}} />
+
+          {/* Pending Procedure Payments Queue */}
+          <PendingProcedurePayments onPaymentSuccess={() => window.location.reload()} />
 
           {/* Card 1: Scanner Code */}
           <div className="bg-white rounded-2xl border border-slate-150 shadow-sm p-5 space-y-4">

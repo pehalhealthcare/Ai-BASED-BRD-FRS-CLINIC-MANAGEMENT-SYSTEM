@@ -57,6 +57,7 @@ const userApi = {
   create: (payload) => extractData(apiClient.post('/users', payload)),
   updateRole: (id, payload) => extractData(apiClient.patch(`/users/${id}/role`, payload)),
   updateStatus: (id, payload) => extractData(apiClient.patch(`/users/${id}/status`, payload)),
+  updateProvider: (id, payload) => extractData(apiClient.patch(`/users/${id}/provider`, payload)),
   remove: (id) => extractData(apiClient.delete(`/users/${id}`))
 };
 
@@ -358,7 +359,8 @@ const adminApi = {
   approveReceptionist: (userId, payload) => extractData(apiClient.post(`/admin/approve-receptionist/${userId}`, payload)),
   rejectReceptionist: (userId) => extractData(apiClient.post(`/admin/reject-receptionist/${userId}`)),
   requestReEditReceptionist: (userId, payload) => extractData(apiClient.post(`/admin/receptionists/${userId}/re-edit`, payload)),
-  getMyReceptionistsDashboard: () => extractData(apiClient.get('/admin/my-receptionists/dashboard'))
+  getMyReceptionistsDashboard: () => extractData(apiClient.get('/admin/my-receptionists/dashboard')),
+  getStaffDetails: (userId) => extractData(apiClient.get(`/admin/staff/${userId}`))
 };
 
 const clinicApi = {
@@ -487,6 +489,8 @@ const healthcareCatalogApi = {
   searchLabTests: (params = {}) => extractData(apiClient.get('/healthcare-catalog/search/labs', { params })),
   searchMedicines: (params = {}) => extractData(apiClient.get('/healthcare-catalog/search/medicines', { params })),
   searchCategories: (params = {}) => extractData(apiClient.get('/healthcare-catalog/search/categories', { params })),
+  createMedicineDraft: (payload) => extractData(apiClient.post('/healthcare-catalog/search/medicines/draft', payload)),
+  createLabTestDraft: (payload) => extractData(apiClient.post('/healthcare-catalog/search/labs/draft', payload))
 };
 
 const providersApi = {
@@ -503,6 +507,17 @@ const providersApi = {
   updateMapping: (id, payload) => extractData(apiClient.put(`/providers/mappings/${id}`, payload)),
   deleteMapping: (id) => extractData(apiClient.delete(`/providers/mappings/${id}`)),
   previewImportMapping: (payload) => extractData(apiClient.post('/providers/mappings/import/preview', payload))
+};
+
+const procedureApi = {
+  list: (params = {}) => extractData(apiClient.get('/procedures', { params })),
+  get: (id) => extractData(apiClient.get(`/procedures/${id}`)),
+  pay: (invoiceId, payload) => extractData(apiClient.post(`/procedures/pay/${invoiceId}`, payload)),
+  start: (id, payload) => extractData(apiClient.post(`/procedures/${id}/start`, payload)),
+  complete: (id, payload) => extractData(apiClient.post(`/procedures/${id}/complete`, payload)),
+  cancel: (id, payload) => extractData(apiClient.post(`/procedures/${id}/cancel`, payload)),
+  approveRefund: (id) => extractData(apiClient.post(`/procedures/${id}/refund-approve`)),
+  getReports: () => extractData(apiClient.get('/procedures/reports'))
 };
 
 export {
@@ -535,5 +550,6 @@ export {
   subscriptionApi,
   promoApi,
   healthcareCatalogApi,
-  providersApi
+  providersApi,
+  procedureApi
 };

@@ -104,6 +104,7 @@ const BillingPolicySettings = () => {
   const [error, setError] = useState("");
 
   const [selectedPolicy, setSelectedPolicy] = useState("admin_only");
+  const [procedureBillingPolicy, setProcedureBillingPolicy] = useState("payment_before_procedure");
   const [doctorMaxPct, setDoctorMaxPct] = useState(20);
   const [doctorMaxAmt, setDoctorMaxAmt] = useState("");
   const [allowFullWaiver, setAllowFullWaiver] = useState(false);
@@ -123,6 +124,7 @@ const BillingPolicySettings = () => {
       const res = await clinicApi.getBillingSettings(clinicId);
       const s = res?.data?.billingSettings || {};
       setSelectedPolicy(s.approvalPolicy || "admin_only");
+      setProcedureBillingPolicy(s.procedureBillingPolicy || "payment_before_procedure");
       setDoctorMaxPct(s.doctorMaxDiscountPercent ?? 20);
       setDoctorMaxAmt(s.doctorMaxDiscountAmount != null ? s.doctorMaxDiscountAmount : "");
       setAllowFullWaiver(s.allowDoctorFullWaiver ?? false);
@@ -149,6 +151,7 @@ const BillingPolicySettings = () => {
     try {
       await clinicApi.updateBillingSettings(clinicId, {
         approvalPolicy: selectedPolicy,
+        procedureBillingPolicy: procedureBillingPolicy,
         doctorMaxDiscountPercent: Number(doctorMaxPct),
         doctorMaxDiscountAmount: doctorMaxAmt !== "" ? Number(doctorMaxAmt) : null,
         allowDoctorFullWaiver: allowFullWaiver,
@@ -394,6 +397,62 @@ const BillingPolicySettings = () => {
             </div>
           );
         })}
+      </div>
+
+      {/* Procedure Billing Policy Settings */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4 shadow-sm">
+        <div>
+          <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+            <Building2 className="text-teal-600" size={16} />
+            Procedure Billing Policy
+          </h3>
+          <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+            Configure whether patient procedures can be started prior to payment confirmation, or if payment is strictly required beforehand.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div
+            onClick={() => setProcedureBillingPolicy("payment_before_procedure")}
+            className={`cursor-pointer rounded-xl border-2 p-4 flex flex-col justify-between transition-all duration-200 ${
+              procedureBillingPolicy === "payment_before_procedure"
+                ? "border-teal-500 bg-teal-50/50 shadow-sm"
+                : "border-slate-200 bg-white hover:border-slate-300"
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition ${
+                procedureBillingPolicy === "payment_before_procedure" ? "border-teal-600 bg-teal-600" : "border-slate-300 bg-white"
+              }`}>
+                {procedureBillingPolicy === "payment_before_procedure" && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+              </div>
+              <span className="text-xs font-extrabold text-slate-900">Payment Before Procedure</span>
+            </div>
+            <p className="text-[10px] text-slate-500 mt-2 leading-relaxed">
+              Patient must complete payment at Reception. The procedure is locked and cannot be started until receipt is generated. (Highly Recommended)
+            </p>
+          </div>
+
+          <div
+            onClick={() => setProcedureBillingPolicy("payment_after_procedure")}
+            className={`cursor-pointer rounded-xl border-2 p-4 flex flex-col justify-between transition-all duration-200 ${
+              procedureBillingPolicy === "payment_after_procedure"
+                ? "border-teal-500 bg-teal-50/50 shadow-sm"
+                : "border-slate-200 bg-white hover:border-slate-300"
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition ${
+                procedureBillingPolicy === "payment_after_procedure" ? "border-teal-600 bg-teal-600" : "border-slate-300 bg-white"
+              }`}>
+                {procedureBillingPolicy === "payment_after_procedure" && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+              </div>
+              <span className="text-xs font-extrabold text-slate-900">Payment After Procedure</span>
+            </div>
+            <p className="text-[10px] text-slate-500 mt-2 leading-relaxed">
+              Procedures can be performed immediately. Billing and invoice collection are handled post-procedure or at patient checkout.
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Advanced Settings */}

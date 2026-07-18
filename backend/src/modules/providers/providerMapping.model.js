@@ -99,8 +99,20 @@ const providerMappingSchema = new mongoose.Schema(
   }
 );
 
-providerMappingSchema.index({ providerId: 1, globalMedicineId: 1 }, { unique: true, sparse: true });
-providerMappingSchema.index({ providerId: 1, globalLabTestId: 1 }, { unique: true, sparse: true });
+providerMappingSchema.index(
+  { providerId: 1, globalMedicineId: 1 },
+  { 
+    unique: true, 
+    partialFilterExpression: { mappingType: 'Medicine' } 
+  }
+);
+providerMappingSchema.index(
+  { providerId: 1, globalLabTestId: 1 },
+  { 
+    unique: true, 
+    partialFilterExpression: { mappingType: 'LabTest' } 
+  }
+);
 
 const ProviderMapping = mongoose.models.ProviderMapping || mongoose.model('ProviderMapping', providerMappingSchema);
 

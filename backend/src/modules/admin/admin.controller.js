@@ -712,6 +712,38 @@ const getMyReceptionistsDashboard = asyncHandler(async (req, res) => {
   });
 });
 
+const getStaffDetails = asyncHandler(async (req, res) => {
+  const { userId } = req.params;
+  const User = require('../users/user.model');
+  const Staff = require('../staff/staff.model');
+  const Receptionist = require('../receptionists/receptionist.model');
+  const staffService = require('../staff/staff.service');
+  const receptionistService = require('../receptionists/receptionist.service');
+  const { AppError } = require('../../common/utils/AppError');
+  const { HTTP_STATUS } = require('../../common/constants/httpStatus');
+
+  const user = await User.findById(userId).populate('clinicId', 'name code address phone').lean();
+  if (!user) {
+    throw new AppError('User not found', HTTP_STATUS.NOT_FOUND);
+  }
+
+  let profile = await Staff.findOne({ userId }).populate('clinicId', 'name code address phone').populate('userId', 'email name role').lean();
+  if (profile) {
+    profile = await staffService.resolveStaffFiles(profile);
+  } else {
+    // Try receptionist fallback
+    let recep = await Receptionist.findOne({ userId }).populate('clinicId', 'name code address phone').populate('userId', 'email name role').lean();
+    if (recep) {
+      profile = await receptionistService.resolveReceptionistFiles(recep);
+    }
+  }
+
+  return sendSuccess(res, 'Staff details retrieved successfully', {
+    user,
+    profile
+  });
+});
+
 module.exports = {
   listBillingAnomalies,
   getBillingAnomalyById,
@@ -725,5 +757,6 @@ module.exports = {
   approveReceptionist,
   rejectReceptionist,
   reEditReceptionist,
-  getMyReceptionistsDashboard
+  getMyReceptionistsDashboard,
+  getStaffDetails
 };

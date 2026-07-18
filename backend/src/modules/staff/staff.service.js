@@ -42,22 +42,45 @@ const processAndSaveFile = async (staff, field, newContent, filename) => {
     staff[field] = newContent || '';
   }
 };
+const findOrCreateStaff = async (userId, requester) => {
+  let staff = await Staff.findOne({ userId });
+  if (!staff) {
+    const parts = (requester.name || '').split(' ');
+    const firstName = parts[0] || 'Staff';
+    const lastName = parts.slice(1).join(' ') || '';
+    const staffCode = `STF-${String(userId).slice(-4).toUpperCase()}`;
+
+    const dbUser = await User.findById(userId);
+    const clinicId = dbUser?.clinicId || requester.clinicId || null;
+    const approvalStatus = dbUser?.approvalStatus || requester.approvalStatus || 'pending_profile';
+
+    staff = await Staff.create({
+      userId,
+      clinicId,
+      firstName,
+      lastName,
+      fullName: requester.name || dbUser?.name || 'Staff',
+      phone: requester.phone || dbUser?.phone || '9000000000',
+      email: requester.email || dbUser?.email,
+      role: requester.role || dbUser?.role || 'NURSE',
+      staffCode,
+      isActive: false,
+      approvalStatus
+    });
+  }
+  return staff;
+};
 
 const getMyProfile = async ({ requester }) => {
-  const staff = await Staff.findOne({ userId: requester._id })
+  let staff = await findOrCreateStaff(requester._id, requester);
+  staff = await Staff.findById(staff._id)
     .populate('clinicId', 'name code address phone')
     .populate('userId', 'email name role');
-  if (!staff) {
-    throw new AppError('Staff profile not found', HTTP_STATUS.NOT_FOUND);
-  }
   return resolveStaffFiles(staff);
 };
 
 const updateMyProfile = async ({ requester, payload }) => {
-  const staff = await Staff.findOne({ userId: requester._id });
-  if (!staff) {
-    throw new AppError('Staff profile not found', HTTP_STATUS.NOT_FOUND);
-  }
+  const staff = await findOrCreateStaff(requester._id, requester);
 
   if (payload.image !== undefined) {
     await processAndSaveFile(staff, 'image', payload.image, 'staff_photo');
@@ -116,10 +139,7 @@ const updateMyProfile = async ({ requester, payload }) => {
 };
 
 const submitMyProfile = async ({ requester, payload }) => {
-  const staff = await Staff.findOne({ userId: requester._id });
-  if (!staff) {
-    throw new AppError('Staff profile not found', HTTP_STATUS.NOT_FOUND);
-  }
+  const staff = await findOrCreateStaff(requester._id, requester);
 
   if (payload.image !== undefined) {
     await processAndSaveFile(staff, 'image', payload.image, 'staff_photo');
@@ -206,10 +226,7 @@ const submitMyProfile = async ({ requester, payload }) => {
 };
 
 const acceptMySlot = async ({ requester }) => {
-  const staff = await Staff.findOne({ userId: requester._id });
-  if (!staff) {
-    throw new AppError('Staff profile not found', HTTP_STATUS.NOT_FOUND);
-  }
+  const staff = await findOrCreateStaff(requester._id, requester);
 
   staff.hasAcceptedSlot = true;
   staff.initialSlotAccepted = true;

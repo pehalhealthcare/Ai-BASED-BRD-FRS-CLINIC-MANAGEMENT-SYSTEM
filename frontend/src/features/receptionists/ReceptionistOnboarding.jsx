@@ -3,6 +3,7 @@ import LoadingState from '../../components/common/LoadingState';
 import ErrorState from '../../components/common/ErrorState';
 import { receptionistApi, staffApi, organizationApi, clinicApi } from '../../lib/api';
 import MapPicker from '../../components/common/MapPicker';
+import { getDefaultRouteForRole } from '../../constants/routes';
 
 const FIELD_CLASS =
   'w-full rounded-2xl border border-stone-300 bg-white dark:bg-stone-700 px-4 py-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 text-stone-900 dark:text-white dark:border-stone-600 dark:placeholder-stone-400';
@@ -338,6 +339,8 @@ const ReceptionistOnboarding = ({ user, onProfileStatusChange }) => {
         if (onProfileStatusChange) {
           onProfileStatusChange('approved');
         }
+        const defaultRoute = getDefaultRouteForRole(profile?.role || user?.role || 'NURSE');
+        window.location.replace(defaultRoute);
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to accept schedule details.');

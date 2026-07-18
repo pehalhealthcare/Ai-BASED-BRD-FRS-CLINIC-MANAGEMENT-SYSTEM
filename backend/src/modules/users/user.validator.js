@@ -39,11 +39,19 @@ const updateStatusSchema = z.object({
   })
 });
 
+const updateProviderSchema = z.object({
+  params: objectIdParamSchema('id').shape.params,
+  body: z.object({
+    providerId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid Provider ID').nullable().optional()
+  })
+});
+
 const userIdParamSchema = objectIdParamSchema('id');
 
 module.exports = {
   listUsersQuerySchema,
   updateRoleSchema,
   updateStatusSchema,
+  updateProviderSchema,
   userIdParamSchema
 };

@@ -108,7 +108,7 @@ const invoiceSchema = new mongoose.Schema(
     },
     serviceType: {
       type: String,
-      enum: ['CONSULTATION', 'LAB', 'PHARMACY', 'other'],
+      enum: ['CONSULTATION', 'LAB', 'PHARMACY', 'PROCEDURE', 'other'],
       default: 'CONSULTATION'
     },
     insuranceCoveredAmount: {

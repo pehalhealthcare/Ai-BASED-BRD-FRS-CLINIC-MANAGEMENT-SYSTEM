@@ -241,32 +241,53 @@ const ProvidersPage = () => {
   };
 
   const handleNextStep = () => {
-    if (currentStep === 1 && !formData.name) {
-      return toast.error('Provider Name is required');
+    if (currentStep === 1 && (!formData.name || !formData.contactPerson || !formData.licenseNumber)) {
+      return toast.error('Name, Operator Name, and License Number are required');
     }
-    if (currentStep === 2 && (!formData.contactPerson || !formData.phone || !formData.email)) {
-      return toast.error('Please fill all required contact details');
+    if (currentStep === 2 && (!formData.phone || !formData.email)) {
+      return toast.error('Please fill required contact details');
     }
     if (currentStep === 3 && (!formData.address.line1 || !formData.address.city || !formData.address.pincode)) {
       return toast.error('Please fill required address fields');
     }
-    setCurrentStep(s => Math.min(s + 1, 8));
+    setCurrentStep(s => Math.min(s + 1, 5));
   };
 
   const handleSubmit = async () => {
     try {
-      const payload = { ...formData };
+      const services = formData.providerType === 'Laboratory' ? {
+        homeSampleCollection: true,
+        walkInTesting: true,
+        reportUpload: true,
+        reportDownload: true,
+        digitalReports: true
+      } : {
+        walkInPurchase: true,
+        homeDelivery: true,
+        pickupAvailable: true,
+        prescriptionRequired: true
+      };
+
+      const payload = {
+        ...formData,
+        services,
+        providerSubtype: 'Internal',
+        providerCategory: 'Own Provider',
+        integrationType: 'None',
+        integrationStatus: 'Not Configured'
+      };
+
       if (editingId) {
         await providersApi.updateProvider(editingId, payload);
-        toast.success('Provider updated successfully');
+        toast.success('Operational unit updated successfully');
       } else {
         await providersApi.createProvider(payload);
-        toast.success('Provider registered successfully');
+        toast.success('Operational unit registered successfully');
       }
       setIsAddOpen(false);
       loadData();
     } catch (err) {
-      toast.error(err?.response?.data?.message || 'Failed to save provider');
+      toast.error(err?.response?.data?.message || 'Failed to save operational unit');
     }
   };
 
@@ -522,9 +543,9 @@ const ProvidersPage = () => {
             <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-black text-slate-900">
-                  {editingId ? 'Modify Provider Record' : `Register ${activeTypeTab} Provider`}
+                  {editingId ? 'Modify Operational Unit' : `Register ${activeTypeTab}`}
                 </h3>
-                <span className="text-xs text-slate-400">Step {currentStep} of 8: Step Title</span>
+                <span className="text-xs text-slate-400">Step {currentStep} of 5</span>
               </div>
               <button onClick={() => setIsAddOpen(false)} className="p-2 hover:bg-slate-50 rounded-xl transition text-slate-400">
                 <X className="w-5 h-5" />
@@ -533,7 +554,7 @@ const ProvidersPage = () => {
 
             {/* Steps Progress bar */}
             <div className="bg-slate-50 h-1.5 w-full flex">
-              {[...Array(8)].map((_, i) => (
+              {[...Array(5)].map((_, i) => (
                 <div key={i} className={`flex-1 h-full transition ${i + 1 <= currentStep ? 'bg-blue-600' : 'bg-slate-100'}`} />
               ))}
             </div>
@@ -545,68 +566,57 @@ const ProvidersPage = () => {
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
-                      <label className="text-xs font-black text-slate-500 uppercase">Provider Name</label>
+                      <label className="text-xs font-black text-slate-500 uppercase">
+                        {formData.providerType === 'Pharmacy' ? 'Pharmacy Store Name *' : 'Laboratory Name *'}
+                      </label>
                       <input
                         type="text"
                         required
                         value={formData.name}
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        placeholder="e.g. Apollo Pharmacy Indirapuram"
+                        placeholder={formData.providerType === 'Pharmacy' ? 'e.g. Clinic Pharmacy' : 'e.g. Clinic Lab'}
                         className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none"
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-xs font-black text-slate-500 uppercase">Provider Type</label>
-                      <select
-                        value={formData.providerType}
-                        onChange={(e) => setFormData({ ...formData, providerType: e.target.value })}
-                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none bg-white"
-                      >
-                        <option value="Pharmacy">Pharmacy</option>
-                        <option value="Laboratory">Laboratory</option>
-                      </select>
+                      <label className="text-xs font-black text-slate-500 uppercase">Operator Name *</label>
+                      <input
+                        type="text"
+                        required
+                        value={formData.contactPerson}
+                        onChange={(e) => setFormData({ ...formData, contactPerson: e.target.value })}
+                        placeholder="e.g. Dr. Rajesh Sharma"
+                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none"
+                      />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
-                      <label className="text-xs font-black text-slate-500 uppercase">Subtype</label>
-                      <select
-                        value={formData.providerSubtype}
-                        onChange={(e) => setFormData({ ...formData, providerSubtype: e.target.value })}
-                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none bg-white"
-                      >
-                        <option value="Internal">Internal Resource</option>
-                        <option value="External">External Provider</option>
-                        <option value="Referral">Referral Facility</option>
-                        <option value="API Integrated">API Integrated Facility</option>
-                      </select>
+                      <label className="text-xs font-black text-slate-500 uppercase">
+                        {formData.providerType === 'Pharmacy' ? 'Drug License Number *' : 'Laboratory License Number *'}
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={formData.licenseNumber || ''}
+                        onChange={(e) => setFormData({ ...formData, licenseNumber: e.target.value })}
+                        placeholder="e.g. DL-123456"
+                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none"
+                      />
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-black text-slate-500 uppercase">Category</label>
-                      <select
-                        value={formData.providerCategory}
-                        onChange={(e) => setFormData({ ...formData, providerCategory: e.target.value })}
-                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none bg-white"
-                      >
-                        <option value="Own Provider">Own Provider</option>
-                        <option value="Partner Provider">Partner Provider</option>
-                        <option value="Third-party Provider">Third-party Provider</option>
-                        <option value="Government Provider">Government Provider</option>
-                        <option value="Corporate Provider">Corporate Provider</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-xs font-black text-slate-500 uppercase">Logo URL (Optional)</label>
-                    <input
-                      type="text"
-                      value={formData.logo}
-                      onChange={(e) => setFormData({ ...formData, logo: e.target.value })}
-                      placeholder="https://example.com/logo.png"
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none"
-                    />
+                    {formData.providerType === 'Pharmacy' && (
+                      <div className="space-y-1">
+                        <label className="text-xs font-black text-slate-500 uppercase">GSTIN (Optional)</label>
+                        <input
+                          type="text"
+                          value={formData.gstin || ''}
+                          onChange={(e) => setFormData({ ...formData, gstin: e.target.value })}
+                          placeholder="e.g. 07AAAAA1111A1Z1"
+                          className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none"
+                        />
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-1">
@@ -614,31 +624,19 @@ const ProvidersPage = () => {
                     <textarea
                       value={formData.description}
                       onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      placeholder="Brief description about the facility services..."
+                      placeholder="Brief description about the operational unit..."
                       className="w-full px-4 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none min-h-[60px]"
                     />
                   </div>
                 </div>
               )}
 
-              {/* STEP 2: Contact Information */}
+              {/* STEP 2: Contact & Operating Hours */}
               {currentStep === 2 && (
                 <div className="space-y-4">
-                  <div className="space-y-1">
-                    <label className="text-xs font-black text-slate-500 uppercase">Contact Person Name</label>
-                    <input
-                      type="text"
-                      required
-                      value={formData.contactPerson}
-                      onChange={(e) => setFormData({ ...formData, contactPerson: e.target.value })}
-                      placeholder="e.g. Dr. Rajesh Sharma"
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none"
-                    />
-                  </div>
-
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
-                      <label className="text-xs font-black text-slate-500 uppercase">Mobile Number</label>
+                      <label className="text-xs font-black text-slate-500 uppercase">Contact Number *</label>
                       <input
                         type="text"
                         required
@@ -649,257 +647,15 @@ const ProvidersPage = () => {
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-xs font-black text-slate-500 uppercase">Email Address</label>
+                      <label className="text-xs font-black text-slate-500 uppercase">Email Address *</label>
                       <input
                         type="email"
                         required
                         value={formData.email}
                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                        placeholder="rajesh@apollo.com"
+                        placeholder="operator@clinic.com"
                         className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none"
                       />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-xs font-black text-slate-500 uppercase">Website URL (Optional)</label>
-                    <input
-                      type="text"
-                      value={formData.website}
-                      onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                      placeholder="www.apollo.com"
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* STEP 3: Address Details */}
-              {currentStep === 3 && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-xs font-black text-slate-500 uppercase">Address Line 1</label>
-                      <input
-                        type="text"
-                        required
-                        value={formData.address.line1}
-                        onChange={(e) => setFormData({
-                          ...formData,
-                          address: { ...formData.address, line1: e.target.value }
-                        })}
-                        placeholder="Flat/House No, Building"
-                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-black text-slate-500 uppercase">Landmark / Line 2</label>
-                      <input
-                        type="text"
-                        value={formData.address.line2}
-                        onChange={(e) => setFormData({
-                          ...formData,
-                          address: { ...formData.address, line2: e.target.value }
-                        })}
-                        placeholder="Near Metro Station"
-                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-xs font-black text-slate-500 uppercase">City</label>
-                      <input
-                        type="text"
-                        required
-                        value={formData.address.city}
-                        onChange={(e) => setFormData({
-                          ...formData,
-                          address: { ...formData.address, city: e.target.value }
-                        })}
-                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-black text-slate-500 uppercase">State</label>
-                      <input
-                        type="text"
-                        required
-                        value={formData.address.state}
-                        onChange={(e) => setFormData({
-                          ...formData,
-                          address: { ...formData.address, state: e.target.value }
-                        })}
-                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-black text-slate-500 uppercase">Pincode</label>
-                      <input
-                        type="text"
-                        required
-                        value={formData.address.pincode}
-                        onChange={(e) => setFormData({
-                          ...formData,
-                          address: { ...formData.address, pincode: e.target.value }
-                        })}
-                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Coordinates */}
-                  <div className="grid grid-cols-2 gap-4 p-4 border border-slate-100 rounded-2xl bg-slate-50/50">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-slate-400 uppercase">Latitude</label>
-                      <input
-                        type="number"
-                        step="any"
-                        value={formData.latitude}
-                        onChange={(e) => setFormData({ ...formData, latitude: e.target.value })}
-                        placeholder="28.6139"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:outline-none bg-white"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-slate-400 uppercase">Longitude</label>
-                      <input
-                        type="number"
-                        step="any"
-                        value={formData.longitude}
-                        onChange={(e) => setFormData({ ...formData, longitude: e.target.value })}
-                        placeholder="77.2090"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:outline-none bg-white"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* STEP 4: Branch Assignment */}
-              {currentStep === 4 && (
-                <div className="space-y-4">
-                  <span className="text-xs font-black text-slate-500 uppercase tracking-wider block">Assign to Clinic Branches</span>
-                  <p className="text-xs text-slate-400">Select which clinic branches can use this provider for orders and prescriptions.</p>
-
-                  <div className="grid grid-cols-2 gap-3 max-h-[300px] overflow-y-auto pr-2">
-                    {branches.map(br => (
-                      <label
-                        key={br._id}
-                        onClick={() => handleBranchSelect(br._id)}
-                        className={`p-4 border rounded-2xl flex items-center justify-between cursor-pointer hover:bg-slate-50 transition ${
-                          formData.assignedBranches.includes(br._id)
-                            ? 'border-blue-600 bg-blue-50/15 text-blue-700 font-bold'
-                            : 'border-slate-200 text-slate-600'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <Building className="w-4 h-4 text-slate-400" />
-                          <div className="text-left">
-                            <span className="text-sm block">{br.name}</span>
-                            <span className="text-[9px] text-slate-400 block">{br.code}</span>
-                          </div>
-                        </div>
-                        <input
-                          type="checkbox"
-                          checked={formData.assignedBranches.includes(br._id)}
-                          onChange={() => {}}
-                          className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 pointer-events-none"
-                        />
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* STEP 5: Service Configuration */}
-              {currentStep === 5 && (
-                <div className="space-y-4">
-                  <span className="text-xs font-black text-slate-500 uppercase tracking-wider block">Service Switches</span>
-
-                  {formData.providerType === 'Laboratory' ? (
-                    <div className="grid grid-cols-2 gap-3">
-                      {[
-                        { key: 'homeSampleCollection', label: 'Home Sample Collection' },
-                        { key: 'walkInTesting', label: 'Walk-in Testing' },
-                        { key: 'reportUpload', label: 'Report Upload Enabled' },
-                        { key: 'reportDownload', label: 'Report Download Enabled' },
-                        { key: 'digitalReports', label: 'Digital Reports Generated' }
-                      ].map(sw => (
-                        <label
-                          key={sw.key}
-                          className={`p-4 border rounded-2xl flex items-center justify-between cursor-pointer transition ${
-                            formData.services[sw.key] ? 'border-indigo-600 bg-indigo-50/10 text-indigo-700' : 'border-slate-200 text-slate-600'
-                          }`}
-                        >
-                          <span className="text-xs font-bold">{sw.label}</span>
-                          <input
-                            type="checkbox"
-                            checked={formData.services[sw.key]}
-                            onChange={(e) => setFormData({
-                              ...formData,
-                              services: { ...formData.services, [sw.key]: e.target.checked }
-                            })}
-                            className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4"
-                          />
-                        </label>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-3">
-                      {[
-                        { key: 'walkInPurchase', label: 'Walk-in Purchase' },
-                        { key: 'homeDelivery', label: 'Home Delivery Option' },
-                        { key: 'pickupAvailable', label: 'Pickup Locker Available' },
-                        { key: 'prescriptionRequired', label: 'Strict Rx Validation' }
-                      ].map(sw => (
-                        <label
-                          key={sw.key}
-                          className={`p-4 border rounded-2xl flex items-center justify-between cursor-pointer transition ${
-                            formData.services[sw.key] ? 'border-indigo-600 bg-indigo-50/10 text-indigo-700' : 'border-slate-200 text-slate-600'
-                          }`}
-                        >
-                          <span className="text-xs font-bold">{sw.label}</span>
-                          <input
-                            type="checkbox"
-                            checked={formData.services[sw.key]}
-                            onChange={(e) => setFormData({
-                              ...formData,
-                              services: { ...formData.services, [sw.key]: e.target.checked }
-                            })}
-                            className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4"
-                          />
-                        </label>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* STEP 6: Operational Details */}
-              {currentStep === 6 && (
-                <div className="space-y-4">
-                  <span className="text-xs font-black text-slate-500 uppercase tracking-wider block">Operational Details</span>
-                  
-                  {/* Working Days */}
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Working Days</label>
-                    <div className="flex flex-wrap gap-2">
-                      {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(day => (
-                        <button
-                          key={day}
-                          type="button"
-                          onClick={() => handleDaySelect(day)}
-                          className={`px-3 py-1.5 rounded-full text-xs font-bold border transition ${
-                            formData.workingHours.workingDays.includes(day)
-                              ? 'bg-blue-600 text-white border-blue-600'
-                              : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
-                          }`}
-                        >
-                          {day.substring(0,3)}
-                        </button>
-                      ))}
                     </div>
                   </div>
 
@@ -978,90 +734,174 @@ const ProvidersPage = () => {
                 </div>
               )}
 
-              {/* STEP 7: Integration Information */}
-              {currentStep === 7 && (
+              {/* STEP 3: Address Details */}
+              {currentStep === 3 && (
                 <div className="space-y-4">
-                  <span className="text-xs font-black text-slate-500 uppercase tracking-wider block">Integration Profile</span>
-
-                  <div className="space-y-1">
-                    <label className="text-xs font-black text-slate-500 uppercase">Integration Type</label>
-                    <select
-                      value={formData.integrationType}
-                      onChange={(e) => setFormData({ ...formData, integrationType: e.target.value })}
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none bg-white"
-                    >
-                      <option value="None">None (Local Record)</option>
-                      <option value="Manual">Manual Reconciliation</option>
-                      <option value="API Integration">API Integration Ready</option>
-                    </select>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-xs font-black text-slate-500 uppercase">Address Line 1 *</label>
+                      <input
+                        type="text"
+                        required
+                        value={formData.address.line1}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          address: { ...formData.address, line1: e.target.value }
+                        })}
+                        placeholder="Flat/House No, Building"
+                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-black text-slate-500 uppercase">Landmark / Line 2</label>
+                      <input
+                        type="text"
+                        value={formData.address.line2}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          address: { ...formData.address, line2: e.target.value }
+                        })}
+                        placeholder="Near Metro Station"
+                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none"
+                      />
+                    </div>
                   </div>
 
-                  {formData.integrationType === 'API Integration' && (
-                    <div className="grid grid-cols-2 gap-4 p-4 border border-blue-50 rounded-2xl bg-blue-50/10">
-                      <div className="space-y-1">
-                        <label className="text-xs font-black text-slate-500 uppercase">API Provider Name</label>
-                        <input
-                          type="text"
-                          value={formData.apiProviderName}
-                          onChange={(e) => setFormData({ ...formData, apiProviderName: e.target.value })}
-                          placeholder="e.g. Pharmeasy, SRL Labs"
-                          className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none bg-white"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs font-black text-slate-500 uppercase">Integration Status</label>
-                        <input
-                          type="text"
-                          value={formData.integrationStatus}
-                          onChange={(e) => setFormData({ ...formData, integrationStatus: e.target.value })}
-                          placeholder="e.g. Awaiting API Credentials"
-                          className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none bg-white"
-                        />
-                      </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-xs font-black text-slate-500 uppercase">City *</label>
+                      <input
+                        type="text"
+                        required
+                        value={formData.address.city}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          address: { ...formData.address, city: e.target.value }
+                        })}
+                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none"
+                      />
                     </div>
-                  )}
+                    <div className="space-y-1">
+                      <label className="text-xs font-black text-slate-500 uppercase">State *</label>
+                      <input
+                        type="text"
+                        required
+                        value={formData.address.state}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          address: { ...formData.address, state: e.target.value }
+                        })}
+                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-black text-slate-500 uppercase">Pincode *</label>
+                      <input
+                        type="text"
+                        required
+                        value={formData.address.pincode}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          address: { ...formData.address, pincode: e.target.value }
+                        })}
+                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none"
+                      />
+                    </div>
+                  </div>
                 </div>
               )}
 
-              {/* STEP 8: Review & Save */}
-              {currentStep === 8 && (
+              {/* STEP 4: Branch Assignment */}
+              {currentStep === 4 && (
+                <div className="space-y-4">
+                  <span className="text-xs font-black text-slate-500 uppercase tracking-wider block">Assign to Clinic Branches</span>
+                  <p className="text-xs text-slate-400">Select which clinic branches can use this operational unit.</p>
+
+                  <div className="grid grid-cols-2 gap-3 max-h-[300px] overflow-y-auto pr-2">
+                    {branches.map(br => (
+                      <label
+                        key={br._id}
+                        onClick={() => handleBranchSelect(br._id)}
+                        className={`p-4 border rounded-2xl flex items-center justify-between cursor-pointer hover:bg-slate-50 transition ${
+                          formData.assignedBranches.includes(br._id)
+                            ? 'border-blue-600 bg-blue-50/15 text-blue-700 font-bold'
+                            : 'border-slate-200 text-slate-600'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <Building className="w-4 h-4 text-slate-400" />
+                          <div className="text-left">
+                            <span className="text-sm block">{br.name}</span>
+                            <span className="text-[9px] text-slate-400 block">{br.code}</span>
+                          </div>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={formData.assignedBranches.includes(br._id)}
+                          onChange={() => {}}
+                          className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 pointer-events-none"
+                        />
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 5: Review & Save */}
+              {currentStep === 5 && (
                 <div className="space-y-4">
                   <span className="text-xs font-black text-slate-500 uppercase tracking-wider block text-center">Verification & Review Summary</span>
 
                   <div className="border border-slate-200 rounded-3xl p-5 bg-slate-50/50 space-y-4 text-xs">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <strong className="text-slate-400 block uppercase font-bold">Facility Name</strong>
+                        <strong className="text-slate-400 block uppercase font-bold">Operational Unit Name</strong>
                         <span className="text-sm font-black text-slate-800">{formData.name}</span>
                       </div>
                       <div>
-                        <strong className="text-slate-400 block uppercase font-bold">Type / Category</strong>
-                        <span className="text-sm font-bold text-slate-800">{formData.providerType} / {formData.providerCategory}</span>
+                        <strong className="text-slate-400 block uppercase font-bold">Type</strong>
+                        <span className="text-sm font-bold text-slate-800">{formData.providerType}</span>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <strong className="text-slate-400 block uppercase font-bold">Contact Person</strong>
-                        <span className="text-slate-700 block">{formData.contactPerson} ({formData.phone})</span>
+                        <strong className="text-slate-400 block uppercase font-bold">Operator Name</strong>
+                        <span className="text-slate-700 block font-bold">{formData.contactPerson}</span>
                       </div>
                       <div>
-                        <strong className="text-slate-400 block uppercase font-bold">Address</strong>
-                        <span className="text-slate-700 block">
-                          {formData.address.line1}, {formData.address.city}, {formData.address.state} - {formData.address.pincode}
-                        </span>
+                        <strong className="text-slate-400 block uppercase font-bold">License Number</strong>
+                        <span className="text-slate-700 block font-bold">{formData.licenseNumber}</span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <strong className="text-slate-400 block uppercase font-bold">Contact Number</strong>
+                        <span className="text-slate-700 block">{formData.phone || 'N/A'}</span>
+                      </div>
+                      <div>
+                        <strong className="text-slate-400 block uppercase font-bold">Email</strong>
+                        <span className="text-slate-700 block">{formData.email || 'N/A'}</span>
                       </div>
                     </div>
 
                     <div>
-                      <strong className="text-slate-400 block uppercase font-bold">Assigned Branches count</strong>
+                      <strong className="text-slate-400 block uppercase font-bold">Address</strong>
+                      <span className="text-slate-700 block">
+                        {formData.address.line1}, {formData.address.city}, {formData.address.state} - {formData.address.pincode}
+                      </span>
+                    </div>
+
+                    <div>
+                      <strong className="text-slate-400 block uppercase font-bold">Assigned Branches</strong>
                       <span className="text-slate-700 block font-bold">{formData.assignedBranches.length} branch(es) mapped</span>
                     </div>
 
                     <div>
-                      <strong className="text-slate-400 block uppercase font-bold">Working schedule</strong>
+                      <strong className="text-slate-400 block uppercase font-bold">Operating Hours</strong>
                       <span className="text-slate-700 block">
-                        {formData.workingHours.workingDays.length} days open ({formData.workingHours.openingTime} - {formData.workingHours.closingTime})
+                        {formData.workingHours.openingTime} - {formData.workingHours.closingTime}
                       </span>
                     </div>
                   </div>
@@ -1088,7 +928,7 @@ const ProvidersPage = () => {
                 >
                   Cancel
                 </button>
-                {currentStep < 8 ? (
+                {currentStep < 5 ? (
                   <button
                     type="button"
                     onClick={handleNextStep}

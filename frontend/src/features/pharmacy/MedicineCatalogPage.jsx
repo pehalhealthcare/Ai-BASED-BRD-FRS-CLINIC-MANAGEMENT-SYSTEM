@@ -36,6 +36,20 @@ const MedicineCatalogPage = () => {
   const [searchingGlobal, setSearchingGlobal] = useState(false);
   const [selectedGlobalItems, setSelectedGlobalItems] = useState([]);
 
+  // Draft Creation states
+  const [isDraftOpen, setIsDraftOpen] = useState(false);
+  const [categoriesList, setCategoriesList] = useState([]);
+  const [draftForm, setDraftForm] = useState({
+    displayName: '',
+    genericName: '',
+    brandName: '',
+    strength: '',
+    dosageForm: 'Tablet',
+    manufacturer: '',
+    category: '',
+    medicineType: 'Generic'
+  });
+
   // Import wizard states
   const [wizardStep, setWizardStep] = useState(1);
   const [selectedGlobalMed, setSelectedGlobalMed] = useState(null);
@@ -86,6 +100,33 @@ const MedicineCatalogPage = () => {
   useEffect(() => {
     loadLocalMedicines();
   }, [searchQuery, activeTab]);
+
+  useEffect(() => {
+    healthcareCatalogApi.searchCategories({ type: 'Medicine' })
+      .then(res => {
+        setCategoriesList(res.data?.items || res.data || res.items || res || []);
+      })
+      .catch((err) => {
+        console.error('Failed to load catalog categories', err);
+      });
+  }, []);
+
+  const handleSaveDraft = async (e) => {
+    e.preventDefault();
+    if (!draftForm.displayName || !draftForm.dosageForm || !draftForm.category) {
+      return toast.error('Display Name, Dosage Form, and Category are required');
+    }
+
+    try {
+      await healthcareCatalogApi.createMedicineDraft(draftForm);
+      toast.success('Medicine draft submitted successfully for Super Admin verification!');
+      setIsDraftOpen(false);
+      setGlobalSearch('');
+      setGlobalResults([]);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to submit medicine draft');
+    }
+  };
 
   const loadLocalMedicines = async () => {
     try {
@@ -546,8 +587,26 @@ const MedicineCatalogPage = () => {
                   </div>
                 ) : (
                   !searchingGlobal && globalSearch.trim().length >= 2 && (
-                    <div className="py-10 text-center text-stone-400 text-xs">
-                      No matching records found in global catalog.
+                    <div className="py-10 text-center text-stone-400 text-xs space-y-3">
+                      <p>No matching records found in global catalog.</p>
+                      <button
+                        onClick={() => {
+                          setDraftForm({
+                            displayName: globalSearch,
+                            genericName: '',
+                            brandName: globalSearch,
+                            strength: '',
+                            dosageForm: 'Tablet',
+                            manufacturer: '',
+                            category: categoriesList[0]?._id || '',
+                            medicineType: 'Generic'
+                          });
+                          setIsDraftOpen(true);
+                        }}
+                        className="px-4 py-2 bg-indigo-650 hover:bg-indigo-750 text-white rounded-xl font-bold transition shadow-md shadow-indigo-600/10"
+                      >
+                        ➕ Submit New Medicine Draft
+                      </button>
                     </div>
                   )
                 )}
@@ -771,6 +830,143 @@ const MedicineCatalogPage = () => {
                 </>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* NEW DRAFT MEDICINE CREATION DIALOG */}
+      {isDraftOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border border-stone-200 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col">
+            <div className="px-6 py-5 border-b border-stone-200 flex items-center justify-between">
+              <h3 className="text-lg font-black text-stone-900 flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-indigo-500" /> Create New Medicine Draft
+              </h3>
+              <button 
+                type="button" 
+                onClick={() => setIsDraftOpen(false)} 
+                className="p-2 hover:bg-stone-100 rounded-xl text-stone-400 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveDraft} className="p-6 space-y-4 text-xs text-stone-700">
+              <div className="space-y-1">
+                <label className="text-stone-500 font-bold uppercase text-[10px]">Medicine Type</label>
+                <select
+                  value={draftForm.medicineType}
+                  onChange={(e) => setDraftForm({ ...draftForm, medicineType: e.target.value })}
+                  className="w-full px-3 py-2 bg-white border border-stone-200 rounded-xl text-stone-800 focus:outline-none"
+                >
+                  <option value="Generic">Generic</option>
+                  <option value="Brand-First">Brand-First</option>
+                  <option value="Combination">Combination</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-stone-500 font-bold uppercase text-[10px]">Display Name *</label>
+                <input 
+                  type="text" 
+                  value={draftForm.displayName} 
+                  onChange={(e) => setDraftForm({ ...draftForm, displayName: e.target.value })}
+                  required
+                  placeholder="e.g. Paracetamol 500mg"
+                  className="w-full px-3 py-2 bg-white border border-stone-200 rounded-xl text-stone-800 focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-stone-500 font-bold uppercase text-[10px]">Brand Name</label>
+                  <input 
+                    type="text" 
+                    value={draftForm.brandName} 
+                    onChange={(e) => setDraftForm({ ...draftForm, brandName: e.target.value })}
+                    placeholder="e.g. Crocin"
+                    className="w-full px-3 py-2 bg-white border border-stone-200 rounded-xl text-stone-800 focus:outline-none"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-stone-500 font-bold uppercase text-[10px]">Generic Name</label>
+                  <input 
+                    type="text" 
+                    value={draftForm.genericName} 
+                    onChange={(e) => setDraftForm({ ...draftForm, genericName: e.target.value })}
+                    placeholder="e.g. Paracetamol"
+                    className="w-full px-3 py-2 bg-white border border-stone-200 rounded-xl text-stone-800 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-stone-500 font-bold uppercase text-[10px]">Strength</label>
+                  <input 
+                    type="text" 
+                    value={draftForm.strength} 
+                    onChange={(e) => setDraftForm({ ...draftForm, strength: e.target.value })}
+                    placeholder="e.g. 500mg"
+                    className="w-full px-3 py-2 bg-white border border-stone-200 rounded-xl text-stone-800 focus:outline-none"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-stone-500 font-bold uppercase text-[10px]">Dosage Form *</label>
+                  <input 
+                    type="text" 
+                    value={draftForm.dosageForm} 
+                    onChange={(e) => setDraftForm({ ...draftForm, dosageForm: e.target.value })}
+                    required
+                    placeholder="e.g. Tablet, Syrup"
+                    className="w-full px-3 py-2 bg-white border border-stone-200 rounded-xl text-stone-800 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-stone-500 font-bold uppercase text-[10px]">Manufacturer</label>
+                  <input 
+                    type="text" 
+                    value={draftForm.manufacturer} 
+                    onChange={(e) => setDraftForm({ ...draftForm, manufacturer: e.target.value })}
+                    placeholder="e.g. GSK"
+                    className="w-full px-3 py-2 bg-white border border-stone-200 rounded-xl text-stone-800 focus:outline-none"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-stone-500 font-bold uppercase text-[10px]">Category *</label>
+                  <select
+                    value={draftForm.category}
+                    onChange={(e) => setDraftForm({ ...draftForm, category: e.target.value })}
+                    required
+                    className="w-full px-3 py-2 bg-white border border-stone-200 rounded-xl text-stone-800 focus:outline-none"
+                  >
+                    <option value="">Select Category</option>
+                    {categoriesList.map(cat => (
+                      <option key={cat._id} value={cat._id}>{cat.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="px-6 py-4 border-t border-stone-200 flex justify-end gap-2 bg-stone-50 -mx-6 -mb-6 mt-6">
+                <button
+                  type="button"
+                  onClick={() => setIsDraftOpen(false)}
+                  className="px-4 py-2 border border-stone-300 bg-white rounded-xl text-xs font-bold hover:bg-stone-50 text-stone-500"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-indigo-650 hover:bg-indigo-755 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5"
+                >
+                  Submit Draft
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

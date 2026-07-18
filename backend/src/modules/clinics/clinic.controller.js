@@ -910,6 +910,7 @@ const updateBillingSettings = asyncHandler(async (req, res) => {
   }
 
   const {
+    procedureBillingPolicy,
     approvalPolicy,
     doctorMaxDiscountPercent,
     doctorMaxDiscountAmount,
@@ -925,8 +926,13 @@ const updateBillingSettings = asyncHandler(async (req, res) => {
     );
   }
 
+  if (procedureBillingPolicy && !['payment_before_procedure', 'payment_after_procedure'].includes(procedureBillingPolicy)) {
+    throw new AppError('Invalid procedure billing policy', HTTP_STATUS.BAD_REQUEST);
+  }
+
   // Build update object with only provided fields
   const update = {};
+  if (procedureBillingPolicy !== undefined)       update['billingSettings.procedureBillingPolicy']     = procedureBillingPolicy;
   if (approvalPolicy !== undefined)               update['billingSettings.approvalPolicy']              = approvalPolicy;
   if (doctorMaxDiscountPercent !== undefined)      update['billingSettings.doctorMaxDiscountPercent']   = doctorMaxDiscountPercent;
   if (doctorMaxDiscountAmount !== undefined)       update['billingSettings.doctorMaxDiscountAmount']    = doctorMaxDiscountAmount;

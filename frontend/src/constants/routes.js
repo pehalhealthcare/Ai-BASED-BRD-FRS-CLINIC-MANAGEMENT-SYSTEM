@@ -15,6 +15,7 @@ export const ROUTES = {
   dashboardNotifications: '/dashboard/notifications',
   patients: '/patients',
   patientCreate: '/patients/new',
+  doctors: '/doctors',
   appointments: '/appointments',
   consultations: '/consultations',
   labOrders: '/labs/orders',
@@ -126,6 +127,11 @@ export const NAV_ITEMS = [
     roles: [ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR, ROLES.LAB_TECHNICIAN]
   },
   {
+    label: 'Procedures',
+    path: '/procedures',
+    roles: [ROLES.ADMIN, ROLES.DOCTOR, ROLES.NURSE, ROLES.LAB_TECHNICIAN, ROLES.RECEPTIONIST]
+  },
+  {
     label: 'Lab Consumables',
     path: ROUTES.labConsumables,
     roles: [ROLES.ADMIN, ROLES.LAB_TECHNICIAN]
@@ -188,6 +194,10 @@ export const getDefaultRouteForRole = (role) => {
 
   if (role === ROLES.RECEPTIONIST) {
     return ROUTES.appointments;
+  }
+
+  if (role === ROLES.NURSE) {
+    return '/procedures';
   }
 
   return ROUTES.dashboard;

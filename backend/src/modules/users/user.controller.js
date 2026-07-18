@@ -62,11 +62,23 @@ const deleteUser = asyncHandler(async (req, res) => {
   return sendSuccess(res, 'Staff member account removed successfully');
 });
 
+const updateUserProvider = asyncHandler(async (req, res) => {
+  const user = await userService.updateUserProvider({
+    requester: req.user,
+    userId: req.params.id,
+    providerId: req.body.providerId,
+    req
+  });
+
+  return sendSuccess(res, 'User operational unit assignment updated successfully', { user });
+});
+
 module.exports = {
   listUsers,
   getUserById,
   updateUserRole,
   updateUserStatus,
+  updateUserProvider,
   createStaff,
   deleteUser
 };

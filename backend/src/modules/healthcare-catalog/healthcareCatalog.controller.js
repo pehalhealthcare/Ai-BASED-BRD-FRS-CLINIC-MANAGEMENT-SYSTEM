@@ -125,6 +125,24 @@ const classifyMedicine = asyncHandler(async (req, res) => {
   return sendSuccess(res, 'Medicine classified and verified successfully', result);
 });
 
+const createMedicineDraft = asyncHandler(async (req, res) => {
+  const payload = {
+    ...req.body,
+    classificationStatus: 'Pending Classification'
+  };
+  const result = await healthcareCatalogService.createGenericMedicine(payload, req.user._id);
+  return sendSuccess(res, 'Draft medicine created and submitted for verification successfully', result, HTTP_STATUS.CREATED);
+});
+
+const createLabTestDraft = asyncHandler(async (req, res) => {
+  const payload = {
+    ...req.body,
+    isActive: false
+  };
+  const result = await healthcareCatalogService.createLabTest(payload, req.user._id);
+  return sendSuccess(res, 'Draft laboratory test created and submitted for verification successfully', result, HTTP_STATUS.CREATED);
+});
+
 module.exports = {
   getCategories,
   createCategory,
@@ -138,5 +156,7 @@ module.exports = {
   createBrand,
   previewImport,
   confirmImport,
-  classifyMedicine
+  classifyMedicine,
+  createMedicineDraft,
+  createLabTestDraft
 };

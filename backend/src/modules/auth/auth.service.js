@@ -23,11 +23,13 @@ const register = async (payload, req) => {
   const defaultClinicId = await findDefaultClinicId();
   const isDoctorRole = requestedRole === ROLES.DOCTOR;
   const isReceptionistRole = requestedRole === ROLES.RECEPTIONIST;
+  const { STAFF_ROLES } = require('../../common/constants/roles');
+  const isStaffRole = STAFF_ROLES.includes(requestedRole);
   const user = await userRepository.createUser({
     ...payload,
     role: requestedRole,
     isActive: true,
-    approvalStatus: (isDoctorRole || isReceptionistRole) ? 'pending_profile' : 'approved',
+    approvalStatus: (isDoctorRole || isStaffRole) ? 'pending_profile' : 'approved',
     ...(defaultClinicId ? { clinicId: defaultClinicId } : {})
   });
 
@@ -101,6 +103,48 @@ const register = async (payload, req) => {
       image: '',
       documentPdf: '',
       availability: [],
+      currentAddress: {
+        line1: payload.address?.line1 || '',
+        line2: payload.address?.line2 || '',
+        city: payload.address?.city || '',
+        state: payload.address?.state || '',
+        pincode: payload.address?.pincode || '',
+        country: payload.address?.country || 'India',
+        latitude: payload.address?.latitude || null,
+        longitude: payload.address?.longitude || null
+      },
+      permanentAddress: {
+        line1: payload.permanentAddress?.line1 || payload.address?.line1 || '',
+        line2: payload.permanentAddress?.line2 || payload.address?.line2 || '',
+        city: payload.permanentAddress?.city || payload.address?.city || '',
+        state: payload.permanentAddress?.state || payload.address?.state || '',
+        pincode: payload.permanentAddress?.pincode || payload.address?.pincode || '',
+        country: payload.permanentAddress?.country || payload.address?.country || 'India',
+        latitude: payload.permanentAddress?.latitude || payload.address?.latitude || null,
+        longitude: payload.permanentAddress?.longitude || payload.address?.longitude || null
+      }
+    });
+  }
+
+  if (isStaffRole) {
+    const Staff = require('../staff/staff.model');
+    const parts = user.name ? user.name.split(' ') : ['Staff'];
+    const firstName = parts[0];
+    const lastName = parts.slice(1).join(' ') || '';
+    const staffCode = `STF-${String(user._id).slice(-4).toUpperCase()}`;
+
+    await Staff.create({
+      userId: user._id,
+      organizationId: user.organizationId || null,
+      firstName,
+      lastName,
+      fullName: user.name,
+      phone: user.phone || '9000000000',
+      email: user.email,
+      role: requestedRole,
+      staffCode,
+      isActive: false,
+      approvalStatus: 'pending_profile',
       currentAddress: {
         line1: payload.address?.line1 || '',
         line2: payload.address?.line2 || '',

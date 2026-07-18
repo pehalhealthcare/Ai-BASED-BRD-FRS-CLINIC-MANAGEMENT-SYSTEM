@@ -133,7 +133,7 @@ const DashboardLayout = () => {
         user={user}
         role={user?.role}
         open={sidebarOpen}
-        onNavigate={() => setSidebarOpen(false)}
+        onNavigate={() => {}}
         onLogout={handleLogout}
         onAddWalkIn={() => setWalkInModalOpen(true)}
       />

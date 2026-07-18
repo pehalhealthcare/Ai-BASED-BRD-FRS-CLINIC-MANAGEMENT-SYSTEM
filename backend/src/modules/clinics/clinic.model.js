@@ -195,6 +195,12 @@ const clinicSchema = new mongoose.Schema(
       maxPatients: { type: Number, default: null }
     },
     billingSettings: {
+      // Procedure billing policy
+      procedureBillingPolicy: {
+        type: String,
+        enum: ['payment_before_procedure', 'payment_after_procedure'],
+        default: 'payment_before_procedure'
+      },
       // Approval policy that determines who approves discount/waiver requests
       approvalPolicy: {
         type: String,

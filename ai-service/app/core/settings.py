@@ -62,7 +62,7 @@ class Settings(BaseSettings):
     document_temp_dir: str = Field(default="./tmp/documents", validation_alias=AliasChoices("DOCUMENT_TEMP_DIR"))
     ai_medical_disclaimer: str = "AI assistance is not a final diagnosis or prescription. Doctor approval is mandatory."
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file="../.env", extra="ignore")
 
     @property
     def allowed_origins(self) -> list[str]:

@@ -12,6 +12,8 @@ const router = Router();
 router.get('/search/labs', protect, authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN), controller.getLabTests);
 router.get('/search/medicines', protect, authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN), controller.getGenericMedicines);
 router.get('/search/categories', protect, authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN), controller.getCategories);
+router.post('/search/medicines/draft', protect, authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN), controller.createMedicineDraft);
+router.post('/search/labs/draft', protect, authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN), controller.createLabTestDraft);
 
 // ─── Super Admin management routes ────────────────────────────────────────────
 // All routes below require SUPER_ADMIN role

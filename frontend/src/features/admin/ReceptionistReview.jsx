@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { adminApi, clinicApi } from '../../lib/api';
 import { toast } from 'react-hot-toast';
+import useAuth from '../../hooks/useAuth';
 
 const FIELD_CLASS =
   'w-full rounded-2xl border border-stone-300 bg-stone-50 px-4 py-3 text-sm outline-none text-stone-900 font-medium';
@@ -9,6 +10,7 @@ const FIELD_CLASS =
 const ReceptionistReview = () => {
   const { receptionistId } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   
   const [receptionist, setReceptionist] = useState(null);
   const displayRole = receptionist?.role
@@ -63,10 +65,25 @@ const ReceptionistReview = () => {
 
         setReceptionist(found);
 
-        // Filter clinics of same organization
-        const orgId = found.organizationId || found.profile?.organizationId;
+        // Filter clinics: show admin's own clinic & its branch clinics
+        const mainClinicIdStr = user?.clinicId ? String(user.clinicId) : null;
         const rawClinics = clinicsRes.data?.clinics || [];
-        const filtered = rawClinics.filter((c) => String(c.organizationId) === String(orgId));
+        
+        let filtered = rawClinics;
+        if (mainClinicIdStr) {
+          filtered = rawClinics.filter(c => {
+            const isMain = String(c._id) === mainClinicIdStr;
+            const parentId = c.parentClinicId?._id || c.parentClinicId;
+            const isSubBranch = parentId && String(parentId) === mainClinicIdStr;
+            return isMain || isSubBranch;
+          });
+        } else {
+          // Fallback to same organization if no clinicId in user object (e.g. super admin)
+          const orgId = found.organizationId || found.profile?.organizationId;
+          if (orgId) {
+            filtered = rawClinics.filter((c) => String(c.organizationId) === String(orgId));
+          }
+        }
 
         setClinics(filtered);
       } catch (err) {
@@ -78,7 +95,7 @@ const ReceptionistReview = () => {
     };
 
     loadData();
-  }, [receptionistId, navigate]);
+  }, [receptionistId, navigate, user]);
 
   const goNext = () => setStep((s) => Math.min(s + 1, 4));
   const goBack = () => setStep((s) => Math.max(s - 1, 1));
@@ -661,8 +678,8 @@ const ReceptionistReview = () => {
     <div className="container mx-auto px-4 py-8 max-w-7xl">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-2xl font-black text-stone-900 tracking-tight text-white">Review {displayRole} Application</h1>
-          <p className="text-gray-300 text-sm mt-1">Verify details, assign clinic venues, and configure shift schedules.</p>
+          <h1 className="text-2xl font-black text-stone-900 tracking-tight ">Review {displayRole} Application</h1>
+          <p className="text-stone-700 text-sm mt-1">Verify details, assign clinic venues, and configure shift schedules.</p>
         </div>
 
         {/* Step Indicator Progress bar */}

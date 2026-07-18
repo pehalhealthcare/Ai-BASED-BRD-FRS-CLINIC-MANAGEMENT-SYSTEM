@@ -9,6 +9,7 @@ const {
   listUsersQuerySchema,
   updateRoleSchema,
   updateStatusSchema,
+  updateProviderSchema,
   userIdParamSchema
 } = require('./user.validator');
 
@@ -29,8 +30,9 @@ router.get('/:id', protect, validate(userIdParamSchema), userController.getUserB
 
 router.patch('/:id/role',protect,authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),validate(updateRoleSchema),userController.updateUserRole);
 
-router.patch('/:id/status',protect,authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),validate(updateStatusSchema),userController.updateUserStatus
-);
+router.patch('/:id/status',protect,authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),validate(updateStatusSchema),userController.updateUserStatus);
+
+router.patch('/:id/provider',protect,authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),validate(updateProviderSchema),userController.updateUserProvider);
 
 router.delete('/:id', protect, authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN), validate(userIdParamSchema), userController.deleteUser);
 

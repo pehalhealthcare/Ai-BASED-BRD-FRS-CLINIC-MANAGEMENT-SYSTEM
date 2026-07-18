@@ -119,4 +119,11 @@ router.post(
   adminController.reEditReceptionist
 );
 
+router.get(
+  '/staff/:userId',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),
+  adminController.getStaffDetails
+);
+
 module.exports = router;

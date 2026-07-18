@@ -6,13 +6,19 @@ const providerService = require('./provider.service');
 const Clinic = require('../clinics/clinic.model');
 
 const createProvider = asyncHandler(async (req, res) => {
-  const { name, providerType, providerSubtype, providerCategory, contactPerson, phone, email, address } = req.body;
+  const { name, providerType, contactPerson, phone, email, address } = req.body;
 
-  if (!name || !providerType || !providerSubtype || !providerCategory || !contactPerson || !phone || !email || !address) {
-    throw new AppError('Missing required provider fields', HTTP_STATUS.BAD_REQUEST);
+  if (!name || !providerType || !contactPerson || !phone || !email || !address) {
+    throw new AppError('Missing required fields for operational unit', HTTP_STATUS.BAD_REQUEST);
   }
 
-  const result = await providerService.createProvider(req.user.clinicId, req.body, req.user._id);
+  const payload = {
+    providerSubtype: 'Internal',
+    providerCategory: 'Own Provider',
+    ...req.body
+  };
+
+  const result = await providerService.createProvider(req.user.clinicId, payload, req.user._id);
   return sendSuccess(res, 'Provider created successfully', result, HTTP_STATUS.CREATED);
 });
 

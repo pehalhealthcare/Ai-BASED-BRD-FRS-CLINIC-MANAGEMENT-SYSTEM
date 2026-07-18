@@ -1339,6 +1339,14 @@ const completeConsultation = async ({ requester, consultationId, payload, reques
     console.error('Failed to ensure invoice on consultation completion:', invoiceErr);
   }
 
+  // Auto-generate Procedure Orders & Invoices if procedures exist
+  try {
+    const procedureService = require('../procedures/procedure.service');
+    await procedureService.createProcedureOrdersFromConsultation(consultation._id, requester);
+  } catch (procedureOrderErr) {
+    console.error('Failed to create procedure orders on consultation completion:', procedureOrderErr);
+  }
+
   // Process Doctor Payout Split (80% Doctor Share, 20% Clinic Commission)
   try {
     const Invoice = require('../billing/invoice.model');

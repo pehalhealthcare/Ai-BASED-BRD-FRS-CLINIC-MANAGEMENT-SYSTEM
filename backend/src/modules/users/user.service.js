@@ -336,11 +336,38 @@ const deleteUser = async ({ requester, userId }) => {
   return { id: userId };
 };
 
+const updateUserProvider = async ({ requester, userId, providerId, req }) => {
+  const User = require('./user.model');
+  const user = await User.findById(userId);
+
+  if (!user) {
+    throw new AppError('User not found', HTTP_STATUS.NOT_FOUND);
+  }
+
+  user.providerId = providerId || null;
+  user.updatedBy = requester._id;
+  await user.save();
+
+  await createAuditLog({
+    actorUserId: requester._id,
+    action: 'USER_PROVIDER_UPDATED',
+    entity: 'User',
+    entityId: user._id,
+    metadata: { providerId },
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent'),
+    status: 'SUCCESS'
+  });
+
+  return sanitizeUser(user);
+};
+
 module.exports = {
   listUsers,
   getUserById,
   updateUserRole,
   updateUserStatus,
+  updateUserProvider,
   createStaffByAdmin,
   deleteUser
 };

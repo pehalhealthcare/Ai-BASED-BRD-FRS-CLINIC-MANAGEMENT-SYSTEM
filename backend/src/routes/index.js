@@ -29,6 +29,7 @@ const settlementsRoutes = require('../modules/settlements/routes/settlements.rou
 const subscriptionsRoutes = require('../modules/subscriptions/subscriptions.routes');
 const healthcareCatalogRoutes = require('../modules/healthcare-catalog/healthcareCatalog.routes');
 const providerRoutes = require('../modules/providers/provider.routes');
+const procedureRoutes = require('../modules/procedures/procedure.routes');
 
 const router = Router();
 
@@ -65,5 +66,6 @@ router.use('/billing', billingModuleRoutes);
 router.use('/subscriptions', subscriptionsRoutes);
 router.use('/healthcare-catalog', healthcareCatalogRoutes);
 router.use('/providers', providerRoutes);
+router.use('/procedures', procedureRoutes);
 
 module.exports = router;
