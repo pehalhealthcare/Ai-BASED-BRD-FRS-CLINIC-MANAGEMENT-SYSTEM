@@ -19,8 +19,12 @@ const providerSchema = new mongoose.Schema(
     },
     providerType: {
       type: String,
-      required: true,
-      enum: ['Pharmacy', 'Laboratory']
+      required: true
+    },
+    operatorStaffId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Staff',
+      default: null
     },
     providerSubtype: {
       type: String,

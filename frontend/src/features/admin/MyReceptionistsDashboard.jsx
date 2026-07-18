@@ -396,6 +396,16 @@ const MyReceptionistsDashboard = () => {
                       </div>
                       <div>
                         <p className="font-extrabold text-slate-905">{staff.fullName}</p>
+                        {staff.origin === 'provider_operator' && (
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            <span className="inline-flex items-center rounded-md bg-purple-50 px-1.5 py-0.2 text-[8px] font-bold text-purple-600 border border-purple-100">
+                              Auto Created
+                            </span>
+                            <span className="inline-flex items-center rounded-md bg-blue-50 px-1.5 py-0.2 text-[8px] font-bold text-blue-600 border border-blue-100">
+                              Provider Staff
+                            </span>
+                          </div>
+                        )}
                         <p className="text-[9px] text-slate-400 mt-0.5">{staff.email}</p>
                       </div>
                     </div>

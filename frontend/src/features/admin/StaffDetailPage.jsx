@@ -131,7 +131,9 @@ const StaffDetailPage = () => {
 
   // Role permissions mapping helper
   const getPermissionBadge = (role, moduleName) => {
-    const normRole = (role || 'RECEPTIONIST').toUpperCase();
+    let normRole = (role || 'RECEPTIONIST').toUpperCase();
+    if (normRole === 'PHARMACY STORE OPERATOR') normRole = 'PHARMACIST';
+    if (normRole === 'LABORATORY OPERATOR') normRole = 'LAB_TECHNICIAN';
     
     // Simple mock matrix mapping roles to standard permission levels
     const permissions = {
@@ -280,8 +282,13 @@ const StaffDetailPage = () => {
           )}
           
           <div className="text-center sm:text-left space-y-1.5">
-            <div className="flex items-center justify-center sm:justify-start gap-2.5">
+            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5">
               <h2 className="text-lg font-black text-slate-905 leading-none">{user.name}</h2>
+              {profile?.origin === 'provider_operator' && (
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase bg-purple-50 text-purple-600 border border-purple-100">
+                  Healthcare Provider Staff
+                </span>
+              )}
               <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase border ${
                 user.isActive ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-100 text-slate-500 border-slate-200'
               }`}>
@@ -354,6 +361,43 @@ const StaffDetailPage = () => {
           {activeTab === 'overview' && (
             <div className="space-y-6">
               
+              {/* Healthcare Provider Operator Link Details */}
+              {profile?.assignedProviderId && (
+                <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-100 shadow-sm rounded-3xl p-6 space-y-4">
+                  <h3 className="text-sm font-black text-purple-900 border-b border-purple-100/50 pb-2 flex items-center gap-2">
+                    <Building size={16} className="text-purple-600" /> Linked Healthcare Provider Operator Details
+                  </h3>
+                  <div className="grid grid-cols-2 gap-y-3.5 text-xs">
+                    <div>
+                      <span className="text-purple-600/70 font-bold block mb-0.5">Assigned Healthcare Provider</span>
+                      <span className="text-purple-950 font-black">{profile.assignedProviderId.name}</span>
+                    </div>
+                    <div>
+                      <span className="text-purple-600/70 font-bold block mb-0.5">Provider Type</span>
+                      <span className="text-purple-950 font-black">{profile.assignedProviderId.providerType}</span>
+                    </div>
+                    <div>
+                      <span className="text-purple-600/70 font-bold block mb-0.5">Provider Location</span>
+                      <span className="text-purple-950 font-black">
+                        {profile.assignedProviderId.address ? (
+                          `${profile.assignedProviderId.address.line1 || ''}, ${profile.assignedProviderId.address.city || ''}, ${profile.assignedProviderId.address.state || ''}`
+                        ) : 'N/A'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-purple-600/70 font-bold block mb-0.5">Provider Status</span>
+                      <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase ring-1 ring-inset ${
+                        profile.assignedProviderId.status === 'Active'
+                          ? 'bg-emerald-50 text-emerald-700 ring-emerald-600/20'
+                          : 'bg-red-50 text-red-700 ring-red-650/20'
+                      }`}>
+                        {profile.assignedProviderId.status || 'Active'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Card 1: Contact & Basic Info */}
               <div className="bg-white border border-slate-100 shadow-sm rounded-3xl p-6 space-y-4">
                 <h3 className="text-sm font-black text-slate-900 border-b border-slate-50 pb-2">Contact &amp; Basic Information</h3>

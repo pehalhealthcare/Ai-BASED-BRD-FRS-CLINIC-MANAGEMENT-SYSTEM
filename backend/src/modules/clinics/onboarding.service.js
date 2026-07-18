@@ -68,9 +68,10 @@ const getOnboardingFlow = async (clinicId) => {
 
   // 4. Count current usages
   const currentDoctors = await Doctor.countDocuments({ clinicId, approvalStatus: 'approved' });
+  const { STAFF_ROLES } = require('../../common/constants/roles');
   const currentStaff = await User.countDocuments({ 
     clinicId, 
-    role: { $in: ['RECEPTIONIST', 'PHARMACIST', 'LAB_TECHNICIAN'] } 
+    role: { $in: STAFF_ROLES } 
   });
   const currentBranches = await Clinic.countDocuments({ parentClinicId: clinicId });
   const currentDepartments = clinic.clinicDetails?.departments?.length || 0;

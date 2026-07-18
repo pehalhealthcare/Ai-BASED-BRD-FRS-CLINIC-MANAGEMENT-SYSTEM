@@ -663,7 +663,7 @@ const getMyReceptionistsDashboard = asyncHandler(async (req, res) => {
 
   const { STAFF_ROLES } = require('../../common/constants/roles');
 
-  const approvedStaff = await Staff.find({ approvalStatus: 'approved', ...clinicFilter }).populate('clinicId', 'name code').populate('userId').lean();
+  const approvedStaff = await Staff.find({ approvalStatus: 'approved', ...clinicFilter }).populate('clinicId', 'name code').populate('userId').populate('assignedProviderId').lean();
 
   const pendingUsers = await User.find({
     role: { $in: STAFF_ROLES },
@@ -672,7 +672,7 @@ const getMyReceptionistsDashboard = asyncHandler(async (req, res) => {
   }).lean();
 
   const userIds = pendingUsers.map((u) => u._id);
-  const staffProfiles = await Staff.find({ userId: { $in: userIds } }).lean();
+  const staffProfiles = await Staff.find({ userId: { $in: userIds } }).populate('assignedProviderId').lean();
   const receptionistProfiles = await Receptionist.find({ userId: { $in: userIds } }).lean();
 
   const resolvedPendingProfiles = await Promise.all(
@@ -727,7 +727,7 @@ const getStaffDetails = asyncHandler(async (req, res) => {
     throw new AppError('User not found', HTTP_STATUS.NOT_FOUND);
   }
 
-  let profile = await Staff.findOne({ userId }).populate('clinicId', 'name code address phone').populate('userId', 'email name role').lean();
+  let profile = await Staff.findOne({ userId }).populate('clinicId', 'name code address phone').populate('userId', 'email name role').populate('assignedProviderId').lean();
   if (profile) {
     profile = await staffService.resolveStaffFiles(profile);
   } else {

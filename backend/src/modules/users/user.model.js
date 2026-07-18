@@ -32,6 +32,11 @@ const userSchema = new mongoose.Schema(
       enum: Object.values(ROLES),
       default: ROLES.PATIENT
     },
+    department: {
+      type: String,
+      trim: true,
+      default: ''
+    },
     clinicId: {
       type: mongoose.Schema.Types.ObjectId,
       default: null
@@ -105,6 +110,16 @@ const userSchema = new mongoose.Schema(
       default: false
     },
     providerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Provider',
+      default: null
+    },
+    origin: {
+      type: String,
+      enum: ['manual', 'provider_operator'],
+      default: 'manual'
+    },
+    assignedProviderId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Provider',
       default: null

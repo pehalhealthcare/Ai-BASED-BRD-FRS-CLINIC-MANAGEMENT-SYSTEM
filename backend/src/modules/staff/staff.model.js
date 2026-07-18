@@ -100,6 +100,11 @@ const staffSchema = new mongoose.Schema(
       required: true,
       trim: true
     },
+    department: {
+      type: String,
+      trim: true,
+      default: ''
+    },
     qualification: {
       type: String,
       trim: true,
@@ -179,6 +184,16 @@ const staffSchema = new mongoose.Schema(
     isActive: {
       type: Boolean,
       default: false
+    },
+    origin: {
+      type: String,
+      enum: ['manual', 'provider_operator'],
+      default: 'manual'
+    },
+    assignedProviderId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Provider',
+      default: null
     },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
