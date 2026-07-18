@@ -81,6 +81,51 @@ const PATIENT_NAV = [
 ];
 
 
+const PHARMACY_OPERATOR_NAV = [
+  { label: 'Dashboard', path: '/provider-workspace/pharmacy?tab=dashboard', iconKey: 'Dashboard' },
+  { type: 'section', label: 'OPERATIONS' },
+  { label: 'Prescription Orders', path: '/provider-workspace/pharmacy?tab=orders', iconKey: 'Prescriptions' },
+  { label: 'Walk-in Sales', path: '/provider-workspace/pharmacy?tab=walk-in', iconKey: 'Billing' },
+  { label: 'Handover Queue', path: '/provider-workspace/pharmacy?tab=handover', iconKey: 'Follow-ups' },
+  { type: 'section', label: 'INVENTORY' },
+  { label: 'Inventory', path: '/provider-workspace/pharmacy?tab=inventory', iconKey: 'Pharmacy' },
+  { label: 'Global Catalogue', path: '/provider-workspace/pharmacy?tab=catalogue', iconKey: 'Departments' },
+  { label: 'Purchase & Stock', path: '/provider-workspace/pharmacy?tab=purchases', iconKey: 'Procedures' },
+  { label: 'Suppliers', path: '/provider-workspace/pharmacy?tab=suppliers', iconKey: 'Patients' },
+  { label: 'Returns', path: '/provider-workspace/pharmacy?tab=returns', iconKey: 'Reschedule Appointment' },
+  { label: 'Stock Transfer', path: '/provider-workspace/pharmacy?tab=transfers', iconKey: 'Branches' },
+  { type: 'section', label: 'REPORTS' },
+  { label: 'Reports & Analytics', path: '/provider-workspace/pharmacy?tab=reports', iconKey: 'Reports & Analytics' },
+  { label: 'Settings', path: '/provider-workspace/pharmacy?tab=settings', iconKey: 'Settings' }
+];
+
+const LABORATORY_OPERATOR_NAV = [
+  { label: 'Dashboard', path: '/provider-workspace/laboratory?tab=dashboard', iconKey: 'Dashboard' },
+  { type: 'section', label: 'OPERATIONS' },
+  { label: 'Lab Orders', path: '/provider-workspace/laboratory?tab=orders', iconKey: 'Laboratory' },
+  { label: 'Diagnostic Catalogue', path: '/provider-workspace/laboratory?tab=catalogue', iconKey: 'Departments' },
+  { type: 'section', label: 'INVENTORY' },
+  { label: 'Lab Inventory', path: '/provider-workspace/laboratory?tab=inventory', iconKey: 'Pharmacy' },
+  { label: 'QC & Calibration', path: '/provider-workspace/laboratory?tab=qc', iconKey: 'Procedures' },
+  { type: 'section', label: 'REPORTS' },
+  { label: 'Reports & Analytics', path: '/provider-workspace/laboratory?tab=reports', iconKey: 'Reports & Analytics' },
+  { label: 'Settings', path: '/provider-workspace/laboratory?tab=settings', iconKey: 'Settings' }
+];
+
+const getOperatorNav = (role) => {
+  const normRole = (role || '').toUpperCase();
+  if (normRole === 'PHARMACY STORE OPERATOR') return PHARMACY_OPERATOR_NAV;
+  if (normRole === 'LABORATORY OPERATOR') return LABORATORY_OPERATOR_NAV;
+  
+  const prefix = role ? role.split(' ')[0] : 'Provider';
+  return [
+    { label: 'Dashboard', path: `/provider-workspace/generic?tab=dashboard`, iconKey: 'Dashboard' },
+    { label: 'Work Orders', path: `/provider-workspace/generic?tab=orders`, iconKey: 'Prescriptions' },
+    { label: 'Reports & Analytics', path: `/provider-workspace/generic?tab=reports`, iconKey: 'Reports & Analytics' },
+    { label: 'Settings', path: `/provider-workspace/generic?tab=settings`, iconKey: 'Settings' }
+  ];
+};
+
 const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
   const { isDark, toggleTheme } = useTheme();
   const location = useLocation();
@@ -95,6 +140,7 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
     (['pending_profile', 'pending_approval', 're_edit', 'pending_invitation', 'otp_verification_pending', 'onboarding_in_progress', 'changes_requested'].includes(user?.approvalStatus) || !user?.hasAcceptedSlot);
 
   const isPatient = role === 'PATIENT';
+  const isOperator = user?.origin === 'provider_operator';
 
   const [activeFeatures, setActiveFeatures] = useState([]);
   const [patientClinics, setPatientClinics] = useState([]);
@@ -157,35 +203,37 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
 
   const visibleItems = (isPendingDoctor || isPendingReceptionist)
     ? []
-    : isPatient
-      ? PATIENT_NAV.filter(item => {
-          if (item.label === 'Pharmacy' || item.label === 'Pharmacy Store') {
-            return isFeatureEnabled(item.label);
-          }
-          if (item.label === 'Laboratory' || item.label === 'Lab Tests') {
-            return isFeatureEnabled(item.label);
-          }
-          return true;
-        }).map(item => {
-          const enabled = isFeatureEnabled(item.label);
-          return { ...item, isLocked: !enabled };
-        })
-      : NAV_ITEMS.filter((item) => {
-          if (!canAccessRole(role, item.roles)) return false;
-          if (item.label === 'Pharmacy') {
-            return isFeatureEnabled('Pharmacy');
-          }
-          if (item.label === 'Laboratory') {
-            return isFeatureEnabled('Laboratory');
-          }
-          return true;
-        }).map(item => {
-          const enabled = isFeatureEnabled(item.label);
-          return { ...item, isLocked: !enabled };
-        });
+    : isOperator
+      ? getOperatorNav(role)
+      : isPatient
+        ? PATIENT_NAV.filter(item => {
+            if (item.label === 'Pharmacy' || item.label === 'Pharmacy Store') {
+              return isFeatureEnabled(item.label);
+            }
+            if (item.label === 'Laboratory' || item.label === 'Lab Tests') {
+              return isFeatureEnabled(item.label);
+            }
+            return true;
+          }).map(item => {
+            const enabled = isFeatureEnabled(item.label);
+            return { ...item, isLocked: !enabled };
+          })
+        : NAV_ITEMS.filter((item) => {
+            if (!canAccessRole(role, item.roles)) return false;
+            if (item.label === 'Pharmacy') {
+              return isFeatureEnabled('Pharmacy');
+            }
+            if (item.label === 'Laboratory') {
+              return isFeatureEnabled('Laboratory');
+            }
+            return true;
+          }).map(item => {
+            const enabled = isFeatureEnabled(item.label);
+            return { ...item, isLocked: !enabled };
+          });
 
   const isItemActive = (item) => {
-    if (isPatient) {
+    if (isPatient || isOperator) {
       const itemUrl = new URL(item.path, window.location.origin);
       const isPathMatch = location.pathname === itemUrl.pathname;
       const itemTab = itemUrl.searchParams.get('tab');

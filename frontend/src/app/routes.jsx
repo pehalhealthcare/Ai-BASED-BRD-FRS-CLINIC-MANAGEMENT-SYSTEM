@@ -71,6 +71,7 @@ import PharmacyStorePage from '../features/patients/PharmacyStorePage';
 import useAuth from '../hooks/useAuth';
 import ProvidersPage from '../features/providers/ProvidersPage';
 import ProviderMappingPage from '../features/providers/ProviderMappingPage';
+import ProviderWorkspacePage from '../features/provider-workspace/ProviderWorkspacePage';
 
 const LabTestsRoute = () => {
   const { user } = useAuth();
@@ -312,6 +313,18 @@ export const router = createBrowserRouter([
       {
         path: 'admin/settings',
         element: protect(<SettingsAdminPage />, [ROLES.ADMIN])
+      },
+      {
+        path: 'provider-workspace/:type',
+        element: protect(<ProviderWorkspacePage />, [
+          ROLES.ADMIN,
+          ROLES.PHARMACY_OPERATOR,
+          ROLES.LAB_OPERATOR,
+          ROLES.IMAGING_OPERATOR,
+          ROLES.PHYSIOTHERAPY_OPERATOR,
+          ROLES.AMBULANCE_COORDINATOR,
+          ROLES.HOME_CARE_OPERATOR
+        ])
       },
       {
         path: 'dashboard',

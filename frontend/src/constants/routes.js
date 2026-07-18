@@ -184,6 +184,30 @@ export const getDefaultRouteForRole = (role) => {
     return ROUTES.portal;
   }
 
+  if (role === ROLES.PHARMACY_OPERATOR) {
+    return '/provider-workspace/pharmacy';
+  }
+
+  if (role === ROLES.LAB_OPERATOR) {
+    return '/provider-workspace/laboratory';
+  }
+
+  if (role === ROLES.IMAGING_OPERATOR) {
+    return '/provider-workspace/imaging';
+  }
+
+  if (role === ROLES.PHYSIOTHERAPY_OPERATOR) {
+    return '/provider-workspace/physiotherapy';
+  }
+
+  if (role === ROLES.AMBULANCE_COORDINATOR) {
+    return '/provider-workspace/ambulance';
+  }
+
+  if (role === ROLES.HOME_CARE_OPERATOR) {
+    return '/provider-workspace/home-care';
+  }
+
   if (role === ROLES.LAB_TECHNICIAN) {
     return ROUTES.labOrders;
   }
