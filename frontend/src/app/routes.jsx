@@ -337,7 +337,13 @@ export const router = createBrowserRouter([
           ROLES.NURSE,
           ROLES.LAB_TECHNICIAN,
           ROLES.ACCOUNTANT,
-          ROLES.CLINIC_MANAGER
+          ROLES.CLINIC_MANAGER,
+          ROLES.PHARMACY_OPERATOR,
+          ROLES.LAB_OPERATOR,
+          ROLES.IMAGING_OPERATOR,
+          ROLES.PHYSIOTHERAPY_OPERATOR,
+          ROLES.AMBULANCE_COORDINATOR,
+          ROLES.HOME_CARE_OPERATOR
         ])
       },
       {
