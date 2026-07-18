@@ -448,7 +448,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'labs/consumables',
-        element: protect(<LabConsumablesPage />, [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.LAB_TECHNICIAN])
+        element: protect(<LabConsumablesPage />, [ROLES.SUPER_ADMIN, ROLES.LAB_TECHNICIAN])
       },
       {
         path: 'labs/orders',
@@ -464,27 +464,27 @@ export const router = createBrowserRouter([
       },
       {
         path: 'pharmacy/medicines',
-        element: protect(<PharmacyRoute />, [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.PHARMACIST, ROLES.DOCTOR, ROLES.RECEPTIONIST, ROLES.PATIENT])
+        element: protect(<PharmacyRoute />, [ROLES.SUPER_ADMIN, ROLES.PHARMACIST, ROLES.DOCTOR, ROLES.RECEPTIONIST, ROLES.PATIENT])
       },
       {
         path: 'pharmacy/medicines/new',
-        element: protect(<MedicineFormPage />, [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.PHARMACIST])
+        element: protect(<MedicineFormPage />, [ROLES.SUPER_ADMIN, ROLES.PHARMACIST])
       },
       {
         path: 'pharmacy/medicines/:id',
-        element: protect(<MedicineDetailPage />, [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.PHARMACIST, ROLES.DOCTOR, ROLES.RECEPTIONIST])
+        element: protect(<MedicineDetailPage />, [ROLES.SUPER_ADMIN, ROLES.PHARMACIST, ROLES.DOCTOR, ROLES.RECEPTIONIST])
       },
       {
         path: 'prescriptions/:prescriptionId/dispense',
-        element: protect(<DispensePage />, [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.PHARMACIST])
+        element: protect(<DispensePage />, [ROLES.SUPER_ADMIN, ROLES.PHARMACIST])
       },
       {
         path: 'pharmacy/dispensings',
-        element: protect(<DispensingListPage />, [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.PHARMACIST])
+        element: protect(<DispensingListPage />, [ROLES.SUPER_ADMIN, ROLES.PHARMACIST])
       },
       {
         path: 'pharmacy/dispensings/:id',
-        element: protect(<DispensingDetailPage />, [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.PHARMACIST])
+        element: protect(<DispensingDetailPage />, [ROLES.SUPER_ADMIN, ROLES.PHARMACIST])
       },
       {
         path: 'notifications/templates',

@@ -119,7 +119,7 @@ export const NAV_ITEMS = [
   {
     label: 'Pharmacy',
     path: ROUTES.pharmacyMedicines,
-    roles: [ROLES.ADMIN, ROLES.PHARMACIST, ROLES.DOCTOR, ROLES.RECEPTIONIST]
+    roles: [ROLES.PHARMACIST, ROLES.DOCTOR, ROLES.RECEPTIONIST]
   },
   {
     label: 'Laboratory',
@@ -134,7 +134,7 @@ export const NAV_ITEMS = [
   {
     label: 'Lab Consumables',
     path: ROUTES.labConsumables,
-    roles: [ROLES.ADMIN, ROLES.LAB_TECHNICIAN]
+    roles: [ROLES.LAB_TECHNICIAN]
   },
   {
     label: 'Billing & Invoices',
