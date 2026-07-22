@@ -73,7 +73,6 @@ const PATIENT_NAV = [
   { label: 'Medical Documents', path: '/portal?tab=documents', iconKey: 'Prescriptions & Records' },
   { label: 'Bills & Payments', path: '/portal?tab=billing', iconKey: 'Billing & Invoices' },
   { label: 'Pharmacy Orders', path: '/portal?tab=pharmacy-orders', iconKey: 'Pharmacy' },
-  { label: 'Notifications', path: '/portal?tab=notifications', iconKey: 'Notifications' },
   { type: 'section', label: 'ACCOUNT' },
   { label: 'My Profile', path: '/portal?tab=profile', iconKey: 'Users' },
   { label: 'Security Settings', path: '/portal?tab=security', iconKey: 'Settings' },

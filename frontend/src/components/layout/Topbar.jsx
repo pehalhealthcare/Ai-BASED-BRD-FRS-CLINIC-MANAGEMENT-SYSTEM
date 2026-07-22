@@ -165,9 +165,9 @@ const Topbar = ({ title, currentUser, onToggleSidebar, onLogout }) => {
 
         {/* Notification Bell with Badge */}
         <button
-          onClick={() => isPatient ? navigate('/portal?tab=notifications') : null}
+          onClick={() => isPatient ? navigate('/portal?tab=notifications') : navigate('/notifications/logs')}
           aria-label="Notifications"
-          className="p-2 rounded-xl text-slate-400 hover:text-slate-655 hover:bg-slate-50 transition relative"
+          className="p-2 rounded-xl text-slate-400 hover:text-slate-655 hover:bg-slate-50 transition relative cursor-pointer"
         >
           <Bell size={18} />
           <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-rose-500 text-[9px] font-black text-white flex items-center justify-center border border-white">
