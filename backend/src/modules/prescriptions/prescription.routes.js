@@ -32,6 +32,12 @@ router.get(
   prescriptionController.getPrescriptionsByPatient
 );
 router.get(
+  '/by-phone/:phone',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR, ROLES.RECEPTIONIST, ROLES.PHARMACIST),
+  prescriptionController.getPrescriptionsByPhone
+);
+router.get(
   '/consultation/:consultationId',
   protect,
   authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR, ROLES.RECEPTIONIST, ROLES.PHARMACIST, ROLES.PATIENT),

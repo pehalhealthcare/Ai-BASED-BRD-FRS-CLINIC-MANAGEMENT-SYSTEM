@@ -3,6 +3,7 @@ import { axiosClient, unwrapResponse } from './axiosClient';
 export const prescriptionApi = {
   create: async (payload) => unwrapResponse(await axiosClient.post('/prescriptions', payload)),
   getById: async (id) => unwrapResponse(await axiosClient.get(`/prescriptions/${id}`)),
+  getByPhone: async (phone) => unwrapResponse(await axiosClient.get(`/prescriptions/by-phone/${phone}`)),
   getByPatient: async (patientId, params = {}) =>
     unwrapResponse(await axiosClient.get(`/prescriptions/patient/${patientId}`, { params })),
   getByConsultation: async (consultationId) =>

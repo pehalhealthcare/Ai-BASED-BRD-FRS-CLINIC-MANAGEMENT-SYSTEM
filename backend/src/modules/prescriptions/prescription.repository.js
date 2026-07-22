@@ -14,7 +14,17 @@ const populatePrescription = (query) =>
 const createPrescription = (data) => Prescription.create(data);
 
 const findPrescriptionById = ({ id, clinicId, populateDetails = true, lean = false }) => {
-  let query = Prescription.findOne({ _id: id, clinicId });
+  const mongoose = require('mongoose');
+  const isObjectId = mongoose.Types.ObjectId.isValid(id);
+  
+  let filter = { clinicId };
+  if (isObjectId) {
+    filter.$or = [{ _id: id }, { appointmentId: id }];
+  } else {
+    filter._id = id;
+  }
+
+  let query = Prescription.findOne(filter);
 
   if (populateDetails) {
     query = populatePrescription(query);

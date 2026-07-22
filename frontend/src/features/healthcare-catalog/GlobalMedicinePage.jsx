@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Download, Upload, Search, Edit2, SlidersHorizontal, RefreshCw, X, ChevronDown, ChevronRight, Check, AlertCircle, FileSpreadsheet, Package, Sparkles, AlertTriangle, Layers, Award } from 'lucide-react';
+import { Plus, Download, Upload, Search, Edit2, SlidersHorizontal, RefreshCw, X, ChevronDown, ChevronRight, Check, AlertCircle, FileSpreadsheet, Package, Sparkles, AlertTriangle, Layers, Award, Trash2 } from 'lucide-react';
 import { healthcareCatalogApi } from '../../lib/api';
 import ImportModal from './ImportModal';
 import toast from 'react-hot-toast';
@@ -9,6 +9,16 @@ const GlobalMedicinePage = () => {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [searchVal, setSearchVal] = useState('');
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setSearch(searchVal);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchVal]);
+
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedType, setSelectedType] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
@@ -357,22 +367,27 @@ const GlobalMedicinePage = () => {
       {/* Filter and Table Container */}
       <div className="bg-white border border-slate-100 rounded-3xl shadow-sm overflow-hidden">
         {/* Table Filters */}
-        <div className="p-5 border-b border-slate-100 flex items-center justify-between gap-4">
-          <div className="flex-1 max-w-md relative">
+        <div className="p-5 border-b border-slate-100 flex flex-col gap-4">
+          {/* Row 1: Search Input (Full Width) */}
+          <div className="w-full relative">
             <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               placeholder="Search by generic, brand, active ingredient, ID or manufacturer..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={searchVal}
+              onChange={(e) => setSearchVal(e.target.value)}
               className="w-full pl-11 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             />
           </div>
 
+          {/* Row 2: Selectors */}
           <div className="flex items-center gap-3">
             <select
               value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
+              onChange={(e) => {
+                setSelectedCategory(e.target.value);
+                setPage(1);
+              }}
               className="px-4 py-2.5 bg-slate-50 border border-slate-200 text-slate-600 text-sm rounded-2xl focus:outline-none"
             >
               <option value="">All Categories</option>
@@ -383,7 +398,10 @@ const GlobalMedicinePage = () => {
               <>
                 <select
                   value={selectedType}
-                  onChange={(e) => setSelectedType(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedType(e.target.value);
+                    setPage(1);
+                  }}
                   className="px-4 py-2.5 bg-slate-50 border border-slate-200 text-slate-600 text-sm rounded-2xl focus:outline-none"
                 >
                   <option value="">All Types</option>
@@ -394,7 +412,10 @@ const GlobalMedicinePage = () => {
 
                 <select
                   value={selectedStatus}
-                  onChange={(e) => setSelectedStatus(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedStatus(e.target.value);
+                    setPage(1);
+                  }}
                   className="px-4 py-2.5 bg-slate-50 border border-slate-200 text-slate-600 text-sm rounded-2xl focus:outline-none"
                 >
                   <option value="">All Statuses</option>
@@ -490,6 +511,22 @@ const GlobalMedicinePage = () => {
                       )}
                       <button onClick={() => handleOpenEdit(med)} className="p-1.5 hover:bg-slate-100 rounded-xl transition text-slate-600 inline-flex items-center gap-1 text-xs">
                         <Edit2 className="w-3.5 h-3.5" /> Edit
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (window.confirm(`Are you sure you want to delete "${med.displayName}" from the Global Medicine Catalogue?`)) {
+                            try {
+                              await healthcareCatalogApi.deleteMedicine(med._id);
+                              toast.success('Medicine deleted from Global Catalogue successfully.');
+                              loadData();
+                            } catch (err) {
+                              toast.error(err?.response?.data?.message || 'Failed to delete medicine');
+                            }
+                          }
+                        }}
+                        className="p-1.5 hover:bg-red-50 hover:text-red-600 rounded-xl transition text-red-500 inline-flex items-center gap-1 text-xs"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" /> Delete
                       </button>
                     </td>
                   </tr>

@@ -800,11 +800,34 @@ const unlockPrescription = async (consultationId) => {
   return result;
 };
 
+const getPrescriptionsByPhone = async ({ requester, phone, requestedClinicId = null }) => {
+  const clinicId = resolveClinicContext({
+    user: requester,
+    requestedClinicId
+  });
+
+  // Find patient by phone within this clinic
+  const patient = await patientRepository.findPatientByContact({ clinicId, phone: String(phone).trim() });
+
+  if (!patient) {
+    return { prescriptions: [], total: 0 };
+  }
+
+  const { prescriptions, total } = await prescriptionRepository.findByPatient({
+    patientId: patient._id,
+    clinicId,
+    queryOptions: { page: 1, limit: 50, sort: { createdAt: -1 } }
+  });
+
+  return { prescriptions, total, patient };
+};
+
 module.exports = {
   createPrescription,
   getPrescriptionById,
   getPrescriptionsByPatient,
   getPrescriptionsByConsultation,
+  getPrescriptionsByPhone,
   updatePrescription,
   finalizePrescription,
   cancelPrescription,

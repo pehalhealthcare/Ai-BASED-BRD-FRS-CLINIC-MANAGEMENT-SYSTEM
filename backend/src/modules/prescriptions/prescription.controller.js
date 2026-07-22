@@ -105,11 +105,22 @@ const downloadMedicines = asyncHandler(async (req, res) => {
   return res.send(fileContent);
 });
 
+const getPrescriptionsByPhone = asyncHandler(async (req, res) => {
+  const data = await prescriptionService.getPrescriptionsByPhone({
+    requester: req.user,
+    phone: req.params.phone,
+    requestedClinicId: req.query.clinicId
+  });
+
+  return sendSuccess(res, 'Prescriptions retrieved by phone successfully', data);
+});
+
 module.exports = {
   createPrescription,
   getPrescriptionById,
   getPrescriptionsByPatient,
   getPrescriptionsByConsultation,
+  getPrescriptionsByPhone,
   updatePrescription,
   finalizePrescription,
   cancelPrescription,

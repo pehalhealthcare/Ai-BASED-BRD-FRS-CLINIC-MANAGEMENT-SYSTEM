@@ -177,8 +177,8 @@ medicineSchema.pre('save', async function (next) {
 
 medicineSchema.index({ clinicId: 1, name: 1 });
 medicineSchema.index({ clinicId: 1, genericName: 1 });
-medicineSchema.index({ clinicId: 1, brandId: 1 }, { unique: true, sparse: true });
-medicineSchema.index({ clinicId: 1, globalMedicineId: 1 }, { unique: true, sparse: true });
+medicineSchema.index({ clinicId: 1, brandId: 1 });
+medicineSchema.index({ clinicId: 1, globalMedicineId: 1 });
 medicineSchema.index({ name: 'text', genericName: 'text', brandName: 'text', category: 'text' });
 
 const Medicine = mongoose.models.Medicine || mongoose.model('Medicine', medicineSchema);

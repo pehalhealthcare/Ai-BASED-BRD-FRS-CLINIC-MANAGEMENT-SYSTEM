@@ -143,6 +143,11 @@ const createLabTestDraft = asyncHandler(async (req, res) => {
   return sendSuccess(res, 'Draft laboratory test created and submitted for verification successfully', result, HTTP_STATUS.CREATED);
 });
 
+const deleteGenericMedicine = asyncHandler(async (req, res) => {
+  const result = await healthcareCatalogService.deleteGenericMedicine(req.params.id, req.user._id);
+  return sendSuccess(res, 'Global generic medicine deleted successfully', result);
+});
+
 module.exports = {
   getCategories,
   createCategory,
@@ -152,6 +157,7 @@ module.exports = {
   getGenericMedicines,
   createGenericMedicine,
   updateGenericMedicine,
+  deleteGenericMedicine,
   getBrands,
   createBrand,
   previewImport,

@@ -57,7 +57,7 @@ router.patch(
 router.get(
   '/',
   protect,
-  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR),
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR, ROLES.PHARMACIST),
   validate(listPatientQuerySchema),
   patientController.listPatients
 );

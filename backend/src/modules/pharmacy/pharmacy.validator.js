@@ -68,7 +68,9 @@ const createMedicineSchema = z.object({
     isActive: z.boolean().optional(),
     requiresPrescription: z.boolean().optional(),
     batches: z.array(batchSchema).optional().default([]),
-    clinicId: objectIdSchema.optional()
+    clinicId: objectIdSchema.optional(),
+    globalMedicineId: objectIdSchema.optional(),
+    brandId: objectIdSchema.optional()
   })
 });
 

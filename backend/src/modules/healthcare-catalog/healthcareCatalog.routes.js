@@ -10,7 +10,7 @@ const router = Router();
 // These allow clinic admins to search/browse the global catalog to import items.
 // Must be registered BEFORE the SUPER_ADMIN-only middleware block.
 router.get('/search/labs', protect, authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN), controller.getLabTests);
-router.get('/search/medicines', protect, authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN), controller.getGenericMedicines);
+router.get('/search/medicines', protect, authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.PHARMACIST), controller.getGenericMedicines);
 router.get('/search/categories', protect, authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN), controller.getCategories);
 router.post('/search/medicines/draft', protect, authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN), controller.createMedicineDraft);
 router.post('/search/labs/draft', protect, authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN), controller.createLabTestDraft);
@@ -34,6 +34,7 @@ router.get('/medicines', controller.getGenericMedicines);
 router.post('/medicines', controller.createGenericMedicine);
 router.put('/medicines/:id', controller.updateGenericMedicine);
 router.put('/medicines/:id/classify', controller.classifyMedicine);
+router.delete('/medicines/:id', controller.deleteGenericMedicine);
 
 // Brand routes
 router.get('/brands', controller.getBrands);

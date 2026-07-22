@@ -480,6 +480,7 @@ const healthcareCatalogApi = {
   getMedicines: (params = {}) => extractData(apiClient.get('/healthcare-catalog/medicines', { params })),
   createMedicine: (payload) => extractData(apiClient.post('/healthcare-catalog/medicines', payload)),
   updateMedicine: (id, payload) => extractData(apiClient.put(`/healthcare-catalog/medicines/${id}`, payload)),
+  deleteMedicine: (id) => extractData(apiClient.delete(`/healthcare-catalog/medicines/${id}`)),
   getBrands: (params = {}) => extractData(apiClient.get('/healthcare-catalog/brands', { params })),
   createBrand: (payload) => extractData(apiClient.post('/healthcare-catalog/brands', payload)),
   previewImport: (payload) => extractData(apiClient.post('/healthcare-catalog/import/preview', payload)),

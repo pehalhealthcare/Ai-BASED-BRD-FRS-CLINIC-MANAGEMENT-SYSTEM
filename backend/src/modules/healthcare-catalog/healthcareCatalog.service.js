@@ -307,6 +307,26 @@ const updateGenericMedicine = async (id, payload, actorUserId) => {
   return updatedMed;
 };
 
+const deleteGenericMedicine = async (id, actorUserId) => {
+  const medicine = await GlobalMedicine.findById(id);
+  if (!medicine) {
+    throw new Error('Medicine not found in global catalogue');
+  }
+
+  await GlobalMedicine.findByIdAndDelete(id);
+
+  await createAuditLog({
+    actorUserId,
+    action: 'DELETE_MEDICINE',
+    entity: 'GlobalMedicine',
+    entityId: id,
+    metadata: { deletedValues: medicine },
+    status: 'SUCCESS'
+  });
+
+  return { id };
+};
+
 const classifyMedicine = async (id, payload, actorUserId) => {
   const oldMed = await GlobalMedicine.findById(id);
   
@@ -652,6 +672,7 @@ module.exports = {
   getGenericMedicines,
   createGenericMedicine,
   updateGenericMedicine,
+  deleteGenericMedicine,
   classifyMedicine,
   getBrands,
   createBrand,
