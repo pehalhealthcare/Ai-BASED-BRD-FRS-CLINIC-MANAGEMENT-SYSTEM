@@ -239,18 +239,8 @@ const createPatient = async ({ requester, payload, requestedClinicId = null, req
 
   const email = payload.email ? String(payload.email).trim().toLowerCase() : `${phone}@test.com`;
 
-  // Determine DOB-based temporary password
-  let tempPassword = 'Password123';
-  if (payload.dateOfBirth) {
-    try {
-      const dobDate = new Date(payload.dateOfBirth);
-      if (!isNaN(dobDate.getTime())) {
-        tempPassword = dobDate.toISOString().split('T')[0];
-      }
-    } catch (_) {
-      tempPassword = 'Password123';
-    }
-  }
+  // Set temporary password to the patient's phone number as requested
+  let tempPassword = phone;
 
   const userRepository = require('../users/user.repository');
   let user = await userRepository.findByEmail(email);
