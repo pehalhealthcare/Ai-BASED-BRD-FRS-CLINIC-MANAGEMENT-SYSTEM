@@ -16,8 +16,11 @@ import { prescriptionApi } from '../../api/prescriptionApi';
 import { authApi } from '../../api/authApi';
 import { patientApi } from '../../api/patientApi';
 
+import useAuth from '../../hooks/useAuth';
+
 const PharmacyWorkspace = ({ user }) => {
   const [profileData, setProfileData] = useState(null);
+  const { logout } = useAuth();
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -1623,13 +1626,35 @@ const PharmacyWorkspace = ({ user }) => {
             </div>
 
             {/* Profile widget */}
-            <div className="flex items-center gap-2.5 pl-2">
+            <div className="relative group flex items-center gap-2.5 pl-2 cursor-pointer py-1.5 rounded-xl hover:bg-slate-50 transition">
               <div className="w-8 h-8 rounded-full bg-blue-600 text-white font-extrabold text-xs flex items-center justify-center border border-slate-100">
-                PS
+                {profileData?.name?.slice(0, 2).toUpperCase() || 'PS'}
               </div>
               <div className="hidden sm:block text-left">
-                <p className="text-xs font-bold text-slate-855 leading-none">Pharmacy Staff</p>
-                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-1">Pharmacist</p>
+                <p className="text-xs font-bold text-slate-855 leading-none">{profileData?.name || 'Pharmacy Staff'}</p>
+                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-1">{profileData?.role || 'Pharmacist'}</p>
+              </div>
+
+              {/* Profile Dropdown on Hover */}
+              <div className="absolute right-0 top-full pt-1.5 w-48 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-200 z-50">
+                <div className="bg-white border border-slate-150 rounded-2xl shadow-xl p-3 space-y-2">
+                  <div className="border-b border-slate-100 pb-2 text-[10px] text-slate-500 font-bold break-all">
+                    {profileData?.email || 'pharmacist@clinic.com'}
+                  </div>
+                  <button
+                    onClick={async () => {
+                      try {
+                        await logout();
+                        toast.success('Logged out successfully.');
+                      } catch (err) {
+                        console.error('Logout error:', err);
+                      }
+                    }}
+                    className="w-full flex items-center gap-2 px-2 py-1.5 text-rose-600 hover:bg-rose-50 rounded-xl text-xs font-black transition text-left"
+                  >
+                    <LogOut size={14} /> Logout
+                  </button>
+                </div>
               </div>
             </div>
           </div>

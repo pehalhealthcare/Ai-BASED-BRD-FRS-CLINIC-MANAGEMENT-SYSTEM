@@ -142,6 +142,20 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
   const isPatient = role === 'PATIENT';
   const isOperator = user?.origin === 'provider_operator';
 
+  // --- LABORATORY COLLAPSIBLE NAVIGATION STATES ---
+  const [labOrdersCollapsed, setLabOrdersCollapsed] = useState(true);
+  const [catalogueCollapsed, setCatalogueCollapsed] = useState(true);
+  const [patientsCollapsed, setPatientsCollapsed] = useState(true);
+  const [collectionCollapsed, setCollectionCollapsed] = useState(true);
+  const [processingCollapsed, setProcessingCollapsed] = useState(true);
+  const [reportsCollapsed, setReportsCollapsed] = useState(true);
+  const [inventoryCollapsed, setInventoryCollapsed] = useState(true);
+  const [purchaseCollapsed, setPurchaseCollapsed] = useState(true);
+  const [qcCollapsed, setQCCollapsed] = useState(true);
+  const [equipmentCollapsed, setEquipmentCollapsed] = useState(true);
+  const [analyticsCollapsed, setAnalyticsCollapsed] = useState(true);
+  const [settingsCollapsed, setSettingsCollapsed] = useState(true);
+
   const [activeFeatures, setActiveFeatures] = useState([]);
   const [patientClinics, setPatientClinics] = useState([]);
   const [selectedClinicId, setSelectedClinicId] = useState('');
@@ -602,6 +616,388 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
 
 
   if (!isClinicAdmin) {
+    const isLabOperator = (role || '').toUpperCase() === 'LABORATORY OPERATOR';
+    if (isLabOperator) {
+      return (
+        <aside
+          className={`
+            fixed inset-y-0 left-0 z-40 flex flex-col w-[265px]
+            bg-[#0b0f19] border-r border-white/[0.06]
+            transition-transform duration-300 ease-spring
+            lg:sticky lg:top-0 lg:h-screen
+            ${open ? 'translate-x-0 lg:flex' : '-translate-x-full lg:hidden lg:w-0'}
+          `}
+        >
+          {/* Brand Header */}
+          <div className="px-5 pt-6 pb-4 shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center shadow-md shrink-0">
+                <FlaskConical size={20} className="text-white" />
+              </div>
+              <div>
+                <p className="text-base font-black text-white leading-none">AICMS</p>
+                <p className="text-[9px] text-slate-400 mt-1 uppercase font-bold tracking-wider leading-none">
+                  LABORATORY WORKSPACE
+                </p>
+              </div>
+            </div>
+            <div className="mt-3 bg-white/[0.03] p-2.5 rounded-2xl border border-white/[0.06] flex justify-between items-center text-[10px] font-bold">
+              <span className="text-slate-200 truncate">Ram's Diagnostic Laboratory</span>
+              <span className="text-emerald-500 shrink-0 font-bold">🟢 Live</span>
+            </div>
+            <div className="mt-4 h-px bg-white/[0.08]" />
+          </div>
+
+          {/* LIS Navigation Menu */}
+          <nav className="flex-1 overflow-y-auto px-4 py-2 space-y-4 custom-scrollbar text-xs font-bold text-slate-400">
+            {/* Dashboard */}
+            <div className="space-y-1">
+              <NavLink
+                to="/provider-workspace/laboratory?tab=dashboard"
+                onClick={onNavigate}
+                className={() =>
+                  `w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all ${
+                    new URLSearchParams(window.location.search).get('tab') === 'dashboard' || !new URLSearchParams(window.location.search).get('tab')
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'hover:bg-white/[0.02] hover:text-white'
+                  }`
+                }
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="text-sm">🏠</span>
+                  <span>Dashboard</span>
+                </div>
+              </NavLink>
+            </div>
+
+            {/* Operations */}
+            <div className="space-y-1.5">
+              <span className="text-[9px] uppercase tracking-wider text-slate-500 px-3 block font-black">Lab Operations</span>
+
+              {/* Lab Orders */}
+              <div className="space-y-1">
+                <button
+                  onClick={() => setLabOrdersCollapsed(!labOrdersCollapsed)}
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-white/[0.02] hover:text-white transition-all"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span>🧪</span>
+                    <span>Lab Orders</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="bg-blue-600 text-white text-[8px] font-black px-1.5 py-0.2 rounded-full">8</span>
+                    <ChevronRight size={12} className={`transition-transform duration-200 ${!labOrdersCollapsed ? 'rotate-90' : ''}`} />
+                  </div>
+                </button>
+                {!labOrdersCollapsed && (
+                  <div className="pl-6 space-y-1 text-[10px] text-slate-500">
+                    {['New Orders', 'Pending Collection', 'Sample Collected', 'Sample Received', 'Under Processing', 'Report Ready', 'Delivered Reports', 'Cancelled Orders'].map(s => (
+                      <NavLink key={s} to="/provider-workspace/laboratory?tab=orders" onClick={onNavigate} className="w-full text-left py-1 hover:text-white block font-medium">• {s}</NavLink>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Diagnostic Catalogue */}
+              <div className="space-y-1">
+                <button
+                  onClick={() => setCatalogueCollapsed(!catalogueCollapsed)}
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-white/[0.02] hover:text-white transition-all"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span>🧬</span>
+                    <span>Diagnostic Catalogue</span>
+                  </div>
+                  <ChevronRight size={12} className={`transition-transform duration-200 ${!catalogueCollapsed ? 'rotate-90' : ''}`} />
+                </button>
+                {!catalogueCollapsed && (
+                  <div className="pl-6 space-y-1 text-[10px] text-slate-500">
+                    {[
+                      { name: 'Test Catalogue', sub: 'test' },
+                      { name: 'Test Categories', sub: 'categories' },
+                      { name: 'Test Pricing', sub: 'pricing' },
+                      { name: 'Test Packages', sub: 'packages' },
+                      { name: 'Popular Tests', sub: 'popular' }
+                    ].map(item => (
+                      <NavLink key={item.name} to={`/provider-workspace/laboratory?tab=catalogue&sub=${item.sub}`} onClick={onNavigate} className="w-full text-left py-1 hover:text-white block font-medium">• {item.name}</NavLink>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Patients */}
+              <div className="space-y-1">
+                <button
+                  onClick={() => setPatientsCollapsed(!patientsCollapsed)}
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-white/[0.02] hover:text-white transition-all"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span>👥</span>
+                    <span>Patients</span>
+                  </div>
+                  <ChevronRight size={12} className={`transition-transform duration-200 ${!patientsCollapsed ? 'rotate-90' : ''}`} />
+                </button>
+                {!patientsCollapsed && (
+                  <div className="pl-6 space-y-1 text-[10px] text-slate-500">
+                    {['All Patients', 'Today\'s Patients', 'Walk-in Patients', 'Patient History'].map(s => (
+                      <button key={s} onClick={() => toast.success(`${s} log loaded.`)} className="w-full text-left py-1 hover:text-white block font-medium">• {s}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Sample Collection */}
+              <div className="space-y-1">
+                <button
+                  onClick={() => setCollectionCollapsed(!collectionCollapsed)}
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-white/[0.02] hover:text-white transition-all"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span>📅</span>
+                    <span>Sample Collection</span>
+                  </div>
+                  <ChevronRight size={12} className={`transition-transform duration-200 ${!collectionCollapsed ? 'rotate-90' : ''}`} />
+                </button>
+                {!collectionCollapsed && (
+                  <div className="pl-6 space-y-1 text-[10px] text-slate-500">
+                    {['Collection Queue', 'Barcode Printing', 'Label Printing', 'Home Collection', 'Collection History'].map(s => (
+                      <button key={s} onClick={() => toast.success(`${s} wizard opened.`)} className="w-full text-left py-1 hover:text-white block font-medium">• {s}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Processing Queue */}
+              <div className="space-y-1">
+                <button
+                  onClick={() => setProcessingCollapsed(!processingCollapsed)}
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-white/[0.02] hover:text-white transition-all"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span>⚙</span>
+                    <span>Processing Queue</span>
+                  </div>
+                  <ChevronRight size={12} className={`transition-transform duration-200 ${!processingCollapsed ? 'rotate-90' : ''}`} />
+                </button>
+                {!processingCollapsed && (
+                  <div className="pl-6 space-y-1 text-[10px] text-slate-500">
+                    {['Assigned Tests', 'In Progress', 'Awaiting QC', 'Verification Pending', 'Completed Processing'].map(s => (
+                      <button key={s} onClick={() => toast.success(`${s} log loaded.`)} className="w-full text-left py-1 hover:text-white block font-medium">• {s}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Reports */}
+              <div className="space-y-1">
+                <button
+                  onClick={() => setReportsCollapsed(!reportsCollapsed)}
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-white/[0.02] hover:text-white transition-all"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span>📄</span>
+                    <span>Reports</span>
+                  </div>
+                  <ChevronRight size={12} className={`transition-transform duration-200 ${!reportsCollapsed ? 'rotate-90' : ''}`} />
+                </button>
+                {!reportsCollapsed && (
+                  <div className="pl-6 space-y-1 text-[10px] text-slate-500">
+                    {['Pending Reports', 'Ready Reports', 'Verified Reports', 'Delivered Reports', 'Upload External Reports'].map(s => (
+                      <button key={s} onClick={() => toast.success(`${s} window opened.`)} className="w-full text-left py-1 hover:text-white block font-medium">• {s}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Inventory */}
+            <div className="space-y-1.5">
+              <span className="text-[9px] uppercase tracking-wider text-slate-500 px-3 block font-black">Inventory</span>
+
+              {/* Laboratory Inventory */}
+              <div className="space-y-1">
+                <button
+                  onClick={() => setInventoryCollapsed(!inventoryCollapsed)}
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-white/[0.02] hover:text-white transition-all"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span>🧫</span>
+                    <span>Laboratory Inventory</span>
+                  </div>
+                  <ChevronRight size={12} className={`transition-transform duration-200 ${!inventoryCollapsed ? 'rotate-90' : ''}`} />
+                </button>
+                {!inventoryCollapsed && (
+                  <div className="pl-6 space-y-1 text-[10px] text-slate-500">
+                    {['Consumables', 'Reagents', 'Chemicals', 'Glassware', 'Inventory Stock', 'Low Stock', 'Expired Items'].map(s => (
+                      <NavLink key={s} to="/provider-workspace/laboratory?tab=inventory" onClick={onNavigate} className="w-full text-left py-1 hover:text-white block font-medium">• {s}</NavLink>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Purchase & Stock Inward */}
+              <div className="space-y-1">
+                <button
+                  onClick={() => setPurchaseCollapsed(!purchaseCollapsed)}
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-white/[0.02] hover:text-white transition-all"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span>📦</span>
+                    <span>Purchase &amp; Inward</span>
+                  </div>
+                  <ChevronRight size={12} className={`transition-transform duration-200 ${!purchaseCollapsed ? 'rotate-90' : ''}`} />
+                </button>
+                {!purchaseCollapsed && (
+                  <div className="pl-6 space-y-1 text-[10px] text-slate-500">
+                    {['Purchase Orders', 'Stock Inward', 'Suppliers', 'Purchase History'].map(s => (
+                      <button key={s} onClick={() => toast.success(`${s} workspace opened.`)} className="w-full text-left py-1 hover:text-white block font-medium">• {s}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <button onClick={() => toast.success('Stock Transfer menu selected.')} className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-white/[0.02] hover:text-white transition-all">
+                <div className="flex items-center gap-2.5"><span>🔄</span><span>Stock Transfer</span></div>
+              </button>
+              <button onClick={() => toast.success('Returns workspace opened.')} className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-white/[0.02] hover:text-white transition-all">
+                <div className="flex items-center gap-2.5"><span>↩</span><span>Returns</span></div>
+              </button>
+              <button onClick={() => toast.success('Expiry & Batch Management list opened.')} className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-white/[0.02] hover:text-white transition-all">
+                <div className="flex items-center gap-2.5"><span>🏷</span><span>Expiry &amp; Batch</span></div>
+              </button>
+            </div>
+
+            {/* Quality Control */}
+            <div className="space-y-1.5">
+              <span className="text-[9px] uppercase tracking-wider text-slate-500 px-3 block font-black">Quality Control</span>
+
+              {/* QC & Calibration */}
+              <div className="space-y-1">
+                <button
+                  onClick={() => setQCCollapsed(!qcCollapsed)}
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-white/[0.02] hover:text-white transition-all"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span>✅</span>
+                    <span>QC &amp; Calibration</span>
+                  </div>
+                  <ChevronRight size={12} className={`transition-transform duration-200 ${!qcCollapsed ? 'rotate-90' : ''}`} />
+                </button>
+                {!qcCollapsed && (
+                  <div className="pl-6 space-y-1 text-[10px] text-slate-500">
+                    {['Daily QC', 'Equipment Calibration', 'QC Reports', 'QC Failures', 'Maintenance Schedule'].map(s => (
+                      <button key={s} onClick={() => toast.success(`${s} log opened.`)} className="w-full text-left py-1 hover:text-white block font-medium">• {s}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Laboratory Equipment */}
+              <div className="space-y-1">
+                <button
+                  onClick={() => setEquipmentCollapsed(!equipmentCollapsed)}
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-white/[0.02] hover:text-white transition-all"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span>🖥</span>
+                    <span>Laboratory Equipment</span>
+                  </div>
+                  <ChevronRight size={12} className={`transition-transform duration-200 ${!equipmentCollapsed ? 'rotate-90' : ''}`} />
+                </button>
+                {!equipmentCollapsed && (
+                  <div className="pl-6 space-y-1 text-[10px] text-slate-500">
+                    {['Equipment Status', 'Analyzer Queue', 'Maintenance', 'Calibration Due', 'Breakdown History'].map(s => (
+                      <button key={s} onClick={() => toast.success(`${s} panel opened.`)} className="w-full text-left py-1 hover:text-white block font-medium">• {s}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Analytics & System */}
+            <div className="space-y-1.5">
+              <span className="text-[9px] uppercase tracking-wider text-slate-500 px-3 block font-black">Analytics &amp; System</span>
+
+              {/* Reports & Analytics */}
+              <div className="space-y-1">
+                <button
+                  onClick={() => setAnalyticsCollapsed(!analyticsCollapsed)}
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-white/[0.02] hover:text-white transition-all"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span>📈</span>
+                    <span>Reports &amp; Analytics</span>
+                  </div>
+                  <ChevronRight size={12} className={`transition-transform duration-200 ${!analyticsCollapsed ? 'rotate-90' : ''}`} />
+                </button>
+                {!analyticsCollapsed && (
+                  <div className="pl-6 space-y-1 text-[10px] text-slate-500">
+                    {['Daily Reports', 'Revenue Reports', 'Test-wise Reports', 'Doctor Referral Reports', 'Technician Performance', 'Inventory Reports', 'QC Reports'].map(s => (
+                      <button key={s} onClick={() => toast.success(`${s} loaded.`)} className="w-full text-left py-1 hover:text-white block font-medium">• {s}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <button onClick={() => toast.success('Notifications timeline loaded.')} className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-white/[0.02] hover:text-white transition-all">
+                <div className="flex items-center gap-2.5">
+                  <span>🔔</span>
+                  <span>Notifications</span>
+                </div>
+                <span className="bg-rose-500 text-white text-[8px] font-black px-1.5 py-0.2 rounded-full">3</span>
+              </button>
+
+              {/* Settings */}
+              <div className="space-y-1">
+                <button
+                  onClick={() => setSettingsCollapsed(!settingsCollapsed)}
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-white/[0.02] hover:text-white transition-all"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span>⚙</span>
+                    <span>Settings</span>
+                  </div>
+                  <ChevronRight size={12} className={`transition-transform duration-200 ${!settingsCollapsed ? 'rotate-90' : ''}`} />
+                </button>
+                {!settingsCollapsed && (
+                  <div className="pl-6 space-y-1 text-[10px] text-slate-500">
+                    {['Laboratory Profile', 'Barcode Settings', 'Printer Configuration', 'Report Templates', 'Notification Settings'].map(s => (
+                      <button key={s} onClick={() => toast.success(`${s} drawer opened.`)} className="w-full text-left py-1 hover:text-white block font-medium">• {s}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </nav>
+
+          {/* Bottom Profile card */}
+          <div className="p-4 border-t border-white/[0.06] space-y-3 bg-white/[0.01]">
+            <div className="flex items-center gap-2.5">
+              <span className="text-xl">🏥</span>
+              <div className="leading-tight text-[11px] truncate flex-1">
+                <p className="font-extrabold text-slate-200 truncate">Ram's Diagnostic Laboratory</p>
+                <p className="text-[10px] text-slate-400 font-bold mt-0.5">Rajesh Sharma</p>
+                <p className="text-[9px] text-slate-500 uppercase tracking-wide">Laboratory Operator</p>
+              </div>
+              <span className="text-[8px] text-emerald-500 bg-emerald-500/10 px-1.5 py-0.2 rounded font-black uppercase shrink-0">🟢 Online</span>
+            </div>
+
+            <div className="flex gap-2 text-[10px] font-bold text-slate-500 border-t border-white/[0.06] pt-2 flex-wrap">
+              <button onClick={() => toast.success('Opening documentation...')} className="hover:text-white">Docs</button>
+              <span>·</span>
+              <button onClick={() => toast.success('Connecting to support...')} className="hover:text-white">Support</button>
+              <span>·</span>
+              {onLogout && (
+                <button onClick={onLogout} className="text-rose-600 hover:underline font-black">
+                  Logout
+                </button>
+              )}
+            </div>
+          </div>
+        </aside>
+      );
+    }
+
     return (
       <aside
         className={`
