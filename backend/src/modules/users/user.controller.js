@@ -3,6 +3,7 @@ const { asyncHandler } = require('../../common/utils/asyncHandler');
 const userService = require('./user.service');
 
 const listUsers = asyncHandler(async (req, res) => {
+  console.log('userController.listUsers req.query:', req.query);
   const data = await userService.listUsers(req.query);
   return sendSuccess(res, 'Users retrieved successfully', data);
 });

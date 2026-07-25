@@ -21,7 +21,8 @@ const listUsersQuerySchema = z.object({
     limit: z.coerce.number().int().positive().max(100).default(10),
     role: z.enum(Object.values(ROLES)).optional(),
     isActive: booleanQuerySchema,
-    search: z.string().trim().optional()
+    search: z.string().trim().optional(),
+    providerId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid Provider ID').optional()
   })
 });
 

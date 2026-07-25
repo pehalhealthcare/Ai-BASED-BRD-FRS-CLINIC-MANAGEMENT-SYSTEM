@@ -46,6 +46,65 @@ const supplierSchema = new mongoose.Schema(
       trim: true,
       default: ''
     },
+    companyName: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    code: {
+      type: String,
+      trim: true,
+      unique: true,
+      sparse: true
+    },
+    type: {
+      type: String,
+      enum: ['manufacturer', 'distributor', 'wholesaler', 'local_vendor', 'importer', 'other'],
+      default: 'other'
+    },
+    alternatePhone: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    website: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    drugLicenseNumber: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    pan: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    creditDays: {
+      type: Number,
+      default: 0
+    },
+    preferredCurrency: {
+      type: String,
+      default: 'INR'
+    },
+    bankDetails: {
+      bankName: { type: String, default: '' },
+      accountHolder: { type: String, default: '' },
+      accountNumber: { type: String, default: '' },
+      ifsc: { type: String, default: '' },
+      upi: { type: String, default: '' }
+    },
+    preferredSupplier: {
+      type: Boolean,
+      default: false
+    },
+    notes: {
+      type: String,
+      default: ''
+    },
     isActive: {
       type: Boolean,
       default: true
@@ -56,6 +115,13 @@ const supplierSchema = new mongoose.Schema(
     collection: 'suppliers'
   }
 );
+
+supplierSchema.pre('save', function (next) {
+  if (!this.code) {
+    this.code = 'SUP-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+  }
+  next();
+});
 
 supplierSchema.index({ clinicId: 1, name: 1 }, { unique: true });
 

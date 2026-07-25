@@ -9,7 +9,11 @@ const populateMedicine = (query) =>
     .populate('createdBy', 'name email role')
     .populate('updatedBy', 'name email role')
     .populate('globalMedicineId')
-    .populate('batches');
+    .populate('batches')
+    .populate({
+      path: 'supplierIds',
+      select: 'name companyName phone email gstNumber address type isActive code preferredSupplier'
+    });
 
 const populateDispensingRecord = (query) =>
   query

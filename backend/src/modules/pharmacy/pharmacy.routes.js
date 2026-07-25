@@ -11,6 +11,7 @@ const {
   addBatchSchema,
   listMedicinesQuerySchema,
   dispenseSchema,
+  walkinSaleSchema,
   listDispensingsQuerySchema,
   medicineIdParamSchema,
   dispensingIdParamSchema,
@@ -95,12 +96,31 @@ router.post(
   validate(addBatchSchema),
   pharmacyController.addMedicineBatch
 );
+router.patch(
+  '/batches/:id',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.PHARMACIST),
+  pharmacyController.updateBatchStatus
+);
+router.delete(
+  '/batches/:id',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.PHARMACIST),
+  pharmacyController.deleteBatch
+);
 router.post(
   '/dispense',
   protect,
   authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.PHARMACIST),
   validate(dispenseSchema),
   pharmacyController.dispensePrescription
+);
+router.post(
+  '/walk-in',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.PHARMACIST),
+  validate(walkinSaleSchema),
+  pharmacyController.createWalkinSale
 );
 router.get(
   '/dispensings',
@@ -157,6 +177,13 @@ router.get(
   pharmacyController.getPharmacyInventoryDashboard
 );
 
+router.get(
+  '/analytics/reports',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),
+  pharmacyController.getPharmacyReports
+);
+
 router.post(
   '/inventory/adjust',
   protect,
@@ -201,6 +228,20 @@ router.delete(
   protect,
   authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.PHARMACIST),
   pharmacyController.deleteSupplier
+);
+
+router.get(
+  '/suppliers/:id/analytics',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.PHARMACIST),
+  pharmacyController.getSupplierAnalytics
+);
+
+router.get(
+  '/suppliers/:id/purchase-history',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.PHARMACIST),
+  pharmacyController.getSupplierPurchaseHistory
 );
 
 // Purchase Orders
@@ -250,6 +291,34 @@ router.patch(
   '/procurement-requests/:id/status',
   protect,
   pharmacyController.updateProcurementRequestStatus
+);
+
+// Pharmacy Coupons
+router.post(
+  '/coupons',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.PHARMACIST),
+  pharmacyController.createCoupon
+);
+
+router.get(
+  '/coupons',
+  protect,
+  pharmacyController.listCoupons
+);
+
+router.patch(
+  '/coupons/:id',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.PHARMACIST),
+  pharmacyController.updateCoupon
+);
+
+router.delete(
+  '/coupons/:id',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.PHARMACIST),
+  pharmacyController.deleteCoupon
 );
 
 module.exports = router;

@@ -128,21 +128,12 @@ const getOnboardingFlow = async (clinicId) => {
     });
   }
 
-  // Step 5: Pharmacy Setup (if pharmacy active)
-  if (allActiveFeatures.has('pharmacy')) {
+  // Step 5: Healthcare Setup (Dynamic)
+  if (allActiveFeatures.has('pharmacy') || allActiveFeatures.has('labs')) {
     steps.push({
-      id: 'pharmacy',
-      name: 'Pharmacy Setup',
-      desc: 'Configure inventory & GST parameters'
-    });
-  }
-
-  // Step 6: Laboratory Setup (if laboratory active)
-  if (allActiveFeatures.has('labs')) {
-    steps.push({
-      id: 'laboratory',
-      name: 'Laboratory Setup',
-      desc: 'Define available tests & samples'
+      id: 'healthcare',
+      name: 'Healthcare Setup',
+      desc: 'Configure Pharmacy and/or Laboratory parameters'
     });
   }
 
@@ -204,7 +195,14 @@ const getOnboardingFlow = async (clinicId) => {
       maxDepartments
     },
     activeTrials: trialDetails,
-    availableTrials: availableTrialFeatures
+    availableTrials: availableTrialFeatures,
+    features: {
+      pharmacy: allActiveFeatures.has('pharmacy'),
+      labs: allActiveFeatures.has('labs'),
+      ai_analytics: ['symptom_checker', 'consultation_assistant', 'voice_to_text', 'ai_prescription_suggestions', 'ai_risk_scoring', 'lab_recommendations', 'ai_scheduling'].some(f => allActiveFeatures.has(f)),
+      telemedicine: allActiveFeatures.has('online_consultation'),
+      activeList: Array.from(allActiveFeatures)
+    }
   };
 };
 

@@ -5,7 +5,7 @@ const { sanitizeUser } = require('../../common/utils/sanitizeUser');
 const { createAuditLog } = require('../audit/audit.service');
 const userRepository = require('./user.repository');
 
-const buildUserFilter = ({ role, isActive, search }) => {
+const buildUserFilter = ({ role, isActive, search, providerId }) => {
   const filter = {};
 
   if (role) {
@@ -14,6 +14,10 @@ const buildUserFilter = ({ role, isActive, search }) => {
 
   if (typeof isActive === 'boolean') {
     filter.isActive = isActive;
+  }
+
+  if (providerId) {
+    filter.providerId = providerId;
   }
 
   if (search) {
@@ -30,7 +34,9 @@ const buildUserFilter = ({ role, isActive, search }) => {
 const listUsers = async (query) => {
   const page = query.page || 1;
   const limit = query.limit || 10;
+  console.log('listUsers query:', query);
   const filter = buildUserFilter(query);
+  console.log('listUsers filter:', filter);
   const { users, total } = await userRepository.listUsers({ filter, page, limit });
 
   return {
@@ -347,6 +353,9 @@ const updateUserProvider = async ({ requester, userId, providerId, req }) => {
   user.providerId = providerId || null;
   user.updatedBy = requester._id;
   await user.save();
+
+  const Staff = require('../staff/staff.model');
+  await Staff.updateOne({ userId: user._id }, { assignedProviderId: providerId || null });
 
   await createAuditLog({
     actorUserId: requester._id,

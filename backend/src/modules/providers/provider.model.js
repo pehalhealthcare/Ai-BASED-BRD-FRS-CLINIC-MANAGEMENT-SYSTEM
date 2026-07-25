@@ -133,8 +133,13 @@ const providerSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['Active', 'Inactive', 'Suspended', 'Archived'],
+      enum: ['Active', 'Inactive', 'Suspended', 'Archived', 'Pending Activation', 'Draft'],
       default: 'Active'
+    },
+    creationMode: {
+      type: String,
+      enum: ['ONBOARDING', 'STANDARD'],
+      default: 'STANDARD'
     },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,

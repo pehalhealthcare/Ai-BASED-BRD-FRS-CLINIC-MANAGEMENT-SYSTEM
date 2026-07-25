@@ -18,6 +18,10 @@ const clinicPharmacyInventorySchema = new mongoose.Schema(
       trim: true,
       default: ''
     },
+    supplierIds: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Supplier'
+    }],
     purchasePrice: {
       type: Number,
       default: 0

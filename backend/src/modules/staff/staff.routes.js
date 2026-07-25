@@ -10,4 +10,9 @@ router.put('/me/profile', protect, authorize(...STAFF_ROLES), staffController.up
 router.post('/me/submit', protect, authorize(...STAFF_ROLES), staffController.submitMyProfile);
 router.post('/me/accept-slot', protect, authorize(...STAFF_ROLES), staffController.acceptMySlot);
 
+// Public onboarding & offer routes using secure tokens
+router.get('/onboarding-details', staffController.getOnboardingDetailsByToken);
+router.post('/submit-onboarding', staffController.submitOnboardingByToken);
+router.post('/accept-offer', staffController.acceptOfferByToken);
+
 module.exports = router;

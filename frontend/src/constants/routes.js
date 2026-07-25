@@ -52,10 +52,16 @@ export const ROUTES = {
   adminDepartments: '/admin/departments',
   adminReports: '/admin/reports',
   adminSettings: '/admin/settings',
-  adminProviders: '/admin/providers'
+  adminProviders: '/admin/providers',
+  chat: '/chat'
 };
 
 export const NAV_ITEMS = [
+  {
+    label: 'Chat',
+    path: ROUTES.chat,
+    roles: [ROLES.RECEPTIONIST, ROLES.DOCTOR]
+  },
   {
     label: 'Clinics',
     path: ROUTES.superAdminClinics,

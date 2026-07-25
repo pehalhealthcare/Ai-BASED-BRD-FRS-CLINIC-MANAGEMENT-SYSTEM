@@ -12,6 +12,12 @@ const router = Router();
 router.get('/register/plans', clinicController.getPlans);
 router.post('/register/submit', clinicController.submitRegistration);
 router.post('/register/validate-email', clinicController.validateEmail);
+router.post('/register/validate-phone', clinicController.validatePhone);
+router.post('/register/validate-registration-number', clinicController.validateRegistrationNumber);
+router.post('/register/upload', clinicController.uploadFile);
+router.post('/register/delete-file', clinicController.deleteFile);
+router.post('/register/draft', clinicController.saveDraft);
+router.get('/register/draft/:email', clinicController.getDraft);
 router.post('/register/send-otp', clinicController.sendOtp);
 router.post('/register/verify-otp', clinicController.verifyOtp);
 
@@ -155,6 +161,18 @@ router.post(
   protect,
   authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),
   clinicController.activateTrialFeature
+);
+
+router.post(
+  '/:id/launch-onboarding',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),
+  clinicController.launchOnboarding
+);
+
+router.get(
+  '/:id/onboarding-progress',
+  clinicController.getOnboardingProgressStream
 );
 
 // Feature access control & upgrade requests routes

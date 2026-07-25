@@ -180,6 +180,58 @@ const startServer = async () => {
     startInsuranceCoverageResetJob();
     const { startSubscriptionMonitor } = require('./modules/subscriptions/subscriptionMonitor');
     startSubscriptionMonitor();
+    const { startOnboardingDraftCleanupJob } = require('./modules/providers/onboardingCleanup');
+    startOnboardingDraftCleanupJob();
+  });
+
+  // Attach socket.io
+  const { Server } = require('socket.io');
+  const io = new Server(server, {
+    cors: {
+      origin: '*',
+      methods: ['GET', 'POST']
+    }
+  });
+
+  io.on('connection', (socket) => {
+    logger.info(`Socket client connected: ${socket.id}`);
+
+    // Join user room
+    socket.on('join_user', (userId) => {
+      socket.join(userId);
+      logger.info(`Socket ${socket.id} joined user room: ${userId}`);
+    });
+
+    // Join conversation room
+    socket.on('join_conversation', (conversationId) => {
+      socket.join(conversationId);
+      logger.info(`Socket ${socket.id} joined conversation: ${conversationId}`);
+    });
+
+    // Handle incoming message real-time notification/relay
+    socket.on('send_message', (data) => {
+      // Broadcast to other users in the room
+      socket.to(data.conversationId).emit('receive_message', data);
+      
+      // Also notify receiver specifically (for badges and sidebar updates)
+      if (data.receiverId) {
+        socket.to(data.receiverId).emit('message_notification', {
+          conversationId: data.conversationId,
+          senderId: data.senderId,
+          message: data.message,
+          unreadCount: 1
+        });
+      }
+    });
+
+    // Handle typing indicator
+    socket.on('typing', (data) => {
+      socket.to(data.conversationId).emit('typing', data);
+    });
+
+    socket.on('disconnect', () => {
+      logger.info(`Socket client disconnected: ${socket.id}`);
+    });
   });
 };
 

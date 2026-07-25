@@ -249,10 +249,121 @@ const acceptMySlot = async ({ requester }) => {
   return resolveStaffFiles(staff);
 };
 
+const getOnboardingDetailsByToken = async (token) => {
+  const User = require('../users/user.model');
+  const Staff = require('./staff.model');
+  const Clinic = require('../clinics/clinic.model');
+
+  const user = await User.findById(token);
+  if (!user) throw new AppError('Invalid or expired token', HTTP_STATUS.NOT_FOUND);
+
+  const staff = await Staff.findOne({ userId: user._id });
+  if (!staff) throw new AppError('Staff record not found', HTTP_STATUS.NOT_FOUND);
+
+  const clinic = await Clinic.findById(user.clinicId);
+
+  return {
+    user: {
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      role: user.role
+    },
+    staff,
+    clinicName: clinic ? clinic.name : ''
+  };
+};
+
+const submitOnboardingByToken = async ({ token, payload }) => {
+  const User = require('../users/user.model');
+  const Staff = require('./staff.model');
+  const bcrypt = require('bcryptjs');
+
+  const user = await User.findById(token);
+  if (!user) throw new AppError('Invalid or expired token', HTTP_STATUS.NOT_FOUND);
+
+  const staff = await Staff.findOne({ userId: user._id });
+  if (!staff) throw new AppError('Staff record not found', HTTP_STATUS.NOT_FOUND);
+
+  // Update password if provided
+  if (payload.password) {
+    user.password = await bcrypt.hash(payload.password, 10);
+  }
+  user.approvalStatus = 'pending_approval';
+  await user.save();
+
+  // Update staff details
+  if (payload.fullName) staff.fullName = payload.fullName;
+  if (payload.gender) staff.gender = payload.gender;
+  if (payload.dateOfBirth) staff.dateOfBirth = payload.dateOfBirth;
+  if (payload.qualification) staff.qualification = payload.qualification;
+  if (payload.currentAddress) staff.currentAddress = payload.currentAddress;
+  if (payload.permanentAddress) staff.permanentAddress = payload.permanentAddress;
+  
+  staff.invitationStatus = 'Waiting for Approval';
+  staff.approvalStatus = 'pending_approval';
+  await staff.save();
+
+  // If receptionist, update legacy receptionist model too
+  if (user.role === 'RECEPTIONIST') {
+    const Receptionist = require('../receptionists/receptionist.model');
+    let receptionist = await Receptionist.findOne({ userId: user._id });
+    if (receptionist) {
+      receptionist.approvalStatus = 'pending_approval';
+      if (payload.qualification) receptionist.qualification = payload.qualification;
+      if (payload.currentAddress) receptionist.currentAddress = payload.currentAddress;
+      await receptionist.save();
+    }
+  }
+
+  return { user, staff };
+};
+
+const acceptOfferByToken = async (token) => {
+  const User = require('../users/user.model');
+  const Staff = require('./staff.model');
+
+  const user = await User.findById(token);
+  if (!user) throw new AppError('Invalid or expired token', HTTP_STATUS.NOT_FOUND);
+
+  const staff = await Staff.findOne({ userId: user._id });
+  if (!staff) throw new AppError('Staff record not found', HTTP_STATUS.NOT_FOUND);
+
+  if (staff.invitationStatus !== 'Offer Pending') {
+    throw new AppError('No pending offer found for this staff member', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  user.isActive = true;
+  user.approvalStatus = 'approved';
+  await user.save();
+
+  staff.isActive = true;
+  staff.invitationStatus = 'Active';
+  staff.offerStatus = 'Accepted';
+  staff.accountStatus = 'Active';
+  staff.activatedAt = new Date();
+  await staff.save();
+
+  if (user.role === 'RECEPTIONIST') {
+    const Receptionist = require('../receptionists/receptionist.model');
+    const receptionist = await Receptionist.findOne({ userId: user._id });
+    if (receptionist) {
+      receptionist.isActive = true;
+      receptionist.approvalStatus = 'approved';
+      await receptionist.save();
+    }
+  }
+
+  return { user, staff };
+};
+
 module.exports = {
   resolveStaffFiles,
   getMyProfile,
   updateMyProfile,
   submitMyProfile,
-  acceptMySlot
+  acceptMySlot,
+  getOnboardingDetailsByToken,
+  submitOnboardingByToken,
+  acceptOfferByToken
 };

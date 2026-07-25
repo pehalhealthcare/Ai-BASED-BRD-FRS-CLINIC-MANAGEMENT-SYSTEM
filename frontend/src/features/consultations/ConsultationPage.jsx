@@ -208,13 +208,278 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
   const [generalInstructionsText, setGeneralInstructionsText] = useState(`• Complete the full course of medicines.\n• Keep all follow-up appointments.\n• Contact clinic if symptoms worsen.`);
 
   // Follow up plan states mapping Image 2
+  const getInitialFollowUpDate = () => {
+    const d = new Date();
+    d.setDate(d.getDate() + 7);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const [followUpType, setFollowUpType] = useState('In-Clinic');
   const [followUpAfterVal, setFollowUpAfterVal] = useState('7');
   const [followUpAfterUnit, setFollowUpAfterUnit] = useState('Days');
-  const [followUpDate, setFollowUpDate] = useState('2026-07-21');
+  const [followUpDate, setFollowUpDate] = useState(getInitialFollowUpDate());
   const [followUpTime, setFollowUpTime] = useState('10:30 AM');
   const [followUpReason, setFollowUpReason] = useState('Review of symptoms and response to medication.');
   const [followUpPriority, setFollowUpPriority] = useState('Routine');
+
+  const calculateFollowUpDate = (val, unit) => {
+    const num = parseInt(val, 10);
+    if (isNaN(num)) return '';
+    const d = new Date();
+    if (unit === 'Days') {
+      d.setDate(d.getDate() + num);
+    } else if (unit === 'Weeks') {
+      d.setDate(d.getDate() + num * 7);
+    } else if (unit === 'Months') {
+      d.setMonth(d.getMonth() + num);
+    }
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const calculateFollowUpAfter = (dateStr) => {
+    if (!dateStr) return { val: '', unit: 'Days' };
+    const selectedDate = new Date(dateStr);
+    selectedDate.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const diffTime = selectedDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays <= 0) {
+      return { val: '0', unit: 'Days' };
+    }
+
+    if (diffDays % 30 === 0) {
+      return { val: String(diffDays / 30), unit: 'Months' };
+    }
+    if (diffDays % 7 === 0) {
+      return { val: String(diffDays / 7), unit: 'Weeks' };
+    }
+    return { val: String(diffDays), unit: 'Days' };
+  };
+
+  const checkDoctorAvailability = async (selectedDateStr) => {
+    const docId = doctor?._id || doctor?.id || consultation?.doctorId?._id || consultation?.doctorId;
+    if (!docId) return;
+
+    try {
+      const res = await appointmentApi.getDoctorAvailability(docId);
+      const availSlots = res.availability || res.data?.availability || [];
+      const blockedSlots = res.blockedSlots || res.data?.blockedSlots || [];
+
+      const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const selectedDateObj = new Date(selectedDateStr);
+      const dayName = daysOfWeek[selectedDateObj.getDay()];
+
+      const isDayAvailable = availSlots.some(slot => slot.dayOfWeek?.toLowerCase() === dayName.toLowerCase() && slot.isAvailable);
+      const isDateBlocked = blockedSlots.some(slot => {
+        const slotDateStr = slot.date ? new Date(slot.date).toISOString().split('T')[0] : '';
+        return slotDateStr === selectedDateStr;
+      });
+
+      if (!isDayAvailable) {
+        toast.error(`Warning: Doctor is not scheduled to be available on ${dayName}s (${selectedDateStr})`);
+      } else if (isDateBlocked) {
+        toast.error(`Warning: Doctor has blocked slots or is unavailable on ${selectedDateStr}`);
+      } else {
+        toast.success(`Doctor is available on ${dayName}, ${selectedDateStr}`);
+      }
+    } catch (err) {
+      console.error('Failed to check doctor availability:', err);
+    }
+  };
+
+  const handleFollowUpAfterChange = async (val, unit) => {
+    setFollowUpAfterVal(val);
+    setFollowUpAfterUnit(unit);
+    const computedDate = calculateFollowUpDate(val, unit);
+    if (computedDate) {
+      setFollowUpDate(computedDate);
+      await checkDoctorAvailability(computedDate);
+    }
+  };
+
+  const handleFollowUpDateChange = async (dateStr) => {
+    setFollowUpDate(dateStr);
+    const { val, unit } = calculateFollowUpAfter(dateStr);
+    setFollowUpAfterVal(val);
+    setFollowUpAfterUnit(unit);
+    await checkDoctorAvailability(dateStr);
+  };
+
+  const [docAvailability, setDocAvailability] = useState({ slots: [], blocked: [] });
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [currentCalendarMonth, setCurrentCalendarMonth] = useState(new Date());
+
+  useEffect(() => {
+    const fetchDocAvail = async () => {
+      const docId = doctor?._id || doctor?.id || consultation?.doctorId?._id || consultation?.doctorId;
+      if (!docId) return;
+      try {
+        const res = await appointmentApi.getDoctorAvailability(docId);
+        setDocAvailability({
+          slots: res.availability || res.data?.availability || [],
+          blocked: res.blockedSlots || res.data?.blockedSlots || []
+        });
+      } catch (err) {
+        console.error('Failed to pre-fetch doctor availability:', err);
+      }
+    };
+    fetchDocAvail();
+  }, [doctor, consultation]);
+
+  const getDayStatus = (dateObj) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const checkDateObj = new Date(dateObj);
+    checkDateObj.setHours(0, 0, 0, 0);
+
+    if (checkDateObj < today) {
+      return 'past';
+    }
+
+    const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const dayName = daysOfWeek[checkDateObj.getDay()];
+    const dateStr = `${checkDateObj.getFullYear()}-${String(checkDateObj.getMonth() + 1).padStart(2, '0')}-${String(checkDateObj.getDate()).padStart(2, '0')}`;
+
+    const isDayAvailable = docAvailability.slots.some(slot => slot.dayOfWeek?.toLowerCase() === dayName.toLowerCase() && slot.isAvailable);
+
+    const isDateBlocked = docAvailability.blocked.some(slot => {
+      const slotDateStr = slot.date ? new Date(slot.date).toISOString().split('T')[0] : '';
+      return slotDateStr === dateStr;
+    });
+
+    if (isDayAvailable && !isDateBlocked) {
+      return 'available';
+    }
+    return 'unavailable';
+  };
+
+  const DatePickerPopover = () => {
+    const daysInMonth = (date) => new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+    const firstDayOfMonth = (date) => new Date(date.getFullYear(), date.getMonth(), 1).getDay();
+
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+
+    const currentYear = currentCalendarMonth.getFullYear();
+    const currentMonth = currentCalendarMonth.getMonth();
+
+    const handlePrevMonth = () => {
+      setCurrentCalendarMonth(new Date(currentYear, currentMonth - 1, 1));
+    };
+
+    const handleNextMonth = () => {
+      setCurrentCalendarMonth(new Date(currentYear, currentMonth + 1, 1));
+    };
+
+    const daysCount = daysInMonth(currentCalendarMonth);
+    const firstDayIdx = firstDayOfMonth(currentCalendarMonth);
+
+    const daysGrid = [];
+    for (let i = 0; i < firstDayIdx; i++) {
+      daysGrid.push(null);
+    }
+    for (let d = 1; d <= daysCount; d++) {
+      daysGrid.push(new Date(currentYear, currentMonth, d));
+    }
+
+    return (
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setIsCalendarOpen(!isCalendarOpen)}
+          className="w-full px-3 py-2 text-xs text-slate-700 border border-slate-200 rounded-xl bg-white focus:outline-none focus:border-indigo-400 transition flex items-center justify-between shadow-sm text-left"
+        >
+          <span>{followUpDate ? new Date(followUpDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Select Date'}</span>
+          <Calendar size={13} className="text-slate-400" />
+        </button>
+
+        {isCalendarOpen && (
+          <div className="absolute right-0 lg:left-0 mt-2 bg-white border border-slate-100 rounded-2xl shadow-2xl p-4 w-[280px]" style={{ zIndex: 999 }}>
+            <div className="flex justify-between items-center mb-3">
+              <button
+                type="button"
+                onClick={handlePrevMonth}
+                className="p-1.5 hover:bg-slate-50 rounded-lg text-slate-500 hover:text-slate-800 transition"
+              >
+                <ChevronLeft size={14} />
+              </button>
+              <span className="text-xs font-black text-slate-800">
+                {monthNames[currentMonth]} {currentYear}
+              </span>
+              <button
+                type="button"
+                onClick={handleNextMonth}
+                className="p-1.5 hover:bg-slate-50 rounded-lg text-slate-500 hover:text-slate-800 transition"
+              >
+                <ChevronRight size={14} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-7 gap-1 text-center text-[9px] font-black text-slate-400 uppercase tracking-wider mb-2">
+              <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+            </div>
+
+            <div className="grid grid-cols-7 gap-1">
+              {daysGrid.map((dateObj, idx) => {
+                if (!dateObj) {
+                  return <div key={`empty-${idx}`} className="w-8 h-8" />;
+                }
+
+                const dateStr = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+                const status = getDayStatus(dateObj);
+                const isSelected = followUpDate === dateStr;
+
+                let classes = "w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold transition relative cursor-pointer ";
+                
+                if (isSelected) {
+                  classes += "bg-indigo-655 bg-indigo-600 text-white shadow-md z-10 ";
+                } else if (status === 'past') {
+                  classes += "text-slate-300 cursor-not-allowed ";
+                } else if (status === 'available') {
+                  classes += "text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-250/70 ";
+                } else if (status === 'unavailable') {
+                  classes += "text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-250/70 ";
+                } else {
+                  classes += "text-slate-700 hover:bg-slate-100 ";
+                }
+
+                return (
+                  <button
+                    key={dateStr}
+                    type="button"
+                    disabled={status === 'past'}
+                    onClick={() => {
+                      handleFollowUpDateChange(dateStr);
+                      setIsCalendarOpen(false);
+                    }}
+                    className={classes}
+                    title={status === 'available' ? 'Doctor Available' : status === 'unavailable' ? 'Doctor Unavailable' : ''}
+                  >
+                    {dateObj.getDate()}
+                    {!isSelected && status !== 'past' && (
+                      <span className={`absolute bottom-1 w-1 h-1 rounded-full ${status === 'available' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
   const [followUpInstructions, setFollowUpInstructions] = useState(`• Take medicines as prescribed.\n• Monitor BP daily and maintain a log.\n• Follow diet and lifestyle advice.\n• Come empty stomach for next visit.`);
   const [bringReports, setBringReports] = useState(true);
   const [completeLabTests, setCompleteLabTests] = useState(true);
@@ -417,6 +682,13 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
         notes: nextFollowUp.notes || ''
       }
     });
+    if (nextFollowUp.date) {
+      const dateStr = nextFollowUp.date.slice(0, 10);
+      setFollowUpDate(dateStr);
+      const { val, unit } = calculateFollowUpAfter(dateStr);
+      setFollowUpAfterVal(val);
+      setFollowUpAfterUnit(unit);
+    }
     setSecondaryDiagnosisTags(nextDiagnosis.secondary || []);
     setTreatmentPlanText(nextConsultation?.treatmentPlan || 'Symptomatic treatment, hydration, rest and monitoring.');
   };
@@ -437,7 +709,13 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
           if (pres.labs && pres.labs.length > 0) setLabs(pres.labs);
           if (pres.procedures && pres.procedures.length > 0) setProcedures(pres.procedures);
           setDietAdviceText(pres.advice || dietAdviceText);
-          if (pres.followUpDate) setFollowUpDate(pres.followUpDate.slice(0, 10));
+          if (pres.followUpDate) {
+            const dateStr = pres.followUpDate.slice(0, 10);
+            setFollowUpDate(dateStr);
+            const { val, unit } = calculateFollowUpAfter(dateStr);
+            setFollowUpAfterVal(val);
+            setFollowUpAfterUnit(unit);
+          }
         }
       } catch (_e) { }
 
@@ -593,7 +871,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
         notes: form.diagnosis?.notes ? form.diagnosis.notes.trim() : ''
       },
       treatmentPlan: treatmentPlanText ? treatmentPlanText.trim() : 'Follow prescribed medications and treatment plan.',
-      followUp: { required: Boolean(form.followUp?.required), ...(form.followUp?.date ? { date: form.followUp.date } : {}), notes: form.followUp?.notes ? form.followUp.notes.trim() : '' },
+      followUp: { required: Boolean(form.followUp?.required), ...(followUpDate ? { date: followUpDate } : form.followUp?.date ? { date: form.followUp.date } : {}), notes: form.followUp?.notes ? form.followUp.notes.trim() : '' },
       pastMedicalHistory,
       familyHistory,
       socialHistory,
@@ -3025,7 +3303,13 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                               </div>
                             </div>
                             <div className="flex items-center gap-1.5 shrink-0">
-                              <span className="px-1.5 py-0.5 bg-indigo-50 border border-indigo-100 text-indigo-600 text-[8px] font-black uppercase rounded">Routine</span>
+                              <span className={`px-1.5 py-0.5 border text-[8px] font-black uppercase rounded ${
+                                (l.priority || 'routine').toLowerCase() === 'stat'
+                                  ? 'bg-rose-50 border-rose-200 text-rose-700'
+                                  : (l.priority || 'routine').toLowerCase() === 'urgent'
+                                  ? 'bg-amber-50 border-amber-200 text-amber-700'
+                                  : 'bg-indigo-50 border-indigo-100 text-indigo-600'
+                              }`}>{l.priority || 'Routine'}</span>
                               <button
                                 onClick={() => { setLabs(labs.filter((_, i) => i !== index)); setIsDirty(true); }}
                                 className="text-slate-300 hover:text-rose-500 transition"
@@ -3039,6 +3323,31 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                           <div className="px-4 py-6 text-center text-[10px] text-slate-400 italic">No tests selected yet.</div>
                         )}
                       </div>
+                      {/* Summary footer: priority, collection, clinical notes */}
+                      {labs.length > 0 && (
+                        <div className="px-3 py-2.5 bg-slate-50 border-t border-slate-100 space-y-1.5">
+                          <div className="flex items-center justify-between text-[9px] text-slate-500">
+                            <span className="font-bold uppercase tracking-wider">Priority</span>
+                            <span className={`px-2 py-0.5 rounded font-black uppercase border text-[8px] ${
+                              labPriority.toLowerCase() === 'stat'
+                                ? 'bg-rose-50 border-rose-200 text-rose-700'
+                                : labPriority.toLowerCase() === 'urgent'
+                                ? 'bg-amber-50 border-amber-200 text-amber-700'
+                                : 'bg-indigo-50 border-indigo-100 text-indigo-600'
+                            }`}>{labPriority}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-[9px] text-slate-500">
+                            <span className="font-bold uppercase tracking-wider">Collection</span>
+                            <span className="font-semibold text-slate-700">{labCollectionPref}</span>
+                          </div>
+                          {labClinicalNotes && (
+                            <div className="text-[9px] text-slate-500 pt-1 border-t border-slate-100">
+                              <span className="font-bold uppercase tracking-wider block mb-0.5">Clinical Notes</span>
+                              <p className="text-slate-600 leading-relaxed break-words">{labClinicalNotes}</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
                       <div className="px-3 py-2.5 border-t border-slate-100">
                         <button
                           onClick={() => {
@@ -3060,7 +3369,16 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                       <div className="px-4 py-3 space-y-3">
                         <div>
                           <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Priority</label>
-                          <select value={labPriority} onChange={(e) => setLabPriority(e.target.value)} className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-white focus:outline-none focus:border-indigo-400 transition text-slate-600">
+                          <select
+                            value={labPriority}
+                            onChange={(e) => {
+                              const newPriority = e.target.value;
+                              setLabPriority(newPriority);
+                              setLabs(prev => prev.map(l => ({ ...l, priority: newPriority.toLowerCase() })));
+                              setIsDirty(true);
+                            }}
+                            className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-white focus:outline-none focus:border-indigo-400 transition text-slate-600"
+                          >
                             <option>Routine</option>
                             <option>Urgent</option>
                             <option>STAT</option>
@@ -3127,42 +3445,53 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                         <h4 className="text-[11px] font-black uppercase text-slate-500 tracking-wider">AI INSIGHTS</h4>
                         <span className="text-[8px] bg-indigo-50 text-indigo-600 font-extrabold px-1.5 py-0.5 rounded ml-auto">Beta</span>
                       </div>
-                      <div className="px-4 py-3 space-y-3">
-                        <p className="text-[10px] text-slate-500">Based on symptoms and diagnosis, these tests are relevant.</p>
-                        <div>
-                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-2">Helpful Add-ons:</span>
-                          <div className="flex flex-wrap gap-1.5">
-                            {['ESR', 'LFT', 'RFT', 'D-Dimer'].map((t) => (
-                              <button
-                                key={t}
-                                onClick={() => {
-                                  if (!labs.some(l => l.testName === t)) {
-                                    setLabs([...labs, { testName: t, priority: 'routine', sampleRequired: 'Blood', reason: '' }]);
-                                    setIsDirty(true);
-                                  }
-                                }}
-                                className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 text-indigo-600 rounded-lg text-[10px] font-bold transition"
-                              >
-                                {t}
-                              </button>
-                            ))}
-                          </div>
+                      {!labRecommendationsFeature.enabled ? (
+                        <div className="p-4">
+                          <PremiumFeaturePlaceholder
+                            featureCode="lab_recommendations"
+                            featureName="AI Lab Recommendations"
+                            description="Suggests relevant laboratory investigations based on patients clinical context."
+                            onRequested={() => handleRequestAccess('lab_recommendations')}
+                          />
                         </div>
-                        <button
-                          onClick={() => {
-                            ['ESR', 'LFT', 'RFT', 'D-Dimer'].forEach(t => {
-                              if (!labs.some(l => l.testName === t)) {
-                                setLabs(prev => [...prev, { testName: t, priority: 'routine', sampleRequired: 'Blood', reason: '' }]);
-                              }
-                            });
-                            setIsDirty(true);
-                            toast.success('Recommended tests added!');
-                          }}
-                          className="w-full py-2 bg-slate-50 hover:bg-indigo-50 border border-slate-200 text-slate-600 hover:text-indigo-600 font-bold rounded-xl transition text-center text-[10px] uppercase"
-                        >
-                          Add Recommended
-                        </button>
-                      </div>
+                      ) : (
+                        <div className="px-4 py-3 space-y-3">
+                          <p className="text-[10px] text-slate-500">Based on symptoms and diagnosis, these tests are relevant.</p>
+                          <div>
+                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-2">Helpful Add-ons:</span>
+                            <div className="flex flex-wrap gap-1.5">
+                              {['ESR', 'LFT', 'RFT', 'D-Dimer'].map((t) => (
+                                <button
+                                  key={t}
+                                  onClick={() => {
+                                    if (!labs.some(l => l.testName === t)) {
+                                      setLabs([...labs, { testName: t, priority: 'routine', sampleRequired: 'Blood', reason: '' }]);
+                                      setIsDirty(true);
+                                    }
+                                  }}
+                                  className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 text-indigo-600 rounded-lg text-[10px] font-bold transition"
+                                >
+                                  {t}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => {
+                              ['ESR', 'LFT', 'RFT', 'D-Dimer'].forEach(t => {
+                                if (!labs.some(l => l.testName === t)) {
+                                  setLabs(prev => [...prev, { testName: t, priority: 'routine', sampleRequired: 'Blood', reason: '' }]);
+                                }
+                              });
+                              setIsDirty(true);
+                              toast.success('Recommended tests added!');
+                            }}
+                            className="w-full py-2 bg-slate-50 hover:bg-indigo-50 border border-slate-200 text-slate-605 hover:text-indigo-600 font-bold rounded-xl transition text-center text-[10px] uppercase"
+                          >
+                            Add Recommended
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                   </div>
@@ -3663,7 +3992,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
               <div className="space-y-4">
 
                 {/* Follow up Plan main card details */}
-                <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm p-4 space-y-4">
+                <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 space-y-4 relative z-10">
                   <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
                     <span className="text-emerald-500 text-sm">📅</span>
                     <strong className="text-base font-bold text-slate-800">Follow-up Plan</strong>
@@ -3695,12 +4024,12 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                         <input
                           type="text"
                           value={followUpAfterVal}
-                          onChange={(e) => setFollowUpAfterVal(e.target.value)}
+                          onChange={(e) => handleFollowUpAfterChange(e.target.value, followUpAfterUnit)}
                           className="w-12 px-2.5 py-2 text-xs text-slate-700 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-400 text-center"
                         />
                         <select
                           value={followUpAfterUnit}
-                          onChange={(e) => setFollowUpAfterUnit(e.target.value)}
+                          onChange={(e) => handleFollowUpAfterChange(followUpAfterVal, e.target.value)}
                           className="px-2.5 py-2 text-xs text-slate-605 border border-slate-200 rounded-xl bg-white focus:outline-none focus:border-indigo-400"
                         >
                           <option>Days</option>
@@ -3712,12 +4041,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
 
                     <div className="space-y-1">
                       <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Follow-up Date *</label>
-                      <input
-                        type="date"
-                        value={followUpDate}
-                        onChange={(e) => setFollowUpDate(e.target.value)}
-                        className="w-full px-3 py-2 text-xs text-slate-700 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-400 transition"
-                      />
+                      <DatePickerPopover />
                     </div>
 
                     <div className="space-y-1">
@@ -4030,35 +4354,33 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
               <span className="text-[8px] bg-indigo-50 text-indigo-606 font-extrabold px-1.5 py-0.5 rounded">BETA</span>
             </div>
 
-            {workspaceTab === 'Laboratory' ? (
+            {!assistantFeature.enabled ? (
+              <PremiumFeaturePlaceholder
+                featureCode="consultation_assistant"
+                featureName="AI Clinical Assistant"
+                description="Suggests diagnoses, risk scorings, and recommends treatments."
+                onRequested={() => handleRequestAccess('consultation_assistant')}
+              />
+            ) : workspaceTab === 'Laboratory' ? (
               <>
                 <div className="flex border-b border-slate-150 gap-4 text-xs font-bold shrink-0 pb-1.5">
                   <button className="text-indigo-650 border-b-2 border-indigo-650 pb-1">Suggestions</button>
                   <button className="text-slate-400 pb-1">Summary</button>
                 </div>
-                {!assistantFeature.enabled ? (
-                  <PremiumFeaturePlaceholder
-                    featureCode="consultation_assistant"
-                    featureName="AI Clinical Assistant"
-                    description="Suggests diagnoses, risk scorings, and recommends treatments."
-                    onRequested={() => handleRequestAccess('consultation_assistant')}
-                  />
-                ) : (
-                  <div className="space-y-4 text-xs">
-                    <div className="space-y-2">
-                      <span className="text-[10px] text-slate-455 font-black uppercase tracking-wider block">AI Suggested Tests</span>
-                      <ul className="list-disc pl-4 space-y-1.5 text-slate-600 font-medium">
-                        <li>CBC</li>
-                        <li>CRP</li>
-                        <li>Dengue NS1</li>
-                        <li>Urine Routine</li>
-                      </ul>
-                    </div>
-                    <button className="w-full py-2 bg-slate-50 border border-slate-200 text-slate-605 font-bold hover:bg-slate-100 rounded-xl transition text-center text-[10px] uppercase">
-                      View All Suggestions
-                    </button>
+                <div className="space-y-4 text-xs">
+                  <div className="space-y-2">
+                    <span className="text-[10px] text-slate-455 font-black uppercase tracking-wider block">AI Suggested Tests</span>
+                    <ul className="list-disc pl-4 space-y-1.5 text-slate-600 font-medium">
+                      <li>CBC</li>
+                      <li>CRP</li>
+                      <li>Dengue NS1</li>
+                      <li>Urine Routine</li>
+                    </ul>
                   </div>
-                )}
+                  <button className="w-full py-2 bg-slate-50 border border-slate-200 text-slate-605 font-bold hover:bg-slate-100 rounded-xl transition text-center text-[10px] uppercase">
+                    View All Suggestions
+                  </button>
+                </div>
               </>
             ) : workspaceTab === 'Diagnosis' ? (
               <div className="space-y-4 text-xs">

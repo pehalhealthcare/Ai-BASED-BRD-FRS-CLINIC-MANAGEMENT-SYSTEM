@@ -551,6 +551,18 @@ const listLabTests = async ({ requester, query = {}, requestedClinicId = null })
   const { page, limit } = getPagination(query);
   const filter = { clinicId };
 
+  if (query.providerId) {
+    const User = require('../users/user.model');
+    const mongoose = require('mongoose');
+    const operatorUsers = await User.find({ providerId: query.providerId }).select('_id');
+    const operatorUserIds = operatorUsers.map(u => u._id);
+    if (operatorUserIds.length > 0) {
+      filter.createdBy = { $in: operatorUserIds };
+    } else {
+      filter.createdBy = new mongoose.Types.ObjectId(); // Dummy non-matching ID
+    }
+  }
+
   if (query.category) {
     filter.category = query.category.trim();
   }

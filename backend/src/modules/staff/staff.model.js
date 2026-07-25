@@ -161,7 +161,8 @@ const staffSchema = new mongoose.Schema(
         'changes_requested',
         'approved',
         'rejected',
-        'disabled'
+        'disabled',
+        'pending_onboarding'
       ],
       default: 'pending_invitation'
     },
@@ -203,6 +204,34 @@ const staffSchema = new mongoose.Schema(
     updatedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
+      default: null
+    },
+    creationSource: {
+      type: String,
+      enum: ['CLINIC_SETUP', 'DASHBOARD'],
+      default: 'DASHBOARD'
+    },
+    invitationStatus: {
+      type: String,
+      enum: ['Draft', 'Invitation Sent', 'Onboarding Pending', 'Waiting for Approval', 'Approved', 'Offer Pending', 'Offer Accepted', 'Active'],
+      default: 'Draft'
+    },
+    onboardingStatus: {
+      type: String,
+      default: ''
+    },
+    offerStatus: {
+      type: String,
+      enum: ['Pending', 'Accepted', 'Rejected', 'None'],
+      default: 'None'
+    },
+    accountStatus: {
+      type: String,
+      enum: ['Active', 'Inactive'],
+      default: 'Inactive'
+    },
+    activatedAt: {
+      type: Date,
       default: null
     }
   },

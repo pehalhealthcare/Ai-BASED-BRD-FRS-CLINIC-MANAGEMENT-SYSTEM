@@ -281,6 +281,13 @@ const ConsultationPage = () => {
     const followUp = consult.followUp || {};
     const vitals = consult.vitals || {};
 
+    // Effective follow-up date: prescription.followUpDate takes priority
+    const prescriptionFollowUpDate = selectedConsultation.prescription?.followUpDate || null;
+    const effectiveFollowUpDate = prescriptionFollowUpDate || followUp.date || null;
+    const effectiveFollowUpDateStr = effectiveFollowUpDate
+      ? new Date(effectiveFollowUpDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+      : 'N/A';
+
     const visitDateObj = consult.createdAt ? new Date(consult.createdAt) : null;
     const visitDateStr = visitDateObj
       ? visitDateObj.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
@@ -294,6 +301,21 @@ const ConsultationPage = () => {
         completedAtObj.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
       : 'N/A';
 
+    // Compute follow-up after duration from visitDate → effectiveFollowUpDate
+    let followUpAfterStr = 'N/A';
+    if (effectiveFollowUpDate && visitDateObj) {
+      const fuDate = new Date(effectiveFollowUpDate);
+      fuDate.setHours(0, 0, 0, 0);
+      const visitBase = new Date(visitDateObj);
+      visitBase.setHours(0, 0, 0, 0);
+      const diffDays = Math.round((fuDate - visitBase) / (1000 * 60 * 60 * 24));
+      if (diffDays > 0) {
+        if (diffDays % 30 === 0) followUpAfterStr = `${diffDays / 30} Month${diffDays / 30 > 1 ? 's' : ''}`;
+        else if (diffDays % 7 === 0) followUpAfterStr = `${diffDays / 7} Week${diffDays / 7 > 1 ? 's' : ''}`;
+        else followUpAfterStr = `${diffDays} Day${diffDays > 1 ? 's' : ''}`;
+      }
+    }
+
     const calculateBMI = () => {
       if (vitals.weight && vitals.height) {
         const hm = parseFloat(vitals.height) / 100;
@@ -304,22 +326,39 @@ const ConsultationPage = () => {
 
     const handlePrint = async () => {
       try {
-        const res = await consultationApi.downloadPdf(consult._id);
-        const blob = new Blob([res], { type: 'application/pdf' });
-        window.open(window.URL.createObjectURL(blob), '_blank');
-      } catch (err) { console.error(err); }
+        toast.loading('Generating PDF...', { id: 'pdf-print' });
+        const blob = await consultationApi.downloadPdf(consult._id);
+        if (!blob || blob.size === 0) throw new Error('Empty PDF received');
+        const url = window.URL.createObjectURL(blob);
+        toast.dismiss('pdf-print');
+        window.open(url, '_blank');
+      } catch (err) {
+        toast.dismiss('pdf-print');
+        toast.error('Failed to generate PDF. Please try again.');
+        console.error('PDF print error:', err);
+      }
     };
 
     const handleDownload = async () => {
       try {
-        const res = await consultationApi.downloadPdf(consult._id);
-        const blob = new Blob([res], { type: 'application/pdf' });
+        toast.loading('Preparing download...', { id: 'pdf-dl' });
+        const blob = await consultationApi.downloadPdf(consult._id);
+        if (!blob || blob.size === 0) throw new Error('Empty PDF received');
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
-        a.href = url; a.download = `consultation_${consult._id}.pdf`;
-        document.body.appendChild(a); a.click();
-        document.body.removeChild(a); window.URL.revokeObjectURL(url);
-      } catch (err) { console.error(err); }
+        a.href = url;
+        a.download = `consultation_${consult._id}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        toast.dismiss('pdf-dl');
+        toast.success('PDF downloaded!');
+      } catch (err) {
+        toast.dismiss('pdf-dl');
+        toast.error('Failed to download PDF. Please try again.');
+        console.error('PDF download error:', err);
+      }
     };
 
     const handleShare = () => {
@@ -353,9 +392,9 @@ const ConsultationPage = () => {
       },
       {
         label: 'Follow-up Pending',
-        date: followUp.date ? new Date(followUp.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A',
+        date: effectiveFollowUpDateStr,
         time: '',
-        icon: '🔄', done: !!followUp.required
+        icon: '🔄', done: !!(effectiveFollowUpDate)
       }
     ];
 
@@ -676,16 +715,16 @@ const ConsultationPage = () => {
                             <div className="grid grid-cols-3 gap-3 text-xs">
                               <div>
                                 <span className="text-[10px] text-slate-400 block font-black uppercase tracking-wider">Follow-up Type</span>
-                                <span className="font-semibold text-slate-700 mt-0.5 block">{followUp.required ? 'In-Clinic' : 'Not Required'}</span>
+                                <span className="font-semibold text-slate-700 mt-0.5 block">{effectiveFollowUpDate ? 'In-Clinic' : 'Not Required'}</span>
                               </div>
                               <div>
                                 <span className="text-[10px] text-slate-400 block font-black uppercase tracking-wider">Follow-up After</span>
-                                <span className="font-semibold text-slate-700 mt-0.5 block">{followUp.afterDays ? `${followUp.afterDays} Days` : followUp.required ? '7 Days' : 'N/A'}</span>
+                                <span className="font-semibold text-slate-700 mt-0.5 block">{followUpAfterStr}</span>
                               </div>
                               <div>
                                 <span className="text-[10px] text-slate-400 block font-black uppercase tracking-wider">Follow-up Date</span>
                                 <span className="font-semibold text-slate-700 mt-0.5 block">
-                                  {followUp.date ? new Date(followUp.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'}
+                                  {effectiveFollowUpDateStr}
                                 </span>
                               </div>
                             </div>

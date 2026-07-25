@@ -52,14 +52,26 @@ const dispensingRecordSchema = new mongoose.Schema(
     prescriptionId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Prescription',
-      required: true,
+      required: false,
+      default: null,
       index: true
     },
     patientId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Patient',
-      required: true,
+      required: false,
+      default: null,
       index: true
+    },
+    patientName: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    patientPhone: {
+      type: String,
+      trim: true,
+      default: ''
     },
     doctorId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -102,7 +114,13 @@ const dispensingRecordSchema = new mongoose.Schema(
   }
 );
 
-dispensingRecordSchema.index({ clinicId: 1, prescriptionId: 1 }, { unique: true });
+dispensingRecordSchema.index(
+  { clinicId: 1, prescriptionId: 1 },
+  { 
+    unique: true,
+    partialFilterExpression: { prescriptionId: { $exists: true, $ne: null } }
+  }
+);
 dispensingRecordSchema.index({ clinicId: 1, patientId: 1, createdAt: -1 });
 dispensingRecordSchema.index({ clinicId: 1, doctorId: 1, createdAt: -1 });
 dispensingRecordSchema.index({ clinicId: 1, status: 1, createdAt: -1 });

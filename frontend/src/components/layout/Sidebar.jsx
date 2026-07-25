@@ -5,15 +5,15 @@ import {
   Pill, ShieldAlert, ScrollText, Bell, ListChecks, Bot,
   LayoutGrid, UserCircle, CreditCard, ChevronRight, ChevronDown,
   Building2, UserCog, Sun, Moon, LogOut, ClipboardList,
-  Activity, Syringe, FileText, RotateCcw, HelpCircle, Headphones,
-  TrendingUp, Plus, UserX, Bed, Clock, AlertCircle, CheckSquare, UserPlus,PlusSquare 
+  Activity, Syringe, FileText, RotateCcw, ChevronLeft , Headphones,
+  TrendingUp, Plus, UserX, Bed, Clock, AlertCircle, CheckSquare, UserPlus,PlusSquare, MessageSquare
 } from 'lucide-react';
 
 import { NAV_ITEMS, ROUTES } from '../../constants/routes';
 import { canAccessRole, STAFF_ROLES } from '../../constants/roles';
 import { useTheme } from '../../context/ThemeContext';
 import Avatar from '../ui/Avatar';
-import { clinicApi, patientApi, appointmentApi } from '../../lib/api';
+import { clinicApi, patientApi, appointmentApi, providersApi } from '../../lib/api';
 import { CheckCircle } from 'lucide-react';
 
 import toast from 'react-hot-toast';
@@ -64,19 +64,14 @@ const ICON_MAP = {
 // Patient-specific navigation with sections
 const PATIENT_NAV = [
   { label: 'Dashboard', path: '/portal?tab=dashboard', iconKey: 'Dashboard' },
-  { type: 'section', label: 'MY HEALTH' },
-  { label: 'My Clinics', path: '/portal?tab=clinics', iconKey: 'Clinic Settings' },
+  { label: 'My Clinic', path: '/portal?tab=my-clinic', iconKey: 'Clinic Settings' },
   { label: 'Appointments', path: '/portal?tab=appointments', iconKey: 'Appointments' },
   { label: 'Consultation History', path: '/portal?tab=history', iconKey: 'Medical History' },
   { label: 'Prescriptions', path: '/portal?tab=prescriptions', iconKey: 'Prescriptions' },
   { label: 'Lab Reports', path: '/portal?tab=labs', iconKey: 'Labs' },
   { label: 'Medical Documents', path: '/portal?tab=documents', iconKey: 'Prescriptions & Records' },
   { label: 'Bills & Payments', path: '/portal?tab=billing', iconKey: 'Billing & Invoices' },
-  { label: 'Pharmacy Orders', path: '/portal?tab=pharmacy-orders', iconKey: 'Pharmacy' },
-  { type: 'section', label: 'ACCOUNT' },
-  { label: 'My Profile', path: '/portal?tab=profile', iconKey: 'Users' },
-  { label: 'Security Settings', path: '/portal?tab=security', iconKey: 'Settings' },
-  { label: 'Support', path: '/portal?tab=support', iconKey: 'Help' }
+  { label: 'Pharmacy Orders', path: '/portal?tab=pharmacy-orders', iconKey: 'Pharmacy' }
 ];
 
 
@@ -125,6 +120,28 @@ const getOperatorNav = (role) => {
   ];
 };
 
+const getClinicTheme = (name) => {
+  const lower = (name || '').toLowerCase();
+  if (lower.includes('garg') || lower.includes('green') || lower.includes('emg')) {
+    return { primary: '#10b981', bgLight: 'rgba(16,185,129,0.08)', bgHover: 'rgba(16,185,129,0.15)', text: 'text-emerald-700', bg: 'bg-emerald-600', shadow: 'rgba(16,185,129,0.1)' };
+  }
+  if (lower.includes('ram') || lower.includes('dental') || lower.includes('blue')) {
+    return { primary: '#0f766e', bgLight: 'rgba(15,118,110,0.08)', bgHover: 'rgba(15,118,110,0.15)', text: 'text-teal-700', bg: 'bg-teal-700', shadow: 'rgba(15,118,110,0.1)' };
+  }
+  return { primary: '#2f6bff', bgLight: 'rgba(47,107,255,0.08)', bgHover: 'rgba(47,107,255,0.15)', text: 'text-blue-700', bg: 'bg-blue-600', shadow: 'rgba(47,107,255,0.1)' };
+};
+
+const isClinicFeatureActive = (clinic, featureCode) => {
+  if (!clinic) return false;
+  const planFeatures = clinic.subscription?.planId?.features || [];
+  if (planFeatures.includes(featureCode)) return true;
+  const activeTrials = (clinic.trialFeatures || [])
+    .filter(t => t.isActive && new Date(t.expiryDate) >= new Date())
+    .map(t => t.featureCode);
+  if (activeTrials.includes(featureCode)) return true;
+  return false;
+};
+
 const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
   const { isDark, toggleTheme } = useTheme();
   const location = useLocation();
@@ -158,6 +175,19 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
   const [activeFeatures, setActiveFeatures] = useState([]);
   const [patientClinics, setPatientClinics] = useState([]);
   const [selectedClinicId, setSelectedClinicId] = useState('');
+  const [labExpanded, setLabExpanded] = useState(false);
+  const [pharmacyExpanded, setPharmacyExpanded] = useState(false);
+
+  const currentTab = new URLSearchParams(location.search).get('tab') || 'dashboard';
+
+  useEffect(() => {
+    if (['book-lab', 'labs'].includes(currentTab)) {
+      setLabExpanded(true);
+    }
+    if (['buy-medicine', 'pharmacy-orders'].includes(currentTab)) {
+      setPharmacyExpanded(true);
+    }
+  }, [currentTab]);
 
   useEffect(() => {
     if (isPatient) {
@@ -169,10 +199,36 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
     }
   }, [isPatient]);
 
+  const [selectedLabId, setSelectedLabId] = useState('');
+  const [selectedPharmacyId, setSelectedPharmacyId] = useState('');
+  const [labs, setLabs] = useState([]);
+  const [pharmacies, setPharmacies] = useState([]);
+
   useEffect(() => {
     const currentParams = new URLSearchParams(location.search);
     setSelectedClinicId(currentParams.get('clinicId') || '');
+    setSelectedLabId(currentParams.get('labId') || '');
+    setSelectedPharmacyId(currentParams.get('pharmacyId') || '');
   }, [location.search]);
+
+  useEffect(() => {
+    if (isPatient && selectedClinicId) {
+      providersApi.getProviders({ clinicId: selectedClinicId, providerType: 'Laboratory', limit: 100 })
+        .then(res => {
+          setLabs(res.data?.items || res.items || []);
+        })
+        .catch(() => {});
+
+      providersApi.getProviders({ clinicId: selectedClinicId, providerType: 'Pharmacy', limit: 100 })
+        .then(res => {
+          setPharmacies(res.data?.items || res.items || []);
+        })
+        .catch(() => {});
+    } else {
+      setLabs([]);
+      setPharmacies([]);
+    }
+  }, [isPatient, selectedClinicId]);
 
   useEffect(() => {
     if (user?.clinicId) {
@@ -447,6 +503,25 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
             })}
           </nav>
 
+          <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500 px-2 pt-4 pb-1.5">COMMUNICATION</p>
+          <nav className="space-y-1">
+            <NavLink
+              to="/chat"
+              onClick={onNavigate}
+              className={() =>
+                `flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 ${isItemActive('/chat')
+                  ? 'bg-blue-600 text-white shadow-[0_0_15px_rgba(37,99,235,0.3)]'
+                  : 'text-slate-400 hover:text-white hover:bg-white/[0.02]'
+                }`
+              }
+            >
+              <span className={`shrink-0 ${isItemActive('/chat') ? 'text-white' : 'text-slate-500'}`}>
+                <MessageSquare size={18} />
+              </span>
+              <span>Chat</span>
+            </NavLink>
+          </nav>
+
           {/* Quick Actions */}
           <div className="pt-4 border-t border-white/[0.06] space-y-2">
             <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500 px-2 pb-1">QUICK ACTIONS</p>
@@ -495,12 +570,17 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
   }
 
   if (isPatient) {
+    const selectedClinic = patientClinics.find(c => String(c._id) === String(selectedClinicId));
+    const activeTheme = getClinicTheme(selectedClinic?.name);
+    const activeLab = labs.find(l => String(l._id) === String(selectedLabId)) || { name: 'City Diagnostics Lab', address: { city: 'Noida' } };
+    const activePharmacy = pharmacies.find(p => String(p._id) === String(selectedPharmacyId)) || { name: 'Gupta Medical Store', address: { city: 'Noida' } };
+
     return (
       <aside
         className={`
-          fixed inset-y-0 left-0 z-40 flex flex-col w-[265px]
+          fixed inset-y-0 left-0 z-40 flex flex-col w-[280px]
           bg-white border-r border-slate-200
-          transition-transform duration-300 ease-spring
+          transition-all duration-300 ease-in-out
           lg:sticky lg:top-0 lg:h-screen lg:translate-x-0
           ${open ? 'translate-x-0' : '-translate-x-full'}
         `}
@@ -508,7 +588,10 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
         {/* Brand Header */}
         <div className="px-5 pt-6 pb-4 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center shadow-md shrink-0">
+            <div 
+              className="w-9 h-9 rounded-xl flex items-center justify-center shadow-md shrink-0 transition-colors"
+              style={{ backgroundColor: selectedClinic ? activeTheme.primary : '#2f6bff' }}
+            >
               <PlusSquare size={20} className="text-white" />
             </div>
             <div>
@@ -521,90 +604,524 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
           <div className="mt-5 h-px bg-slate-100" />
         </div>
 
-        {/* Nav Items */}
-        <nav className="flex-1 overflow-y-auto px-4 py-2 space-y-1 scrollbar-thin scrollbar-thumb-slate-200">
-          {visibleItems.map((item, idx) => {
-            if (item.type === 'section') {
-              return (
-                <div key={`section-${idx}`} className="pt-5 pb-2 px-2">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400 select-none">
-                    {item.label}
-                  </p>
-                </div>
-              );
-            }
+        {/* Dynamic Sidebar States */}
+        <div className="flex-1 flex flex-col min-h-0 relative overflow-hidden">
+          
+          {/* STATE 1: MY CLINICS SELECTOR */}
+          <div 
+            className={`flex-1 flex flex-col min-h-0 absolute inset-0 transition-all duration-300 ${
+              selectedClinicId ? 'translate-x-[-100%] opacity-0 pointer-events-none' : 'translate-x-0 opacity-100'
+            }`}
+          >
+            <div className="px-5 pt-4 pb-2">
+              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">My Clinics</h4>
+            </div>
+            
+            <nav className="flex-1 overflow-y-auto px-4 py-2 space-y-3 scrollbar-thin scrollbar-thumb-slate-200">
+              {patientClinics.map((clinic) => {
+                const theme = getClinicTheme(clinic.name);
+                const isSelected = String(clinic._id) === String(selectedClinicId);
+                const visitDateStr = clinic.lastVisitDate 
+                  ? new Date(clinic.lastVisitDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                  : null;
 
-            const active = isItemActive(item);
-
-            return (
-              <NavLink
-                key={idx}
-                to={item.path + (selectedClinicId ? `&clinicId=${selectedClinicId}` : '')}
-                onClick={onNavigate}
-                className={() =>
-                  `flex items-center justify-between px-4 py-2.5 rounded-2xl text-xs font-semibold transition duration-150 ${
-                    active
-                      ? 'bg-blue-650 bg-blue-600 text-white shadow-md shadow-blue-500/10'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                  }`
-                }
-              >
-                <div className="flex items-center gap-3">
-                  <span className={`shrink-0 ${active ? 'text-white' : 'text-slate-400'}`}>
-                    {ICON_MAP[item.iconKey || item.label] || <ChevronRight size={16} />}
-                  </span>
-                  <span>{item.label}</span>
-                </div>
-              </NavLink>
-            );
-          })}
-        </nav>
-
-        {/* Bottom Clinics Widget */}
-        {patientClinics.length > 0 && (
-          <div className="p-4 border-t border-slate-200 bg-slate-50">
-            <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-2.5">My Clinics</p>
-            <div className="space-y-2">
-              {patientClinics.slice(0, 3).map((clinic) => {
-                const active = String(clinic._id) === String(selectedClinicId) || (!selectedClinicId && String(clinic._id) === String(patientClinics[0]._id));
                 return (
                   <div
                     key={clinic._id}
                     onClick={() => {
                       const currentParams = new URLSearchParams(location.search);
                       const activeTab = currentParams.get('tab') || 'dashboard';
-                      navigate(`/portal?tab=${activeTab}&clinicId=${clinic._id}`);
+                      // If shifting to my-clinic or dashboard
+                      navigate(`/portal?tab=${activeTab === 'clinics' ? 'dashboard' : activeTab}&clinicId=${clinic._id}`);
                     }}
-                    className={`p-3 rounded-xl border flex items-center justify-between cursor-pointer transition ${active ? 'bg-white border-blue-500 text-slate-900 font-bold shadow-sm' : 'bg-slate-100 border-transparent hover:bg-slate-200 text-slate-600'}`}
+                    className={`
+                      p-4 rounded-2xl border bg-white cursor-pointer transition-all duration-200
+                      hover:shadow-md hover:border-slate-350 hover:translate-y-[-2px]
+                      flex items-center justify-between gap-3
+                      ${isSelected 
+                        ? 'border-2 shadow-sm' 
+                        : 'border-slate-200'
+                      }
+                    `}
+                    style={{ 
+                      borderColor: isSelected ? theme.primary : undefined,
+                      boxShadow: isSelected ? `0 4px 15px ${theme.shadow}` : undefined
+                    }}
                   >
-                    <div className="min-w-0">
-                      <p className="text-[11px] font-black truncate">{clinic.name}</p>
-                      <p className="text-[9px] text-slate-400 truncate mt-0.5">{clinic.address?.city || 'Registered'}</p>
+                    <div className="flex items-start gap-3 min-w-0">
+                      <div 
+                        className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-base font-extrabold"
+                        style={{ backgroundColor: theme.bgLight }}
+                      >
+                        🏥
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-black text-slate-900 truncate leading-snug">{clinic.name}</p>
+                        <p className="text-[10px] text-slate-400 truncate mt-0.5">{clinic.address?.city || 'Registered'}</p>
+                        {clinic.hasActiveTreatment ? (
+                          <span className="inline-block bg-amber-500/10 text-amber-600 text-[8px] font-black px-1.5 py-0.5 rounded-md mt-1.5 uppercase tracking-wider">
+                            Active Treatment ⚡
+                          </span>
+                        ) : clinic.nextApptDate ? (
+                          <span className="inline-block bg-blue-500/10 text-blue-600 text-[8px] font-black px-1.5 py-0.5 rounded-md mt-1.5 uppercase tracking-wider">
+                            Upcoming Appt 📅
+                          </span>
+                        ) : visitDateStr ? (
+                          <span className="inline-block text-[9px] text-slate-400 mt-1 font-bold">
+                            Last Visit: {visitDateStr}
+                          </span>
+                        ) : null}
+                        {clinic.primaryDoctor && (
+                          <p className="text-[9px] text-slate-500 mt-0.5">Dr. {clinic.primaryDoctor}</p>
+                        )}
+                      </div>
                     </div>
-                    {active && (
-                      <CheckCircle size={13} className="text-emerald-500 shrink-0 ml-2" />
-                    )}
+                    <ChevronRight size={14} className="text-slate-400 shrink-0" />
                   </div>
                 );
               })}
-            </div>
-            <button
-              onClick={() => navigate('/portal?tab=clinics')}
-              className="w-full mt-3 py-2 text-center text-[10px] font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition"
-            >
-              View All Clinics
-            </button>
+              {patientClinics.length === 0 && (
+                <div className="text-center py-12">
+                  <p className="text-xs text-slate-400 italic">No clinics registered.</p>
+                </div>
+              )}
+            </nav>
           </div>
-        )}
 
-        {/* Footer & Toggle Theme */}
-        <div className="px-4 pb-4 pt-3 shrink-0 space-y-2 border-t border-slate-200 bg-white">
+          {/* STATE 2: CLINIC SPECIFIC NAVIGATION */}
+          <div 
+            className={`flex-1 flex flex-col min-h-0 absolute inset-0 transition-all duration-300 ${
+              selectedClinicId && !selectedLabId && !selectedPharmacyId ? 'translate-x-0 opacity-100' : 
+              selectedClinicId && (selectedLabId || selectedPharmacyId) ? 'translate-x-[-100%] opacity-0 pointer-events-none' : 'translate-x-[100%] opacity-0 pointer-events-none'
+            }`}
+          >
+            {/* Back Button */}
+            <div className="px-4 pt-3 pb-1 shrink-0">
+              <button
+                onClick={() => {
+                  const currentParams = new URLSearchParams(location.search);
+                  currentParams.delete('clinicId');
+                  navigate(`/portal?${currentParams.toString()}`);
+                }}
+                className="w-full flex items-center gap-1.5 px-3 py-2 text-xs font-extrabold text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-xl transition duration-150"
+              >
+                <ChevronLeft size={14} />
+                <span>Back to My Clinics</span>
+              </button>
+            </div>
+
+            {/* Selected Clinic Fixed Header Card */}
+            {selectedClinic && (
+              <div className="px-4 py-2 shrink-0 border-b border-slate-100">
+                <div 
+                  className="p-3.5 rounded-2xl bg-white border border-slate-200 flex items-center justify-between gap-3 shadow-sm hover:shadow transition-shadow"
+                  style={{ borderLeft: `4px solid ${activeTheme.primary}` }}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div 
+                      className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-base"
+                      style={{ backgroundColor: activeTheme.bgLight }}
+                    >
+                      🏥
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-black text-slate-900 truncate leading-tight">{selectedClinic.name}</p>
+                      <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Current Clinic</p>
+                    </div>
+                  </div>
+                  <ChevronDown size={14} className="text-slate-400 shrink-0" />
+                </div>
+              </div>
+            )}
+
+            {/* Clinic Navigation Menu */}
+            <nav className="flex-1 overflow-y-auto px-4 py-3 space-y-1 scrollbar-thin scrollbar-thumb-slate-200">
+              
+              {/* Dashboard */}
+              <NavLink
+                to={`/portal?tab=dashboard&clinicId=${selectedClinicId}`}
+                onClick={onNavigate}
+                className="flex items-center justify-between px-4 py-2.5 rounded-2xl text-xs font-bold transition duration-150"
+                style={{
+                  backgroundColor: currentTab === 'dashboard' ? activeTheme.bgLight : 'transparent',
+                  color: currentTab === 'dashboard' ? activeTheme.primary : '#475569'
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="shrink-0" style={{ color: currentTab === 'dashboard' ? activeTheme.primary : '#94a3b8' }}>
+                    <LayoutDashboard size={16} />
+                  </span>
+                  <span>Dashboard</span>
+                </div>
+              </NavLink>
+
+              {/* My Clinic */}
+              <NavLink
+                to={`/portal?tab=my-clinic&clinicId=${selectedClinicId}`}
+                onClick={onNavigate}
+                className="flex items-center justify-between px-4 py-2.5 rounded-2xl text-xs font-bold transition duration-150"
+                style={{
+                  backgroundColor: currentTab === 'my-clinic' ? activeTheme.bgLight : 'transparent',
+                  color: currentTab === 'my-clinic' ? activeTheme.primary : '#475569'
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="shrink-0" style={{ color: currentTab === 'my-clinic' ? activeTheme.primary : '#94a3b8' }}>
+                    <Building2 size={16} />
+                  </span>
+                  <span>My Clinic</span>
+                </div>
+              </NavLink>
+
+              {/* Appointments */}
+              <NavLink
+                to={`/portal?tab=appointments&clinicId=${selectedClinicId}`}
+                onClick={onNavigate}
+                className="flex items-center justify-between px-4 py-2.5 rounded-2xl text-xs font-bold transition duration-150"
+                style={{
+                  backgroundColor: currentTab === 'appointments' ? activeTheme.bgLight : 'transparent',
+                  color: currentTab === 'appointments' ? activeTheme.primary : '#475569'
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="shrink-0" style={{ color: currentTab === 'appointments' ? activeTheme.primary : '#94a3b8' }}>
+                    <Calendar size={16} />
+                  </span>
+                  <span>Appointments</span>
+                </div>
+              </NavLink>
+
+              {/* Consultation History */}
+              <NavLink
+                to={`/portal?tab=history&clinicId=${selectedClinicId}`}
+                onClick={onNavigate}
+                className="flex items-center justify-between px-4 py-2.5 rounded-2xl text-xs font-bold transition duration-150"
+                style={{
+                  backgroundColor: currentTab === 'history' ? activeTheme.bgLight : 'transparent',
+                  color: currentTab === 'history' ? activeTheme.primary : '#475569'
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="shrink-0" style={{ color: currentTab === 'history' ? activeTheme.primary : '#94a3b8' }}>
+                    <Stethoscope size={16} />
+                  </span>
+                  <span>Consultation History</span>
+                </div>
+              </NavLink>
+
+              {/* Prescriptions */}
+              <NavLink
+                to={`/portal?tab=prescriptions&clinicId=${selectedClinicId}`}
+                onClick={onNavigate}
+                className="flex items-center justify-between px-4 py-2.5 rounded-2xl text-xs font-bold transition duration-150"
+                style={{
+                  backgroundColor: currentTab === 'prescriptions' ? activeTheme.bgLight : 'transparent',
+                  color: currentTab === 'prescriptions' ? activeTheme.primary : '#475569'
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="shrink-0" style={{ color: currentTab === 'prescriptions' ? activeTheme.primary : '#94a3b8' }}>
+                    <ClipboardList size={16} />
+                  </span>
+                  <span>Prescriptions</span>
+                </div>
+              </NavLink>
+
+              {/* Laboratory (Expandable Accordion) */}
+              {isClinicFeatureActive(selectedClinic, 'labs') && (
+                <div className="space-y-1">
+                  <button
+                    onClick={() => setLabExpanded(!labExpanded)}
+                    className="w-full flex items-center justify-between px-4 py-2.5 rounded-2xl text-xs font-bold transition duration-150 hover:bg-slate-50 text-slate-700"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="shrink-0 text-slate-400">
+                        <FlaskConical size={16} />
+                      </span>
+                      <span>Laboratory</span>
+                    </div>
+                    <ChevronDown size={14} className={`text-slate-400 transition-transform duration-200 ${labExpanded ? 'rotate-180' : ''}`} />
+                  </button>
+                  
+                  <div className={`pl-8 space-y-1 overflow-hidden transition-all duration-350 ${labExpanded ? 'max-h-32 opacity-100 mt-1' : 'max-h-0 opacity-0 pointer-events-none'}`}>
+                    <NavLink
+                      to={`/portal?tab=book-lab&clinicId=${selectedClinicId}`}
+                      onClick={onNavigate}
+                      className="flex items-center gap-3 px-4 py-2 rounded-xl text-xs font-bold transition"
+                      style={{
+                        backgroundColor: currentTab === 'book-lab' ? activeTheme.bgLight : 'transparent',
+                        color: currentTab === 'book-lab' ? activeTheme.primary : '#64748b'
+                      }}
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: currentTab === 'book-lab' ? activeTheme.primary : '#cbd5e1' }} />
+                      <span>Book Lab Test</span>
+                    </NavLink>
+                    <NavLink
+                      to={`/portal?tab=labs&clinicId=${selectedClinicId}`}
+                      onClick={onNavigate}
+                      className="flex items-center gap-3 px-4 py-2 rounded-xl text-xs font-bold transition"
+                      style={{
+                        backgroundColor: currentTab === 'labs' ? activeTheme.bgLight : 'transparent',
+                        color: currentTab === 'labs' ? activeTheme.primary : '#64748b'
+                      }}
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: currentTab === 'labs' ? activeTheme.primary : '#cbd5e1' }} />
+                      <span>View Lab Reports</span>
+                    </NavLink>
+                  </div>
+                </div>
+              )}
+
+              {/* Pharmacy (Expandable Accordion) */}
+              {isClinicFeatureActive(selectedClinic, 'pharmacy') && (
+                <div className="space-y-1">
+                  <button
+                    onClick={() => setPharmacyExpanded(!pharmacyExpanded)}
+                    className="w-full flex items-center justify-between px-4 py-2.5 rounded-2xl text-xs font-bold transition duration-150 hover:bg-slate-50 text-slate-700"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="shrink-0 text-slate-400">
+                        <Pill size={16} />
+                      </span>
+                      <span>Pharmacy</span>
+                    </div>
+                    <ChevronDown size={14} className={`text-slate-400 transition-transform duration-200 ${pharmacyExpanded ? 'rotate-180' : ''}`} />
+                  </button>
+                  
+                  <div className={`pl-8 space-y-1 overflow-hidden transition-all duration-350 ${pharmacyExpanded ? 'max-h-32 opacity-100 mt-1' : 'max-h-0 opacity-0 pointer-events-none'}`}>
+                    <NavLink
+                      to={`/portal?tab=buy-medicine&clinicId=${selectedClinicId}`}
+                      onClick={onNavigate}
+                      className="flex items-center gap-3 px-4 py-2 rounded-xl text-xs font-bold transition"
+                      style={{
+                        backgroundColor: currentTab === 'buy-medicine' ? activeTheme.bgLight : 'transparent',
+                        color: currentTab === 'buy-medicine' ? activeTheme.primary : '#64748b'
+                      }}
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: currentTab === 'buy-medicine' ? activeTheme.primary : '#cbd5e1' }} />
+                      <span>Buy Medicine</span>
+                    </NavLink>
+                    <NavLink
+                      to={`/portal?tab=pharmacy-orders&clinicId=${selectedClinicId}`}
+                      onClick={onNavigate}
+                      className="flex items-center gap-3 px-4 py-2 rounded-xl text-xs font-bold transition"
+                      style={{
+                        backgroundColor: currentTab === 'pharmacy-orders' ? activeTheme.bgLight : 'transparent',
+                        color: currentTab === 'pharmacy-orders' ? activeTheme.primary : '#64748b'
+                      }}
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: currentTab === 'pharmacy-orders' ? activeTheme.primary : '#cbd5e1' }} />
+                      <span>My Orders</span>
+                    </NavLink>
+                  </div>
+                </div>
+              )}
+
+              {/* Medical Documents */}
+              <NavLink
+                to={`/portal?tab=documents&clinicId=${selectedClinicId}`}
+                onClick={onNavigate}
+                className="flex items-center justify-between px-4 py-2.5 rounded-2xl text-xs font-bold transition duration-150"
+                style={{
+                  backgroundColor: currentTab === 'documents' ? activeTheme.bgLight : 'transparent',
+                  color: currentTab === 'documents' ? activeTheme.primary : '#475569'
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="shrink-0" style={{ color: currentTab === 'documents' ? activeTheme.primary : '#94a3b8' }}>
+                    <FileText size={16} />
+                  </span>
+                  <span>Medical Documents</span>
+                </div>
+              </NavLink>
+
+              {/* Bills & Payments */}
+              <NavLink
+                to={`/portal?tab=billing&clinicId=${selectedClinicId}`}
+                onClick={onNavigate}
+                className="flex items-center justify-between px-4 py-2.5 rounded-2xl text-xs font-bold transition duration-150"
+                style={{
+                  backgroundColor: currentTab === 'billing' ? activeTheme.bgLight : 'transparent',
+                  color: currentTab === 'billing' ? activeTheme.primary : '#475569'
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="shrink-0" style={{ color: currentTab === 'billing' ? activeTheme.primary : '#94a3b8' }}>
+                    <CreditCard size={16} />
+                  </span>
+                  <span>Bills & Payments</span>
+                </div>
+              </NavLink>
+
+            </nav>
+          </div>
+
+          {/* STATE 3A: LABORATORY WORKSPACE */}
+          <div 
+            className={`flex-1 flex flex-col min-h-0 absolute inset-0 transition-all duration-300 ${
+              selectedClinicId && selectedLabId ? 'translate-x-0 opacity-100' : 'translate-x-[100%] opacity-0 pointer-events-none'
+            }`}
+          >
+            {/* Back Button */}
+            <div className="px-4 pt-3 pb-1 shrink-0">
+              <button
+                onClick={() => {
+                  const currentParams = new URLSearchParams(location.search);
+                  currentParams.delete('labId');
+                  currentParams.set('tab', 'book-lab');
+                  navigate(`/portal?${currentParams.toString()}`);
+                }}
+                className="w-full flex items-center gap-1.5 px-3 py-2 text-xs font-extrabold text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-xl transition duration-150"
+              >
+                <ChevronLeft size={14} />
+                <span>Back to Laboratories</span>
+              </button>
+            </div>
+
+            {/* Selected Laboratory Header Card */}
+            {activeLab && (
+              <div className="px-4 py-2 shrink-0 border-b border-slate-100">
+                <div 
+                  className="p-3.5 rounded-2xl bg-white border border-slate-200 flex items-center justify-between gap-3 shadow-sm"
+                  style={{ borderLeft: `4px solid ${activeTheme.primary}` }}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div 
+                      className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-base"
+                      style={{ backgroundColor: activeTheme.bgLight }}
+                    >
+                      🧪
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-black text-slate-900 truncate leading-tight">{activeLab.name}</p>
+                      <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Integrated Lab</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Lab Workspace Navigation */}
+            <nav className="flex-1 overflow-y-auto px-4 py-3 space-y-1 scrollbar-thin scrollbar-thumb-slate-200">
+              {[
+                { label: 'All Lab Tests', tab: 'lab-tests', icon: <FlaskConical size={16} /> },
+                { label: 'Health Packages', tab: 'lab-packages', icon: <Building2 size={16} /> },
+                { label: 'My Bookings', tab: 'lab-bookings', icon: <Calendar size={16} /> },
+                { label: 'Reports', tab: 'lab-reports', icon: <FileText size={16} /> }
+              ].map((item, idx) => {
+                const active = currentTab === item.tab;
+                return (
+                  <NavLink
+                    key={idx}
+                    to={`/portal?tab=${item.tab}&clinicId=${selectedClinicId}&labId=${selectedLabId}`}
+                    onClick={onNavigate}
+                    className="flex items-center justify-between px-4 py-2.5 rounded-2xl text-xs font-bold transition duration-150"
+                    style={{
+                      backgroundColor: active ? activeTheme.bgLight : 'transparent',
+                      color: active ? activeTheme.primary : '#475569'
+                    }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="shrink-0" style={{ color: active ? activeTheme.primary : '#94a3b8' }}>
+                        {item.icon}
+                      </span>
+                      <span>{item.label}</span>
+                    </div>
+                  </NavLink>
+                );
+              })}
+            </nav>
+          </div>
+
+          {/* STATE 3B: PHARMACY WORKSPACE */}
+          <div 
+            className={`flex-1 flex flex-col min-h-0 absolute inset-0 transition-all duration-300 ${
+              selectedClinicId && selectedPharmacyId ? 'translate-x-0 opacity-100' : 'translate-x-[100%] opacity-0 pointer-events-none'
+            }`}
+          >
+            {/* Back Button */}
+            <div className="px-4 pt-3 pb-1 shrink-0">
+              <button
+                onClick={() => {
+                  const currentParams = new URLSearchParams(location.search);
+                  currentParams.delete('pharmacyId');
+                  currentParams.set('tab', 'buy-medicine');
+                  navigate(`/portal?${currentParams.toString()}`);
+                }}
+                className="w-full flex items-center gap-1.5 px-3 py-2 text-xs font-extrabold text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-xl transition duration-150"
+              >
+                <ChevronLeft size={14} />
+                <span>Back to Pharmacies</span>
+              </button>
+            </div>
+
+            {/* Selected Pharmacy Header Card */}
+            {activePharmacy && (
+              <div className="px-4 py-2 shrink-0 border-b border-slate-100">
+                <div 
+                  className="p-3.5 rounded-2xl bg-white border border-slate-200 flex items-center justify-between gap-3 shadow-sm"
+                  style={{ borderLeft: `4px solid ${activeTheme.primary}` }}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div 
+                      className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-base"
+                      style={{ backgroundColor: activeTheme.bgLight }}
+                    >
+                      💊
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-black text-slate-900 truncate leading-tight">{activePharmacy.name}</p>
+                      <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Integrated Store</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Pharmacy Workspace Navigation */}
+            <nav className="flex-1 overflow-y-auto px-4 py-3 space-y-1 scrollbar-thin scrollbar-thumb-slate-200">
+              {[
+                { label: 'All Medicines', tab: 'pharmacy-medicines', icon: <Pill size={16} /> },
+                { label: 'Categories', tab: 'pharmacy-categories', icon: <LayoutGrid size={16} /> },
+                { label: 'Offers', tab: 'pharmacy-offers', icon: <TrendingUp size={16} /> },
+                { label: 'My Cart', tab: 'pharmacy-cart', icon: <Activity size={16} /> },
+                { label: 'My Orders', tab: 'pharmacy-orders-workspace', icon: <Clock size={16} /> },
+                { label: 'Prescriptions', tab: 'pharmacy-prescriptions', icon: <FileText size={16} /> }
+              ].map((item, idx) => {
+                const active = currentTab === item.tab;
+                return (
+                  <NavLink
+                    key={idx}
+                    to={`/portal?tab=${item.tab}&clinicId=${selectedClinicId}&pharmacyId=${selectedPharmacyId}`}
+                    onClick={onNavigate}
+                    className="flex items-center justify-between px-4 py-2.5 rounded-2xl text-xs font-bold transition duration-150"
+                    style={{
+                      backgroundColor: active ? activeTheme.bgLight : 'transparent',
+                      color: active ? activeTheme.primary : '#475569'
+                    }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="shrink-0" style={{ color: active ? activeTheme.primary : '#94a3b8' }}>
+                        {item.icon}
+                      </span>
+                      <span>{item.label}</span>
+                    </div>
+                  </NavLink>
+                );
+              })}
+            </nav>
+          </div>
+
+        </div>
+
+        {/* Footer & Logout */}
+        <div className="px-4 pb-4 pt-3 shrink-0 border-t border-slate-200 bg-white">
           {onLogout && (
             <button
               onClick={onLogout}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-all duration-150"
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-black text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-all duration-150"
             >
-              <LogOut size={15} className="shrink-0" />
+              <LogOut size={15} className="shrink-0 text-slate-400" />
               <span>Logout</span>
             </button>
           )}

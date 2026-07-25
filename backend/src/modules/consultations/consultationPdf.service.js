@@ -120,7 +120,7 @@ const sectionHeader = (doc, num, title) => {
 // HEADER (Page 1 vs Continuation)
 // ────────────────────────────────────────────────────────────────────────────
 
-const renderHeader = (doc, clinic, doctor, patient, consultation, qrBuffer, pageIdx, totalPages) => {
+const renderHeader = (doc, clinic, doctor, patient, consultation, qrBuffer, pageIdx, totalPages, prescription) => {
   const top = 20;
   const L = PAGE.marginLeft;
   const R = PAGE.width - PAGE.marginRight;
@@ -232,22 +232,47 @@ const renderHeader = (doc, clinic, doctor, patient, consultation, qrBuffer, page
     doc.text(`Reg. No.: ${doctor?.medicalRegistrationNumber || '98765'}`, L + 50, docY + 31, { ...o });
     doc.text(doctor?.specialization || 'Consultant Physician', L + 50, docY + 41, { ...o });
 
-    // Consultation details
+    // Consultation details (right column of doctor card)
     const detX = L + CW * 0.55;
     doc.font(F.regular).fontSize(7).fillColor(C.muted);
     doc.text(`Consultation Type`, detX, docY + 8, { ...o });
     doc.font(F.bold).fontSize(8).fillColor(C.heading);
-    doc.text(`In-Clinic`, detX, docY + 18, { ...o });
+    doc.text(capitalize(consultation?.consultationType || consultation?.type || 'In-Clinic'), detX, docY + 18, { ...o });
 
     doc.font(F.regular).fontSize(7).fillColor(C.muted);
     doc.text(`Consultation Duration`, detX + 75, docY + 8, { ...o });
     doc.font(F.bold).fontSize(8).fillColor(C.heading);
-    doc.text(`22 mins`, detX + 75, docY + 18, { ...o });
+    const startT = consultation?.startTime || consultation?.createdAt;
+    const endT = consultation?.endTime || consultation?.completedAt;
+    const durationMins = (startT && endT) ? Math.round((new Date(endT) - new Date(startT)) / 60000) : null;
+    doc.text(durationMins ? `${durationMins} mins` : 'N/A', detX + 75, docY + 18, { ...o });
+
+    // Follow-up After: compute from prescription.followUpDate vs consultation.followUp.date
+    const rawFollowUpDate = prescription?.followUpDate || consultation?.followUp?.date;
+    let followUpAfterStr = 'N/A';
+    if (rawFollowUpDate) {
+      const fuDate = new Date(rawFollowUpDate);
+      fuDate.setHours(0, 0, 0, 0);
+      const todayDate = new Date();
+      todayDate.setHours(0, 0, 0, 0);
+      const consultDate = consultation?.createdAt ? new Date(consultation.createdAt) : todayDate;
+      consultDate.setHours(0, 0, 0, 0);
+      const diffDays = Math.round((fuDate - consultDate) / (1000 * 60 * 60 * 24));
+      if (diffDays > 0) {
+        if (diffDays % 30 === 0) followUpAfterStr = `${diffDays / 30} Month${diffDays / 30 > 1 ? 's' : ''}`;
+        else if (diffDays % 7 === 0) followUpAfterStr = `${diffDays / 7} Week${diffDays / 7 > 1 ? 's' : ''}`;
+        else followUpAfterStr = `${diffDays} Day${diffDays > 1 ? 's' : ''}`;
+      } else {
+        followUpAfterStr = fmtDate(rawFollowUpDate);
+      }
+    } else if (consultation?.followUp?.afterDays) {
+      followUpAfterStr = `${consultation.followUp.afterDays} Days`;
+    }
 
     doc.font(F.regular).fontSize(7).fillColor(C.muted);
     doc.text(`Follow-up After`, detX + 165, docY + 8, { ...o });
     doc.font(F.bold).fontSize(8).fillColor(C.heading);
-    doc.text(`7 Days`, detX + 165, docY + 18, { ...o });
+    doc.text(followUpAfterStr, detX + 165, docY + 18, { ...o });
 
   } else {
     // ────────────────────────────────────────────────────────────────────────
@@ -833,7 +858,7 @@ const generateConsultationPdf = async ({ consultation, clinic, patient, doctor, 
       doc.page.margins = { top: 0, bottom: 0, left: 0, right: 0 };
 
       renderWatermark(doc, clinic);
-      renderHeader(doc, clinic, doctor, patient, consultation, qrBuffer, i, totalPages);
+      renderHeader(doc, clinic, doctor, patient, consultation, qrBuffer, i, totalPages, prescription);
       renderFooter(doc, clinic, consultation, i, totalPages);
 
       doc.page.margins = origMargins;

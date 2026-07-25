@@ -69,6 +69,22 @@ const paymentMethodSchema = z.object({
   cardType: optionalTrimmedString
 });
 
+const savedAddressSchema = z.object({
+  fullName: z.string().trim().min(1, 'Full name is required'),
+  mobileNumber: z.string().trim().min(1, 'Mobile number is required'),
+  alternateNumber: z.string().trim().optional().nullable(),
+  houseFlatNumber: z.string().trim().min(1, 'House/Flat number is required'),
+  buildingName: z.string().trim().optional().nullable(),
+  street: z.string().trim().min(1, 'Street is required'),
+  landmark: z.string().trim().optional().nullable(),
+  area: z.string().trim().min(1, 'Area is required'),
+  city: z.string().trim().min(1, 'City is required'),
+  state: z.string().trim().min(1, 'State is required'),
+  pinCode: z.string().trim().min(1, 'Pin Code is required'),
+  addressType: z.enum(['Home', 'Work', 'Other']).default('Home'),
+  isDefault: z.boolean().default(false)
+});
+
 const patientPayloadSchema = z.object({
   firstName: z.string().trim().min(1, 'First name is required').max(100),
   lastName: z.string().trim().max(100).optional(),
@@ -124,7 +140,8 @@ const patientPayloadSchema = z.object({
   isActive: z.boolean().optional(),
   clinicId: objectIdSchema.optional(),
   insuranceDetails: insuranceDetailsSchema.optional(),
-  paymentMethods: z.array(paymentMethodSchema).optional()
+  paymentMethods: z.array(paymentMethodSchema).optional(),
+  savedAddresses: z.array(savedAddressSchema).optional()
 });
 
 const createPatientSchema = z.object({

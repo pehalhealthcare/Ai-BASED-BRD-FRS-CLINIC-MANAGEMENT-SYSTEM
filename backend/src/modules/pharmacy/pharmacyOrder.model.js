@@ -41,8 +41,54 @@ const pharmacyOrderSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['pending', 'completed', 'cancelled'],
+      enum: [
+        'pending',
+        'confirmed',
+        'preparing',
+        'ready_for_pickup',
+        'out_for_delivery',
+        'completed',
+        'cancelled',
+        'rejected'
+      ],
       default: 'pending'
+    },
+    deliveryMethod: {
+      type: String,
+      enum: ['Home Delivery', 'Pickup'],
+      default: 'Pickup'
+    },
+    deliveryAddress: {
+      type: Object,
+      default: null
+    },
+    pickupLocation: {
+      type: String,
+      default: ''
+    },
+    pickupAddress: {
+      type: String,
+      default: ''
+    },
+    preparationTime: {
+      type: String,
+      default: ''
+    },
+    pickupSlot: {
+      type: String,
+      default: ''
+    },
+    pickupCode: {
+      type: String,
+      default: ''
+    },
+    qrCode: {
+      type: String,
+      default: ''
+    },
+    rejectionReason: {
+      type: String,
+      default: ''
     },
     totalPrice: {
       type: Number,

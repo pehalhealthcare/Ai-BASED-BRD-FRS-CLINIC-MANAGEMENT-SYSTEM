@@ -49,7 +49,7 @@ const LoginPage = () => {
     setError('');
 
     try {
-      const authData = await login(form);
+      const authData = await login({ ...form, portal: activeTab });
       if (authData?.requiresOtp) {
         if (authData.role === 'DOCTOR') {
           navigate('/doctor-verify-otp', { state: { email: authData.email }, replace: true });
@@ -62,13 +62,22 @@ const LoginPage = () => {
       const clinic = authData?.user?.clinic;
       
       // Perform role verification
+      if (userRole === 'SUPER_ADMIN') {
+        navigate(getDefaultRouteForRole(userRole), { replace: true });
+        return;
+      }
       if (activeTab === 'patient' && userRole !== 'PATIENT') {
-        setError('Only patient accounts can sign in here.');
+        setError('This account is not registered as a Patient. Please sign in using the correct portal.');
         setSubmitting(false);
         return;
       }
       if (activeTab === 'staff' && userRole === 'PATIENT') {
-        setError('Only doctor, staff, and admin accounts can sign in here.');
+        setError('This account is not authorized for the Staff Portal. Please use the Patient Sign In page.');
+        setSubmitting(false);
+        return;
+      }
+      if (activeTab === 'staff' && userRole === 'ADMIN') {
+        setError('This account belongs to a Clinic Administrator. Please use the Clinic Portal Login.');
         setSubmitting(false);
         return;
       }

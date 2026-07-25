@@ -19,67 +19,9 @@ const mapProviderTypeToRole = (providerType) => {
   return `${providerType} Operator`;
 };
 
-const createOperatorStaff = async (clinicId, provider, actorUserId) => {
+const sendOperatorOnboardingEmail = async (clinicId, provider, user, actorUserId) => {
   const role = mapProviderTypeToRole(provider.providerType);
-  const department = provider.providerType;
-
-  // Validate email availability
-  const existingUser = await User.findOne({ email: provider.email.toLowerCase() });
-  if (existingUser) {
-    throw new AppError('A user with this operator email address already exists', HTTP_STATUS.CONFLICT);
-  }
-
-  // Create User
   const tempPassword = provider.phone;
-  const hashedPassword = await bcrypt.hash(tempPassword, 10);
-
-  const user = await User.create({
-    name: provider.contactPerson,
-    email: provider.email.toLowerCase(),
-    phone: provider.phone,
-    password: hashedPassword,
-    role,
-    department,
-    clinicId,
-    providerId: provider._id,
-    assignedProviderId: provider._id,
-    origin: 'provider_operator',
-    isActive: false,
-    approvalStatus: 'pending_invitation',
-    isEmailVerified: false
-  });
-
-  // Create Staff
-  const parts = provider.contactPerson ? provider.contactPerson.split(' ') : ['Operator'];
-  const firstName = parts[0];
-  const lastName = parts.slice(1).join(' ') || '';
-  const staffCode = `OPR-${String(user._id).slice(-4).toUpperCase()}`;
-
-  const staff = await Staff.create({
-    userId: user._id,
-    firstName,
-    lastName,
-    fullName: provider.contactPerson,
-    phone: provider.phone,
-    email: provider.email.toLowerCase(),
-    role,
-    department,
-    clinicId,
-    assignedClinics: [clinicId],
-    staffCode,
-    isActive: false,
-    approvalStatus: 'pending_invitation',
-    origin: 'provider_operator',
-    assignedProviderId: provider._id,
-    createdBy: actorUserId,
-    updatedBy: actorUserId
-  });
-
-  // Update Provider linkage
-  provider.operatorStaffId = staff._id;
-  await provider.save();
-
-  // Send onboarding email
   const clinic = await Clinic.findById(clinicId);
   const clinicName = clinic ? clinic.name : 'AICMS Clinic';
   const secureLoginLink = `${env.frontendUrl || 'http://localhost:3000'}/login?type=staff`;
@@ -118,9 +60,135 @@ On your first login, enter your Login ID and Temporary Password. A verification 
       html: body.replace(/\n/g, '<br>')
     });
     logger.info(`[provider:operator-invite] Sent successfully to ${user.email}`);
+
+    await createAuditLog({
+      actorUserId,
+      action: 'INVITATION_SENT',
+      entity: 'User',
+      entityId: user._id,
+      metadata: { email: user.email },
+      status: 'SUCCESS'
+    });
   } catch (error) {
     logger.error('[provider:operator-invite] Failed to send email via SMTP', error);
   }
+};
+
+const createOperatorStaff = async (clinicId, provider, actorUserId, deferInvitation = false) => {
+  const role = mapProviderTypeToRole(provider.providerType);
+  const department = provider.providerType;
+
+  // Validate email availability - prevent duplicates, link roles/provider
+  let user = await User.findOne({ email: provider.email.toLowerCase() });
+  let staff;
+
+  if (user) {
+    if (user.clinicId?.toString() !== clinicId?.toString()) {
+      throw new AppError('A user with this operator email address already exists in another clinic', HTTP_STATUS.CONFLICT);
+    }
+    // Update user link and role
+    user.role = role;
+    user.providerId = provider._id;
+    user.assignedProviderId = provider._id;
+    if (deferInvitation) {
+      user.approvalStatus = 'pending_onboarding';
+      user.isActive = false;
+    } else {
+      user.approvalStatus = 'pending_invitation';
+      user.isActive = true;
+    }
+    await user.save();
+
+    staff = await Staff.findOne({ userId: user._id });
+    if (staff) {
+      staff.role = role;
+      staff.department = department;
+      staff.assignedProviderId = provider._id;
+      if (deferInvitation) {
+        staff.approvalStatus = 'pending_onboarding';
+        staff.isActive = false;
+      } else {
+        staff.approvalStatus = 'pending_invitation';
+        staff.isActive = true;
+      }
+      await staff.save();
+    } else {
+      const parts = provider.contactPerson ? provider.contactPerson.split(' ') : ['Operator'];
+      const firstName = parts[0];
+      const lastName = parts.slice(1).join(' ') || '';
+      const staffCode = `OPR-${String(user._id).slice(-4).toUpperCase()}`;
+
+      staff = await Staff.create({
+        userId: user._id,
+        firstName,
+        lastName,
+        fullName: provider.contactPerson,
+        phone: provider.phone,
+        email: provider.email.toLowerCase(),
+        role,
+        department,
+        clinicId,
+        assignedClinics: [clinicId],
+        staffCode,
+        isActive: !deferInvitation,
+        approvalStatus: deferInvitation ? 'pending_onboarding' : 'pending_invitation',
+        origin: 'provider_operator',
+        assignedProviderId: provider._id,
+        createdBy: actorUserId,
+        updatedBy: actorUserId
+      });
+    }
+  } else {
+    // Create User
+    const tempPassword = provider.phone;
+    const hashedPassword = await bcrypt.hash(tempPassword, 10);
+
+    user = await User.create({
+      name: provider.contactPerson,
+      email: provider.email.toLowerCase(),
+      phone: provider.phone,
+      password: hashedPassword,
+      role,
+      department,
+      clinicId,
+      providerId: provider._id,
+      assignedProviderId: provider._id,
+      origin: 'provider_operator',
+      isActive: !deferInvitation,
+      approvalStatus: deferInvitation ? 'pending_onboarding' : 'pending_invitation',
+      isEmailVerified: false
+    });
+
+    // Create Staff
+    const parts = provider.contactPerson ? provider.contactPerson.split(' ') : ['Operator'];
+    const firstName = parts[0];
+    const lastName = parts.slice(1).join(' ') || '';
+    const staffCode = `OPR-${String(user._id).slice(-4).toUpperCase()}`;
+
+    staff = await Staff.create({
+      userId: user._id,
+      firstName,
+      lastName,
+      fullName: provider.contactPerson,
+      phone: provider.phone,
+      email: provider.email.toLowerCase(),
+      role,
+      department,
+      clinicId,
+      assignedClinics: [clinicId],
+      staffCode,
+      isActive: !deferInvitation,
+      approvalStatus: deferInvitation ? 'pending_onboarding' : 'pending_invitation',
+      origin: 'provider_operator',
+      assignedProviderId: provider._id,
+      createdBy: actorUserId,
+      updatedBy: actorUserId
+    });
+  }
+
+  // Update Provider linkage
+  provider.operatorStaffId = staff._id;
+  await provider.save();
 
   // Audit Logs
   await createAuditLog({
@@ -132,14 +200,9 @@ On your first login, enter your Login ID and Temporary Password. A verification 
     status: 'SUCCESS'
   });
 
-  await createAuditLog({
-    actorUserId,
-    action: 'INVITATION_SENT',
-    entity: 'User',
-    entityId: user._id,
-    metadata: { email: user.email },
-    status: 'SUCCESS'
-  });
+  if (!deferInvitation) {
+    await sendOperatorOnboardingEmail(clinicId, provider, user, actorUserId);
+  }
 
   return staff;
 };
@@ -242,5 +305,6 @@ const handleStatusChange = async (clinicId, provider, newStatus, actorUserId) =>
 module.exports = {
   createOperatorStaff,
   replaceOperatorStaff,
-  handleStatusChange
+  handleStatusChange,
+  sendOperatorOnboardingEmail
 };

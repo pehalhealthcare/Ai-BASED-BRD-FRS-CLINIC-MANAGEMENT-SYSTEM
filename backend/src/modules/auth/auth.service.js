@@ -239,7 +239,7 @@ const register = async (payload, req) => {
   };
 };
 
-const login = async ({ email, password }, req) => {
+const login = async ({ email, password, portal }, req) => {
   const user = await userRepository.findByEmail(email, { includePassword: true });
 
   if (!user) {
@@ -268,6 +268,69 @@ const login = async ({ email, password }, req) => {
   }
 
   const { STAFF_ROLES } = require('../../common/constants/roles');
+  const isSuperAdmin = user.role === ROLES.SUPER_ADMIN;
+  const isClinicAdmin = user.role === ROLES.ADMIN;
+  const isPatient = user.role === ROLES.PATIENT;
+  const isStaff = user.role === ROLES.DOCTOR || STAFF_ROLES.includes(user.role);
+
+  if (portal && !isSuperAdmin) {
+    let allowed = true;
+    let denialReason = null;
+    let errorMessage = '';
+
+    if (portal === 'patient') {
+      if (!isPatient) {
+        allowed = false;
+        denialReason = 'ROLE_MISMATCH_PATIENT';
+        errorMessage = 'This account is not registered as a Patient. Please sign in using the correct portal.';
+      }
+    } else if (portal === 'staff') {
+      if (isPatient) {
+        allowed = false;
+        denialReason = 'ROLE_MISMATCH_STAFF_IS_PATIENT';
+        errorMessage = 'This account is not authorized for the Staff Portal. Please use the Patient Sign In page.';
+      } else if (isClinicAdmin) {
+        allowed = false;
+        denialReason = 'ROLE_MISMATCH_STAFF_IS_ADMIN';
+        errorMessage = 'This account belongs to a Clinic Administrator. Please use the Clinic Portal Login.';
+      } else if (!isStaff) {
+        allowed = false;
+        denialReason = 'ROLE_MISMATCH_STAFF';
+        errorMessage = 'This account is not authorized for the Staff Portal. Please use the correct portal.';
+      }
+    } else if (portal === 'clinic') {
+      if (isPatient) {
+        allowed = false;
+        denialReason = 'ROLE_MISMATCH_CLINIC_IS_PATIENT';
+        errorMessage = 'This account is not a Clinic Administrator. Please use Patient Sign In.';
+      } else if (isStaff) {
+        allowed = false;
+        denialReason = 'ROLE_MISMATCH_CLINIC_IS_STAFF';
+        errorMessage = 'This account belongs to Clinic Staff. Please use Staff Sign In.';
+      } else if (!isClinicAdmin) {
+        allowed = false;
+        denialReason = 'ROLE_MISMATCH_CLINIC';
+        errorMessage = 'This account is not a Clinic Administrator. Please use the correct portal.';
+      }
+    }
+
+    if (!allowed) {
+      await logAuthEvent({
+        actorUserId: user._id,
+        action: 'USER_LOGIN_FAILED',
+        status: 'FAILURE',
+        req,
+        metadata: {
+          email,
+          reason: denialReason,
+          portal,
+          roleDetected: user.role
+        }
+      });
+      throw new AppError(errorMessage, HTTP_STATUS.FORBIDDEN);
+    }
+  }
+
   const isStaffFirstLogin = STAFF_ROLES.includes(user.role) && 
     ['pending_invitation', 'otp_verification_pending'].includes(user.approvalStatus) && 
     !user.isEmailVerified;
@@ -381,6 +444,11 @@ const login = async ({ email, password }, req) => {
     }
     if (staffClinic.subscription?.status === 'Expired') {
       throw new AppError('Your clinic subscription is expired. Staff login is blocked.', HTTP_STATUS.FORBIDDEN);
+    }
+    const Staff = require('../staff/staff.model');
+    const staffObj = await Staff.findOne({ userId: user._id });
+    if (staffObj && staffObj.creationSource === 'CLINIC_SETUP' && staffObj.invitationStatus !== 'Active') {
+      throw new AppError('Your account is not active yet. Please complete onboarding and accept your employment offer.', HTTP_STATUS.FORBIDDEN);
     }
   }
 

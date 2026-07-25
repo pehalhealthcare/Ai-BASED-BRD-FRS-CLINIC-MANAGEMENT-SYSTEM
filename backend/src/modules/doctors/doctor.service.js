@@ -165,7 +165,7 @@ const createDoctor = async ({ requester, payload, requestedClinicId = null, req 
     }
     // If user exists (e.g. pre-created) but has no doctor profile, link to this user
     newUser = existingUser;
-    if (newUser.role !== ROLES.DOCTOR) {
+    if (newUser.role !== ROLES.DOCTOR && newUser.role !== ROLES.ADMIN) {
       newUser.role = ROLES.DOCTOR;
       await newUser.save();
     }

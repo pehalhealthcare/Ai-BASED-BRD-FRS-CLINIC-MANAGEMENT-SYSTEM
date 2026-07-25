@@ -280,11 +280,22 @@ const SuperAdminClinics = () => {
   if (loading) return <LoadingState />;
   if (error) return <ErrorState message={error} onRetry={loadData} />;
 
-  const filteredClinics = clinics.filter(c => 
-    c.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    c.code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.ownerDetails?.email?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredClinics = clinics
+    .filter(c =>
+      c.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.ownerDetails?.email?.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    .sort((a, b) => {
+      // Approved clinics first, then pending, then others
+      const statusOrder = { approved: 0, pending_approval: 1, rejected: 2, suspended: 3 };
+      const aOrder = statusOrder[a.approvalStatus] ?? 4;
+      const bOrder = statusOrder[b.approvalStatus] ?? 4;
+      if (aOrder !== bOrder) return aOrder - bOrder;
+      // Within same status, newest first
+      return new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0);
+    });
+
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">

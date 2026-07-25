@@ -53,7 +53,8 @@ const userSchema = new mongoose.Schema(
         'otp_verification_pending',
         'onboarding_in_progress',
         'changes_requested',
-        'disabled'
+        'disabled',
+        'pending_onboarding'
       ],
       default: 'approved'
     },

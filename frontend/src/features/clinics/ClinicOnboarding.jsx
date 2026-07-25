@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
-import { clinicApi, doctorApi, userApi, specializationApi } from '../../lib/api';
+import { clinicApi, doctorApi, userApi, specializationApi, providersApi } from '../../lib/api';
+import { ProviderWizardModal } from '../providers/ProviderWizardModal';
 import { 
   Building2, User, Users, Calendar, DollarSign, 
   Settings, CheckCircle, ArrowRight, ArrowLeft, Plus, Trash2, Heart, ShieldCheck, Mail, Phone, Lock, Sparkles, Network, Code, Globe, Play, Clock, Check, LogOut
@@ -10,7 +11,276 @@ import {
 const ClinicOnboarding = () => {
   const { user, refreshUser, logout } = useAuth();
   const navigate = useNavigate();
-  
+  const normalizeDoctorName = (name) => {
+    if (!name) return '';
+    return name.replace(/^(dr\.|dr|Dr\.|Dr|dR\.|dR|DR\.|DR)\s*/i, '');
+  };
+  // Real-time validation states
+  const [doctorValidation, setDoctorValidation] = useState({});
+  const [staffValidation, setStaffValidation] = useState({});
+  const doctorTimeouts = useRef({});
+  const doctorAbortControllers = useRef({});
+  const staffTimeouts = useRef({});
+  const staffAbortControllers = useRef({});
+
+  const handleValidateDoctor = (idx, field, value) => {
+    const timeoutKey = `${idx}_${field}`;
+    if (doctorTimeouts.current[timeoutKey]) {
+      clearTimeout(doctorTimeouts.current[timeoutKey]);
+    }
+    if (doctorAbortControllers.current[timeoutKey]) {
+      doctorAbortControllers.current[timeoutKey].abort();
+    }
+
+    if (!value || !value.trim()) {
+      setDoctorValidation(prev => ({
+        ...prev,
+        [timeoutKey]: null
+      }));
+      return;
+    }
+
+    setDoctorValidation(prev => ({
+      ...prev,
+      [timeoutKey]: { status: 'checking', message: '' }
+    }));
+
+    doctorTimeouts.current[timeoutKey] = setTimeout(async () => {
+      const controller = new AbortController();
+      doctorAbortControllers.current[timeoutKey] = controller;
+      try {
+        let isUnique = true;
+        if (field === 'email') {
+          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+            setDoctorValidation(prev => ({
+              ...prev,
+              [timeoutKey]: { status: 'invalid', message: 'Invalid email address format' }
+            }));
+            return;
+          }
+          const res = await clinicApi.validateEmail({ email: value });
+          isUnique = res.data?.isUnique;
+        } else if (field === 'phone') {
+          if (value.replace(/\D/g, '').length !== 10) {
+            setDoctorValidation(prev => ({
+              ...prev,
+              [timeoutKey]: { status: 'invalid', message: 'Phone number must be exactly 10 digits' }
+            }));
+            return;
+          }
+          const res = await clinicApi.validatePhone({ phone: value });
+          isUnique = res.data?.isUnique;
+        }
+
+        if (isUnique) {
+          setDoctorValidation(prev => ({
+            ...prev,
+            [timeoutKey]: { status: 'valid', message: 'Available' }
+          }));
+        } else {
+          setDoctorValidation(prev => ({
+            ...prev,
+            [timeoutKey]: { status: 'invalid', message: `${field === 'email' ? 'Email' : 'Phone number'} already exists` }
+          }));
+        }
+      } catch (err) {
+        if (err.name === 'AbortError') return;
+        setDoctorValidation(prev => ({
+          ...prev,
+          [timeoutKey]: { status: 'invalid', message: 'Validation failed' }
+        }));
+      }
+    }, 500);
+  };
+
+  const triggerDoctorValidationImmediate = async (idx, field, value) => {
+    const timeoutKey = `${idx}_${field}`;
+    if (doctorTimeouts.current[timeoutKey]) {
+      clearTimeout(doctorTimeouts.current[timeoutKey]);
+    }
+    if (doctorAbortControllers.current[timeoutKey]) {
+      doctorAbortControllers.current[timeoutKey].abort();
+    }
+
+    if (!value || !value.trim()) return;
+
+    setDoctorValidation(prev => ({
+      ...prev,
+      [timeoutKey]: { status: 'checking', message: '' }
+    }));
+
+    try {
+      let isUnique = true;
+      if (field === 'email') {
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+          setDoctorValidation(prev => ({
+            ...prev,
+            [timeoutKey]: { status: 'invalid', message: 'Invalid email address format' }
+          }));
+          return;
+        }
+        const res = await clinicApi.validateEmail({ email: value });
+        isUnique = res.data?.isUnique;
+      } else if (field === 'phone') {
+        if (value.replace(/\D/g, '').length !== 10) {
+          setDoctorValidation(prev => ({
+            ...prev,
+            [timeoutKey]: { status: 'invalid', message: 'Phone number must be exactly 10 digits' }
+          }));
+          return;
+        }
+        const res = await clinicApi.validatePhone({ phone: value });
+        isUnique = res.data?.isUnique;
+      }
+
+      if (isUnique) {
+        setDoctorValidation(prev => ({
+          ...prev,
+          [timeoutKey]: { status: 'valid', message: 'Available' }
+        }));
+      } else {
+        setDoctorValidation(prev => ({
+          ...prev,
+          [timeoutKey]: { status: 'invalid', message: `${field === 'email' ? 'Email' : 'Phone number'} already exists` }
+        }));
+      }
+    } catch (err) {
+      setDoctorValidation(prev => ({
+        ...prev,
+        [timeoutKey]: { status: 'invalid', message: 'Validation failed' }
+      }));
+    }
+  };
+
+  const handleValidateStaff = (idx, field, value) => {
+    const timeoutKey = `${idx}_${field}`;
+    if (staffTimeouts.current[timeoutKey]) {
+      clearTimeout(staffTimeouts.current[timeoutKey]);
+    }
+    if (staffAbortControllers.current[timeoutKey]) {
+      staffAbortControllers.current[timeoutKey].abort();
+    }
+
+    if (!value || !value.trim()) {
+      setStaffValidation(prev => ({
+        ...prev,
+        [timeoutKey]: null
+      }));
+      return;
+    }
+
+    setStaffValidation(prev => ({
+      ...prev,
+      [timeoutKey]: { status: 'checking', message: '' }
+    }));
+
+    staffTimeouts.current[timeoutKey] = setTimeout(async () => {
+      const controller = new AbortController();
+      staffAbortControllers.current[timeoutKey] = controller;
+      try {
+        let isUnique = true;
+        if (field === 'email') {
+          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+            setStaffValidation(prev => ({
+              ...prev,
+              [timeoutKey]: { status: 'invalid', message: 'Invalid email address format' }
+            }));
+            return;
+          }
+          const res = await clinicApi.validateEmail({ email: value });
+          isUnique = res.data?.isUnique;
+        } else if (field === 'phone') {
+          if (value.replace(/\D/g, '').length !== 10) {
+            setStaffValidation(prev => ({
+              ...prev,
+              [timeoutKey]: { status: 'invalid', message: 'Phone number must be exactly 10 digits' }
+            }));
+            return;
+          }
+          const res = await clinicApi.validatePhone({ phone: value });
+          isUnique = res.data?.isUnique;
+        }
+
+        if (isUnique) {
+          setStaffValidation(prev => ({
+            ...prev,
+            [timeoutKey]: { status: 'valid', message: 'Available' }
+          }));
+        } else {
+          setStaffValidation(prev => ({
+            ...prev,
+            [timeoutKey]: { status: 'invalid', message: `${field === 'email' ? 'Email' : 'Phone number'} already exists` }
+          }));
+        }
+      } catch (err) {
+        if (err.name === 'AbortError') return;
+        setStaffValidation(prev => ({
+          ...prev,
+          [timeoutKey]: { status: 'invalid', message: 'Validation failed' }
+        }));
+      }
+    }, 500);
+  };
+
+  const triggerStaffValidationImmediate = async (idx, field, value) => {
+    const timeoutKey = `${idx}_${field}`;
+    if (staffTimeouts.current[timeoutKey]) {
+      clearTimeout(staffTimeouts.current[timeoutKey]);
+    }
+    if (staffAbortControllers.current[timeoutKey]) {
+      staffAbortControllers.current[timeoutKey].abort();
+    }
+
+    if (!value || !value.trim()) return;
+
+    setStaffValidation(prev => ({
+      ...prev,
+      [timeoutKey]: { status: 'checking', message: '' }
+    }));
+
+    try {
+      let isUnique = true;
+      if (field === 'email') {
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+          setStaffValidation(prev => ({
+            ...prev,
+            [timeoutKey]: { status: 'invalid', message: 'Invalid email address format' }
+          }));
+          return;
+        }
+        const res = await clinicApi.validateEmail({ email: value });
+        isUnique = res.data?.isUnique;
+      } else if (field === 'phone') {
+        if (value.replace(/\D/g, '').length !== 10) {
+          setStaffValidation(prev => ({
+            ...prev,
+            [timeoutKey]: { status: 'invalid', message: 'Phone number must be exactly 10 digits' }
+          }));
+          return;
+        }
+        const res = await clinicApi.validatePhone({ phone: value });
+        isUnique = res.data?.isUnique;
+      }
+
+      if (isUnique) {
+        setStaffValidation(prev => ({
+          ...prev,
+          [timeoutKey]: { status: 'valid', message: 'Available' }
+        }));
+      } else {
+        setStaffValidation(prev => ({
+          ...prev,
+          [timeoutKey]: { status: 'invalid', message: `${field === 'email' ? 'Email' : 'Phone number'} already exists` }
+        }));
+      }
+    } catch (err) {
+      setStaffValidation(prev => ({
+        ...prev,
+        [timeoutKey]: { status: 'invalid', message: 'Validation failed' }
+      }));
+    }
+  };
+
   // Metadata States
   const [flowData, setFlowData] = useState(null);
   const [currentStepIdx, setCurrentStepIdx] = useState(0);
@@ -37,8 +307,17 @@ const ClinicOnboarding = () => {
     { name: '', email: '', phone: '', role: 'RECEPTIONIST' }
   ]);
 
+  const [setupProgress, setSetupProgress] = useState({
+    percent: 0,
+    currentTask: 'Preparing onboarding completion...',
+    checklist: [],
+    emailsSent: [],
+    status: 'IN_PROGRESS',
+    error: null
+  });
+
   // Departments List
-  const [departments, setDepartments] = useState(['General Medicine', 'Pediatrics']);
+  const [departments, setDepartments] = useState([]);
   const [newDeptName, setNewDeptName] = useState('');
 
   // Branches List
@@ -46,17 +325,53 @@ const ClinicOnboarding = () => {
     { name: '', code: '', phone: '', address: { street: '', city: '', state: '', country: 'India' } }
   ]);
 
-  // Pharmacy / Lab Configs
-  const [pharmacyName, setPharmacyName] = useState('');
-  const [pharmacyGst, setPharmacyGst] = useState('');
-  const [labName, setLabName] = useState('');
+  const [createdProviders, setCreatedProviders] = useState([]);
+  const [providerWizardOpen, setProviderWizardOpen] = useState(false);
+  const [providerWizardStep, setProviderWizardStep] = useState(1);
+  const [providerSaving, setProviderSaving] = useState(false);
+  const [providerForm, setProviderForm] = useState({
+    name: '',
+    globalId: '',
+    providerType: 'Pharmacy',
+    providerSubtype: 'Internal',
+    phone: '',
+    email: '',
+    address: { line1: '', city: '', state: '', pincode: '', country: 'India' },
+    contactPerson: '',
+    managerEmployeeId: '',
+    managerPhone: '',
+    managerEmail: '',
+    workingHours: { openingTime: '09:00', closingTime: '21:00' },
+    gstNumber: '',
+    drugLicenseNumber: '',
+    licenseExpiry: '',
+    reorderThreshold: 10,
+    barcodeEnabled: false,
+    printerEnabled: false,
+    invoicePrefix: 'PHR',
+    apiProviderName: 'Pathology',
+    assignedBranches: []
+  });
+
+  const [skipPharmacy, setSkipPharmacy] = useState(false);
+  const [skipLab, setSkipLab] = useState(false);
+  const [skipTimings, setSkipTimings] = useState(false);
+  const [skipDoctors, setSkipDoctors] = useState(false);
+  const [skipStaff, setSkipStaff] = useState(false);
+  const [skipBranches, setSkipBranches] = useState(false);
+  const [pharmacyCollapsed, setPharmacyCollapsed] = useState(false);
+  const [labCollapsed, setLabCollapsed] = useState(false);
   const [availableSpecializations, setAvailableSpecializations] = useState([]);
 
   // AI & Video Options
   const [enabledAiFeatures, setEnabledAiFeatures] = useState({
     symptom_checker: true,
     consultation_assistant: true,
-    voice_to_text: true
+    voice_to_text: true,
+    ai_prescription_suggestions: true,
+    ai_risk_scoring: true,
+    lab_recommendations: true,
+    ai_scheduling: true
   });
   const [videoConfig, setVideoConfig] = useState({
     provider: 'Zoom',
@@ -74,6 +389,17 @@ const ClinicOnboarding = () => {
       setFlowData(data.data);
       if (data.data.isOnboardingCompleted) {
         navigate('/dashboard', { replace: true });
+      }
+
+      // Fetch draft and pending providers
+      try {
+        const draftsRes = await providersApi.getProviders({ status: 'Draft' });
+        const pendingRes = await providersApi.getProviders({ status: 'Pending Activation' });
+        const drafts = draftsRes.data?.providers || draftsRes.data || draftsRes || [];
+        const pending = pendingRes.data?.providers || pendingRes.data || pendingRes || [];
+        setCreatedProviders([...drafts, ...pending]);
+      } catch (pErr) {
+        console.error('Failed to load draft providers:', pErr);
       }
     } catch (err) {
       setError('Failed to fetch onboarding plan details.');
@@ -102,58 +428,196 @@ const ClinicOnboarding = () => {
     }
   };
 
-  const handleNext = () => {
-    if (currentStepIdx < (flowData?.steps?.length || 0) - 1) {
-      setCurrentStepIdx(currentStepIdx + 1);
+  const handleNext = async () => {
+    const steps = flowData?.steps || [];
+    const activeStep = steps[currentStepIdx];
+
+    // If we are on doctors step, validate all doctors
+    if (activeStep?.id === 'doctors' && !skipDoctors) {
+      let hasError = false;
+      for (let idx = 0; idx < doctors.length; idx++) {
+        const doc = doctors[idx];
+        if (!doc.fullName?.trim() || !doc.email?.trim() || !doc.phone?.trim()) {
+          alert(`Please fill all fields for Doctor #${idx + 1}`);
+          return;
+        }
+        
+        // Trigger immediate validation checks
+        const emailKey = `${idx}_email`;
+        const phoneKey = `${idx}_phone`;
+        await triggerDoctorValidationImmediate(idx, 'email', doc.email);
+        await triggerDoctorValidationImmediate(idx, 'phone', doc.phone);
+      }
+
+      // Read updated validation values from local state checks
+      // Since setState is async, we can do a local check using validation functions directly
+      for (let idx = 0; idx < doctors.length; idx++) {
+        const doc = doctors[idx];
+        try {
+          const emailRes = await clinicApi.validateEmail({ email: doc.email });
+          const phoneRes = await clinicApi.validatePhone({ phone: doc.phone });
+          if (!emailRes.data?.isUnique || !phoneRes.data?.isUnique) {
+            hasError = true;
+          }
+        } catch (err) {
+          hasError = true;
+        }
+      }
+
+      if (hasError) {
+        alert('Please fix the duplicate or invalid fields under Doctor Setup before proceeding.');
+        return;
+      }
+    }
+
+    // If we are on staff step, validate all staff
+    if (activeStep?.id === 'staff' && !skipStaff) {
+      let hasError = false;
+      for (let idx = 0; idx < staffList.length; idx++) {
+        const st = staffList[idx];
+        if (!st.name?.trim() || !st.email?.trim() || !st.phone?.trim()) {
+          alert(`Please fill all fields for Staff #${idx + 1}`);
+          return;
+        }
+        
+        // Trigger immediate validation checks
+        const emailKey = `${idx}_email`;
+        const phoneKey = `${idx}_phone`;
+        await triggerStaffValidationImmediate(idx, 'email', st.email);
+        await triggerStaffValidationImmediate(idx, 'phone', st.phone);
+      }
+
+      for (let idx = 0; idx < staffList.length; idx++) {
+        const st = staffList[idx];
+        try {
+          const emailRes = await clinicApi.validateEmail({ email: st.email });
+          const phoneRes = await clinicApi.validatePhone({ phone: st.phone });
+          if (!emailRes.data?.isUnique || !phoneRes.data?.isUnique) {
+            hasError = true;
+          }
+        } catch (err) {
+          hasError = true;
+        }
+      }
+
+      if (hasError) {
+        alert('Please fix the duplicate or invalid fields under Staff Setup before proceeding.');
+        return;
+      }
+    }
+
+    let nextIdx = currentStepIdx + 1;
+    while (nextIdx < steps.length) {
+      const nextStep = steps[nextIdx];
+      if (nextStep?.id === 'healthcare' && !flowData?.features?.pharmacy && !flowData?.features?.labs) {
+        nextIdx++;
+      } else {
+        break;
+      }
+    }
+    if (nextIdx < steps.length) {
+      setCurrentStepIdx(nextIdx);
     }
   };
 
   const handleBack = () => {
-    if (currentStepIdx > 0) {
-      setCurrentStepIdx(currentStepIdx - 1);
+    let prevIdx = currentStepIdx - 1;
+    while (prevIdx >= 0) {
+      const prevStep = steps[prevIdx];
+      if (prevStep?.id === 'healthcare' && !flowData?.features?.pharmacy && !flowData?.features?.labs) {
+        prevIdx--;
+      } else {
+        break;
+      }
+    }
+    if (prevIdx >= 0) {
+      setCurrentStepIdx(prevIdx);
+    }
+  };
+
+  const handleOpenProviderWizard = (type) => {
+    setProviderForm({
+      name: '',
+      globalId: '',
+      providerType: type,
+      providerSubtype: 'Internal',
+      phone: '',
+      email: '',
+      address: { line1: '', city: '', state: '', pincode: '', country: 'India' },
+      contactPerson: '',
+      managerEmployeeId: '',
+      managerPhone: '',
+      managerEmail: '',
+      workingHours: { openingTime: '09:00', closingTime: '21:00' },
+      gstNumber: '',
+      drugLicenseNumber: '',
+      licenseExpiry: '',
+      reorderThreshold: 10,
+      barcodeEnabled: false,
+      printerEnabled: false,
+      invoicePrefix: type === 'Laboratory' ? 'LAB' : 'PHR',
+      apiProviderName: 'Pathology',
+      assignedBranches: []
+    });
+    setProviderWizardStep(1);
+    setProviderWizardOpen(true);
+  };
+
+  const handleSaveProvider = async () => {
+    if (!providerForm.name) {
+      alert('Provider name is required');
+      return;
+    }
+    setProviderSaving(true);
+    try {
+      const payload = {
+        ...providerForm,
+        creationMode: 'ONBOARDING',
+        deferInvitation: true,
+        providerCategory: providerForm.providerSubtype === 'Internal' ? 'Own Provider' : 'Partner Provider',
+        integrationType: 'None',
+        integrationStatus: 'Not Configured',
+      };
+      
+      const res = await providersApi.createProvider(payload);
+      const newProvider = res.data?.provider || res.data || res;
+      setCreatedProviders(prev => [...prev, newProvider]);
+      setProviderWizardOpen(false);
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to save provider');
+    } finally {
+      setProviderSaving(false);
     }
   };
 
   const handleSubmitOnboarding = async () => {
     setSaving(true);
     setError('');
+    setSetupProgress({
+      percent: 0,
+      currentTask: 'Connecting to onboarding stream...',
+      checklist: [],
+      emailsSent: [],
+      status: 'IN_PROGRESS',
+      error: null
+    });
+
+    let eventSource;
     try {
-      // 1. Create Doctors
-      const activeDoctors = doctors.filter(doc => doc.fullName?.trim() && doc.email?.trim() && doc.phone?.trim());
-      for (const doc of activeDoctors) {
-        await doctorApi.create({
-          fullName: doc.fullName.trim(),
-          email: doc.email.trim(),
-          phone: doc.phone.trim()
-        });
-      }
+      const token = localStorage.getItem('token') || '';
+      eventSource = new EventSource(`${import.meta.env.VITE_API_BASE_URL}/clinics/${user.clinicId}/onboarding-progress?token=${token}`);
+      
+      eventSource.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        setSetupProgress(data);
+      };
+      
+      eventSource.onerror = () => {
+        if (eventSource) eventSource.close();
+      };
 
-      // 2. Create Staff members
-      const activeStaff = staffList.filter(staff => staff.name?.trim() && staff.email?.trim() && staff.phone?.trim());
-      for (const staff of activeStaff) {
-        await userApi.create({
-          name: staff.name.trim(),
-          email: staff.email.trim(),
-          password: staff.phone.trim(), // Use phone number as temporary password
-          phone: staff.phone.trim(),
-          role: staff.role
-        });
-      }
-
-      // 3. Create Branches
-      const activeBranches = branches.filter(branch => branch.name?.trim() && branch.code?.trim());
-      for (const branch of activeBranches) {
-        await clinicApi.create({
-          ...branch,
-          name: branch.name.trim(),
-          code: branch.code.trim(),
-          parentClinicId: user.clinicId
-        });
-      }
-
-      // 4. Update Clinic Details (Timings, Departments, etc.)
       const updatedDetails = {
-        timings: [
+        timings: skipTimings ? [] : [
           {
             dayRange: workingTimings.dayRange,
             startTime: workingTimings.startTime,
@@ -161,30 +625,51 @@ const ClinicOnboarding = () => {
           }
         ],
         departments,
-        pharmacyName,
-        pharmacyGst,
-        labName,
         aiConfig: enabledAiFeatures,
         videoConfig
       };
 
-      await clinicApi.update(user.clinicId, {
+      await clinicApi.launchOnboarding(user.clinicId, {
+        doctors,
+        staffList,
+        branches,
         clinicDetails: updatedDetails,
-        isOnboardingCompleted: true
+        skipDoctors,
+        skipStaff,
+        skipBranches
       });
 
-      await refreshUser();
-      alert('Clinic configured successfully!');
-      navigate('/dashboard', { replace: true });
-      setError(err.response?.data?.message || err.message || 'Error completing setup.');
+      if (eventSource) eventSource.close();
+
+      setSetupProgress(prev => ({
+        ...prev,
+        percent: 100,
+        status: 'SUCCESS',
+        currentTask: 'Redirecting to dashboard...'
+      }));
+
+      // Start a countdown
+      let count = 3;
+      const interval = setInterval(async () => {
+        count -= 1;
+        if (count <= 0) {
+          clearInterval(interval);
+          await refreshUser();
+          navigate('/dashboard', { replace: true });
+          setSaving(false);
+        }
+      }, 1000);
+
+    } catch (err) {
+      if (eventSource) eventSource.close();
       console.error('Onboarding submission failed:', err);
-      if (err.response?.data) {
-        console.error('Validation Details:', JSON.stringify(err.response.data, null, 2));
-      }
-    } finally {
+      const errMsg = err.response?.data?.message || err.message || 'Error completing setup. Please try again.';
+      setError(errMsg);
+      setSetupProgress(prev => ({ ...prev, status: 'FAILED', error: errMsg }));
       setSaving(false);
     }
   };
+
 
   if (loading) {
     return (
@@ -205,6 +690,147 @@ const ClinicOnboarding = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
+      {saving && (
+        <div className="fixed inset-0 bg-white z-50 overflow-y-auto flex flex-col items-center py-12 px-4 md:px-8">
+          <div className="max-w-2xl w-full flex flex-col items-center space-y-8">
+            {/* Branding */}
+            <div className="flex items-center gap-2.5">
+              <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md">
+                <Heart size={20} fill="currentColor" />
+              </div>
+              <span className="text-2xl font-black tracking-tight text-slate-900">AI-CMS</span>
+            </div>
+
+            {setupProgress.status === 'FAILED' ? (
+              <div className="w-full bg-red-50 border border-red-200 rounded-3xl p-8 flex flex-col items-center text-center space-y-6">
+                <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-2xl font-bold shadow-sm">
+                  ✕
+                </div>
+                <h2 className="text-xl font-extrabold text-slate-800">Setup could not be completed</h2>
+                <p className="text-sm text-slate-600 max-w-md leading-relaxed">{setupProgress.error || 'An unexpected error occurred during clinic setup.'}</p>
+                <div className="flex gap-4">
+                  <button
+                    type="button"
+                    onClick={handleSubmitOnboarding}
+                    className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl shadow-md transition"
+                  >
+                    Retry Setup
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSaving(false)}
+                    className="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : setupProgress.status === 'SUCCESS' ? (
+              <div className="w-full bg-emerald-50 border border-emerald-200 rounded-3xl p-8 flex flex-col items-center text-center space-y-6">
+                <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-2xl font-bold shadow-md">
+                  ✓
+                </div>
+                <div>
+                  <h2 className="text-2xl font-black text-slate-800">Congratulations!</h2>
+                  <p className="text-sm text-slate-500 font-bold mt-1">Your clinic has been successfully configured.</p>
+                </div>
+                <div className="p-4 bg-white/60 border border-emerald-100 rounded-2xl max-w-sm w-full">
+                  <p className="text-xs text-slate-455 font-bold">Welcome to AI-CMS</p>
+                  <p className="text-sm font-extrabold text-emerald-800 mt-1">Redirecting to Dashboard...</p>
+                </div>
+              </div>
+            ) : (
+              <div className="w-full flex flex-col items-center space-y-8">
+                {/* Heading */}
+                <div className="text-center space-y-2">
+                  <h2 className="text-xl font-extrabold text-slate-800">Setting up your clinic...</h2>
+                  <p className="text-xs text-slate-450 font-bold">Please don't close this window or navigate away.</p>
+                </div>
+
+                {/* Animated progress ring/indicator */}
+                <div className="relative w-32 h-32 flex items-center justify-center">
+                  <div className="absolute inset-0 rounded-full border-4 border-slate-100"></div>
+                  <div 
+                    className="absolute inset-0 rounded-full border-4 border-blue-600 border-t-transparent animate-spin"
+                    style={{ animationDuration: '1.5s' }}
+                  ></div>
+                  <span className="text-2xl font-black text-slate-800">{setupProgress.percent}%</span>
+                </div>
+
+                {/* Live task display */}
+                <div className="text-center">
+                  <p className="text-sm font-bold text-slate-700 animate-pulse">{setupProgress.currentTask}</p>
+                </div>
+
+                {/* Checklist */}
+                <div className="w-full bg-slate-50 border border-slate-200 rounded-3xl p-6 space-y-4">
+                  <h3 className="text-xs text-slate-455 font-bold tracking-wider uppercase">Setup Checklist</h3>
+                  <div className="space-y-3">
+                    {[
+                      'Onboarding Data Validated',
+                      'Doctors Configured',
+                      'Staff Configured',
+                      'Branches Configured',
+                      'Clinic Configuration Saved',
+                      'Providers Activated',
+                      'Dashboard Prepared'
+                    ].map((item, idx) => {
+                      const isCompleted = setupProgress.checklist.includes(item);
+                      const isCurrent = !isCompleted && (
+                        (idx === 0 && setupProgress.percent < 15) ||
+                        (idx === 1 && setupProgress.percent >= 15 && setupProgress.percent < 35) ||
+                        (idx === 2 && setupProgress.percent >= 35 && setupProgress.percent < 50) ||
+                        (idx === 3 && setupProgress.percent >= 50 && setupProgress.percent < 65) ||
+                        (idx === 4 && setupProgress.percent >= 65 && setupProgress.percent < 75) ||
+                        (idx === 5 && setupProgress.percent >= 75 && setupProgress.percent < 85) ||
+                        (idx === 6 && setupProgress.percent >= 85)
+                      );
+                      
+                      return (
+                        <div key={idx} className="flex items-center justify-between text-xs">
+                          <span className={`font-bold ${isCompleted ? 'text-emerald-700' : isCurrent ? 'text-blue-700' : 'text-slate-400'}`}>
+                            {item}
+                          </span>
+                          <span>
+                            {isCompleted ? (
+                              <span className="text-emerald-600 font-bold">✓</span>
+                            ) : isCurrent ? (
+                              <span className="w-2.5 h-2.5 bg-blue-600 rounded-full animate-ping block"></span>
+                            ) : (
+                              <span className="text-slate-300 font-bold">⏳</span>
+                            )}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Email queue delivery status */}
+                {setupProgress.emailsSent?.length > 0 && (
+                  <div className="w-full bg-slate-50 border border-slate-200 rounded-3xl p-6 space-y-4">
+                    <h3 className="text-xs text-slate-455 font-bold tracking-wider uppercase">📧 Live Email Delivery Queue</h3>
+                    <div className="space-y-3 max-h-48 overflow-y-auto pr-2">
+                      {setupProgress.emailsSent.map((email, idx) => (
+                        <div key={idx} className="flex justify-between items-center p-3 bg-white border border-slate-100 rounded-xl text-[11px] shadow-sm">
+                          <div>
+                            <p className="font-bold text-slate-800">{email.name}</p>
+                            <p className="text-[10px] text-slate-400 font-semibold">{email.email} ({email.role})</p>
+                          </div>
+                          <div className="flex items-center gap-1 text-[10px] text-emerald-600 font-bold">
+                            <span>✓</span>
+                            <span>{email.status}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       {/* Header */}
       <header className="bg-white border-b border-slate-100 py-4 px-6 md:px-12 flex justify-between items-center shadow-sm">
         <div className="flex items-center gap-2.5">
@@ -377,43 +1003,91 @@ const ClinicOnboarding = () => {
                       <h3 className="text-lg font-black text-slate-900">Doctor Setup</h3>
                       <p className="text-xs text-slate-400 mt-1">Add medical practitioners up to your plan limit ({flowData?.limits?.maxDoctors} maximum).</p>
                     </div>
-                    {doctors.length < flowData?.limits?.maxDoctors && (
-                      <button onClick={() => setDoctors([...doctors, { fullName: '', email: '', phone: '' }])}
-                        className="px-3.5 py-2 bg-blue-50 text-blue-600 rounded-xl text-xs font-bold hover:bg-blue-100 transition flex items-center gap-1 ">
-                        <Plus className="w-4 h-4" /> Add Doctor
+                    <div className="flex items-center gap-3">
+                      <button type="button" onClick={() => setSkipDoctors(!skipDoctors)} className="text-xs font-bold text-blue-600 hover:underline">
+                        {skipDoctors ? 'Undo Skip' : 'Skip Setup'}
                       </button>
-                    )}
+                      {!skipDoctors && doctors.length < flowData?.limits?.maxDoctors && (
+                        <button onClick={() => setDoctors([...doctors, { fullName: '', email: '', phone: '' }])}
+                          className="px-3.5 py-2 bg-blue-50 text-blue-600 rounded-xl text-xs font-bold hover:bg-blue-100 transition flex items-center gap-1 ">
+                          <Plus className="w-4 h-4" /> Add Doctor
+                        </button>
+                      )}
+                    </div>
                   </div>
 
-                  <div className="space-y-6 max-h-[350px] overflow-y-auto pr-2">
-                    {doctors.map((doc, idx) => (
-                      <div key={idx} className="p-5 bg-slate-50 border border-slate-200 rounded-2xl relative space-y-4">
-                        {doctors.length > 1 && (
-                          <button onClick={() => setDoctors(doctors.filter((_, i) => i !== idx))} className="absolute top-4 right-4 text-slate-400 hover:text-red-500">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
-                        <h4 className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">Doctor #{idx + 1}</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="md:col-span-2">
-                            <label className="block text-[11px] font-bold text-slate-700 mb-1">Doctor Name *</label>
-                            <input type="text" value={doc.fullName} onChange={(e) => { const u = [...doctors]; u[idx].fullName = e.target.value; setDoctors(u); }}
-                              placeholder="e.g. Dr. Rahul Sharma" className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:border-blue-600 text-xs text-gray-800" required />
-                          </div>
-                          <div>
-                            <label className="block text-[11px] font-bold text-slate-700 mb-1">Email Address *</label>
-                            <input type="email" value={doc.email} onChange={(e) => { const u = [...doctors]; u[idx].email = e.target.value; setDoctors(u); }}
-                              placeholder="doctor@domain.com" className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:border-blue-600 text-xs text-gray-800" required />
-                          </div>
-                          <div>
-                            <label className="block text-[11px] font-bold text-slate-700 mb-1">Mobile Number *</label>
-                            <input type="tel" value={doc.phone} onChange={(e) => { const u = [...doctors]; u[idx].phone = e.target.value; setDoctors(u); }}
-                              placeholder="e.g. 9876543210" className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:border-blue-600 text-xs text-gray-800" required />
+                  {skipDoctors ? (
+                    <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl text-center">
+                      <span className="block text-xs font-extrabold text-slate-500 uppercase tracking-wide">Doctor Setup Skipped</span>
+                      <span className="block text-[11px] text-slate-450 mt-1">You can add your clinic's doctors later from the Dashboard.</span>
+                    </div>
+                  ) : (
+                    <div className="space-y-6 max-h-[350px] overflow-y-auto pr-2">
+                      {doctors.map((doc, idx) => (
+                        <div key={idx} className="p-5 bg-slate-50 border border-slate-200 rounded-2xl relative space-y-4">
+                          {doctors.length > 1 && (
+                            <button onClick={() => setDoctors(doctors.filter((_, i) => i !== idx))} className="absolute top-4 right-4 text-slate-400 hover:text-red-500">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                          <h4 className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">Doctor #{idx + 1}</h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="md:col-span-2">
+                              <label className="block text-[11px] font-bold text-slate-700 mb-1">Doctor Name *</label>
+                              <div className="flex rounded-xl border border-slate-200 overflow-hidden bg-slate-50 focus-within:border-blue-600 transition">
+                                <div className="px-3 py-2 bg-slate-100 border-r border-slate-200 text-xs font-bold text-slate-500 flex items-center select-none"
+                                  aria-label="Doctor title, fixed prefix" role="img">
+                                  Dr.
+                                </div>
+                                <input type="text" value={normalizeDoctorName(doc.fullName)}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    const normalized = normalizeDoctorName(val);
+                                    const u = [...doctors];
+                                    u[idx].fullName = normalized ? `Dr. ${normalized}` : '';
+                                    setDoctors(u);
+                                  }}
+                                  placeholder="e.g. Rahul Sharma"
+                                  className="flex-1 px-3 py-2 bg-white outline-none text-xs text-gray-800" required />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-[11px] font-bold text-slate-700 mb-1">Email Address *</label>
+                              <input type="email" value={doc.email}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  const u = [...doctors];
+                                  u[idx].email = val;
+                                  setDoctors(u);
+                                  handleValidateDoctor(idx, 'email', val);
+                                }}
+                                onBlur={(e) => triggerDoctorValidationImmediate(idx, 'email', e.target.value)}
+                                placeholder="doctor@domain.com" className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:border-blue-600 text-xs text-gray-800" required />
+                              {doctorValidation[`${idx}_email`]?.status === 'checking' && <p className="text-[10px] text-blue-500 mt-1">Checking email...</p>}
+                              {doctorValidation[`${idx}_email`]?.status === 'valid' && <p className="text-[10px] text-emerald-600 mt-1">✓ Available</p>}
+                              {doctorValidation[`${idx}_email`]?.status === 'invalid' && <p className="text-[10px] text-rose-600 mt-1">{doctorValidation[`${idx}_email`]?.message}</p>}
+                            </div>
+                            <div>
+                              <label className="block text-[11px] font-bold text-slate-700 mb-1">Mobile Number *</label>
+                              <input type="tel" value={doc.phone}
+                                onChange={(e) => {
+                                  const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                                  const u = [...doctors];
+                                  u[idx].phone = val;
+                                  setDoctors(u);
+                                  handleValidateDoctor(idx, 'phone', val);
+                                }}
+                                onBlur={(e) => triggerDoctorValidationImmediate(idx, 'phone', e.target.value)}
+                                placeholder="e.g. 9876543210" className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:border-blue-600 text-xs text-gray-800" required />
+                              {doctorValidation[`${idx}_phone`]?.status === 'checking' && <p className="text-[10px] text-blue-500 mt-1">Checking phone...</p>}
+                              {doctorValidation[`${idx}_phone`]?.status === 'valid' && <p className="text-[10px] text-emerald-600 mt-1">✓ Available</p>}
+                              {doctorValidation[`${idx}_phone`]?.status === 'invalid' && <p className="text-[10px] text-rose-600 mt-1">{doctorValidation[`${idx}_phone`]?.message}</p>}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -453,38 +1127,50 @@ const ClinicOnboarding = () => {
                       <h3 className="text-lg font-black text-slate-900">Branch Offices Setup</h3>
                       <p className="text-xs text-slate-400 mt-1">Setup sub-branches supported by your plan (Limit: {flowData?.limits?.maxBranches}).</p>
                     </div>
-                    {branches.length < flowData?.limits?.maxBranches && (
-                      <button onClick={() => setBranches([...branches, { name: '', code: '', phone: '', address: { street: '', city: '', state: '', country: 'India' } }])}
-                        className="px-3.5 py-2 bg-blue-50 text-blue-600 rounded-xl text-xs font-bold hover:bg-blue-100 transition flex items-center gap-1">
-                        <Plus className="w-4 h-4" /> Add Branch
+                    <div className="flex items-center gap-3">
+                      <button type="button" onClick={() => setSkipBranches(!skipBranches)} className="text-xs font-bold text-blue-600 hover:underline">
+                        {skipBranches ? 'Undo Skip' : 'Skip Setup'}
                       </button>
-                    )}
+                      {!skipBranches && branches.length < flowData?.limits?.maxBranches && (
+                        <button onClick={() => setBranches([...branches, { name: '', code: '', phone: '', address: { street: '', city: '', state: '', country: 'India' } }])}
+                          className="px-3.5 py-2 bg-blue-50 text-blue-600 rounded-xl text-xs font-bold hover:bg-blue-100 transition flex items-center gap-1">
+                          <Plus className="w-4 h-4" /> Add Branch
+                        </button>
+                      )}
+                    </div>
                   </div>
 
-                  <div className="space-y-4 max-h-[350px] overflow-y-auto pr-2">
-                    {branches.map((b, idx) => (
-                      <div key={idx} className="p-5 bg-slate-50 border border-slate-200 rounded-2xl relative space-y-4">
-                        {branches.length > 1 && (
-                          <button onClick={() => setBranches(branches.filter((_, i) => i !== idx))} className="absolute top-4 right-4 text-slate-400 hover:text-red-500">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
-                        <h4 className="text-xs font-bold text-slate-650">Branch #{idx + 1}</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-[11px] font-bold text-slate-700 mb-1">Branch Name *</label>
-                            <input type="text" value={b.name} onChange={(e) => { const u = [...branches]; u[idx].name = e.target.value; setBranches(u); }}
-                              placeholder="Name" className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-xs" required />
-                          </div>
-                          <div>
-                            <label className="block text-[11px] font-bold text-slate-700 mb-1">Unique Branch Code *</label>
-                            <input type="text" value={b.code} onChange={(e) => { const u = [...branches]; u[idx].code = e.target.value.toUpperCase(); setBranches(u); }}
-                              placeholder="e.g. BR02" className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-xs" required />
+                  {skipBranches ? (
+                    <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl text-center">
+                      <span className="block text-xs font-extrabold text-slate-500 uppercase tracking-wide">Branch Setup Skipped</span>
+                      <span className="block text-[11px] text-slate-450 mt-1">You can configure additional clinic branches later from the Dashboard.</span>
+                    </div>
+                  ) : (
+                    <div className="space-y-4 max-h-[350px] overflow-y-auto pr-2">
+                      {branches.map((b, idx) => (
+                        <div key={idx} className="p-5 bg-slate-50 border border-slate-200 rounded-2xl relative space-y-4">
+                          {branches.length > 1 && (
+                            <button onClick={() => setBranches(branches.filter((_, i) => i !== idx))} className="absolute top-4 right-4 text-slate-400 hover:text-red-500">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                          <h4 className="text-xs font-bold text-slate-650">Branch #{idx + 1}</h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-[11px] font-bold text-slate-700 mb-1">Branch Name *</label>
+                              <input type="text" value={b.name} onChange={(e) => { const u = [...branches]; u[idx].name = e.target.value; setBranches(u); }}
+                                placeholder="Name" className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-xs" required />
+                            </div>
+                            <div>
+                              <label className="block text-[11px] font-bold text-slate-700 mb-1">Unique Branch Code *</label>
+                              <input type="text" value={b.code} onChange={(e) => { const u = [...branches]; u[idx].code = e.target.value.toUpperCase(); setBranches(u); }}
+                                placeholder="e.g. BR02" className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-xs" required />
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -496,89 +1182,227 @@ const ClinicOnboarding = () => {
                       <h3 className="text-lg font-black text-slate-900">Staff Accounts</h3>
                       <p className="text-xs text-slate-400 mt-1">Configure clinical desk staff, billing receptionists, etc (Limit: {flowData?.limits?.maxStaff}).</p>
                     </div>
-                    {staffList.length < flowData?.limits?.maxStaff && (
-                      <button onClick={() => setStaffList([...staffList, { name: '', email: '', phone: '', role: 'RECEPTIONIST' }])}
-                        className="px-3.5 py-2 bg-blue-50 text-blue-600 rounded-xl text-xs font-bold hover:bg-blue-100 transition flex items-center gap-1 text-gray-800">
-                        <Plus className="w-4 h-4" /> Add Staff
+                    <div className="flex items-center gap-3">
+                      <button type="button" onClick={() => setSkipStaff(!skipStaff)} className="text-xs font-bold text-blue-600 hover:underline">
+                        {skipStaff ? 'Undo Skip' : 'Skip Setup'}
                       </button>
-                    )}
+                      {!skipStaff && staffList.length < flowData?.limits?.maxStaff && (
+                        <button onClick={() => setStaffList([...staffList, { name: '', email: '', phone: '', role: 'RECEPTIONIST' }])}
+                          className="px-3.5 py-2 bg-blue-50 text-blue-600 rounded-xl text-xs font-bold hover:bg-blue-100 transition flex items-center gap-1 text-gray-800">
+                          <Plus className="w-4 h-4" /> Add Staff
+                        </button>
+                      )}
+                    </div>
                   </div>
 
-                  <div className="space-y-4 max-h-[350px] overflow-y-auto pr-2">
-                    {staffList.map((st, idx) => (
-                      <div key={idx} className="p-5 bg-slate-50 border border-slate-200 rounded-2xl relative grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {staffList.length > 1 && (
-                          <button onClick={() => setStaffList(staffList.filter((_, i) => i !== idx))} className="absolute top-4 right-4 text-slate-400 hover:text-red-500">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
-                        <div>
-                          <label className="block text-[11px] font-bold text-slate-700 mb-1">Full Name *</label>
-                          <input type="text" value={st.name} onChange={(e) => { const u = [...staffList]; u[idx].name = e.target.value; setStaffList(u); }}
-                            className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-xs text-gray-800" required />
+                  {skipStaff ? (
+                    <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl text-center">
+                      <span className="block text-xs font-extrabold text-slate-500 uppercase tracking-wide">Staff Setup Skipped</span>
+                      <span className="block text-[11px] text-slate-450 mt-1">You can add your clinic's staff accounts later from the Dashboard.</span>
+                    </div>
+                  ) : (
+                    <div className="space-y-4 max-h-[350px] overflow-y-auto pr-2">
+                      {staffList.map((st, idx) => (
+                        <div key={idx} className="p-5 bg-slate-50 border border-slate-200 rounded-2xl relative grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {staffList.length > 1 && (
+                            <button onClick={() => setStaffList(staffList.filter((_, i) => i !== idx))} className="absolute top-4 right-4 text-slate-400 hover:text-red-500">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                          <div>
+                            <label className="block text-[11px] font-bold text-slate-700 mb-1">Full Name *</label>
+                            <input type="text" value={st.name} onChange={(e) => { const u = [...staffList]; u[idx].name = e.target.value; setStaffList(u); }}
+                              className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-xs text-gray-800" required />
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-bold text-slate-700 mb-1">Staff Role *</label>
+                            <select value={st.role} onChange={(e) => { const u = [...staffList]; u[idx].role = e.target.value; setStaffList(u); }}
+                              className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-xs text-gray-800">
+                              <option value="RECEPTIONIST">Receptionist</option>
+                              <option value="PHARMACIST">Pharmacist</option>
+                              <option value="LAB_TECHNICIAN">Lab Technician</option>
+                              <option value="NURSE">Nurse</option>
+                              <option value="ACCOUNTANT">Accountant</option>
+                              <option value="CLINIC_MANAGER">Clinic Manager</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-bold text-slate-700 mb-1">Email Address *</label>
+                            <input type="email" value={st.email}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                const u = [...staffList];
+                                u[idx].email = val;
+                                setStaffList(u);
+                                handleValidateStaff(idx, 'email', val);
+                              }}
+                              onBlur={(e) => triggerStaffValidationImmediate(idx, 'email', e.target.value)}
+                              className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-xs text-gray-800" required />
+                            {staffValidation[`${idx}_email`]?.status === 'checking' && <p className="text-[10px] text-blue-500 mt-1">Checking email...</p>}
+                            {staffValidation[`${idx}_email`]?.status === 'valid' && <p className="text-[10px] text-emerald-600 mt-1">✓ Available</p>}
+                            {staffValidation[`${idx}_email`]?.status === 'invalid' && <p className="text-[10px] text-rose-600 mt-1">{staffValidation[`${idx}_email`]?.message}</p>}
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-bold text-slate-700 mb-1">Mobile Number *</label>
+                            <input type="tel" value={st.phone}
+                              onChange={(e) => {
+                                const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                                const u = [...staffList];
+                                u[idx].phone = val;
+                                setStaffList(u);
+                                handleValidateStaff(idx, 'phone', val);
+                              }}
+                              onBlur={(e) => triggerStaffValidationImmediate(idx, 'phone', e.target.value)}
+                              placeholder="Mobile number" className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-xs text-gray-800" required />
+                            {staffValidation[`${idx}_phone`]?.status === 'checking' && <p className="text-[10px] text-blue-500 mt-1">Checking phone...</p>}
+                            {staffValidation[`${idx}_phone`]?.status === 'valid' && <p className="text-[10px] text-emerald-600 mt-1">✓ Available</p>}
+                            {staffValidation[`${idx}_phone`]?.status === 'invalid' && <p className="text-[10px] text-rose-600 mt-1">{staffValidation[`${idx}_phone`]?.message}</p>}
+                          </div>
                         </div>
-                        <div>
-                          <label className="block text-[11px] font-bold text-slate-700 mb-1">Staff Role *</label>
-                          <select value={st.role} onChange={(e) => { const u = [...staffList]; u[idx].role = e.target.value; setStaffList(u); }}
-                            className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-xs text-gray-800">
-                            <option value="RECEPTIONIST">Receptionist</option>
-                            <option value="PHARMACIST">Pharmacist</option>
-                            <option value="LAB_TECHNICIAN">Lab Technician</option>
-                            <option value="NURSE">Nurse</option>
-                            <option value="ACCOUNTANT">Accountant</option>
-                            <option value="CLINIC_MANAGER">Clinic Manager</option>
-                          </select>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Healthcare Setup step (Pharmacy & Laboratory combined) */}
+              {activeStep?.id === 'healthcare' && (
+                <div className="space-y-6">
+                  <div className="pb-4 border-b border-slate-100 flex justify-between items-center">
+                    <div>
+                      <h3 className="text-lg font-black text-slate-900">Healthcare Setup</h3>
+                      <p className="text-xs text-slate-400 mt-1">Configure Pharmacy and/or Laboratory modules included in your plan.</p>
+                    </div>
+                    <button type="button" onClick={() => {
+                      const bothSkipped = !skipPharmacy || !skipLab;
+                      setSkipPharmacy(bothSkipped);
+                      setSkipLab(bothSkipped);
+                    }} className="text-xs font-bold text-blue-600 hover:underline">
+                      {skipPharmacy && skipLab ? 'Undo Skip Entire Setup' : 'Skip Entire Setup'}
+                    </button>
+                  </div>
+
+                  {/* Pharmacy section if active in plan */}
+                  {flowData?.features?.pharmacy && (
+                    <div className="border border-slate-200 rounded-3xl overflow-hidden bg-white">
+                      <div className="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center cursor-pointer select-none"
+                        onClick={() => setPharmacyCollapsed(!pharmacyCollapsed)}>
+                        <div className="flex items-center gap-2">
+                          <span className="font-extrabold text-sm text-slate-800">Pharmacy Setup</span>
+                          {skipPharmacy && <span className="px-2 py-0.5 bg-amber-50 border border-amber-200 rounded-full text-[10px] font-bold text-amber-700">Skipped</span>}
                         </div>
-                        <div>
-                          <label className="block text-[11px] font-bold text-slate-700 mb-1">Email Address *</label>
-                          <input type="email" value={st.email} onChange={(e) => { const u = [...staffList]; u[idx].email = e.target.value; setStaffList(u); }}
-                            className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-xs text-gray-800" required />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-bold text-slate-700 mb-1">Mobile Number *</label>
-                          <input type="tel" value={st.phone} onChange={(e) => { const u = [...staffList]; u[idx].phone = e.target.value; setStaffList(u); }}
-                            placeholder="Mobile number" className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-xs text-gray-800" required />
+                        <div className="flex items-center gap-4" onClick={(e) => e.stopPropagation()}>
+                          <label className="flex items-center gap-1.5 text-xs text-slate-650 cursor-pointer font-bold">
+                            <input type="checkbox" checked={skipPharmacy} onChange={(e) => setSkipPharmacy(e.target.checked)} />
+                            <span>Skip Pharmacy</span>
+                          </label>
+                          <span className="text-slate-400 text-xs font-bold">{pharmacyCollapsed ? '▼' : '▲'}</span>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
-              )}
 
-              {/* Pharmacy Setup */}
-              {activeStep?.id === 'pharmacy' && (
-                <div className="space-y-6">
-                  <div className="pb-4 border-b border-slate-100">
-                    <h3 className="text-lg font-black text-slate-900">Pharmacy Setup</h3>
-                    <p className="text-xs text-slate-400 mt-1">Configure your pharmaceutical desk parameters.</p>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Pharmacy Name</label>
-                      <input type="text" value={pharmacyName} onChange={(e) => setPharmacyName(e.target.value)}
-                        placeholder="e.g. LifeCare Pharmacy" className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-gray-800" />
+                      {!pharmacyCollapsed && !skipPharmacy && (
+                        <div className="p-6 space-y-4">
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs text-slate-455 font-bold">Added Pharmacies</span>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenProviderWizard('Pharmacy')}
+                              className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-50 hover:bg-blue-100 text-blue-750 border border-blue-200 rounded-xl text-xs font-bold transition cursor-pointer"
+                            >
+                              <Plus className="w-3.5 h-3.5" /> Add Pharmacy
+                            </button>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            {createdProviders.filter(p => p.providerType === 'Pharmacy').map((p, idx) => (
+                              <div key={idx} className="flex justify-between items-center p-3.5 bg-slate-50 rounded-2xl border border-slate-200 text-xs">
+                                <div>
+                                  <p className="font-bold text-slate-800">{p.name}</p>
+                                  <p className="text-[10px] text-slate-400 font-semibold mt-0.5">Manager: {p.contactPerson} ({p.managerEmail || p.email})</p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className={`px-2.5 py-1 font-bold text-[9px] rounded-full uppercase tracking-wider ${
+                                    p.status === 'Draft'
+                                      ? 'bg-slate-100 border border-slate-350 text-slate-650'
+                                      : 'bg-amber-50 border border-amber-200 text-amber-700'
+                                  }`}>
+                                    {p.status === 'Draft' ? 'Draft' : 'Waiting for Clinic Launch'}
+                                  </span>
+                                  <span className="text-slate-455 text-[10px] font-bold">
+                                    {p.status === 'Draft' ? 'Status: Draft' : 'Pending Activation'}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                            {createdProviders.filter(p => p.providerType === 'Pharmacy').length === 0 && (
+                              <p className="text-xs text-slate-400 text-center py-4">No pharmacies created yet. Click "+ Add Pharmacy" to configure.</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-700 mb-1">GST/TAX Registration Number</label>
-                      <input type="text" value={pharmacyGst} onChange={(e) => setPharmacyGst(e.target.value)}
-                        placeholder="GSTIN Number" className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-gray-800" />
-                    </div>
-                  </div>
-                </div>
-              )}
+                  )}
 
-              {/* Laboratory Setup */}
-              {activeStep?.id === 'laboratory' && (
-                <div className="space-y-6">
-                  <div className="pb-4 border-b border-slate-100">
-                    <h3 className="text-lg font-black text-slate-900">Laboratory Setup</h3>
-                    <p className="text-xs text-slate-400 mt-1">Configure diagnostic center parameters.</p>
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">Diagnostic Laboratory Name</label>
-                    <input type="text" value={labName} onChange={(e) => setLabName(e.target.value)}
-                      placeholder="e.g. PathLab Diagnostics" className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-gray-800" />
-                  </div>
+                  {/* Laboratory section if active in plan */}
+                  {flowData?.features?.labs && (
+                    <div className="border border-slate-200 rounded-3xl overflow-hidden bg-white">
+                      <div className="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center cursor-pointer select-none"
+                        onClick={() => setLabCollapsed(!labCollapsed)}>
+                        <div className="flex items-center gap-2">
+                          <span className="font-extrabold text-sm text-slate-800">Laboratory Setup</span>
+                          {skipLab && <span className="px-2 py-0.5 bg-amber-50 border border-amber-200 rounded-full text-[10px] font-bold text-amber-700">Skipped</span>}
+                        </div>
+                        <div className="flex items-center gap-4" onClick={(e) => e.stopPropagation()}>
+                          <label className="flex items-center gap-1.5 text-xs text-slate-650 cursor-pointer font-bold">
+                            <input type="checkbox" checked={skipLab} onChange={(e) => setSkipLab(e.target.checked)} />
+                            <span>Skip Laboratory</span>
+                          </label>
+                          <span className="text-slate-400 text-xs font-bold">{labCollapsed ? '▼' : '▲'}</span>
+                        </div>
+                      </div>
+
+                      {!labCollapsed && !skipLab && (
+                        <div className="p-6 space-y-4">
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs text-slate-455 font-bold">Added Laboratories</span>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenProviderWizard('Laboratory')}
+                              className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-50 hover:bg-blue-100 text-blue-750 border border-blue-200 rounded-xl text-xs font-bold transition cursor-pointer"
+                            >
+                              <Plus className="w-3.5 h-3.5" /> Add Laboratory
+                            </button>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            {createdProviders.filter(p => p.providerType === 'Laboratory').map((p, idx) => (
+                              <div key={idx} className="flex justify-between items-center p-3.5 bg-slate-50 rounded-2xl border border-slate-200 text-xs">
+                                <div>
+                                  <p className="font-bold text-slate-800">{p.name}</p>
+                                  <p className="text-[10px] text-slate-400 font-semibold mt-0.5">Manager: {p.contactPerson} ({p.managerEmail || p.email})</p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className={`px-2.5 py-1 font-bold text-[9px] rounded-full uppercase tracking-wider ${
+                                    p.status === 'Draft'
+                                      ? 'bg-slate-100 border border-slate-350 text-slate-650'
+                                      : 'bg-amber-50 border border-amber-200 text-amber-700'
+                                  }`}>
+                                    {p.status === 'Draft' ? 'Draft' : 'Waiting for Clinic Launch'}
+                                  </span>
+                                  <span className="text-slate-455 text-[10px] font-bold">
+                                    {p.status === 'Draft' ? 'Status: Draft' : 'Pending Activation'}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                            {createdProviders.filter(p => p.providerType === 'Laboratory').length === 0 && (
+                              <p className="text-xs text-slate-400 text-center py-4">No laboratories created yet. Click "+ Add Laboratory" to configure.</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -590,20 +1414,26 @@ const ClinicOnboarding = () => {
                     <p className="text-xs text-slate-400 mt-1">Enable smart clinical features matching your plan features.</p>
                   </div>
                   <div className="space-y-4">
-                    <label className="flex items-center gap-3 p-4 bg-slate-50 hover:bg-slate-100/50 rounded-2xl border border-slate-150 cursor-pointer transition">
-                      <input type="checkbox" checked={enabledAiFeatures.symptom_checker} onChange={(e) => setEnabledAiFeatures({ ...enabledAiFeatures, symptom_checker: e.target.checked })} />
-                      <div>
-                        <span className="block text-xs font-bold text-slate-800">AI Symptom Checker</span>
-                        <span className="block text-[10px] text-slate-400 mt-0.5">Assists clinical check-ins with symptoms suggestions</span>
-                      </div>
-                    </label>
-                    <label className="flex items-center gap-3 p-4 bg-slate-50 hover:bg-slate-100/50 rounded-2xl border border-slate-150 cursor-pointer transition">
-                      <input type="checkbox" checked={enabledAiFeatures.consultation_assistant} onChange={(e) => setEnabledAiFeatures({ ...enabledAiFeatures, consultation_assistant: e.target.checked })} />
-                      <div>
-                        <span className="block text-xs font-bold text-slate-800">AI Consultation Assistant</span>
-                        <span className="block text-[10px] text-slate-400 mt-0.5">Helps generating voice-to-prescription records</span>
-                      </div>
-                    </label>
+                    {[
+                      { key: 'voice_to_text', name: 'Voice Transcription', desc: 'Converts consultation audio to written notes' },
+                      { key: 'consultation_assistant', name: 'AI Consultation Assistant', desc: 'Helps generating voice-to-prescription records' },
+                      { key: 'symptom_checker', name: 'AI Symptom Checker', desc: 'Assists clinical check-ins with symptoms suggestions' },
+                      { key: 'ai_prescription_suggestions', name: 'AI Prescription Suggestions', desc: 'Get smart drug and dosage recommendations' },
+                      { key: 'ai_risk_scoring', name: 'AI Patient Risk Scoring', desc: 'Identify health risks and readmissions early' },
+                      { key: 'lab_recommendations', name: 'AI Lab Recommendation', desc: 'Suggest relevant diagnostic tests based on symptoms' },
+                      { key: 'ai_scheduling', name: 'Appointment Intelligence', desc: 'Optimize schedule slots using AI' }
+                    ].filter(mod => flowData?.features?.activeList?.includes(mod.key)).map(mod => (
+                      <label key={mod.key} className="flex items-center gap-3 p-4 bg-slate-50 hover:bg-slate-100/50 rounded-2xl border border-slate-150 cursor-pointer transition">
+                        <input type="checkbox" checked={!!enabledAiFeatures[mod.key]} onChange={(e) => setEnabledAiFeatures({ ...enabledAiFeatures, [mod.key]: e.target.checked })} />
+                        <div>
+                          <span className="block text-xs font-bold text-slate-800">{mod.name}</span>
+                          <span className="block text-[10px] text-slate-400 mt-0.5">{mod.desc}</span>
+                        </div>
+                      </label>
+                    ))}
+                    {(!flowData?.features?.activeList || flowData?.features?.activeList.filter(k => ['voice_to_text', 'consultation_assistant', 'symptom_checker', 'ai_prescription_suggestions', 'ai_risk_scoring', 'lab_recommendations', 'ai_scheduling'].includes(k)).length === 0) && (
+                      <p className="text-xs text-slate-400 font-medium">No AI modules are included in your plan features.</p>
+                    )}
                   </div>
                 </div>
               )}
@@ -642,34 +1472,46 @@ const ClinicOnboarding = () => {
               {/* Working days schedule */}
               {activeStep?.id === 'working_days' && (
                 <div className="space-y-6">
-                  <div className="pb-4 border-b border-slate-100">
-                    <h3 className="text-lg font-black text-slate-900">Working timings</h3>
-                    <p className="text-xs text-slate-400 mt-1">Configure hospital standard operating timings.</p>
+                  <div className="pb-4 border-b border-slate-100 flex justify-between items-center">
+                    <div>
+                      <h3 className="text-lg font-black text-slate-900">Working timings</h3>
+                      <p className="text-xs text-slate-400 mt-1">Configure hospital standard operating timings.</p>
+                    </div>
+                    <button type="button" onClick={() => setSkipTimings(!skipTimings)} className="text-xs font-bold text-blue-600 hover:underline">
+                      {skipTimings ? 'Undo Skip' : 'Skip For Now'}
+                    </button>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Working Days</label>
-                      <select value={workingTimings.dayRange} onChange={(e) => setWorkingTimings({ ...workingTimings, dayRange: e.target.value })}
-                        className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-gray-800">
-                        <option value="Monday - Friday">Monday - Friday</option>
-                        <option value="Monday - Saturday">Monday - Saturday</option>
-                        <option value="Everyday">Everyday</option>
-                      </select>
+                  {skipTimings ? (
+                    <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl text-center">
+                      <span className="block text-xs font-extrabold text-slate-500 uppercase tracking-wide">Schedule Skipped</span>
+                      <span className="block text-[11px] text-slate-450 mt-1">You can configure your clinic's operating schedule later in Settings {"->"} Clinic Schedule.</span>
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-[11px] font-bold text-slate-700 mb-1">Start Time</label>
-                        <input type="time" value={workingTimings.startTime} onChange={(e) => setWorkingTimings({ ...workingTimings, startTime: e.target.value })}
-                          className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-gray-800" />
+                        <label className="block text-[11px] font-bold text-slate-700 mb-1">Working Days</label>
+                        <select value={workingTimings.dayRange} onChange={(e) => setWorkingTimings({ ...workingTimings, dayRange: e.target.value })}
+                          className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-gray-800">
+                          <option value="Monday - Friday">Monday - Friday</option>
+                          <option value="Monday - Saturday">Monday - Saturday</option>
+                          <option value="Everyday">Everyday</option>
+                        </select>
                       </div>
-                      <div>
-                        <label className="block text-[11px] font-bold text-slate-700 mb-1">End Time</label>
-                        <input type="time" value={workingTimings.endTime} onChange={(e) => setWorkingTimings({ ...workingTimings, endTime: e.target.value })}
-                          className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-gray-800" />
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-700 mb-1">Start Time</label>
+                          <input type="time" value={workingTimings.startTime} onChange={(e) => setWorkingTimings({ ...workingTimings, startTime: e.target.value })}
+                            className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-gray-800" />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-700 mb-1">End Time</label>
+                          <input type="time" value={workingTimings.endTime} onChange={(e) => setWorkingTimings({ ...workingTimings, endTime: e.target.value })}
+                            className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-gray-800" />
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               )}
 
@@ -686,7 +1528,15 @@ const ClinicOnboarding = () => {
                     <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-1">
                       <span className="text-slate-450 block font-medium">Practitioners Configured</span>
                       <span className="font-extrabold text-slate-800 text-sm">
-                        {doctors.filter(d => d.fullName?.trim() && d.email?.trim()).length} Doctors added
+                        {skipDoctors ? 'Skipped, Configure Later' : `${doctors.filter(d => d.fullName?.trim() && d.email?.trim()).length} Doctors added`}
+                      </span>
+                    </div>
+
+                    {/* Departments */}
+                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-1">
+                      <span className="text-slate-450 block font-medium">Departments Configured</span>
+                      <span className="font-extrabold text-slate-800 text-sm">
+                        {departments.join(', ') || 'None'}
                       </span>
                     </div>
 
@@ -695,7 +1545,7 @@ const ClinicOnboarding = () => {
                       <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-1">
                         <span className="text-slate-450 block font-medium">Support Staff Configured</span>
                         <span className="font-extrabold text-slate-800 text-sm">
-                          {staffList.filter(s => s.name?.trim() && s.email?.trim()).length} Staff accounts added
+                          {skipStaff ? 'Skipped, Configure Later' : `${staffList.filter(s => s.name?.trim() && s.email?.trim()).length} Staff accounts added`}
                         </span>
                       </div>
                     )}
@@ -705,7 +1555,7 @@ const ClinicOnboarding = () => {
                       <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-1">
                         <span className="text-slate-450 block font-medium">Branches Configured</span>
                         <span className="font-extrabold text-slate-800 text-sm">
-                          {branches.filter(b => b.name?.trim() && b.code?.trim()).length} Sub-branches created
+                          {skipBranches ? 'Skipped, Configure Later' : `${branches.filter(b => b.name?.trim() && b.code?.trim()).length} Sub-branches created`}
                         </span>
                       </div>
                     )}
@@ -713,7 +1563,9 @@ const ClinicOnboarding = () => {
                     {/* Operating hours */}
                     <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-1">
                       <span className="text-slate-450 block font-medium">Standard Hours</span>
-                      <span className="font-extrabold text-slate-800 text-sm">{workingTimings.dayRange} ({workingTimings.startTime} - {workingTimings.endTime})</span>
+                      <span className="font-extrabold text-slate-800 text-sm">
+                        {skipTimings ? 'Skipped, Configure Later' : `${workingTimings.dayRange} (${workingTimings.startTime} - {workingTimings.endTime})`}
+                      </span>
                     </div>
 
                     {/* Pharmacy Setup */}
@@ -721,7 +1573,9 @@ const ClinicOnboarding = () => {
                       <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-1">
                         <span className="text-slate-450 block font-medium">Pharmacy Integration</span>
                         <span className="font-extrabold text-slate-800 text-sm">
-                          {pharmacyName ? `${pharmacyName} (GST: ${pharmacyGst || 'N/A'})` : 'Not configured'}
+                          {skipPharmacy || createdProviders.filter(p => p.providerType === 'Pharmacy').length === 0 
+                            ? 'Skipped, Configure Later' 
+                            : `${createdProviders.filter(p => p.providerType === 'Pharmacy').length} Pharmacy Providers added`}
                         </span>
                       </div>
                     )}
@@ -731,7 +1585,9 @@ const ClinicOnboarding = () => {
                       <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-1">
                         <span className="text-slate-450 block font-medium">Laboratory Integration</span>
                         <span className="font-extrabold text-slate-800 text-sm">
-                          {labName ? labName : 'Not configured'}
+                          {skipLab || createdProviders.filter(p => p.providerType === 'Laboratory').length === 0 
+                            ? 'Skipped, Configure Later' 
+                            : `${createdProviders.filter(p => p.providerType === 'Laboratory').length} Laboratory Providers added`}
                         </span>
                       </div>
                     )}
@@ -742,7 +1598,7 @@ const ClinicOnboarding = () => {
                         <span className="text-slate-450 block font-medium">AI Clinical Modules</span>
                         <span className="font-extrabold text-slate-800 text-sm">
                           {Object.entries(enabledAiFeatures)
-                            .filter(([_, enabled]) => enabled)
+                            .filter(([key, enabled]) => enabled && flowData?.features?.activeList?.includes(key))
                             .map(([key]) => key.replace('_', ' '))
                             .join(', ') || 'None enabled'}
                         </span>
@@ -788,6 +1644,23 @@ const ClinicOnboarding = () => {
           </div>
         </div>
 
+      {providerWizardOpen && (
+        <ProviderWizardModal
+          step={providerWizardStep}
+          totalSteps={4}
+          form={providerForm}
+          setForm={setProviderForm}
+          branches={[
+            { _id: 'headquarters', name: 'Main Clinic / Headquarters' },
+            ...branches.filter(b => b.name?.trim()).map((b, idx) => ({ _id: `branch_${idx}`, name: b.name }))
+          ]}
+          saving={providerSaving}
+          onClose={() => setProviderWizardOpen(false)}
+          onNext={() => setProviderWizardStep(prev => Math.min(prev + 1, 4))}
+          onPrev={() => setProviderWizardStep(prev => Math.max(prev - 1, 1))}
+          onSave={handleSaveProvider}
+        />
+      )}
       </div>
     </div>
   );

@@ -53,10 +53,20 @@ const medicineBatchSchema = new mongoose.Schema(
       trim: true,
       default: ''
     },
+    supplierId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Supplier',
+      default: null,
+      index: true
+    },
     invoiceNumber: {
       type: String,
       trim: true,
       default: ''
+    },
+    isActive: {
+      type: Boolean,
+      default: true
     }
   },
   {

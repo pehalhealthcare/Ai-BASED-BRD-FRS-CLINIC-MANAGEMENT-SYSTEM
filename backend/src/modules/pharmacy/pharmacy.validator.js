@@ -43,9 +43,11 @@ const batchSchema = z.object({
   expiryDate: futureOrPresentDateSchema.optional(),
   purchasePrice: z.coerce.number().min(0).optional(),
   sellingPrice: z.coerce.number().min(0).optional(),
+  mrp: z.coerce.number().min(0).optional(),
   receivedAt: z.string().trim().optional(),
   isOpeningStock: z.boolean().optional(),
   supplier: z.string().trim().optional(),
+  supplierId: objectIdSchema.optional(),
   invoiceNumber: z.string().trim().optional(),
   remarks: z.string().trim().optional(),
   notes: z.string().trim().optional(),
@@ -111,6 +113,7 @@ const listMedicinesQuerySchema = z.object({
     nearExpiry: booleanQuerySchema,
     isActive: booleanQuerySchema,
     clinicId: objectIdSchema.optional(),
+    providerId: objectIdSchema.optional(),
     allClinics: booleanQuerySchema
   })
 });
@@ -173,15 +176,34 @@ const createPharmacyOrderSchema = z.object({
     prescriptionId: objectIdSchema.optional().nullable(),
     prescriptionFile: z.string().optional(),
     clinicId: objectIdSchema.optional(),
-    patientId: objectIdSchema.optional()
+    patientId: objectIdSchema.optional(),
+    deliveryMethod: z.enum(['Home Delivery', 'Pickup']).optional(),
+    deliveryAddress: z.any().optional(),
+    pickupLocation: z.string().optional(),
+    pickupAddress: z.string().optional(),
+    preparationTime: z.string().optional(),
+    pickupSlot: z.string().optional(),
+    pickupCode: z.string().optional(),
+    qrCode: z.string().optional(),
+    rejectionReason: z.string().optional()
   })
 });
 
 const listPharmacyOrdersQuerySchema = z.object({
   query: paginationQuerySchema.extend({
     patientId: objectIdSchema.optional(),
-    status: z.enum(['pending', 'completed', 'cancelled']).optional(),
-    clinicId: objectIdSchema.optional()
+    status: z.enum([
+      'pending',
+      'confirmed',
+      'preparing',
+      'ready_for_pickup',
+      'out_for_delivery',
+      'completed',
+      'cancelled',
+      'rejected'
+    ]).optional(),
+    clinicId: objectIdSchema.optional(),
+    providerId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid Provider ID').optional()
   })
 });
 
@@ -208,6 +230,24 @@ const createSupplierSchema = z.object({
       country: z.string().trim().optional()
     }).optional(),
     paymentTerms: z.string().trim().max(100).optional(),
+    companyName: z.string().trim().optional(),
+    code: z.string().trim().optional(),
+    type: z.enum(['manufacturer', 'distributor', 'wholesaler', 'local_vendor', 'importer', 'other']).optional(),
+    alternatePhone: z.string().trim().optional(),
+    website: z.string().trim().optional(),
+    drugLicenseNumber: z.string().trim().optional(),
+    pan: z.string().trim().optional(),
+    creditDays: z.coerce.number().int().min(0).optional(),
+    preferredCurrency: z.string().trim().optional(),
+    bankDetails: z.object({
+      bankName: z.string().trim().optional(),
+      accountHolder: z.string().trim().optional(),
+      accountNumber: z.string().trim().optional(),
+      ifsc: z.string().trim().optional(),
+      upi: z.string().trim().optional()
+    }).optional(),
+    preferredSupplier: z.boolean().optional(),
+    notes: z.string().trim().optional(),
     isActive: z.boolean().optional()
   })
 });
@@ -229,6 +269,24 @@ const updateSupplierSchema = z.object({
       country: z.string().trim().optional()
     }).optional(),
     paymentTerms: z.string().trim().max(100).optional(),
+    companyName: z.string().trim().optional(),
+    code: z.string().trim().optional(),
+    type: z.enum(['manufacturer', 'distributor', 'wholesaler', 'local_vendor', 'importer', 'other']).optional(),
+    alternatePhone: z.string().trim().optional(),
+    website: z.string().trim().optional(),
+    drugLicenseNumber: z.string().trim().optional(),
+    pan: z.string().trim().optional(),
+    creditDays: z.coerce.number().int().min(0).optional(),
+    preferredCurrency: z.string().trim().optional(),
+    bankDetails: z.object({
+      bankName: z.string().trim().optional(),
+      accountHolder: z.string().trim().optional(),
+      accountNumber: z.string().trim().optional(),
+      ifsc: z.string().trim().optional(),
+      upi: z.string().trim().optional()
+    }).optional(),
+    preferredSupplier: z.boolean().optional(),
+    notes: z.string().trim().optional(),
     isActive: z.boolean().optional()
   }).optional()
 });
@@ -275,7 +333,27 @@ const adjustStockSchema = z.object({
   })
 });
 
+const walkinSaleItemSchema = z.object({
+  medicineId: objectIdSchema,
+  batchNumber: z.string().trim().min(1, 'batchNumber is required'),
+  quantity: z.coerce.number().int().positive('quantity must be a positive integer'),
+  unitPrice: z.coerce.number().min(0),
+  totalPrice: z.coerce.number().min(0)
+});
+
+const walkinSaleSchema = z.object({
+  body: z.object({
+    patientName: z.string().trim().optional(),
+    patientPhone: z.string().trim().optional(),
+    items: z.array(walkinSaleItemSchema).min(1, 'At least one medicine item is required'),
+    subtotal: z.coerce.number().min(0),
+    paymentMethod: z.enum(['cash', 'card', 'upi', 'other']),
+    notes: optionalTrimmedString(2000)
+  })
+});
+
 module.exports = {
+  walkinSaleSchema,
   createMedicineSchema,
   updateMedicineSchema,
   addBatchSchema,

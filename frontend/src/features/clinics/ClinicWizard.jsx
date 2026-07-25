@@ -177,6 +177,282 @@ const ClinicWizard = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [wizardError, setWizardError] = useState('');
+  const [mapTarget, setMapTarget] = useState('clinic');
+  const [ownerEmailValidation, setOwnerEmailValidation] = useState(null);
+  const [ownerPhoneValidation, setOwnerPhoneValidation] = useState(null);
+  const emailTimeout = useRef(null);
+  const phoneTimeout = useRef(null);
+
+  const handleValidateOwnerEmail = (emailVal) => {
+    if (emailTimeout.current) clearTimeout(emailTimeout.current);
+    if (!emailVal || !emailVal.trim()) {
+      setOwnerEmailValidation(null);
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal)) {
+      setOwnerEmailValidation({ status: 'invalid', message: 'Invalid email address format' });
+      return;
+    }
+    setOwnerEmailValidation({ status: 'checking', message: '' });
+    emailTimeout.current = setTimeout(async () => {
+      try {
+        const res = await clinicApi.validateEmail({ email: emailVal });
+        if (res.data?.isUnique) {
+          setOwnerEmailValidation({ status: 'valid', message: 'Available' });
+        } else {
+          setOwnerEmailValidation({ status: 'invalid', message: 'Email address already exists' });
+        }
+      } catch (err) {
+        setOwnerEmailValidation({ status: 'invalid', message: 'Validation failed' });
+      }
+    }, 500);
+  };
+
+  const handleValidateOwnerPhone = (phoneVal) => {
+    if (phoneTimeout.current) clearTimeout(phoneTimeout.current);
+    const cleaned = phoneVal.replace(/\D/g, '').slice(0, 10);
+    if (!cleaned) {
+      setOwnerPhoneValidation(null);
+      return;
+    }
+    if (cleaned.length !== 10) {
+      setOwnerPhoneValidation({ status: 'invalid', message: 'Phone number must be exactly 10 digits' });
+      return;
+    }
+    setOwnerPhoneValidation({ status: 'checking', message: '' });
+    phoneTimeout.current = setTimeout(async () => {
+      try {
+        const res = await clinicApi.validatePhone({ phone: cleaned });
+        if (res.data?.isUnique) {
+          setOwnerPhoneValidation({ status: 'valid', message: 'Available' });
+        } else {
+          setOwnerPhoneValidation({ status: 'invalid', message: 'Phone number already exists' });
+        }
+      } catch (err) {
+        setOwnerPhoneValidation({ status: 'invalid', message: 'Validation failed' });
+      }
+    }, 500);
+  };
+
+  const [errors, setErrors] = useState({});
+  const [uploadProgress, setUploadProgress] = useState({});
+  const [localPreviews, setLocalPreviews] = useState({});
+  const [regNumValidation, setRegNumValidation] = useState(null);
+  const regNumTimeout = useRef(null);
+
+  const highlightAndScroll = (newErrors) => {
+    setErrors(newErrors);
+    const firstErrorField = Object.keys(newErrors)[0];
+    if (firstErrorField) {
+      setTimeout(() => {
+        const el = document.getElementById(firstErrorField) || document.getElementsByName(firstErrorField)[0] || document.querySelector(`[data-field="${firstErrorField}"]`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el.focus();
+        }
+      }, 100);
+    }
+  };
+
+  const handleValidateRegNumber = (regVal) => {
+    if (regNumTimeout.current) clearTimeout(regNumTimeout.current);
+    if (!regVal || !regVal.trim()) {
+      setRegNumValidation(null);
+      return;
+    }
+    setRegNumValidation({ status: 'checking', message: '' });
+    regNumTimeout.current = setTimeout(async () => {
+      try {
+        const res = await clinicApi.validateRegistrationNumber({ registrationNumber: regVal });
+        if (res.data?.isUnique) {
+          setRegNumValidation({ status: 'valid', message: '✓ Available' });
+        } else {
+          setRegNumValidation({ status: 'invalid', message: 'This clinic registration number is already registered.' });
+        }
+      } catch (err) {
+        setRegNumValidation({ status: 'invalid', message: 'Validation failed' });
+      }
+    }, 500);
+  };
+
+  const handleFileUpload = async (file, fieldName, isMultiple = false) => {
+    if (!file) return;
+
+    const maxSize = 10 * 1024 * 1024;
+    if (file.size > maxSize) {
+      alert(`File size exceeds 10MB limit: ${file.name}`);
+      return;
+    }
+
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/svg+xml'];
+    if (!allowedTypes.includes(file.type)) {
+      alert('Invalid file format. Only JPEG, JPG, PNG, WEBP, and SVG are supported.');
+      return;
+    }
+
+    setUploadProgress(prev => ({ ...prev, [fieldName]: 'uploading' }));
+    
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const base64Content = reader.result;
+        setLocalPreviews(prev => ({ ...prev, [fieldName]: base64Content }));
+
+        const res = await clinicApi.uploadFile({
+          file_data: base64Content,
+          file_name: file.name
+        });
+        const fileRef = res.data.fileRef;
+
+        if (isMultiple) {
+          setClinicForm(prev => ({
+            ...prev,
+            images: [...(prev.images || []), fileRef]
+          }));
+        } else if (fieldName === 'profilePhoto') {
+          setOwnerForm(prev => ({ ...prev, profilePhoto: fileRef }));
+        } else if (fieldName === 'logo') {
+          setClinicForm(prev => ({ ...prev, logo: fileRef }));
+        }
+
+        setUploadProgress(prev => ({ ...prev, [fieldName]: 'success' }));
+      } catch (err) {
+        setUploadProgress(prev => ({ ...prev, [fieldName]: 'error' }));
+      }
+    };
+    reader.onerror = () => {
+      setUploadProgress(prev => ({ ...prev, [fieldName]: 'error' }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleLoadDraft = async (emailVal) => {
+    if (!emailVal || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal)) return;
+    try {
+      const res = await clinicApi.getDraft(emailVal);
+      if (res.data?.draft) {
+        const draft = res.data.draft;
+        setOwnerForm(prev => ({ ...prev, ...draft.ownerForm }));
+        setClinicForm(prev => ({ ...prev, ...draft.clinicForm }));
+        if (draft.selectedPlanId) setSelectedPlanId(draft.selectedPlanId);
+        if (draft.billingCycle) setBillingCycle(draft.billingCycle);
+        if (draft.step) setCurrentStep(draft.step);
+      }
+    } catch (err) {
+      console.error('Failed to load draft:', err);
+    }
+  };
+
+  const handleSaveDraft = async () => {
+    if (!ownerForm.email) {
+      alert('Please enter an email address to save draft.');
+      return;
+    }
+    try {
+      setIsSubmitting(true);
+      await clinicApi.saveDraft({
+        email: ownerForm.email,
+        step: currentStep,
+        ownerForm,
+        clinicForm,
+        selectedPlanId,
+        billingCycle
+      });
+      alert('Draft saved successfully! You can resume anytime using this email address.');
+    } catch (err) {
+      alert('Failed to save draft.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const validateStepOne = async () => {
+    const newErrors = {};
+    if (!ownerForm.name) newErrors.name = 'Owner name is required.';
+    if (!ownerForm.designation) newErrors.designation = 'Designation is required.';
+    if (!ownerForm.email) {
+      newErrors.email = 'Please enter a valid email address.';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ownerForm.email)) {
+      newErrors.email = 'Please enter a valid email address.';
+    }
+    if (!ownerForm.phone) {
+      newErrors.phone = 'Please enter a valid mobile number.';
+    } else if (ownerForm.phone.replace(/\D/g, '').length !== 10) {
+      newErrors.phone = 'Please enter a valid mobile number.';
+    }
+    if (!ownerForm.password) {
+      newErrors.password = 'Password is required.';
+    } else if (ownerForm.password.length < 6) {
+      newErrors.password = 'Password must meet security requirements (at least 6 characters).';
+    }
+    if (ownerForm.password !== ownerForm.confirmPassword) {
+      newErrors.confirmPassword = 'Passwords do not match.';
+    }
+    if (!ownerForm.dob) newErrors.dob = 'Date of birth is required.';
+    if (!ownerForm.gender) newErrors.gender = 'Gender is required.';
+    if (!ownerForm.address) newErrors.address = 'Please enter your address.';
+
+    if (!newErrors.email || !newErrors.phone) {
+      try {
+        const [emailRes, phoneRes] = await Promise.all([
+          !newErrors.email ? clinicApi.validateEmail({ email: ownerForm.email }) : Promise.resolve({ data: { isUnique: true } }),
+          !newErrors.phone ? clinicApi.validatePhone({ phone: ownerForm.phone.replace(/\D/g, '') }) : Promise.resolve({ data: { isUnique: true } })
+        ]);
+        if (!emailRes.data.isUnique) newErrors.email = 'This email address is already registered.';
+        if (!phoneRes.data.isUnique) newErrors.phone = 'This mobile number is already registered.';
+      } catch (err) {}
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      highlightAndScroll(newErrors);
+      return false;
+    }
+    setErrors({});
+    return true;
+  };
+
+  const validateStepTwo = async () => {
+    const newErrors = {};
+    if (!clinicForm.name) newErrors.clinicName = 'Clinic Name is required.';
+    if (!clinicForm.registrationNumber) newErrors.registrationNumber = 'Clinic Registration Number is required.';
+    if (!clinicForm.establishedYear) newErrors.establishedYear = 'Established Year is required.';
+    if (!clinicForm.shortDescription) newErrors.shortDescription = 'Short Description is required.';
+    if (!clinicForm.addressLine1) newErrors.addressLine1 = 'Please enter clinic address.';
+    if (!clinicForm.city) newErrors.city = 'City is required.';
+    if (!clinicForm.state) newErrors.state = 'State is required.';
+    if (!clinicForm.pincode) newErrors.pincode = 'PIN Code is required.';
+    if (!clinicForm.contactNumber) newErrors.contactNumber = 'Contact Number is required.';
+    if (!clinicForm.timings || clinicForm.timings.length === 0) newErrors.timings = 'Please select clinic timings.';
+
+    if (clinicForm.registrationNumber) {
+      try {
+        const res = await clinicApi.validateRegistrationNumber({ registrationNumber: clinicForm.registrationNumber });
+        if (!res.data.isUnique) {
+          newErrors.registrationNumber = 'This clinic registration number is already registered.';
+        }
+      } catch (err) {}
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      highlightAndScroll(newErrors);
+      return false;
+    }
+    setErrors({});
+    return true;
+  };
+
+  const validateStepThree = () => {
+    const newErrors = {};
+    if (!selectedPlanId) {
+      newErrors.selectedPlan = 'Please select a subscription plan to continue.';
+    }
+    if (Object.keys(newErrors).length > 0) {
+      highlightAndScroll(newErrors);
+      return false;
+    }
+    setErrors({});
+    return true;
+  };
 
   // Clinic login states
   const { login } = useAuth();
@@ -225,9 +501,14 @@ const ClinicWizard = () => {
     setLoginError('');
 
     try {
-      const authData = await login({ email: loginEmail, password: loginPassword });
+      const authData = await login({ email: loginEmail, password: loginPassword, portal: 'clinic' });
       const userRole = authData?.user?.role;
       const clinic = authData?.user?.clinic;
+
+      if (userRole === 'SUPER_ADMIN') {
+        navigate('/super-admin/clinics', { replace: true });
+        return;
+      }
 
       if (userRole === 'ADMIN' && clinic) {
         const { approvalStatus, subscription, isOnboardingCompleted } = clinic;
@@ -359,43 +640,11 @@ const ClinicWizard = () => {
   const validateStep = async () => {
     setWizardError('');
     if (currentStep === 1) {
-      if (!ownerForm.name || !ownerForm.designation || !ownerForm.phone || !ownerForm.email || !ownerForm.password) {
-        setWizardError('Please fill all required owner details marked with *');
-        return false;
-      }
-      if (ownerForm.password !== ownerForm.confirmPassword) {
-        setWizardError('Password confirmation does not match');
-        return false;
-      }
-      if (ownerForm.password.length < 6) {
-        setWizardError('Password must be at least 6 characters');
-        return false;
-      }
-
-      // Backend validation for email uniqueness
-      try {
-        setIsSubmitting(true);
-        const res = await clinicApi.validateEmail({ email: ownerForm.email });
-        if (!res.data.isUnique) {
-          setWizardError('this email id already exists with us');
-          return false;
-        }
-      } catch (err) {
-        setWizardError(err.response?.data?.message || 'Failed to validate email. Please try again.');
-        return false;
-      } finally {
-        setIsSubmitting(false);
-      }
+      return await validateStepOne();
     } else if (currentStep === 2) {
-      if (!clinicForm.name || !clinicForm.registrationNumber || !clinicForm.establishedYear || !clinicForm.shortDescription || !clinicForm.addressLine1 || !clinicForm.city || !clinicForm.state || !clinicForm.pincode || !clinicForm.contactNumber) {
-        setWizardError('Please fill all required clinic details marked with *. Clinic Name, Registration Number, Established Year, Short Description, and Address are compulsory.');
-        return false;
-      }
+      return await validateStepTwo();
     } else if (currentStep === 3) {
-      if (!selectedPlanId) {
-        setWizardError('Please select a subscription plan');
-        return false;
-      }
+      return validateStepThree();
     }
     return true;
   };
@@ -413,6 +662,28 @@ const ClinicWizard = () => {
 
   const handleSubmit = async () => {
     setWizardError('');
+    
+    // Validate Step 1
+    const stepOneValid = await validateStepOne();
+    if (!stepOneValid) {
+      setCurrentStep(1);
+      return;
+    }
+    
+    // Validate Step 2
+    const stepTwoValid = await validateStepTwo();
+    if (!stepTwoValid) {
+      setCurrentStep(2);
+      return;
+    }
+    
+    // Validate Step 3
+    const stepThreeValid = validateStepThree();
+    if (!stepThreeValid) {
+      setCurrentStep(3);
+      return;
+    }
+
     if (!hasAcceptedTerms) {
       setWizardError('You must confirm that all information is correct');
       return;
@@ -640,38 +911,62 @@ const ClinicWizard = () => {
                     <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shrink-0">
                       <User className="w-6 h-6" />
                     </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  </div>                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div>
                       <label className="block text-xs font-bold text-slate-700 mb-2">Owner Full Name <span className="text-red-500">*</span></label>
                       <input 
                         type="text" 
+                        id="name"
+                        name="name"
                         placeholder="Enter owner full name" 
-                        className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition text-sm text-slate-800"
+                        className={`w-full px-4 py-3 bg-slate-50/50 border rounded-2xl outline-none focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition text-sm text-slate-800 ${errors.name ? 'border-red-500 bg-red-50/10' : 'border-slate-200'}`}
                         value={ownerForm.name}
-                        onChange={(e) => setOwnerForm({ ...ownerForm, name: e.target.value })}
+                        onChange={(e) => {
+                          setOwnerForm({ ...ownerForm, name: e.target.value });
+                          if (errors.name) setErrors(prev => ({ ...prev, name: '' }));
+                        }}
                       />
+                      {errors.name && <p className="text-[10px] text-red-500 mt-1">{errors.name}</p>}
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-slate-700 mb-2">Designation <span className="text-red-500">*</span></label>
                       <input 
                         type="text" 
+                        id="designation"
+                        name="designation"
                         placeholder="Enter designation (e.g., Doctor, Director)" 
-                        className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition text-sm text-slate-800"
+                        className={`w-full px-4 py-3 bg-slate-50/50 border rounded-2xl outline-none focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition text-sm text-slate-800 ${errors.designation ? 'border-red-500 bg-red-50/10' : 'border-slate-200'}`}
                         value={ownerForm.designation}
-                        onChange={(e) => setOwnerForm({ ...ownerForm, designation: e.target.value })}
+                        onChange={(e) => {
+                          setOwnerForm({ ...ownerForm, designation: e.target.value });
+                          if (errors.designation) setErrors(prev => ({ ...prev, designation: '' }));
+                        }}
                       />
+                      {errors.designation && <p className="text-[10px] text-red-500 mt-1">{errors.designation}</p>}
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-slate-700 mb-2">Email Address <span className="text-red-500">*</span></label>
                       <input 
                         type="email" 
+                        id="email"
+                        name="email"
                         placeholder="Enter email address" 
-                        className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition text-sm text-slate-800"
+                        className={`w-full px-4 py-3 bg-slate-50/50 border rounded-2xl outline-none focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition text-sm text-slate-800 ${errors.email ? 'border-red-500 bg-red-50/10' : 'border-slate-200'}`}
                         value={ownerForm.email}
-                        onChange={(e) => setOwnerForm({ ...ownerForm, email: e.target.value })}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setOwnerForm({ ...ownerForm, email: val });
+                          if (errors.email) setErrors(prev => ({ ...prev, email: '' }));
+                        }}
+                        onBlur={(e) => {
+                          handleValidateOwnerEmail(e.target.value);
+                          handleLoadDraft(e.target.value);
+                        }}
                       />
+                      {ownerEmailValidation?.status === 'checking' && <p className="text-[10px] text-blue-500 mt-1">Checking email...</p>}
+                      {ownerEmailValidation?.status === 'valid' && <p className="text-[10px] text-emerald-600 mt-1">✓ Available</p>}
+                      {ownerEmailValidation?.status === 'invalid' && <p className="text-[10px] text-rose-600 mt-1">{ownerEmailValidation?.message}</p>}
+                      {errors.email && <p className="text-[10px] text-red-500 mt-1">{errors.email}</p>}
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-slate-700 mb-2">Mobile Number <span className="text-red-500">*</span></label>
@@ -681,62 +976,115 @@ const ClinicWizard = () => {
                         </select>
                         <input 
                           type="tel" 
+                          id="phone"
+                          name="phone"
                           placeholder="Enter mobile number" 
-                          className="flex-1 px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition text-sm text-slate-800"
+                          className={`flex-1 px-4 py-3 bg-slate-50/50 border rounded-2xl outline-none focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition text-sm text-slate-800 ${errors.phone ? 'border-red-500 bg-red-50/10' : 'border-slate-200'}`}
                           value={ownerForm.phone}
-                          onChange={(e) => setOwnerForm({ ...ownerForm, phone: e.target.value })}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                            setOwnerForm({ ...ownerForm, phone: val });
+                            if (errors.phone) setErrors(prev => ({ ...prev, phone: '' }));
+                          }}
+                          onBlur={(e) => handleValidateOwnerPhone(e.target.value)}
                         />
                       </div>
+                      {ownerPhoneValidation?.status === 'checking' && <p className="text-[10px] text-blue-500 mt-1">Checking phone...</p>}
+                      {ownerPhoneValidation?.status === 'valid' && <p className="text-[10px] text-emerald-600 mt-1">✓ Available</p>}
+                      {ownerPhoneValidation?.status === 'invalid' && <p className="text-[10px] text-rose-600 mt-1">{ownerPhoneValidation?.message}</p>}
+                      {errors.phone && <p className="text-[10px] text-red-500 mt-1">{errors.phone}</p>}
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-slate-700 mb-2">Password <span className="text-red-500">*</span></label>
                       <input 
                         type="password" 
+                        id="password"
+                        name="password"
                         placeholder="Enter owner account password" 
-                        className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition text-sm text-slate-800"
+                        className={`w-full px-4 py-3 bg-slate-50/50 border rounded-2xl outline-none focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition text-sm text-slate-800 ${errors.password ? 'border-red-500 bg-red-50/10' : 'border-slate-200'}`}
                         value={ownerForm.password}
-                        onChange={(e) => setOwnerForm({ ...ownerForm, password: e.target.value })}
+                        onChange={(e) => {
+                          setOwnerForm({ ...ownerForm, password: e.target.value });
+                          if (errors.password) setErrors(prev => ({ ...prev, password: '' }));
+                        }}
                       />
+                      {errors.password && <p className="text-[10px] text-red-500 mt-1">{errors.password}</p>}
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-slate-700 mb-2">Confirm Password <span className="text-red-500">*</span></label>
                       <input 
                         type="password" 
+                        id="confirmPassword"
+                        name="confirmPassword"
                         placeholder="Re-enter password" 
-                        className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition text-sm text-slate-800"
+                        className={`w-full px-4 py-3 bg-slate-50/50 border rounded-2xl outline-none focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition text-sm text-slate-800 ${errors.confirmPassword ? 'border-red-500 bg-red-50/10' : 'border-slate-200'}`}
                         value={ownerForm.confirmPassword}
-                        onChange={(e) => setOwnerForm({ ...ownerForm, confirmPassword: e.target.value })}
+                        onChange={(e) => {
+                          setOwnerForm({ ...ownerForm, confirmPassword: e.target.value });
+                          if (errors.confirmPassword) setErrors(prev => ({ ...prev, confirmPassword: '' }));
+                        }}
                       />
+                      {errors.confirmPassword && <p className="text-[10px] text-red-500 mt-1">{errors.confirmPassword}</p>}
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-800 mb-2">Date of Birth</label>
-                      <CustomDatePicker 
-                        value={ownerForm.dob}
-                        onChange={(val) => setOwnerForm({ ...ownerForm, dob: val })}
-                      />
+                      <label className="block text-xs font-bold text-slate-800 mb-2">Date of Birth <span className="text-red-500">*</span></label>
+                      <div className={errors.dob ? 'border border-red-500 rounded-2xl p-0.5' : ''} id="dob" name="dob">
+                        <CustomDatePicker 
+                          value={ownerForm.dob}
+                          onChange={(val) => {
+                            setOwnerForm({ ...ownerForm, dob: val });
+                            if (errors.dob) setErrors(prev => ({ ...prev, dob: '' }));
+                          }}
+                        />
+                      </div>
+                      {errors.dob && <p className="text-[10px] text-red-500 mt-1">{errors.dob}</p>}
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-2">Gender</label>
+                      <label className="block text-xs font-bold text-slate-700 mb-2">Gender <span className="text-red-500">*</span></label>
                       <select 
-                        className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-2xl outline-none text-sm text-slate-800"
+                        id="gender"
+                        name="gender"
+                        className={`w-full px-4 py-3 bg-slate-50/50 border rounded-2xl outline-none text-sm text-slate-800 ${errors.gender ? 'border-red-500 bg-red-50/10' : 'border-slate-200'}`}
                         value={ownerForm.gender}
-                        onChange={(e) => setOwnerForm({ ...ownerForm, gender: e.target.value })}
+                        onChange={(e) => {
+                          setOwnerForm({ ...ownerForm, gender: e.target.value });
+                          if (errors.gender) setErrors(prev => ({ ...prev, gender: '' }));
+                        }}
                       >
                         <option value="">Select gender</option>
                         <option value="Male">Male</option>
                         <option value="Female">Female</option>
                         <option value="Other">Other</option>
                       </select>
+                      {errors.gender && <p className="text-[10px] text-red-500 mt-1">{errors.gender}</p>}
                     </div>
                     <div className="md:col-span-2">
-                      <label className="block text-xs font-bold text-slate-700 mb-2">Address</label>
+                      <div className="flex justify-between items-center mb-2">
+                        <label className="block text-xs font-bold text-slate-700">Address <span className="text-red-500">*</span></label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMapTarget('owner');
+                            setShowMapPicker(true);
+                          }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl text-xs font-bold transition border border-emerald-200 shadow-sm cursor-pointer"
+                        >
+                          <MapPin size={12} /> Locate on Map
+                        </button>
+                      </div>
                       <input 
                         type="text" 
+                        id="address"
+                        name="address"
                         placeholder="Enter owner's address" 
-                        className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition text-sm text-slate-800"
+                        className={`w-full px-4 py-3 bg-slate-50/50 border rounded-2xl outline-none focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition text-sm text-slate-800 ${errors.address ? 'border-red-500 bg-red-50/10' : 'border-slate-200'}`}
                         value={ownerForm.address}
-                        onChange={(e) => setOwnerForm({ ...ownerForm, address: e.target.value })}
+                        onChange={(e) => {
+                          setOwnerForm({ ...ownerForm, address: e.target.value });
+                          if (errors.address) setErrors(prev => ({ ...prev, address: '' }));
+                        }}
                       />
+                      {errors.address && <p className="text-[10px] text-red-500 mt-1">{errors.address}</p>}
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-slate-700 mb-2">PAN Number (Optional)</label>
@@ -761,12 +1109,15 @@ const ClinicWizard = () => {
                     <div className="md:col-span-2">
                       <label className="block text-xs font-bold text-slate-700 mb-2">Profile Photo (Optional)</label>
                       <div className="flex items-center gap-4">
-                        {ownerForm.profilePhoto ? (
+                        {(localPreviews.profilePhoto || ownerForm.profilePhoto) ? (
                           <div className="relative w-20 h-20 rounded-2xl overflow-hidden border border-slate-200 group shadow-sm">
-                            <img src={ownerForm.profilePhoto} alt="Profile" className="w-full h-full object-cover" />
+                            <img src={localPreviews.profilePhoto || ownerForm.profilePhoto} alt="Profile" className="w-full h-full object-cover" />
                             <button
                               type="button"
-                              onClick={() => setOwnerForm({ ...ownerForm, profilePhoto: '' })}
+                              onClick={() => {
+                                setOwnerForm({ ...ownerForm, profilePhoto: '' });
+                                setLocalPreviews(prev => ({ ...prev, profilePhoto: '' }));
+                              }}
                               className="absolute inset-0 bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition duration-150 text-xs font-bold"
                             >
                               Remove
@@ -780,18 +1131,20 @@ const ClinicWizard = () => {
                               className="hidden"
                               onChange={(e) => {
                                 const file = e.target.files[0];
-                                if (file) {
-                                  const reader = new FileReader();
-                                  reader.onloadend = () => {
-                                    setOwnerForm({ ...ownerForm, profilePhoto: reader.result });
-                                  };
-                                  reader.readAsDataURL(file);
-                                }
+                                if (file) handleFileUpload(file, 'profilePhoto');
                               }}
                             />
-                            <UploadCloud className="w-8 h-8 text-blue-500 mb-2" />
-                            <span className="text-xs font-bold text-blue-600">Upload photo</span>
-                            <span className="text-[10px] text-slate-400 mt-1">JPG, PNG up to 2MB</span>
+                            {uploadProgress.profilePhoto === 'uploading' ? (
+                              <p className="text-xs text-blue-500 font-bold">Uploading...</p>
+                            ) : uploadProgress.profilePhoto === 'error' ? (
+                              <p className="text-xs text-rose-500 font-bold">Upload failed. Click to retry.</p>
+                            ) : (
+                              <>
+                                <UploadCloud className="w-8 h-8 text-blue-500 mb-2" />
+                                <span className="text-xs font-bold text-blue-600">Upload photo</span>
+                                <span className="text-[10px] text-slate-400 mt-1">JPG, PNG up to 10MB</span>
+                              </>
+                            )}
                           </label>
                         )}
                       </div>
@@ -818,28 +1171,49 @@ const ClinicWizard = () => {
                       <label className="block text-xs font-bold text-slate-700 mb-2">Clinic Name *</label>
                       <input 
                         type="text" 
+                        id="clinicName"
+                        name="clinicName"
                         placeholder="e.g. HealthCare Clinic" 
-                        className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition text-sm text-slate-800"
+                        className={`w-full px-4 py-3 bg-slate-50/50 border rounded-2xl outline-none focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition text-sm text-slate-800 ${errors.clinicName ? 'border-red-500 bg-red-50/10' : 'border-slate-200'}`}
                         value={clinicForm.name}
-                        onChange={(e) => setClinicForm({ ...clinicForm, name: e.target.value })}
+                        onChange={(e) => {
+                          setClinicForm({ ...clinicForm, name: e.target.value });
+                          if (errors.clinicName) setErrors(prev => ({ ...prev, clinicName: '' }));
+                        }}
                       />
+                      {errors.clinicName && <p className="text-[10px] text-red-500 mt-1">{errors.clinicName}</p>}
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-slate-700 mb-2">Clinic Registration Number *</label>
                       <input 
                         type="text" 
+                        id="registrationNumber"
+                        name="registrationNumber"
                         placeholder="Enter registration number" 
-                        className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition text-sm text-slate-800"
+                        className={`w-full px-4 py-3 bg-slate-50/50 border rounded-2xl outline-none focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition text-sm text-slate-800 ${errors.registrationNumber ? 'border-red-500 bg-red-50/10' : 'border-slate-200'}`}
                         value={clinicForm.registrationNumber}
-                        onChange={(e) => setClinicForm({ ...clinicForm, registrationNumber: e.target.value })}
+                        onChange={(e) => {
+                          setClinicForm({ ...clinicForm, registrationNumber: e.target.value });
+                          if (errors.registrationNumber) setErrors(prev => ({ ...prev, registrationNumber: '' }));
+                        }}
+                        onBlur={(e) => handleValidateRegNumber(e.target.value)}
                       />
+                      {regNumValidation?.status === 'checking' && <p className="text-[10px] text-blue-500 mt-1">Checking availability...</p>}
+                      {regNumValidation?.status === 'valid' && <p className="text-[10px] text-emerald-600 mt-1">✓ Available</p>}
+                      {regNumValidation?.status === 'invalid' && <p className="text-[10px] text-rose-600 mt-1">{regNumValidation?.message}</p>}
+                      {errors.registrationNumber && <p className="text-[10px] text-red-500 mt-1">{errors.registrationNumber}</p>}
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-slate-700 mb-2">Established Year <span className="text-red-500">*</span></label>
                       <select 
-                        className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-2xl outline-none text-sm text-slate-800"
+                        id="establishedYear"
+                        name="establishedYear"
+                        className={`w-full px-4 py-3 bg-slate-50/50 border rounded-2xl outline-none text-sm text-slate-800 ${errors.establishedYear ? 'border-red-500 bg-red-50/10' : 'border-slate-200'}`}
                         value={clinicForm.establishedYear}
-                        onChange={(e) => setClinicForm({ ...clinicForm, establishedYear: e.target.value })}
+                        onChange={(e) => {
+                          setClinicForm({ ...clinicForm, establishedYear: e.target.value });
+                          if (errors.establishedYear) setErrors(prev => ({ ...prev, establishedYear: '' }));
+                        }}
                       >
                         <option value="">Select year</option>
                         {(() => {
@@ -853,6 +1227,7 @@ const ClinicWizard = () => {
                           ));
                         })()}
                       </select>
+                      {errors.establishedYear && <p className="text-[10px] text-red-500 mt-1">{errors.establishedYear}</p>}
                     </div>
                     <div />
 
@@ -1035,17 +1410,23 @@ const ClinicWizard = () => {
                       <label className="block text-xs font-bold text-slate-700 mb-2">Short Description of Your Clinic *</label>
                       <div className="relative">
                         <textarea 
+                          id="shortDescription"
+                          name="shortDescription"
                           rows={3} 
                           placeholder="Write a short description about your clinic, services, and facilities..."
-                          className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition text-sm text-slate-800"
+                          className={`w-full px-4 py-3 bg-slate-50/50 border rounded-2xl outline-none focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition text-sm text-slate-800 ${errors.shortDescription ? 'border-red-500 bg-red-50/10' : 'border-slate-200'}`}
                           value={clinicForm.shortDescription}
                           maxLength={300}
-                          onChange={(e) => setClinicForm({ ...clinicForm, shortDescription: e.target.value })}
+                          onChange={(e) => {
+                            setClinicForm({ ...clinicForm, shortDescription: e.target.value });
+                            if (errors.shortDescription) setErrors(prev => ({ ...prev, shortDescription: '' }));
+                          }}
                         />
                         <span className="absolute bottom-3 right-3 text-[10px] text-slate-400 font-bold">
                           {clinicForm.shortDescription.length}/300
                         </span>
                       </div>
+                      {errors.shortDescription && <p className="text-[10px] text-red-500 mt-1">{errors.shortDescription}</p>}
                     </div>
 
                     <div className="md:col-span-2 space-y-4">
@@ -1053,7 +1434,10 @@ const ClinicWizard = () => {
                         <label className="block text-xs font-bold text-slate-700">Clinic Address Details</label>
                         <button
                           type="button"
-                          onClick={() => setShowMapPicker(true)}
+                          onClick={() => {
+                            setMapTarget('clinic');
+                            setShowMapPicker(true);
+                          }}
                           className="flex items-center gap-1.5 px-4.5 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl text-xs font-bold transition border border-emerald-200 shadow-sm cursor-pointer"
                         >
                           <MapPin size={14} /> Locate on Map
@@ -1061,48 +1445,90 @@ const ClinicWizard = () => {
                       </div>
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <input 
-                          type="text" 
-                          placeholder="Address Line 1 *" 
-                          className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-blue-600 text-sm text-slate-800"
-                          value={clinicForm.addressLine1}
-                          onChange={(e) => setClinicForm({ ...clinicForm, addressLine1: e.target.value })}
-                        />
-                        <input 
-                          type="text" 
-                          placeholder="Address Line 2" 
-                          className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-blue-600 text-sm text-slate-800"
-                          value={clinicForm.addressLine2}
-                          onChange={(e) => setClinicForm({ ...clinicForm, addressLine2: e.target.value })}
-                        />
-                        <input 
-                          type="text" 
-                          placeholder="City *" 
-                          className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-blue-600 text-sm text-slate-800"
-                          value={clinicForm.city}
-                          onChange={(e) => setClinicForm({ ...clinicForm, city: e.target.value })}
-                        />
-                        <input 
-                          type="text" 
-                          placeholder="State *" 
-                          className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-blue-600 text-sm text-slate-800"
-                          value={clinicForm.state}
-                          onChange={(e) => setClinicForm({ ...clinicForm, state: e.target.value })}
-                        />
-                        <input 
-                          type="text" 
-                          placeholder="Pincode *" 
-                          className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-blue-600 text-sm text-slate-800"
-                          value={clinicForm.pincode}
-                          onChange={(e) => setClinicForm({ ...clinicForm, pincode: e.target.value })}
-                        />
-                        <input 
-                          type="text" 
-                          placeholder="Clinic Contact Number *" 
-                          className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-blue-600 text-sm text-slate-800"
-                          value={clinicForm.contactNumber}
-                          onChange={(e) => setClinicForm({ ...clinicForm, contactNumber: e.target.value })}
-                        />
+                        <div>
+                          <input 
+                            type="text" 
+                            id="addressLine1"
+                            name="addressLine1"
+                            placeholder="Address Line 1 *" 
+                            className={`w-full px-4 py-3 bg-slate-50/50 border rounded-2xl outline-none focus:bg-white focus:border-blue-600 text-sm text-slate-800 ${errors.addressLine1 ? 'border-red-500 bg-red-50/10' : 'border-slate-200'}`}
+                            value={clinicForm.addressLine1}
+                            onChange={(e) => {
+                              setClinicForm({ ...clinicForm, addressLine1: e.target.value });
+                              if (errors.addressLine1) setErrors(prev => ({ ...prev, addressLine1: '' }));
+                            }}
+                          />
+                          {errors.addressLine1 && <p className="text-[10px] text-red-500 mt-1">{errors.addressLine1}</p>}
+                        </div>
+                        <div>
+                          <input 
+                            type="text" 
+                            placeholder="Address Line 2" 
+                            className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-blue-600 text-sm text-slate-800"
+                            value={clinicForm.addressLine2}
+                            onChange={(e) => setClinicForm({ ...clinicForm, addressLine2: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <input 
+                            type="text" 
+                            id="city"
+                            name="city"
+                            placeholder="City *" 
+                            className={`w-full px-4 py-3 bg-slate-50/50 border rounded-2xl outline-none focus:bg-white focus:border-blue-600 text-sm text-slate-800 ${errors.city ? 'border-red-500 bg-red-50/10' : 'border-slate-200'}`}
+                            value={clinicForm.city}
+                            onChange={(e) => {
+                              setClinicForm({ ...clinicForm, city: e.target.value });
+                              if (errors.city) setErrors(prev => ({ ...prev, city: '' }));
+                            }}
+                          />
+                          {errors.city && <p className="text-[10px] text-red-500 mt-1">{errors.city}</p>}
+                        </div>
+                        <div>
+                          <input 
+                            type="text" 
+                            id="state"
+                            name="state"
+                            placeholder="State *" 
+                            className={`w-full px-4 py-3 bg-slate-50/50 border rounded-2xl outline-none focus:bg-white focus:border-blue-600 text-sm text-slate-800 ${errors.state ? 'border-red-500 bg-red-50/10' : 'border-slate-200'}`}
+                            value={clinicForm.state}
+                            onChange={(e) => {
+                              setClinicForm({ ...clinicForm, state: e.target.value });
+                              if (errors.state) setErrors(prev => ({ ...prev, state: '' }));
+                            }}
+                          />
+                          {errors.state && <p className="text-[10px] text-red-500 mt-1">{errors.state}</p>}
+                        </div>
+                        <div>
+                          <input 
+                            type="text" 
+                            id="pincode"
+                            name="pincode"
+                            placeholder="Pincode *" 
+                            className={`w-full px-4 py-3 bg-slate-50/50 border rounded-2xl outline-none focus:bg-white focus:border-blue-600 text-sm text-slate-800 ${errors.pincode ? 'border-red-500 bg-red-50/10' : 'border-slate-200'}`}
+                            value={clinicForm.pincode}
+                            onChange={(e) => {
+                              setClinicForm({ ...clinicForm, pincode: e.target.value });
+                              if (errors.pincode) setErrors(prev => ({ ...prev, pincode: '' }));
+                            }}
+                          />
+                          {errors.pincode && <p className="text-[10px] text-red-500 mt-1">{errors.pincode}</p>}
+                        </div>
+                        <div>
+                          <input 
+                            type="text" 
+                            id="contactNumber"
+                            name="contactNumber"
+                            placeholder="Clinic Contact Number *" 
+                            className={`w-full px-4 py-3 bg-slate-50/50 border rounded-2xl outline-none focus:bg-white focus:border-blue-600 text-sm text-slate-800 ${errors.contactNumber ? 'border-red-500 bg-red-50/10' : 'border-slate-200'}`}
+                            value={clinicForm.contactNumber}
+                            onChange={(e) => {
+                              setClinicForm({ ...clinicForm, contactNumber: e.target.value });
+                              if (errors.contactNumber) setErrors(prev => ({ ...prev, contactNumber: '' }));
+                            }}
+                          />
+                          {errors.contactNumber && <p className="text-[10px] text-red-500 mt-1">{errors.contactNumber}</p>}
+                        </div>
                         
                         <div className="flex gap-4 md:col-span-2">
                           <div className="flex-1">
@@ -1132,12 +1558,15 @@ const ClinicWizard = () => {
                     <div>
                       <label className="block text-xs font-bold text-slate-700 mb-2">Clinic Logo (Optional)</label>
                       <div className="flex items-center gap-4">
-                        {clinicForm.logo ? (
+                        {(localPreviews.logo || clinicForm.logo) ? (
                           <div className="relative w-16 h-16 rounded-2xl overflow-hidden border border-slate-200 group shadow-sm">
-                            <img src={clinicForm.logo} alt="Logo" className="w-full h-full object-cover" />
+                            <img src={localPreviews.logo || clinicForm.logo} alt="Logo" className="w-full h-full object-cover" />
                             <button
                               type="button"
-                              onClick={() => setClinicForm({ ...clinicForm, logo: '' })}
+                              onClick={() => {
+                                setClinicForm({ ...clinicForm, logo: '' });
+                                setLocalPreviews(prev => ({ ...prev, logo: '' }));
+                              }}
                               className="absolute inset-0 bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition duration-150 text-[10px] font-bold"
                             >
                               Remove
@@ -1151,17 +1580,19 @@ const ClinicWizard = () => {
                               className="hidden"
                               onChange={(e) => {
                                 const file = e.target.files[0];
-                                if (file) {
-                                  const reader = new FileReader();
-                                  reader.onloadend = () => {
-                                    setClinicForm({ ...clinicForm, logo: reader.result });
-                                  };
-                                  reader.readAsDataURL(file);
-                                }
+                                if (file) handleFileUpload(file, 'logo');
                               }}
                             />
-                            <UploadCloud className="w-5 h-5 text-blue-500 mb-1" />
-                            <span className="text-[10px] font-bold text-blue-600">Upload Logo</span>
+                            {uploadProgress.logo === 'uploading' ? (
+                              <p className="text-xs text-blue-500 font-bold">Uploading...</p>
+                            ) : uploadProgress.logo === 'error' ? (
+                              <p className="text-xs text-rose-500 font-bold">Upload failed. Click to retry.</p>
+                            ) : (
+                              <>
+                                <UploadCloud className="w-5 h-5 text-blue-500 mb-1" />
+                                <span className="text-[10px] font-bold text-blue-600">Upload Logo</span>
+                              </>
+                            )}
                           </label>
                         )}
                       </div>
@@ -1195,26 +1626,19 @@ const ClinicWizard = () => {
                             className="hidden"
                             onChange={(e) => {
                               const files = Array.from(e.target.files);
-                              const loadFiles = async () => {
-                                const newImages = [];
-                                for (const file of files) {
-                                  const base64 = await new Promise((resolve) => {
-                                    const reader = new FileReader();
-                                    reader.onloadend = () => resolve(reader.result);
-                                    reader.readAsDataURL(file);
-                                  });
-                                  newImages.push(base64);
-                                }
-                                setClinicForm(prev => ({
-                                  ...prev,
-                                  images: [...(prev.images || []), ...newImages]
-                                }));
-                              };
-                              loadFiles();
+                              for (const file of files) {
+                                handleFileUpload(file, 'images', true);
+                              }
                             }}
                           />
-                          <Plus className="w-5 h-5 text-blue-500 mb-1" />
-                          <span className="text-[10px] font-bold text-blue-600">Upload images</span>
+                          {uploadProgress.images === 'uploading' ? (
+                            <p className="text-xs text-blue-500 font-bold">Uploading...</p>
+                          ) : (
+                            <>
+                              <Plus className="w-5 h-5 text-blue-500 mb-1" />
+                              <span className="text-[10px] font-bold text-blue-600">Upload images</span>
+                            </>
+                          )}
                         </label>
                       </div>
                     </div>
@@ -1257,7 +1681,12 @@ const ClinicWizard = () => {
                   </div>
 
                   {/* Plan Grids */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {errors.selectedPlan && (
+                    <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-2xl text-xs font-bold mb-4" id="selectedPlan" name="selectedPlan">
+                      {errors.selectedPlan}
+                    </div>
+                  )}
+                  <div className={`grid grid-cols-1 md:grid-cols-3 gap-6 ${errors.selectedPlan ? 'border-2 border-red-500 p-4 rounded-3xl' : ''}`}>
                     {plans.map((plan) => {
                       const isSelected = selectedPlanId === plan._id;
                       const price = billingCycle === 'monthly' ? plan.priceMonthly : plan.priceYearly;
@@ -1535,9 +1964,14 @@ const ClinicWizard = () => {
               )}
 
               <div className="flex items-center gap-3">
-                <span className="hidden md:inline-flex items-center gap-1 text-[11px] text-slate-400 font-bold">
-                  <Lock className="w-3.5 h-3.5 text-slate-400" /> You can save and continue later
-                </span>
+                <button 
+                  type="button"
+                  onClick={handleSaveDraft}
+                  disabled={isSubmitting}
+                  className="px-4 py-3 border border-dashed border-blue-200 hover:bg-blue-50/50 text-blue-600 font-bold text-xs rounded-2xl transition flex items-center gap-1.5 shadow-sm"
+                >
+                  <Lock className="w-3.5 h-3.5 text-blue-500" /> Save & Continue Later
+                </button>
                 
                 {currentStep < 4 ? (
                   <button 
@@ -1566,19 +2000,50 @@ const ClinicWizard = () => {
               isOpen={showMapPicker}
               onClose={() => setShowMapPicker(false)}
               onSelectAddress={(addressObj) => {
-                setClinicForm(prev => ({
-                  ...prev,
-                  addressLine1: addressObj.line1 || '',
-                  addressLine2: addressObj.line2 || '',
-                  city: addressObj.city || '',
-                  state: addressObj.state || '',
-                  pincode: addressObj.pincode || '',
-                  country: addressObj.country || 'India',
-                  latitude: addressObj.latitude || 26.8467,
-                  longitude: addressObj.longitude || 80.9462
-                }));
+                if (mapTarget === 'owner') {
+                  const formattedAddress = [
+                    addressObj.line1,
+                    addressObj.line2,
+                    addressObj.city,
+                    addressObj.state,
+                    addressObj.pincode
+                  ].filter(Boolean).join(', ');
+                  setOwnerForm(prev => ({
+                    ...prev,
+                    address: formattedAddress,
+                    addressDetails: {
+                      line1: addressObj.line1 || '',
+                      line2: addressObj.line2 || '',
+                      city: addressObj.city || '',
+                      state: addressObj.state || '',
+                      pincode: addressObj.pincode || '',
+                      country: addressObj.country || 'India',
+                      latitude: addressObj.latitude,
+                      longitude: addressObj.longitude
+                    }
+                  }));
+                } else {
+                  setClinicForm(prev => ({
+                    ...prev,
+                    addressLine1: addressObj.line1 || '',
+                    addressLine2: addressObj.line2 || '',
+                    city: addressObj.city || '',
+                    state: addressObj.state || '',
+                    pincode: addressObj.pincode || '',
+                    country: addressObj.country || 'India',
+                    latitude: addressObj.latitude || 26.8467,
+                    longitude: addressObj.longitude || 80.9462
+                  }));
+                }
               }}
-              initialAddress={{
+              initialAddress={mapTarget === 'owner' ? {
+                line1: ownerForm.addressDetails?.line1 || ownerForm.address || '',
+                line2: ownerForm.addressDetails?.line2 || '',
+                city: ownerForm.addressDetails?.city || '',
+                state: ownerForm.addressDetails?.state || '',
+                pincode: ownerForm.addressDetails?.pincode || '',
+                country: ownerForm.addressDetails?.country || 'India'
+              } : {
                 line1: clinicForm.addressLine1,
                 line2: clinicForm.addressLine2,
                 city: clinicForm.city,

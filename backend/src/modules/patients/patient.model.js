@@ -265,6 +265,23 @@ const patientSchema = new mongoose.Schema(
         cardType: { type: String, trim: true, default: 'card' }
       }
     ],
+    savedAddresses: [
+      {
+        fullName: { type: String, trim: true, default: '' },
+        mobileNumber: { type: String, trim: true, default: '' },
+        alternateNumber: { type: String, trim: true, default: '' },
+        houseFlatNumber: { type: String, trim: true, default: '' },
+        buildingName: { type: String, trim: true, default: '' },
+        street: { type: String, trim: true, default: '' },
+        landmark: { type: String, trim: true, default: '' },
+        area: { type: String, trim: true, default: '' },
+        city: { type: String, trim: true, default: '' },
+        state: { type: String, trim: true, default: '' },
+        pinCode: { type: String, trim: true, default: '' },
+        addressType: { type: String, enum: ['Home', 'Work', 'Other'], default: 'Home' },
+        isDefault: { type: Boolean, default: false }
+      }
+    ],
     medicalHistoryPassword: {
       type: String,
       default: '',

@@ -5,8 +5,9 @@ import {
   Building, CheckCircle, Info, ExternalLink, Share2, CalendarPlus, Heart, Users, ShieldAlert,
   RotateCcw, XCircle, FileText, Activity, CreditCard, Printer, CheckSquare, AlertTriangle, Bell
 } from 'lucide-react';
-import { getConsultation } from '../../consultations/consultationApi';
+import { getConsultation, getAppointmentConsultation, downloadConsultationPdf } from '../../consultations/consultationApi';
 import { apiClient } from '../../../lib/api';
+import { toast } from 'react-hot-toast';
 
 const CLINIC_FACILITIES = [
   { name: 'Digital Consultation', desc: 'Secure video consultations', icon: Video },
@@ -34,6 +35,7 @@ export default function AppointmentDetailsModal({ appointment, invoices = [], on
   const [mode, setMode] = useState(appointment?.appointmentType === 'teleconsultation' ? 'online' : 'offline');
   const [consultationTab, setConsultationTab] = useState('summary'); // summary, prescription, medicines, labTests, documents, payment
   const [consultationData, setConsultationData] = useState(null);
+  const [prescriptionData, setPrescriptionData] = useState(null);
   const [loadingConsultation, setLoadingConsultation] = useState(false);
 
   const doctor = appointment?.doctorId;
@@ -56,19 +58,23 @@ export default function AppointmentDetailsModal({ appointment, invoices = [], on
   useEffect(() => {
     if (isCompleted) {
       const consultationId = appointment.consultationId?._id || appointment.consultationId;
-      if (consultationId) {
-        setLoadingConsultation(true);
-        getConsultation(consultationId)
-          .then((res) => {
-            setConsultationData(res?.data?.consultation || res?.consultation || res);
-          })
-          .catch((err) => {
-            console.error('Failed to load EMR/Consultation details:', err);
-          })
-          .finally(() => {
-            setLoadingConsultation(false);
-          });
-      }
+      setLoadingConsultation(true);
+      const promise = consultationId
+        ? getConsultation(consultationId)
+        : getAppointmentConsultation(appointment._id);
+
+      promise
+        .then((res) => {
+          const rawData = res?.data || res;
+          setConsultationData(rawData?.consultation || rawData);
+          setPrescriptionData(rawData?.prescription || null);
+        })
+        .catch((err) => {
+          console.error('Failed to load EMR/Consultation details:', err);
+        })
+        .finally(() => {
+          setLoadingConsultation(false);
+        });
     }
   }, [appointment, isCompleted]);
 
@@ -78,8 +84,25 @@ export default function AppointmentDetailsModal({ appointment, invoices = [], on
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handlePrint = () => {
-    window.print();
+  const handlePrint = async () => {
+    try {
+      const consultationId = consultationData?._id || appointment.consultationId?._id || appointment.consultationId;
+      if (!consultationId) {
+        toast.error('No consultation record found to print.');
+        return;
+      }
+      toast.loading('Generating PDF...', { id: 'pdf-print' });
+      const response = await downloadConsultationPdf(consultationId);
+      const blob = response instanceof Blob ? response : response?.data || response;
+      if (!blob || (blob instanceof Blob && blob.size === 0)) throw new Error('Empty PDF received');
+      const url = window.URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
+      toast.dismiss('pdf-print');
+      window.open(url, '_blank');
+    } catch (err) {
+      toast.dismiss('pdf-print');
+      toast.error('Failed to generate PDF. Please try again.');
+      console.error('PDF print error:', err);
+    }
   };
 
   // Add items to local storage and redirect to pharmacy tab
@@ -653,27 +676,36 @@ export default function AppointmentDetailsModal({ appointment, invoices = [], on
 
             {/* Tab navigation headers */}
             <div className="flex items-center border-b border-slate-200 bg-white rounded-t-2xl px-5 pt-3">
-              {[
-                { id: 'summary', label: 'Consultation Summary', icon: FileText },
-                { id: 'prescription', label: 'Prescription', icon: FileText },
-                { id: 'medicines', label: `Medicines (${consultationData?.prescription?.medicines?.length || 0})`, icon: Heart },
-                { id: 'labTests', label: `Lab Tests (${consultationData?.labInvestigation?.length || 0})`, icon: ShieldAlert },
-                { id: 'documents', label: 'Documents', icon: FileText },
-                { id: 'payment', label: 'Payment', icon: CreditCard }
-              ].map((tab) => {
-                const Icon = tab.icon;
-                const isActive = consultationTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setConsultationTab(tab.id)}
-                    className={`px-4 pb-3 text-xs font-bold border-b-2 flex items-center gap-1.5 transition-all duration-150 mr-4 ${isActive ? 'border-teal-650 text-teal-700' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
-                  >
-                    <Icon size={14} />
-                    <span>{tab.label}</span>
-                  </button>
+              {(() => {
+                const hasProcedures = prescriptionData?.procedures && prescriptionData.procedures.length > 0;
+                const tabsList = [
+                  { id: 'summary', label: 'Consultation Summary', icon: FileText },
+                  { id: 'prescription', label: 'Prescription', icon: FileText },
+                  { id: 'medicines', label: `Medicines (${prescriptionData?.medicines?.length || 0})`, icon: Heart },
+                  { id: 'labTests', label: `Lab Tests (${prescriptionData?.labs?.length || 0})`, icon: ShieldAlert },
+                ];
+                if (hasProcedures) {
+                  tabsList.push({ id: 'procedures', label: `Procedures (${prescriptionData.procedures.length})`, icon: Activity });
+                }
+                tabsList.push(
+                  { id: 'documents', label: 'Documents', icon: FileText },
+                  { id: 'payment', label: 'Payment', icon: CreditCard }
                 );
-              })}
+                return tabsList.map((tab) => {
+                  const Icon = tab.icon;
+                  const isActive = consultationTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setConsultationTab(tab.id)}
+                      className={`px-4 pb-3 text-xs font-bold border-b-2 flex items-center gap-1.5 transition-all duration-150 mr-4 ${isActive ? 'border-teal-650 text-teal-700' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+                    >
+                      <Icon size={14} />
+                      <span>{tab.label}</span>
+                    </button>
+                  );
+                });
+              })()}
             </div>
 
             {/* Tab Body Contents */}
@@ -751,7 +783,7 @@ export default function AppointmentDetailsModal({ appointment, invoices = [], on
                         <div className="w-full max-w-lg mb-4 flex justify-end">
                           <button
                             onClick={() => {
-                              const meds = consultationData?.prescription?.medicines?.map(m => m.name) || ['Paracetamol 650mg', 'Levocetirizine 5mg', 'Cough Syrup'];
+                              const meds = prescriptionData?.medicines?.map(m => m.medicineName || m.name) || ['Paracetamol 650mg', 'Levocetirizine 5mg', 'Cough Syrup'];
                               handleBuyMedicines(meds);
                             }}
                             className="px-4 py-2 rounded-xl text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white shadow-md transition"
@@ -770,11 +802,11 @@ export default function AppointmentDetailsModal({ appointment, invoices = [], on
                           <p className="text-sm font-black text-teal-700 mb-3">Rx</p>
                           
                           <div className="space-y-4 pl-4 border-l border-slate-100">
-                            {consultationData?.prescription?.medicines && consultationData.prescription.medicines.length > 0 ? (
-                              consultationData.prescription.medicines.map((med, index) => (
+                            {prescriptionData?.medicines && prescriptionData.medicines.length > 0 ? (
+                              prescriptionData.medicines.map((med, index) => (
                                 <div key={index} className="space-y-1">
-                                  <p className="font-bold text-slate-800">{index + 1}. Tab. {med.name}</p>
-                                  <p className="text-slate-500 pl-4">{med.dosage || '1-1-1'} ({med.duration || '3 Days'})</p>
+                                  <p className="font-bold text-slate-800">{index + 1}. Tab. {med.medicineName || med.name}</p>
+                                  <p className="text-slate-500 pl-4">{med.dosage || med.frequency || '1-1-1'} ({med.duration || '3 Days'})</p>
                                 </div>
                               ))
                             ) : (
@@ -817,10 +849,10 @@ export default function AppointmentDetailsModal({ appointment, invoices = [], on
                     ) : (
                       <div className="space-y-4">
                         <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-                          <h4 className="text-xs font-black text-slate-800">Prescribed Medicines ({consultationData?.prescription?.medicines?.length || 3})</h4>
+                          <h4 className="text-xs font-black text-slate-800">Prescribed Medicines ({prescriptionData?.medicines?.length || 3})</h4>
                           <button
                             onClick={() => {
-                              const meds = consultationData?.prescription?.medicines?.map(m => m.name) || ['Paracetamol 650mg', 'Levocetirizine 5mg', 'Cough Syrup'];
+                              const meds = prescriptionData?.medicines?.map(m => m.medicineName || m.name) || ['Paracetamol 650mg', 'Levocetirizine 5mg', 'Cough Syrup'];
                               handleBuyMedicines(meds);
                             }}
                             className="px-3.5 py-1.5 rounded-lg bg-teal-605 text-white font-bold text-[10px] bg-teal-600 hover:bg-teal-750 transition"
@@ -841,16 +873,16 @@ export default function AppointmentDetailsModal({ appointment, invoices = [], on
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
-                              {consultationData?.prescription?.medicines && consultationData.prescription.medicines.length > 0 ? (
-                                consultationData.prescription.medicines.map((med, index) => (
+                              {prescriptionData?.medicines && prescriptionData.medicines.length > 0 ? (
+                                prescriptionData.medicines.map((med, index) => (
                                   <tr key={index}>
-                                    <td className="py-3 px-3 font-bold text-slate-800">{med.name}</td>
+                                    <td className="py-3 px-3 font-bold text-slate-800">{med.medicineName || med.name}</td>
                                     <td className="py-3 px-3 text-slate-600">{med.dosage || med.frequency || '1-1-1'}</td>
                                     <td className="py-3 px-3 text-slate-655">{med.duration || '3 Days'}</td>
-                                    <td className="py-3 px-3 text-slate-500">{med.instruction || 'After Food'}</td>
+                                    <td className="py-3 px-3 text-slate-500">{med.instructions || med.instruction || 'After Food'}</td>
                                     <td className="py-3 px-3 text-right">
                                       <button
-                                        onClick={() => handleBuyMedicines([med.name])}
+                                        onClick={() => handleBuyMedicines([med.medicineName || med.name])}
                                         className="px-2.5 py-1 rounded bg-teal-50 hover:bg-teal-100 text-teal-700 font-bold text-[10px] transition"
                                       >
                                         Buy
@@ -922,18 +954,18 @@ export default function AppointmentDetailsModal({ appointment, invoices = [], on
                           <thead>
                             <tr className="border-b border-slate-100 bg-slate-50 text-slate-500 font-bold uppercase text-[9px] tracking-wider">
                               <th className="py-2.5 px-3">Test Name</th>
-                              <th className="py-2.5 px-3">Type</th>
-                              <th className="py-2.5 px-3">Status</th>
+                              <th className="py-2.5 px-3">Sample Type</th>
+                              <th className="py-2.5 px-3">Priority</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100">
-                            {consultationData?.labInvestigation && consultationData.labInvestigation.length > 0 ? (
-                              consultationData.labInvestigation.map((test, index) => (
+                            {prescriptionData?.labs && prescriptionData.labs.length > 0 ? (
+                              prescriptionData.labs.map((test, index) => (
                                 <tr key={index}>
-                                  <td className="py-3 px-3 font-bold text-slate-800">{typeof test === 'string' ? test : test.testName || test.name}</td>
-                                  <td className="py-3 px-3 text-slate-550">{test.testType || 'Blood Test'}</td>
+                                  <td className="py-3 px-3 font-bold text-slate-800">{test.testName}</td>
+                                  <td className="py-3 px-3 text-slate-550">{test.sampleRequired || 'Blood'}</td>
                                   <td className="py-3 px-3">
-                                    <span className="inline-block bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full text-[9px] font-bold">Available</span>
+                                    <span className="inline-block bg-teal-50 text-teal-700 px-2 py-0.5 rounded-full text-[9px] font-bold capitalize">{test.priority || 'Routine'}</span>
                                   </td>
                                 </tr>
                               ))
@@ -955,6 +987,37 @@ export default function AppointmentDetailsModal({ appointment, invoices = [], on
                                 </tr>
                               </>
                             )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {consultationTab === 'procedures' && (
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                        <h4 className="text-xs font-black text-slate-800">Recommended Procedures</h4>
+                      </div>
+
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs text-left border-collapse">
+                          <thead>
+                            <tr className="border-b border-slate-100 bg-slate-50 text-slate-500 font-bold uppercase text-[9px] tracking-wider">
+                              <th className="py-2.5 px-3">Procedure Name</th>
+                              <th className="py-2.5 px-3">Status</th>
+                              <th className="py-2.5 px-3 text-right">Fee</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {prescriptionData?.procedures?.map((proc, index) => (
+                              <tr key={index}>
+                                <td className="py-3 px-3 font-bold text-slate-800">{proc.name}</td>
+                                <td className="py-3 px-3">
+                                  <span className="inline-block bg-teal-50 text-teal-700 px-2 py-0.5 rounded-full text-[9px] font-bold capitalize">{proc.status || 'Scheduled'}</span>
+                                </td>
+                                <td className="py-3 px-3 text-right font-semibold text-slate-800">₹{proc.fee || 0}</td>
+                              </tr>
+                            ))}
                           </tbody>
                         </table>
                       </div>

@@ -305,14 +305,15 @@ export default function Appointments({
             {/* Scrollable Pending Fee Notifications (Yellow / Amber) */}
             {(() => {
               const pendingInvoices = (invoices || []).filter(inv => {
-                if (inv.serviceType !== 'CONSULTATION' || inv.paymentStatus === 'paid') return false;
-                // If there's an associated appointment, check if its status is 'completed'
+                if (inv.serviceType !== 'CONSULTATION' || inv.paymentStatus?.toLowerCase() === 'paid') return false;
+                // If there's an associated appointment, check if its status is 'completed' and if it is already paid
                 const appt = appointments.find(a => 
                   String(a._id) === String(inv.appointmentId?._id || inv.appointmentId)
                 );
-                // If appointment is found, only show if status is completed
-                if (appt && appt.status?.toLowerCase() !== 'completed') {
-                  return false;
+                // If appointment is found, only show if status is completed and it is not already paid
+                if (appt) {
+                  if (appt.status?.toLowerCase() !== 'completed') return false;
+                  if (appt.paymentStatus?.toLowerCase() === 'paid') return false;
                 }
                 return true;
               });
@@ -550,14 +551,16 @@ export default function Appointments({
                             )
                           ) : (
                             /* Paid or Waived -> Show Consultation details/access */
-                            <Link
-                              to={`/appointments/${apt._id}/consultation`}
-                              onClick={(e) => e.stopPropagation()}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedApptDetails(apt);
+                              }}
                               className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-aura-600 dark:bg-aura-500 text-white hover:bg-aura-700 dark:hover:bg-aura-600 transition text-center shadow-md"
                             >
                               <Eye size={12} />
                               Consultation Details
-                            </Link>
+                            </button>
                           )}
                         </>
                       )}

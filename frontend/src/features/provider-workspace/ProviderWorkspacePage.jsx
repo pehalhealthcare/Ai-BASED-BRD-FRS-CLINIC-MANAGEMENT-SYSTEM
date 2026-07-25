@@ -5,14 +5,14 @@ import PharmacyWorkspace from './PharmacyWorkspace';
 import LaboratoryWorkspace from './LaboratoryWorkspace';
 import GenericWorkspace from './GenericWorkspace';
 
-const ProviderWorkspacePage = () => {
-  const { type } = useParams();
+const ProviderWorkspacePage = ({ type: propType }) => {
+  const { type: paramType } = useParams();
   const [searchParams] = useSearchParams();
   const tab = searchParams.get('tab') || 'dashboard';
   const { user } = useAuth();
 
   // If ADMIN accesses the workspace, allow preview based on type param
-  const activeType = type || 'generic';
+  const activeType = propType || paramType || 'generic';
 
   if (activeType === 'pharmacy') {
     return <PharmacyWorkspace tab={tab} user={user} />;

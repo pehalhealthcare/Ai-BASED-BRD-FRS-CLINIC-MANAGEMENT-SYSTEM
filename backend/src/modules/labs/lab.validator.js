@@ -58,7 +58,8 @@ const listLabTestQuerySchema = z.object({
     search: z.string().trim().optional(),
     category: z.string().trim().optional(),
     isActive: booleanQuerySchema,
-    clinicId: objectIdSchema.optional()
+    clinicId: objectIdSchema.optional(),
+    providerId: objectIdSchema.optional()
   })
 });
 

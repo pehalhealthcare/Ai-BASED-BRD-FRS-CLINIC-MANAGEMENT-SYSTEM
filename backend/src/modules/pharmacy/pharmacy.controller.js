@@ -3,6 +3,7 @@ const { asyncHandler } = require('../../common/utils/asyncHandler');
 const pharmacyService = require('./pharmacy.service');
 const MedicineMaster = require('./medicineMaster.model');
 const BrandMaster = require('./brandMaster.model');
+const PharmacyCoupon = require('./pharmacyCoupon.model');
 
 const createMedicine = asyncHandler(async (req, res) => {
   const medicine = await pharmacyService.createMedicine({
@@ -69,6 +70,26 @@ const addMedicineBatch = asyncHandler(async (req, res) => {
   return sendSuccess(res, 'Medicine batch added successfully', { medicine }, 201);
 });
 
+const updateBatchStatus = asyncHandler(async (req, res) => {
+  const data = await pharmacyService.updateBatchStatus({
+    requester: req.user,
+    batchId: req.params.id,
+    payload: req.body,
+    req
+  });
+
+  return sendSuccess(res, 'Batch status updated successfully', data);
+});
+
+const deleteBatch = asyncHandler(async (req, res) => {
+  const data = await pharmacyService.deleteBatch({
+    requester: req.user,
+    batchId: req.params.id,
+    req
+  });
+
+  return sendSuccess(res, 'Batch deleted successfully', data);
+});
 const dispensePrescription = asyncHandler(async (req, res) => {
   const data = await pharmacyService.dispensePrescription({
     requester: req.user,
@@ -78,6 +99,17 @@ const dispensePrescription = asyncHandler(async (req, res) => {
   });
 
   return sendSuccess(res, 'Medicines dispensed successfully', data, 201);
+});
+
+const createWalkinSale = asyncHandler(async (req, res) => {
+  const data = await pharmacyService.createWalkinSale({
+    requester: req.user,
+    payload: req.body,
+    requestedClinicId: req.query.clinicId,
+    req
+  });
+
+  return sendSuccess(res, 'Walk-in sale completed successfully', data, 201);
 });
 
 const listDispensings = asyncHandler(async (req, res) => {
@@ -210,6 +242,24 @@ const deleteSupplier = asyncHandler(async (req, res) => {
   return sendSuccess(res, 'Supplier deleted successfully', result);
 });
 
+const getSupplierAnalytics = asyncHandler(async (req, res) => {
+  const analytics = await pharmacyService.getSupplierAnalytics({
+    requester: req.user,
+    supplierId: req.params.id,
+    requestedClinicId: req.query.clinicId
+  });
+  return sendSuccess(res, 'Supplier analytics retrieved successfully', { analytics });
+});
+
+const getSupplierPurchaseHistory = asyncHandler(async (req, res) => {
+  const history = await pharmacyService.getSupplierPurchaseHistory({
+    requester: req.user,
+    supplierId: req.params.id,
+    requestedClinicId: req.query.clinicId
+  });
+  return sendSuccess(res, 'Supplier purchase history retrieved successfully', { history });
+});
+
 // ─── PURCHASE ORDER CONTROLLERS ───────────────────────────────────────────────
 
 const createPurchaseOrder = asyncHandler(async (req, res) => {
@@ -264,24 +314,101 @@ const listStockLedgers = asyncHandler(async (req, res) => {
   return sendSuccess(res, 'Stock ledgers retrieved successfully', { ledgers });
 });
 
+const getPharmacyReports = asyncHandler(async (req, res) => {
+  const reports = await pharmacyService.getPharmacyReports({
+    requester: req.user,
+    requestedClinicId: req.query.clinicId,
+    providerId: req.query.providerId
+  });
+  return sendSuccess(res, 'Pharmacy reports and analytics retrieved successfully', reports);
+});
+
 // ─── INVENTORY DASHBOARD CONTROLLERS ──────────────────────────────────────────
 
 const getPharmacyInventoryDashboard = asyncHandler(async (req, res) => {
   const stats = await pharmacyService.getPharmacyInventoryDashboard({
     requester: req.user,
-    requestedClinicId: req.query.clinicId
+    requestedClinicId: req.query.clinicId,
+    providerId: req.query.providerId
   });
   return sendSuccess(res, 'Dispensary inventory dashboard statistics retrieved', stats);
 });
 
+// Pharmacy Coupons Controllers
+const createCoupon = asyncHandler(async (req, res) => {
+  const { 
+    code, description, type, value, displayOnCheckout, expiryDate, clinicId, providerId,
+    minOrderValue, maxDiscount, usageLimit, usedCount, applicableMedicines, eligiblePatients
+  } = req.body;
+  if (!code || !type || value === undefined || !clinicId || !providerId) {
+    return res.status(400).json({ success: false, message: 'Missing required coupon fields.' });
+  }
+
+  const existing = await PharmacyCoupon.findOne({ providerId, code: code.toUpperCase(), isActive: true });
+  if (existing) {
+    return res.status(400).json({ success: false, message: `Coupon code "${code.toUpperCase()}" already exists.` });
+  }
+
+  const coupon = await PharmacyCoupon.create({
+    clinicId,
+    providerId,
+    code: code.toUpperCase(),
+    description,
+    type,
+    value,
+    displayOnCheckout: displayOnCheckout !== false,
+    expiryDate,
+    minOrderValue: minOrderValue || 0,
+    maxDiscount: maxDiscount || 0,
+    usageLimit: usageLimit || 100,
+    usedCount: usedCount || 0,
+    applicableMedicines: applicableMedicines || [],
+    eligiblePatients: eligiblePatients || 'everyone'
+  });
+
+  return sendSuccess(res, 'Pharmacy coupon created successfully', { coupon }, 201);
+});
+
+const listCoupons = asyncHandler(async (req, res) => {
+  const { clinicId, providerId, displayOnCheckout } = req.query;
+  const filter = {};
+  if (clinicId) filter.clinicId = clinicId;
+  if (providerId) filter.providerId = providerId;
+  if (displayOnCheckout !== undefined) filter.displayOnCheckout = displayOnCheckout === 'true';
+  filter.isActive = true;
+
+  const coupons = await PharmacyCoupon.find(filter).sort({ createdAt: -1 });
+  return sendSuccess(res, 'Pharmacy coupons retrieved successfully', { coupons });
+});
+
+const updateCoupon = asyncHandler(async (req, res) => {
+  const coupon = await PharmacyCoupon.findByIdAndUpdate(req.params.id, req.body, { new: true });
+  if (!coupon) {
+    return res.status(404).json({ success: false, message: 'Coupon not found.' });
+  }
+  return sendSuccess(res, 'Pharmacy coupon updated successfully', { coupon });
+});
+
+const deleteCoupon = asyncHandler(async (req, res) => {
+  const coupon = await PharmacyCoupon.findByIdAndUpdate(req.params.id, { isActive: false }, { new: true });
+  if (!coupon) {
+    return res.status(404).json({ success: false, message: 'Coupon not found.' });
+  }
+  return sendSuccess(res, 'Pharmacy coupon archived successfully', { coupon });
+});
+
 module.exports = {
+  updateCoupon,
   createMedicine,
   listMedicines,
   getMedicineById,
   getMedicineDemandForecast,
   updateMedicine,
   addMedicineBatch,
+  updateBatchStatus,
+  deleteBatch,
   dispensePrescription,
+  createWalkinSale,
   listDispensings,
   getDispensingById,
   cancelDispensing,
@@ -295,12 +422,15 @@ module.exports = {
   listSuppliers,
   updateSupplier,
   deleteSupplier,
+  getSupplierAnalytics,
+  getSupplierPurchaseHistory,
   createPurchaseOrder,
   listPurchaseOrders,
   receivePurchaseOrder,
   adjustStock,
   listStockLedgers,
   getPharmacyInventoryDashboard,
+  getPharmacyReports,
   searchAllMedicines: asyncHandler(async (req, res) => {
     const data = await pharmacyService.searchAllMedicines({
       requester: req.user,
@@ -332,5 +462,8 @@ module.exports = {
       clinicId: req.query.clinicId
     });
     return sendSuccess(res, 'Procurement request status updated successfully', { request });
-  })
+  }),
+  createCoupon,
+  listCoupons,
+  deleteCoupon
 };

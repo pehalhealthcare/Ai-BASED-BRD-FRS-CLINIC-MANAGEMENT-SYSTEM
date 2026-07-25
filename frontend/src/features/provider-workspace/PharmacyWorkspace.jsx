@@ -1,25 +1,29 @@
-import React, { useState, useMemo, useEffect, useLayoutEffect } from 'react';
+import React, { useState, useMemo, useEffect, useLayoutEffect, useCallback } from 'react';
 import {
   TrendingUp, Pill, ShoppingBag, Users, AlertTriangle,
   Search, Scan, RefreshCw, Barcode, Plus, Minus, Trash2,
   CreditCard, CheckCircle2, ChevronRight, Ban, Eye, FileText,
-  Printer, ArrowLeftRight, Activity, ArrowUpRight, DollarSign, Calendar,
+  Printer, ArrowLeftRight, Activity, ArrowUpRight, DollarSign, Calendar, Tag,
   ChevronDown, Bell,RotateCcw  ,LogOut, MessageSquare, ShieldAlert, Package,
-  Layers, Truck, FileBarChart, Settings, HelpCircle, Star, X, Clock, Check, ArrowRight, UserPlus, Menu, Lock
+  Layers, Truck, FileBarChart, Settings, HelpCircle, Star, X, Clock, Check, ArrowRight, UserPlus, Menu, Lock, ShoppingCart
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { TfiAngleRight } from "react-icons/tfi";
 import { TfiAngleLeft } from "react-icons/tfi";
 import { pharmacyApi } from '../../api/pharmacyApi';
 import { prescriptionApi } from '../../api/prescriptionApi';
 import { authApi } from '../../api/authApi';
 import { patientApi } from '../../api/patientApi';
+import { providersApi } from '../../lib/api';
 
 import useAuth from '../../hooks/useAuth';
+import PrescriptionOrdersWorkspace from './PrescriptionOrdersWorkspace';
 
 const PharmacyWorkspace = ({ user }) => {
+  const navigate = useNavigate();
   const [profileData, setProfileData] = useState(null);
+  const [providerDetails, setProviderDetails] = useState(null);
   const { logout } = useAuth();
 
   useEffect(() => {
@@ -35,13 +39,174 @@ const PharmacyWorkspace = ({ user }) => {
     };
     loadProfile();
   }, []);
+
+  useEffect(() => {
+    if (profileData?.providerId) {
+      providersApi.getProvider(profileData.providerId)
+        .then(res => {
+          setProviderDetails(res.data || res);
+        })
+        .catch(err => {
+          console.error('Failed to load operator provider details:', err);
+        });
+    }
+  }, [profileData]);
   // --- SYNC TAB WITH ROUTER SEARCH PARAMS ---
   const [searchParams, setSearchParams] = useSearchParams();
-  const tab = searchParams.get('tab') || 'dashboard';
+  const tab = searchParams.get('tab') || (window.location.pathname.includes('/pharmacist/orders/online') ? 'online-orders' : 'dashboard');
 
   const setActiveTab = (newTab) => {
-    setSearchParams({ tab: newTab });
+    if (newTab === 'online-orders') {
+      navigate('/pharmacist/orders/online');
+    } else {
+      navigate(`/provider-workspace/pharmacy?tab=${newTab}`);
+    }
   };
+
+  const [topSellingMeds, setTopSellingMeds] = useState([]);
+  const [realActivities, setRealActivities] = useState([]);
+  const [loadingRightSidebarData, setLoadingRightSidebarData] = useState(false);
+
+  const fetchRightSidebarData = useCallback(async () => {
+    setLoadingRightSidebarData(true);
+    try {
+      const [dispensingsRes, ordersRes] = await Promise.all([
+        pharmacyApi.listDispensings().catch(() => ({ data: [] })),
+        pharmacyApi.listPharmacyOrders().catch(() => ({ orders: [] }))
+      ]);
+
+      const dispensingsList = dispensingsRes?.dispensings || dispensingsRes?.data?.dispensings || (Array.isArray(dispensingsRes) ? dispensingsRes : []);
+      const ordersList = ordersRes?.orders || ordersRes?.data?.orders || [];
+
+      const medMap = {};
+      dispensingsList.forEach(rec => {
+        if (rec.status !== 'cancelled' && Array.isArray(rec.items)) {
+          rec.items.forEach(item => {
+            const name = item.medicineName || 'Unknown Medicine';
+            if (!medMap[name]) {
+              medMap[name] = { brand: name, quantity: 0, revenue: 0 };
+            }
+            medMap[name].quantity += item.quantity || 0;
+            medMap[name].revenue += item.totalPrice || 0;
+          });
+        }
+      });
+
+      const topMeds = Object.values(medMap)
+        .sort((a, b) => b.quantity - a.quantity)
+        .slice(0, 5);
+
+      setTopSellingMeds(topMeds);
+
+      const activitiesList = [];
+      dispensingsList.forEach(rec => {
+        if (rec.dispensedAt) {
+          const date = new Date(rec.dispensedAt);
+          activitiesList.push({
+            id: rec._id || Math.random(),
+            type: rec.status === 'cancelled' ? 'Dispensing Cancelled' : 'Prescription Dispensed',
+            desc: `Dispensing of ₹${rec.subtotal || 0} containing ${rec.items?.length || 0} items.`,
+            time: date.toLocaleString('en-IN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' }),
+            rawDate: date,
+            icon: rec.status === 'cancelled' ? '⚠️' : '✅'
+          });
+        }
+      });
+
+      ordersList.forEach(order => {
+        if (order.createdAt) {
+          const date = new Date(order.createdAt);
+          activitiesList.push({
+            id: order._id || Math.random(),
+            type: `Online Order ${order.status ? order.status.toUpperCase() : 'NEW'}`,
+            desc: `Order for ${order.patientDetails?.name || 'Walk-in'} (₹${order.totalPrice || 0}).`,
+            time: date.toLocaleString('en-IN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' }),
+            rawDate: date,
+            icon: '📦'
+          });
+        }
+      });
+
+      activitiesList.sort((a, b) => b.rawDate - a.rawDate);
+      setRealActivities(activitiesList.slice(0, 8));
+    } catch (err) {
+      console.error('Failed to compile sidebar stats:', err);
+    } finally {
+      setLoadingRightSidebarData(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchRightSidebarData();
+  }, [tab, fetchRightSidebarData]);
+
+  // --- ADD MEDICINE STOCK WORKFLOW STATES ---
+  const [showAddStockWorkflowModal, setShowAddStockWorkflowModal] = useState(false);
+  const [stockWorkflowStep, setStockWorkflowStep] = useState(1);
+  const [stockSearchQuery, setStockSearchQuery] = useState('');
+  const [matchingInventoryMeds, setMatchingInventoryMeds] = useState([]);
+  const [searchingInventoryMeds, setSearchingInventoryMeds] = useState(false);
+  const [selectedStockMed, setSelectedStockMed] = useState(null);
+  const [dynamicSuppliers, setDynamicSuppliers] = useState([]);
+  const [dynamicRacks, setDynamicRacks] = useState([]);
+  const [submittingStockBatch, setSubmittingStockBatch] = useState(false);
+
+  const [stockForm, setStockForm] = useState({
+    batchNumber: '',
+    expiryDate: '',
+    mrp: '40',
+    quantity: '',
+    supplierId: '',
+    rackLocation: '',
+    purchasePrice: '',
+    mfgDate: '',
+    gst: '12',
+    notes: ''
+  });
+
+  const loadSuppliersAndRacks = async () => {
+    try {
+      const res = await pharmacyApi.listSuppliers();
+      const list = res?.suppliers || res?.data?.suppliers || (Array.isArray(res) ? res : []);
+      setDynamicSuppliers(list);
+
+      const rackSet = new Set();
+      inventory.forEach(item => {
+        const rackVal = item.rackNumber || item.rack || item.storageLocation;
+        if (rackVal) {
+          rackSet.add(rackVal.trim());
+        }
+      });
+      if (rackSet.size === 0) {
+        rackSet.add('Rack A, Shelf 1');
+        rackSet.add('Rack A, Shelf 2');
+        rackSet.add('Rack A, Shelf 3');
+        rackSet.add('Rack B, Shelf 1');
+      }
+      setDynamicRacks(Array.from(rackSet));
+    } catch (err) {
+      console.error('Failed to load suppliers/racks:', err);
+    }
+  };
+
+  const handleInventorySearch = useCallback(async (q) => {
+    setSearchingInventoryMeds(true);
+    try {
+      const data = await pharmacyApi.listMedicines({ search: q || undefined, limit: 30 });
+      const items = data?.medicines || data?.data?.medicines || (Array.isArray(data) ? data : []);
+      setMatchingInventoryMeds(items);
+    } catch (err) {
+      console.error('Search failed:', err);
+    } finally {
+      setSearchingInventoryMeds(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (showAddStockWorkflowModal) {
+      handleInventorySearch(stockSearchQuery);
+    }
+  }, [stockSearchQuery, showAddStockWorkflowModal, handleInventorySearch]);
 
   // --- SIDEBAR TOGGLE STATE ---
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -98,6 +263,9 @@ const PharmacyWorkspace = ({ user }) => {
     { id: 5, type: 'Medicine Returned', desc: 'Batch B-PR2025 returned to Zydus Corp', time: '3 hours ago', icon: 'return' }
   ]);
 
+  const [onlineOrders, setOnlineOrders] = useState([]);
+
+
   // --- STATE FOR INTERACTIVE FLOWS ---
   const [searchTerm, setSearchTerm] = useState('');
   const [rxSearchTerm, setRxSearchTerm] = useState('');
@@ -137,6 +305,35 @@ const PharmacyWorkspace = ({ user }) => {
   // Advanced filters state
   const [supplierAdvFilters, setSupplierAdvFilters] = useState({
     city: '', state: '', company: '', minOutstanding: '', status: '', preferred: ''
+  });
+
+  // Coupon management states
+  const [coupons, setCoupons] = useState([]);
+  const [loadingCoupons, setLoadingCoupons] = useState(false);
+  const [showCouponDrawer, setShowCouponDrawer] = useState(false);
+  const [couponDrawerMode, setCouponDrawerMode] = useState('create'); // 'create' | 'edit' | 'duplicate'
+  const [selectedCouponForEdit, setSelectedCouponForEdit] = useState(null);
+  const [showCouponAnalyticsDrawer, setShowCouponAnalyticsDrawer] = useState(false);
+  const [selectedCouponForAnalytics, setSelectedCouponForAnalytics] = useState(null);
+  const [couponSearch, setCouponSearch] = useState('');
+  const [couponStatusFilter, setCouponStatusFilter] = useState('All');
+  const [couponTypeFilter, setCouponTypeFilter] = useState('All');
+  const [couponMedSearchQuery, setCouponMedSearchQuery] = useState('');
+  const [couponMedSearchResults, setCouponMedSearchResults] = useState([]);
+  const [couponSelectedMeds, setCouponSelectedMeds] = useState([]);
+
+  const [couponForm, setCouponForm] = useState({
+    code: '',
+    description: '',
+    type: 'percentage',
+    value: 10,
+    minOrderValue: 0,
+    maxDiscount: 0,
+    usageLimit: 100,
+    displayOnCheckout: true,
+    expiryDate: '',
+    eligiblePatients: 'everyone',
+    applicableMedicines: []
   });
 
   const [newSupplierData, setNewSupplierData] = useState({
@@ -296,6 +493,10 @@ const PharmacyWorkspace = ({ user }) => {
   const [showInwardBatchModal, setShowInwardBatchModal] = useState(false);
   const [showInventoryDetailDrawer, setShowInventoryDetailDrawer] = useState(false);
   const [selectedInventoryMedicine, setSelectedInventoryMedicine] = useState(null);
+  const [isEditingMedicine, setIsEditingMedicine] = useState(false);
+  const [editMedicineForm, setEditMedicineForm] = useState({ brandName: '', genericName: '', manufacturer: '', rackNumber: '', storageLocation: '', reorderLevel: '' });
+  const [editingBatchId, setEditingBatchId] = useState(null);
+  const [editBatchForm, setEditBatchForm] = useState({ batchNumber: '', purchaseQuantity: 0, availableStock: 0, expiryDate: '', purchasePrice: 0, mrp: 0, sellingPrice: 0 });
   const [showInwardMedicineSearch, setShowInwardMedicineSearch] = useState(false);
   const [inwardMedicineQuery, setInwardMedicineQuery] = useState('');
   const [addMoreStockSaving, setAddMoreStockSaving] = useState(false);
@@ -438,7 +639,12 @@ const PharmacyWorkspace = ({ user }) => {
       expiredCount,
       nearExpiryCount,
       totalInventoryVal: inventory.reduce((acc, curr) => {
-        return acc + curr.batches.reduce((bAcc, b) => bAcc + (b.quantity * (b.purchasePrice / (curr.stripSize || 10))), 0);
+        const stock = curr.totalStock || 0;
+        const purchasePrice = curr.purchasePrice || 0;
+        if (curr.batches && curr.batches.length > 0) {
+          return acc + curr.batches.reduce((bAcc, b) => bAcc + ((b.availableStock ?? b.quantity ?? 0) * (b.purchasePrice || purchasePrice)), 0);
+        }
+        return acc + (stock * purchasePrice);
       }, 0).toFixed(2)
     };
   }, [sales, inventory]);
@@ -722,7 +928,7 @@ const PharmacyWorkspace = ({ user }) => {
     setShowNewMedicineModal(false);
   };
 
-  const handleCheckout = (paymentMode = 'UPI') => {
+  const handleCheckout = async (paymentMode = 'UPI') => {
     if (cart.length === 0) {
       toast.error('Cart is empty.');
       return;
@@ -734,68 +940,185 @@ const PharmacyWorkspace = ({ user }) => {
     }, 0);
 
     const tokenNo = `T-${sales.length + 101}`;
-    const newInvoice = {
-      id: `INV-${sales.length + 8823}`,
-      token: tokenNo,
-      date: new Date().toLocaleDateString('en-CA'),
-      patientName: selectedRx ? selectedRx.patientName : walkinCustomer.name || 'Walk-in Customer',
-      type: selectedRx ? 'Prescription' : 'Walk-in',
-      amount: subTotal,
-      paymentMode,
-      status: 'Completed',
-      handoverStatus: 'Waiting',
-      waitTime: '0 mins',
-      queuePos: sales.filter(s => s.handoverStatus === 'Waiting' || s.handoverStatus === 'Preparing').length + 1,
-      estFinish: new Date(Date.now() + 10 * 60000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
-    };
 
-    const nextInventory = inventory.map(invItem => {
-      const invItemId = invItem._id || invItem.id;
-      const cartItemsForThisInv = cart.filter(c => c.itemId === invItemId);
-      if (cartItemsForThisInv.length === 0) return invItem;
-
-      let updatedBatches = invItem.batches.map(b => {
-        const batchId = b._id || b.id;
-        const cartMatch = cartItemsForThisInv.find(c => c.batchId === batchId);
-        if (!cartMatch) return b;
-
-        const totalToDeduct = (cartMatch.strips * (invItem.stripSize || 10)) + cartMatch.tablets;
-        return {
-          ...b,
-          availableStock: Math.max(0, (b.availableStock ?? b.quantity ?? 0) - totalToDeduct),
-          quantity: Math.max(0, (b.quantity ?? 0) - totalToDeduct)
+    try {
+      if (selectedRx) {
+        // Real prescription dispensing API checkout
+        const payload = {
+          prescriptionId: selectedRx._id || selectedRx.id,
+          patientId: selectedRx.patientId?._id || selectedRx.patientId,
+          doctorId: selectedRx.doctorId?._id || selectedRx.doctorId || undefined,
+          notes: `Prescription dispensed at checkout. Payment Mode: ${paymentMode}`,
+          items: cart.map(c => ({
+            medicineId: c.itemId,
+            quantity: (c.strips * (c.stripSize || 10)) + c.tablets,
+            instructions: c.instructions || ''
+          }))
         };
-      });
+        await pharmacyApi.dispense(payload);
+        toast.success(`Prescription dispensed successfully! Token ${tokenNo} generated.`);
+      } else {
+        // Real walk-in sale POS API checkout
+        const payload = {
+          patientName: walkinCustomer.name || 'Walk-in Customer',
+          patientPhone: walkinCustomer.phone || '',
+          subtotal: subTotal,
+          paymentMethod: paymentMode.toLowerCase(),
+          notes: `Walk-in sale checkout. Payment Mode: ${paymentMode}`,
+          items: cart.map(c => ({
+            medicineId: c.itemId,
+            batchNumber: c.batchNo,
+            quantity: (c.strips * (c.stripSize || 10)) + c.tablets,
+            unitPrice: c.unitPrice,
+            totalPrice: (c.strips * c.mrp) + (c.tablets * c.unitPrice)
+          }))
+        };
+        await pharmacyApi.createWalkinSale(payload);
+        toast.success(`Walk-in sale completed successfully! Token ${tokenNo} generated.`);
+      }
 
-      return {
-        ...invItem,
-        batches: updatedBatches,
-        totalStock: updatedBatches.reduce((acc, b) => acc + (b.availableStock ?? b.quantity ?? 0), 0)
-      };
-    });
+      // Reload fresh inventory from backend database
+      const freshMeds = await pharmacyApi.listMedicines();
+      const items = freshMeds?.medicines || freshMeds?.data?.medicines || (Array.isArray(freshMeds) ? freshMeds : []);
+      setInventory(items);
 
-    setInventory(nextInventory);
-    setSales([newInvoice, ...sales]);
+      // Reload sales/completed dispensings list
+      const data = await pharmacyApi.listDispensings();
+      const records = data?.dispensingRecords || data?.data?.dispensingRecords || (Array.isArray(data) ? data : []);
+      const mappedSales = records.map(r => ({
+        id: r.id || r._id,
+        token: r.tokenNumber || r.token || `T-${r.dispensingNumber || '101'}`,
+        date: r.dispensedAt ? new Date(r.dispensedAt).toLocaleDateString('en-CA') : new Date().toLocaleDateString('en-CA'),
+        patientName: r.patientName || r.patientId?.fullName || 'Walk-in Customer',
+        type: r.patientId ? 'Prescription' : 'Walk-in',
+        amount: r.totalAmount || r.amount || 0,
+        paymentMode: r.paymentMethod || 'Cash',
+        status: r.status === 'finalized' ? 'Completed' : r.status,
+        handoverStatus: r.handoverStatus || 'Handed Over',
+        waitTime: '0 mins',
+        queuePos: 0,
+        estFinish: 'N/A'
+      }));
+      setSales(mappedSales);
 
-    if (selectedRx) {
-      setPrescriptions(prescriptions.map(rx => rx.id === selectedRx.id ? { ...rx, status: 'Completed' } : rx));
+      if (selectedRx) {
+        setPrescriptions(prescriptions.map(rx => rx.id === selectedRx.id ? { ...rx, status: 'Completed' } : rx));
+      }
+
+      setActivities([
+        {
+          id: Date.now(),
+          type: selectedRx ? 'Prescription Completed' : 'Walk-in Sale',
+          desc: `${selectedRx ? 'Prescription' : 'Walk-in'} order completed. Bill: ₹${subTotal}. Token: ${tokenNo}`,
+          time: 'Just now',
+          icon: 'check'
+        },
+        ...activities
+      ]);
+
+      setCart([]);
+      setSelectedRx(null);
+      setWalkinCustomer({ name: '', phone: '' });
+
+    } catch (err) {
+      console.error('Checkout failed:', err);
+      toast.error(err?.message || 'Unable to complete checkout. Please check stock levels.');
     }
+  };
 
-    setActivities([
-      {
-        id: Date.now(),
-        type: selectedRx ? 'Prescription Completed' : 'Walk-in Sale',
-        desc: `${selectedRx ? 'Prescription' : 'Walk-in'} order completed. Bill: ₹${subTotal}. Token: ${tokenNo}`,
-        time: 'Just now',
-        icon: 'check'
-      },
-      ...activities
-    ]);
+  const handleToggleBatchStatus = async (batchId, currentActive) => {
+    try {
+      const res = await pharmacyApi.updateBatch(batchId, { isActive: !currentActive });
+      toast.success(res.batch.isActive ? 'Batch activated successfully.' : 'Batch deactivated successfully.');
 
-    setCart([]);
-    setSelectedRx(null);
-    setWalkinCustomer({ name: '', phone: '' });
-    toast.success(`Payment verified successfully! Token ${tokenNo} generated.`);
+      // Update the local medicine's batches array and totalStock
+      const freshMeds = await pharmacyApi.listMedicines();
+      const items = freshMeds?.medicines || freshMeds?.data?.medicines || (Array.isArray(freshMeds) ? freshMeds : []);
+      setInventory(items);
+
+      if (selectedInventoryMedicine) {
+        const updatedMed = items.find(m => m._id === selectedInventoryMedicine._id || m.id === selectedInventoryMedicine._id);
+        if (updatedMed) {
+          setSelectedInventoryMedicine(updatedMed);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error(err?.message || 'Failed to update batch status.');
+    }
+  };
+
+  const handleSaveMedicineEdit = async () => {
+    if (!selectedInventoryMedicine) return;
+    try {
+      await pharmacyApi.updateMedicine(selectedInventoryMedicine._id || selectedInventoryMedicine.id, editMedicineForm);
+      toast.success('Medicine details updated successfully.');
+      setIsEditingMedicine(false);
+
+      // Refresh inventory
+      const freshMeds = await pharmacyApi.listMedicines();
+      const items = freshMeds?.medicines || freshMeds?.data?.medicines || (Array.isArray(freshMeds) ? freshMeds : []);
+      setInventory(items);
+
+      const updatedMed = items.find(m => m._id === selectedInventoryMedicine._id || m.id === selectedInventoryMedicine._id);
+      if (updatedMed) {
+        setSelectedInventoryMedicine(updatedMed);
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error(err?.message || 'Failed to update medicine.');
+    }
+  };
+
+  const handleSaveBatchEdit = async (batchId) => {
+    try {
+      await pharmacyApi.updateBatch(batchId, editBatchForm);
+      toast.success('Batch details updated successfully.');
+      setEditingBatchId(null);
+
+      // Refresh inventory
+      const freshMeds = await pharmacyApi.listMedicines();
+      const items = freshMeds?.medicines || freshMeds?.data?.medicines || (Array.isArray(freshMeds) ? freshMeds : []);
+      setInventory(items);
+
+      if (selectedInventoryMedicine) {
+        const updatedMed = items.find(m => m._id === selectedInventoryMedicine._id || m.id === selectedInventoryMedicine._id);
+        if (updatedMed) {
+          setSelectedInventoryMedicine(updatedMed);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error(err?.message || 'Failed to update batch.');
+    }
+  };
+
+  const handleDeleteBatch = async (batchId) => {
+    if (!window.confirm('Are you sure you want to delete this batch permanently? This will update the medicine stock.')) {
+      return;
+    }
+    try {
+      await pharmacyApi.deleteBatch(batchId);
+      toast.success('Batch deleted successfully.');
+
+      // Refresh local inventory data
+      const freshMeds = await pharmacyApi.listMedicines();
+      const items = freshMeds?.medicines || freshMeds?.data?.medicines || (Array.isArray(freshMeds) ? freshMeds : []);
+      setInventory(items);
+
+      if (selectedInventoryMedicine) {
+        const updatedMed = items.find(m => m._id === selectedInventoryMedicine._id || m.id === selectedInventoryMedicine._id);
+        if (updatedMed) {
+          setSelectedInventoryMedicine(updatedMed);
+        } else {
+          setSelectedInventoryMedicine(null);
+          setShowInventoryDetailDrawer(false);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error(err?.message || 'Failed to delete batch.');
+    }
   };
 
   const handleUpdateHandover = (token, nextStatus) => {
@@ -869,10 +1192,19 @@ const PharmacyWorkspace = ({ user }) => {
         console.error("Failed to load local inventory:", err);
       }
     };
+    const fetchOnlineOrders = async () => {
+      try {
+        const res = await pharmacyApi.listPharmacyOrders();
+        setOnlineOrders(res?.orders || res?.data?.orders || []);
+      } catch (err) {
+        console.error("Failed to fetch online orders in sidebar:", err);
+      }
+    };
     // Re-fetch whenever the user navigates to the inventory or dashboard tab
     if (tab === 'inventory' || tab === 'dashboard') {
       fetchLocalInventory();
     }
+    fetchOnlineOrders();
   }, [tab]);
 
   // ── ADD MEDICINE TO ORDER MODAL – Debounced inventory search ───────────────
@@ -989,6 +1321,28 @@ const PharmacyWorkspace = ({ user }) => {
       fetchSuppliers();
     }
   }, [tab]);
+
+  // Fetch coupons from backend
+  const fetchCoupons = async () => {
+    setLoadingCoupons(true);
+    try {
+      const pId = profileData?.providerId || providerDetails?.id || providerDetails?._id || user?.providerId;
+      if (!pId) return;
+      const res = await providersApi.getPharmacyCoupons({ providerId: pId });
+      const items = res?.coupons || res?.data?.coupons || [];
+      setCoupons(items);
+    } catch (err) {
+      console.error("Failed to load coupons:", err);
+    } finally {
+      setLoadingCoupons(false);
+    }
+  };
+
+  useEffect(() => {
+    if (tab === 'coupons' && (profileData || providerDetails)) {
+      fetchCoupons();
+    }
+  }, [tab, profileData, providerDetails]);
 
   // Live prescription search hook (detects 24-char MongoDB Object ID OR phone number in search term)
   useEffect(() => {
@@ -1206,10 +1560,10 @@ const PharmacyWorkspace = ({ user }) => {
           <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
             <Pill size={22} className="text-white" />
           </div>
-          <div>
+          <div className="min-w-0 flex-1">
             <h1 className="text-base font-black tracking-tight text-white leading-none">AICMS</h1>
-            <p className="text-[10px] text-slate-400 mt-1 uppercase font-bold tracking-wider leading-none">
-              Pharmacy Store
+            <p className="text-[10px] text-slate-400 mt-1.5 uppercase font-bold tracking-wider leading-relaxed break-words whitespace-normal">
+              {providerDetails?.name || "Pharmacy Store"}
             </p>
           </div>
         </div>
@@ -1239,6 +1593,22 @@ const PharmacyWorkspace = ({ user }) => {
             {prescriptions.filter(p => p.status === 'Pending').length > 0 && (
               <span className="bg-rose-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full">
                 {prescriptions.filter(p => p.status === 'Pending').length}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setActiveTab('online-orders')}
+            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${tab === 'online-orders' ? 'bg-blue-600 text-white shadow-md' : 'hover:bg-slate-800 hover:text-white text-slate-400'
+              }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <ShoppingCart size={16} />
+              <span>Recent Online Orders</span>
+            </div>
+            {onlineOrders.filter(o => o.status === 'pending').length > 0 && (
+              <span className="bg-rose-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full animate-pulse">
+                {onlineOrders.filter(o => o.status === 'pending').length}
               </span>
             )}
           </button>
@@ -1358,6 +1728,16 @@ const PharmacyWorkspace = ({ user }) => {
             </div>
           </button>
 
+          <button
+            onClick={() => setActiveTab('coupons')}
+            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${tab === 'coupons' ? 'bg-blue-600 text-white shadow-md' : 'hover:bg-slate-800 hover:text-white text-slate-400'}`}
+          >
+            <div className="flex items-center gap-2.5">
+              <CreditCard size={16} />
+              <span>Discount Coupons</span>
+            </div>
+          </button>
+
           {/* Collapsible Reports */}
           <div className="space-y-1">
             <button
@@ -1398,10 +1778,14 @@ const PharmacyWorkspace = ({ user }) => {
         <div className="p-4 border-t border-slate-800 space-y-3 shrink-0 bg-slate-950/50">
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-2">
             <div className="flex justify-between items-center">
-              <div>
+              <div className="min-w-0 flex-1">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Pharmacy Store</p>
-                <p className="text-xs font-extrabold text-white mt-0.5 truncate max-w-[130px]">Ram's Pharmacy Store</p>
-                <p className="text-[9px] text-slate-500 font-semibold mt-0.5">Indirapuram, Ghaziabad</p>
+                <p className="text-xs font-extrabold text-white mt-0.5 whitespace-normal break-words leading-tight">
+                  {providerDetails?.name || "Ram's Pharmacy Store"}
+                </p>
+                <p className="text-[9px] text-slate-500 font-semibold mt-0.5 truncate">
+                  {providerDetails?.address?.line1 || providerDetails?.address?.city || "Indirapuram, Ghaziabad"}
+                </p>
               </div>
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
             </div>
@@ -1662,6 +2046,11 @@ const PharmacyWorkspace = ({ user }) => {
 
         {/* ================= CONTENT MAIN WRAPPER ================= */}
         <main className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
+
+          {/* ================= TAB: RECENT ONLINE ORDERS ================= */}
+          {tab === 'online-orders' && (
+            <PrescriptionOrdersWorkspace />
+          )}
 
           {/* ================= TAB 1: OPERATIONAL DASHBOARD ================= */}
           {tab === 'dashboard' && (
@@ -3238,7 +3627,7 @@ const PharmacyWorkspace = ({ user }) => {
                       disabled={cart.length === 0}
                       className={`w-full py-3 rounded-2xl text-xs font-black text-white text-center transition shadow-md ${
                         cart.length > 0
-                          ? 'bg-emerald-650 hover:bg-emerald-700 shadow-emerald-100'
+                          ? 'bg-emerald-600  hover:bg-emerald-600 shadow-emerald-100'
                           : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
                       }`}
                     >
@@ -5172,10 +5561,20 @@ const PharmacyWorkspace = ({ user }) => {
                         <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-xs">
                           <h4 className="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-2">Address</h4>
                           <div className="text-slate-700 font-semibold space-y-1">
-                            <p>{selectedSupplierDetail.address}</p>
+                            <p>
+                              {typeof selectedSupplierDetail.address === 'object' 
+                                ? `${selectedSupplierDetail.address?.line1 || ''} ${selectedSupplierDetail.address?.line2 || ''}`.trim()
+                                : selectedSupplierDetail.address}
+                            </p>
                             {selectedSupplierDetail.landmark && <p className="text-[10px] text-slate-400 font-bold">Landmark: {selectedSupplierDetail.landmark}</p>}
-                            <p>{selectedSupplierDetail.city}, {selectedSupplierDetail.state} - {selectedSupplierDetail.pincode}</p>
-                            <p className="text-[9px] uppercase tracking-wider text-slate-455 font-black mt-1.5">{selectedSupplierDetail.country || 'India'}</p>
+                            <p>
+                              {typeof selectedSupplierDetail.address === 'object'
+                                ? `${selectedSupplierDetail.address?.city || ''}, ${selectedSupplierDetail.address?.state || ''} - ${selectedSupplierDetail.address?.pincode || ''}`
+                                : `${selectedSupplierDetail.city || ''}, ${selectedSupplierDetail.state || ''} - ${selectedSupplierDetail.pincode || ''}`}
+                            </p>
+                            <p className="text-[9px] uppercase tracking-wider text-slate-455 font-black mt-1.5">
+                              {(typeof selectedSupplierDetail.address === 'object' ? selectedSupplierDetail.address?.country : selectedSupplierDetail.country) || 'India'}
+                            </p>
                           </div>
                         </div>
 
@@ -8005,7 +8404,6 @@ const PharmacyWorkspace = ({ user }) => {
                               purchasePrice: selectedMedForReturn.purchasePrice || 35,
                               reason: returnMedReason
                             };
-
                             setNewReturnData(prev => ({
                               ...prev,
                               medicines: [...prev.medicines, itemToAdd]
@@ -8017,6 +8415,740 @@ const PharmacyWorkspace = ({ user }) => {
                           className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black transition shadow-md shadow-blue-100"
                         >
                           Add to Return
+                        </button>
+                      </div>
+
+                    </div>
+                  </div>
+                )}
+
+              </div>
+            );
+          })()}
+
+          {tab === 'coupons' && (() => {
+            const fmtDate = (d) => {
+              if (!d) return 'Never';
+              const date = new Date(d);
+              if (isNaN(date.getTime())) return 'Never';
+              return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+            };
+
+            const handleCreateOrUpdateCoupon = async (e) => {
+              e.preventDefault();
+              const clinicId = profileData?.clinicId || providerDetails?.associatedClinic || providerDetails?.clinicId || user?.clinicId;
+              const providerId = profileData?.providerId || providerDetails?.id || providerDetails?._id || user?.providerId;
+              
+              if (!clinicId || !providerId) {
+                toast.error('Provider context not loaded. Please try again.');
+                return;
+              }
+
+              if (!couponForm.code.trim()) {
+                toast.error('Please enter a coupon code.');
+                return;
+              }
+
+              try {
+                const payload = {
+                  ...couponForm,
+                  code: couponForm.code.trim().toUpperCase(),
+                  clinicId,
+                  providerId,
+                  applicableMedicines: couponSelectedMeds.map(m => m._id || m.id)
+                };
+
+                if (couponDrawerMode === 'create' || couponDrawerMode === 'duplicate') {
+                  await providersApi.createPharmacyCoupon(payload);
+                  toast.success(`Coupon "${payload.code}" created successfully!`);
+                } else if (couponDrawerMode === 'edit' && selectedCouponForEdit) {
+                  await providersApi.updatePharmacyCoupon(selectedCouponForEdit._id, payload);
+                  toast.success(`Coupon "${payload.code}" updated successfully!`);
+                }
+
+                setShowCouponDrawer(false);
+                setCouponSelectedMeds([]);
+                fetchCoupons();
+              } catch (err) {
+                console.error(err);
+                toast.error(err?.response?.data?.message || err?.message || 'Failed to save coupon.');
+              }
+            };
+
+            const handleToggleCheckoutDisplay = async (coupon, val) => {
+              try {
+                await providersApi.updatePharmacyCoupon(coupon._id, { displayOnCheckout: val });
+                toast.success(`Visibility for ${coupon.code} updated!`);
+                fetchCoupons();
+              } catch (err) {
+                console.error(err);
+                toast.error('Failed to update visibility.');
+              }
+            };
+
+            const handleDeleteCoupon = async (id) => {
+              if (!window.confirm('Are you sure you want to archive this coupon? It will no longer be active.')) {
+                return;
+              }
+              try {
+                await providersApi.deletePharmacyCoupon(id);
+                toast.success('Coupon archived.');
+                fetchCoupons();
+              } catch (err) {
+                console.error(err);
+                toast.error('Failed to delete coupon.');
+              }
+            };
+
+            const handleCouponMedSearch = async (q) => {
+              setCouponMedSearchQuery(q);
+              if (!q.trim()) {
+                setCouponMedSearchResults([]);
+                return;
+              }
+              try {
+                const data = await pharmacyApi.listMedicines({ search: q, limit: 10 });
+                const items = data?.medicines || data?.data?.medicines || (Array.isArray(data) ? data : []);
+                setCouponMedSearchResults(items);
+              } catch (err) {
+                console.error('Medicine search failed:', err);
+              }
+            };
+
+            // Dynamic computations
+            const activeCoupons = coupons.filter(c => c.isActive && (!c.expiryDate || new Date(c.expiryDate) > new Date()));
+            const checkoutCoupons = activeCoupons.filter(c => c.displayOnCheckout);
+            const hiddenCoupons = activeCoupons.filter(c => !c.displayOnCheckout);
+            const expiredCoupons = coupons.filter(c => c.expiryDate && new Date(c.expiryDate) <= new Date());
+            const totalRedemptions = coupons.reduce((sum, c) => sum + (c.usedCount || 0), 0);
+            const totalDiscount = coupons.reduce((sum, c) => sum + ((c.usedCount || 0) * (c.value || 0)), 0);
+
+            // Filtered coupons
+            const filteredCoupons = coupons.filter(c => {
+              const matchesSearch = c.code.toLowerCase().includes(couponSearch.toLowerCase()) || 
+                                    c.description.toLowerCase().includes(couponSearch.toLowerCase());
+              
+              const matchesType = couponTypeFilter === 'All' || c.type === couponTypeFilter;
+              
+              let matchesStatus = true;
+              const isExpired = c.expiryDate && new Date(c.expiryDate) <= new Date();
+              if (couponStatusFilter === 'Active') {
+                matchesStatus = c.isActive && !isExpired;
+              } else if (couponStatusFilter === 'Hidden') {
+                matchesStatus = c.isActive && !c.displayOnCheckout && !isExpired;
+              } else if (couponStatusFilter === 'Expired') {
+                matchesStatus = isExpired;
+              } else if (couponStatusFilter === 'Disabled') {
+                matchesStatus = !c.isActive;
+              }
+
+              return matchesSearch && matchesType && matchesStatus;
+            });
+
+            return (
+              <div className="space-y-6 animate-fade-in p-1 relative min-h-[75vh]">
+                
+                {/* Header */}
+                <div className="flex justify-between items-center bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl">
+                  <div>
+                    <h2 className="text-xl font-black text-white flex items-center gap-2">🎫 Discount Coupons</h2>
+                    <p className="text-xs text-slate-400 mt-1">Create and manage promotional discount coupons for medicines sold by your pharmacy.</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setCouponDrawerMode('create');
+                      setCouponSelectedMeds([]);
+                      setCouponForm({
+                        code: '',
+                        description: '',
+                        type: 'percentage',
+                        value: 10,
+                        minOrderValue: 0,
+                        maxDiscount: 0,
+                        usageLimit: 100,
+                        displayOnCheckout: true,
+                        expiryDate: '',
+                        eligiblePatients: 'everyone',
+                        applicableMedicines: []
+                      });
+                      setShowCouponDrawer(true);
+                    }}
+                    className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black transition shadow-lg shadow-blue-900/30 flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Plus size={14} />
+                    Create Promo Code
+                  </button>
+                </div>
+
+                {/* Metrics Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                  <div className="bg-white border border-slate-200/80 rounded-[20px] p-5 shadow-sm flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
+                      <Tag size={20} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Active Coupon Codes</p>
+                      <p className="text-2xl font-black text-slate-900 mt-1">{activeCoupons.length}</p>
+                      <p className="text-[10px] text-slate-400 font-bold mt-0.5">Ready for patient use</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-white border border-slate-200/80 rounded-[20px] p-5 shadow-sm flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-600 shrink-0">
+                      <Calendar size={20} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Displayed on Checkout</p>
+                      <p className="text-2xl font-black text-slate-900 mt-1">{checkoutCoupons.length}</p>
+                      <p className="text-[10px] text-slate-400 font-bold mt-0.5">Visible as click-to-apply buttons</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-white border border-slate-200/80 rounded-[20px] p-5 shadow-sm flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-600 shrink-0">
+                      <CreditCard size={20} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Hidden / Targeted Codes</p>
+                      <p className="text-2xl font-black text-slate-900 mt-1">{hiddenCoupons.length}</p>
+                      <p className="text-[10px] text-slate-400 font-bold mt-0.5">Only applicable by manual typing</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Filters & Search Table Container */}
+                <div className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
+                  
+                  {/* Filters Bar */}
+                  <div className="px-6 py-4 border-b border-slate-100 flex flex-col md:flex-row gap-3 justify-between items-center">
+                    <div className="flex-1 w-full relative">
+                      <input
+                        type="text"
+                        placeholder="Search coupon code, description..."
+                        className="w-full text-xs border border-slate-200 rounded-xl pl-9 pr-4 py-2.5 font-bold focus:outline-none focus:border-blue-500 bg-slate-50 text-slate-800"
+                        value={couponSearch}
+                        onChange={(e) => setCouponSearch(e.target.value)}
+                      />
+                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    </div>
+
+                    <div className="flex gap-2 w-full md:w-auto">
+                      <select
+                        className="text-xs border border-slate-200 rounded-xl px-3 py-2.5 font-bold focus:outline-none focus:border-blue-500 bg-slate-50 text-slate-700"
+                        value={couponStatusFilter}
+                        onChange={(e) => setCouponStatusFilter(e.target.value)}
+                      >
+                        <option value="All">All Statuses</option>
+                        <option value="Active">Active</option>
+                        <option value="Hidden">Hidden</option>
+                        <option value="Expired">Expired</option>
+                        <option value="Disabled">Disabled</option>
+                      </select>
+
+                      <select
+                        className="text-xs border border-slate-200 rounded-xl px-3 py-2.5 font-bold focus:outline-none focus:border-blue-500 bg-slate-50 text-slate-700"
+                        value={couponTypeFilter}
+                        onChange={(e) => setCouponTypeFilter(e.target.value)}
+                      >
+                        <option value="All">All Types</option>
+                        <option value="percentage">Percentage (%)</option>
+                        <option value="flat">Fixed Amount (₹)</option>
+                        <option value="free_delivery">Free Delivery</option>
+                        <option value="buy_x_get_y">Buy X Get Y</option>
+                      </select>
+
+                      <button 
+                        onClick={() => {
+                          setCouponSearch('');
+                          setCouponStatusFilter('All');
+                          setCouponTypeFilter('All');
+                          fetchCoupons();
+                        }}
+                        className="p-2.5 border border-slate-200 rounded-xl bg-slate-50 hover:bg-slate-100 transition text-slate-600 flex items-center justify-center cursor-pointer"
+                        title="Reset Filters"
+                      >
+                        <RotateCcw size={14} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Table */}
+                  {loadingCoupons ? (
+                    <div className="py-20 text-center text-xs text-slate-400 font-bold">
+                      Loading discount coupons...
+                    </div>
+                  ) : filteredCoupons.length === 0 ? (
+                    <div className="py-20 text-center space-y-3">
+                      <div className="text-3xl">🎫</div>
+                      <p className="text-xs text-slate-400 font-bold">No coupons match your filter criteria.</p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs border-collapse">
+                        <thead>
+                          <tr className="bg-slate-50 text-slate-500 font-black border-b border-slate-150 uppercase tracking-wider text-[10px]">
+                            <th className="px-6 py-3.5">Coupon Code</th>
+                            <th className="px-6 py-3.5">Discount Type</th>
+                            <th className="px-6 py-3.5">Discount Value</th>
+                            <th className="px-6 py-3.5">Min. Order</th>
+                            <th className="px-6 py-3.5">Usage Limit</th>
+                            <th className="px-6 py-3.5">Expiry Date</th>
+                            <th className="px-6 py-3.5">Status</th>
+                            <th className="px-6 py-3.5 text-center">Checkout Display</th>
+                            <th className="px-6 py-3.5 text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {filteredCoupons.map(coupon => {
+                            const isExpired = coupon.expiryDate && new Date(coupon.expiryDate) <= new Date();
+                            const limit = coupon.usageLimit || 100;
+                            const used = coupon.usedCount || 0;
+                            const usedPct = Math.min(Math.round((used / limit) * 100), 100);
+
+                            let statusBadge = <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100 text-[9px] font-black uppercase">Active</span>;
+                            if (!coupon.isActive) {
+                              statusBadge = <span className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200 text-[9px] font-black uppercase">Disabled</span>;
+                            } else if (isExpired) {
+                              statusBadge = <span className="px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-100 text-[9px] font-black uppercase">Expired</span>;
+                            } else if (!coupon.displayOnCheckout) {
+                              statusBadge = <span className="px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-100 text-[9px] font-black uppercase">Hidden</span>;
+                            }
+
+                            return (
+                              <tr key={coupon._id} className="hover:bg-slate-50/50 transition">
+                                <td className="px-6 py-4">
+                                  <span className="px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-150 rounded-lg font-black tracking-wider uppercase">
+                                    {coupon.code}
+                                  </span>
+                                  <p className="text-[9px] text-slate-400 font-bold mt-1 max-w-xs truncate">{coupon.description || 'No description'}</p>
+                                </td>
+                                <td className="px-6 py-4 font-bold text-slate-700 capitalize">
+                                  {coupon.type.replace('_', ' ')}
+                                </td>
+                                <td className="px-6 py-4 font-extrabold text-slate-805">
+                                  {coupon.type === 'percentage' ? `${coupon.value}% Off` : `₹${coupon.value} Flat`}
+                                </td>
+                                <td className="px-6 py-4 font-bold text-slate-500">
+                                  ₹{coupon.minOrderValue || 0}
+                                </td>
+                                <td className="px-6 py-4">
+                                  <div className="w-24">
+                                    <div className="flex justify-between items-center text-[9px] text-slate-400 font-bold mb-1">
+                                      <span>{used} / {limit}</span>
+                                      <span>{usedPct}%</span>
+                                    </div>
+                                    <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                      <div className="h-full bg-blue-600 rounded-full" style={{ width: `${usedPct}%` }}></div>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 text-slate-500 font-semibold">
+                                  {coupon.expiryDate ? fmtDate(coupon.expiryDate) : 'Never Expires'}
+                                </td>
+                                <td className="px-6 py-4">
+                                  {statusBadge}
+                                </td>
+                                <td className="px-6 py-4 text-center">
+                                  <button
+                                    onClick={() => handleToggleCheckoutDisplay(coupon, !coupon.displayOnCheckout)}
+                                    className={`w-11 h-6 rounded-full transition-colors relative inline-block align-middle focus:outline-none ${coupon.displayOnCheckout ? 'bg-blue-600' : 'bg-slate-200'}`}
+                                  >
+                                    <span className={`w-4 h-4 rounded-full bg-white absolute top-1 transition-transform left-1 ${coupon.displayOnCheckout ? 'translate-x-5' : ''}`} />
+                                  </button>
+                                </td>
+                                <td className="px-6 py-4 text-right">
+                                  <div className="flex gap-2 justify-end items-center">
+                                    <button
+                                      onClick={() => {
+                                        setCouponForm({
+                                          code: coupon.code,
+                                          description: coupon.description || '',
+                                          type: coupon.type,
+                                          value: coupon.value,
+                                          minOrderValue: coupon.minOrderValue || 0,
+                                          maxDiscount: coupon.maxDiscount || 0,
+                                          usageLimit: coupon.usageLimit || 100,
+                                          displayOnCheckout: coupon.displayOnCheckout !== false,
+                                          expiryDate: coupon.expiryDate ? new Date(coupon.expiryDate).toISOString().substring(0, 10) : '',
+                                          eligiblePatients: coupon.eligiblePatients || 'everyone',
+                                          applicableMedicines: coupon.applicableMedicines || []
+                                        });
+                                        setSelectedCouponForEdit(coupon);
+                                        setCouponDrawerMode('edit');
+                                        setShowCouponDrawer(true);
+                                      }}
+                                      className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-700 transition"
+                                      title="Edit Coupon"
+                                    >
+                                      <Plus size={14} className="rotate-45" /> {/* plus rotated is close/edit symbol fallback */}
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        setSelectedCouponForAnalytics(coupon);
+                                        setShowCouponAnalyticsDrawer(true);
+                                      }}
+                                      className="p-1.5 hover:bg-slate-100 rounded-lg text-blue-600 hover:text-blue-800 font-bold text-[10px] transition"
+                                      title="View Analytics"
+                                    >
+                                      <Activity size={14} />
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteCoupon(coupon._id)}
+                                      className="p-1.5 hover:bg-rose-50 rounded-lg text-rose-500 hover:text-rose-700 transition"
+                                      title="Delete Coupon"
+                                    >
+                                      <Trash2 size={14} />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+
+                {/* ── CREATE / EDIT promo code DRAWER ─────────────────────────────── */}
+                {showCouponDrawer && (
+                  <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex justify-end z-[999] animate-in slide-in-from-right duration-200">
+                    <div className="bg-white w-full max-w-[550px] h-full shadow-2xl flex flex-col overflow-hidden text-slate-800 border-l border-slate-100">
+                      
+                      {/* Drawer Header */}
+                      <div className="p-6 border-b border-slate-150 flex items-center justify-between shrink-0">
+                        <div>
+                          <h3 className="text-md font-black text-slate-905">
+                            {couponDrawerMode === 'edit' ? 'Edit Coupon' : 'Create New Promo Code'}
+                          </h3>
+                          <p className="text-xs text-slate-400 font-bold mt-1">Create a promotional coupon for medicines sold by this pharmacy.</p>
+                        </div>
+                        <button 
+                          onClick={() => setShowCouponDrawer(false)}
+                          className="w-8 h-8 rounded-full bg-slate-50 border border-slate-150 hover:bg-slate-100 flex items-center justify-center text-slate-400 transition cursor-pointer"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+
+                      {/* Drawer Content */}
+                      <form onSubmit={handleCreateOrUpdateCoupon} className="flex-1 overflow-y-auto p-6 space-y-5 custom-scrollbar">
+                        
+                        {/* Live Coupon Card Preview Box */}
+                        <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-3xl p-5 text-white shadow-lg space-y-4 relative overflow-hidden select-none">
+                          <div className="absolute right-0 bottom-0 opacity-10">
+                            <ShoppingCart size={150} />
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-[10px] font-black uppercase tracking-widest bg-white/20 px-2 py-0.5 rounded-md">Coupon Preview</span>
+                            <span className="text-xs font-mono font-bold">{couponForm.displayOnCheckout ? '✓ Displayed' : '✕ Hidden'}</span>
+                          </div>
+                          <div>
+                            <h4 className="text-2xl font-black tracking-wider uppercase font-mono">{couponForm.code || 'SAVE20'}</h4>
+                            <p className="text-xs text-blue-100 font-bold mt-1.5">{couponForm.description || 'Enter description to preview'}</p>
+                          </div>
+                          <div className="flex justify-between items-end pt-2 border-t border-white/10">
+                            <div>
+                              <p className="text-[9px] uppercase tracking-wider text-blue-200">Discount</p>
+                              <p className="text-sm font-black mt-0.5">
+                                {couponForm.type === 'percentage' ? `${couponForm.value}% Off` : `₹${couponForm.value} Flat Off`}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-[9px] uppercase tracking-wider text-blue-200">Expires</p>
+                              <p className="text-xs font-bold mt-0.5">{couponForm.expiryDate ? fmtDate(couponForm.expiryDate) : 'Never'}</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Code field with generate code */}
+                        <div className="space-y-1.5">
+                          <label className="block text-[11px] font-black text-slate-700 uppercase tracking-wider">Coupon Code *</label>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              required
+                              placeholder="E.g. SAVE20"
+                              className="flex-1 bg-white border border-slate-200 rounded-xl px-3.5 py-3 text-xs font-bold uppercase tracking-wider text-slate-805 focus:outline-none focus:border-blue-500 transition"
+                              value={couponForm.code}
+                              onChange={(e) => setCouponForm({ ...couponForm, code: e.target.value.toUpperCase().replace(/\s+/g, '') })}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const gen = Math.random().toString(36).substring(2, 8).toUpperCase();
+                                setCouponForm({ ...couponForm, code: gen });
+                              }}
+                              className="px-4 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 rounded-xl text-xs font-black transition whitespace-nowrap cursor-pointer"
+                            >
+                              Generate Code
+                            </button>
+                          </div>
+                          <p className="text-[10px] text-slate-400 font-bold">Enter a unique coupon code</p>
+                        </div>
+
+                        {/* Type & Value */}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1.5">
+                            <label className="block text-[11px] font-black text-slate-700 uppercase tracking-wider">Discount Type *</label>
+                            <select
+                              required
+                              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-3 text-xs font-bold text-slate-805 focus:outline-none focus:border-blue-500 transition"
+                              value={couponForm.type}
+                              onChange={(e) => setCouponForm({ ...couponForm, type: e.target.value })}
+                            >
+                              <option value="percentage">Percentage (%)</option>
+                              <option value="flat">Fixed Amount (₹)</option>
+                              <option value="free_delivery">Free Delivery</option>
+                            </select>
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <label className="block text-[11px] font-black text-slate-700 uppercase tracking-wider">Discount Value *</label>
+                            <div className="relative">
+                              <input
+                                type="number"
+                                required
+                                min="0"
+                                max={couponForm.type === 'percentage' ? 100 : undefined}
+                                className="w-full bg-white border border-slate-200 rounded-xl pl-3.5 pr-8 py-3 text-xs font-bold text-slate-855 focus:outline-none focus:border-blue-500 transition"
+                                value={couponForm.value}
+                                onChange={(e) => setCouponForm({ ...couponForm, value: parseFloat(e.target.value) || 0 })}
+                              />
+                              <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
+                                {couponForm.type === 'percentage' ? '%' : '₹'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Description */}
+                        <div className="space-y-1.5">
+                          <label className="block text-[11px] font-black text-slate-700 uppercase tracking-wider">Description</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. Get 20% off on all medicines"
+                            className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-3 text-xs font-bold text-slate-800 focus:outline-none focus:border-blue-500 transition"
+                            value={couponForm.description}
+                            onChange={(e) => setCouponForm({ ...couponForm, description: e.target.value })}
+                          />
+                          <p className="text-[10px] text-slate-400 font-bold">Optional</p>
+                        </div>
+
+                        {/* Minimum Order Value & Max Discount */}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1.5">
+                            <label className="block text-[11px] font-black text-slate-700 uppercase tracking-wider">Minimum Order Value (₹)</label>
+                            <input
+                              type="number"
+                              placeholder="e.g. 500"
+                              className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-3 text-xs font-bold text-slate-855 focus:outline-none focus:border-blue-500 transition"
+                              value={couponForm.minOrderValue}
+                              onChange={(e) => setCouponForm({ ...couponForm, minOrderValue: parseFloat(e.target.value) || 0 })}
+                            />
+                            <p className="text-[10px] text-slate-400 font-bold">Optional</p>
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <label className="block text-[11px] font-black text-slate-700 uppercase tracking-wider">Maximum Usage (Optional)</label>
+                            <input
+                              type="number"
+                              placeholder="e.g. 100"
+                              className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-3 text-xs font-bold text-slate-855 focus:outline-none focus:border-blue-500 transition"
+                              value={couponForm.usageLimit}
+                              onChange={(e) => setCouponForm({ ...couponForm, usageLimit: parseInt(e.target.value) || 100 })}
+                            />
+                            <p className="text-[10px] text-slate-400 font-bold">Optional</p>
+                          </div>
+                        </div>
+
+                        {/* Applicable Medicines Selector */}
+                        <div className="space-y-1.5">
+                          <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider">Applicable Medicines (This pharmacy only)</label>
+                          <div className="relative">
+                            <input
+                              type="text"
+                              placeholder="Search medicine to link to coupon..."
+                              className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-2.5 text-xs font-bold"
+                              value={couponMedSearchQuery}
+                              onChange={(e) => handleCouponMedSearch(e.target.value)}
+                            />
+                            <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                          </div>
+
+                          {couponMedSearchResults.length > 0 && (
+                            <div className="bg-white border border-slate-200 rounded-xl shadow-md max-h-48 overflow-y-auto divide-y divide-slate-100">
+                              {couponMedSearchResults.map(med => (
+                                <button
+                                  key={med._id}
+                                  type="button"
+                                  onClick={() => {
+                                    if (!couponSelectedMeds.some(m => m._id === med._id)) {
+                                      setCouponSelectedMeds([...couponSelectedMeds, med]);
+                                    }
+                                    setCouponMedSearchResults([]);
+                                    setCouponMedSearchQuery('');
+                                  }}
+                                  className="w-full px-4 py-2 text-left text-xs font-bold hover:bg-slate-50 transition block"
+                                >
+                                  {med.brandName || med.name}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Selected Medicines Badges */}
+                          {couponSelectedMeds.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 mt-2">
+                              {couponSelectedMeds.map(med => (
+                                <span key={med._id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 text-[10px] font-bold border border-blue-150">
+                                  {med.brandName || med.name}
+                                  <button
+                                    type="button"
+                                    onClick={() => setCouponSelectedMeds(couponSelectedMeds.filter(m => m._id !== med._id))}
+                                    className="text-blue-500 hover:text-blue-700 font-bold"
+                                  >
+                                    ×
+                                  </button>
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Eligible Patients */}
+                        <div className="space-y-1.5">
+                          <label className="block text-[11px] font-black text-slate-700 uppercase tracking-wider">Eligible Patients</label>
+                          <select
+                            className="w-full bg-white border border-slate-200 rounded-xl px-3 py-3 text-xs font-bold text-slate-805 focus:outline-none focus:border-blue-500 transition"
+                            value={couponForm.eligiblePatients}
+                            onChange={(e) => setCouponForm({ ...couponForm, eligiblePatients: e.target.value })}
+                          >
+                            <option value="everyone">Everyone</option>
+                            <option value="new">New Patients</option>
+                            <option value="returning">Returning Patients</option>
+                            <option value="vip">VIP Patients</option>
+                          </select>
+                        </div>
+
+                        {/* Expiry Date */}
+                        <div className="space-y-1.5">
+                          <label className="block text-[11px] font-black text-slate-700 uppercase tracking-wider">Expiry Date (Optional)</label>
+                          <input
+                            type="date"
+                            className="w-full bg-white border border-slate-200 rounded-xl px-3 py-3 text-xs font-bold text-slate-805 focus:outline-none focus:border-blue-500 transition"
+                            value={couponForm.expiryDate}
+                            onChange={(e) => setCouponForm({ ...couponForm, expiryDate: e.target.value })}
+                          />
+                        </div>
+
+                        {/* Visibility and Branch options */}
+                        <div className="flex items-center justify-between py-3 border-t border-slate-100">
+                          <div>
+                            <p className="text-[11px] font-black text-slate-700 uppercase tracking-wider">Display in Checkout Page?</p>
+                            <p className="text-[10px] text-slate-400 font-bold">Allow patient to apply this coupon with a single click</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setCouponForm({ ...couponForm, displayOnCheckout: !couponForm.displayOnCheckout })}
+                            className={`w-11 h-6 rounded-full transition-colors relative focus:outline-none ${couponForm.displayOnCheckout ? 'bg-blue-600' : 'bg-slate-200'}`}
+                          >
+                            <span className={`w-4 h-4 rounded-full bg-white absolute top-1 transition-transform left-1 ${couponForm.displayOnCheckout ? 'translate-x-5' : ''}`} />
+                          </button>
+                        </div>
+
+                      </form>
+
+                      {/* Drawer Footer */}
+                      <div className="p-6 border-t border-slate-100 bg-slate-50 flex items-center justify-between shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setShowCouponDrawer(false)}
+                          className="px-5 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-655 text-xs font-bold transition shadow-sm cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleCreateOrUpdateCoupon}
+                          className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black shadow-lg shadow-blue-500/25 transition cursor-pointer"
+                        >
+                          {couponDrawerMode === 'edit' ? 'Save Changes' : 'Create Coupon'}
+                        </button>
+                      </div>
+
+                    </div>
+                  </div>
+                )}
+
+                {/* ── VIEW ANALYTICS DRAWER ─────────────────────────────── */}
+                {showCouponAnalyticsDrawer && selectedCouponForAnalytics && (
+                  <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex justify-end z-[999] animate-in slide-in-from-right duration-200">
+                    <div className="bg-white w-full max-w-[500px] h-full shadow-2xl flex flex-col overflow-hidden text-slate-800 border-l border-slate-100">
+                      
+                      {/* Header */}
+                      <div className="p-6 border-b border-slate-150 flex items-center justify-between shrink-0">
+                        <div>
+                          <h3 className="text-md font-black text-slate-905 flex items-center gap-1.5">
+                            <Activity className="text-blue-600" size={16} /> Analytics: {selectedCouponForAnalytics.code}
+                          </h3>
+                          <p className="text-xs text-slate-400 font-bold mt-1">Dynamic metrics of this promotional coupon code campaign.</p>
+                        </div>
+                        <button 
+                          onClick={() => setShowCouponAnalyticsDrawer(false)}
+                          className="w-8 h-8 rounded-full bg-slate-50 border border-slate-150 hover:bg-slate-100 flex items-center justify-center text-slate-400 transition cursor-pointer"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+
+                      {/* Content */}
+                      <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
+                        
+                        {/* Stats Grid */}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-center">
+                            <p className="text-[10px] text-slate-400 font-black uppercase tracking-wider">Total Uses</p>
+                            <p className="text-2xl font-black text-slate-900 mt-1">{selectedCouponForAnalytics.usedCount || 0}</p>
+                          </div>
+                          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-center">
+                            <p className="text-[10px] text-slate-400 font-black uppercase tracking-wider">Conversion Rate</p>
+                            <p className="text-2xl font-black text-emerald-600 mt-1">
+                              {selectedCouponForAnalytics.usedCount ? `${Math.min(Math.round(((selectedCouponForAnalytics.usedCount || 0) / (selectedCouponForAnalytics.usageLimit || 100)) * 100), 100)}%` : '0%'}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Usage trend timeline demo */}
+                        <div className="space-y-3">
+                          <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider">Redemption History</h4>
+                          <div className="border border-slate-100 rounded-2xl p-4 space-y-3 text-xs">
+                            <div className="flex justify-between items-center border-b border-slate-50 pb-2">
+                              <div>
+                                <p className="font-extrabold text-slate-800">Coupon Code Activated</p>
+                                <p className="text-[10px] text-slate-400 font-bold mt-0.5">Campaign initialized by Radha Ram</p>
+                              </div>
+                              <span className="text-[10px] text-slate-400 font-bold">{fmtDate(selectedCouponForAnalytics.createdAt)}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <p className="font-extrabold text-slate-805">Active redemptions logged</p>
+                                <p className="text-[10px] text-slate-400 font-bold mt-0.5">Used in pharmacy checkouts</p>
+                              </div>
+                              <span className="text-[10px] text-slate-400 font-bold">{selectedCouponForAnalytics.usedCount || 0} times</span>
+                            </div>
+                          </div>
+                        </div>
+
+                      </div>
+
+                      {/* Footer */}
+                      <div className="p-6 border-t border-slate-100 bg-slate-50 text-right shrink-0">
+                        <button
+                          onClick={() => setShowCouponAnalyticsDrawer(false)}
+                          className="px-5 py-2 rounded-xl bg-white border border-slate-200 text-slate-600 text-xs font-bold hover:bg-slate-100 transition shadow-sm cursor-pointer"
+                        >
+                          Close Analytics
                         </button>
                       </div>
 
@@ -8606,6 +9738,7 @@ const PharmacyWorkspace = ({ user }) => {
 
             const getActiveBatches = (med) =>
               (med.batches || []).filter(b => {
+                if (b.isActive === false) return false;
                 if (!b.expiryDate) return true;
                 return new Date(b.expiryDate) >= today;
               });
@@ -9012,7 +10145,14 @@ const PharmacyWorkspace = ({ user }) => {
                                     </td>
                                     <td className="py-3 px-4">
                                       <div className="flex justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button title="View Batch" className="w-7 h-7 rounded-lg border border-slate-200 hover:bg-slate-50 flex items-center justify-center text-slate-500 transition">
+                                        <button 
+                                          onClick={() => {
+                                            setSelectedInventoryMedicine(med);
+                                            setShowInventoryDetailDrawer(true);
+                                          }}
+                                          title="View Medicine Details" 
+                                          className="w-7 h-7 rounded-lg border border-slate-200 hover:bg-slate-50 flex items-center justify-center text-slate-500 hover:text-blue-600 transition"
+                                        >
                                           <Eye size={12} />
                                         </button>
                                         <button title="Print Label" className="w-7 h-7 rounded-lg border border-slate-200 hover:bg-slate-50 flex items-center justify-center text-slate-500 transition">
@@ -9230,24 +10370,119 @@ const PharmacyWorkspace = ({ user }) => {
 
                         {/* Medicine Info */}
                         <div>
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-3">Medicine Information</p>
-                          <div className="grid grid-cols-2 gap-y-3 gap-x-6 text-xs">
-                            {[
-                              { label: 'Brand Name', value: selectedInventoryMedicine.brandName || selectedInventoryMedicine.brand },
-                              { label: 'Generic Name', value: selectedInventoryMedicine.genericName || selectedInventoryMedicine.name },
-                              { label: 'Form', value: selectedInventoryMedicine.form },
-                              { label: 'Strength', value: selectedInventoryMedicine.strength },
-                              { label: 'Manufacturer', value: selectedInventoryMedicine.manufacturer },
-                              { label: 'Rack', value: selectedInventoryMedicine.rackNumber || selectedInventoryMedicine.rack },
-                              { label: 'Storage Location', value: selectedInventoryMedicine.storageLocation || selectedInventoryMedicine.shelf },
-                              { label: 'Reorder Level', value: selectedInventoryMedicine.reorderLevel },
-                            ].map(f => (
-                              <div key={f.label}>
-                                <span className="text-slate-400 font-semibold">{f.label}</span>
-                                <p className="font-black text-slate-800 mt-0.5">{f.value || '—'}</p>
+                          <div className="flex justify-between items-center mb-3">
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Medicine Information</p>
+                            {!isEditingMedicine ? (
+                              <button
+                                onClick={() => {
+                                  setEditMedicineForm({
+                                    brandName: selectedInventoryMedicine.brandName || selectedInventoryMedicine.brand || '',
+                                    genericName: selectedInventoryMedicine.genericName || selectedInventoryMedicine.name || '',
+                                    manufacturer: selectedInventoryMedicine.manufacturer || '',
+                                    rackNumber: selectedInventoryMedicine.rackNumber || selectedInventoryMedicine.rack || '',
+                                    storageLocation: selectedInventoryMedicine.storageLocation || selectedInventoryMedicine.shelf || '',
+                                    reorderLevel: selectedInventoryMedicine.reorderLevel || 0
+                                  });
+                                  setIsEditingMedicine(true);
+                                }}
+                                className="text-[10px] font-black text-blue-605 hover:text-blue-700 bg-blue-50 px-2.5 py-1 rounded-lg transition"
+                              >
+                                Edit Info
+                              </button>
+                            ) : (
+                              <div className="flex gap-1.5">
+                                <button
+                                  onClick={handleSaveMedicineEdit}
+                                  className="text-[10px] font-black text-white bg-blue-600 hover:bg-blue-700 px-2.5 py-1 rounded-lg transition"
+                                >
+                                  Save
+                                </button>
+                                <button
+                                  onClick={() => setIsEditingMedicine(false)}
+                                  className="text-[10px] font-black text-slate-500 bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-lg transition"
+                                >
+                                  Cancel
+                                </button>
                               </div>
-                            ))}
+                            )}
                           </div>
+
+                          {isEditingMedicine ? (
+                            <div className="grid grid-cols-2 gap-y-3 gap-x-6 text-xs font-bold text-slate-655">
+                              <div>
+                                <label className="text-slate-400 block mb-1">Brand Name</label>
+                                <input
+                                  type="text"
+                                  value={editMedicineForm.brandName}
+                                  onChange={e => setEditMedicineForm({ ...editMedicineForm, brandName: e.target.value })}
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:bg-white text-slate-800 font-bold"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-slate-400 block mb-1">Generic Name</label>
+                                <input
+                                  type="text"
+                                  value={editMedicineForm.genericName}
+                                  onChange={e => setEditMedicineForm({ ...editMedicineForm, genericName: e.target.value })}
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:bg-white text-slate-800 font-bold"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-slate-400 block mb-1">Manufacturer</label>
+                                <input
+                                  type="text"
+                                  value={editMedicineForm.manufacturer}
+                                  onChange={e => setEditMedicineForm({ ...editMedicineForm, manufacturer: e.target.value })}
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:bg-white text-slate-800 font-bold"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-slate-400 block mb-1">Reorder Level</label>
+                                <input
+                                  type="number"
+                                  value={editMedicineForm.reorderLevel}
+                                  onChange={e => setEditMedicineForm({ ...editMedicineForm, reorderLevel: parseInt(e.target.value) || 0 })}
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:bg-white text-slate-800 font-bold"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-slate-400 block mb-1">Rack</label>
+                                <input
+                                  type="text"
+                                  value={editMedicineForm.rackNumber}
+                                  onChange={e => setEditMedicineForm({ ...editMedicineForm, rackNumber: e.target.value })}
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:bg-white text-slate-800 font-bold"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-slate-400 block mb-1">Storage Location</label>
+                                <input
+                                  type="text"
+                                  value={editMedicineForm.storageLocation}
+                                  onChange={e => setEditMedicineForm({ ...editMedicineForm, storageLocation: e.target.value })}
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:bg-white text-slate-800 font-bold"
+                                />
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-2 gap-y-3 gap-x-6 text-xs">
+                              {[
+                                { label: 'Brand Name', value: selectedInventoryMedicine.brandName || selectedInventoryMedicine.brand },
+                                { label: 'Generic Name', value: selectedInventoryMedicine.genericName || selectedInventoryMedicine.name },
+                                { label: 'Form', value: selectedInventoryMedicine.form },
+                                { label: 'Strength', value: selectedInventoryMedicine.strength },
+                                { label: 'Manufacturer', value: selectedInventoryMedicine.manufacturer },
+                                { label: 'Rack', value: selectedInventoryMedicine.rackNumber || selectedInventoryMedicine.rack },
+                                { label: 'Storage Location', value: selectedInventoryMedicine.storageLocation || selectedInventoryMedicine.shelf },
+                                { label: 'Reorder Level', value: selectedInventoryMedicine.reorderLevel },
+                              ].map(f => (
+                                <div key={f.label}>
+                                  <span className="text-slate-400 font-semibold">{f.label}</span>
+                                  <p className="font-black text-slate-800 mt-0.5">{f.value || '—'}</p>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
 
                         {/* Batch-wise Stock Table */}
@@ -9265,15 +10500,93 @@ const PharmacyWorkspace = ({ user }) => {
                                     <th className="py-2.5 px-3">Remaining</th>
                                     <th className="py-2.5 px-3">Expiry</th>
                                     <th className="py-2.5 px-3">Status</th>
+                                    <th className="py-2.5 px-3 text-right">Actions</th>
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-50">
                                   {(selectedInventoryMedicine.batches||[]).map((b, i) => {
                                     const bs = getBatchStatus(b);
                                     const bsc = batchStatusConfig[bs];
+                                    const isEditingThisBatch = editingBatchId === (b._id || b.id);
+                                    if (isEditingThisBatch) {
+                                      return (
+                                        <tr key={b._id || b.id || i} className="bg-blue-50/20">
+                                          <td className="py-2.5 px-3">
+                                            <input
+                                              type="text"
+                                              value={editBatchForm.batchNumber}
+                                              onChange={e => setEditBatchForm({ ...editBatchForm, batchNumber: e.target.value })}
+                                              className="w-full max-w-[80px] bg-white border border-slate-200 rounded-lg px-2 py-1 text-[10px] focus:outline-none focus:border-blue-550 font-mono font-bold"
+                                            />
+                                          </td>
+                                          <td className="py-2.5 px-3">
+                                            <input
+                                              type="number"
+                                              value={editBatchForm.purchaseQuantity}
+                                              onChange={e => setEditBatchForm({ ...editBatchForm, purchaseQuantity: parseInt(e.target.value) || 0 })}
+                                              className="w-full max-w-[60px] bg-white border border-slate-200 rounded-lg px-2 py-1 text-[10px] focus:outline-none focus:border-blue-550 font-bold"
+                                            />
+                                          </td>
+                                          <td className="py-2.5 px-3">
+                                            <input
+                                              type="number"
+                                              value={editBatchForm.availableStock}
+                                              onChange={e => setEditBatchForm({ ...editBatchForm, availableStock: parseInt(e.target.value) || 0 })}
+                                              className="w-full max-w-[60px] bg-white border border-slate-200 rounded-lg px-2 py-1 text-[10px] focus:outline-none focus:border-blue-550 font-bold"
+                                            />
+                                          </td>
+                                          <td className="py-2.5 px-3">
+                                            <input
+                                              type="date"
+                                              value={editBatchForm.expiryDate}
+                                              onChange={e => setEditBatchForm({ ...editBatchForm, expiryDate: e.target.value })}
+                                              className="w-full max-w-[125px] bg-white border border-slate-200 rounded-lg px-1 py-1 text-[10px] focus:outline-none focus:border-blue-550 font-bold"
+                                            />
+                                          </td>
+                                          <td className="py-2.5 px-3">
+                                            <div className="flex flex-col gap-1">
+                                              <input
+                                                type="number"
+                                                placeholder="MRP"
+                                                value={editBatchForm.mrp}
+                                                onChange={e => setEditBatchForm({ ...editBatchForm, mrp: parseFloat(e.target.value) || 0, sellingPrice: parseFloat(e.target.value) || 0 })}
+                                                className="w-full max-w-[70px] bg-white border border-slate-200 rounded-lg px-1.5 py-0.5 text-[9px] focus:outline-none focus:border-blue-550 font-bold"
+                                              />
+                                              <input
+                                                type="number"
+                                                placeholder="Buy ₹"
+                                                value={editBatchForm.purchasePrice}
+                                                onChange={e => setEditBatchForm({ ...editBatchForm, purchasePrice: parseFloat(e.target.value) || 0 })}
+                                                className="w-full max-w-[70px] bg-white border border-slate-200 rounded-lg px-1.5 py-0.5 text-[9px] focus:outline-none focus:border-blue-550 font-bold"
+                                              />
+                                            </div>
+                                          </td>
+                                          <td className="py-2.5 px-3 text-right">
+                                            <div className="flex justify-end gap-1.5">
+                                              <button
+                                                onClick={() => handleSaveBatchEdit(b._id || b.id)}
+                                                className="px-2.5 py-1 text-[9px] font-black rounded-lg text-white bg-blue-600 hover:bg-blue-700 transition"
+                                              >
+                                                Save
+                                              </button>
+                                              <button
+                                                onClick={() => setEditingBatchId(null)}
+                                                className="px-2.5 py-1 text-[9px] font-black rounded-lg text-slate-500 bg-slate-100 hover:bg-slate-200 transition"
+                                              >
+                                                Cancel
+                                              </button>
+                                            </div>
+                                          </td>
+                                        </tr>
+                                      );
+                                    }
+
                                     return (
-                                      <tr key={b._id || b.id || i} className="hover:bg-slate-50/50">
-                                        <td className="py-2.5 px-3 font-black text-slate-800 font-mono text-[10px]">{b.batchNumber || b.batchNo}</td>
+                                      <tr key={b._id || b.id || i} className={`hover:bg-slate-50/50 transition-colors ${b.isActive === false ? 'opacity-50' : ''}`}>
+                                        <td className="py-2.5 px-3 font-black text-slate-800 font-mono text-[10px]">
+                                          {b.batchNumber || b.batchNo}
+                                          {b.isActive === false && <span className="ml-1 text-[8px] bg-slate-100 text-slate-400 font-extrabold px-1 rounded">Inactive</span>}
+                                        </td>
                                         <td className="py-2.5 px-3 font-bold text-slate-600">{b.purchaseQuantity ?? b.quantity ?? '—'}</td>
                                         <td className="py-2.5 px-3 font-black text-emerald-700">{b.availableStock ?? b.quantity ?? '—'}</td>
                                         <td className="py-2.5 px-3 text-slate-600">
@@ -9281,6 +10594,46 @@ const PharmacyWorkspace = ({ user }) => {
                                         </td>
                                         <td className="py-2.5 px-3">
                                           <span className={`text-[9px] font-black px-2 py-1 rounded-full border ${bsc.cls}`}>{bsc.label}</span>
+                                        </td>
+                                        <td className="py-2.5 px-3 text-right">
+                                          <div className="flex justify-end gap-1.5">
+                                            <button
+                                              onClick={() => {
+                                                setEditBatchForm({
+                                                  batchNumber: b.batchNumber || b.batchNo || '',
+                                                  purchaseQuantity: b.purchaseQuantity ?? b.quantity ?? 0,
+                                                  availableStock: b.availableStock ?? b.quantity ?? 0,
+                                                  expiryDate: b.expiryDate ? new Date(b.expiryDate).toISOString().substring(0, 10) : '',
+                                                  purchasePrice: b.purchasePrice || 0,
+                                                  mrp: b.mrp || b.sellingPrice || 0,
+                                                  sellingPrice: b.sellingPrice || b.mrp || 0
+                                                });
+                                                setEditingBatchId(b._id || b.id);
+                                              }}
+                                              title="Edit Batch details"
+                                              className="px-1.5 py-1 text-[9px] font-black rounded-lg transition-colors border border-blue-200 text-blue-600 hover:bg-blue-50"
+                                            >
+                                              Edit
+                                            </button>
+                                            <button
+                                              onClick={() => handleToggleBatchStatus(b._id || b.id, b.isActive !== false)}
+                                              title={b.isActive !== false ? 'Deactivate Batch' : 'Activate Batch'}
+                                              className={`px-1.5 py-1 text-[9px] font-black rounded-lg transition-colors border ${
+                                                b.isActive !== false
+                                                  ? 'border-amber-200 text-amber-600 hover:bg-amber-50'
+                                                  : 'border-emerald-200 text-emerald-600 hover:bg-emerald-50'
+                                              }`}
+                                            >
+                                              {b.isActive !== false ? 'Deactivate' : 'Activate'}
+                                            </button>
+                                            <button
+                                              onClick={() => handleDeleteBatch(b._id || b.id)}
+                                              title="Delete Batch"
+                                              className="p-1 border border-rose-200 hover:bg-rose-50 text-rose-500 rounded-lg transition-colors"
+                                            >
+                                              <Trash2 size={11} />
+                                            </button>
+                                          </div>
                                         </td>
                                       </tr>
                                     );
@@ -9900,6 +11253,26 @@ const PharmacyWorkspace = ({ user }) => {
               <div className="space-y-3">
                 <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider">Quick Actions</h3>
                 <div className="grid grid-cols-2 gap-2">
+                  
+                  {/* 1. Recent Online Orders */}
+                  <button
+                    onClick={() => setActiveTab('online-orders')}
+                    className="p-3 bg-blue-50 border border-blue-150 hover:bg-blue-100 rounded-2xl flex flex-col gap-2 items-start transition text-left cursor-pointer group col-span-2"
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <div className="w-7 h-7 bg-blue-600 text-white rounded-lg flex items-center justify-center">
+                        <ShoppingCart size={14} />
+                      </div>
+                      {onlineOrders.filter(o => o.status === 'pending').length > 0 && (
+                        <span className="bg-rose-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full animate-pulse">
+                          {onlineOrders.filter(o => o.status === 'pending').length} New
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[10px] font-black text-blue-700 leading-tight">Recent Online Orders</span>
+                  </button>
+
+                  {/* 2. New Order */}
                   <button
                     onClick={() => { setSelectedRx(prescriptions[0]); setActiveTab('orders'); }}
                     className="p-3 bg-slate-50 border border-slate-100 hover:bg-blue-50/30 hover:border-blue-100 rounded-2xl flex flex-col gap-2 items-start transition text-left cursor-pointer group"
@@ -9910,26 +11283,7 @@ const PharmacyWorkspace = ({ user }) => {
                     <span className="text-[10px] font-black text-slate-700 leading-tight">New Order</span>
                   </button>
 
-                  <button
-                    onClick={() => setActiveTab('walk-in')}
-                    className="p-3 bg-slate-50 border border-slate-100 hover:bg-emerald-50/30 hover:border-emerald-100 rounded-2xl flex flex-col gap-2 items-start transition text-left cursor-pointer group"
-                  >
-                    <div className="w-7 h-7 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center group-hover:bg-emerald-100">
-                      <CreditCard size={14} />
-                    </div>
-                    <span className="text-[10px] font-black text-slate-700 leading-tight">Walk-in Sale</span>
-                  </button>
-
-                  <button
-                    onClick={() => setShowFloatingSearch(true)}
-                    className="p-3 bg-slate-50 border border-slate-100 hover:bg-purple-50/30 hover:border-purple-100 rounded-2xl flex flex-col gap-2 items-start transition text-left cursor-pointer group"
-                  >
-                    <div className="w-7 h-7 bg-purple-50 text-purple-600 rounded-lg flex items-center justify-center group-hover:bg-purple-100">
-                      <Search size={14} />
-                    </div>
-                    <span className="text-[10px] font-black text-slate-700 leading-tight">Search Patient</span>
-                  </button>
-
+                  {/* 3. Scan Barcode */}
                   <button
                     onClick={handleBarcodeScan}
                     className="p-3 bg-slate-50 border border-slate-100 hover:bg-amber-50/30 hover:border-amber-100 rounded-2xl flex flex-col gap-2 items-start transition text-left cursor-pointer group"
@@ -9940,25 +11294,46 @@ const PharmacyWorkspace = ({ user }) => {
                     <span className="text-[10px] font-black text-slate-700 leading-tight">Scan Barcode</span>
                   </button>
 
+                  {/* 4. Search Patient */}
                   <button
-                    onClick={() => { setSelectedCatalogItem(globalCatalog[0]); setShowAddBatchModal(true); }}
+                    onClick={() => setShowFloatingSearch(true)}
+                    className="p-3 bg-slate-50 border border-slate-100 hover:bg-purple-50/30 hover:border-purple-100 rounded-2xl flex flex-col gap-2 items-start transition text-left cursor-pointer group"
+                  >
+                    <div className="w-7 h-7 bg-purple-50 text-purple-600 rounded-lg flex items-center justify-center group-hover:bg-purple-100">
+                      <Search size={14} />
+                    </div>
+                    <span className="text-[10px] font-black text-slate-700 leading-tight">Search Patient</span>
+                  </button>
+
+                  {/* 5. Add Medicine Stock */}
+                  <button
+                    onClick={() => {
+                      loadSuppliersAndRacks();
+                      setStockWorkflowStep(1);
+                      setStockSearchQuery('');
+                      setSelectedStockMed(null);
+                      setStockForm({
+                        batchNumber: '',
+                        expiryDate: '',
+                        mrp: '40',
+                        quantity: '',
+                        supplierId: '',
+                        rackLocation: '',
+                        purchasePrice: '',
+                        mfgDate: '',
+                        gst: '12',
+                        notes: ''
+                      });
+                      setShowAddStockWorkflowModal(true);
+                    }}
                     className="p-3 bg-slate-50 border border-slate-100 hover:bg-slate-150 rounded-2xl flex flex-col gap-2 items-start transition text-left cursor-pointer group"
                   >
                     <div className="w-7 h-7 bg-slate-100 text-slate-655 rounded-lg flex items-center justify-center group-hover:bg-slate-200">
                       <Plus size={14} />
                     </div>
-                    <span className="text-[10px] font-black text-slate-700 leading-tight">Add Medicine</span>
+                    <span className="text-[10px] font-black text-slate-700 leading-tight">Add Medicine Stock</span>
                   </button>
 
-                  <button
-                    onClick={() => { setActiveTab('catalogue'); toast.success('Purchasing system initialized.'); }}
-                    className="p-3 bg-slate-50 border border-slate-100 hover:bg-slate-150 rounded-2xl flex flex-col gap-2 items-start transition text-left cursor-pointer group"
-                  >
-                    <div className="w-7 h-7 bg-slate-100 text-slate-655 rounded-lg flex items-center justify-center group-hover:bg-slate-200">
-                      <ShoppingBag size={14} />
-                    </div>
-                    <span className="text-[10px] font-black text-slate-700 leading-tight">Purchase Stock</span>
-                  </button>
                 </div>
               </div>
 
@@ -9970,26 +11345,32 @@ const PharmacyWorkspace = ({ user }) => {
                 </div>
 
                 <div className="space-y-3">
-                  {globalCatalog.slice(0, 5).map((med, index) => {
-                    const units = [1256, 850, 720, 615, 480][index];
-                    const revenue = ['18,256', '15,300', '11,520', '9,840', '8,640'][index];
-                    return (
-                      <div key={med.id} className="flex items-center gap-3 bg-slate-50/50 p-2 border border-slate-100 rounded-2xl hover:bg-slate-50 transition duration-150">
-                        <span className="text-xs font-black text-slate-400 w-4 text-center">{index + 1}</span>
-                        <img src={med.image} alt={med.brand} className="w-9 h-9 rounded-xl object-cover border border-slate-200/50 shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-black text-slate-800 truncate">{med.brand}</p>
-                          <p className="text-[9px] text-slate-400 font-bold mt-0.5">{units} units sold</p>
+                  {topSellingMeds.length > 0 ? (
+                    topSellingMeds.map((med, index) => {
+                      return (
+                        <div key={med.brand || index} className="flex items-center gap-3 bg-slate-50/50 p-2 border border-slate-100 rounded-2xl hover:bg-slate-50 transition duration-150">
+                          <span className="text-xs font-black text-slate-400 w-4 text-center">{index + 1}</span>
+                          <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-[10px] shrink-0">
+                            {med.brand.slice(0, 2).toUpperCase()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-black text-slate-805 truncate">{med.brand}</p>
+                            <p className="text-[9px] text-slate-400 font-bold mt-0.5">{med.quantity} units sold</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs font-black text-slate-905">₹{med.revenue.toLocaleString('en-IN')}</p>
+                            <span className="text-[8px] text-emerald-600 font-bold flex items-center justify-end gap-0.5">
+                              <ArrowUpRight size={8} /> Rise
+                            </span>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-xs font-black text-slate-905">₹{revenue}</p>
-                          <span className="text-[8px] text-emerald-600 font-bold flex items-center justify-end gap-0.5">
-                            <ArrowUpRight size={8} /> Rise
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })
+                  ) : (
+                    <p className="text-center py-6 text-[10.5px] text-slate-400 font-bold leading-relaxed">
+                      no recent orders found to show top selling medicine in this pharmacy store
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -10001,22 +11382,24 @@ const PharmacyWorkspace = ({ user }) => {
                 </div>
 
                 <div className="relative border-l border-slate-200 ml-3 pl-7 space-y-5 text-xs">
-                  {activities.slice(0, 4).map(act => (
-                    <div key={act.id} className="relative group">
-                      <span className="absolute -left-10 top-0.5 w-6 h-6 rounded-full bg-white border border-slate-100 shadow-xs flex items-center justify-center text-[10px] z-10">
-                        {act.icon === 'check' && '✅'}
-                        {act.icon === 'stock' && '📦'}
-                        {act.icon === 'rx' && '📝'}
-                        {act.icon === 'plus' && '💊'}
-                        {act.icon === 'return' && '🔄'}
-                      </span>
-                      <div>
-                        <p className="font-extrabold text-slate-700">{act.type}</p>
-                        <p className="text-[9px] text-slate-400 mt-0.5 leading-tight">{act.desc}</p>
-                        <span className="text-[8px] text-slate-400 font-bold block mt-1">{act.time}</span>
+                  {realActivities.length > 0 ? (
+                    realActivities.map(act => (
+                      <div key={act.id} className="relative group">
+                        <span className="absolute -left-10 top-0.5 w-6 h-6 rounded-full bg-white border border-slate-100 shadow-xs flex items-center justify-center text-[10px] z-10">
+                          {act.icon}
+                        </span>
+                        <div>
+                          <p className="font-extrabold text-slate-700">{act.type}</p>
+                          <p className="text-[9px] text-slate-400 mt-0.5 leading-tight">{act.desc}</p>
+                          <span className="text-[8px] text-slate-400 font-bold block mt-1">{act.time}</span>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  ) : (
+                    <p className="text-center py-6 text-[10.5px] text-slate-400 font-bold leading-relaxed">
+                      No recent activities recorded.
+                    </p>
+                  )}
                 </div>
               </div>
             </>
@@ -10551,6 +11934,345 @@ const PharmacyWorkspace = ({ user }) => {
                 Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* ── ADD MEDICINE STOCK WORKFLOW MODAL ─────────────────────────────── */}
+      {showAddStockWorkflowModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-2xl max-w-4xl w-full flex flex-col max-h-[90vh] overflow-hidden text-slate-800">
+            
+            {/* Modal Header */}
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between shrink-0">
+              <div>
+                <h2 className="text-lg font-black text-slate-905">Add Medicine Stock</h2>
+                <p className="text-xs text-slate-400 font-bold mt-1">Search medicine from this pharmacy inventory and create a new stock batch.</p>
+              </div>
+              <button 
+                onClick={() => setShowAddStockWorkflowModal(false)}
+                className="w-8 h-8 rounded-full bg-slate-50 border border-slate-150 hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Stepper progress bar */}
+            <div className="px-8 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-center gap-12 shrink-0 select-none">
+              <div className="flex items-center gap-2">
+                <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black transition-all ${stockWorkflowStep === 1 ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-200 text-slate-500'}`}>1</span>
+                <span className={`text-xs font-black ${stockWorkflowStep === 1 ? 'text-slate-805' : 'text-slate-400'}`}>Search Medicine</span>
+              </div>
+              <div className="w-16 h-0.5 bg-slate-200"></div>
+              <div className="flex items-center gap-2">
+                <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black transition-all ${stockWorkflowStep === 2 ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-200 text-slate-500'}`}>2</span>
+                <span className={`text-xs font-black ${stockWorkflowStep === 2 ? 'text-slate-805' : 'text-slate-400'}`}>Add Stock Batch</span>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <div className="flex-1 overflow-y-auto p-6 min-h-0 custom-scrollbar">
+              
+              {/* STEP 1: Search Medicine */}
+              {stockWorkflowStep === 1 && (
+                <div className="space-y-4">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Search medicine name, generic name, barcode, SKU..."
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-3 text-xs text-slate-850 font-bold focus:outline-none focus:bg-white focus:border-blue-500 transition shadow-sm"
+                      value={stockSearchQuery}
+                      onChange={(e) => setStockSearchQuery(e.target.value)}
+                      autoFocus
+                    />
+                    <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  </div>
+
+                  {searchingInventoryMeds ? (
+                    <div className="flex flex-col items-center justify-center py-12 space-y-3">
+                      <RefreshCw size={24} className="text-blue-600 animate-spin" />
+                      <p className="text-xs text-slate-400 font-bold">Querying local inventory...</p>
+                    </div>
+                  ) : (
+                    <div className="border border-slate-100 rounded-2xl overflow-hidden shadow-sm">
+                      <table className="w-full text-left text-xs border-collapse">
+                        <thead>
+                          <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-wider border-b border-slate-100">
+                            <th className="px-4 py-3">Medicine Info</th>
+                            <th className="px-4 py-3">Generic / Brand</th>
+                            <th className="px-4 py-3">SKU</th>
+                            <th className="px-4 py-3 text-center">Current Stock</th>
+                            <th className="px-4 py-3 text-center">Rack Location</th>
+                            <th className="px-4 py-3 text-right">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {matchingInventoryMeds.map((med, idx) => {
+                            const name = med.brandName || med.name || 'Unknown';
+                            const generic = med.genericName || '—';
+                            const brand = med.brand || '—';
+                            const sku = med.sku || '—';
+                            const qty = med.inventory?.totalQuantity || med.quantity || 0;
+                            const rack = med.rackNumber || med.rack || '—';
+                            return (
+                              <tr key={med._id || idx} className="hover:bg-slate-50/50 border-b border-slate-100 text-slate-700 transition">
+                                <td className="px-4 py-3 flex items-center gap-3">
+                                  <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-[10px]">
+                                    {name.slice(0, 2).toUpperCase()}
+                                  </div>
+                                  <span className="font-extrabold text-slate-900">{name}</span>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <p className="font-extrabold">{generic}</p>
+                                  <p className="text-[10px] text-slate-400 font-bold mt-0.5">{brand}</p>
+                                </td>
+                                <td className="px-4 py-3 font-semibold font-mono">{sku}</td>
+                                <td className="px-4 py-3 text-center font-bold">{qty}</td>
+                                <td className="px-4 py-3 text-center font-bold text-slate-500">{rack}</td>
+                                <td className="px-4 py-3 text-right">
+                                  <button
+                                    onClick={() => {
+                                      setSelectedStockMed(med);
+                                      setStockForm(prev => ({
+                                        ...prev,
+                                        rackLocation: med.rackNumber || med.rack || ''
+                                      }));
+                                      setStockWorkflowStep(2);
+                                    }}
+                                    className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[10px] font-black tracking-wide transition shadow-sm cursor-pointer"
+                                  >
+                                    Select
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                          {matchingInventoryMeds.length === 0 && (
+                            <tr>
+                              <td colSpan="6" className="text-center py-8 text-slate-400 font-bold">
+                                No matching medicines found in current inventory.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* STEP 2: Add Stock Batch */}
+              {stockWorkflowStep === 2 && selectedStockMed && (
+                <div className="space-y-6">
+                  {/* Selected Medicine Info Header */}
+                  <div className="bg-blue-50/50 border border-blue-100 rounded-2xl p-4 flex justify-between items-start gap-4">
+                    <div>
+                      <span className="text-[9px] font-black text-blue-600 uppercase tracking-widest bg-blue-100 px-2 py-0.5 rounded-md">Selected Medicine</span>
+                      <h4 className="text-sm font-black text-slate-905 mt-2">{selectedStockMed.brandName || selectedStockMed.name || 'Unknown'}</h4>
+                      <p className="text-[11px] text-slate-500 font-bold mt-0.5">{selectedStockMed.genericName} | {selectedStockMed.brand || '—'}</p>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[10px] text-slate-400 font-bold">SKU: {selectedStockMed.sku || '—'}</span>
+                      <p className="text-xs text-slate-800 font-black mt-2">Current Stock: {selectedStockMed.inventory?.totalQuantity || selectedStockMed.quantity || 0}</p>
+                    </div>
+                  </div>
+
+                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider">Add Stock Batch</h3>
+                  
+                  {/* Form Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    
+                    {/* Batch Number */}
+                    <div className="space-y-1.5">
+                      <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider">Batch Number *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. B-0123"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-805 focus:outline-none focus:bg-white focus:border-blue-500 transition"
+                        value={stockForm.batchNumber}
+                        onChange={(e) => setStockForm({ ...stockForm, batchNumber: e.target.value })}
+                      />
+                    </div>
+
+                    {/* Expiry Date */}
+                    <div className="space-y-1.5">
+                      <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider">Expiry Date (dd-mm-yyyy) *</label>
+                      <input
+                        type="date"
+                        required
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-805 focus:outline-none focus:bg-white focus:border-blue-500 transition"
+                        value={stockForm.expiryDate}
+                        onChange={(e) => setStockForm({ ...stockForm, expiryDate: e.target.value })}
+                      />
+                    </div>
+
+                    {/* MRP per strip */}
+                    <div className="space-y-1.5">
+                      <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider">MRP (per strip) *</label>
+                      <input
+                        type="number"
+                        required
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-805 focus:outline-none focus:bg-white focus:border-blue-500 transition"
+                        value={stockForm.mrp}
+                        onChange={(e) => setStockForm({ ...stockForm, mrp: e.target.value })}
+                      />
+                    </div>
+
+                    {/* Quantity tablets */}
+                    <div className="space-y-1.5">
+                      <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider">Quantity (tablets) *</label>
+                      <input
+                        type="number"
+                        required
+                        placeholder="e.g. 50"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-805 focus:outline-none focus:bg-white focus:border-blue-500 transition"
+                        value={stockForm.quantity}
+                        onChange={(e) => setStockForm({ ...stockForm, quantity: e.target.value })}
+                      />
+                    </div>
+
+                    {/* Supplier */}
+                    <div className="space-y-1.5">
+                      <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider">Supplier *</label>
+                      <select
+                        required
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-805 focus:outline-none focus:bg-white focus:border-blue-500 transition"
+                        value={stockForm.supplierId}
+                        onChange={(e) => setStockForm({ ...stockForm, supplierId: e.target.value })}
+                      >
+                        <option value="">Select Supplier</option>
+                        {dynamicSuppliers.map(sup => (
+                          <option key={sup._id} value={sup._id}>{sup.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Rack Location */}
+                    <div className="space-y-1.5">
+                      <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider">Rack Location *</label>
+                      <select
+                        required
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-805 focus:outline-none focus:bg-white focus:border-blue-500 transition"
+                        value={stockForm.rackLocation}
+                        onChange={(e) => setStockForm({ ...stockForm, rackLocation: e.target.value })}
+                      >
+                        <option value="">Select Rack/Shelf</option>
+                        {dynamicRacks.map((rack, idx) => (
+                          <option key={idx} value={rack}>{rack}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Purchase Price */}
+                    <div className="space-y-1.5">
+                      <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider">Purchase Price (Optional)</label>
+                      <input
+                        type="number"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-805 focus:outline-none focus:bg-white focus:border-blue-500 transition"
+                        value={stockForm.purchasePrice}
+                        onChange={(e) => setStockForm({ ...stockForm, purchasePrice: e.target.value })}
+                      />
+                    </div>
+
+                    {/* Manufacturing Date */}
+                    <div className="space-y-1.5">
+                      <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider">Mfg Date (Optional)</label>
+                      <input
+                        type="date"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-805 focus:outline-none focus:bg-white focus:border-blue-500 transition"
+                        value={stockForm.mfgDate}
+                        onChange={(e) => setStockForm({ ...stockForm, mfgDate: e.target.value })}
+                      />
+                    </div>
+
+                    {/* GST */}
+                    <div className="space-y-1.5">
+                      <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider">GST (%) (Optional)</label>
+                      <input
+                        type="number"
+                        placeholder="12"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-805 focus:outline-none focus:bg-white focus:border-blue-500 transition"
+                        value={stockForm.gst}
+                        onChange={(e) => setStockForm({ ...stockForm, gst: e.target.value })}
+                      />
+                    </div>
+
+                    {/* Notes */}
+                    <div className="space-y-1.5 md:col-span-3">
+                      <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider">Notes</label>
+                      <textarea
+                        rows="2"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-805 focus:outline-none focus:bg-white focus:border-blue-500 transition resize-none"
+                        value={stockForm.notes}
+                        onChange={(e) => setStockForm({ ...stockForm, notes: e.target.value })}
+                      />
+                    </div>
+
+                  </div>
+                </div>
+              )}
+
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between shrink-0">
+              {stockWorkflowStep === 2 ? (
+                <button
+                  onClick={() => setStockWorkflowStep(1)}
+                  className="px-5 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-655 text-xs font-bold transition shadow-sm cursor-pointer"
+                >
+                  Back
+                </button>
+              ) : (
+                <button
+                  onClick={() => setShowAddStockWorkflowModal(false)}
+                  className="px-5 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-655 text-xs font-bold transition shadow-sm cursor-pointer"
+                >
+                  Cancel
+                </button>
+              )}
+
+              {stockWorkflowStep === 2 && (
+                <button
+                  disabled={submittingStockBatch || !stockForm.batchNumber || !stockForm.expiryDate || !stockForm.quantity || !stockForm.supplierId || !stockForm.rackLocation}
+                  onClick={async () => {
+                    setSubmittingStockBatch(true);
+                    try {
+                      const payload = {
+                        batchNumber: stockForm.batchNumber,
+                        expiryDate: new Date(stockForm.expiryDate).toISOString(),
+                        mrp: parseFloat(stockForm.mrp) || 0,
+                        quantity: parseInt(stockForm.quantity) || 0,
+                        supplier: stockForm.supplierId,
+                        rack: stockForm.rackLocation
+                      };
+                      if (stockForm.purchasePrice) payload.purchasePrice = parseFloat(stockForm.purchasePrice);
+                      if (stockForm.mfgDate) payload.mfgDate = new Date(stockForm.mfgDate).toISOString();
+                      if (stockForm.gst) payload.gst = parseFloat(stockForm.gst);
+                      if (stockForm.notes) payload.notes = stockForm.notes;
+
+                      await pharmacyApi.addBatch(selectedStockMed._id, payload);
+                      toast.success('Stock batch added successfully!');
+                      
+                      // Refresh inventory and close
+                      const invData = await pharmacyApi.listMedicines();
+                      const items = invData?.medicines || invData?.data?.medicines || (Array.isArray(invData) ? invData : []);
+                      setInventory(items);
+                      fetchRightSidebarData();
+                      setShowAddStockWorkflowModal(false);
+                    } catch (err) {
+                      toast.error(err?.message || 'Failed to save stock batch');
+                    } finally {
+                      setSubmittingStockBatch(false);
+                    }
+                  }}
+                  className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black shadow-lg shadow-blue-500/25 transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  {submittingStockBatch ? 'Saving...' : 'Save Stock Batch'}
+                </button>
+              )}
+            </div>
+
           </div>
         </div>
       )}

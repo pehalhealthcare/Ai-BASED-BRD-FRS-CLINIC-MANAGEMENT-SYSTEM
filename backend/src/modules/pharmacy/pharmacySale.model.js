@@ -17,7 +17,8 @@ const pharmacySaleSchema = new mongoose.Schema(
     patientId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Patient',
-      required: true,
+      required: false,
+      default: null,
       index: true
     },
     invoiceId: {

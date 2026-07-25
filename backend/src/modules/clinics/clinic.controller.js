@@ -17,6 +17,25 @@ const { env } = require('../../config/env');
 const { logger } = require('../../common/utils/logger');
 const OnboardingOtp = require('./onboardingOtp.model');
 
+const EventEmitter = require('events');
+class OnboardingEmitter extends EventEmitter {}
+const onboardingEmitter = new OnboardingEmitter();
+const onboardingProgressMap = new Map();
+
+const updateProgress = (clinicId, data) => {
+  const current = onboardingProgressMap.get(clinicId) || { checklist: [], emailsSent: [] };
+  const next = {
+    percent: data.percent ?? current.percent,
+    currentTask: data.currentTask ?? current.currentTask,
+    checklist: data.checklistItem ? [...current.checklist, data.checklistItem] : current.checklist,
+    emailsSent: data.emailItem ? [...current.emailsSent, data.emailItem] : current.emailsSent,
+    status: data.status ?? current.status,
+    error: data.error ?? current.error
+  };
+  onboardingProgressMap.set(clinicId, next);
+  onboardingEmitter.emit(`progress:${clinicId}`, next);
+};
+
 const createClinic = asyncHandler(async (req, res) => {
   const { name, code, image, phone, email, password, parentClinicId, address, specializations } = req.body;
 
@@ -66,14 +85,16 @@ const createClinic = asyncHandler(async (req, res) => {
 });
 
 const listClinics = asyncHandler(async (req, res) => {
-  const filter = { isActive: true };
+  // Super Admins see all clinics (including pending/inactive); other roles only see active ones
+  const filter = req.user?.role === ROLES.SUPER_ADMIN ? {} : { isActive: true };
   if (req.user?.role === ROLES.ADMIN && req.user?.organizationId) {
     filter.organizationId = req.user.organizationId;
   }
   const clinics = await Clinic.find(filter)
     .populate('parentClinicId', 'name code')
     .populate('specializations', 'name description isActive')
-    .populate('subscription.planId');
+    .populate('subscription.planId')
+    .sort({ createdAt: -1 }); // Newest registrations first
   return sendSuccess(res, 'Clinics retrieved successfully', { clinics });
 });
 
@@ -201,7 +222,58 @@ const updateClinic = asyncHandler(async (req, res) => {
   if (specializations) clinic.specializations = specializations;
   if (isActive !== undefined) clinic.isActive = isActive;
   if (isHeadquarters !== undefined) clinic.isHeadquarters = isHeadquarters;
-  if (req.body.isOnboardingCompleted !== undefined) clinic.isOnboardingCompleted = req.body.isOnboardingCompleted;
+  if (req.body.isOnboardingCompleted !== undefined) {
+    clinic.isOnboardingCompleted = req.body.isOnboardingCompleted;
+    if (req.body.isOnboardingCompleted === true) {
+      clinic.isActive = true;
+      
+      // Activate all branch offices
+      try {
+        await Clinic.updateMany({ parentClinicId: clinic._id }, { isActive: true });
+      } catch (err) {
+        console.error('Failed to activate branch offices:', err);
+      }
+
+      // Activate all pending healthcare providers and send invitations
+      try {
+        const Provider = require('../providers/provider.model');
+        const User = require('../users/user.model');
+        const Staff = require('../staff/staff.model');
+        const { sendOperatorOnboardingEmail } = require('../providers/providerOperatorHelper');
+        
+        const pendingProviders = await Provider.find({ clinicId: clinic._id, status: { $in: ['Pending Activation', 'Draft'] } });
+        for (const provider of pendingProviders) {
+          provider.status = 'Active';
+          await provider.save();
+          
+          const user = await User.findOne({ assignedProviderId: provider._id });
+          const staff = await Staff.findOne({ assignedProviderId: provider._id });
+          
+          if (user) {
+            user.isActive = true;
+            user.approvalStatus = 'pending_invitation';
+            await user.save();
+          }
+          
+          if (staff) {
+            staff.isActive = true;
+            staff.approvalStatus = 'pending_invitation';
+            await staff.save();
+          }
+          
+          if (user) {
+            try {
+              await sendOperatorOnboardingEmail(clinic._id, provider, user, req.user?._id || user._id);
+            } catch (mailErr) {
+              console.error(`Failed to send deferred operator email to ${user.email}:`, mailErr);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Failed to activate healthcare providers or send invitations:', err);
+      }
+    }
+  }
   if (req.body.clinicDetails) {
     clinic.clinicDetails = {
       ...clinic.clinicDetails,
@@ -263,15 +335,7 @@ const submitRegistration = asyncHandler(async (req, res) => {
   // Hash password for storing
   const hashedPassword = await bcrypt.hash(ownerDetails.password, 10);
 
-  // Set subscription dates starting immediately
-  const now = new Date();
-  const expiry = new Date();
   const billingCycle = selectedPlan.billingCycle || 'monthly';
-  if (billingCycle === 'yearly') {
-    expiry.setFullYear(expiry.getFullYear() + 1);
-  } else {
-    expiry.setDate(expiry.getDate() + 30);
-  }
 
   const clinic = await Clinic.create({
     name: clinicDetails.name,
@@ -304,19 +368,19 @@ const submitRegistration = asyncHandler(async (req, res) => {
       logo: clinicDetails.logo || '',
       description: clinicDetails.description || ''
     },
-    approvalStatus: 'approved',
-    isActive: true,
+    approvalStatus: 'pending_approval',
+    isActive: false,
     subscription: {
       planId: plan._id,
       billingCycle,
-      startDate: now,
-      renewalDate: expiry,
-      expiryDate: expiry,
-      status: 'Active'
+      startDate: null,
+      renewalDate: null,
+      expiryDate: null,
+      status: 'Pending Approval'
     }
   });
 
-  // Create Owner User account immediately in 'approved' status
+  // Create Owner User account in 'pending_approval' status — activated only after Super Admin approves
   await User.create({
     name: ownerDetails.name,
     email,
@@ -324,11 +388,11 @@ const submitRegistration = asyncHandler(async (req, res) => {
     password: hashedPassword, // already hashed
     role: ROLES.ADMIN,
     clinicId: clinic._id,
-    isActive: true,
-    approvalStatus: 'approved'
+    isActive: false,
+    approvalStatus: 'pending_approval'
   });
 
-  return sendSuccess(res, 'Clinic registration submitted successfully', { clinic }, 201);
+  return sendSuccess(res, 'Clinic registration submitted successfully. Awaiting Super Admin approval.', { clinic }, 201);
 });
 
 const getPendingRequests = asyncHandler(async (req, res) => {
@@ -598,6 +662,12 @@ const deleteClinic = asyncHandler(async (req, res) => {
   }
 
   await Clinic.findByIdAndDelete(id);
+  
+  const Provider = require('../providers/provider.model');
+  const Staff = require('../staff/staff.model');
+  
+  await Provider.deleteMany({ clinicId: id });
+  await Staff.deleteMany({ clinicId: id });
   await User.deleteMany({ clinicId: id });
 
   return sendSuccess(res, 'Clinic and associated users deleted successfully');
@@ -707,6 +777,15 @@ const validateEmail = asyncHandler(async (req, res) => {
   }
   const existingUser = await User.findOne({ email: email.toLowerCase() });
   return sendSuccess(res, 'Email status checked', { isUnique: !existingUser });
+});
+
+const validatePhone = asyncHandler(async (req, res) => {
+  const { phone } = req.body;
+  if (!phone) {
+    throw new AppError('Phone number is required', HTTP_STATUS.BAD_REQUEST);
+  }
+  const existingUser = await User.findOne({ phone: phone.trim() });
+  return sendSuccess(res, 'Phone status checked', { isUnique: !existingUser });
 });
 
 const sendOtp = asyncHandler(async (req, res) => {
@@ -975,11 +1054,395 @@ const getBillingSettings = asyncHandler(async (req, res) => {
   });
 });
 
+const gridFsStorage = require('../../common/utils/gridFsStorage.service');
+const OnboardingDraft = require('./onboardingDraft.model');
+
+const validateRegistrationNumber = asyncHandler(async (req, res) => {
+  const { registrationNumber } = req.body;
+  if (!registrationNumber) {
+    throw new AppError('Registration number is required', HTTP_STATUS.BAD_REQUEST);
+  }
+  const exists = await Clinic.findOne({ registrationNumber });
+  return sendSuccess(res, 'Registration number validated', { isUnique: !exists });
+});
+
+const uploadFile = asyncHandler(async (req, res) => {
+  const { file_data, file_name } = req.body;
+  if (!file_data || !file_name) {
+    throw new AppError('file_data and file_name are required', HTTP_STATUS.BAD_REQUEST);
+  }
+  const fileRef = await gridFsStorage.uploadBase64(file_data, file_name);
+  return sendSuccess(res, 'File uploaded successfully', { fileRef }, HTTP_STATUS.CREATED);
+});
+
+const deleteFile = asyncHandler(async (req, res) => {
+  const { fileRef } = req.body;
+  if (!fileRef) {
+    throw new AppError('fileRef is required', HTTP_STATUS.BAD_REQUEST);
+  }
+  await gridFsStorage.deleteFile(fileRef).catch(() => {});
+  return sendSuccess(res, 'File deleted successfully');
+});
+
+const saveDraft = asyncHandler(async (req, res) => {
+  const { email, step, ownerForm, clinicForm, selectedPlanId, billingCycle } = req.body;
+  if (!email) {
+    throw new AppError('Email is required to save draft', HTTP_STATUS.BAD_REQUEST);
+  }
+  const draft = await OnboardingDraft.findOneAndUpdate(
+    { email: email.toLowerCase().trim() },
+    {
+      email: email.toLowerCase().trim(),
+      step,
+      ownerForm,
+      clinicForm,
+      selectedPlanId,
+      billingCycle,
+      updatedAt: new Date()
+    },
+    { upsert: true, new: true }
+  );
+  return sendSuccess(res, 'Draft saved successfully', { draft });
+});
+
+const getDraft = asyncHandler(async (req, res) => {
+  const { email } = req.params;
+  if (!email) {
+    throw new AppError('Email is required to fetch draft', HTTP_STATUS.BAD_REQUEST);
+  }
+  const draft = await OnboardingDraft.findOne({ email: email.toLowerCase().trim() });
+  if (draft) {
+    // Hydrate base64 data for references
+    if (draft.ownerForm && draft.ownerForm.profilePhoto && !draft.ownerForm.profilePhoto.startsWith('data:')) {
+      const base64 = await gridFsStorage.downloadAsBase64(draft.ownerForm.profilePhoto).catch(() => null);
+      if (base64) draft.ownerForm.profilePhoto = base64;
+    }
+    if (draft.clinicForm && draft.clinicForm.logo && !draft.clinicForm.logo.startsWith('data:')) {
+      const base64 = await gridFsStorage.downloadAsBase64(draft.clinicForm.logo).catch(() => null);
+      if (base64) draft.clinicForm.logo = base64;
+    }
+    if (draft.clinicForm && Array.isArray(draft.clinicForm.images)) {
+      const resolvedImages = [];
+      for (const img of draft.clinicForm.images) {
+        if (img && !img.startsWith('data:')) {
+          const base64 = await gridFsStorage.downloadAsBase64(img).catch(() => null);
+          resolvedImages.push(base64 || img);
+        } else {
+          resolvedImages.push(img);
+        }
+      }
+      draft.clinicForm.images = resolvedImages;
+    }
+  }
+  return sendSuccess(res, 'Draft retrieved successfully', { draft });
+});
+
+const sendStaffWelcomeEmail = async (clinicId, staff, user) => {
+  const nodemailer = require('nodemailer');
+  const { env } = require('../../config/env');
+  const { logger } = require('../../common/utils/logger');
+  const Clinic = require('./clinic.model');
+
+  const clinic = await Clinic.findById(clinicId);
+  const clinicName = clinic ? clinic.name : 'AICMS Clinic';
+  const onboardingLink = `${env.frontendUrl || 'http://localhost:3000'}/staff-onboarding?token=${user._id}`;
+
+  const subject = `Welcome to ${clinicName} - Complete Your Onboarding`;
+  const body = `Hello ${staff.fullName || user.name},
+
+Welcome to ${clinicName}! An account has been prepared for you with the role of ${staff.role}.
+
+To complete your onboarding profile, please click the secure link below to verify your email, set your password, and enter your details:
+Onboarding Link: ${onboardingLink}
+
+Once you submit your onboarding form, the Clinic Admin will review and approve your profile to activate your login.`;
+
+  try {
+    const transporter = nodemailer.createTransport({
+      host: env.emailHost,
+      port: env.emailPort || 587,
+      secure: !!env.emailSecure,
+      auth: {
+        user: env.emailUser,
+        pass: env.emailPass
+      }
+    });
+
+    await transporter.sendMail({
+      from: env.emailFrom || `"AI-CMS Clinic" <noreply@aicms.local>`,
+      to: user.email,
+      subject,
+      text: body,
+      html: body.replace(/\n/g, '<br>')
+    });
+    logger.info(`[onboarding:staff-invite] Sent successfully to ${user.email}`);
+  } catch (error) {
+    logger.error('[onboarding:staff-invite] Failed to send welcome email', error);
+  }
+};
+
+const launchOnboarding = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { doctors, staffList, branches, clinicDetails, skipDoctors, skipStaff, skipBranches } = req.body;
+
+  const Clinic = require('./clinic.model');
+  const User = require('../users/user.model');
+  const Staff = require('../staff/staff.model');
+  const Doctor = require('../doctors/doctor.model');
+  const Provider = require('../providers/provider.model');
+  const bcrypt = require('bcryptjs');
+
+  onboardingProgressMap.delete(id);
+  updateProgress(id, { percent: 5, currentTask: 'Validating onboarding data...' });
+
+  const clinic = await Clinic.findById(id);
+  if (!clinic) throw new AppError('Clinic not found', HTTP_STATUS.NOT_FOUND);
+
+  // Validation phase: check emails and phones first
+  if (!skipDoctors && Array.isArray(doctors)) {
+    for (let i = 0; i < doctors.length; i++) {
+      const doc = doctors[i];
+      if (!doc.fullName?.trim() || !doc.email?.trim() || !doc.phone?.trim()) {
+        throw new AppError(`Please fill all fields for Doctor #${i + 1}`, HTTP_STATUS.BAD_REQUEST);
+      }
+      const du = await User.findOne({ email: doc.email.toLowerCase().trim() });
+      if (du) throw new AppError(`Doctor email ${doc.email} is already registered.`, HTTP_STATUS.CONFLICT);
+      const dp = await User.findOne({ phone: doc.phone.trim() });
+      if (dp) throw new AppError(`Doctor phone ${doc.phone} is already registered.`, HTTP_STATUS.CONFLICT);
+    }
+  }
+
+  if (!skipStaff && Array.isArray(staffList)) {
+    for (let i = 0; i < staffList.length; i++) {
+      const staff = staffList[i];
+      if (!staff.name?.trim() || !staff.email?.trim() || !staff.phone?.trim()) {
+        throw new AppError(`Please fill all fields for Staff #${i + 1}`, HTTP_STATUS.BAD_REQUEST);
+      }
+      const su = await User.findOne({ email: staff.email.toLowerCase().trim() });
+      if (su) throw new AppError(`Staff email ${staff.email} is already registered.`, HTTP_STATUS.CONFLICT);
+      const sp = await User.findOne({ phone: staff.phone.trim() });
+      if (sp) throw new AppError(`Staff phone ${staff.phone} is already registered.`, HTTP_STATUS.CONFLICT);
+    }
+  }
+
+  if (!skipBranches && Array.isArray(branches)) {
+    for (let i = 0; i < branches.length; i++) {
+      const br = branches[i];
+      if (!br.name?.trim() || !br.code?.trim()) {
+        throw new AppError(`Please fill all fields for Branch #${i + 1}`, HTTP_STATUS.BAD_REQUEST);
+      }
+      const be = await Clinic.findOne({ code: br.code.toUpperCase().trim() });
+      if (be) throw new AppError(`Branch code ${br.code} already exists.`, HTTP_STATUS.CONFLICT);
+    }
+  }
+
+  const createdDocIds = [];
+  const createdStaffIds = [];
+  const createdUserIds = [];
+  const createdBranchIds = [];
+
+  try {
+    updateProgress(id, { percent: 15, currentTask: 'Creating doctors...', checklistItem: 'Onboarding Data Validated' });
+    // Create Doctors
+    if (!skipDoctors && Array.isArray(doctors)) {
+      const doctorService = require('../doctors/doctor.service');
+      for (const doc of doctors) {
+        const createdDoc = await doctorService.createDoctor({
+          requester: req.user || { _id: clinic.ownerDetails?._id || clinic._id, role: 'ADMIN', clinicId: id },
+          payload: {
+            fullName: doc.fullName.trim(),
+            email: doc.email.toLowerCase().trim(),
+            phone: doc.phone.trim(),
+            specialization: 'General Medicine'
+          },
+          requestedClinicId: id,
+          req
+        });
+        createdDocIds.push(createdDoc._id);
+        const u = await User.findOne({ email: doc.email.toLowerCase().trim() });
+        if (u) createdUserIds.push(u._id);
+      }
+    }
+
+    // Create Staff
+    updateProgress(id, { percent: 35, currentTask: 'Creating staff members...', checklistItem: 'Doctors Configured' });
+    if (!skipStaff && Array.isArray(staffList)) {
+      for (const st of staffList) {
+        const hashedPassword = await bcrypt.hash(st.phone.trim(), 10);
+        const newUser = await User.create({
+          name: st.name.trim(),
+          email: st.email.toLowerCase().trim(),
+          phone: st.phone.trim(),
+          password: hashedPassword,
+          role: st.role || 'RECEPTIONIST',
+          clinicId: id,
+          isActive: false,
+          approvalStatus: 'pending_onboarding'
+        });
+        createdUserIds.push(newUser._id);
+
+        const newStaff = await Staff.create({
+          userId: newUser._id,
+          fullName: st.name.trim(),
+          firstName: st.name.trim().split(' ')[0],
+          lastName: st.name.trim().split(' ').slice(1).join(' ') || '',
+          email: st.email.toLowerCase().trim(),
+          phone: st.phone.trim(),
+          role: st.role || 'RECEPTIONIST',
+          clinicId: id,
+          isActive: false,
+          approvalStatus: 'pending_onboarding',
+          staffCode: `STF-${String(newUser._id).slice(-4).toUpperCase()}`,
+          creationSource: 'CLINIC_SETUP',
+          invitationStatus: 'Draft'
+        });
+        createdStaffIds.push(newStaff._id);
+      }
+    }
+
+    // Create Branches
+    updateProgress(id, { percent: 50, currentTask: 'Creating branches...', checklistItem: 'Staff Configured' });
+    if (!skipBranches && Array.isArray(branches)) {
+      for (const br of branches) {
+        const newBranch = await Clinic.create({
+          ...br,
+          name: br.name.trim(),
+          code: br.code.toUpperCase().trim(),
+          parentClinicId: id,
+          isActive: true,
+          approvalStatus: 'approved'
+        });
+        createdBranchIds.push(newBranch._id);
+      }
+    }
+
+    // Update Clinic Details & Activate Clinic
+    updateProgress(id, { percent: 65, currentTask: 'Saving clinic configuration...', checklistItem: 'Branches Configured' });
+    clinic.clinicDetails = {
+      ...clinic.clinicDetails,
+      ...clinicDetails
+    };
+    clinic.isOnboardingCompleted = true;
+    clinic.isActive = true;
+    await clinic.save();
+
+    // Activate all draft providers & linked managers
+    updateProgress(id, { percent: 75, currentTask: 'Activating healthcare providers...', checklistItem: 'Clinic Configuration Saved' });
+    const pendingProviders = await Provider.find({ clinicId: id, status: { $in: ['Pending Activation', 'Draft'] } });
+    for (const provider of pendingProviders) {
+      provider.status = 'Active';
+      await provider.save();
+
+      const user = await User.findOne({ assignedProviderId: provider._id });
+      const staff = await Staff.findOne({ assignedProviderId: provider._id });
+
+      if (user) {
+        user.isActive = true;
+        user.approvalStatus = 'pending_invitation';
+        await user.save();
+      }
+
+      if (staff) {
+        staff.isActive = true;
+        staff.approvalStatus = 'pending_invitation';
+        await staff.save();
+      }
+
+      if (user) {
+        try {
+          const { sendOperatorOnboardingEmail } = require('../providers/providerOperatorHelper');
+          await sendOperatorOnboardingEmail(id, provider, user, req.user?._id || user._id);
+          updateProgress(id, { percent: 80, emailItem: { name: provider.contactPerson, email: user.email, role: provider.providerType === 'Pharmacy' ? 'Pharmacy Manager' : 'Laboratory Manager', status: 'Delivered' } });
+        } catch (mailErr) {
+          logger.error(`Failed to send deferred operator email to ${user.email}:`, mailErr);
+        }
+      }
+    }
+
+    // Send welcome emails to created setup staff
+    updateProgress(id, { percent: 85, currentTask: 'Sending welcome emails...', checklistItem: 'Providers Activated' });
+    if (createdStaffIds.length > 0) {
+      for (const staffId of createdStaffIds) {
+        const staffObj = await Staff.findById(staffId);
+        if (staffObj) {
+          const userObj = await User.findById(staffObj.userId);
+          if (userObj) {
+            await sendStaffWelcomeEmail(id, staffObj, userObj);
+            updateProgress(id, { percent: 90, emailItem: { name: staffObj.fullName, email: userObj.email, role: staffObj.role, status: 'Delivered' } });
+            staffObj.invitationStatus = 'Invitation Sent';
+            staffObj.onboardingStatus = 'Invitation Sent';
+            await staffObj.save();
+          }
+        }
+      }
+    }
+
+    // Clean up draft onboarding record
+    const OnboardingDraft = require('./onboardingDraft.model');
+    await OnboardingDraft.deleteOne({ email: clinic.ownerDetails?.email?.toLowerCase() });
+
+    updateProgress(id, { percent: 100, currentTask: 'Dashboard prepared!', checklistItem: 'Dashboard Prepared', status: 'SUCCESS' });
+    return sendSuccess(res, 'Clinic onboarding completed successfully.', { clinic });
+
+  } catch (error) {
+    updateProgress(id, { percent: 100, status: 'FAILED', error: error.message || 'Setup could not be completed.' });
+    // Clean up users
+    if (createdUserIds.length > 0) {
+      await User.deleteMany({ _id: { $in: createdUserIds } });
+    }
+    // Clean up staff
+    if (createdStaffIds.length > 0) {
+      await Staff.deleteMany({ _id: { $in: createdStaffIds } });
+    }
+    // Clean up doctors
+    if (createdDocIds.length > 0) {
+      await Doctor.deleteMany({ _id: { $in: createdDocIds } });
+    }
+    // Clean up branches
+    if (createdBranchIds.length > 0) {
+      await Clinic.deleteMany({ _id: { $in: createdBranchIds } });
+    }
+
+    throw error;
+  }
+});
+
+const getOnboardingProgressStream = (req, res) => {
+  const { id } = req.params;
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+
+  const current = onboardingProgressMap.get(id) || {
+    percent: 0,
+    currentTask: 'Connecting to onboarding stream...',
+    checklist: [],
+    emailsSent: [],
+    status: 'CONNECTING',
+    error: null
+  };
+  res.write(`data: ${JSON.stringify(current)}\n\n`);
+
+  const onProgress = (data) => {
+    res.write(`data: ${JSON.stringify(data)}\n\n`);
+  };
+
+  onboardingEmitter.on(`progress:${id}`, onProgress);
+
+  req.on('close', () => {
+    onboardingEmitter.off(`progress:${id}`, onProgress);
+  });
+};
+
 module.exports = {
   createClinic,
   listClinics,
   getClinicDetails,
   updateClinic,
+  launchOnboarding,
+  getOnboardingProgressStream,
   getPlans,
   submitRegistration,
   getPendingRequests,
@@ -994,6 +1457,7 @@ module.exports = {
   deleteClinic,
   superAdminCreateClinic,
   validateEmail,
+  validatePhone,
   sendOtp,
   verifyOtp,
   resubmitRegistration,
@@ -1002,5 +1466,10 @@ module.exports = {
   getOnboardingFlow,
   activateTrialFeature,
   updateBillingSettings,
-  getBillingSettings
+  getBillingSettings,
+  validateRegistrationNumber,
+  uploadFile,
+  deleteFile,
+  saveDraft,
+  getDraft
 };

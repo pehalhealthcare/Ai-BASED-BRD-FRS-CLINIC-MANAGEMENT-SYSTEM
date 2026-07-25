@@ -533,8 +533,18 @@ const approveReceptionist = asyncHandler(async (req, res) => {
   staff.clinicId = clinicId;
   staff.assignedClinics = resolvedAssignedClinics;
   staff.staffCode = staffCode;
-  staff.isActive = true;
-  staff.approvalStatus = 'approved';
+  
+  const isSetupOnboarding = staff.creationSource === 'CLINIC_SETUP';
+  if (isSetupOnboarding) {
+    staff.isActive = false;
+    staff.approvalStatus = 'approved';
+    staff.invitationStatus = 'Offer Pending';
+    staff.offerStatus = 'Pending';
+  } else {
+    staff.isActive = true;
+    staff.approvalStatus = 'approved';
+  }
+  
   staff.hasAcceptedSlot = false; // Require staff to accept their assigned shift
   staff.initialSlotAccepted = false;
   staff.organizationId = req.user?.organizationId || user.organizationId || staff.organizationId;
@@ -549,7 +559,7 @@ const approveReceptionist = asyncHandler(async (req, res) => {
     receptionist.clinicId = clinicId;
     receptionist.assignedClinics = resolvedAssignedClinics;
     receptionist.receptionistCode = staffCode;
-    receptionist.isActive = true;
+    receptionist.isActive = isSetupOnboarding ? false : true;
     receptionist.approvalStatus = 'approved';
     receptionist.hasAcceptedSlot = false;
     receptionist.initialSlotAccepted = false;
@@ -561,7 +571,7 @@ const approveReceptionist = asyncHandler(async (req, res) => {
     await receptionist.save();
   }
 
-  user.isActive = true;
+  user.isActive = isSetupOnboarding ? false : true;
   user.clinicId = clinicId;
   user.approvalStatus = 'approved';
   user.hasAcceptedSlot = false;
@@ -667,7 +677,7 @@ const getMyReceptionistsDashboard = asyncHandler(async (req, res) => {
 
   const pendingUsers = await User.find({
     role: { $in: STAFF_ROLES },
-    approvalStatus: { $in: ['pending_profile', 'pending_approval', 're_edit', 'pending_invitation', 'otp_verification_pending', 'onboarding_in_progress', 'changes_requested'] },
+    approvalStatus: { $in: ['pending_profile', 'pending_approval', 're_edit', 'pending_invitation', 'otp_verification_pending', 'onboarding_in_progress', 'changes_requested', 'pending_onboarding'] },
     ...clinicFilter
   }).lean();
 

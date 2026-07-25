@@ -28,9 +28,30 @@ const acceptMySlot = asyncHandler(async (req, res) => {
   return sendSuccess(res, 'Staff offer accepted successfully', { profile });
 });
 
+const getOnboardingDetailsByToken = asyncHandler(async (req, res) => {
+  const { token } = req.query;
+  const data = await staffService.getOnboardingDetailsByToken(token);
+  return sendSuccess(res, 'Onboarding details retrieved successfully', data);
+});
+
+const submitOnboardingByToken = asyncHandler(async (req, res) => {
+  const { token } = req.body;
+  const data = await staffService.submitOnboardingByToken({ token, payload: req.body });
+  return sendSuccess(res, 'Onboarding profile submitted successfully', data);
+});
+
+const acceptOfferByToken = asyncHandler(async (req, res) => {
+  const { token } = req.body;
+  const data = await staffService.acceptOfferByToken(token);
+  return sendSuccess(res, 'Offer accepted successfully', data);
+});
+
 module.exports = {
   getMyProfile,
   updateMyProfile,
   submitMyProfile,
-  acceptMySlot
+  acceptMySlot,
+  getOnboardingDetailsByToken,
+  submitOnboardingByToken,
+  acceptOfferByToken
 };

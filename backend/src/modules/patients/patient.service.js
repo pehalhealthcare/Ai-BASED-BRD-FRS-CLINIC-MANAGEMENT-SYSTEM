@@ -552,7 +552,8 @@ const updateMyPatientProfile = async ({ requester, payload, requestedClinicId = 
     bloodGroup: payload.bloodGroup,
     emergencyContact: payload.emergencyContact,
     insuranceDetails: payload.insuranceDetails,
-    paymentMethods: payload.paymentMethods
+    paymentMethods: payload.paymentMethods,
+    savedAddresses: payload.savedAddresses
   };
 
   Object.keys(allowedUpdates).forEach((key) => {
@@ -614,7 +615,8 @@ const updatePatient = async ({ requester, patientId, payload, requestedClinicId 
     emergencyContact: payload.emergencyContact,
     insuranceDetails: payload.insuranceDetails,
     paymentMethods: payload.paymentMethods,
-    isActive: payload.isActive
+    isActive: payload.isActive,
+    savedAddresses: payload.savedAddresses
   };
 
   Object.keys(allowedGlobalUpdates).forEach((key) => {
@@ -1048,7 +1050,12 @@ const getMyClinics = async ({ requester }) => {
   }
 
   const ClinicMembership = require('./clinicMembership.model');
-  const memberships = await ClinicMembership.find({ patientId: patient._id, status: 'active' }).populate('clinicId');
+  const memberships = await ClinicMembership.find({ patientId: patient._id, status: 'active' }).populate({
+    path: 'clinicId',
+    populate: {
+      path: 'subscription.planId'
+    }
+  });
 
   const clinics = memberships.map(m => m.clinicId).filter(Boolean);
   return { clinics };

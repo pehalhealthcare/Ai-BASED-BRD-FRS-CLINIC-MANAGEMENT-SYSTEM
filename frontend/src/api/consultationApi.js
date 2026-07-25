@@ -15,12 +15,13 @@ export const consultationApi = {
   formatNote: async (id, payload) => unwrapResponse(await axiosClient.post(`/consultations/${id}/format-note`, payload)),
   historyByPatient: async (patientId, params = {}) =>
     unwrapResponse(await axiosClient.get(`/consultations/patient/${patientId}/history`, { params })),
-  downloadPdf: async (id) =>
-    unwrapResponse(
-      await axiosClient.get(`/consultations/${id}/pdf`, {
-        responseType: 'blob'
-      })
-    )
+  downloadPdf: async (id) => {
+    const response = await axiosClient.get(`/consultations/${id}/pdf`, {
+      responseType: 'blob'
+    });
+    // response.data is the raw Blob — return it directly, NOT through unwrapResponse
+    return response.data;
+  }
 };
 
 export default consultationApi;

@@ -66,12 +66,19 @@ import ProcedureDetailPage from '../features/procedures/ProcedureDetailPage';
 import ProtectedRoute from './ProtectedRoute';
 import RoleHomeRedirect from './RoleHomeRedirect';
 import ChatbotPage from '../pages/ai/ChatbotPage';
+import ChatPage from '../pages/chat/ChatPage';
+import DoctorSchedulePage from '../pages/doctors/DoctorSchedulePage';
 import LabTestsPage from '../features/patients/LabTestsPage';
 import PharmacyStorePage from '../features/patients/PharmacyStorePage';
 import useAuth from '../hooks/useAuth';
 import ProvidersPage from '../features/providers/ProvidersPage';
+import ProviderDetailPage from '../features/providers/ProviderDetailPage';
+import ProviderInventoryPage from '../features/providers/ProviderInventoryPage';
 import ProviderMappingPage from '../features/providers/ProviderMappingPage';
 import ProviderWorkspacePage from '../features/provider-workspace/ProviderWorkspacePage';
+import PharmacyOrdersPage from '../features/providers/PharmacyOrdersPage';
+import PharmacyReportsPage from '../features/providers/PharmacyReportsPage';
+import PrescriptionOrdersWorkspace from '../features/provider-workspace/PrescriptionOrdersWorkspace';
 
 const LabTestsRoute = () => {
   const { user } = useAuth();
@@ -279,6 +286,22 @@ export const router = createBrowserRouter([
         element: protect(<ProvidersPage />, [ROLES.ADMIN])
       },
       {
+        path: 'admin/providers/:providerId',
+        element: protect(<ProviderDetailPage />, [ROLES.ADMIN])
+      },
+      {
+        path: 'admin/providers/:providerId/inventory',
+        element: protect(<ProviderInventoryPage />, [ROLES.ADMIN])
+      },
+      {
+        path: 'admin/providers/:providerId/orders',
+        element: protect(<PharmacyOrdersPage />, [ROLES.ADMIN])
+      },
+      {
+        path: 'admin/providers/:providerId/reports',
+        element: protect(<PharmacyReportsPage />, [ROLES.ADMIN])
+      },
+      {
         path: 'admin/providers/:providerId/mapping',
         element: protect(<ProviderMappingPage />, [ROLES.ADMIN])
       },
@@ -325,6 +348,10 @@ export const router = createBrowserRouter([
           ROLES.AMBULANCE_COORDINATOR,
           ROLES.HOME_CARE_OPERATOR
         ])
+      },
+      {
+        path: 'pharmacist/orders/online',
+        element: protect(<ProviderWorkspacePage type="pharmacy" />, [ROLES.PHARMACIST, ROLES.PHARMACY_OPERATOR, ROLES.ADMIN])
       },
       {
         path: 'dashboard',
@@ -555,6 +582,10 @@ export const router = createBrowserRouter([
         element: protect(<DoctorListPage />, [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.RECEPTIONIST])
       },
       {
+        path: 'chat',
+        element: protect(<ChatPage />, [ROLES.RECEPTIONIST, ROLES.DOCTOR])
+      },
+      {
         path: 'doctors/new',
         element: protect(<DoctorFormPage />, [ROLES.ADMIN, ROLES.SUPER_ADMIN])
       },
@@ -570,6 +601,7 @@ export const router = createBrowserRouter([
       { path: 'admin/doctors/:id/edit', element: protect(<DoctorEditPage />, [ROLES.ADMIN, ROLES.SUPER_ADMIN]) },
       { path: 'admin/receptionists/:receptionistId/review', element: protect(<ReceptionistReview />, [ROLES.ADMIN]) },
       { path: 'doctors/:id/availability', element: protect(<DoctorAvailabilityEditor />, [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.RECEPTIONIST]) },
+      { path: 'doctors/:id/schedule', element: protect(<DoctorSchedulePage />, [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.RECEPTIONIST]) },
       {
         path: 'doctor/leaves',
         element: protect(<DoctorLeavesPage />, [ROLES.DOCTOR])

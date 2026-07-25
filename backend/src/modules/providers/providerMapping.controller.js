@@ -16,7 +16,11 @@ const createMapping = asyncHandler(async (req, res) => {
 });
 
 const getMappings = asyncHandler(async (req, res) => {
-  const result = await mappingService.getMappings(req.user.clinicId, req.params.providerId, req.query);
+  const clinicId = req.user.clinicId || req.query.clinicId;
+  if (!clinicId) {
+    throw new AppError('Clinic ID is required', HTTP_STATUS.BAD_REQUEST);
+  }
+  const result = await mappingService.getMappings(clinicId, req.params.providerId, req.query);
   return sendSuccess(res, 'Provider mappings retrieved successfully', result);
 });
 

@@ -61,12 +61,13 @@ const createProvider = async (clinicId, payload, actorUserId) => {
     ...payload,
     globalId,
     clinicId,
+    status: payload.creationMode === 'ONBOARDING' ? 'Draft' : (payload.deferInvitation ? 'Pending Activation' : (payload.status || 'Active')),
     createdBy: actorUserId
   });
 
   // Automatically create linked Staff member
   try {
-    await createOperatorStaff(clinicId, provider, actorUserId);
+    await createOperatorStaff(clinicId, provider, actorUserId, payload.deferInvitation);
   } catch (err) {
     // If operator creation fails, delete provider to keep transaction atomic
     await Provider.deleteOne({ _id: provider._id });
@@ -87,8 +88,8 @@ const createProvider = async (clinicId, payload, actorUserId) => {
 
 const getProviders = async (clinicId, query = {}) => {
   const { search, providerType, providerCategory, city, branch, status, page = 1, limit = 10 } = query;
-  
-  const filter = { clinicId, status: { $ne: 'Archived' } };
+
+  const filter = { clinicId, status: { $nin: ['Archived', 'Draft'] } };
 
   if (providerType) filter.providerType = providerType;
   if (providerCategory) filter.providerCategory = providerCategory;
@@ -114,7 +115,82 @@ const getProviders = async (clinicId, query = {}) => {
     .skip(skip)
     .limit(limit);
 
-  return { total, items, page, limit };
+  const ClinicLabCatalog = require('../labs/clinicLabCatalog.model');
+  const LabConsumable = require('../labs/labConsumable.model');
+  const LabConsumableBatch = require('../labs/labConsumableBatch.model');
+  const LabOrder = require('../labs/labOrder.model');
+  const Invoice = require('../billing/invoice.model');
+
+  const mappedItems = [];
+  for (const item of items) {
+    const raw = item.toObject();
+    if (item.providerType === 'Laboratory') {
+      let testsInInventory = 0;
+      try {
+        testsInInventory = await ClinicLabCatalog.countDocuments({ clinicId });
+      } catch { }
+
+      let lowStockAlerts = 0;
+      try {
+        lowStockAlerts = await LabConsumable.countDocuments({ clinicId, $expr: { $lte: ['$totalStock', '$reorderLevel'] } });
+      } catch { }
+
+      let pendingOrders = 0;
+      try {
+        pendingOrders = await LabOrder.countDocuments({ clinicId, status: 'ordered' });
+      } catch { }
+
+      let pendingTestOrders = 0;
+      try {
+        pendingTestOrders = await LabOrder.countDocuments({ clinicId, status: { $in: ['sample_collected', 'processing'] } });
+      } catch { }
+
+      const thirtyDaysLater = new Date();
+      thirtyDaysLater.setDate(thirtyDaysLater.getDate() + 30);
+      let expiringSoon = 0;
+      try {
+        expiringSoon = await LabConsumableBatch.countDocuments({
+          clinicId,
+          availableStock: { $gt: 0 },
+          expiryDate: { $gte: new Date(), $lte: thirtyDaysLater }
+        });
+      } catch { }
+
+      let todayRevenue = 0;
+      try {
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const todayInvoices = await Invoice.find({
+          clinicId,
+          createdAt: { $gte: todayStart },
+          status: 'paid'
+        });
+        for (const inv of todayInvoices) {
+          if (inv.items) {
+            for (const sub of inv.items) {
+              if (sub.itemType === 'LabTest' || sub.itemType === 'Laboratory' || sub.name?.toLowerCase().includes('lab')) {
+                todayRevenue += sub.amount || 0;
+              }
+            }
+          }
+        }
+      } catch { }
+
+
+
+      raw.stats = {
+        testsInInventory,
+        todayRevenue,
+        lowStockAlerts,
+        pendingOrders,
+        pendingTestOrders,
+        expiringSoon
+      };
+    }
+    mappedItems.push(raw);
+  }
+
+  return { total, items: mappedItems, page, limit };
 };
 
 const getProviderById = async (clinicId, id) => {
@@ -125,7 +201,79 @@ const getProviderById = async (clinicId, id) => {
   if (!provider) {
     throw new AppError('Provider not found', HTTP_STATUS.NOT_FOUND);
   }
-  return provider;
+
+  const raw = provider.toObject();
+  if (provider.providerType === 'Laboratory') {
+    const ClinicLabCatalog = require('../labs/clinicLabCatalog.model');
+    const LabConsumable = require('../labs/labConsumable.model');
+    const LabConsumableBatch = require('../labs/labConsumableBatch.model');
+    const LabOrder = require('../labs/labOrder.model');
+    const Invoice = require('../billing/invoice.model');
+
+    let testsInInventory = 0;
+    try {
+      testsInInventory = await ClinicLabCatalog.countDocuments({ clinicId });
+    } catch { }
+
+    let lowStockAlerts = 0;
+    try {
+      lowStockAlerts = await LabConsumable.countDocuments({ clinicId, $expr: { $lte: ['$totalStock', '$reorderLevel'] } });
+    } catch { }
+
+    let pendingOrders = 0;
+    try {
+      pendingOrders = await LabOrder.countDocuments({ clinicId, status: 'ordered' });
+    } catch { }
+
+    let pendingTestOrders = 0;
+    try {
+      pendingTestOrders = await LabOrder.countDocuments({ clinicId, status: { $in: ['sample_collected', 'processing'] } });
+    } catch { }
+
+    const thirtyDaysLater = new Date();
+    thirtyDaysLater.setDate(thirtyDaysLater.getDate() + 30);
+    let expiringSoon = 0;
+    try {
+      expiringSoon = await LabConsumableBatch.countDocuments({
+        clinicId,
+        availableStock: { $gt: 0 },
+        expiryDate: { $gte: new Date(), $lte: thirtyDaysLater }
+      });
+    } catch { }
+
+    let todayRevenue = 0;
+    try {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const todayInvoices = await Invoice.find({
+        clinicId,
+        createdAt: { $gte: todayStart },
+        status: 'paid'
+      });
+      for (const inv of todayInvoices) {
+        if (inv.items) {
+          for (const sub of inv.items) {
+            if (sub.itemType === 'LabTest' || sub.itemType === 'Laboratory' || sub.name?.toLowerCase().includes('lab')) {
+              todayRevenue += sub.amount || 0;
+            }
+          }
+        }
+      }
+    } catch { }
+
+
+
+    raw.stats = {
+      testsInInventory,
+      todayRevenue,
+      lowStockAlerts,
+      pendingOrders,
+      pendingTestOrders,
+      expiringSoon
+    };
+  }
+
+  return raw;
 };
 
 const updateProvider = async (clinicId, id, payload, actorUserId) => {
@@ -220,7 +368,93 @@ const changeStatus = async (clinicId, id, status, actorUserId) => {
   return provider;
 };
 
+const getLaboratoryStats = async (clinicId) => {
+  const Provider = require('./provider.model');
+  const User = require('../users/user.model');
+  const ClinicLabCatalog = require('../labs/clinicLabCatalog.model');
+  const LabConsumable = require('../labs/labConsumable.model');
+  const LabConsumableBatch = require('../labs/labConsumableBatch.model');
+  const LabOrder = require('../labs/labOrder.model');
+  const Invoice = require('../billing/invoice.model');
+
+  const labs = await Provider.find({ clinicId, providerType: 'Laboratory', status: { $ne: 'Archived' } }).select('_id');
+  const labIds = labs.map(l => l._id);
+
+  const totalLaboratories = labIds.length;
+  const activeLaboratories = await Provider.countDocuments({ clinicId, providerType: 'Laboratory', status: 'Active' });
+  const inactiveLaboratories = await Provider.countDocuments({ clinicId, providerType: 'Laboratory', status: 'Inactive' });
+
+  const laboratoryStaff = await User.countDocuments({ clinicId, providerId: { $in: labIds } });
+
+  let testsInInventory = 0;
+  try {
+    testsInInventory = await ClinicLabCatalog.countDocuments({ clinicId });
+  } catch { }
+
+  let lowStockAlerts = 0;
+  try {
+    lowStockAlerts = await LabConsumable.countDocuments({ clinicId, $expr: { $lte: ['$totalStock', '$reorderLevel'] } });
+  } catch { }
+
+  let pendingOrders = 0;
+  try {
+    pendingOrders = await LabOrder.countDocuments({ clinicId, status: 'ordered' });
+  } catch { }
+
+  let pendingTestOrders = 0;
+  try {
+    pendingTestOrders = await LabOrder.countDocuments({ clinicId, status: { $in: ['sample_collected', 'processing'] } });
+  } catch { }
+
+  const thirtyDaysLater = new Date();
+  thirtyDaysLater.setDate(thirtyDaysLater.getDate() + 30);
+  let expiringSoon = 0;
+  try {
+    expiringSoon = await LabConsumableBatch.countDocuments({
+      clinicId,
+      availableStock: { $gt: 0 },
+      expiryDate: { $gte: new Date(), $lte: thirtyDaysLater }
+    });
+  } catch { }
+
+  let todayRevenue = 0;
+  try {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayInvoices = await Invoice.find({
+      clinicId,
+      createdAt: { $gte: todayStart },
+      status: 'paid'
+    });
+    for (const inv of todayInvoices) {
+      if (inv.items) {
+        for (const item of inv.items) {
+          if (item.itemType === 'LabTest' || item.itemType === 'Laboratory' || item.name?.toLowerCase().includes('lab')) {
+            todayRevenue += item.amount || 0;
+          }
+        }
+      }
+    }
+  } catch { }
+
+
+
+  return {
+    totalLaboratories,
+    activeLaboratories,
+    inactiveLaboratories,
+    laboratoryStaff,
+    testsInInventory,
+    lowStockAlerts,
+    pendingOrders,
+    pendingTestOrders,
+    expiringSoon,
+    todayRevenue
+  };
+};
+
 module.exports = {
+  getLaboratoryStats,
   createProvider,
   getProviders,
   getProviderById,
