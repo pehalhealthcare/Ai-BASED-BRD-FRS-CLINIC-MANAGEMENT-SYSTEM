@@ -296,7 +296,9 @@ const ClinicWizard = () => {
     reader.onload = async () => {
       try {
         const base64Content = reader.result;
-        setLocalPreviews(prev => ({ ...prev, [fieldName]: base64Content }));
+        if (!isMultiple) {
+          setLocalPreviews(prev => ({ ...prev, [fieldName]: base64Content }));
+        }
 
         const res = await clinicApi.uploadFile({
           file_data: base64Content,
@@ -309,6 +311,13 @@ const ClinicWizard = () => {
             ...prev,
             images: [...(prev.images || []), fileRef]
           }));
+          setLocalPreviews(prev => {
+            const currentImages = prev.images || [];
+            return {
+              ...prev,
+              images: [...currentImages, base64Content]
+            };
+          });
         } else if (fieldName === 'profilePhoto') {
           setOwnerForm(prev => ({ ...prev, profilePhoto: fileRef }));
         } else if (fieldName === 'logo') {
@@ -1604,12 +1613,16 @@ const ClinicWizard = () => {
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         {clinicForm.images?.map((img, idx) => (
                           <div key={idx} className="relative rounded-2xl overflow-hidden border border-slate-200 aspect-video group shadow-sm">
-                            <img src={img} alt={`Clinic ${idx}`} className="w-full h-full object-cover" />
+                            <img src={(localPreviews.images && localPreviews.images[idx]) || img} alt={`Clinic ${idx}`} className="w-full h-full object-cover" />
                             <button
                               type="button"
                               onClick={() => {
                                 const updated = clinicForm.images.filter((_, i) => i !== idx);
                                 setClinicForm({ ...clinicForm, images: updated });
+                                if (localPreviews.images) {
+                                  const updatedPreviews = localPreviews.images.filter((_, i) => i !== idx);
+                                  setLocalPreviews({ ...localPreviews, images: updatedPreviews });
+                                }
                               }}
                               className="absolute inset-0 bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition duration-150 text-xs font-bold"
                             >

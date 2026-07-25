@@ -174,11 +174,32 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
 
   const [activeFeatures, setActiveFeatures] = useState([]);
   const [patientClinics, setPatientClinics] = useState([]);
-  const [selectedClinicId, setSelectedClinicId] = useState('');
+  const [selectedClinicId, setSelectedClinicId] = useState(() => localStorage.getItem('patientActiveClinicId') || '');
+  const [patientProfile, setPatientProfile] = useState(null);
   const [labExpanded, setLabExpanded] = useState(false);
   const [pharmacyExpanded, setPharmacyExpanded] = useState(false);
 
   const currentTab = new URLSearchParams(location.search).get('tab') || 'dashboard';
+
+  const handleClinicSelect = (clinicId) => {
+    localStorage.setItem('patientActiveClinicId', clinicId);
+    setSelectedClinicId(clinicId);
+    window.dispatchEvent(new CustomEvent('patient:clinic-changed', { detail: clinicId }));
+    
+    const currentParams = new URLSearchParams(location.search);
+    const activeTab = currentParams.get('tab') || 'dashboard';
+    navigate(`/portal?tab=${activeTab === 'clinics' ? 'dashboard' : activeTab}&clinicId=${clinicId}`);
+  };
+
+  useEffect(() => {
+    const handleClinicChange = (e) => {
+      setSelectedClinicId(e.detail);
+    };
+    window.addEventListener('patient:clinic-changed', handleClinicChange);
+    return () => {
+      window.removeEventListener('patient:clinic-changed', handleClinicChange);
+    };
+  }, []);
 
   useEffect(() => {
     if (['book-lab', 'labs'].includes(currentTab)) {
@@ -193,11 +214,33 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
     if (isPatient) {
       patientApi.getMyClinics()
         .then(res => {
-          setPatientClinics(res.data?.clinics || res.clinics || []);
+          const list = res.data?.clinics || res.clinics || [];
+          setPatientClinics(list);
+          const cached = localStorage.getItem('patientActiveClinicId');
+          if (list.length > 0) {
+            const defaultId = cached || list[0]._id;
+            localStorage.setItem('patientActiveClinicId', defaultId);
+            setSelectedClinicId(defaultId);
+            if (!cached) {
+              window.dispatchEvent(new CustomEvent('patient:clinic-changed', { detail: defaultId }));
+            }
+          }
         })
         .catch(() => {});
     }
   }, [isPatient]);
+
+  useEffect(() => {
+    if (isPatient && selectedClinicId) {
+      patientApi.me()
+        .then(res => {
+          setPatientProfile(res.patient || res.data?.patient || null);
+        })
+        .catch(err => console.error('Failed to load patient profile in sidebar:', err));
+    } else {
+      setPatientProfile(null);
+    }
+  }, [isPatient, selectedClinicId]);
 
   const [selectedLabId, setSelectedLabId] = useState('');
   const [selectedPharmacyId, setSelectedPharmacyId] = useState('');
@@ -710,26 +753,40 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
               </button>
             </div>
 
-            {/* Selected Clinic Fixed Header Card */}
             {selectedClinic && (
-              <div className="px-4 py-2 shrink-0 border-b border-slate-100">
-                <div 
-                  className="p-3.5 rounded-2xl bg-white border border-slate-200 flex items-center justify-between gap-3 shadow-sm hover:shadow transition-shadow"
-                  style={{ borderLeft: `4px solid ${activeTheme.primary}` }}
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div 
-                      className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-base"
-                      style={{ backgroundColor: activeTheme.bgLight }}
-                    >
-                      🏥
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-black text-slate-900 truncate leading-tight">{selectedClinic.name}</p>
-                      <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Current Clinic</p>
-                    </div>
+              <div className="px-4 py-3 shrink-0 border-b border-slate-100 space-y-3 bg-slate-50/50">
+                {/* Current Clinic Selector */}
+                <div>
+                  <p className="text-[8px] text-slate-400 font-extrabold uppercase tracking-widest">Current Clinic</p>
+                  <div 
+                    onClick={() => {
+                      const currentParams = new URLSearchParams(location.search);
+                      currentParams.delete('clinicId');
+                      navigate(`/portal?${currentParams.toString()}`);
+                    }}
+                    className="mt-1.5 p-3 rounded-xl bg-white border border-slate-200 flex items-center justify-between gap-2.5 shadow-sm hover:shadow-md transition cursor-pointer"
+                    style={{ borderLeft: `3.5px solid ${activeTheme.primary}` }}
+                  >
+                    <span className="text-sm shrink-0">🏥</span>
+                    <span className="text-xs font-black text-slate-800 truncate flex-1">{selectedClinic.name}</span>
+                    <ChevronDown size={12} className="text-slate-400 shrink-0" />
                   </div>
-                  <ChevronDown size={14} className="text-slate-400 shrink-0" />
+                </div>
+
+                {/* Patient Profile Info */}
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <div className="bg-white p-2 rounded-xl border border-slate-150 shadow-sm">
+                    <p className="text-[8px] text-slate-400 font-bold uppercase tracking-wider leading-none">Patient Profile</p>
+                    <p className="text-[10px] font-black text-slate-800 truncate mt-1">
+                      {patientProfile ? `${patientProfile.firstName || ''} ${patientProfile.lastName || ''}`.trim() : 'Loading...'}
+                    </p>
+                  </div>
+                  <div className="bg-white p-2 rounded-xl border border-slate-150 shadow-sm">
+                    <p className="text-[8px] text-slate-400 font-bold uppercase tracking-wider leading-none">UHID</p>
+                    <p className="text-[10px] font-black text-blue-600 truncate mt-1">
+                      {patientProfile?.patientId || 'Loading...'}
+                    </p>
+                  </div>
                 </div>
               </div>
             )}
@@ -952,6 +1009,30 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
                   <span>Bills & Payments</span>
                 </div>
               </NavLink>
+
+              {/* My Clinics Section in Navigation */}
+              <div className="mt-6 pt-4 border-t border-slate-100">
+                <p className="px-4 text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">My Clinics</p>
+                <div className="space-y-1">
+                  {patientClinics.map((clinic) => {
+                    const isCurrent = String(clinic._id) === String(selectedClinicId);
+                    return (
+                      <button
+                        key={clinic._id}
+                        onClick={() => handleClinicSelect(clinic._id)}
+                        className={`w-full flex items-center justify-between px-4 py-2 rounded-xl text-xs transition duration-150 ${
+                          isCurrent 
+                            ? 'bg-slate-50 font-extrabold text-blue-600' 
+                            : 'font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                        }`}
+                      >
+                        <span className="truncate flex-1 text-left">{clinic.name}</span>
+                        {isCurrent && <span className="w-1.5 h-1.5 rounded-full bg-blue-600 shrink-0 ml-2" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
 
             </nav>
           </div>

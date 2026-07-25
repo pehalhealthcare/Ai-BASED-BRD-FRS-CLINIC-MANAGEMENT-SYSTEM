@@ -100,6 +100,8 @@ const Topbar = ({ title, currentUser, onToggleSidebar, onLogout }) => {
               value={selectedClinicId}
               onChange={(e) => {
                 const newClinicId = e.target.value;
+                localStorage.setItem('patientActiveClinicId', newClinicId);
+                window.dispatchEvent(new CustomEvent('patient:clinic-changed', { detail: newClinicId }));
                 navigate(`/portal?tab=${activeTab}&clinicId=${newClinicId}`);
               }}
               className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-black text-slate-700 outline-none focus:border-blue-500 transition cursor-pointer"

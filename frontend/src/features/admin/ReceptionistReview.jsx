@@ -59,7 +59,7 @@ const ReceptionistReview = () => {
         
         if (!found) {
           toast.error('Staff not found in pending list');
-          navigate('/admin/clinics-dashboard');
+          navigate('/admin/my-receptionists-dashboard');
           return;
         }
 
@@ -188,7 +188,7 @@ const ReceptionistReview = () => {
 
       await adminApi.approveReceptionist(receptionist._id, payload);
       toast.success('Staff registration approved successfully!');
-      navigate('/admin/clinics-dashboard');
+      navigate('/admin/my-receptionists-dashboard');
     } catch (err) {
       console.error(err);
       toast.error(err.response?.data?.message || 'Failed to approve staff');
@@ -204,7 +204,7 @@ const ReceptionistReview = () => {
     try {
       await adminApi.rejectReceptionist(receptionist._id);
       toast.success('Staff registration request rejected.');
-      navigate('/admin/clinics-dashboard');
+      navigate('/admin/my-receptionists-dashboard');
     } catch (err) {
       console.error(err);
       toast.error(err.response?.data?.message || 'Failed to reject staff');
@@ -240,7 +240,7 @@ const ReceptionistReview = () => {
         reEditComments: reEditComments.trim(),
       });
       toast.success('Re-edit request submitted.');
-      navigate('/admin/clinics-dashboard');
+      navigate('/admin/my-receptionists-dashboard');
     } catch (err) {
       console.error(err);
       toast.error(err.response?.data?.message || 'Failed to request re-edit');

@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
-import { specializationApi, doctorApi, dashboardApi } from '../../lib/api';
+import { specializationApi, doctorApi, dashboardApi, clinicApi } from '../../lib/api';
+import useAuth from '../../hooks/useAuth';
 import PageHeader from '../../components/layout/PageHeader';
 import LoadingState from '../../components/common/LoadingState';
 import ErrorState from '../../components/common/ErrorState';
@@ -146,6 +147,9 @@ const FC = 'w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm outl
 /* ════════════════════════════════════════════════════════════ */
 
 const DepartmentsPage = () => {
+  const { user } = useAuth();
+  const [clinicDeptNames, setClinicDeptNames] = useState([]);
+
   /* ── data state ─────────────────────────── */
   const [departments, setDepartments] = useState([]);
   const [doctorsBySpec, setDoctorsBySpec] = useState({}); // { specName -> count }
@@ -184,17 +188,33 @@ const DepartmentsPage = () => {
       setLoading(true);
       setError('');
 
-      const [specsRes, doctorsRes, overviewRes] = await Promise.allSettled([
+      const [specsRes, doctorsRes, overviewRes, clinicRes] = await Promise.allSettled([
         specializationApi.list({ all: true }),
         doctorApi.list({ limit: 500 }),
         dashboardApi.getOverview(),
+        clinicApi.getDetails(user.clinicId)
       ]);
 
       // Specializations
       const specs = specsRes.status === 'fulfilled'
         ? (specsRes.value?.data?.specializations || [])
         : [];
-      setDepartments(specs);
+
+      const clinicData = clinicRes.status === 'fulfilled' ? clinicRes.value : null;
+      const createdNames = clinicData?.clinic?.clinicDetails?.departments || [];
+      setClinicDeptNames(createdNames);
+
+      const activeSpecs = createdNames.map((name, idx) => {
+        const found = specs.find(s => s.name.toLowerCase().trim() === name.toLowerCase().trim());
+        return {
+          _id: found?._id || `custom_${idx}`,
+          name: name,
+          description: found?.description || `Clinic department for ${name}`,
+          isActive: found ? found.isActive : true
+        };
+      });
+
+      setDepartments(activeSpecs);
 
       // Group doctors by specialization name
       if (doctorsRes.status === 'fulfilled') {
@@ -218,7 +238,7 @@ const DepartmentsPage = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user.clinicId]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -310,8 +330,14 @@ const DepartmentsPage = () => {
     try {
       if (crudMode === 'create') {
         await specializationApi.create(form);
+        const nextDepts = [...clinicDeptNames, form.name.trim()];
+        await clinicApi.update(user.clinicId, { clinicDetails: { departments: nextDepts } });
       } else {
         await specializationApi.update(selectedDept._id, form);
+        const nextDepts = clinicDeptNames.map(name =>
+          name.toLowerCase().trim() === selectedDept.name.toLowerCase().trim() ? form.name.trim() : name
+        );
+        await clinicApi.update(user.clinicId, { clinicDetails: { departments: nextDepts } });
       }
       setShowCrudModal(false);
       await loadData();
@@ -334,10 +360,19 @@ const DepartmentsPage = () => {
 
   const handleDelete = async (id, e) => {
     e?.stopPropagation();
-    if (!window.confirm('Permanently delete this department?')) return;
+    const deptToDelete = departments.find(d => d._id === id);
+    if (!deptToDelete) return;
+    if (!window.confirm(`Permanently delete department "${deptToDelete.name}"?`)) return;
     setDeletingId(id);
     try {
-      await specializationApi.remove(id);
+      // Remove from specialization collection if it exists globally
+      if (id && !id.startsWith('custom_')) {
+        await specializationApi.remove(id);
+      }
+      const nextDepts = clinicDeptNames.filter(name =>
+        name.toLowerCase().trim() !== deptToDelete.name.toLowerCase().trim()
+      );
+      await clinicApi.update(user.clinicId, { clinicDetails: { departments: nextDepts } });
       await loadData();
     } catch (err) {
       alert(err?.response?.data?.message || 'Failed to delete.');

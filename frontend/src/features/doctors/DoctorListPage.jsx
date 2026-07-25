@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import { doctorApi, chatApi } from '../../lib/api';
+import { doctorApi, chatApi, appointmentApi } from '../../lib/api';
 import LoadingState from '../../components/common/LoadingState';
 import ErrorState from '../../components/common/ErrorState';
 
@@ -47,6 +47,15 @@ const DoctorListPage = () => {
         console.error('Error fetching chat conversations for badges', chatErr);
       }
 
+      const todayStr = new Date().toISOString().split('T')[0];
+      let todayAppointments = [];
+      try {
+        const apptsRes = await appointmentApi.getAppointments({ date: todayStr, limit: 1000 });
+        todayAppointments = apptsRes.appointments || [];
+      } catch (apptErr) {
+        console.error('Failed to load today appointments:', apptErr);
+      }
+
       const response = await doctorApi.list({
         page,
         limit: pagination.limit,
@@ -58,76 +67,36 @@ const DoctorListPage = () => {
       // Enrich API data with realistic live fields matching screenshot
       const rawDoctors = response.data.doctors || [];
       const enriched = rawDoctors.map((doc, idx) => {
-        // Status assignment
-        let liveStatus = 'Available';
-        let activity = 'Available';
-        let currentClinic = 'Main Clinic';
-        let room = `Consultation Room ${idx + 1}`;
-        let nextSlot = 'Not Available';
-        let appointmentsCompleted = 0;
-        let appointmentsTotal = 0;
+        const docAppts = todayAppointments.filter(
+          a => String(a.doctorId?._id || a.doctorId) === String(doc._id)
+        );
 
-        // Spread statuses
-        const statusCycle = ['Available', 'In Consultation', 'Online Consultation', 'Between Patients', 'Break', 'Offline', 'On Leave'];
-        const cycleIndex = idx % statusCycle.length;
-        liveStatus = statusCycle[cycleIndex];
+        const appointmentsTotal = docAppts.length;
+        const appointmentsCompleted = docAppts.filter(
+          a => ['completed', 'checked_out'].includes(a.status?.toLowerCase())
+        ).length;
 
-        if (liveStatus === 'Available') {
-          activity = 'Available';
-          currentClinic = 'Main Clinic';
-          room = `Consultation Room ${(idx % 3) + 1}`;
-          nextSlot = '11:30 AM';
-          appointmentsCompleted = 8;
-          appointmentsTotal = 14;
-        } else if (liveStatus === 'In Consultation') {
-          activity = '🩺 Consulting Patient';
-          currentClinic = 'Main Clinic';
-          room = `Consultation Room ${(idx % 3) + 1}`;
-          nextSlot = 'After Current Patient';
-          appointmentsCompleted = 5;
-          appointmentsTotal = 12;
-        } else if (liveStatus === 'Online Consultation') {
-          activity = '💻 Online Video Consultation';
-          currentClinic = 'Online Portal';
-          room = 'Virtual Room 1';
-          nextSlot = '12:00 PM';
-          appointmentsCompleted = 3;
-          appointmentsTotal = 10;
-        } else if (liveStatus === 'Between Patients') {
-          activity = '📄 Writing Prescription';
-          currentClinic = 'Main Clinic';
-          room = `Consultation Room ${(idx % 2) + 1}`;
-          nextSlot = '2:15 PM';
-          appointmentsCompleted = 6;
-          appointmentsTotal = 8;
-        } else if (liveStatus === 'Break') {
-          activity = '☕ Lunch Break';
-          currentClinic = 'Main Clinic';
-          room = 'Doctors Lounge';
-          nextSlot = '02:00 PM';
-          appointmentsCompleted = 4;
-          appointmentsTotal = 10;
-        } else if (liveStatus === 'Offline') {
-          activity = 'Offline';
-          currentClinic = 'Branch Clinic';
-          room = 'Room 5';
-          nextSlot = 'Tomorrow';
-          appointmentsCompleted = 10;
-          appointmentsTotal = 10;
-        } else if (liveStatus === 'On Leave') {
-          activity = 'On Leave';
-          currentClinic = 'None';
-          room = '-';
-          nextSlot = 'Till 25 Jul, 2026';
-          appointmentsCompleted = 0;
-          appointmentsTotal = 0;
+        const upcomingAppts = docAppts.filter(
+          a => !['completed', 'cancelled', 'not_attended', 'rejected'].includes(a.status?.toLowerCase())
+        ).sort((a, b) => (a.timeSlot || '').localeCompare(b.timeSlot || ''));
+
+        const nextSlot = upcomingAppts.length > 0
+          ? upcomingAppts[0].timeSlot
+          : 'Not Available';
+
+        let liveStatus = doc.isActive ? 'Available' : 'Offline';
+        if (docAppts.some(a => a.status?.toLowerCase() === 'in_consultation')) {
+          liveStatus = 'In Consultation';
         }
+        
+        let activity = liveStatus === 'In Consultation' ? 'Consulting Patient' : 'Available';
+        let currentClinic = doc.clinicId?.name || 'Main Clinic';
+        let room = doc.preferredPracticeLocation ? `Room ${doc.preferredPracticeLocation}` : `Consultation Room ${(idx % 3) + 1}`;
 
         const matchedConv = convs.find(c => c.doctorId?._id === doc._id || c.doctorId === doc._id);
-        const mockUnreads = [3, 1, 2, 0, 0, 0, 0];
         const unreadCount = matchedConv 
           ? (matchedConv.unreadCount?.receptionist || 0)
-          : mockUnreads[idx % mockUnreads.length];
+          : 0;
 
         return {
           ...doc,
@@ -139,8 +108,8 @@ const DoctorListPage = () => {
           appointmentsCompleted,
           appointmentsTotal,
           unreadCount,
-          experience: doc.experienceYears ? `${doc.experienceYears} Years Exp.` : '10+ Years Exp.',
-          qualification: doc.qualification || 'MBBS, MD'
+          experience: doc.experienceYears ? `${doc.experienceYears} Years Exp.` : 'N/A',
+          qualification: doc.qualification || 'N/A'
         };
       });
 
@@ -178,12 +147,17 @@ const DoctorListPage = () => {
 
   // Sidebar metrics
   const specializationDistribution = useMemo(() => {
+    if (!doctors.length) return [];
     const counts = {};
     doctors.forEach(d => {
       const spec = d.specialization || 'General Physician';
       counts[spec] = (counts[spec] || 0) + 1;
     });
-    return Object.entries(counts).slice(0, 5);
+    return Object.entries(counts).map(([name, count]) => ({
+      name,
+      count,
+      percentage: Math.round((count / doctors.length) * 100)
+    })).sort((a, b) => b.count - a.count).slice(0, 5);
   }, [doctors]);
 
   const offDutyList = useMemo(() => {
@@ -651,34 +625,52 @@ const DoctorListPage = () => {
               <div className="relative w-28 h-28 flex items-center justify-center">
                 <svg className="w-full h-full transform -rotate-90" viewBox="0 0 42 42">
                   <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="#E2E8F0" strokeWidth="4"></circle>
-                  <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="#3B82F6" strokeWidth="4.2" strokeDasharray="35 65" strokeDashoffset="0"></circle>
-                  <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="#10B981" strokeWidth="4.2" strokeDasharray="25 75" strokeDashoffset="-35"></circle>
-                  <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="#F59E0B" strokeWidth="4.2" strokeDasharray="20 80" strokeDashoffset="-60"></circle>
-                  <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="#8B5CF6" strokeWidth="4.2" strokeDasharray="20 80" strokeDashoffset="-80"></circle>
+                  {(() => {
+                    let accumulated = 0;
+                    const colors = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899'];
+                    return specializationDistribution.map((item, idx) => {
+                      const percentage = item.percentage;
+                      const strokeDasharray = `${percentage} ${100 - percentage}`;
+                      const strokeDashoffset = -accumulated;
+                      accumulated += percentage;
+                      return (
+                        <circle
+                          key={idx}
+                          cx="21"
+                          cy="21"
+                          r="15.915"
+                          fill="transparent"
+                          stroke={colors[idx % colors.length]}
+                          strokeWidth="4.2"
+                          strokeDasharray={strokeDasharray}
+                          strokeDashoffset={strokeDashoffset}
+                        ></circle>
+                      );
+                    });
+                  })()}
                 </svg>
                 <div className="absolute flex flex-col items-center">
-                  <span className="text-xs font-black text-slate-800">{doctors.length || 12}</span>
+                  <span className="text-xs font-black text-slate-800">{doctors.length}</span>
                   <span className="text-[8px] text-slate-400 uppercase tracking-widest font-bold">Total</span>
                 </div>
               </div>
             </div>
             <div className="space-y-1.5 text-[9px] font-bold text-slate-600">
-              <div className="flex justify-between items-center">
-                <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span> General Physician</span>
-                <span>35%</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Dentist</span>
-                <span>25%</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Orthopedic</span>
-                <span>20%</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span> Cardiology</span>
-                <span>20%</span>
-              </div>
+              {specializationDistribution.map((item, idx) => {
+                const colors = ['bg-blue-500', 'bg-emerald-500', 'bg-amber-500', 'bg-purple-500', 'bg-pink-500'];
+                return (
+                  <div key={idx} className="flex justify-between items-center">
+                    <span className="flex items-center gap-1.5">
+                      <span className={`w-1.5 h-1.5 rounded-full ${colors[idx % colors.length]}`}></span>
+                      {item.name}
+                    </span>
+                    <span>{item.percentage}%</span>
+                  </div>
+                );
+              })}
+              {specializationDistribution.length === 0 && (
+                <p className="text-slate-400 text-center py-2">No specializations found</p>
+              )}
             </div>
           </div>
 
@@ -856,20 +848,12 @@ const DoctorListPage = () => {
 
             {/* Footer actions */}
             <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex gap-3">
-              <Link 
-                to={`/doctors/${selectedDoctor._id}/availability`}
+              <button 
                 onClick={() => setIsDrawerOpen(false)}
-                className="flex-1 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-center text-xs rounded-xl shadow-sm transition"
+                className="w-full py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-center text-xs rounded-xl transition"
               >
-                Manage Schedule
-              </Link>
-              <Link 
-                to={`/doctors/${selectedDoctor._id}/edit`}
-                onClick={() => setIsDrawerOpen(false)}
-                className="flex-1 py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold text-center text-xs rounded-xl shadow-sm transition"
-              >
-                Edit Doctor
-              </Link>
+                Close Profile
+              </button>
             </div>
           </div>
         </div>

@@ -270,11 +270,20 @@ const listDoctors = async ({ requester, query }) => {
     requestedClinicId: query.clinicId
   });
   
-  const clinicIds = [new mongoose.Types.ObjectId(clinicId)];
-  if (requester.role === ROLES.SUPER_ADMIN || requester.role === ROLES.ADMIN) {
-    const Clinic = require('../clinics/clinic.model');
-    const branches = await Clinic.find({ parentClinicId: clinicId }).select('_id');
-    branches.forEach((b) => clinicIds.push(b._id));
+  const Clinic = require('../clinics/clinic.model');
+  const targetClinic = await Clinic.findById(clinicId).select('parentClinicId');
+  const mainClinicId = targetClinic?.parentClinicId || clinicId;
+
+  const clinicsInGroup = await Clinic.find({
+    $or: [
+      { _id: mainClinicId },
+      { parentClinicId: mainClinicId }
+    ]
+  }).select('_id');
+
+  const clinicIds = clinicsInGroup.map(c => c._id);
+  if (!clinicIds.some(id => String(id) === String(clinicId))) {
+    clinicIds.push(new mongoose.Types.ObjectId(clinicId));
   }
 
   const { page, limit } = getPagination(query);

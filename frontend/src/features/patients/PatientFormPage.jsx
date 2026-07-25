@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import ErrorState from '../../components/common/ErrorState';
 import LoadingState from '../../components/common/LoadingState';
 import { patientApi } from '../../lib/api';
+import useAuth from '../../hooks/useAuth';
 import PatientDocumentOcrPanel from './PatientDocumentOcrPanel';
 
 const defaultForm = {
@@ -54,6 +55,7 @@ const splitCommaSeparated = (value) =>
 
 const PatientFormPage = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { id } = useParams();
   const isEditMode = Boolean(id);
   const [form, setForm] = useState(defaultForm);
@@ -330,34 +332,36 @@ const PatientFormPage = () => {
 
       <PatientDocumentOcrPanel onApply={handleOcrApply} />
 
-      {existingPatient && (
-        <div className="flex flex-col gap-4 rounded-3xl border border-amber-200 bg-amber-50 p-6 shadow-lg shadow-amber-100 animate-fade-in">
+      {existingPatient ? (
+        <div className="flex flex-col gap-4 rounded-3xl border border-rose-200 bg-rose-50 p-6 shadow-lg shadow-rose-100 animate-fade-in">
           <div>
-            <h3 className="text-lg font-bold text-amber-900">Existing patient found.</h3>
-            <p className="text-sm text-amber-700 mt-1">Please confirm patient identity before linking with this clinic. Medical records from other clinics are not visible.</p>
+            <h3 className="text-lg font-bold text-rose-900">Patient already exists in {user?.clinic?.name || 'this clinic'}.</h3>
+            <p className="text-sm text-rose-700 mt-1">Please use the existing patient profile to book appointments instead of creating a duplicate registration.</p>
           </div>
-          <div className="grid grid-cols-3 gap-4 bg-white/60 p-4 rounded-2xl border border-amber-100">
+          <div className="grid grid-cols-2 gap-4 bg-white/60 p-4 rounded-2xl border border-rose-100">
             <div>
-              <span className="text-xs text-stone-500 font-bold uppercase tracking-wider">Name</span>
+              <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wider">Patient Name</span>
               <p className="text-sm font-semibold text-stone-800 mt-0.5">{existingPatient.fullName || `${existingPatient.firstName} ${existingPatient.lastName}`}</p>
             </div>
             <div>
-              <span className="text-xs text-stone-500 font-bold uppercase tracking-wider">Date of Birth</span>
-              <p className="text-sm font-semibold text-stone-800 mt-0.5">{existingPatient.dateOfBirth ? new Date(existingPatient.dateOfBirth).toLocaleDateString() : 'N/A'}</p>
-            </div>
-            <div>
-              <span className="text-xs text-stone-500 font-bold uppercase tracking-wider">Gender</span>
-              <p className="text-sm font-semibold text-stone-800 mt-0.5 capitalize">{existingPatient.gender}</p>
+              <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wider">UHID</span>
+              <p className="text-sm font-semibold text-stone-850 mt-0.5">{existingPatient.patientId || 'N/A'}</p>
             </div>
           </div>
           <div className="flex gap-3">
             <button
               type="button"
-              disabled={submitting}
-              onClick={handleConfirmAssociation}
-              className="px-5 py-2.5 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm shadow-sm transition disabled:opacity-50"
+              onClick={() => navigate(`/patients/${existingPatient._id}`)}
+              className="px-5 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-sm transition"
             >
-              Confirm and Associate with Clinic
+              View Patient Profile
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate(`/appointments/new?patientId=${existingPatient._id}`)}
+              className="px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition"
+            >
+              Book Appointment
             </button>
             <button
               type="button"
@@ -365,16 +369,14 @@ const PatientFormPage = () => {
                 setExistingPatient(null);
                 updateField('phone', '');
               }}
-              className="px-5 py-2.5 rounded-2xl border border-stone-300 hover:bg-stone-50 text-stone-700 font-bold text-sm transition"
+              className="px-5 py-2.5 rounded-2xl border border-stone-300 hover:bg-stone-50 text-stone-700 font-bold text-xs transition"
             >
               Cancel
             </button>
           </div>
         </div>
-      )}
-
-
-      <form className="grid gap-6" onSubmit={handleSubmit}>
+      ) : (
+        <form className="grid gap-6" onSubmit={handleSubmit}>
         {/* Core Profile */}
         <div className="grid gap-6 rounded-3xl border border-stone-200 bg-white p-6 shadow-lg shadow-stone-200/40 md:grid-cols-2">
           <h3 className="md:col-span-2 text-lg font-semibold text-stone-900">Demographics</h3>
@@ -781,6 +783,7 @@ const PatientFormPage = () => {
           </Link>
         </div>
       </form>
+      )}
     </section>
   );
 };

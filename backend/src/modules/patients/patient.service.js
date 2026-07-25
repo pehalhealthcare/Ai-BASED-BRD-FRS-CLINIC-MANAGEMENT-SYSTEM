@@ -232,9 +232,9 @@ const createPatient = async ({ requester, payload, requestedClinicId = null, req
   }
 
   const Patient = require('./patient.model');
-  const existingPatient = await Patient.findOne({ phone });
+  const existingPatient = await Patient.findOne({ phone, clinicId });
   if (existingPatient) {
-    throw new AppError('A patient with this mobile number already exists globally.', HTTP_STATUS.CONFLICT);
+    throw new AppError('A patient with this mobile number already exists in this clinic.', HTTP_STATUS.CONFLICT);
   }
 
   const email = payload.email ? String(payload.email).trim().toLowerCase() : `${phone}@test.com`;
@@ -307,12 +307,15 @@ const createPatient = async ({ requester, payload, requestedClinicId = null, req
   return resolvePatientClinicRecord(patient, clinicId);
 };
 
-const checkExists = async ({ phone }) => {
+const checkExists = async ({ requester, phone, requestedClinicId = null }) => {
   if (!phone) {
     throw new AppError('Phone number is required', HTTP_STATUS.BAD_REQUEST);
   }
+  const { resolveClinicContext } = require('../../common/utils/clinicContext');
+  const clinicId = resolveClinicContext({ user: requester, requestedClinicId });
+
   const Patient = require('./patient.model');
-  const patient = await Patient.findOne({ phone: String(phone).trim() });
+  const patient = await Patient.findOne({ phone: String(phone).trim(), clinicId });
   if (!patient) {
     return { exists: false };
   }
@@ -1041,23 +1044,30 @@ const verifyHistoryPassword = async ({ requester, password, requestedClinicId = 
 };
 
 const getMyClinics = async ({ requester }) => {
-  const { ensureUserClinicContext } = require('../../common/utils/clinicContext');
-  await ensureUserClinicContext(requester);
+  const Patient = require('./patient.model');
+  const Clinic = require('../clinics/clinic.model');
 
-  const patient = await resolvePatientForRequester({ requester });
-  if (!patient) {
-    throw new AppError('Patient profile not found.', HTTP_STATUS.NOT_FOUND);
+  const filters = [];
+  if (requester.email) {
+    filters.push({ email: String(requester.email).trim().toLowerCase() });
+  }
+  if (requester.phone) {
+    filters.push({ phone: String(requester.phone).trim() });
   }
 
-  const ClinicMembership = require('./clinicMembership.model');
-  const memberships = await ClinicMembership.find({ patientId: patient._id, status: 'active' }).populate({
-    path: 'clinicId',
-    populate: {
-      path: 'subscription.planId'
-    }
+  const patients = await Patient.find({
+    isActive: { $ne: false },
+    $or: filters
+  }).select('clinicId');
+
+  const clinicIds = patients.map(p => p.clinicId).filter(Boolean);
+
+  const clinics = await Clinic.find({
+    _id: { $in: clinicIds }
+  }).populate({
+    path: 'subscription.planId'
   });
 
-  const clinics = memberships.map(m => m.clinicId).filter(Boolean);
   return { clinics };
 };
 

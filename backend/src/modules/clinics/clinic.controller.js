@@ -1377,6 +1377,16 @@ const launchOnboarding = asyncHandler(async (req, res) => {
       }
     }
 
+    // Activate and approve all doctors created during setup wizard
+    if (createdDocIds.length > 0) {
+      await Doctor.updateMany({ _id: { $in: createdDocIds } }, { isActive: true, approvalStatus: 'approved' });
+      const docs = await Doctor.find({ _id: { $in: createdDocIds } }).select('userId');
+      const docUserIds = docs.map(d => d.userId).filter(Boolean);
+      if (docUserIds.length > 0) {
+        await User.updateMany({ _id: { $in: docUserIds } }, { isActive: true, approvalStatus: 'approved' });
+      }
+    }
+
     // Clean up draft onboarding record
     const OnboardingDraft = require('./onboardingDraft.model');
     await OnboardingDraft.deleteOne({ email: clinic.ownerDetails?.email?.toLowerCase() });

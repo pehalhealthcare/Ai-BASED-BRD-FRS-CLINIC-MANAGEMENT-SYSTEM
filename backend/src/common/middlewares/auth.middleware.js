@@ -33,7 +33,15 @@ const protect = async (req, _res, next) => {
       return next(new AppError(RESPONSE_MESSAGES.AUTHENTICATION_REQUIRED, HTTP_STATUS.UNAUTHORIZED));
     }
 
-    await ensureUserClinicContext(user);
+    const headerClinicId = req.headers['x-clinic-id'] || req.headers['X-Clinic-ID'];
+    if (headerClinicId) {
+      req.query.clinicId = headerClinicId;
+      if (user.role === 'patient') {
+        user.clinicId = headerClinicId;
+      }
+    } else {
+      await ensureUserClinicContext(user);
+    }
     req.user = user;
     return next();
   } catch (error) {

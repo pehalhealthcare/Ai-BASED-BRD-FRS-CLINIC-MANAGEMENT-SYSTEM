@@ -18,8 +18,12 @@ const createPatient = asyncHandler(async (req, res) => {
 });
 
 const checkExists = asyncHandler(async (req, res) => {
-  const { phone } = req.query;
-  const data = await patientService.checkExists({ phone });
+  const { phone, clinicId } = req.query;
+  const data = await patientService.checkExists({
+    requester: req.user,
+    phone,
+    requestedClinicId: clinicId
+  });
   return sendSuccess(res, 'Patient exist check completed', data);
 });
 

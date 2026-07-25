@@ -326,9 +326,8 @@ patientSchema.pre('validate', function setDerivedFields(next) {
 });
 
 patientSchema.index({ patientId: 1 }, { unique: true });
-patientSchema.index({ phone: 1 }, { unique: true });
 patientSchema.index({ clinicId: 1, patientId: 1 });
-patientSchema.index({ clinicId: 1, phone: 1 });
+patientSchema.index({ clinicId: 1, phone: 1 }, { unique: true });
 patientSchema.index({ clinicId: 1, fullName: 1 });
 patientSchema.index({ clinicId: 1, email: 1 });
 patientSchema.index({
@@ -356,5 +355,8 @@ patientSchema.methods.compareHistoryPassword = async function (candidatePassword
 };
 
 const Patient = mongoose.models.Patient || mongoose.model('Patient', patientSchema);
+
+// Self-healing: drop the old global unique phone index if it exists in the collection
+Patient.collection.dropIndex('phone_1').catch(() => {});
 
 module.exports = Patient;

@@ -16,6 +16,11 @@ apiClient.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`;
   }
 
+  const selectedClinicId = localStorage.getItem('patientActiveClinicId');
+  if (selectedClinicId) {
+    config.headers['X-Clinic-ID'] = selectedClinicId;
+  }
+
   return config;
 });
 

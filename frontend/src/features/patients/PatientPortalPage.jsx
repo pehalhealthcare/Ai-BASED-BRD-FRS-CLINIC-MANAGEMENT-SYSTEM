@@ -56,7 +56,7 @@ const PatientPortalPage = () => {
   const [notifications, setNotifications] = useState([]);
   const [clinics, setClinics] = useState([]);
   const [clinicDoctors, setClinicDoctors] = useState([]);
-  const [selectedClinicId, setSelectedClinicId] = useState(() => searchParams.get('clinicId') || '');
+  const [selectedClinicId, setSelectedClinicId] = useState(() => searchParams.get('clinicId') || localStorage.getItem('patientActiveClinicId') || '');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [globalSearchVal, setGlobalSearchVal] = useState('');
 
@@ -239,7 +239,22 @@ const PatientPortalPage = () => {
     }
   }, []);
 
-  useEffect(() => { loadPortal(true); }, [loadPortal]);
+  useEffect(() => {
+    if (selectedClinicId) {
+      localStorage.setItem('patientActiveClinicId', selectedClinicId);
+    }
+    loadPortal(true);
+  }, [selectedClinicId, loadPortal]);
+
+  useEffect(() => {
+    const handleClinicChange = (e) => {
+      setSelectedClinicId(e.detail);
+    };
+    window.addEventListener('patient:clinic-changed', handleClinicChange);
+    return () => {
+      window.removeEventListener('patient:clinic-changed', handleClinicChange);
+    };
+  }, []);
 
   useEffect(() => {
     const tab = searchParams.get('tab');
