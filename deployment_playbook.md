@@ -93,3 +93,35 @@ Verify deployment health using the following checklist:
 ### B. Dynamic Subscriptions Check
 - Log in to the Clinic Workspace and navigate to `/admin/subscription`.
 - Verify that features (`pharmacy` or `labs`) enable or completely hide sidebar tabs.
+
+---
+
+## 5. Recent Features, Solved Issues & Bug Fixes
+
+This section details recent updates, newly implemented features, and resolved technical issues.
+
+### A. New Modules & Core Features
+1. **Healthcare Provider Workspaces (Pharmacy & Laboratory):**
+   - **Operator Workspaces:** Built dedicated workspaces for Pharmacy and Laboratory operators (`PharmacyWorkspace.jsx`, `LaboratoryDetailPage.jsx`, etc.) to view and dispatch prescription orders.
+   - **Inventory Management:** Integrated advanced inventory workflows for medicine batches, supplier directories, inventory tracking, and dispensing logs.
+   - **Operator Staff Onboarding:** Implemented an automatic onboarding workflow for operators, including staff allocation modal wizards and operational quota checks.
+2. **Patient Portal & EMR Upgrades:**
+   - **Patient Portal:** Completed the portal components including appointment details, prescription orders workspace, and billing.
+   - **Chat System:** Integrated direct doctor-patient messaging with dedicated mongoose models for conversations and messages.
+   - **Vaccination EMR Registry:** Implemented a permanent Vaccinations EMR workspace registry with recommended immunization tracking.
+3. **UI / UX Refinements:**
+   - **Patient Notifications:** Repositioned notifications from the sidebar to a topbar header bell button.
+   - **EMR Workspaces:** Introduced browser-style closing tabs for workspace headers with horizontal scrolling to prevent viewport breaking.
+   - **Responsive Navigation:** Added a fully collapsible desktop sidebar with a hamburger toggle.
+
+### B. Resolved Issues & Bug Fixes
+1. **Clinic Onboarding Errors:**
+   - Fixed onboarding crashes by introducing the `onboardingDraft.model.js` draft schema and updating validation logic in the clinic controller.
+2. **Access Control & Routing:**
+   - Patched dashboard route access control to allow provider operator roles to view their profile onboarding wizard.
+3. **Syntax & Layout Corrections:**
+   - Fixed an unexpected token syntax error inside `LaboratoryWorkspace.jsx`.
+   - Patched layout cutoffs on smaller devices by adding `overflow-x-auto` to the main viewport wrapper.
+4. **Credential Auto-Generation:**
+   - Updated patient creation logic so that automatically created patient accounts have their login password set to their phone number.
+
