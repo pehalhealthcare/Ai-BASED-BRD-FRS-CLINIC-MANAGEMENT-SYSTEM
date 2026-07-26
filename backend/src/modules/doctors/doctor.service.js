@@ -119,21 +119,56 @@ const buildDoctorFilter = ({ clinicIds, search, specialization, isActive, approv
 };
 
 const getScopedDoctor = async ({ requester, doctorId, requestedClinicId = null }) => {
+  const mongoose = require('mongoose');
   const clinicId = resolveClinicContext({
     user: requester,
     requestedClinicId
   });
   
   const Doctor = require('./doctor.model');
-  let doctor;
-  if (requester.role === ROLES.RECEPTIONIST) {
-    doctor = await Doctor.findOne({ _id: doctorId, organizationId: requester.organizationId });
-  } else {
-    doctor = await doctorRepository.findDoctorByIdAndClinic({ doctorId, clinicId });
-  }
+  let doctor = await Doctor.findById(doctorId);
 
   if (!doctor) {
     throw new AppError('Doctor not found', HTTP_STATUS.NOT_FOUND);
+  }
+
+  if (requester.role === ROLES.SUPER_ADMIN) {
+    return doctor;
+  }
+
+  // Determine allowed clinic IDs based on requester role
+  let allowedClinicIds = [];
+  if (requester.role === ROLES.RECEPTIONIST || requester.role === ROLES.PATIENT) {
+    allowedClinicIds = [new mongoose.Types.ObjectId(clinicId)];
+  } else {
+    // Admin can see doctors in the whole clinic group
+    const Clinic = require('../clinics/clinic.model');
+    const targetClinic = await Clinic.findById(clinicId).select('parentClinicId');
+    const mainClinicId = targetClinic?.parentClinicId || clinicId;
+
+    const clinicsInGroup = await Clinic.find({
+      $or: [
+        { _id: mainClinicId },
+        { parentClinicId: mainClinicId }
+      ]
+    }).select('_id');
+
+    allowedClinicIds = clinicsInGroup.map(c => c._id);
+    if (!allowedClinicIds.some(id => String(id) === String(clinicId))) {
+      allowedClinicIds.push(new mongoose.Types.ObjectId(clinicId));
+    }
+  }
+
+  const allowedClinicStrs = allowedClinicIds.map(id => id.toString());
+  
+  const doctorClinicIdStr = doctor.clinicId ? doctor.clinicId.toString() : null;
+  const assignedClinicStrs = (doctor.assignedClinics || []).map(id => id.toString());
+
+  const hasAccess = (doctorClinicIdStr && allowedClinicStrs.includes(doctorClinicIdStr)) || 
+                    assignedClinicStrs.some(id => allowedClinicStrs.includes(id));
+
+  if (!hasAccess && requester.role !== ROLES.DOCTOR) {
+    throw new AppError('Doctor not found in your clinic network', HTTP_STATUS.NOT_FOUND);
   }
 
   return doctor;
@@ -270,20 +305,25 @@ const listDoctors = async ({ requester, query }) => {
     requestedClinicId: query.clinicId
   });
   
-  const Clinic = require('../clinics/clinic.model');
-  const targetClinic = await Clinic.findById(clinicId).select('parentClinicId');
-  const mainClinicId = targetClinic?.parentClinicId || clinicId;
+  let clinicIds = [];
+  if (requester.role === ROLES.RECEPTIONIST || requester.role === ROLES.PATIENT) {
+    clinicIds = [new mongoose.Types.ObjectId(clinicId)];
+  } else {
+    const Clinic = require('../clinics/clinic.model');
+    const targetClinic = await Clinic.findById(clinicId).select('parentClinicId');
+    const mainClinicId = targetClinic?.parentClinicId || clinicId;
 
-  const clinicsInGroup = await Clinic.find({
-    $or: [
-      { _id: mainClinicId },
-      { parentClinicId: mainClinicId }
-    ]
-  }).select('_id');
+    const clinicsInGroup = await Clinic.find({
+      $or: [
+        { _id: mainClinicId },
+        { parentClinicId: mainClinicId }
+      ]
+    }).select('_id');
 
-  const clinicIds = clinicsInGroup.map(c => c._id);
-  if (!clinicIds.some(id => String(id) === String(clinicId))) {
-    clinicIds.push(new mongoose.Types.ObjectId(clinicId));
+    clinicIds = clinicsInGroup.map(c => c._id);
+    if (!clinicIds.some(id => String(id) === String(clinicId))) {
+      clinicIds.push(new mongoose.Types.ObjectId(clinicId));
+    }
   }
 
   const { page, limit } = getPagination(query);
@@ -361,44 +401,57 @@ const updateDoctor = async ({ requester, doctorId, payload, requestedClinicId = 
     if (bankAccount.accountHolderName !== undefined) doctor.bankAccount.accountHolderName = bankAccount.accountHolderName;
   }
 
-  if (otherPayload.clinicId) {
-    const currentAssigned = otherPayload.assignedClinics || doctor.assignedClinics || [];
-    const assignedStr = currentAssigned.map((id) => id.toString());
-    if (!assignedStr.includes(otherPayload.clinicId.toString())) {
-      otherPayload.assignedClinics = [...currentAssigned, otherPayload.clinicId];
-    }
-  } else if (
-    otherPayload.assignedClinics &&
-    !otherPayload.assignedClinics.map((id) => id.toString()).includes(doctor.clinicId.toString())
-  ) {
-    otherPayload.assignedClinics = [...otherPayload.assignedClinics, doctor.clinicId];
-  }
+  const assignmentFields = ['clinicId', 'assignedClinics', 'availability', 'consultationDuration', 'clinicPolicies', 'leavePolicy'];
+  let hasAssignmentChanges = false;
+  let pendingData = doctor.pendingAssignment || {};
 
-  let availabilityChanged = false;
-  let newAvailability = doctor.availability;
-  if (payload.availability) {
-    if (!Array.isArray(payload.availability) || payload.availability.length === 0) {
-      throw new AppError('Weekly availability slots must be compulsorily assigned.', HTTP_STATUS.BAD_REQUEST);
+  assignmentFields.forEach(field => {
+    if (otherPayload[field] !== undefined) {
+      hasAssignmentChanges = true;
+      pendingData[field] = otherPayload[field];
+      delete otherPayload[field];
     }
-    const activeSlots = payload.availability.filter((a) => a.isAvailable);
-    if (activeSlots.length === 0) {
-      throw new AppError('At least one weekly slot must be marked as available.', HTTP_STATUS.BAD_REQUEST);
+  });
+
+  if (hasAssignmentChanges) {
+    if (pendingData.availability) {
+      if (!Array.isArray(pendingData.availability) || pendingData.availability.length === 0) {
+        throw new AppError('Weekly availability slots must be compulsorily assigned.', HTTP_STATUS.BAD_REQUEST);
+      }
+      const activeSlots = pendingData.availability.filter((a) => a.isAvailable);
+      if (activeSlots.length === 0) {
+        throw new AppError('At least one weekly slot must be marked as available.', HTTP_STATUS.BAD_REQUEST);
+      }
+      await validateAvailabilitySlots(doctor, pendingData.availability);
+      pendingData.availability = normalizeAvailability(pendingData.availability);
     }
-    await validateAvailabilitySlots(doctor, payload.availability);
-    newAvailability = normalizeAvailability(payload.availability);
-    doctor.hasAcceptedSlot = false;
-    availabilityChanged = true;
+    
+    if (pendingData.clinicId && !pendingData.assignedClinics) {
+      const currentAssigned = doctor.assignedClinics || [];
+      const assignedStr = currentAssigned.map((id) => id.toString());
+      if (!assignedStr.includes(pendingData.clinicId.toString())) {
+        pendingData.assignedClinics = [...currentAssigned, pendingData.clinicId];
+      }
+    }
+
+    doctor.pendingAssignment = pendingData;
+    doctor.assignmentStatus = 'pending_acceptance';
   }
 
   Object.assign(doctor, otherPayload, {
-    availability: newAvailability,
     updatedBy: requester._id
   });
   await doctor.save();
 
-  if (availabilityChanged) {
-    const User = require('../users/user.model');
-    await User.updateOne({ _id: doctor.userId }, { $set: { hasAcceptedSlot: false } });
+  if (hasAssignmentChanges) {
+    try {
+      const { sendDoctorAssignmentUpdateNotification } = require('../notifications/notification.service');
+      if (sendDoctorAssignmentUpdateNotification) {
+        await sendDoctorAssignmentUpdateNotification({ doctor, actorUserId: requester._id });
+      }
+    } catch (err) {
+      // Best effort
+    }
   }
 
   await createAuditLog({
@@ -430,13 +483,22 @@ const updateDoctorAvailability = async ({ requester, doctorId, availability, req
 
   await validateAvailabilitySlots(doctor, availability);
 
-  doctor.availability = normalizeAvailability(availability);
-  doctor.hasAcceptedSlot = false;
+  doctor.pendingAssignment = {
+    ...(doctor.pendingAssignment || {}),
+    availability: normalizeAvailability(availability)
+  };
+  doctor.assignmentStatus = 'pending_acceptance';
   doctor.updatedBy = requester._id;
   await doctor.save();
 
-  const User = require('../users/user.model');
-  await User.updateOne({ _id: doctor.userId }, { $set: { hasAcceptedSlot: false } });
+  try {
+    const { sendDoctorAssignmentUpdateNotification } = require('../notifications/notification.service');
+    if (sendDoctorAssignmentUpdateNotification) {
+      await sendDoctorAssignmentUpdateNotification({ doctor, actorUserId: requester._id });
+    }
+  } catch (err) {
+    // Best effort
+  }
 
   await createAuditLog({
     actorUserId: requester._id,
@@ -917,6 +979,94 @@ const validateAvailabilitySlots = async (doctor, availability) => {
   }
 };
 
+const acceptAssignmentChanges = async ({ requester, doctorId }) => {
+  const doctor = await getScopedDoctor({ requester, doctorId });
+  await ensureDoctorSelfAccess({ requester, clinicId: doctor.clinicId, doctor });
+
+  if (doctor.assignmentStatus !== 'pending_acceptance') {
+    throw new AppError('No pending assignment changes to accept.', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  const pending = doctor.pendingAssignment || {};
+  Object.assign(doctor, pending);
+  doctor.pendingAssignment = null;
+  doctor.assignmentStatus = 'active';
+  doctor.assignmentVersion += 1;
+  doctor.hasAcceptedSlot = true;
+  doctor.initialSlotAccepted = true;
+  await doctor.save();
+
+  const User = require('../users/user.model');
+  await User.updateOne({ _id: doctor.userId }, { $set: { hasAcceptedSlot: true } });
+
+  await createAuditLog({
+    actorUserId: requester._id,
+    action: 'DOCTOR_ASSIGNMENT_ACCEPTED',
+    entity: 'Doctor',
+    entityId: doctor._id,
+    metadata: {
+      version: doctor.assignmentVersion
+    },
+    ipAddress: '127.0.0.1',
+    userAgent: 'system',
+    status: 'SUCCESS'
+  });
+
+  return doctor;
+};
+
+const declineAssignmentChanges = async ({ requester, doctorId }) => {
+  const doctor = await getScopedDoctor({ requester, doctorId });
+  await ensureDoctorSelfAccess({ requester, clinicId: doctor.clinicId, doctor });
+
+  if (doctor.assignmentStatus !== 'pending_acceptance') {
+    throw new AppError('No pending assignment changes to decline.', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  doctor.pendingAssignment = null;
+  doctor.assignmentStatus = 'declined';
+  await doctor.save();
+
+  await createAuditLog({
+    actorUserId: requester._id,
+    action: 'DOCTOR_ASSIGNMENT_DECLINED',
+    entity: 'Doctor',
+    entityId: doctor._id,
+    metadata: {},
+    ipAddress: '127.0.0.1',
+    userAgent: 'system',
+    status: 'SUCCESS'
+  });
+
+  return doctor;
+};
+
+const clarifyAssignmentChanges = async ({ requester, doctorId, clarification }) => {
+  const doctor = await getScopedDoctor({ requester, doctorId });
+  await ensureDoctorSelfAccess({ requester, clinicId: doctor.clinicId, doctor });
+
+  if (doctor.assignmentStatus !== 'pending_acceptance') {
+    throw new AppError('No pending assignment changes to request clarification on.', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  doctor.assignmentStatus = 'clarification_requested';
+  doctor.assignmentClarification = clarification;
+  await doctor.save();
+
+  await createAuditLog({
+    actorUserId: requester._id,
+    action: 'DOCTOR_ASSIGNMENT_CLARIFICATION_REQUESTED',
+    entity: 'Doctor',
+    entityId: doctor._id,
+    metadata: { clarification },
+    ipAddress: '127.0.0.1',
+    userAgent: 'system',
+    status: 'SUCCESS'
+  });
+
+  return doctor;
+};
+
 module.exports = {
   createDoctor,
   listDoctors,
@@ -930,6 +1080,9 @@ module.exports = {
   updateMyProfile,
   submitMyProfile,
   acceptMySlot,
+  acceptAssignmentChanges,
+  declineAssignmentChanges,
+  clarifyAssignmentChanges,
   resolveDoctorFiles,
   validateAvailabilitySlots
 };

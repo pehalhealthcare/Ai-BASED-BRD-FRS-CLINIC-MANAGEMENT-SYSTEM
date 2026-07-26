@@ -21,6 +21,7 @@ import MyProfile from './PortalComponents/MyProfile';
 import MedicalHistory from './PortalComponents/MedicalHistory';
 import Appointments from './PortalComponents/Appointments';
 import Prescriptions from './PortalComponents/Prescriptions';
+import AppointmentDetailsModal from './PortalComponents/AppointmentDetailsModal';
 import Notifications from './PortalComponents/Notifications';
 import Records from './PortalComponents/Records';
 import BillingInsurance from './PortalComponents/BillingInsurance';

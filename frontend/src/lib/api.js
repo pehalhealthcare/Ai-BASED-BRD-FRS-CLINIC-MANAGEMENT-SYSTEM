@@ -103,7 +103,10 @@ const doctorApi = {
   updateMyProfile: (payload) => extractData(apiClient.put('/doctors/me/profile', payload)),
   submitMyProfile: (payload) => extractData(apiClient.post('/doctors/me/submit', payload)),
   acceptMySlot: () => extractData(apiClient.post('/doctors/me/accept-slot')),
-  smartSearch: (params = {}) => extractData(apiClient.get('/doctors/smart-search', { params }))
+  smartSearch: (params = {}) => extractData(apiClient.get('/doctors/smart-search', { params })),
+  acceptAssignmentChanges: (id) => extractData(apiClient.post(`/doctors/${id}/assignment/accept`)),
+  declineAssignmentChanges: (id) => extractData(apiClient.post(`/doctors/${id}/assignment/decline`)),
+  clarifyAssignmentChanges: (id, clarification) => extractData(apiClient.post(`/doctors/${id}/assignment/clarify`, { clarification }))
 };
 
 const receptionistApi = {

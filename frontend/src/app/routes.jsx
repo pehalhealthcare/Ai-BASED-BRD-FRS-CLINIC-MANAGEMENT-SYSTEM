@@ -595,7 +595,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'doctors/:id/edit',
-        element: protect(<DoctorFormPage />, [ROLES.ADMIN, ROLES.SUPER_ADMIN])
+        element: protect(<DoctorEditPage />, [ROLES.ADMIN, ROLES.SUPER_ADMIN])
       },
       { path: 'admin/doctors/:doctorId/review', element: protect(<DoctorReview />, [ROLES.ADMIN]) },
       { path: 'admin/doctors/:id/edit', element: protect(<DoctorEditPage />, [ROLES.ADMIN, ROLES.SUPER_ADMIN]) },

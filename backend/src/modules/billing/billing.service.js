@@ -851,6 +851,15 @@ const getPatientInvoices = async ({ requester, patientId, query = {}, requestedC
     user: requester,
     requestedClinicId: requestedClinicId || query.clinicId
   });
+
+  if (requester.role === ROLES.PATIENT) {
+    const { resolvePatientForRequester } = require('../patients/patient.service');
+    const linkedPatient = await resolvePatientForRequester({ requester, clinicId });
+    if (linkedPatient) {
+      patientId = linkedPatient._id;
+    }
+  }
+
   const patient = await patientRepository.findPatientByIdAndClinic({ patientId, clinicId });
 
   if (!patient) {
@@ -858,12 +867,7 @@ const getPatientInvoices = async ({ requester, patientId, query = {}, requestedC
   }
 
   if (requester.role === ROLES.PATIENT) {
-    const { resolvePatientForRequester } = require('../patients/patient.service');
-    const linkedPatient = await resolvePatientForRequester({ requester, clinicId });
-
-    if (String(linkedPatient._id) !== String(patient._id)) {
-      throw new AppError('You do not have permission to access these invoices.', HTTP_STATUS.FORBIDDEN);
-    }
+    // Permission check already handled by overriding patientId above
   }
 
   if (requester.role === ROLES.DOCTOR) {

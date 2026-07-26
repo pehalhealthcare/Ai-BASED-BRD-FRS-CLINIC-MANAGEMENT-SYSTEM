@@ -461,9 +461,11 @@ const createAppointment = async ({ requester, payload, requestedClinicId = null,
   if (requester.role === ROLES.PATIENT) {
     const { resolvePatientForRequester } = require('../patients/patient.service');
     const linkedPatient = await resolvePatientForRequester({ requester, clinicId });
-    if (!linkedPatient || String(linkedPatient._id) !== String(payload.patientId)) {
+    if (!linkedPatient) {
       throw new AppError('You can only book appointments for yourself.', HTTP_STATUS.FORBIDDEN);
     }
+    // Replace payload.patientId to make sure it's the correct clinic patient ID
+    payload.patientId = linkedPatient._id;
 
     // Check for any unpaid consultation invoices for this patient where the consultation has been completed
     const Invoice = require('../billing/invoice.model');
@@ -847,23 +849,31 @@ const getCalendarAppointments = async ({ requester, query }) => {
 };
 
 const getAvailableSlots = async ({ requester, query }) => {
-  const clinicId = resolveClinicContext({
+  const reqClinicId = resolveClinicContext({
     user: requester,
     requestedClinicId: query.clinicId
   });
-  const doctor = await doctorRepository.findDoctorByIdAndClinic({
+  
+  let doctor = await doctorRepository.findDoctorByIdAndClinic({
     doctorId: query.doctorId,
-    clinicId
+    clinicId: reqClinicId
   });
+
+  if (!doctor) {
+    const Doctor = require('../doctors/doctor.model');
+    doctor = await Doctor.findById(query.doctorId);
+  }
 
   if (!doctor || !doctor.isActive) {
     throw new AppError('Doctor not found.', HTTP_STATUS.NOT_FOUND);
   }
 
+  const targetClinicId = doctor.clinicId ? String(doctor.clinicId) : reqClinicId;
+
   const appointmentDate = normalizeDate(query.date);
 
-  const closedAppointments = await isClosedOnDate(clinicId, appointmentDate, 'appointments', query.appointmentType);
-  const closedSlots = await isClosedOnDate(clinicId, appointmentDate, 'doctor_slots', query.appointmentType);
+  const closedAppointments = await isClosedOnDate(targetClinicId, appointmentDate, 'appointments', query.appointmentType);
+  const closedSlots = await isClosedOnDate(targetClinicId, appointmentDate, 'doctor_slots', query.appointmentType);
   if (closedAppointments || closedSlots) {
     return {
       doctorId: String(doctor._id),
@@ -873,7 +883,7 @@ const getAvailableSlots = async ({ requester, query }) => {
   }
 
   const existingAppointments = await appointmentRepository.findDoctorAppointmentsForDate({
-    clinicId,
+    clinicId: targetClinicId,
     doctorId: doctor._id,
     appointmentDate,
     statuses: ACTIVE_APPOINTMENT_STATUSES
@@ -891,7 +901,7 @@ const getAvailableSlots = async ({ requester, query }) => {
     blockedSlots: doctor.blockedSlots || [],
     date: appointmentDate,
     durationMinutes: query.durationMinutes,
-    clinicId
+    clinicId: targetClinicId
   });
 
   const filteredSlots = slots.filter((slot) => {

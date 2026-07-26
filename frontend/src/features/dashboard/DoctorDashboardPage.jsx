@@ -350,6 +350,41 @@ const DoctorDashboardPage = () => {
     }
   };
 
+  // Handle Pending Assignment Changes
+  const handleAssignmentAccept = async () => {
+    if (!window.confirm('Are you sure you want to accept the new assignment changes?')) return;
+    try {
+      await doctorApi.acceptAssignmentChanges(profile._id);
+      toast.success('Assignment changes accepted successfully.');
+      loadData(true);
+    } catch (err) {
+      toast.error('Failed to accept assignment changes.');
+    }
+  };
+
+  const handleAssignmentDecline = async () => {
+    if (!window.confirm('Are you sure you want to decline the new assignment changes?')) return;
+    try {
+      await doctorApi.declineAssignmentChanges(profile._id);
+      toast.success('Assignment changes declined.');
+      loadData(true);
+    } catch (err) {
+      toast.error('Failed to decline assignment changes.');
+    }
+  };
+
+  const handleAssignmentClarify = async () => {
+    const clarification = window.prompt('Please enter your clarification message:');
+    if (!clarification) return;
+    try {
+      await doctorApi.clarifyAssignmentChanges(profile._id, clarification);
+      toast.success('Clarification requested successfully.');
+      loadData(true);
+    } catch (err) {
+      toast.error('Failed to request clarification.');
+    }
+  };
+
   // Stats Calculations
   const stats = useMemo(() => {
     const total = appointments.length;
@@ -440,7 +475,42 @@ const DoctorDashboardPage = () => {
         </div>
       </div>
 
-
+      {/* Pending Assignment Banner */}
+      {profile?.assignmentStatus === 'pending_acceptance' && (
+        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6 shadow-sm mb-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-start gap-4">
+            <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+              <AlertTriangle className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-blue-900">Pending Assignment Update</h3>
+              <p className="text-sm text-blue-700 mt-1">
+                Your clinic administrator has updated your clinic assignment and/or working schedule. Please review and accept the updated assignment before it becomes active.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 shrink-0">
+            <button 
+              onClick={handleAssignmentDecline}
+              className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50 transition"
+            >
+              Decline
+            </button>
+            <button 
+              onClick={handleAssignmentClarify}
+              className="px-4 py-2 bg-white border border-blue-300 text-blue-700 rounded-xl text-sm font-semibold hover:bg-blue-50 transition"
+            >
+              Request Clarification
+            </button>
+            <button 
+              onClick={handleAssignmentAccept}
+              className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition"
+            >
+              Accept Changes
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Top Statistics Row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-4">
@@ -1134,27 +1204,27 @@ const DoctorDashboardPage = () => {
           <div className="grid grid-cols-3 sm:grid-cols-6 gap-4 text-center">
             <div>
               <p className="text-[10px] text-slate-500 font-bold block uppercase">Total Patients</p>
-              <strong className="text-lg font-black text-slate-800 mt-1 block">12</strong>
+              <strong className="text-lg font-black text-slate-800 mt-1 block">{stats.total}</strong>
             </div>
             <div>
               <p className="text-[10px] text-slate-500 font-bold block uppercase">Completed</p>
-              <strong className="text-lg font-black text-emerald-650 mt-1 block">3</strong>
+              <strong className="text-lg font-black text-emerald-650 mt-1 block">{stats.completed}</strong>
             </div>
             <div>
               <p className="text-[10px] text-slate-500 font-bold block uppercase">In Progress</p>
-              <strong className="text-lg font-black text-indigo-600 mt-1 block">1</strong>
+              <strong className="text-lg font-black text-indigo-600 mt-1 block">{stats.inConsultation}</strong>
             </div>
             <div>
-              <p className="text-[10px] text-slate-500 font-bold block uppercase">Pending</p>
-              <strong className="text-lg font-black text-slate-700 mt-1 block">7</strong>
+              <p className="text-[10px] text-slate-500 font-bold block uppercase">Waiting</p>
+              <strong className="text-lg font-black text-slate-700 mt-1 block">{stats.waiting}</strong>
             </div>
             <div>
               <p className="text-[10px] text-slate-500 font-bold block uppercase">No Show</p>
-              <strong className="text-lg font-black text-rose-500 mt-1 block">1</strong>
+              <strong className="text-lg font-black text-rose-500 mt-1 block">{stats.noShow}</strong>
             </div>
             <div>
-              <p className="text-[10px] text-slate-500 font-bold block uppercase">Avg. Consultation Time</p>
-              <strong className="text-base font-black text-slate-800 mt-1.5 block">14 mins</strong>
+              <p className="text-[10px] text-slate-500 font-bold block uppercase">Unattended</p>
+              <strong className="text-base font-black text-slate-800 mt-1.5 block">{stats.unattended}</strong>
             </div>
           </div>
         </div>

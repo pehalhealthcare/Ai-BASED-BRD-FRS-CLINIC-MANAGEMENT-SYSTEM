@@ -48,7 +48,7 @@ const RoleDashboardPage = () => {
 
   if (user?.role === ROLES.DOCTOR) {
     if (user.approvalStatus === 'approved' && !user?.hasAcceptedSlot) {
-      return <DoctorOnboarding />;
+      return <DoctorOnboarding onProfileStatusChange={() => refreshUser(true)} />;
     }
     if (user.approvalStatus === 'pending_profile' || forceWizard) {
       return <DoctorOnboardingWizard />;

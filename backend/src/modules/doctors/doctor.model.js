@@ -74,6 +74,24 @@ const blockedSlotSchema = new mongoose.Schema(
   }
 );
 
+const leavePolicySchema = new mongoose.Schema(
+  {
+    maxCasualLeavesPerYear: { type: Number, default: 12 },
+    maxSickLeavesPerYear: { type: Number, default: 10 },
+    maxAnnualLeavesPerYear: { type: Number, default: 20 },
+    maxEmergencyLeavesPerYear: { type: Number, default: 5 },
+    maxConsecutiveLeaveDays: { type: Number, default: 7 },
+    minAdvanceNoticeDays: { type: Number, default: 3 },
+    autoRejectWithoutNotice: { type: Boolean, default: false },
+    allowHalfDayLeave: { type: Boolean, default: true },
+    allowEmergencyLeave: { type: Boolean, default: true },
+    requireApproval: { type: Boolean, default: true },
+    allowBackdatedLeave: { type: Boolean, default: false },
+    allowLeaveCancellation: { type: Boolean, default: true }
+  },
+  { _id: false }
+);
+
 const doctorSchema = new mongoose.Schema(
   {
     clinicId: {
@@ -88,6 +106,15 @@ const doctorSchema = new mongoose.Schema(
         ref: 'Clinic'
       }
     ],
+    leavePolicy: {
+      type: leavePolicySchema,
+      default: () => ({})
+    },
+    organizationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
@@ -257,6 +284,23 @@ const doctorSchema = new mongoose.Schema(
       default: {}
     },
     reEditComments: {
+      type: String,
+      default: ''
+    },
+    assignmentStatus: {
+      type: String,
+      enum: ['active', 'pending_acceptance', 'declined', 'clarification_requested'],
+      default: 'active'
+    },
+    assignmentVersion: {
+      type: Number,
+      default: 1
+    },
+    pendingAssignment: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null
+    },
+    assignmentClarification: {
       type: String,
       default: ''
     },

@@ -846,6 +846,15 @@ const getPatientNotificationHistory = async ({ requester, patientId, query = {},
     user: requester,
     requestedClinicId: requestedClinicId || query.clinicId
   });
+
+  if (requester.role === ROLES.PATIENT) {
+    const { resolvePatientForRequester } = require('../patients/patient.service');
+    const linkedPatient = await resolvePatientForRequester({ requester, clinicId });
+    if (linkedPatient) {
+      patientId = linkedPatient._id;
+    }
+  }
+
   const patient = await patientRepository.findPatientByIdAndClinic({
     patientId,
     clinicId

@@ -194,6 +194,14 @@ const getScopedPatient = async ({ requester, patientId, requestedClinicId = null
     requestedClinicId
   });
 
+  if (requester.role === ROLES.PATIENT) {
+    // We are inside patient.service, so we can just call resolvePatientForRequester
+    const linkedPatient = await resolvePatientForRequester({ requester, clinicId });
+    if (linkedPatient) {
+      patientId = linkedPatient._id;
+    }
+  }
+
   const patient = await patientRepository.findPatientByIdAndClinic({ patientId, clinicId });
 
   if (!patient) {

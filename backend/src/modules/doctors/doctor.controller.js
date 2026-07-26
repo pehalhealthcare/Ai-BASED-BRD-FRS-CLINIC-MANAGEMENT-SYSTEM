@@ -132,6 +132,31 @@ const acceptMySlot = asyncHandler(async (req, res) => {
   return sendSuccess(res, 'Doctor clinic slot details accepted successfully', { doctor });
 });
 
+const acceptAssignmentChanges = asyncHandler(async (req, res) => {
+  const doctor = await doctorService.acceptAssignmentChanges({
+    requester: req.user,
+    doctorId: req.params.id
+  });
+  return sendSuccess(res, 'Assignment changes accepted successfully', { doctor });
+});
+
+const declineAssignmentChanges = asyncHandler(async (req, res) => {
+  const doctor = await doctorService.declineAssignmentChanges({
+    requester: req.user,
+    doctorId: req.params.id
+  });
+  return sendSuccess(res, 'Assignment changes declined successfully', { doctor });
+});
+
+const clarifyAssignmentChanges = asyncHandler(async (req, res) => {
+  const doctor = await doctorService.clarifyAssignmentChanges({
+    requester: req.user,
+    doctorId: req.params.id,
+    clarification: req.body.clarification
+  });
+  return sendSuccess(res, 'Clarification requested successfully', { doctor });
+});
+
 const smartSearchDoctors = asyncHandler(async (req, res) => {
   const { specialization, preference, lat, lng } = req.query;
   const doctors = await smartSearchService({
@@ -157,5 +182,8 @@ module.exports = {
   updateMyProfile,
   submitMyProfile,
   acceptMySlot,
+  acceptAssignmentChanges,
+  declineAssignmentChanges,
+  clarifyAssignmentChanges,
   smartSearchDoctors
 };

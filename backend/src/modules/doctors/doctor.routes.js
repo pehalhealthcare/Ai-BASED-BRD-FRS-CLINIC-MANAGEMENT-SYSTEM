@@ -52,6 +52,9 @@ router.get(
 router.put('/me/profile', protect, authorize(ROLES.DOCTOR), doctorController.updateMyProfile);
 router.post('/me/submit', protect, authorize(ROLES.DOCTOR), doctorController.submitMyProfile);
 router.post('/me/accept-slot', protect, authorize(ROLES.DOCTOR), doctorController.acceptMySlot);
+router.post('/:id/assignment/accept', protect, authorize(ROLES.DOCTOR), doctorController.acceptAssignmentChanges);
+router.post('/:id/assignment/decline', protect, authorize(ROLES.DOCTOR), doctorController.declineAssignmentChanges);
+router.post('/:id/assignment/clarify', protect, authorize(ROLES.DOCTOR), doctorController.clarifyAssignmentChanges);
 router.get(
   '/:doctorId/availability',
   protect,
