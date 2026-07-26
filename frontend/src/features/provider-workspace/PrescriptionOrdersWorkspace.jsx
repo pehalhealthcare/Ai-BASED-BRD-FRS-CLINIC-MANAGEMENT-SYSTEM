@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   TrendingUp, Pill, ShoppingBag, Users, AlertTriangle,
   Search, Scan, RefreshCw, Barcode, Plus, Minus, Trash2,
@@ -29,14 +29,16 @@ const fmtTime = (d) => {
 };
 
 const STATUS_BADGES = {
-  pending:          { label: 'New',              cls: 'bg-blue-50 text-blue-700 border border-blue-200' },
-  confirmed:        { label: 'Confirmed',        cls: 'bg-emerald-50 text-emerald-700 border border-emerald-200' },
-  preparing:        { label: 'Preparing',        cls: 'bg-indigo-50 text-indigo-700 border border-indigo-200' },
-  ready_for_pickup: { label: 'Ready',            cls: 'bg-purple-50 text-purple-700 border border-purple-200' },
-  out_for_delivery: { label: 'Dispatched',       cls: 'bg-orange-50 text-orange-700 border border-orange-200' },
-  completed:        { label: 'Delivered',        cls: 'bg-emerald-100 text-emerald-800 border border-emerald-300' },
-  cancelled:        { label: 'Cancelled',        cls: 'bg-rose-50 text-rose-700 border border-rose-200' },
-  rejected:         { label: 'Rejected',         cls: 'bg-red-50 text-red-700 border border-red-200' }
+  pending:            { label: 'New',              cls: 'bg-blue-50 text-blue-700 border border-blue-200' },
+  confirmed:          { label: 'Confirmed',        cls: 'bg-blue-50 text-blue-700 border border-blue-250' },
+  preparing:          { label: 'Preparing',        cls: 'bg-indigo-50 text-indigo-700 border border-indigo-200' },
+  packed:             { label: 'Packed',           cls: 'bg-cyan-50 text-cyan-700 border border-cyan-200' },
+  ready_for_pickup:   { label: 'Ready for Pickup', cls: 'bg-purple-50 text-purple-700 border border-purple-200' },
+  ready_for_delivery: { label: 'Ready for Delivery',cls: 'bg-sky-50 text-sky-700 border border-sky-200' },
+  out_for_delivery:   { label: 'Out for Delivery', cls: 'bg-orange-50 text-orange-700 border border-orange-200' },
+  completed:          { label: 'Completed',        cls: 'bg-emerald-100 text-emerald-800 border border-emerald-300' },
+  cancelled:          { label: 'Cancelled',        cls: 'bg-rose-50 text-rose-700 border border-rose-200' },
+  rejected:           { label: 'Rejected',         cls: 'bg-red-50 text-red-700 border border-red-200' }
 };
 
 const PrescriptionOrdersWorkspace = () => {
@@ -58,7 +60,16 @@ const PrescriptionOrdersWorkspace = () => {
     value: 0
   });
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const selectedOrderRef = useRef(null);
+  selectedOrderRef.current = selectedOrder;
+
+  const ordersRef = useRef([]);
+  ordersRef.current = orders;
   const [showDetailsDrawer, setShowDetailsDrawer] = useState(false);
+  const [prepTime, setPrepTime] = useState('30 Minutes');
+  const [deliveryPartner, setDeliveryPartner] = useState('Self Delivery');
+  const [pickupCodeInput, setPickupCodeInput] = useState('');
+  const [showPickupVerify, setShowPickupVerify] = useState(false);
 
   // Filters & Tabs
   const [activeStatusTab, setActiveStatusTab] = useState('All'); // 'All' | 'Pending' | 'Preparing' | etc.
@@ -160,7 +171,7 @@ const PrescriptionOrdersWorkspace = () => {
       });
 
       // Sound notification logic
-      if (list.length > orders.length && orders.length > 0 && soundEnabled) {
+      if (list.length > ordersRef.current.length && ordersRef.current.length > 0 && soundEnabled) {
         try {
           const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-600.wav');
           audio.volume = 0.5;
@@ -173,10 +184,10 @@ const PrescriptionOrdersWorkspace = () => {
 
       // Maintain selection or select first if none selected
       if (list.length > 0) {
-        if (!selectedOrder) {
+        if (!selectedOrderRef.current) {
           setSelectedOrder(list[0]);
         } else {
-          const updated = list.find(o => o._id === selectedOrder._id);
+          const updated = list.find(o => o._id === selectedOrderRef.current._id);
           if (updated) setSelectedOrder(updated);
         }
       } else {
@@ -188,7 +199,7 @@ const PrescriptionOrdersWorkspace = () => {
     } finally {
       if (!isSilent) setLoading(false);
     }
-  }, [profileData, soundEnabled, selectedOrder, orders.length]);
+  }, [profileData, soundEnabled]);
 
   useEffect(() => {
     loadOrders();
@@ -224,12 +235,12 @@ const PrescriptionOrdersWorkspace = () => {
     // Status Tab filter
     if (activeStatusTab !== 'All') {
       const st = activeStatusTab.toLowerCase().replace(/ /g, '_');
-      if (st === 'pending' && o.status !== 'pending') return false;
-      if (st === 'confirmed' && o.status !== 'confirmed') return false;
+      if (st === 'new_orders' && o.status !== 'pending' && o.status !== 'confirmed') return false;
       if (st === 'preparing' && o.status !== 'preparing') return false;
-      if (st === 'ready' && o.status !== 'ready_for_pickup') return false;
-      if (st === 'dispatched' && o.status !== 'out_for_delivery') return false;
-      if (st === 'delivered' && o.status !== 'completed') return false;
+      if (st === 'ready_for_pickup' && o.status !== 'ready_for_pickup') return false;
+      if (st === 'ready_for_delivery' && o.status !== 'ready_for_delivery') return false;
+      if (st === 'out_for_delivery' && o.status !== 'out_for_delivery') return false;
+      if (st === 'completed' && o.status !== 'completed') return false;
       if (st === 'cancelled' && o.status !== 'cancelled' && o.status !== 'rejected') return false;
     }
 
@@ -332,7 +343,7 @@ const PrescriptionOrdersWorkspace = () => {
               
               {/* Status tabs */}
               <div className="flex border-b border-slate-100 overflow-x-auto scrollbar-none">
-                {['All', 'Pending', 'Preparing', 'Ready', 'Dispatched', 'Delivered', 'Cancelled'].map(t => (
+                {['All', 'New Orders', 'Preparing', 'Ready for Pickup', 'Ready for Delivery', 'Out for Delivery', 'Completed', 'Cancelled'].map(t => (
                   <button
                     key={t}
                     onClick={() => setActiveStatusTab(t)}
@@ -340,7 +351,7 @@ const PrescriptionOrdersWorkspace = () => {
                       activeStatusTab === t ? 'border-blue-600 text-blue-600 bg-blue-50/20' : 'border-transparent text-slate-400 hover:text-slate-700'
                     }`}
                   >
-                    {t} Orders
+                    {t === 'All' ? 'All Orders' : t}
                   </button>
                 ))}
               </div>
@@ -649,9 +660,11 @@ const PrescriptionOrdersWorkspace = () => {
                 </div>
 
                 {/* Footer Action Buttons */}
-                <div className="p-6 border-t border-slate-100 flex gap-2 shrink-0 bg-slate-50">
-                  {selectedOrder.status === 'pending' && !selectedOrder.isPharmacistCreated ? (
-                    <>
+                <div className="p-6 border-t border-slate-100 flex flex-col gap-3 shrink-0 bg-slate-50">
+                  {/* Step-by-Step workflow based on order status */}
+                  
+                  {selectedOrder.status === 'pending' && (
+                    <div className="flex gap-2">
                       <button 
                         onClick={() => {
                           handleUpdateStatus(selectedOrder._id, 'confirmed');
@@ -659,7 +672,7 @@ const PrescriptionOrdersWorkspace = () => {
                         }}
                         className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-sm transition"
                       >
-                        Accept Order
+                        Accept & Verify Prescription
                       </button>
                       <button 
                         onClick={() => {
@@ -670,15 +683,159 @@ const PrescriptionOrdersWorkspace = () => {
                       >
                         Reject Order
                       </button>
-                    </>
-                  ) : (
+                    </div>
+                  )}
+
+                  {selectedOrder.status === 'confirmed' && (
                     <button 
-                      onClick={() => setShowDetailsDrawer(false)}
-                      className="w-full py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-black transition"
+                      onClick={() => {
+                        handleUpdateStatus(selectedOrder._id, 'preparing');
+                      }}
+                      className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black shadow-sm transition"
                     >
-                      Close Window
+                      Start Preparing Medicines
                     </button>
                   )}
+
+                  {selectedOrder.status === 'preparing' && (
+                    <div className="space-y-3">
+                      {selectedOrder.deliveryMethod === 'Pickup' ? (
+                        <>
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase">Estimated Pickup Time</label>
+                            <select
+                              value={prepTime}
+                              onChange={(e) => setPrepTime(e.target.value)}
+                              className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                            >
+                              <option value="15 Minutes">15 Minutes</option>
+                              <option value="30 Minutes">30 Minutes</option>
+                              <option value="45 Minutes">45 Minutes</option>
+                              <option value="1 Hour">1 Hour</option>
+                              <option value="2 Hours">2 Hours</option>
+                              <option value="Custom Time">Custom Time</option>
+                            </select>
+                          </div>
+                          <button 
+                            onClick={() => {
+                              handleUpdateStatus(selectedOrder._id, 'ready_for_pickup', `Ready in ${prepTime}`);
+                            }}
+                            className="w-full py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-black shadow-sm transition"
+                          >
+                            Mark Ready for Pickup
+                          </button>
+                        </>
+                      ) : (
+                        <button 
+                          onClick={() => {
+                            handleUpdateStatus(selectedOrder._id, 'packed');
+                          }}
+                          className="w-full py-2.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl text-xs font-black shadow-sm transition"
+                        >
+                          Pack Medicines (Deduct Stock)
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {selectedOrder.status === 'packed' && (
+                    <button 
+                      onClick={() => {
+                        handleUpdateStatus(selectedOrder._id, 'ready_for_delivery');
+                      }}
+                      className="w-full py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-black shadow-sm transition"
+                    >
+                      Mark Ready for Delivery
+                    </button>
+                  )}
+
+                  {selectedOrder.status === 'ready_for_delivery' && (
+                    <div className="space-y-3">
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Delivery Partner</label>
+                        <input
+                          type="text"
+                          value={deliveryPartner}
+                          onChange={(e) => setDeliveryPartner(e.target.value)}
+                          placeholder="e.g. Dunzo, PhHealth Delivery, etc."
+                          className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                        />
+                      </div>
+                      <button 
+                        onClick={() => {
+                          handleUpdateStatus(selectedOrder._id, 'out_for_delivery');
+                        }}
+                        className="w-full py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-black shadow-sm transition"
+                      >
+                        Dispatch / Out for Delivery
+                      </button>
+                    </div>
+                  )}
+
+                  {selectedOrder.status === 'out_for_delivery' && (
+                    <button 
+                      onClick={() => {
+                        handleUpdateStatus(selectedOrder._id, 'completed');
+                      }}
+                      className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-sm transition"
+                    >
+                      Mark Delivered (Complete Order)
+                    </button>
+                  )}
+
+                  {selectedOrder.status === 'ready_for_pickup' && (
+                    <div className="space-y-3 border border-purple-100 bg-purple-50/30 p-3 rounded-2xl">
+                      <p className="text-[10px] font-black text-purple-700 uppercase">Verify Pickup Code / OTP</p>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={pickupCodeInput}
+                          onChange={(e) => setPickupCodeInput(e.target.value)}
+                          placeholder="Enter 6-digit Code"
+                          className="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-center focus:outline-none focus:ring-2 focus:ring-purple-500 uppercase"
+                        />
+                        <button
+                          onClick={() => {
+                            const expected = selectedOrder._id.slice(-6).toUpperCase();
+                            if (pickupCodeInput.trim().toUpperCase() === expected) {
+                              handleUpdateStatus(selectedOrder._id, 'completed');
+                              setPickupCodeInput('');
+                            } else {
+                              toast.error('Invalid Pickup Code. Try again.');
+                            }
+                          }}
+                          className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-black transition"
+                        >
+                          Verify
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Print functions */}
+                  {['packed', 'ready_for_delivery', 'out_for_delivery', 'completed'].includes(selectedOrder.status) && (
+                    <div className="flex gap-2 mt-1">
+                      <button
+                        onClick={() => window.print()}
+                        className="flex-1 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-lg text-[10px] font-bold transition flex items-center justify-center gap-1"
+                      >
+                        <Printer className="w-3.5 h-3.5" /> Print Invoice
+                      </button>
+                      <button
+                        onClick={() => window.print()}
+                        className="flex-1 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-lg text-[10px] font-bold transition flex items-center justify-center gap-1"
+                      >
+                        <FileText className="w-3.5 h-3.5" /> Packing Slip
+                      </button>
+                    </div>
+                  )}
+
+                  <button 
+                    onClick={() => setShowDetailsDrawer(false)}
+                    className="w-full py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-black transition"
+                  >
+                    Close Window
+                  </button>
                 </div>
 
               </div>

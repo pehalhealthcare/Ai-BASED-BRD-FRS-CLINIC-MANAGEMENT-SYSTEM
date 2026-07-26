@@ -157,6 +157,14 @@ router.get(
   queueController.getDoctorQueue
 );
 
+router.get(
+  '/queue-sorted/:doctorId/current',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ...STAFF_ROLES, ROLES.DOCTOR),
+  validate(doctorIdParamSchema),
+  queueController.getCurrentConsultation
+);
+
 router.post(
   '/queue-sorted/:doctorId/call-next',
   protect,
@@ -177,6 +185,13 @@ router.post(
   protect,
   authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ...STAFF_ROLES, ROLES.DOCTOR),
   queueController.completeConsultation
+);
+
+router.post(
+  '/queue-sorted/revisit/:tokenId',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ...STAFF_ROLES, ROLES.DOCTOR),
+  queueController.revisitConsultation
 );
 
 router.post(

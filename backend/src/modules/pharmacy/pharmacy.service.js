@@ -463,6 +463,13 @@ const listMedicines = async ({ requester, query = {}, requestedClinicId = null }
     } else {
       filter.createdBy = new mongoose.Types.ObjectId(); // Dummy non-matching ID
     }
+
+    // Override clinicId filter with the provider's home clinicId
+    const Provider = require('../providers/provider.model');
+    const provider = await Provider.findById(query.providerId);
+    if (provider && provider.clinicId) {
+      filter.clinicId = provider.clinicId;
+    }
   }
 
   console.log('listMedicines QUERY FILTER:', JSON.stringify(filter));
@@ -1416,25 +1423,16 @@ const createPharmacyOrder = async ({ requester, payload, req }) => {
     throw new AppError('This medicine is currently unavailable.', HTTP_STATUS.BAD_REQUEST);
   }
 
-  if (medicine.totalStock < payload.quantity) {
-    throw new AppError('Insufficient stock available.', HTTP_STATUS.BAD_REQUEST);
-  }
-
-  // Deduct stock immediately to hold the reservation
-  const { allocations, remainingQuantity } = allocateDispensingBatches({
-    medicine,
-    requestedQuantity: payload.quantity
+  // Calculate reserved stock from active orders (excluding completed, cancelled, rejected)
+  const activeOrders = await PharmacyOrder.find({
+    medicineId: medicine._id,
+    status: { $in: ['pending', 'confirmed', 'preparing', 'ready_for_pickup', 'ready_for_delivery', 'out_for_delivery'] }
   });
+  const reservedStock = activeOrders.reduce((sum, o) => sum + o.quantity, 0);
+  const availableStock = medicine.totalStock - reservedStock;
 
-  if (remainingQuantity > 0) {
-    throw new AppError('Failed to allocate medicine from batches. Insufficient active/unexpired stock.', HTTP_STATUS.BAD_REQUEST);
-  }
-
-  await medicine.save();
-  if (medicine.batches && medicine.batches.length > 0) {
-    for (const batch of medicine.batches) {
-      if (batch.save) await batch.save();
-    }
+  if (availableStock < payload.quantity) {
+    throw new AppError('Insufficient stock available (some items are reserved for pending orders).', HTTP_STATUS.BAD_REQUEST);
   }
 
   const totalPrice = Number((medicine.sellingPrice || medicine.unitPrice || 0) * payload.quantity);
@@ -1527,22 +1525,53 @@ const listPharmacyOrders = async ({ requester, query = {} }) => {
   };
 };
 
-const updatePharmacyOrderStatus = async ({ requester, orderId, status, req }) => {
+const updatePharmacyOrderStatus = async ({ requester, orderId, payload, req }) => {
+  const { status, rejectionReason, preparationTime, deliveryPartner } = payload;
   const order = await PharmacyOrder.findById(orderId);
   if (!order) {
     throw new AppError('Order not found.', HTTP_STATUS.NOT_FOUND);
   }
 
-  if (order.status === status) {
-    return order;
+  const oldStatus = order.status;
+  if (status) order.status = status;
+  if (rejectionReason) order.rejectionReason = rejectionReason;
+  if (preparationTime) order.preparationTime = preparationTime;
+  
+  if (deliveryPartner) {
+    order.meta = order.meta || {};
+    order.meta.deliveryPartner = deliveryPartner;
+    order.markModified('meta');
   }
 
-  const oldStatus = order.status;
-  order.status = status;
-  await order.save();
+  // 1. DEDUCT INVENTORY LOGIC
+  // If transitioning to packed (Home Delivery) or completed (Self Pickup), deduct stock if not done already
+  const shouldDeduct = (status === 'packed' || (status === 'completed' && order.deliveryMethod === 'Pickup'));
+  if (shouldDeduct && !order.meta?.isInventoryDeducted) {
+    const medicine = await Medicine.findOne({ _id: order.medicineId, clinicId: order.clinicId });
+    if (medicine) {
+      const { allocations, remainingQuantity } = allocateDispensingBatches({
+        medicine,
+        requestedQuantity: order.quantity
+      });
+      if (remainingQuantity > 0) {
+        throw new AppError('Failed to allocate medicine from batches. Insufficient active/unexpired stock.', HTTP_STATUS.BAD_REQUEST);
+      }
+      await medicine.save();
+      if (medicine.batches && medicine.batches.length > 0) {
+        for (const batch of medicine.batches) {
+          if (batch.save) await batch.save();
+        }
+      }
+      order.meta = order.meta || {};
+      order.meta.isInventoryDeducted = true;
+      order.markModified('meta');
+    }
+  }
 
-  // If order is cancelled, return the stock
-  if (status === 'cancelled' && oldStatus !== 'cancelled') {
+  // 2. REVERT/RESTOCK INVENTORY LOGIC
+  // If transitioning to cancelled/rejected and it WAS already deducted, return the stock
+  const shouldRevert = (status === 'cancelled' || status === 'rejected');
+  if (shouldRevert && order.meta?.isInventoryDeducted) {
     const medicine = await Medicine.findById(order.medicineId);
     if (medicine) {
       let batch = await MedicineBatch.findOne({ inventoryId: medicine._id }).sort({ expiryDate: -1 });
@@ -1565,8 +1594,12 @@ const updatePharmacyOrderStatus = async ({ requester, orderId, status, req }) =>
       const allBatches = await MedicineBatch.find({ inventoryId: medicine._id });
       medicine.totalStock = allBatches.reduce((sum, b) => sum + b.availableStock, 0);
       await medicine.save();
+      order.meta.isInventoryDeducted = false;
+      order.markModified('meta');
     }
   }
+
+  await order.save();
 
   await createAuditLog({
     actorUserId: requester._id,

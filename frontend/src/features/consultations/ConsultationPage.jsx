@@ -939,7 +939,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
       toast.error('Primary diagnosis is required.');
       return;
     }
-    if (!form.treatmentPlan?.trim()) {
+    if (!treatmentPlanText?.trim()) {
       toast.error('Treatment plan is required.');
       return;
     }

@@ -1698,7 +1698,7 @@ const PatientPortalPage = () => {
                     medicineId: item.id,
                     quantity: qty,
                     prescriptionType,
-                    prescriptionId: prescriptionType === 'system' ? selectedPrescriptionId : null,
+                    prescriptionId: (prescriptionType === 'system' && selectedPrescriptionId) ? selectedPrescriptionId : null,
                     prescriptionFile: prescriptionType === 'manual' ? manualPrescriptionFile : '',
                     clinicId: selectedClinicId,
                     deliveryMethod,
@@ -2245,18 +2245,23 @@ const PatientPortalPage = () => {
                     } else if (ord.status === 'preparing') {
                       statusLabel = 'Preparing Order';
                       statusStyle = 'bg-indigo-50 text-indigo-700 border-indigo-200';
+                    } else if (ord.status === 'packed') {
+                      statusLabel = 'Packed';
+                      statusStyle = 'bg-cyan-50 text-cyan-700 border-cyan-200';
                     } else if (ord.status === 'ready_for_pickup') {
                       statusLabel = 'Ready for Pickup';
                       statusStyle = 'bg-purple-50 text-purple-700 border-purple-200';
+                    } else if (ord.status === 'ready_for_delivery') {
+                      statusLabel = 'Ready for Delivery';
+                      statusStyle = 'bg-sky-50 text-sky-700 border-sky-200';
                     } else if (ord.status === 'out_for_delivery') {
                       statusLabel = 'Out for Delivery';
                       statusStyle = 'bg-purple-50 text-purple-700 border-purple-200';
                     } else if (ord.status === 'completed') {
-                      statusLabel = 'Completed';
+                      statusLabel = ord.deliveryMethod === 'Pickup' ? 'Picked Up' : 'Delivered';
                       statusStyle = 'bg-emerald-50 text-emerald-700 border-emerald-200';
                     } else if (ord.status === 'cancelled') {
                       statusLabel = 'Cancelled';
-                      statusStyle = 'bg-slate-50 text-slate-500 border-slate-200';
                     } else if (ord.status === 'rejected') {
                       statusLabel = 'Rejected';
                       statusStyle = 'bg-rose-50 text-rose-700 border-rose-200';

@@ -196,7 +196,9 @@ const listPharmacyOrdersQuerySchema = z.object({
       'pending',
       'confirmed',
       'preparing',
+      'packed',
       'ready_for_pickup',
+      'ready_for_delivery',
       'out_for_delivery',
       'completed',
       'cancelled',
@@ -210,7 +212,21 @@ const listPharmacyOrdersQuerySchema = z.object({
 const updatePharmacyOrderStatusSchema = z.object({
   params: objectIdParamSchema('id').shape.params,
   body: z.object({
-    status: z.enum(['pending', 'completed', 'cancelled'])
+    status: z.enum([
+      'pending',
+      'confirmed',
+      'preparing',
+      'packed',
+      'ready_for_pickup',
+      'ready_for_delivery',
+      'out_for_delivery',
+      'completed',
+      'cancelled',
+      'rejected'
+    ]),
+    rejectionReason: z.string().optional(),
+    preparationTime: z.string().optional(),
+    deliveryPartner: z.string().optional()
   })
 });
 

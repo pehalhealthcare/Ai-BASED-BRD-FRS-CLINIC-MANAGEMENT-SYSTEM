@@ -1197,7 +1197,21 @@ const completeConsultation = async ({ requester, consultationId, payload, reques
   }
   consultation.billingReady = true;
   consultation.updatedBy = requester._id;
+
   await consultation.save();
+  await completeAppointmentIfPossible(consultation.appointmentId);
+
+  // Complete token if it exists
+  const Token = require('../appointments/queue.model');
+  const activeToken = await Token.findOne({
+    appointmentId: consultation.appointmentId?._id || consultation.appointmentId,
+    status: 'in_consultation'
+  });
+  if (activeToken) {
+    activeToken.status = 'completed';
+    activeToken.consultationCompleted = new Date();
+    await activeToken.save();
+  }
 
   // Auto-dispense/create pharmacy order for finalized prescriptions
   try {

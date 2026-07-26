@@ -178,7 +178,7 @@ const updatePharmacyOrderStatus = asyncHandler(async (req, res) => {
   const pharmacyOrder = await pharmacyService.updatePharmacyOrderStatus({
     requester: req.user,
     orderId: req.params.id,
-    status: req.body.status,
+    payload: req.body,
     req
   });
   return sendSuccess(res, 'Pharmacy order status updated successfully', { pharmacyOrder });

@@ -223,7 +223,7 @@ const getSortedQueue = async (doctorId) => {
   const tokens = await Token.find({
     doctorId,
     createdAt: { $gte: startOfDay, $lte: endOfDay },
-    status: { $in: ['waiting', 'called', 'in_consultation', 'skipped'] }
+    status: { $in: ['waiting', 'called', 'skipped'] }
   }).populate({
     path: 'appointmentId',
     populate: { path: 'patientId' }
@@ -346,6 +346,22 @@ const startTokenConsultation = async (tokenId) => {
   const token = await Token.findById(tokenId);
   if (!token) throw new AppError('Token not found.', HTTP_STATUS.NOT_FOUND);
 
+  // Validate only one active consultation
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+  const endOfDay = new Date();
+  endOfDay.setHours(23, 59, 59, 999);
+
+  const activeConsultation = await Token.findOne({
+    doctorId: token.doctorId,
+    status: 'in_consultation',
+    createdAt: { $gte: startOfDay, $lte: endOfDay }
+  });
+
+  if (activeConsultation && String(activeConsultation._id) !== String(token._id)) {
+    throw new AppError('Consultation Already In Progress', HTTP_STATUS.CONFLICT);
+  }
+
   if (token.appointmentId) {
     const appt = await Appointment.findById(token.appointmentId);
     if (appt && !isPaymentCompleted(appt)) {
@@ -387,6 +403,43 @@ const completeTokenConsultation = async (tokenId) => {
     }
   }
 
+  return token;
+};
+
+/**
+ * Get Current Active Consultation
+ */
+const getCurrentConsultation = async (doctorId) => {
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+  const endOfDay = new Date();
+  endOfDay.setHours(23, 59, 59, 999);
+
+  const activeConsultation = await Token.findOne({
+    doctorId,
+    status: 'in_consultation',
+    createdAt: { $gte: startOfDay, $lte: endOfDay }
+  }).populate({
+    path: 'appointmentId',
+    populate: { path: 'patientId' }
+  });
+
+  return activeConsultation;
+};
+
+/**
+ * Revisit Completed Consultation
+ */
+const revisitConsultation = async (tokenId) => {
+  const token = await Token.findById(tokenId);
+  if (!token) throw new AppError('Token not found.', HTTP_STATUS.NOT_FOUND);
+
+  if (token.status !== 'completed') {
+    throw new AppError('Only completed consultations can be revisited.', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  // Audit log for revisit can be handled by a queue audit or consultation audit log.
+  // For now, we simply return the token to allow the doctor to navigate to the consultation page.
   return token;
 };
 
@@ -539,6 +592,8 @@ module.exports = {
   callNextPatient,
   startTokenConsultation,
   completeTokenConsultation,
+  getCurrentConsultation,
+  revisitConsultation,
   skipToken,
   recallToken,
   reorderQueue,

@@ -389,7 +389,7 @@ const validateProviderData = asyncHandler(async (req, res) => {
 });
 
 const getProviders = asyncHandler(async (req, res) => {
-  const clinicId = req.user.clinicId || req.query.clinicId;
+  const clinicId = (req.user.role === 'PATIENT' ? req.query.clinicId : null) || req.user.clinicId || req.query.clinicId;
   if (!clinicId) {
     throw new AppError('Clinic ID is required', HTTP_STATUS.BAD_REQUEST);
   }
@@ -398,7 +398,7 @@ const getProviders = asyncHandler(async (req, res) => {
 });
 
 const getProvider = asyncHandler(async (req, res) => {
-  const clinicId = req.user.clinicId || req.query.clinicId;
+  const clinicId = (req.user.role === 'PATIENT' ? req.query.clinicId : null) || req.user.clinicId || req.query.clinicId;
   if (!clinicId) {
     throw new AppError('Clinic ID is required', HTTP_STATUS.BAD_REQUEST);
   }
@@ -437,7 +437,7 @@ const getClinicBranches = asyncHandler(async (req, res) => {
 });
 
 const getLaboratoryStats = asyncHandler(async (req, res) => {
-  const clinicId = req.user.clinicId || req.query.clinicId;
+  const clinicId = (req.user.role === 'PATIENT' ? req.query.clinicId : null) || req.user.clinicId || req.query.clinicId;
   if (!clinicId) {
     throw new AppError('Clinic ID is required', HTTP_STATUS.BAD_REQUEST);
   }

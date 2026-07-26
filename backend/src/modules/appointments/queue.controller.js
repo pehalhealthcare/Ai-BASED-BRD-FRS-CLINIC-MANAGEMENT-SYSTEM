@@ -20,6 +20,11 @@ const getDoctorQueue = asyncHandler(async (req, res) => {
   return sendSuccess(res, 'Queue retrieved successfully.', { queue });
 });
 
+const getCurrentConsultation = asyncHandler(async (req, res) => {
+  const result = await queueService.getCurrentConsultation(req.params.doctorId);
+  return sendSuccess(res, 'Current active consultation retrieved successfully.', { activeConsultation: result });
+});
+
 const callNext = asyncHandler(async (req, res) => {
   const result = await queueService.callNextPatient(req.params.doctorId);
   return sendSuccess(res, 'Next patient called successfully.', { token: result });
@@ -33,6 +38,11 @@ const startConsultation = asyncHandler(async (req, res) => {
 const completeConsultation = asyncHandler(async (req, res) => {
   const result = await queueService.completeTokenConsultation(req.params.tokenId);
   return sendSuccess(res, 'Consultation completed successfully.', { token: result });
+});
+
+const revisitConsultation = asyncHandler(async (req, res) => {
+  const result = await queueService.revisitConsultation(req.params.tokenId);
+  return sendSuccess(res, 'Consultation reopened for revisit.', { token: result });
 });
 
 const skipPatient = asyncHandler(async (req, res) => {
@@ -93,9 +103,11 @@ const reassignSkipped = asyncHandler(async (req, res) => {
 module.exports = {
   checkInPatient,
   getDoctorQueue,
+  getCurrentConsultation,
   callNext,
   startConsultation,
   completeConsultation,
+  revisitConsultation,
   skipPatient,
   recallPatient,
   reorderPatient,

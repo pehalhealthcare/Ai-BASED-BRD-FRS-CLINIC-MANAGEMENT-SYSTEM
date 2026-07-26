@@ -63,6 +63,7 @@ const DoctorDashboardPage = () => {
   // Selected patient/token for Center consultation panel
   const [selectedToken, setSelectedToken] = useState(null);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const [activeConsultation, setActiveConsultation] = useState(null);
 
   // Active status tab for Today's Appointments (Left Column)
   const [activeTab, setActiveTab] = useState('All');
@@ -154,14 +155,24 @@ const DoctorDashboardPage = () => {
         const sortedQueue = queueRes.data?.queue || queueRes.queue || [];
         setQueue(sortedQueue);
 
-        // Auto select current active token if any
-        const active = sortedQueue.find(t => t.status === 'in_consultation' || t.status === 'called');
-        if (active) {
-          setSelectedToken(active);
+        // 4. Fetch Active Consultation
+        const activeRes = await appointmentApi.getCurrentConsultation(doctorId);
+        const activeToken = activeRes.data?.activeConsultation || activeRes.activeConsultation || null;
+        setActiveConsultation(activeToken);
+
+        // Auto select current active token if any, or the first waiting
+        if (activeToken) {
+          setSelectedToken(activeToken);
           setSelectedAppointment(null);
-        } else if (sortedQueue.length > 0 && !selectedToken) {
-          setSelectedToken(sortedQueue[0]);
-          setSelectedAppointment(null);
+        } else {
+          const called = sortedQueue.find(t => t.status === 'called');
+          if (called) {
+            setSelectedToken(called);
+            setSelectedAppointment(null);
+          } else if (sortedQueue.length > 0 && !selectedToken) {
+            setSelectedToken(sortedQueue[0]);
+            setSelectedAppointment(null);
+          }
         }
       }
     } catch (err) {
@@ -184,10 +195,20 @@ const DoctorDashboardPage = () => {
         .then(res => {
           const sortedQueue = res.data?.queue || res.queue || [];
           setQueue(sortedQueue);
-          // Sync selected token state
+          // Sync selected token state if in queue
           if (selectedToken) {
             const updated = sortedQueue.find(t => t._id === selectedToken._id);
             if (updated) setSelectedToken(updated);
+          }
+        })
+        .catch(() => null);
+
+      appointmentApi.getCurrentConsultation(profile._id)
+        .then(res => {
+          const activeToken = res.data?.activeConsultation || res.activeConsultation || null;
+          setActiveConsultation(activeToken);
+          if (activeToken && selectedToken?._id === activeToken._id) {
+            setSelectedToken(activeToken);
           }
         })
         .catch(() => null);
@@ -198,8 +219,7 @@ const DoctorDashboardPage = () => {
   // Live timer for active consultation
   useEffect(() => {
     let interval = null;
-    const active = queue.find(t => t.status === 'in_consultation');
-    if (active) {
+    if (activeConsultation) {
       interval = setInterval(() => {
         setConsultationSeconds(sec => sec + 1);
       }, 1000);
@@ -207,7 +227,7 @@ const DoctorDashboardPage = () => {
       setConsultationSeconds(0);
     }
     return () => clearInterval(interval);
-  }, [queue]);
+  }, [activeConsultation]);
 
   const consultationDurationStr = useMemo(() => {
     const mins = Math.floor(consultationSeconds / 60) + 12; // Start from 12 mins matching the image
@@ -217,6 +237,10 @@ const DoctorDashboardPage = () => {
   // Handle Call Next Patient
   const handleCallNext = async () => {
     if (!profile?._id) return;
+    if (activeConsultation) {
+      toast.error('Cannot call next patient while a consultation is active.');
+      return;
+    }
     try {
       await appointmentApi.callNext(profile._id);
       toast.success('Next patient called.');
@@ -224,7 +248,7 @@ const DoctorDashboardPage = () => {
       const queueRes = await appointmentApi.getDoctorQueue(profile._id);
       const sortedQueue = queueRes.data?.queue || queueRes.queue || [];
       setQueue(sortedQueue);
-      const calledToken = sortedQueue.find(t => t.status === 'called' || t.status === 'in_consultation');
+      const calledToken = sortedQueue.find(t => t.status === 'called');
       if (calledToken) setSelectedToken(calledToken);
       loadData(false);
     } catch (err) {
@@ -234,17 +258,27 @@ const DoctorDashboardPage = () => {
 
   // Handle Start Consultation
   const handleStartConsultation = async (token) => {
+    if (activeConsultation && activeConsultation._id !== token._id) {
+      toast.error('Consultation Already In Progress. Please resume or end the current consultation first.', { duration: 5000 });
+      return;
+    }
     try {
       toast.loading('Starting consultation...');
       const res = await appointmentApi.startTokenConsultation(token._id);
       const updatedToken = res.token || res.data?.token || token;
       setSelectedToken(updatedToken);
+      setActiveConsultation(updatedToken);
       toast.dismiss();
       toast.success('Consultation started successfully.');
-      navigate(`/appointments/${token.appointmentId?._id}/consultation`);
+      const apptId = updatedToken.appointmentId?._id || updatedToken.appointmentId;
+      navigate(`/appointments/${apptId}/consultation`);
     } catch (err) {
       toast.dismiss();
-      toast.error(err.response?.data?.message || 'Failed to start consultation.');
+      if (err.response?.status === 409) {
+        toast.error('Consultation Already In Progress. Please resume or end the current consultation first.', { duration: 5000 });
+      } else {
+        toast.error(err.response?.data?.message || 'Failed to start consultation.');
+      }
     }
   };
 
@@ -260,6 +294,10 @@ const DoctorDashboardPage = () => {
   }, [selectedAppointment]);
 
   const handleStartDirectly = async (appointment) => {
+    if (activeConsultation) {
+      toast.error('Consultation Already In Progress. Please resume or end the current consultation first.', { duration: 5000 });
+      return;
+    }
     try {
       toast.loading('Initializing direct consultation...');
       let token = queue.find(t => t.appointmentId?._id === appointment._id);
@@ -307,7 +345,8 @@ const DoctorDashboardPage = () => {
       setOtpFailedAttempts(0);
       setSelectedToken(res.token || res.data?.token);
       loadData(false);
-      navigate(`/appointments/${selectedToken.appointmentId?._id}/consultation`);
+      const apptId = selectedToken.appointmentId?._id || selectedToken.appointmentId;
+      navigate(`/appointments/${apptId}/consultation`);
     } catch (err) {
       const errMsg = err.response?.data?.message || 'Invalid OTP.';
       setVerificationError(errMsg);
@@ -1047,13 +1086,14 @@ const DoctorDashboardPage = () => {
                       if (selectedToken.status !== 'in_consultation') {
                         await handleStartConsultation(selectedToken);
                       } else {
-                        await handleComplete(selectedToken);
+                        const apptId = selectedToken.appointmentId?._id || selectedToken.appointmentId;
+                        navigate(`/appointments/${apptId}/consultation`);
                       }
                     }}
-                    disabled={!selectedToken}
+                    disabled={!selectedToken || (activeConsultation && activeConsultation._id !== selectedToken._id)}
                     className="flex-1 py-3 bg-[#00A884] hover:bg-[#009675] text-xs font-bold text-white rounded-2xl transition shadow-sm disabled:opacity-40"
                   >
-                    {selectedToken?.status === 'in_consultation' ? 'Complete Consultation' : 'Start Consultation'}
+                    {selectedToken?.status === 'in_consultation' ? 'Resume Consultation' : 'Start Consultation'}
                   </button>
                 )}
               </div>
