@@ -365,6 +365,7 @@ const createMedicine = async ({ requester, payload, requestedClinicId = null, re
 
   const medicine = await pharmacyRepository.createMedicine({
     clinicId,
+    providerId: payload.providerId || undefined,
     brandId: brand ? brand._id : undefined,
     globalMedicineId: globalMed ? globalMed._id : undefined,
     code: payload.code?.trim?.().toUpperCase() || '',
@@ -458,13 +459,15 @@ const listMedicines = async ({ requester, query = {}, requestedClinicId = null }
     const mongoose = require('mongoose');
     const operatorUsers = await User.find({ providerId: query.providerId }).select('_id');
     const operatorUserIds = operatorUsers.map(u => u._id);
+
+    // Set filter to return EITHER directly linked providerId OR operator-created ones
+    filter.$or = [
+      { providerId: query.providerId }
+    ];
     if (operatorUserIds.length > 0) {
-      filter.createdBy = { $in: operatorUserIds };
-    } else {
-      filter.createdBy = new mongoose.Types.ObjectId(); // Dummy non-matching ID
+      filter.$or.push({ createdBy: { $in: operatorUserIds } });
     }
 
-    // Override clinicId filter with the provider's home clinicId
     const Provider = require('../providers/provider.model');
     const provider = await Provider.findById(query.providerId);
     if (provider && provider.clinicId) {
@@ -1437,6 +1440,9 @@ const createPharmacyOrder = async ({ requester, payload, req }) => {
 
   const totalPrice = Number((medicine.sellingPrice || medicine.unitPrice || 0) * payload.quantity);
 
+  const isPickup = (payload.deliveryMethod || 'Pickup') === 'Pickup';
+  const generatedPickupCode = isPickup ? `PKU-${Math.random().toString(36).substring(2, 8).toUpperCase()}` : '';
+
   const order = await PharmacyOrder.create({
     clinicId,
     patientId,
@@ -1453,10 +1459,28 @@ const createPharmacyOrder = async ({ requester, payload, req }) => {
     pickupAddress: payload.pickupAddress || '',
     preparationTime: payload.preparationTime || '',
     pickupSlot: payload.pickupSlot || '',
-    pickupCode: payload.pickupCode || '',
-    qrCode: payload.qrCode || '',
+    pickupCode: generatedPickupCode,
+    qrCode: isPickup ? JSON.stringify({ orderId: 'pending_id', pickupCode: generatedPickupCode }) : '',
     rejectionReason: payload.rejectionReason || ''
   });
+
+  if (isPickup) {
+    order.qrCode = JSON.stringify({ orderId: String(order._id), pickupCode: order.pickupCode });
+    await order.save();
+
+    // Trigger patient notification
+    const NotificationLog = require('../notifications/notificationLog.model');
+    await NotificationLog.create({
+      clinicId,
+      patientId,
+      type: 'custom',
+      channel: 'in_app',
+      subject: 'Order Placed Successfully',
+      body: `Order Placed Successfully. Order ID: ${order._id}. Pickup Code: ${order.pickupCode}. Status: New.`,
+      status: 'sent',
+      sentAt: new Date()
+    });
+  }
 
   await createAuditLog({
     actorUserId: requester._id,
@@ -1499,7 +1523,12 @@ const listPharmacyOrders = async ({ requester, query = {} }) => {
     const operatorUserIds = operatorUsers.map(u => u._id);
     
     const Medicine = require('./medicine.model');
-    const medicines = await Medicine.find({ createdBy: { $in: operatorUserIds } }).select('_id');
+    const medicines = await Medicine.find({
+      $or: [
+        { providerId: query.providerId },
+        { createdBy: { $in: operatorUserIds } }
+      ]
+    }).select('_id');
     const medicineIds = medicines.map(m => m._id);
     filter.medicineId = { $in: medicineIds };
   }
@@ -1597,6 +1626,20 @@ const updatePharmacyOrderStatus = async ({ requester, orderId, payload, req }) =
       order.meta.isInventoryDeducted = false;
       order.markModified('meta');
     }
+  }
+
+  if (status === 'ready_for_pickup') {
+    const NotificationLog = require('../notifications/notificationLog.model');
+    await NotificationLog.create({
+      clinicId: order.clinicId,
+      patientId: order.patientId,
+      type: 'custom',
+      channel: 'in_app',
+      subject: 'Medicines Ready for Pickup',
+      body: `Your medicines are ready for pickup. Pharmacy: ${order.pickupLocation || 'Clinic Pharmacy'}. Pickup Code: ${order.pickupCode}. Please show this code or QR Code at the pharmacy counter.`,
+      status: 'sent',
+      sentAt: new Date()
+    });
   }
 
   await order.save();
@@ -2242,6 +2285,86 @@ module.exports = {
   createPharmacyOrder,
   listPharmacyOrders,
   updatePharmacyOrderStatus,
+  regeneratePickupCode: async ({ requester, orderId, req }) => {
+    const order = await PharmacyOrder.findById(orderId);
+    if (!order) throw new AppError('Order not found.', HTTP_STATUS.NOT_FOUND);
+    if (!['confirmed', 'preparing', 'ready_for_pickup', 'pending'].includes(order.status)) {
+      throw new AppError('Pickup code can only be regenerated for active/preparing orders.', HTTP_STATUS.BAD_REQUEST);
+    }
+    
+    const oldCode = order.pickupCode;
+    order.pickupCode = `PKU-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+    order.qrCode = JSON.stringify({ orderId: String(order._id), pickupCode: order.pickupCode });
+    await order.save();
+    
+    await createAuditLog({
+      actorUserId: requester._id,
+      action: 'PHARMACY_ORDER_PICKUP_CODE_REGENERATED',
+      entity: 'PharmacyOrder',
+      entityId: order._id,
+      metadata: { oldCode, newCode: order.pickupCode },
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
+      status: 'SUCCESS'
+    });
+
+    const NotificationLog = require('../notifications/notificationLog.model');
+    await NotificationLog.create({
+      clinicId: order.clinicId,
+      patientId: order.patientId,
+      type: 'custom',
+      channel: 'in_app',
+      subject: 'Pickup Code Updated',
+      body: `Your Pickup Code has been updated by the pharmacy. Old Code: Automatically Invalid. New Pickup Code: ${order.pickupCode}. Please use the latest Pickup Code while collecting your medicines.`,
+      status: 'sent',
+      sentAt: new Date()
+    });
+
+    return order;
+  },
+  verifyPickupCode: async ({ requester, orderId, pickupCode, verificationMethod = 'Manual', req }) => {
+    const order = await PharmacyOrder.findById(orderId);
+    if (!order) throw new AppError('Order not found.', HTTP_STATUS.NOT_FOUND);
+    
+    if (order.status === 'completed') {
+      throw new AppError('Order is already completed.', HTTP_STATUS.BAD_REQUEST);
+    }
+    
+    if (order.status === 'cancelled') {
+      throw new AppError('Cancelled orders automatically invalidate the Pickup Code.', HTTP_STATUS.BAD_REQUEST);
+    }
+
+    if (!order.pickupCode || order.pickupCode !== pickupCode) {
+      throw new AppError('Invalid Pickup Code. Please verify the latest Pickup Code or regenerate a new code.', HTTP_STATUS.BAD_REQUEST);
+    }
+
+    // Successful validation
+    order.status = 'completed';
+    order.meta = order.meta || {};
+    order.meta.pickupVerified = true;
+    order.meta.pickupTime = new Date();
+    order.meta.pharmacistName = requester.fullName || 'Pharmacist';
+    order.meta.verificationMethod = verificationMethod;
+    order.markModified('meta');
+    
+    // Invalidate/clear pickup code to lock it permanently
+    order.pickupCode = '';
+    order.qrCode = '';
+    await order.save();
+
+    await createAuditLog({
+      actorUserId: requester._id,
+      action: 'PHARMACY_ORDER_PICKUP_VERIFIED',
+      entity: 'PharmacyOrder',
+      entityId: order._id,
+      metadata: { verificationMethod, pharmacistName: requester.fullName },
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
+      status: 'SUCCESS'
+    });
+
+    return order;
+  },
   searchAllMedicines: async ({ requester, search, clinicId: requestedClinicId }) => {
     // Use async ensureUserClinicContext so that if clinicId is missing from the JWT
     // (e.g. token issued before the field was set), the Doctor collection is consulted.

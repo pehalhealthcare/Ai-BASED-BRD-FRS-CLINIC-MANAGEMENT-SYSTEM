@@ -63,6 +63,7 @@ import PrescriptionDetailPage from '../features/prescriptions/PrescriptionDetail
 import ProcedureQueuePage from '../features/procedures/ProcedureQueuePage';
 import ProcedureManagementPage from '../features/procedures/ProcedureManagementPage';
 import ProcedureDetailPage from '../features/procedures/ProcedureDetailPage';
+import ProcedureSettingsPage from '../features/procedures/ProcedureSettingsPage';
 import ProtectedRoute from './ProtectedRoute';
 import RoleHomeRedirect from './RoleHomeRedirect';
 import ChatbotPage from '../pages/ai/ChatbotPage';
@@ -117,7 +118,7 @@ const NotificationsRoute = () => {
 
 const ProcedureRoute = () => {
   const { user } = useAuth();
-  if (user?.role === ROLES.RECEPTIONIST) {
+  if (user?.role === ROLES.RECEPTIONIST || user?.role === ROLES.ADMIN) {
     return <ProcedureManagementPage />;
   }
   return <ProcedureQueuePage />;
@@ -232,6 +233,10 @@ export const router = createBrowserRouter([
       {
         path: 'procedures',
         element: protect(<ProcedureRoute />, [ROLES.ADMIN, ROLES.DOCTOR, ROLES.NURSE, ROLES.LAB_TECHNICIAN, ROLES.RECEPTIONIST])
+      },
+      {
+        path: 'procedures/settings',
+        element: protect(<ProcedureSettingsPage />, [ROLES.ADMIN])
       },
       {
         path: 'procedures/:procedureId',

@@ -300,6 +300,8 @@ const pharmacyApi = {
   createOrder: (payload) => extractData(apiClient.post('/pharmacy/orders', payload)),
   listOrders: (params = {}) => extractData(apiClient.get('/pharmacy/orders', { params })),
   updateOrderStatus: (id, payload) => extractData(apiClient.patch(`/pharmacy/orders/${id}/status`, payload)),
+  regeneratePickupCode: (id) => extractData(apiClient.patch(`/pharmacy/orders/${id}/regenerate-pickup-code`)),
+  verifyPickupCode: (id, payload) => extractData(apiClient.post(`/pharmacy/orders/${id}/verify-pickup`, payload)),
   listMedicineMasters: (params = {}) => extractData(apiClient.get('/pharmacy/masters/medicines', { params })),
   listBrandMasters: (params = {}) => extractData(apiClient.get('/pharmacy/masters/brands', { params })),
   getInventoryDashboard: (params = {}) => extractData(apiClient.get('/pharmacy/inventory/dashboard', { params })),

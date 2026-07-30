@@ -8,6 +8,12 @@ const medicineSchema = new mongoose.Schema(
       required: true,
       index: true
     },
+    providerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Provider',
+      default: null,
+      index: true
+    },
     brandId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'BrandMaster',

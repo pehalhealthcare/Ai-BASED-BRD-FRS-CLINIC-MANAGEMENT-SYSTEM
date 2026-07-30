@@ -8,18 +8,19 @@ import useAuth from '../hooks/useAuth';
 import { authApi } from '../lib/api';
 import {
   Heart, Pill, FlaskConical, AlertTriangle, Shield, Calendar,
-  User, Eye, EyeOff, Lock, Mail, Users, CheckCircle2, ChevronRight, Building2,Sparkles 
+  User, Eye, EyeOff, Lock, Mail, Users, CheckCircle2, ChevronRight, Building2, Sparkles,
+  CreditCard, Database
 } from 'lucide-react';
 
 const LoginPage = () => {
   const { login, isAuthenticated, loading, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  
-  // Parse query parameter ?type=patient or ?type=staff
+
+  // Parse query parameter ?type=patient or ?type=staff or ?type=clinic
   const queryParams = new URLSearchParams(location.search);
-  const typeParam = queryParams.get('type'); // 'patient' or 'staff'
-  
+  const typeParam = queryParams.get('type'); // 'patient' or 'staff' or 'clinic'
+
   const [activeTab, setActiveTab] = useState(typeParam || 'patient');
   const [form, setForm] = useState({ email: '', password: '' });
   const [submitting, setSubmitting] = useState(false);
@@ -60,7 +61,7 @@ const LoginPage = () => {
       }
       const userRole = authData?.user?.role;
       const clinic = authData?.user?.clinic;
-      
+
       // Perform role verification
       if (userRole === 'SUPER_ADMIN') {
         navigate(getDefaultRouteForRole(userRole), { replace: true });
@@ -78,6 +79,11 @@ const LoginPage = () => {
       }
       if (activeTab === 'staff' && userRole === 'ADMIN') {
         setError('This account belongs to a Clinic Administrator. Please use the Clinic Portal Login.');
+        setSubmitting(false);
+        return;
+      }
+      if (activeTab === 'clinic' && userRole !== 'ADMIN' && userRole !== 'SUPER_ADMIN') {
+        setError('This account is not registered as a Clinic Admin. Please sign in using the correct portal.');
         setSubmitting(false);
         return;
       }
@@ -142,8 +148,64 @@ const LoginPage = () => {
     }
   };
 
-  const themeColor = activeTab === 'patient' ? 'purple' : 'emerald';
-  const themeAccentHex = activeTab === 'patient' ? '#7c3aed' : '#059669';
+  const getThemeConfig = () => {
+    switch (activeTab) {
+      case 'patient':
+        return {
+          color: 'purple',
+          accentHex: '#7c3aed',
+          badgeClass: 'bg-purple-50 border border-purple-100 text-purple-650',
+          badgeText: 'Patient Portal Access',
+          heading: (
+            <>Smart Healthcare, <br /><span className="text-purple-600">Simplified for You</span></>
+          ),
+          description: 'Access your prescriptions, schedule clinic visits, receive lab results, and chat with our smart triage assistant.',
+          focusClass: 'focus:border-purple-500 focus:ring-purple-100',
+          btnClass: 'bg-purple-600 hover:bg-purple-700 shadow-purple-500/10 hover:shadow-purple-500/20',
+          title: 'Patient Sign In',
+          sub: 'Enter your patient account details to access the portal.',
+          textClass: 'text-purple-600',
+          checkboxClass: 'text-purple-600 focus:ring-purple-500'
+        };
+      case 'clinic':
+        return {
+          color: 'blue',
+          accentHex: '#2563eb',
+          badgeClass: 'bg-blue-50 border border-blue-100 text-blue-650',
+          badgeText: 'Clinic Admin Portal',
+          heading: (
+            <>Manage Your Clinic, <br /><span className="text-blue-600">Empowered by AI</span></>
+          ),
+          description: 'Access your clinic dashboard, manage subscriptions, approve doctors, view analytics, and configure clinic profiles.',
+          focusClass: 'focus:border-blue-500 focus:ring-blue-100',
+          btnClass: 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/10 hover:shadow-blue-500/20',
+          title: 'Clinic Sign In',
+          sub: 'Enter your clinic credentials to access the management dashboard.',
+          textClass: 'text-blue-600',
+          checkboxClass: 'text-blue-600 focus:ring-blue-500'
+        };
+      case 'staff':
+      default:
+        return {
+          color: 'emerald',
+          accentHex: '#059669',
+          badgeClass: 'bg-emerald-50 border border-emerald-100 text-emerald-650',
+          badgeText: 'Clinic Workspace Login',
+          heading: (
+            <>Practice Medicine, <br /><span className="text-emerald-600">Powered by AI</span></>
+          ),
+          description: 'Manage patient workflows, write digital prescriptions, check automated lab reports, and manage appointment timings.',
+          focusClass: 'focus:border-emerald-500 focus:ring-emerald-100',
+          btnClass: 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/10 hover:shadow-emerald-500/20',
+          title: 'Staff Sign In',
+          sub: 'Log in to access clinic workspaces and clinical modules.',
+          textClass: 'text-emerald-600',
+          checkboxClass: 'text-emerald-600 focus:ring-emerald-500'
+        };
+    }
+  };
+
+  const themeConfig = getThemeConfig();
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans">
@@ -172,24 +234,16 @@ const LoginPage = () => {
         {/* Left Side: Benefits and Stats */}
         <div className="flex-1 bg-white border border-slate-200/60 rounded-3xl p-8 flex flex-col justify-between shadow-sm">
           <div className="space-y-6">
-            <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-              activeTab === 'patient' ? 'bg-purple-50 border border-purple-100 text-purple-650' : 'bg-emerald-50 border border-emerald-100 text-emerald-650'
-            }`}>
-              {activeTab === 'patient' ? 'Patient Portal Access' : 'Clinic Workspace Login'}
+            <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${themeConfig.badgeClass}`}>
+              {themeConfig.badgeText}
             </span>
-            
+
             <h2 className="text-3xl font-black text-slate-900 leading-tight">
-              {activeTab === 'patient' ? (
-                <>Smart Healthcare, <br /><span className="text-purple-600">Simplified for You</span></>
-              ) : (
-                <>Practice Medicine, <br /><span className="text-emerald-600">Powered by AI</span></>
-              )}
+              {themeConfig.heading}
             </h2>
-            
+
             <p className="text-sm text-slate-500 leading-relaxed max-w-md">
-              {activeTab === 'patient' 
-                ? 'Access your prescriptions, schedule clinic visits, receive lab results, and chat with our smart triage assistant.' 
-                : 'Manage patient workflows, write digital prescriptions, check automated lab reports, and manage appointment timings.'}
+              {themeConfig.description}
             </p>
 
             {/* Benefits Grid */}
@@ -201,6 +255,25 @@ const LoginPage = () => {
                     { title: 'Secure Health Records', desc: 'Your medical history and prescriptions stored safely.', icon: <Shield size={18} />, color: 'text-blue-500', bg: 'bg-blue-50 border-blue-100' },
                     { title: 'Medicine Store', desc: 'Order doctor prescribed medicines directly online.', icon: <Pill size={18} />, color: 'text-emerald-500', bg: 'bg-emerald-50 border-emerald-100' },
                     { title: 'Home Lab Tests', desc: 'Schedule samples collections and fetch digital reports.', icon: <FlaskConical size={18} />, color: 'text-amber-500', bg: 'bg-amber-50 border-amber-100' }
+                  ].map((item, idx) => (
+                    <div key={idx} className="flex gap-3">
+                      <div className={`w-8 h-8 rounded-lg ${item.bg} border ${item.color} flex items-center justify-center shrink-0`}>
+                        {item.icon}
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-800">{item.title}</h4>
+                        <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">{item.desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </>
+              ) : activeTab === 'clinic' ? (
+                <>
+                  {[
+                    { title: 'Clinic Dashboard', desc: 'Overview of all operations, appointments, and general status.', icon: <Building2 size={18} />, color: 'text-blue-500', bg: 'bg-blue-50 border-blue-100' },
+                    { title: 'Subscription Management', desc: 'Track clinic billing plan, renewals, and upgrade options.', icon: <CreditCard size={18} />, color: 'text-emerald-500', bg: 'bg-emerald-50 border-emerald-100' },
+                    { title: 'Doctor Approvals', desc: 'Review, approve, or reject new doctor registrations.', icon: <CheckCircle2 size={18} />, color: 'text-purple-500', bg: 'bg-purple-50 border-purple-100' },
+                    { title: 'System Auditing', desc: 'Full activity logging and diagnostic dashboard tools.', icon: <Database size={18} />, color: 'text-amber-500', bg: 'bg-amber-50 border-amber-100' }
                   ].map((item, idx) => (
                     <div key={idx} className="flex gap-3">
                       <div className={`w-8 h-8 rounded-lg ${item.bg} border ${item.color} flex items-center justify-center shrink-0`}>
@@ -256,7 +329,7 @@ const LoginPage = () => {
 
         {/* Right Side: Form Card */}
         <div className="w-full lg:w-[480px] bg-white border border-slate-200/60 rounded-3xl p-8 flex flex-col justify-center shadow-sm shrink-0">
-          
+
           {/* Tab Selector (only visible if type query is not hardcoded) */}
           {!typeParam && (
             <div className="flex bg-slate-100 p-1 rounded-xl mb-6">
@@ -266,11 +339,21 @@ const LoginPage = () => {
                   setActiveTab('patient');
                   setError('');
                 }}
-                className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${
-                  activeTab === 'patient' ? 'bg-white text-purple-650 shadow-sm' : 'text-slate-500'
-                }`}
+                className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${activeTab === 'patient' ? 'bg-white text-purple-650 shadow-sm' : 'text-slate-500'
+                  }`}
               >
                 Patient Login
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('clinic');
+                  setError('');
+                }}
+                className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${activeTab === 'clinic' ? 'bg-white text-blue-650 shadow-sm' : 'text-slate-500'
+                  }`}
+              >
+                Clinic Login
               </button>
               <button
                 type="button"
@@ -278,9 +361,8 @@ const LoginPage = () => {
                   setActiveTab('staff');
                   setError('');
                 }}
-                className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${
-                  activeTab === 'staff' ? 'bg-white text-emerald-650 shadow-sm' : 'text-slate-500'
-                }`}
+                className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${activeTab === 'staff' ? 'bg-white text-emerald-650 shadow-sm' : 'text-slate-500'
+                  }`}
               >
                 Staff Login
               </button>
@@ -291,12 +373,10 @@ const LoginPage = () => {
             <div className="space-y-6">
               <div>
                 <h3 className="text-2xl font-black text-slate-900">
-                  {activeTab === 'patient' ? 'Patient Sign In' : 'Staff Sign In'}
+                  {themeConfig.title}
                 </h3>
                 <p className="text-xs text-slate-400 mt-1.5">
-                  {activeTab === 'patient' 
-                    ? 'Enter your patient account details to access the portal.' 
-                    : 'Log in to access clinic workspaces and clinical modules.'}
+                  {themeConfig.sub}
                 </p>
               </div>
 
@@ -310,11 +390,7 @@ const LoginPage = () => {
                       value={form.email}
                       onChange={(e) => setForm({ ...form, email: e.target.value })}
                       placeholder="Enter your email address"
-                      className={`w-full pl-10 pr-4 py-3.5 text-sm bg-white text-black rounded-xl border border-slate-200 outline-none transition focus:ring-1 ${
-                        activeTab === 'patient' 
-                          ? 'focus:border-purple-500 focus:ring-purple-100' 
-                          : 'focus:border-emerald-500 focus:ring-emerald-100'
-                      }`}
+                      className={`w-full pl-10 pr-4 py-3.5 text-sm bg-white text-black rounded-xl border border-slate-200 outline-none transition focus:ring-1 ${themeConfig.focusClass}`}
                       required
                     />
                   </div>
@@ -329,11 +405,7 @@ const LoginPage = () => {
                       value={form.password}
                       onChange={(e) => setForm({ ...form, password: e.target.value })}
                       placeholder="Enter your password"
-                      className={`w-full pl-10 pr-10 py-3.5 text-sm bg-white text-black rounded-xl border border-slate-200 outline-none transition focus:ring-1 ${
-                        activeTab === 'patient' 
-                          ? 'focus:border-purple-500 focus:ring-purple-100' 
-                          : 'focus:border-emerald-500 focus:ring-emerald-100'
-                      }`}
+                      className={`w-full pl-10 pr-10 py-3.5 text-sm bg-white text-black rounded-xl border border-slate-200 outline-none transition focus:ring-1 ${themeConfig.focusClass}`}
                       required
                     />
                     <button
@@ -348,11 +420,9 @@ const LoginPage = () => {
 
                 <div className="flex items-center justify-between text-xs pt-1.5">
                   <label className="flex items-center gap-2 font-semibold text-slate-600 cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      className={`rounded border-slate-350 ${
-                        activeTab === 'patient' ? 'text-purple-600 focus:ring-purple-500' : 'text-emerald-600 focus:ring-emerald-500'
-                      }`} 
+                    <input
+                      type="checkbox"
+                      className={`rounded border-slate-350 ${themeConfig.checkboxClass}`}
                     />
                     Remember me
                   </label>
@@ -364,9 +434,7 @@ const LoginPage = () => {
                       setResetError('');
                       setResetSuccess('');
                     }}
-                    className={`font-bold hover:underline cursor-pointer ${
-                      activeTab === 'patient' ? 'text-purple-600' : 'text-emerald-600'
-                    }`}
+                    className={`font-bold hover:underline cursor-pointer ${themeConfig.textClass}`}
                   >
                     Forgot Password?
                   </button>
@@ -377,11 +445,7 @@ const LoginPage = () => {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className={`w-full py-3.5 rounded-xl text-white text-sm font-bold shadow-md transition cursor-pointer ${
-                    activeTab === 'patient'
-                      ? 'bg-purple-600 hover:bg-purple-700 shadow-purple-500/10 hover:shadow-purple-500/20'
-                      : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/10 hover:shadow-emerald-500/20'
-                  }`}
+                  className={`w-full py-3.5 rounded-xl text-white text-sm font-bold shadow-md transition cursor-pointer ${themeConfig.btnClass}`}
                 >
                   {submitting ? 'Logging in...' : 'Login'}
                 </button>
@@ -393,6 +457,10 @@ const LoginPage = () => {
                   <Link to="/register?type=patient" className="font-bold text-purple-600 hover:underline">
                     Create patient account
                   </Link>
+                </p>
+              ) : activeTab === 'clinic' ? (
+                <p className="text-center text-xs text-slate-400 font-semibold pt-4">
+                  🏢 Enter the administrator email and password registered when setting up the clinic.
                 </p>
               ) : (
                 <p className="text-center text-xs text-slate-400 font-semibold pt-4">
@@ -479,9 +547,8 @@ const LoginPage = () => {
                     setResetError('');
                     setResetSuccess('');
                   }}
-                  className={`font-bold hover:underline cursor-pointer ${
-                    activeTab === 'patient' ? 'text-purple-650' : 'text-emerald-650'
-                  }`}
+                  className={`font-bold hover:underline cursor-pointer ${activeTab === 'patient' ? 'text-purple-650' : 'text-emerald-650'
+                    }`}
                 >
                   Sign in here
                 </button>

@@ -36,14 +36,12 @@ const AppointmentCreatePage = () => {
 
   useEffect(() => {
     const patientId = searchParams.get('patientId');
-
-    if (!patientId) {
-      return;
-    }
+    const date = searchParams.get('date');
 
     setForm((current) => ({
       ...current,
-      patientId: current.patientId || patientId
+      ...(patientId ? { patientId: current.patientId || patientId } : {}),
+      ...(date ? { appointmentDate: current.appointmentDate || date } : {})
     }));
   }, [searchParams]);
 

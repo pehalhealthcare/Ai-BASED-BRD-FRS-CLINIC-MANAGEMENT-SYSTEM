@@ -463,6 +463,24 @@ module.exports = {
     });
     return sendSuccess(res, 'Procurement request status updated successfully', { request });
   }),
+  regeneratePickupCode: asyncHandler(async (req, res) => {
+    const order = await pharmacyService.regeneratePickupCode({
+      requester: req.user,
+      orderId: req.params.id,
+      req
+    });
+    return sendSuccess(res, 'Pickup code regenerated successfully', { order });
+  }),
+  verifyPickupCode: asyncHandler(async (req, res) => {
+    const order = await pharmacyService.verifyPickupCode({
+      requester: req.user,
+      orderId: req.params.id,
+      pickupCode: req.body.pickupCode,
+      verificationMethod: req.body.verificationMethod || 'Manual',
+      req
+    });
+    return sendSuccess(res, 'Pickup verified successfully. Order completed.', { order });
+  }),
   createCoupon,
   listCoupons,
   deleteCoupon

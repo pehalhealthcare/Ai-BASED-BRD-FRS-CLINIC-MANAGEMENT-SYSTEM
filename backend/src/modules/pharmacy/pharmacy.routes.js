@@ -169,6 +169,20 @@ router.patch(
   pharmacyController.updatePharmacyOrderStatus
 );
 
+router.patch(
+  '/orders/:id/regenerate-pickup-code',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.PHARMACIST),
+  pharmacyController.regeneratePickupCode
+);
+
+router.post(
+  '/orders/:id/verify-pickup',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.PHARMACIST),
+  pharmacyController.verifyPickupCode
+);
+
 // Inventory Management endpoints
 router.get(
   '/inventory/dashboard',

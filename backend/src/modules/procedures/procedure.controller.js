@@ -71,6 +71,52 @@ const getProcedureReports = asyncHandler(async (req, res) => {
   return sendSuccess(res, 'Procedure reports retrieved successfully', { reports });
 });
 
+const getProceduresDashboard = asyncHandler(async (req, res) => {
+  const clinicId = req.user.clinicId;
+  const { date, from, to } = req.query;
+  const dashboardData = await procedureService.getProceduresDashboard({ clinicId, date, from, to });
+  return sendSuccess(res, 'Procedures dashboard retrieved successfully', dashboardData);
+});
+
+const getCatalog = asyncHandler(async (req, res) => {
+  const clinicId = req.user.clinicId;
+  const catalog = await procedureService.getCatalog(clinicId);
+  return sendSuccess(res, 'Procedure catalog retrieved successfully', { catalog });
+});
+
+const getClinicBranches = asyncHandler(async (req, res) => {
+  const clinicId = req.user.clinicId;
+  const branches = await procedureService.getClinicBranches(clinicId);
+  return sendSuccess(res, 'Clinic branches retrieved successfully', { branches });
+});
+
+const createCatalogItem = asyncHandler(async (req, res) => {
+  const clinicId = req.user.clinicId;
+  const item = await procedureService.createCatalogItem(clinicId, req.body, req.user);
+  return sendSuccess(res, 'Procedure catalog item created successfully', { item });
+});
+
+const updateCatalogItem = asyncHandler(async (req, res) => {
+  const item = await procedureService.updateCatalogItem(req.params.id, req.body, req.user);
+  return sendSuccess(res, 'Procedure catalog item updated successfully', { item });
+});
+
+const createProcedureOrder = asyncHandler(async (req, res) => {
+  const clinicId = req.user.clinicId;
+  const procedure = await procedureService.createProcedureOrder(clinicId, req.body, req.user);
+  return sendSuccess(res, 'Procedure order created successfully', { procedure });
+});
+
+const rescheduleProcedure = asyncHandler(async (req, res) => {
+  const procedure = await procedureService.rescheduleProcedure(req.params.id, req.body, req.user);
+  return sendSuccess(res, 'Procedure rescheduled successfully', { procedure });
+});
+
+const reassignProcedure = asyncHandler(async (req, res) => {
+  const procedure = await procedureService.reassignProcedure(req.params.id, req.body, req.user);
+  return sendSuccess(res, 'Procedure reassigned successfully', { procedure });
+});
+
 module.exports = {
   getProcedures,
   getProcedureById,
@@ -79,5 +125,13 @@ module.exports = {
   completeProcedure,
   cancelProcedure,
   approveRefund,
-  getProcedureReports
+  getProcedureReports,
+  getProceduresDashboard,
+  getCatalog,
+  getClinicBranches,
+  createCatalogItem,
+  updateCatalogItem,
+  createProcedureOrder,
+  rescheduleProcedure,
+  reassignProcedure
 };

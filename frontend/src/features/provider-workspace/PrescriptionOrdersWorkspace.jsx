@@ -791,17 +791,22 @@ const PrescriptionOrdersWorkspace = () => {
                           type="text"
                           value={pickupCodeInput}
                           onChange={(e) => setPickupCodeInput(e.target.value)}
-                          placeholder="Enter 6-digit Code"
+                          placeholder="Enter PKU- Code"
                           className="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-center focus:outline-none focus:ring-2 focus:ring-purple-500 uppercase"
                         />
                         <button
-                          onClick={() => {
-                            const expected = selectedOrder._id.slice(-6).toUpperCase();
-                            if (pickupCodeInput.trim().toUpperCase() === expected) {
-                              handleUpdateStatus(selectedOrder._id, 'completed');
+                          onClick={async () => {
+                            try {
+                              const res = await pharmacyApi.verifyPickupCode(selectedOrder._id, {
+                                pickupCode: pickupCodeInput.trim().toUpperCase(),
+                                verificationMethod: 'Manual'
+                              });
+                              toast.success('Pickup verified successfully!');
                               setPickupCodeInput('');
-                            } else {
-                              toast.error('Invalid Pickup Code. Try again.');
+                              loadOrders();
+                              setSelectedOrder(res.order || res.data?.order || selectedOrder);
+                            } catch (err) {
+                              toast.error(err?.message || 'Invalid Pickup Code. Try again.');
                             }
                           }}
                           className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-black transition"
@@ -809,6 +814,29 @@ const PrescriptionOrdersWorkspace = () => {
                           Verify
                         </button>
                       </div>
+                    </div>
+                  )}
+
+                  {['confirmed', 'preparing', 'ready_for_pickup', 'pending'].includes(selectedOrder.status) && selectedOrder.deliveryMethod === 'Pickup' && (
+                    <div className="pt-2">
+                      <button
+                        onClick={async () => {
+                          if (window.confirm('Are you sure you want to regenerate the pickup code? This will invalidate the current code.')) {
+                            try {
+                              const res = await pharmacyApi.regeneratePickupCode(selectedOrder._id);
+                              toast.success('Pickup code regenerated successfully!');
+                              const updatedOrder = res.order || res.data?.order || selectedOrder;
+                              setSelectedOrder(updatedOrder);
+                              loadOrders();
+                            } catch (err) {
+                              toast.error(err?.message || 'Failed to regenerate pickup code.');
+                            }
+                          }
+                        }}
+                        className="w-full py-2 bg-slate-100 hover:bg-slate-250 text-slate-700 text-[10px] font-bold rounded-xl border border-slate-200 transition"
+                      >
+                        Regenerate Pickup Code
+                      </button>
                     </div>
                   )}
 

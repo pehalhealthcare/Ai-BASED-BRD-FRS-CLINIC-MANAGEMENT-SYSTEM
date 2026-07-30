@@ -120,18 +120,45 @@ const procedureSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: [
+        'Suggested',
+        'Planned',
+        'In Progress',
+        'Completed',
+        'Cancelled',
+        'No Show',
         'Payment Pending',
         'Ready To Perform',
         'Called',
-        'In Progress',
-        'Completed',
         'Cancelled Before Payment',
         'Cancelled After Payment',
         'Refund Pending',
         'Refunded'
       ],
-      default: 'Payment Pending',
+      default: 'Suggested',
       index: true
+    },
+    paymentStatus: {
+      type: String,
+      enum: ['unpaid', 'partial', 'paid'],
+      default: 'unpaid',
+      index: true
+    },
+    branch: {
+      type: String,
+      default: '',
+      trim: true
+    },
+    treatmentPlan: {
+      type: String,
+      default: 'One Time'
+    },
+    sessionsCount: {
+      type: Number,
+      default: 1
+    },
+    completedSessions: {
+      type: Number,
+      default: 0
     },
     invoiceId: {
       type: mongoose.Schema.Types.ObjectId,

@@ -118,11 +118,27 @@ const resolveDashboardContext = async ({
     user: requester,
     requestedClinicId: requestedClinicId || query.clinicId
   });
-  const range = resolveAnalyticsDateRange({
-    from: query.from,
-    to: query.to,
-    defaultDays
-  });
+
+  let range;
+  if (query.date) {
+    const selectedDate = new Date(`${query.date}T00:00:00.000Z`);
+    const fromDate = startOfUtcDay(selectedDate);
+    const toDate = endOfUtcDay(selectedDate);
+    range = {
+      fromDate,
+      toDate,
+      from: query.date,
+      to: query.date,
+      rangeInDays: 1
+    };
+  } else {
+    range = resolveAnalyticsDateRange({
+      from: query.from,
+      to: query.to,
+      defaultDays
+    });
+  }
+
   const doctorProfile = await getDoctorScope({
     requester,
     clinicId,
@@ -256,175 +272,246 @@ const getOverview = async ({ requester, query = {}, requestedClinicId = null }) 
     requestedClinicId,
     allowDoctorScope: true
   });
-  const todayFrom = startOfUtcDay(new Date());
-  const todayTo = endOfUtcDay(new Date());
 
-  const [
-    totalPatients,
-    newPatients,
-    todayAppointments,
-    pendingAppointments,
-    completedConsultations,
-    activePrescriptions,
-    pendingInvoices,
-    labOrders,
-    medicines,
-    pendingFollowUps
-  ] = await Promise.all([
-    doctorId
-      ? getDoctorPatientIds({ clinicId, doctorId }).then((ids) => ids.length)
-      : dashboardRepository.countDocuments(Patient, { clinicId }),
-    doctorId
-      ? getDoctorPatientIds({
-          clinicId,
-          doctorId,
-          fromDate: range.fromDate,
-          toDate: range.toDate
-        }).then((ids) => ids.length)
-      : dashboardRepository.countDocuments(
-          Patient,
-          buildClinicRangeFilter({
-            clinicId,
-            field: 'createdAt',
-            fromDate: range.fromDate,
-            toDate: range.toDate
-          })
-        ),
-    dashboardRepository.countDocuments(Appointment, {
-      clinicId,
-      ...(doctorId ? { doctorId } : {}),
-      appointmentDate: {
-        $gte: todayFrom,
-        $lte: todayTo
-      }
-    }),
-    dashboardRepository.countDocuments(
-      Appointment,
-      buildClinicRangeFilter({
-        clinicId,
-        field: 'appointmentDate',
-        fromDate: range.fromDate,
-        toDate: range.toDate,
-        extra: {
-          ...(doctorId ? { doctorId } : {}),
-          status: { $in: PENDING_APPOINTMENT_STATUSES }
-        }
-      })
-    ),
-    dashboardRepository.countDocuments(
-      Consultation,
-      buildClinicRangeFilter({
-        clinicId,
-        field: 'completedAt',
-        fromDate: range.fromDate,
-        toDate: range.toDate,
-        extra: {
-          ...(doctorId ? { doctorId } : {}),
-          status: 'completed'
-        }
-      })
-    ),
-    dashboardRepository.countDocuments(
-      Prescription,
-      buildClinicRangeFilter({
-        clinicId,
-        field: 'createdAt',
-        fromDate: range.fromDate,
-        toDate: range.toDate,
-        extra: {
-          ...(doctorId ? { doctorId } : {}),
-          status: 'finalized'
-        }
-      })
-    ),
-    doctorId
-      ? Promise.resolve(0)
-      : dashboardRepository.countDocuments(
-          Invoice,
-          buildClinicRangeFilter({
-            clinicId,
-            field: 'invoiceDate',
-            fromDate: range.fromDate,
-            toDate: range.toDate,
-            extra: {
-              invoiceStatus: { $ne: 'cancelled' },
-              paymentStatus: { $in: ['unpaid', 'partial'] }
-            }
-          })
-        ),
-    dashboardRepository.countDocuments(
-      LabOrder,
-      buildClinicRangeFilter({
-        clinicId,
-        field: 'orderedAt',
-        fromDate: range.fromDate,
-        toDate: range.toDate,
-        extra: {
-          ...(doctorId ? { doctorId } : {})
-        }
-      })
-    ),
-    doctorId
-      ? Promise.resolve([])
-      : dashboardRepository.findDocuments(Medicine, { clinicId, isActive: true }, { totalStock: 1, reorderLevel: 1, batches: 1 }),
-    dashboardRepository.countDocuments(FollowUpTask, {
-      clinicId,
-      ...(doctorId ? { doctorId } : {}),
-      status: 'pending',
-      dueDate: {
-        $lte: range.toDate
-      }
-    })
-  ]);
+  const selectedDateStr = query.date || formatDateLabel(new Date());
+  const selectedDate = new Date(`${selectedDateStr}T00:00:00.000Z`);
+  const targetFrom = startOfUtcDay(selectedDate);
+  const targetTo = endOfUtcDay(selectedDate);
+
+  const todayStr = formatDateLabel(new Date());
+  const isToday = selectedDateStr === todayStr;
+  const isPast = selectedDateStr < todayStr;
+  const isFuture = selectedDateStr > todayStr;
+
+  // Medicines (needed for low stock alerts)
+  const medicines = doctorId
+    ? []
+    : await dashboardRepository.findDocuments(Medicine, { clinicId, isActive: true }, { totalStock: 1, reorderLevel: 1, batches: 1 });
 
   const lowStockMedicines = medicines.filter((medicine) => getMedicineStockFlags(medicine).lowStock).length;
 
-  let amountReceived = 0;
-  let commissionEarned = 0;
-  if (!doctorId) {
-    const revenueSummary = await Invoice.aggregate([
-      {
-        $match: {
-          clinicId: toObjectId(clinicId),
-          invoiceStatus: { $ne: 'cancelled' },
-          invoiceDate: { $gte: range.fromDate, $lte: range.toDate }
-        }
-      },
-      {
-        $group: {
-          _id: null,
-          totalPaid: { $sum: '$paidAmount' },
-          totalCommission: { $sum: '$clinicCommission' }
+  // Get all appointments on the selected date
+  const appointmentsOnDate = await Appointment.find({
+    clinicId,
+    ...(doctorId ? { doctorId } : {}),
+    appointmentDate: { $gte: targetFrom, $lte: targetTo }
+  }).populate('patientId', 'fullName gender dateOfBirth age');
+
+  let totalAppointments = appointmentsOnDate.length;
+  let walkIns = 0;
+  let scheduled = 0;
+  let completed = 0;
+  let cancelled = 0;
+  let noShow = 0;
+  let pending = 0;
+  let confirmed = 0;
+
+  appointmentsOnDate.forEach(appt => {
+    if (appt.appointmentType === 'walk_in') {
+      walkIns++;
+    } else {
+      scheduled++;
+    }
+
+    const status = appt.status;
+    if (status === 'completed' || status === 'consultation_completed') {
+      completed++;
+    } else if (status === 'cancelled' || status === 'patient_cancelled' || status === 'clinic_cancelled') {
+      cancelled++;
+    } else if (status === 'no_show' || status === 'not_attended') {
+      noShow++;
+    }
+
+    if (status === 'booked' || status === 'waiting_for_approval') {
+      pending++;
+    } else if (status === 'confirmed') {
+      confirmed++;
+    }
+  });
+
+  // Appointment hourly chart data
+  const chartData = [
+    { label: '8 AM', completed: 0, upcoming: 0 },
+    { label: '11 AM', completed: 0, upcoming: 0 },
+    { label: '2 PM', completed: 0, upcoming: 0 },
+    { label: '5 PM', completed: 0, upcoming: 0 },
+    { label: '8 PM', completed: 0, upcoming: 0 }
+  ];
+
+  appointmentsOnDate.forEach(appt => {
+    if (appt.startTime) {
+      const match = appt.startTime.match(/^(\d+)/);
+      if (match) {
+        const hour = parseInt(match[1], 10);
+        let slotIndex = 0;
+        if (hour < 11) slotIndex = 0;
+        else if (hour < 14) slotIndex = 1;
+        else if (hour < 17) slotIndex = 2;
+        else if (hour < 20) slotIndex = 3;
+        else slotIndex = 4;
+
+        const isCompleted = appt.status === 'completed' || appt.status === 'consultation_completed';
+        if (isCompleted) {
+          chartData[slotIndex].completed++;
+        } else if (appt.status !== 'cancelled' && appt.status !== 'no_show') {
+          chartData[slotIndex].upcoming++;
         }
       }
-    ]);
-    if (revenueSummary && revenueSummary[0]) {
-      amountReceived = revenueSummary[0].totalPaid || 0;
-      commissionEarned = revenueSummary[0].totalCommission || 0;
     }
+  });
+
+  // Revenue Calculations
+  let amountReceived = 0;
+  let commissionEarned = 0;
+  if (!isFuture) {
+    if (!doctorId) {
+      const revenueSummary = await Invoice.aggregate([
+        {
+          $match: {
+            clinicId: toObjectId(clinicId),
+            invoiceStatus: { $ne: 'cancelled' },
+            invoiceDate: { $gte: targetFrom, $lte: targetTo }
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            totalPaid: { $sum: '$paidAmount' },
+            totalCommission: { $sum: '$clinicCommission' }
+          }
+        }
+      ]);
+      if (revenueSummary && revenueSummary[0]) {
+        amountReceived = revenueSummary[0].totalPaid || 0;
+        commissionEarned = revenueSummary[0].totalCommission || 0;
+      }
+    }
+  } else {
+    // Future Expected Revenue: sum of consultationFee for booked/confirmed appointments
+    appointmentsOnDate.forEach(appt => {
+      const status = appt.status;
+      if (status === 'booked' || status === 'confirmed' || status === 'checked_in') {
+        const fee = appt.discountRequest?.finalPayableAmount !== undefined && appt.discountRequest.status === 'approved'
+          ? appt.discountRequest.finalPayableAmount
+          : (appt.consultationFee || 0);
+        amountReceived += fee;
+      }
+    });
   }
+
+  // Pending Bills & Due Amounts
+  let pendingInvoices = 0;
+  let pendingInvoicesAmount = 0;
+
+  if (!isFuture) {
+    const pendingInvoicesList = await Invoice.find({
+      clinicId,
+      invoiceStatus: { $ne: 'cancelled' },
+      paymentStatus: { $in: ['unpaid', 'partial'] },
+      invoiceDate: { $gte: targetFrom, $lte: targetTo }
+    });
+    pendingInvoices = pendingInvoicesList.length;
+    pendingInvoicesAmount = pendingInvoicesList.reduce((sum, inv) => sum + (inv.remainingAmount || 0), 0);
+  } else {
+    // Future Expected Pending: expected payments from future scheduled appointments
+    appointmentsOnDate.forEach(appt => {
+      const status = appt.status;
+      if (status === 'booked' || status === 'confirmed') {
+        pendingInvoices++;
+        const fee = appt.discountRequest?.finalPayableAmount !== undefined && appt.discountRequest.status === 'approved'
+          ? appt.discountRequest.finalPayableAmount
+          : (appt.consultationFee || 0);
+        pendingInvoicesAmount += fee;
+      }
+    });
+  }
+
+  // Alerts & Notifications
+  let alerts = [];
+  if (isPast) {
+    const pastLogs = await NotificationLog.find({
+      clinicId,
+      createdAt: { $gte: targetFrom, $lte: targetTo }
+    }).populate('patientId', 'fullName').limit(3);
+    alerts = pastLogs.map(log => ({
+      type: 'info',
+      title: log.type || 'Notification',
+      message: log.message || `Notification sent to ${log.patientId?.fullName || 'patient'}.`
+    }));
+  } else if (isFuture) {
+    alerts = [
+      {
+        type: 'reminder',
+        title: 'Scheduled Reminder',
+        message: `${confirmed + pending} appointments scheduled for this date.`
+      }
+    ];
+  } else {
+    // Today
+    if (lowStockMedicines > 0) {
+      alerts.push({
+        type: 'warning',
+        title: 'Low Stock Alert',
+        message: 'Some medicines are below reorder levels.'
+      });
+    }
+    alerts.push({
+      type: 'info',
+      title: 'System Status',
+      message: 'Clinic active database synchronized.'
+    });
+  }
+
+  // Patient Registration counts
+  const newPatientsCount = await Patient.countDocuments({
+    clinicId,
+    createdAt: { $gte: targetFrom, $lte: targetTo }
+  });
+
+  const totalPatients = await Patient.countDocuments({
+    clinicId,
+    createdAt: { $lte: targetTo }
+  });
 
   const paymentReceived = doctorProfile ? (doctorProfile.earnings || 0) : 0;
 
   return {
+    selectedDate: selectedDateStr,
+    isToday,
+    isPast,
+    isFuture,
+    appointmentSummary: {
+      total: totalAppointments,
+      walkIns,
+      scheduled,
+      completed,
+      cancelled,
+      noShow,
+      pending,
+      confirmed
+    },
     cards: {
       totalPatients,
-      newPatients,
-      todayAppointments,
-      pendingAppointments,
-      completedConsultations,
-      activePrescriptions,
+      newPatients: newPatientsCount,
+      todayAppointments: totalAppointments,
+      pendingAppointments: pending,
+      completedConsultations: completed,
+      activePrescriptions: completed,
       pendingInvoices,
-      labOrders,
+      pendingInvoicesAmount,
+      labOrders: 0,
       lowStockMedicines,
-      pendingFollowUps,
+      pendingFollowUps: 0,
       amountReceived,
       commissionEarned,
       paymentReceived
     },
+    recentAppointments: appointmentsOnDate.slice(0, 5),
+    chart: chartData,
+    alerts,
     range: {
-      from: range.from,
-      to: range.to
+      from: selectedDateStr,
+      to: selectedDateStr
     }
   };
 };

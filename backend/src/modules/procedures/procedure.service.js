@@ -1,5 +1,6 @@
 const fs = require('fs');
 const Procedure = require('./procedure.model');
+const ProcedureCatalog = require('./procedureCatalog.model');
 const Invoice = require('../billing/invoice.model');
 const Clinic = require('../clinics/clinic.model');
 const Patient = require('../patients/patient.model');
@@ -11,6 +12,10 @@ const notificationService = require('../notifications/notification.service');
 const { AppError } = require('../../common/utils/AppError');
 const { HTTP_STATUS } = require('../../common/constants/httpStatus');
 const { ROLES } = require('../../common/constants/roles');
+const { Types } = require('mongoose');
+const { startOfUtcDay, endOfUtcDay } = require('../../common/utils/analyticsDateRange');
+
+const toObjectId = (value) => new Types.ObjectId(String(value));
 
 /**
  * Auto-creates Procedure orders when a consultation is completed
@@ -514,6 +519,296 @@ const getProcedureReports = async (clinicId) => {
   };
 };
 
+const checkSubscriptionLimits = async (clinicId, doctorIds = [], staffIds = []) => {
+  const clinic = await Clinic.findById(clinicId);
+  if (!clinic) return;
+
+  const limits = clinic.customLimits || {};
+  const maxDoctors = limits.maxDoctors !== undefined && limits.maxDoctors !== null ? limits.maxDoctors : 5;
+  const maxStaff = limits.maxStaff !== undefined && limits.maxStaff !== null ? limits.maxStaff : 12;
+
+  const currentDoctorsCount = await Doctor.countDocuments({ clinicId, isActive: true });
+  const currentStaffCount = await User.countDocuments({
+    clinicId,
+    role: { $in: ['RECEPTIONIST', 'PHARMACIST', 'LAB_TECHNICIAN', 'NURSE'] }
+  });
+
+  if (currentDoctorsCount >= maxDoctors && doctorIds.length > 0) {
+    for (const dId of doctorIds) {
+      const exists = await Doctor.findOne({ _id: dId, clinicId, isActive: true });
+      if (!exists) {
+        throw new AppError('Doctor limit reached for your current subscription. Upgrade your clinic plan to add more doctors.', HTTP_STATUS.BAD_REQUEST);
+      }
+    }
+  }
+
+  if (currentStaffCount >= maxStaff && staffIds.length > 0) {
+    for (const sId of staffIds) {
+      const exists = await User.findOne({ _id: sId, clinicId });
+      if (!exists) {
+        throw new AppError('Staff limit reached for your current subscription. Upgrade your clinic plan to add more staff.', HTTP_STATUS.BAD_REQUEST);
+      }
+    }
+  }
+};
+
+const getCatalog = async (clinicId) => {
+  return ProcedureCatalog.find({ clinicId })
+    .populate('eligibleDoctors', 'fullName specialization')
+    .populate('eligibleStaff', 'fullName role');
+};
+
+const createCatalogItem = async (clinicId, data, requester) => {
+  const doctorIds = data.eligibleDoctors || [];
+  const staffIds = data.eligibleStaff || [];
+  await checkSubscriptionLimits(clinicId, doctorIds, staffIds);
+
+  const item = new ProcedureCatalog({
+    ...data,
+    clinicId
+  });
+  return item.save();
+};
+
+const updateCatalogItem = async (id, data, requester) => {
+  const item = await ProcedureCatalog.findById(id);
+  if (!item) {
+    throw new AppError('Procedure catalog item not found', HTTP_STATUS.NOT_FOUND);
+  }
+
+  const doctorIds = data.eligibleDoctors || [];
+  const staffIds = data.eligibleStaff || [];
+  await checkSubscriptionLimits(item.clinicId, doctorIds, staffIds);
+
+  Object.assign(item, data);
+  return item.save();
+};
+
+const createProcedureOrder = async (clinicId, data, requester) => {
+  const patient = await Patient.findById(data.patientId);
+  if (!patient) {
+    throw new AppError('Patient not found', HTTP_STATUS.NOT_FOUND);
+  }
+
+  const newProc = new Procedure({
+    clinicId,
+    patientId: data.patientId,
+    doctorId: data.doctorId,
+    name: data.name,
+    code: data.code || 'PROC-' + Math.floor(Math.random() * 100000),
+    department: data.department || '',
+    fee: data.fee || data.totalAmount || 0,
+    totalAmount: data.totalAmount || 0,
+    status: data.status || 'Suggested',
+    paymentStatus: data.paymentStatus || 'unpaid',
+    branch: data.branch || '',
+    treatmentPlan: data.treatmentPlan || 'One Time',
+    sessionsCount: data.sessionsCount || 1,
+    completedSessions: 0,
+    consultationId: data.consultationId || new Types.ObjectId(),
+    timeline: [
+      {
+        status: data.status || 'Suggested',
+        notes: `Procedure order manually created.`,
+        userId: requester._id
+      }
+    ],
+    auditLogs: [
+      {
+        action: 'Procedure Order Created',
+        userId: requester._id,
+        role: requester.role,
+        details: `Procedure ${data.name} created.`
+      }
+    ]
+  });
+  return newProc.save();
+};
+
+const rescheduleProcedure = async (id, data, requester) => {
+  const proc = await Procedure.findById(id);
+  if (!proc) {
+    throw new AppError('Procedure not found', HTTP_STATUS.NOT_FOUND);
+  }
+
+  proc.startTime = data.scheduledDate ? new Date(`${data.scheduledDate}T${data.scheduledTime || '00:00'}:00.000Z`) : null;
+  proc.timeline.push({
+    status: proc.status,
+    notes: `Rescheduled to ${data.scheduledDate} at ${data.scheduledTime || '00:00'}.`,
+    userId: requester._id
+  });
+  proc.auditLogs.push({
+    action: 'Rescheduled',
+    userId: requester._id,
+    role: requester.role,
+    details: `Rescheduled to ${data.scheduledDate} ${data.scheduledTime}`
+  });
+  return proc.save();
+};
+
+const reassignProcedure = async (id, data, requester) => {
+  const proc = await Procedure.findById(id);
+  if (!proc) {
+    throw new AppError('Procedure not found', HTTP_STATUS.NOT_FOUND);
+  }
+
+  if (data.doctorId) proc.doctorId = data.doctorId;
+  if (data.performingStaffId) proc.performingStaffId = data.performingStaffId;
+
+  proc.timeline.push({
+    status: proc.status,
+    notes: `Reassigned performing physician/staff.`,
+    userId: requester._id
+  });
+  proc.auditLogs.push({
+    action: 'Reassigned',
+    userId: requester._id,
+    role: requester.role,
+    details: `Reassigned performing doctor/staff.`
+  });
+  return proc.save();
+};
+
+const getProceduresDashboard = async ({ clinicId, date, from, to }) => {
+  const query = { clinicId: toObjectId(clinicId) };
+
+  let fromDate, toDate;
+  if (date) {
+    const selectedDate = new Date(`${date}T00:00:00.000Z`);
+    fromDate = startOfUtcDay(selectedDate);
+    toDate = endOfUtcDay(selectedDate);
+  } else if (from && to) {
+    fromDate = startOfUtcDay(new Date(from));
+    toDate = endOfUtcDay(new Date(to));
+  } else {
+    const now = new Date();
+    toDate = endOfUtcDay(now);
+    fromDate = startOfUtcDay(now);
+    fromDate.setDate(fromDate.getDate() - 30);
+  }
+
+  query.createdAt = { $gte: fromDate, $lte: toDate };
+
+  const allProcs = await Procedure.find(query)
+    .populate('patientId', 'fullName gender dateOfBirth age')
+    .populate('doctorId', 'fullName specialization')
+    .populate('performingStaffId', 'fullName role');
+
+  let totalProcedures = allProcs.length;
+  let suggested = 0;
+  let planned = 0;
+  let inProgress = 0;
+  let completed = 0;
+  let cancelled = 0;
+  let revenue = 0;
+  let costSum = 0;
+  
+  const branchesMap = new Set();
+  const patientsMap = new Set();
+
+  const branchCounts = {};
+  const doctorCounts = {};
+  const staffCounts = {};
+  const revenueTrend = {};
+  const mostSuggested = {};
+  const mostPerformed = {};
+
+  allProcs.forEach(proc => {
+    const status = proc.status;
+    if (status === 'Suggested') suggested++;
+    else if (status === 'Planned' || status === 'Ready To Perform') planned++;
+    else if (status === 'In Progress') inProgress++;
+    else if (status === 'Completed') completed++;
+    else if (status.includes('Cancel') || status === 'Cancelled') cancelled++;
+
+    if (proc.paymentStatus === 'paid' || status === 'Completed') {
+      revenue += proc.totalAmount || 0;
+    }
+    costSum += proc.totalAmount || 0;
+
+    if (proc.branch) {
+      branchesMap.add(proc.branch);
+      branchCounts[proc.branch] = (branchCounts[proc.branch] || 0) + 1;
+    }
+    if (proc.patientId) {
+      patientsMap.add(String(proc.patientId._id));
+    }
+
+    if (proc.doctorId) {
+      const docName = proc.doctorId.fullName || 'Doctor';
+      doctorCounts[docName] = (doctorCounts[docName] || 0) + 1;
+    }
+    if (proc.performingStaffId) {
+      const staffName = proc.performingStaffId.fullName || 'Staff';
+      staffCounts[staffName] = (staffCounts[staffName] || 0) + 1;
+    }
+
+    const dateLabel = proc.createdAt.toISOString().slice(0, 10);
+    revenueTrend[dateLabel] = (revenueTrend[dateLabel] || 0) + (proc.paymentStatus === 'paid' ? proc.totalAmount : 0);
+
+    if (status === 'Suggested') {
+      mostSuggested[proc.name] = (mostSuggested[proc.name] || 0) + 1;
+    }
+    if (status === 'Completed') {
+      mostPerformed[proc.name] = (mostPerformed[proc.name] || 0) + 1;
+    }
+  });
+
+  const averageCost = totalProcedures > 0 ? Math.round(costSum / totalProcedures) : 0;
+  const formatChartData = (obj) => Object.entries(obj).map(([label, value]) => ({ label, value }));
+
+  return {
+    kpis: {
+      totalProcedures,
+      suggested,
+      planned,
+      inProgress,
+      completed,
+      cancelled,
+      revenue,
+      averageCost,
+      activeBranches: branchesMap.size,
+      patientsUnderPlans: patientsMap.size
+    },
+    analytics: {
+      branchWise: formatChartData(branchCounts),
+      doctorWise: formatChartData(doctorCounts),
+      staffWise: formatChartData(staffCounts),
+      revenueTrend: formatChartData(revenueTrend),
+      mostSuggested: formatChartData(mostSuggested),
+      mostPerformed: formatChartData(mostPerformed)
+    }
+  };
+};
+
+const getClinicBranches = async (clinicId) => {
+  const mainClinic = await Clinic.findById(clinicId);
+  if (!mainClinic) return [];
+
+  const branches = await Clinic.find({ parentClinicId: clinicId, isActive: true });
+
+  if (branches.length === 0) {
+    return [{
+      _id: String(mainClinic._id),
+      name: mainClinic.name,
+      code: mainClinic.code
+    }];
+  }
+
+  return [
+    {
+      _id: String(mainClinic._id),
+      name: `${mainClinic.name} (Main)`,
+      code: mainClinic.code
+    },
+    ...branches.map(b => ({
+      _id: String(b._id),
+      name: b.name,
+      code: b.code
+    }))
+  ];
+};
+
 module.exports = {
   createProcedureOrdersFromConsultation,
   listProcedures,
@@ -523,5 +818,13 @@ module.exports = {
   completeProcedure,
   cancelProcedure,
   approveRefund,
-  getProcedureReports
+  getProcedureReports,
+  getProceduresDashboard,
+  getCatalog,
+  getClinicBranches,
+  createCatalogItem,
+  updateCatalogItem,
+  createProcedureOrder,
+  rescheduleProcedure,
+  reassignProcedure
 };

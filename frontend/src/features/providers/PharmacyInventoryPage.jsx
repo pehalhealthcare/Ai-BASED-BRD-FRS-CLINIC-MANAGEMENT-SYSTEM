@@ -77,6 +77,7 @@ const PharmacyInventoryPage = () => {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedMedicine, setSelectedMedicine] = useState(null);
+  const [expandedBatchId, setExpandedBatchId] = useState(null);
   const [addMode, setAddMode] = useState(''); // 'local' | 'global'
   const [saving, setSaving] = useState(false);
 
@@ -108,7 +109,7 @@ const PharmacyInventoryPage = () => {
     setLoading(true);
     try {
       // 1. Fetch statistics
-      const statsRes = await pharmacyApi.getInventoryDashboard().catch(() => null);
+      const statsRes = await pharmacyApi.getInventoryDashboard({ providerId }).catch(() => null);
       setInventoryStats(statsRes?.data ?? statsRes ?? null);
 
       // 2. Fetch medicines
@@ -117,8 +118,8 @@ const PharmacyInventoryPage = () => {
         providerId
       });
       const data = medsRes?.data ?? medsRes ?? {};
-      setMedicines(data.items || []);
-      setTotal(data.total || 0);
+      setMedicines(data.medicines || data.items || []);
+      setTotal(data.pagination?.total ?? data.total ?? 0);
 
       // 3. Fetch Suppliers
       const supRes = await pharmacyApi.listSuppliers().catch(() => []);
@@ -165,6 +166,7 @@ const PharmacyInventoryPage = () => {
     try {
       const payload = {
         ...medicineForm,
+        providerId,
         batches: medicineForm.initialBatchNumber ? [{
           batchNumber: medicineForm.initialBatchNumber,
           expiryDate: medicineForm.initialBatchExpiry,
@@ -216,6 +218,30 @@ const PharmacyInventoryPage = () => {
   const filteredMedicines = medicines.filter(m => {
     if (!stockStatusFilter) return true;
     return getStockStatus(m) === stockStatusFilter;
+  });
+
+  // Calculate real low stock alerts
+  const lowStockAlerts = medicines.filter(m => {
+    const status = getStockStatus(m);
+    return status === 'low' || status === 'out';
+  });
+
+  // Calculate real expiring soon / expired batch alerts (90 days)
+  const expiringAlerts = [];
+  medicines.forEach(m => {
+    (m.batches || []).forEach(b => {
+      const days = daysUntil(b.expiryDate);
+      if (days !== null && days <= 90) {
+        expiringAlerts.push({
+          medicineName: m.name,
+          genericName: m.genericName,
+          batchNumber: b.batchNumber,
+          expiryDate: b.expiryDate,
+          daysLeft: days,
+          stock: b.availableStock
+        });
+      }
+    });
   });
 
   return (
@@ -436,7 +462,7 @@ const PharmacyInventoryPage = () => {
                             <td className="p-3">
                               <div className="flex gap-2">
                                 <button
-                                  onClick={() => { setSelectedMedicine(med); setIsDetailOpen(true); }}
+                                  onClick={() => { setSelectedMedicine(med); setIsDetailOpen(true); setExpandedBatchId(null); }}
                                   className="p-1.5 hover:bg-blue-50 rounded-lg text-blue-600 transition"
                                 >
                                   <Eye className="w-4 h-4" />
@@ -556,22 +582,88 @@ const PharmacyInventoryPage = () => {
 
       {/* ── Tab: Stock Alerts ──────────────────────────────────────────── */}
       {activeTab === 'Alerts' && (
-        <SectionCard title="Stock Alerts & Expirations" icon={AlertTriangle}>
-          <div className="space-y-3">
-            <div className="p-4 bg-orange-50 border border-orange-100 rounded-2xl">
-              <p className="font-black text-orange-800">Low Stock Indicators</p>
-              <p className="text-orange-600 text-xs font-semibold mt-0.5">
-                {stats.lowStock || '7'} medicine items have stocks dropped below critical reorder limits.
-              </p>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <SectionCard title="Low Stock & Out of Stock Indicators" icon={AlertTriangle}>
+            <div className="space-y-4">
+              <div className="p-4 bg-orange-50 border border-orange-100 rounded-2xl">
+                <p className="font-black text-orange-850">Critical Reorder Alert</p>
+                <p className="text-orange-600 text-xs font-semibold mt-0.5">
+                  {lowStockAlerts.length} medicine items have stocks dropped below critical reorder limits.
+                </p>
+              </div>
+
+              {lowStockAlerts.length > 0 ? (
+                <div className="divide-y divide-slate-100 border border-slate-100 rounded-2xl overflow-hidden bg-white shadow-sm">
+                  {lowStockAlerts.map(med => {
+                    const status = med.totalStock === 0 ? 'out' : 'low';
+                    return (
+                      <div key={med._id} className="p-3.5 flex justify-between items-center hover:bg-slate-50 transition text-xs font-bold">
+                        <div>
+                          <p className="font-black text-slate-800 text-sm">{med.name}</p>
+                          <p className="text-slate-400 font-semibold mt-0.5">Reorder Limit: {med.reorderLevel || 10} units</p>
+                        </div>
+                        <div className="text-right">
+                          <span className={`px-2.5 py-1 rounded-xl font-black uppercase text-[10px] ${
+                            status === 'out' ? 'bg-rose-50 text-rose-700 border border-rose-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
+                          }`}>
+                            {med.totalStock} units
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="p-8 text-center bg-slate-50/50 rounded-2xl border border-dashed border-slate-200 text-slate-400 font-semibold text-xs">
+                  <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
+                  All medicine stocks are at healthy levels.
+                </div>
+              )}
             </div>
-            <div className="p-4 bg-rose-50 border border-rose-100 rounded-2xl">
-              <p className="font-black text-rose-800">Expiry Alert Indicators</p>
-              <p className="text-rose-600 text-xs font-semibold mt-0.5">
-                {stats.expiring30Days || '12'} batch items are expiring within the next 30 days.
-              </p>
+          </SectionCard>
+
+          <SectionCard title="Expiry Alerts (Next 90 Days)" icon={Clock}>
+            <div className="space-y-4">
+              <div className="p-4 bg-rose-50 border border-rose-100 rounded-2xl">
+                <p className="font-black text-rose-850">Near Expiry Alert</p>
+                <p className="text-rose-600 text-xs font-semibold mt-0.5">
+                  {expiringAlerts.length} batch items are expiring within the next 90 days.
+                </p>
+              </div>
+
+              {expiringAlerts.length > 0 ? (
+                <div className="divide-y divide-slate-100 border border-slate-100 rounded-2xl overflow-hidden bg-white shadow-sm">
+                  {expiringAlerts.map((item, idx) => {
+                    const isExpired = item.daysLeft <= 0;
+                    return (
+                      <div key={idx} className="p-3.5 flex justify-between items-center hover:bg-slate-50 transition text-xs font-bold">
+                        <div>
+                          <p className="font-black text-slate-800 text-sm">{item.medicineName}</p>
+                          <p className="text-slate-400 font-semibold mt-0.5">
+                            Batch: <span className="text-slate-650 font-bold">{item.batchNumber}</span> • Exp: {new Date(item.expiryDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <span className={`px-2.5 py-1 rounded-xl font-black uppercase text-[10px] block ${
+                            isExpired ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-orange-50 text-orange-700 border border-orange-200'
+                          }`}>
+                            {isExpired ? 'Expired' : `${item.daysLeft} Days Left`}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-semibold mt-1 block">{item.stock} Units</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="p-8 text-center bg-slate-50/50 rounded-2xl border border-dashed border-slate-200 text-slate-400 font-semibold text-xs">
+                  <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
+                  No batches are expiring soon.
+                </div>
+              )}
             </div>
-          </div>
-        </SectionCard>
+          </SectionCard>
+        </div>
       )}
 
       {/* ══════════════════════════════════════════════════════════════════
@@ -691,15 +783,80 @@ const PharmacyInventoryPage = () => {
 
               <h4 className="text-slate-805 uppercase tracking-wider text-[11px] font-black pt-4">Stock Batch availability</h4>
               {selectedMedicine.batches && selectedMedicine.batches.length > 0 ? (
-                selectedMedicine.batches.map(batch => (
-                  <div key={batch._id} className="p-3 bg-slate-50 border border-slate-100 rounded-xl flex justify-between items-center">
-                    <div>
-                      <p className="text-slate-800 font-black">Batch: {batch.batchNumber}</p>
-                      <p className="text-slate-400 font-semibold text-[10px] mt-0.5">Exp: {new Date(batch.expiryDate).toLocaleDateString()}</p>
+                selectedMedicine.batches.map(batch => {
+                  const isExpanded = expandedBatchId === batch._id;
+                  return (
+                    <div key={batch._id} className="border border-slate-100 rounded-xl overflow-hidden shadow-sm">
+                      <button
+                        type="button"
+                        onClick={() => setExpandedBatchId(isExpanded ? null : batch._id)}
+                        className="w-full text-left p-3 bg-slate-50 hover:bg-slate-100/75 transition flex justify-between items-center"
+                      >
+                        <div>
+                          <p className="text-slate-800 font-black text-xs">Batch: {batch.batchNumber}</p>
+                          <p className="text-slate-400 font-semibold text-[10px] mt-0.5">
+                            Exp: {batch.expiryDate ? new Date(batch.expiryDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-blue-650 font-black">{batch.availableStock} Units</span>
+                          <ChevronRight className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                        </div>
+                      </button>
+
+                      {isExpanded && (
+                        <div className="p-3 bg-white border-t border-slate-50 space-y-2 text-[11px] font-bold text-slate-600">
+                          <div className="flex justify-between py-1 border-b border-slate-50">
+                            <span className="text-slate-400">Batch Number:</span>
+                            <span className="text-slate-800">{batch.batchNumber}</span>
+                          </div>
+                          <div className="flex justify-between py-1 border-b border-slate-50">
+                            <span className="text-slate-400">Expiry Date:</span>
+                            <span className="text-slate-800">
+                              {batch.expiryDate ? new Date(batch.expiryDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between py-1 border-b border-slate-50">
+                            <span className="text-slate-400">Received Date:</span>
+                            <span className="text-slate-800">
+                              {batch.manufacturingDate || batch.createdAt ? new Date(batch.manufacturingDate || batch.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between py-1 border-b border-slate-50">
+                            <span className="text-slate-400">Supplier Name:</span>
+                            <span className="text-slate-800">{batch.supplier || selectedMedicine.supplierIds?.[0]?.name || '—'}</span>
+                          </div>
+                          {selectedMedicine.supplierIds?.[0] && (
+                            <>
+                              <div className="flex justify-between py-1 border-b border-slate-50">
+                                <span className="text-slate-400">Supplier Phone:</span>
+                                <span className="text-slate-800">{selectedMedicine.supplierIds[0].phone || '—'}</span>
+                              </div>
+                              <div className="flex justify-between py-1 border-b border-slate-50">
+                                <span className="text-slate-400">Supplier Email:</span>
+                                <span className="text-slate-800">{selectedMedicine.supplierIds[0].email || '—'}</span>
+                              </div>
+                            </>
+                          )}
+                          <div className="flex justify-between py-1 border-b border-slate-50">
+                            <span className="text-slate-400">Purchase Price:</span>
+                            <span className="text-slate-800">{fmt(batch.purchasePrice)}</span>
+                          </div>
+                          <div className="flex justify-between py-1 border-b border-slate-50">
+                            <span className="text-slate-400">Selling Price:</span>
+                            <span className="text-slate-800">{fmt(batch.sellingPrice)}</span>
+                          </div>
+                          {batch.invoiceNumber && (
+                            <div className="flex justify-between py-1 border-b border-slate-50">
+                              <span className="text-slate-400">Invoice Number:</span>
+                              <span className="text-slate-800">{batch.invoiceNumber}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    <span className="text-blue-600 font-black">{batch.availableStock} Units</span>
-                  </div>
-                ))
+                  );
+                })
               ) : (
                 <p className="text-slate-400 font-bold">No active batches available for this medicine</p>
               )}

@@ -1,8 +1,16 @@
 const dotenv = require('dotenv');
 const path = require('path');
+const fs = require('fs');
 const { z } = require('zod');
 
-dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
+const dotenvPath = [
+  path.resolve(__dirname, '../../../../.env'),
+  path.resolve(__dirname, '../../../.env'),
+  path.resolve(process.cwd(), '.env'),
+  path.resolve(process.cwd(), '../.env')
+].find(p => fs.existsSync(p)) || path.resolve(__dirname, '../../../../.env');
+
+dotenv.config({ path: dotenvPath });
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),

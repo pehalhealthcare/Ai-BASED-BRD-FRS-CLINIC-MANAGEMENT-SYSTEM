@@ -21,6 +21,70 @@ router.get(
 );
 
 router.get(
+  '/dashboard',
+  protect,
+  authorize(
+    ROLES.SUPER_ADMIN,
+    ROLES.ADMIN,
+    ROLES.CLINIC_MANAGER,
+    ROLES.RECEPTIONIST,
+    ROLES.DOCTOR,
+    ROLES.NURSE,
+    ROLES.LAB_TECHNICIAN
+  ),
+  procedureController.getProceduresDashboard
+);
+
+router.get(
+  '/settings',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.CLINIC_MANAGER),
+  procedureController.getCatalog
+);
+
+router.get(
+  '/settings/branches',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.CLINIC_MANAGER),
+  procedureController.getClinicBranches
+);
+
+router.post(
+  '/settings',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),
+  procedureController.createCatalogItem
+);
+
+router.put(
+  '/settings/:id',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),
+  procedureController.updateCatalogItem
+);
+
+router.post(
+  '/new',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR, ROLES.RECEPTIONIST),
+  procedureController.createProcedureOrder
+);
+
+router.post(
+  '/:id/reschedule',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RECEPTIONIST),
+  procedureController.rescheduleProcedure
+);
+
+router.post(
+  '/:id/reassign',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RECEPTIONIST),
+  procedureController.reassignProcedure
+);
+
+router.get(
   '/reports',
   protect,
   authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.CLINIC_MANAGER),

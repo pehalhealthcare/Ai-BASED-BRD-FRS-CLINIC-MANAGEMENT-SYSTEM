@@ -12,6 +12,7 @@ const dashboardRangeQuerySchema = z.object({
   query: z.object({
     from: dateQuerySchema,
     to: dateQuerySchema,
+    date: dateQuerySchema,
     clinicId: objectIdSchema.optional()
   })
 });

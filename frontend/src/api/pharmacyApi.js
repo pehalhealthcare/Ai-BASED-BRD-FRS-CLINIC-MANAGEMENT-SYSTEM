@@ -25,7 +25,9 @@ export const pharmacyApi = {
   createPurchaseOrder: async (payload) => unwrapResponse(await axiosClient.post('/pharmacy/purchase-orders', payload)),
   searchGlobalMeds: async (query) => unwrapResponse(await axiosClient.get('/healthcare-catalog/search/medicines', { params: { search: query, limit: 100 } })),
   listPharmacyOrders: async (params = {}) => unwrapResponse(await axiosClient.get('/pharmacy/orders', { params })),
-  updateOrderStatus: async (id, payload) => unwrapResponse(await axiosClient.patch(`/pharmacy/orders/${id}/status`, payload))
+  updateOrderStatus: async (id, payload) => unwrapResponse(await axiosClient.patch(`/pharmacy/orders/${id}/status`, payload)),
+  regeneratePickupCode: async (id) => unwrapResponse(await axiosClient.patch(`/pharmacy/orders/${id}/regenerate-pickup-code`)),
+  verifyPickupCode: async (id, payload) => unwrapResponse(await axiosClient.post(`/pharmacy/orders/${id}/verify-pickup`, payload))
 };
 
 export default pharmacyApi;

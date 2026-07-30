@@ -58,7 +58,13 @@ export default function LandingPage() {
             to="/login?type=patient" 
             className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-slate-700 hover:text-blue-600 text-xs font-extrabold transition cursor-pointer border border-slate-200 hover:border-blue-105 bg-white shadow-sm"
           >
-            <Search size={14} className="text-slate-400" /> Find a Clinic
+            <User size={14} className="text-slate-400" /> Login as Patient
+          </Link>
+          <Link 
+            to="/login?type=clinic" 
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-slate-700 hover:text-blue-600 text-xs font-extrabold transition cursor-pointer border border-slate-200 hover:border-blue-105 bg-white shadow-sm"
+          >
+            <Building2 size={14} className="text-slate-400" /> Login as Clinic
           </Link>
           <Link 
             to="/login?type=staff" 
@@ -280,7 +286,7 @@ export default function LandingPage() {
                 to="/login?type=patient"
                 className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-2xl text-xs font-bold transition flex items-center justify-center gap-1"
               >
-                Find a Clinic <ChevronRight size={14} />
+                Login as Patient <ChevronRight size={14} />
               </Link>
             </div>
           </div>
