@@ -332,7 +332,7 @@ const login = async ({ email, password, portal }, req) => {
   }
 
   const isStaffFirstLogin = STAFF_ROLES.includes(user.role) && 
-    ['pending_invitation', 'otp_verification_pending'].includes(user.approvalStatus) && 
+    ['pending_invitation', 'otp_verification_pending', 'pending_onboarding', 'pending_profile'].includes(user.approvalStatus) && 
     !user.isEmailVerified;
 
   if (isStaffFirstLogin) {
@@ -448,7 +448,10 @@ const login = async ({ email, password, portal }, req) => {
     const Staff = require('../staff/staff.model');
     const staffObj = await Staff.findOne({ userId: user._id });
     if (staffObj && staffObj.creationSource === 'CLINIC_SETUP' && staffObj.invitationStatus !== 'Active') {
-      throw new AppError('Your account is not active yet. Please complete onboarding and accept your employment offer.', HTTP_STATUS.FORBIDDEN);
+      const allowedOnboardingStatuses = ['pending_onboarding', 'onboarding_in_progress', 'pending_profile'];
+      if (!allowedOnboardingStatuses.includes(user.approvalStatus)) {
+        throw new AppError('Your account is not active yet. Please complete onboarding and accept your employment offer.', HTTP_STATUS.FORBIDDEN);
+      }
     }
   }
 
@@ -457,6 +460,7 @@ const login = async ({ email, password, portal }, req) => {
   if (!isBypassedRole) {
     const isOnboardingOrPending = [
       'pending_profile',
+      'pending_onboarding',
       'onboarding_in_progress',
       'pending_approval',
       're_edit',

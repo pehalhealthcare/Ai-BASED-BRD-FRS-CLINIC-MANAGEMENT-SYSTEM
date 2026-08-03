@@ -145,6 +145,66 @@ const providerSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: true
+    },
+    currentStep: {
+      type: Number,
+      default: 1
+    },
+    managerPhone: {
+      type: String,
+      default: ''
+    },
+    managerEmail: {
+      type: String,
+      default: ''
+    },
+    managerGender: {
+      type: String,
+      default: ''
+    },
+    licenseExpiry: {
+      type: String,
+      default: ''
+    },
+    reorderThreshold: {
+      type: Number,
+      default: 10
+    },
+    barcodeEnabled: {
+      type: Boolean,
+      default: false
+    },
+    printerEnabled: {
+      type: Boolean,
+      default: false
+    },
+    invoicePrefix: {
+      type: String,
+      default: ''
+    },
+    drugLicenseNumber: {
+      type: String,
+      default: ''
+    },
+    gstNumber: {
+      type: String,
+      default: ''
+    },
+    emergencyContact: {
+      type: String,
+      default: ''
+    },
+    assignedBranchId: {
+      type: String,
+      default: ''
+    },
+    assignedBranchName: {
+      type: String,
+      default: ''
+    },
+    managerEmployeeId: {
+      type: String,
+      default: ''
     }
   },
   {

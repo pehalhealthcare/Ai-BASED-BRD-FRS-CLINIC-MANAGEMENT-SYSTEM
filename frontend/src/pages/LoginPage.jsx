@@ -1,47 +1,42 @@
 import { useState, useEffect } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import Button from '../components/common/Button';
-import ErrorState from '../components/common/ErrorState';
-import Input from '../components/common/Input';
-import { getDefaultRouteForRole } from '../constants/routes';
 import useAuth from '../hooks/useAuth';
 import { authApi } from '../lib/api';
 import {
-  Heart, Pill, FlaskConical, AlertTriangle, Shield, Calendar,
-  User, Eye, EyeOff, Lock, Mail, Users, CheckCircle2, ChevronRight, Building2, Sparkles,
-  CreditCard, Database
+  Shield, Lock, Mail, Users, Eye, EyeOff, Globe, Info, AlertCircle, X,
+  Building2, Activity, Smartphone, ArrowRight
 } from 'lucide-react';
+import toast from 'react-hot-toast';
+
+import signinSidebar from '../assets/signinsidebar.jpeg';
 
 const LoginPage = () => {
   const { login, isAuthenticated, loading, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Parse query parameter ?type=patient or ?type=staff or ?type=clinic
   const queryParams = new URLSearchParams(location.search);
-  const typeParam = queryParams.get('type'); // 'patient' or 'staff' or 'clinic'
+  const typeParam = queryParams.get('type');
 
-  const [activeTab, setActiveTab] = useState(typeParam || 'patient');
+  const [activeTab, setActiveTab] = useState(typeParam || 'clinic');
   const [form, setForm] = useState({ email: '', password: '' });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-  const [mode, setMode] = useState('login'); // 'login' or 'forgot_password'
+  const [mode, setMode] = useState('login');
   const [resetForm, setResetForm] = useState({ email: '', password: '', confirmPassword: '' });
   const [resetError, setResetError] = useState('');
   const [resetSuccess, setResetSuccess] = useState('');
   const [resetSubmitting, setResetSubmitting] = useState(false);
+  const [rememberDevice, setRememberDevice] = useState(true);
 
-  // Sync tab state with query parameter if it changes
   useEffect(() => {
-    if (typeParam) {
-      setActiveTab(typeParam);
-    }
+    if (typeParam) setActiveTab(typeParam);
   }, [typeParam]);
 
   if (isAuthenticated && !loading) {
-    return <Navigate to={getDefaultRouteForRole(user?.role)} replace />;
+    return <Navigate to={user?.role ? '/dashboard' : '/'} replace />;
   }
 
   const handleSubmit = async (event) => {
@@ -52,71 +47,44 @@ const LoginPage = () => {
     try {
       const authData = await login({ ...form, portal: activeTab });
       if (authData?.requiresOtp) {
-        if (authData.role === 'DOCTOR') {
-          navigate('/doctor-verify-otp', { state: { email: authData.email }, replace: true });
-        } else {
-          navigate('/staff-verify-otp', { state: { email: authData.email }, replace: true });
-        }
+        const route = authData.role === 'DOCTOR' ? '/doctor-verify-otp' : '/staff-verify-otp';
+        navigate(route, { state: { email: authData.email }, replace: true });
         return;
       }
       const userRole = authData?.user?.role;
       const clinic = authData?.user?.clinic;
 
-      // Perform role verification
-      if (userRole === 'SUPER_ADMIN') {
-        navigate(getDefaultRouteForRole(userRole), { replace: true });
-        return;
-      }
+      if (userRole === 'SUPER_ADMIN') { navigate('/dashboard', { replace: true }); return; }
+
       if (activeTab === 'patient' && userRole !== 'PATIENT') {
         setError('This account is not registered as a Patient. Please sign in using the correct portal.');
-        setSubmitting(false);
-        return;
+        setSubmitting(false); return;
       }
       if (activeTab === 'staff' && userRole === 'PATIENT') {
         setError('This account is not authorized for the Staff Portal. Please use the Patient Sign In page.');
-        setSubmitting(false);
-        return;
+        setSubmitting(false); return;
       }
       if (activeTab === 'staff' && userRole === 'ADMIN') {
         setError('This account belongs to a Clinic Administrator. Please use the Clinic Portal Login.');
-        setSubmitting(false);
-        return;
+        setSubmitting(false); return;
       }
       if (activeTab === 'clinic' && userRole !== 'ADMIN' && userRole !== 'SUPER_ADMIN') {
         setError('This account is not registered as a Clinic Admin. Please sign in using the correct portal.');
-        setSubmitting(false);
-        return;
+        setSubmitting(false); return;
       }
 
-      // Clinic Admin: Redirect based on clinic approval status
       if (userRole === 'ADMIN' && clinic) {
         const { approvalStatus, subscription, isOnboardingCompleted } = clinic;
-
-        if (approvalStatus === 'pending_approval') {
-          navigate('/clinic/status', { replace: true });
-          return;
-        }
-        if (approvalStatus === 'rejected') {
-          navigate('/clinic/corrections', { replace: true });
-          return;
-        }
-        if (approvalStatus === 'suspended' || subscription?.status === 'Suspended') {
-          navigate('/clinic/suspended', { replace: true });
-          return;
-        }
-        if (subscription?.status === 'Expired') {
-          navigate('/clinic/expired', { replace: true });
-          return;
-        }
-        if (approvalStatus === 'approved' && !isOnboardingCompleted) {
-          navigate('/clinic/onboarding', { replace: true });
-          return;
-        }
+        if (approvalStatus === 'pending_approval') { navigate('/clinic/status', { replace: true }); return; }
+        if (approvalStatus === 'rejected') { navigate('/clinic/corrections', { replace: true }); return; }
+        if (approvalStatus === 'suspended' || subscription?.status === 'Suspended') { navigate('/clinic/suspended', { replace: true }); return; }
+        if (subscription?.status === 'Expired') { navigate('/clinic/expired', { replace: true }); return; }
+        if (approvalStatus === 'approved' && !isOnboardingCompleted) { navigate('/clinic/onboarding', { replace: true }); return; }
       }
 
-      navigate(location.state?.from?.pathname || getDefaultRouteForRole(userRole), { replace: true });
+      navigate(location.state?.from?.pathname || '/dashboard', { replace: true });
     } catch (loginError) {
-      setError(loginError?.response?.data?.message || loginError?.message || 'Unable to sign in.');
+      setError(loginError?.response?.data?.message || loginError?.message || 'Invalid email or password. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -135,10 +103,7 @@ const LoginPage = () => {
     }
 
     try {
-      await authApi.resetPassword({
-        email: resetForm.email,
-        password: resetForm.password
-      });
+      await authApi.resetPassword({ email: resetForm.email, password: resetForm.password });
       setResetSuccess('Password has been reset successfully. You can now sign in.');
       setResetForm({ email: '', password: '', confirmPassword: '' });
     } catch (err) {
@@ -148,432 +113,468 @@ const LoginPage = () => {
     }
   };
 
-  const getThemeConfig = () => {
-    switch (activeTab) {
-      case 'patient':
-        return {
-          color: 'purple',
-          accentHex: '#7c3aed',
-          badgeClass: 'bg-purple-50 border border-purple-100 text-purple-650',
-          badgeText: 'Patient Portal Access',
-          heading: (
-            <>Smart Healthcare, <br /><span className="text-purple-600">Simplified for You</span></>
-          ),
-          description: 'Access your prescriptions, schedule clinic visits, receive lab results, and chat with our smart triage assistant.',
-          focusClass: 'focus:border-purple-500 focus:ring-purple-100',
-          btnClass: 'bg-purple-600 hover:bg-purple-700 shadow-purple-500/10 hover:shadow-purple-500/20',
-          title: 'Patient Sign In',
-          sub: 'Enter your patient account details to access the portal.',
-          textClass: 'text-purple-600',
-          checkboxClass: 'text-purple-600 focus:ring-purple-500'
-        };
-      case 'clinic':
-        return {
-          color: 'blue',
-          accentHex: '#2563eb',
-          badgeClass: 'bg-blue-50 border border-blue-100 text-blue-650',
-          badgeText: 'Clinic Admin Portal',
-          heading: (
-            <>Manage Your Clinic, <br /><span className="text-blue-600">Empowered by AI</span></>
-          ),
-          description: 'Access your clinic dashboard, manage subscriptions, approve doctors, view analytics, and configure clinic profiles.',
-          focusClass: 'focus:border-blue-500 focus:ring-blue-100',
-          btnClass: 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/10 hover:shadow-blue-500/20',
-          title: 'Clinic Sign In',
-          sub: 'Enter your clinic credentials to access the management dashboard.',
-          textClass: 'text-blue-600',
-          checkboxClass: 'text-blue-600 focus:ring-blue-500'
-        };
-      case 'staff':
-      default:
-        return {
-          color: 'emerald',
-          accentHex: '#059669',
-          badgeClass: 'bg-emerald-50 border border-emerald-100 text-emerald-650',
-          badgeText: 'Clinic Workspace Login',
-          heading: (
-            <>Practice Medicine, <br /><span className="text-emerald-600">Powered by AI</span></>
-          ),
-          description: 'Manage patient workflows, write digital prescriptions, check automated lab reports, and manage appointment timings.',
-          focusClass: 'focus:border-emerald-500 focus:ring-emerald-100',
-          btnClass: 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/10 hover:shadow-emerald-500/20',
-          title: 'Staff Sign In',
-          sub: 'Log in to access clinic workspaces and clinical modules.',
-          textClass: 'text-emerald-600',
-          checkboxClass: 'text-emerald-600 focus:ring-emerald-500'
-        };
-    }
+  const portalConfig = {
+    clinic: {
+      title: 'Welcome back,\nClinic Administrator',
+      sub: 'Manage your clinics, staff, operations and business from one secure platform.',
+      btn: 'Login as Clinic Admin',
+      forgotTitle: 'Reset Clinic Admin Password',
+    },
+    staff: {
+      title: 'Welcome back,\nDoctor & Staff',
+      sub: 'Access your assigned clinic workspace securely.',
+      btn: 'Login as Doctor / Staff',
+      infoCard: 'Doctor and Staff accounts are provisioned by your clinic administrator.',
+      forgotTitle: 'Reset Doctor / Staff Password',
+    },
+    patient: {
+      title: 'Welcome back,\nPatient',
+      sub: 'Access appointments, prescriptions and reports securely.',
+      btn: 'Login as Patient',
+      infoCard: 'Patient accounts are securely created by your healthcare provider. Please contact your clinic if you do not have login credentials.',
+      forgotTitle: 'Reset Patient Password',
+    },
   };
 
-  const themeConfig = getThemeConfig();
+  const info = portalConfig[activeTab] || portalConfig.clinic;
+
+  const tabs = [
+    { key: 'clinic', label: 'Clinic Admin', icon: <Building2 size={14} /> },
+    { key: 'staff', label: 'Doctor / Staff', icon: <Users size={14} /> },
+    { key: 'patient', label: 'Patient', icon: <Activity size={14} /> },
+  ];
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans">
-
-      {/* ── HEADER ── */}
-      <header className="bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between shadow-sm shrink-0">
-        <Link to="/" className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
-            <Heart size={20} fill="currentColor" />
-          </div>
-          <span className="text-lg font-black tracking-tight text-slate-900">
-            AICMS <span className="text-blue-600 font-bold">Portal</span>
-          </span>
-        </Link>
-
-        <div className="flex items-center gap-2">
-          <Link to="/" className="text-xs font-bold text-slate-600 hover:text-blue-650 transition">
-            Back to Home
-          </Link>
-        </div>
-      </header>
-
-      {/* ── SPLIT BODY ── */}
-      <div className="flex-1 flex flex-col lg:flex-row max-w-7xl w-full mx-auto p-6 gap-8 items-stretch justify-center">
-
-        {/* Left Side: Benefits and Stats */}
-        <div className="flex-1 bg-white border border-slate-200/60 rounded-3xl p-8 flex flex-col justify-between shadow-sm">
-          <div className="space-y-6">
-            <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${themeConfig.badgeClass}`}>
-              {themeConfig.badgeText}
-            </span>
-
-            <h2 className="text-3xl font-black text-slate-900 leading-tight">
-              {themeConfig.heading}
-            </h2>
-
-            <p className="text-sm text-slate-500 leading-relaxed max-w-md">
-              {themeConfig.description}
-            </p>
-
-            {/* Benefits Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-4">
-              {activeTab === 'patient' ? (
-                <>
-                  {[
-                    { title: 'Easy Appointments', desc: 'Book appointments with verified doctors in just a few clicks.', icon: <Calendar size={18} />, color: 'text-purple-500', bg: 'bg-purple-50 border-purple-100' },
-                    { title: 'Secure Health Records', desc: 'Your medical history and prescriptions stored safely.', icon: <Shield size={18} />, color: 'text-blue-500', bg: 'bg-blue-50 border-blue-100' },
-                    { title: 'Medicine Store', desc: 'Order doctor prescribed medicines directly online.', icon: <Pill size={18} />, color: 'text-emerald-500', bg: 'bg-emerald-50 border-emerald-100' },
-                    { title: 'Home Lab Tests', desc: 'Schedule samples collections and fetch digital reports.', icon: <FlaskConical size={18} />, color: 'text-amber-500', bg: 'bg-amber-50 border-amber-100' }
-                  ].map((item, idx) => (
-                    <div key={idx} className="flex gap-3">
-                      <div className={`w-8 h-8 rounded-lg ${item.bg} border ${item.color} flex items-center justify-center shrink-0`}>
-                        {item.icon}
-                      </div>
-                      <div>
-                        <h4 className="text-xs font-bold text-slate-800">{item.title}</h4>
-                        <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">{item.desc}</p>
-                      </div>
-                    </div>
-                  ))}
-                </>
-              ) : activeTab === 'clinic' ? (
-                <>
-                  {[
-                    { title: 'Clinic Dashboard', desc: 'Overview of all operations, appointments, and general status.', icon: <Building2 size={18} />, color: 'text-blue-500', bg: 'bg-blue-50 border-blue-100' },
-                    { title: 'Subscription Management', desc: 'Track clinic billing plan, renewals, and upgrade options.', icon: <CreditCard size={18} />, color: 'text-emerald-500', bg: 'bg-emerald-50 border-emerald-100' },
-                    { title: 'Doctor Approvals', desc: 'Review, approve, or reject new doctor registrations.', icon: <CheckCircle2 size={18} />, color: 'text-purple-500', bg: 'bg-purple-50 border-purple-100' },
-                    { title: 'System Auditing', desc: 'Full activity logging and diagnostic dashboard tools.', icon: <Database size={18} />, color: 'text-amber-500', bg: 'bg-amber-50 border-amber-100' }
-                  ].map((item, idx) => (
-                    <div key={idx} className="flex gap-3">
-                      <div className={`w-8 h-8 rounded-lg ${item.bg} border ${item.color} flex items-center justify-center shrink-0`}>
-                        {item.icon}
-                      </div>
-                      <div>
-                        <h4 className="text-xs font-bold text-slate-800">{item.title}</h4>
-                        <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">{item.desc}</p>
-                      </div>
-                    </div>
-                  ))}
-                </>
-              ) : (
-                <>
-                  {[
-                    { title: 'Patient Timelines', desc: 'Review unified history, past treatments, and chronic conditions.', icon: <Users size={18} />, color: 'text-emerald-500', bg: 'bg-emerald-50 border-emerald-100' },
-                    { title: 'AI Assistant', desc: 'Generate medical notes and summaries automatically.', icon: <Sparkles className="w-[18px] h-[18px]" />, color: 'text-blue-500', bg: 'bg-blue-50 border-blue-100' },
-                    { title: 'Billing Control', desc: 'Raise bills, process checkout invoices, and track revenue.', icon: <Building2 size={18} />, color: 'text-purple-500', bg: 'bg-purple-50 border-purple-100' },
-                    { title: 'Smart Timings', desc: 'Toggle holiday settings and set availability hours.', icon: <Calendar size={18} />, color: 'text-amber-500', bg: 'bg-amber-50 border-amber-100' }
-                  ].map((item, idx) => (
-                    <div key={idx} className="flex gap-3">
-                      <div className={`w-8 h-8 rounded-lg ${item.bg} border ${item.color} flex items-center justify-center shrink-0`}>
-                        {item.icon}
-                      </div>
-                      <div>
-                        <h4 className="text-xs font-bold text-slate-800">{item.title}</h4>
-                        <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">{item.desc}</p>
-                      </div>
-                    </div>
-                  ))}
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Stats Bar */}
-          <div className="border-t border-slate-100 mt-10 pt-6 grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {[
-              { label: 'Happy Patients', value: '50K+', icon: <Users size={14} className="text-blue-600" /> },
-              { label: 'Expert Doctors', value: '1K+', icon: <User size={14} className="text-emerald-600" /> },
-              { label: 'Clinics & Hospitals', value: '500+', icon: <Building2 size={14} className="text-purple-600" /> },
-              { label: 'Secure & Safe', value: '100%', icon: <Shield size={14} className="text-blue-600" /> }
-            ].map((stat, idx) => (
-              <div key={idx} className="text-center sm:text-left">
-                <div className="flex items-center justify-center sm:justify-start gap-1 text-slate-900 font-black text-lg">
-                  {stat.icon} <span>{stat.value}</span>
-                </div>
-                <p className="text-[10px] font-semibold text-slate-400 mt-0.5">{stat.label}</p>
-              </div>
-            ))}
-          </div>
+    <div className="min-h-screen w-screen bg-[#F5F7FB] flex items-center justify-center p-3 sm:py-3 sm:px-4">
+      <div
+        className="w-[96vw] bg-white overflow-hidden flex shadow-2xl transition-all duration-300"
+        style={{
+          maxWidth: '1780px',
+          minHeight: '940px',
+          height: '96vh',
+          borderRadius: '28px',
+          boxShadow: '0 25px 70px rgba(15, 23, 42, 0.12)',
+          margin: '12px auto',
+        }}
+      >
+        {/* ── LEFT PANEL: signinsidebar.jpeg ── */}
+        <div
+          className="hidden lg:block"
+          style={{ width: '52%', flexShrink: 0, position: 'relative', overflow: 'hidden', borderRadius: '28px 0 0 28px' }}
+        >
+          <img
+            src={signinSidebar}
+            alt="AI-CMS Pehal Healthcare"
+            className="absolute inset-0 w-full h-full object-cover object-center block"
+          />
         </div>
 
-        {/* Right Side: Form Card */}
-        <div className="w-full lg:w-[480px] bg-white border border-slate-200/60 rounded-3xl p-8 flex flex-col justify-center shadow-sm shrink-0">
+        {/* ── RIGHT PANEL: Dynamic Login ── */}
+        <div
+          className="flex-grow flex flex-col justify-between overflow-y-auto bg-white"
+          style={{ padding: '64px', minWidth: 0, width: '48%' }}
+        >
+          {/* Language Selector */}
+          <div className="flex justify-end mb-6">
+            <button className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 border border-gray-200 rounded-xl px-3 py-2 hover:bg-gray-50 transition">
+              <Globe size={13} />
+              English
+              <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+            </button>
+          </div>
 
-          {/* Tab Selector (only visible if type query is not hardcoded) */}
-          {!typeParam && (
-            <div className="flex bg-slate-100 p-1 rounded-xl mb-6">
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveTab('patient');
-                  setError('');
+          <div className="max-w-[720px] w-full mx-auto my-auto space-y-6">
+            {/* Segmented Tab Selector */}
+            {mode === 'login' && (
+              <div
+                className="flex mb-8 mx-auto"
+                style={{
+                  background: '#f3f4f6',
+                  borderRadius: '999px',
+                  padding: '5px',
+                  gap: '4px',
+                  maxWidth: '720px',
+                  boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.06)'
                 }}
-                className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${activeTab === 'patient' ? 'bg-white text-purple-650 shadow-sm' : 'text-slate-500'
-                  }`}
               >
-                Patient Login
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveTab('clinic');
-                  setError('');
-                }}
-                className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${activeTab === 'clinic' ? 'bg-white text-blue-650 shadow-sm' : 'text-slate-500'
-                  }`}
-              >
-                Clinic Login
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveTab('staff');
-                  setError('');
-                }}
-                className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${activeTab === 'staff' ? 'bg-white text-emerald-650 shadow-sm' : 'text-slate-500'
-                  }`}
-              >
-                Staff Login
-              </button>
-            </div>
-          )}
-
-          {mode === 'login' ? (
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-2xl font-black text-slate-900">
-                  {themeConfig.title}
-                </h3>
-                <p className="text-xs text-slate-400 mt-1.5">
-                  {themeConfig.sub}
-                </p>
+                {tabs.map((tab) => (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => { setActiveTab(tab.key); setError(''); }}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-black transition-all duration-300"
+                    style={{
+                      borderRadius: '999px',
+                      background: activeTab === tab.key ? 'linear-gradient(to right, #00B96B, #05403A)' : 'transparent',
+                      color: activeTab === tab.key ? '#ffffff' : '#4b5563',
+                      boxShadow: activeTab === tab.key ? '0 4px 12px rgba(0,185,107,0.25)' : 'none',
+                    }}
+                  >
+                    {tab.icon}
+                    {tab.label}
+                  </button>
+                ))}
               </div>
+            )}
 
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-600">Email Address</label>
+            {/* Heading */}
+            <div className="mb-6">
+              <h1
+                className="font-black text-gray-900 leading-tight whitespace-pre-line"
+                style={{ fontSize: '32px', marginBottom: '8px' }}
+              >
+                {mode === 'login' ? info.title : info.forgotTitle}
+              </h1>
+              <p className="text-sm text-gray-500 leading-relaxed">
+                {mode === 'login' ? info.sub : 'Please enter your email and confirm your new password below.'}
+              </p>
+            </div>
+
+            {/* Inline Error Alert */}
+            {error && (
+              <div
+                className="flex items-start gap-3 mb-4 relative"
+                style={{
+                  background: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  borderRadius: '12px',
+                  padding: '14px 16px',
+                  color: '#dc2626',
+                }}
+              >
+                <AlertCircle size={15} className="shrink-0 mt-0.5" />
+                <span className="text-xs font-semibold pr-6">{error}</span>
+                <button
+                  onClick={() => setError('')}
+                  className="absolute right-3 top-3 text-red-300 hover:text-red-500 transition"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            )}
+
+            {/* ── FORM ── */}
+            {mode === 'login' ? (
+              <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Email */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-2">Email or Mobile</label>
                   <div className="relative">
-                    <Mail size={16} className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-slate-400" />
+                    <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
                     <input
                       type="email"
                       value={form.email}
                       onChange={(e) => setForm({ ...form, email: e.target.value })}
-                      placeholder="Enter your email address"
-                      className={`w-full pl-10 pr-4 py-3.5 text-sm bg-white text-black rounded-xl border border-slate-200 outline-none transition focus:ring-1 ${themeConfig.focusClass}`}
+                      placeholder="Enter your email or mobile number"
                       required
+                      className="w-full text-sm text-gray-800 placeholder-gray-400 font-medium bg-white transition"
+                      style={{
+                        paddingLeft: '44px',
+                        paddingRight: '16px',
+                        height: '56px',
+                        border: '1.5px solid #E5E7EB',
+                        borderRadius: '14px',
+                        outline: 'none',
+                      }}
+                      onFocus={(e) => { e.target.style.borderColor = '#00B96B'; e.target.style.boxShadow = '0 0 0 3px rgba(0,185,107,0.1)'; }}
+                      onBlur={(e) => { e.target.style.borderColor = '#E5E7EB'; e.target.style.boxShadow = 'none'; }}
                     />
                   </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-600">Password</label>
+                {/* Password */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-2">Password</label>
                   <div className="relative">
-                    <Lock size={16} className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-slate-400" />
+                    <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
                     <input
                       type={showPassword ? 'text' : 'password'}
                       value={form.password}
                       onChange={(e) => setForm({ ...form, password: e.target.value })}
                       placeholder="Enter your password"
-                      className={`w-full pl-10 pr-10 py-3.5 text-sm bg-white text-black rounded-xl border border-slate-200 outline-none transition focus:ring-1 ${themeConfig.focusClass}`}
                       required
+                      className="w-full text-sm text-gray-800 placeholder-gray-400 font-medium bg-white transition"
+                      style={{
+                        paddingLeft: '44px',
+                        paddingRight: '60px',
+                        height: '56px',
+                        border: '1.5px solid #E5E7EB',
+                        borderRadius: '14px',
+                        outline: 'none',
+                      }}
+                      onFocus={(e) => { e.target.style.borderColor = '#00B96B'; e.target.style.boxShadow = '0 0 0 3px rgba(0,185,107,0.1)'; }}
+                      onBlur={(e) => { e.target.style.borderColor = '#E5E7EB'; e.target.style.boxShadow = 'none'; }}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3.5 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-650 transition cursor-pointer"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1 text-xs font-bold text-gray-450 hover:text-gray-650 transition cursor-pointer"
                     >
-                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                      {showPassword ? 'Hide' : 'Show'}
                     </button>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between text-xs pt-1.5">
-                  <label className="flex items-center gap-2 font-semibold text-slate-600 cursor-pointer">
+                {/* Remember + Forgot */}
+                <div className="flex items-center justify-between pt-1">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
                     <input
                       type="checkbox"
-                      className={`rounded border-slate-350 ${themeConfig.checkboxClass}`}
+                      checked={rememberDevice}
+                      onChange={(e) => setRememberDevice(e.target.checked)}
+                      className="w-4 h-4 rounded"
+                      style={{ accentColor: '#00B96B' }}
                     />
-                    Remember me
+                    <span className="text-xs font-semibold text-gray-600">Remember this device</span>
                   </label>
                   <button
                     type="button"
-                    onClick={() => {
-                      setMode('forgot_password');
-                      setError('');
-                      setResetError('');
-                      setResetSuccess('');
-                    }}
-                    className={`font-bold hover:underline cursor-pointer ${themeConfig.textClass}`}
+                    onClick={() => { setMode('forgot_password'); setError(''); setResetError(''); setResetSuccess(''); }}
+                    className="text-xs font-bold transition hover:opacity-80"
+                    style={{ color: '#00B96B' }}
                   >
-                    Forgot Password?
+                    Forgot password?
                   </button>
                 </div>
 
-                {error && <ErrorState title="Login failed" description={error} />}
-
+                {/* Primary Login Button */}
                 <button
                   type="submit"
                   disabled={submitting}
-                  className={`w-full py-3.5 rounded-xl text-white text-sm font-bold shadow-md transition cursor-pointer ${themeConfig.btnClass}`}
+                  className="w-full flex items-center justify-center gap-2 text-sm font-black text-white transition-all duration-300"
+                  style={{
+                    background: submitting ? '#86efac' : 'linear-gradient(to right, #00B96B, #05403A)',
+                    borderRadius: '14px',
+                    height: '56px',
+                    boxShadow: '0 4px 14px rgba(0,185,107,0.25)',
+                    cursor: submitting ? 'not-allowed' : 'pointer',
+                  }}
                 >
-                  {submitting ? 'Logging in...' : 'Login'}
+                  {submitting ? (
+                    <span className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <Lock size={15} />
+                      {info.btn}
+                    </>
+                  )}
                 </button>
+
+                {/* Divider */}
+                <div className="flex items-center gap-3 py-1">
+                  <span className="h-px bg-gray-200 flex-1" />
+                  <span className="text-xs font-semibold text-gray-400">or login with</span>
+                  <span className="h-px bg-gray-200 flex-1" />
+                </div>
+
+                {/* OTP Button */}
+                <button
+                  type="button"
+                  onClick={() => toast('OTP login coming soon')}
+                  className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-gray-700 bg-white transition hover:bg-gray-50"
+                  style={{
+                    border: '1.5px solid #E5E7EB',
+                    borderRadius: '14px',
+                    height: '56px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Smartphone size={15} className="text-gray-500" />
+                  Login using OTP
+                </button>
+
+                {/* SSO Button */}
+                <button
+                  type="button"
+                  onClick={() => toast('SSO coming soon')}
+                  className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-gray-700 bg-white transition hover:bg-gray-50"
+                  style={{
+                    border: '1.5px solid #E5E7EB',
+                    borderRadius: '14px',
+                    height: '56px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Shield size={15} className="text-gray-500" />
+                  Continue with Single Sign-On (SSO)
+                </button>
+
+                {/* Info / Security Card */}
+                {activeTab === 'clinic' ? (
+                  <div
+                    className="flex items-start gap-3"
+                    style={{
+                      background: '#f0fdf4',
+                      border: '1px solid #bbf7d0',
+                      borderRadius: '16px',
+                      padding: '14px 16px',
+                    }}
+                  >
+                    <Shield size={15} className="text-green-600 shrink-0 mt-0.5" />
+                    <p className="text-xs font-semibold text-gray-600 leading-relaxed">
+                      Enterprise-grade encryption protects your organization and patient data.
+                    </p>
+                  </div>
+                ) : (
+                  info.infoCard && (
+                    <div
+                      className="flex items-start gap-3"
+                      style={{
+                        background: '#f9fafb',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '16px',
+                        padding: '14px 16px',
+                      }}
+                    >
+                      <Info size={15} className="text-gray-400 shrink-0 mt-0.5" />
+                      <p className="text-xs font-semibold text-gray-500 leading-relaxed">
+                        {info.infoCard}
+                      </p>
+                    </div>
+                  )
+                )}
+
+                {/* Setup Clinic CTA — only for clinic tab */}
+                {activeTab === 'clinic' && (
+                  <div
+                    className="flex items-center justify-between shadow-sm"
+                    style={{
+                      border: '1.5px solid #E5E7EB',
+                      borderRadius: '18px',
+                      padding: '16px 20px',
+                      background: '#ffffff',
+                    }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="flex items-center justify-center shrink-0"
+                        style={{
+                          width: '42px',
+                          height: '42px',
+                          background: '#f0fdf4',
+                          border: '1px solid #bbf7d0',
+                          borderRadius: '10px',
+                        }}
+                      >
+                        <Building2 size={18} className="text-green-600" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-black text-green-700 mb-0.5">Don't have a clinic yet?</p>
+                        <p className="text-[11px] text-gray-500 font-medium">Set up your clinic in minutes and start managing your healthcare operations.</p>
+                      </div>
+                    </div>
+                    <Link
+                      to="/set-your-clinic"
+                      className="shrink-0 flex items-center gap-1 text-xs font-bold transition ml-3 hover:opacity-80"
+                      style={{
+                        color: '#00B96B',
+                        border: '1.5px solid #00B96B',
+                        borderRadius: '10px',
+                        padding: '8px 14px',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      Setup Your Clinic <ArrowRight size={12} />
+                    </Link>
+                  </div>
+                )}
               </form>
-
-              {activeTab === 'patient' ? (
-                <p className="text-center text-xs text-slate-500 pt-4">
-                  Don't have a patient account?{' '}
-                  <Link to="/register?type=patient" className="font-bold text-purple-600 hover:underline">
-                    Create patient account
-                  </Link>
-                </p>
-              ) : activeTab === 'clinic' ? (
-                <p className="text-center text-xs text-slate-400 font-semibold pt-4">
-                  🏢 Enter the administrator email and password registered when setting up the clinic.
-                </p>
-              ) : (
-                <p className="text-center text-xs text-slate-400 font-semibold pt-4">
-                  🔑 Staff & Doctor credentials are created directly by the clinic administrator.
-                </p>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-2xl font-black text-slate-900">Reset Password</h3>
-                <p className="text-xs text-slate-400 mt-1.5">Enter your email and choose a new password.</p>
-              </div>
-
+            ) : (
+              /* ── FORGOT PASSWORD FORM ── */
               <form onSubmit={handleResetSubmit} className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-600">Email</label>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1.5">Email Address</label>
                   <div className="relative">
-                    <Mail size={16} className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-slate-400" />
+                    <Mail size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
                     <input
                       type="email"
                       value={resetForm.email}
                       onChange={(e) => setResetForm({ ...resetForm, email: e.target.value })}
                       placeholder="Enter your email"
-                      className="w-full pl-10 pr-4 py-3 text-sm bg-white text-black rounded-xl border border-slate-200 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-100 transition"
                       required
+                      className="w-full text-sm text-gray-800 placeholder-gray-400 font-medium bg-white transition"
+                      style={{ paddingLeft: '40px', paddingRight: '16px', height: '56px', border: '1.5px solid #E5E7EB', borderRadius: '14px', outline: 'none' }}
+                      onFocus={(e) => { e.target.style.borderColor = '#00B96B'; e.target.style.boxShadow = '0 0 0 3px rgba(0,185,107,0.1)'; }}
+                      onBlur={(e) => { e.target.style.borderColor = '#E5E7EB'; e.target.style.boxShadow = 'none'; }}
                     />
                   </div>
                 </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-600">New Password</label>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1.5">New Password</label>
                   <div className="relative">
-                    <Lock size={16} className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-slate-400" />
+                    <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
                     <input
                       type="password"
                       value={resetForm.password}
                       onChange={(e) => setResetForm({ ...resetForm, password: e.target.value })}
                       placeholder="Enter new password"
-                      className="w-full pl-10 pr-4 py-3 text-sm bg-white text-black rounded-xl border border-slate-200 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-100 transition"
                       required
+                      className="w-full text-sm text-gray-800 placeholder-gray-400 font-medium bg-white transition"
+                      style={{ paddingLeft: '40px', paddingRight: '16px', height: '56px', border: '1.5px solid #E5E7EB', borderRadius: '14px', outline: 'none' }}
+                      onFocus={(e) => { e.target.style.borderColor = '#00B96B'; e.target.style.boxShadow = '0 0 0 3px rgba(0,185,107,0.1)'; }}
+                      onBlur={(e) => { e.target.style.borderColor = '#E5E7EB'; e.target.style.boxShadow = 'none'; }}
                     />
                   </div>
                 </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-600">Confirm New Password</label>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1.5">Confirm Password</label>
                   <div className="relative">
-                    <Lock size={16} className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-slate-400" />
+                    <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
                     <input
                       type="password"
                       value={resetForm.confirmPassword}
                       onChange={(e) => setResetForm({ ...resetForm, confirmPassword: e.target.value })}
                       placeholder="Confirm new password"
-                      className="w-full pl-10 pr-4 py-3 text-sm bg-white text-black rounded-xl border border-slate-200 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-100 transition"
                       required
+                      className="w-full text-sm text-gray-800 placeholder-gray-400 font-medium bg-white transition"
+                      style={{ paddingLeft: '40px', paddingRight: '16px', height: '56px', border: '1.5px solid #E5E7EB', borderRadius: '14px', outline: 'none' }}
+                      onFocus={(e) => { e.target.style.borderColor = '#00B96B'; e.target.style.boxShadow = '0 0 0 3px rgba(0,185,107,0.1)'; }}
+                      onBlur={(e) => { e.target.style.borderColor = '#E5E7EB'; e.target.style.boxShadow = 'none'; }}
                     />
                   </div>
                 </div>
 
-                {resetError && <ErrorState title="Reset failed" description={resetError} />}
+                {resetError && (
+                  <div className="flex items-start gap-3" style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '12px', padding: '14px 16px', color: '#dc2626' }}>
+                    <AlertCircle size={15} className="shrink-0 mt-0.5" />
+                    <span className="text-xs font-semibold">{resetError}</span>
+                  </div>
+                )}
                 {resetSuccess && (
-                  <p className="rounded-xl bg-blue-50 px-4 py-3 text-xs text-blue-700 font-bold border border-blue-100">
-                    {resetSuccess}
-                  </p>
+                  <div className="flex items-start gap-3" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '12px', padding: '14px 16px', color: '#15803d' }}>
+                    <CheckCircle2 size={15} className="shrink-0 mt-0.5" />
+                    <span className="text-xs font-semibold">{resetSuccess}</span>
+                  </div>
                 )}
 
                 <button
                   type="submit"
                   disabled={resetSubmitting}
-                  className="w-full py-3.5 rounded-xl bg-blue-650 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold transition cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2 text-sm font-black text-white"
+                  style={{ background: '#00B96B', borderRadius: '14px', height: '56px', boxShadow: '0 4px 14px rgba(0,185,107,0.3)', cursor: 'pointer' }}
                 >
-                  {resetSubmitting ? 'Resetting...' : 'Reset Password'}
+                  {resetSubmitting ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> : 'Reset Password'}
                 </button>
-              </form>
 
-              <p className="text-center text-xs text-slate-500">
-                Remember your password?{' '}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode('login');
-                    setError('');
-                    setResetError('');
-                    setResetSuccess('');
-                  }}
-                  className={`font-bold hover:underline cursor-pointer ${activeTab === 'patient' ? 'text-purple-650' : 'text-emerald-650'
-                    }`}
-                >
-                  Sign in here
-                </button>
-              </p>
-            </div>
-          )}
+                <p className="text-center text-xs text-gray-500 font-semibold">
+                  Remember your password?{' '}
+                  <button
+                    type="button"
+                    onClick={() => { setMode('login'); setError(''); setResetError(''); setResetSuccess(''); }}
+                    className="font-bold"
+                    style={{ color: '#00B96B' }}
+                  >
+                    Sign in here
+                  </button>
+                </p>
+              </form>
+            )}
+          </div>
         </div>
       </div>
-
-      {/* ── FOOTER BAR ── */}
-      <footer className="bg-slate-900 text-[11px] font-bold text-slate-450 py-5 px-6 flex flex-col md:flex-row items-center justify-between gap-4 shrink-0 shadow-inner">
-        <div className="flex items-center gap-2">
-          <div className="w-5 h-5 rounded-md bg-blue-600 flex items-center justify-center text-white shadow-sm">
-            <Heart size={10} fill="currentColor" />
-          </div>
-          <span className="text-slate-400">AICMS Portal. Your trusted partner in health and wellness.</span>
-        </div>
-        <div className="flex items-center gap-6 text-slate-500">
-          <span>🛡 Trusted & Secure</span>
-          <span>🔒 Privacy Protected</span>
-          <span>📞 24/7 Support</span>
-        </div>
-      </footer>
     </div>
-  )
+  );
 };
 
 export default LoginPage;

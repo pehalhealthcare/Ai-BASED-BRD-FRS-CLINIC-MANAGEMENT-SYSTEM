@@ -21,13 +21,22 @@ export const pharmacyApi = {
   deleteSupplier: async (id) => unwrapResponse(await axiosClient.delete(`/pharmacy/suppliers/${id}`)),
   getSupplierAnalytics: async (id) => unwrapResponse(await axiosClient.get(`/pharmacy/suppliers/${id}/analytics`)),
   getSupplierPurchaseHistory: async (id) => unwrapResponse(await axiosClient.get(`/pharmacy/suppliers/${id}/purchase-history`)),
-  listPurchaseOrders: async () => unwrapResponse(await axiosClient.get('/pharmacy/purchase-orders')),
+  listPurchaseOrders: async (params = {}) => unwrapResponse(await axiosClient.get('/pharmacy/purchase-orders', { params })),
   createPurchaseOrder: async (payload) => unwrapResponse(await axiosClient.post('/pharmacy/purchase-orders', payload)),
+  updatePurchaseOrderStatus: async (id, payload) => unwrapResponse(await axiosClient.patch(`/pharmacy/purchase-orders/${id}/status`, payload)),
+  recordPoPayment: async (id, payload) => unwrapResponse(await axiosClient.post(`/pharmacy/purchase-orders/${id}/payments`, payload)),
+  receivePurchaseOrder: async (id, payload) => unwrapResponse(await axiosClient.post(`/pharmacy/purchase-orders/${id}/receive`, payload)),
   searchGlobalMeds: async (query) => unwrapResponse(await axiosClient.get('/healthcare-catalog/search/medicines', { params: { search: query, limit: 100 } })),
   listPharmacyOrders: async (params = {}) => unwrapResponse(await axiosClient.get('/pharmacy/orders', { params })),
   updateOrderStatus: async (id, payload) => unwrapResponse(await axiosClient.patch(`/pharmacy/orders/${id}/status`, payload)),
   regeneratePickupCode: async (id) => unwrapResponse(await axiosClient.patch(`/pharmacy/orders/${id}/regenerate-pickup-code`)),
-  verifyPickupCode: async (id, payload) => unwrapResponse(await axiosClient.post(`/pharmacy/orders/${id}/verify-pickup`, payload))
+  verifyPickupCode: async (id, payload) => unwrapResponse(await axiosClient.post(`/pharmacy/orders/${id}/verify-pickup`, payload)),
+  listManufacturers: async (params = {}) => unwrapResponse(await axiosClient.get('/pharmacy/manufacturers', { params })),
+  createManufacturer: async (payload) => unwrapResponse(await axiosClient.post('/pharmacy/manufacturers', payload)),
+  updateManufacturer: async (id, payload) => unwrapResponse(await axiosClient.put(`/pharmacy/manufacturers/${id}`, payload)),
+  deleteManufacturer: async (id) => unwrapResponse(await axiosClient.delete(`/pharmacy/manufacturers/${id}`)),
+  getManufacturerAnalytics: async (id) => unwrapResponse(await axiosClient.get(`/pharmacy/manufacturers/${id}/analytics`)),
+  getSalesPerformance: async (params = {}) => unwrapResponse(await axiosClient.get('/pharmacy/analytics/sales-performance', { params }))
 };
 
 export default pharmacyApi;

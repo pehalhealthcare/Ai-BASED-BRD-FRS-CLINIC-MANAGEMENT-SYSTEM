@@ -181,12 +181,12 @@ const getSortedQueue = async (doctorId) => {
   const endOfDay = new Date();
   endOfDay.setHours(23, 59, 59, 999);
 
-  // Self-healing: Find all checked_in/late_check_in/confirmed walk_in appointments for today that don't have a token, and create one
+  // Self-healing: Find all checked_in/late_check_in/confirmed/booked appointments for today that don't have a token, and create one
   const todayAppointments = await Appointment.find({
     doctorId,
     appointmentDate: { $gte: startOfDay, $lte: endOfDay },
     $or: [
-      { status: { $in: [APPOINTMENT_STATUSES.CHECKED_IN, APPOINTMENT_STATUSES.LATE_CHECK_IN] } },
+      { status: { $in: [APPOINTMENT_STATUSES.CHECKED_IN, APPOINTMENT_STATUSES.LATE_CHECK_IN, APPOINTMENT_STATUSES.BOOKED, APPOINTMENT_STATUSES.CONFIRMED] } },
       { appointmentType: 'walk_in', status: APPOINTMENT_STATUSES.CONFIRMED, paymentStatus: { $in: ['paid', 'fully_waived'] } }
     ]
   });
@@ -213,9 +213,8 @@ const getSortedQueue = async (doctorId) => {
         generatedTime: new Date()
       });
 
-      if (appt.status === APPOINTMENT_STATUSES.CONFIRMED) {
-        appt.status = APPOINTMENT_STATUSES.CHECKED_IN;
-        await appt.save();
+      if ([APPOINTMENT_STATUSES.CONFIRMED, APPOINTMENT_STATUSES.BOOKED].includes(appt.status)) {
+        // Keep status as booked/confirmed to preserve visibility on receptionist & doctor dashboard calendars
       }
     }
   }
@@ -230,29 +229,46 @@ const getSortedQueue = async (doctorId) => {
   });
 
   // Sort queue by priority
-  // Priority: Emergency -> Doctor Override -> Checked-In -> Late Check-In -> Walk-In -> Skipped
+  // Priority: Emergency -> VIP -> Checked-In -> Skipped -> Walk-In -> Future/Others
   const getSortWeight = (token) => {
     if (token.status === 'in_consultation') return 0;
     if (token.status === 'called') return 1;
     if (token.priority === 'emergency') return 2;
-    if (token.priority === 'doctor_override' || token.priority === 'vip') return 3;
-    
+    if (token.priority === 'vip') return 3;
+
     const appt = token.appointmentId;
     if (!appt) return 10;
-    if (appt.status === APPOINTMENT_STATUSES.CHECKED_IN) {
-      return appt.appointmentType === 'walk_in' ? 5 : 4;
+
+    const now = new Date();
+    let hasArrivedOrPassed = true;
+    if (appt.appointmentTime) {
+      const [hrs, mins] = appt.appointmentTime.split(':');
+      const slotTime = new Date();
+      slotTime.setHours(Number(hrs), Number(mins), 0, 0);
+      hasArrivedOrPassed = now >= slotTime;
     }
-    if (appt.status === APPOINTMENT_STATUSES.LATE_CHECK_IN) return 6;
-    if (token.status === 'skipped') return 7;
-    return 10;
+
+    if ([APPOINTMENT_STATUSES.CHECKED_IN, APPOINTMENT_STATUSES.BOOKED, APPOINTMENT_STATUSES.CONFIRMED].includes(appt.status) && hasArrivedOrPassed) {
+      return 4; // Checked-in/Booked/Confirmed patients whose appointment time has arrived/passed
+    }
+    if (token.status === 'skipped') {
+      return 5; // Skipped patients
+    }
+    if (appt.appointmentType === 'walk_in') {
+      return 6; // Walk-in patients
+    }
+    return 7; // Patients with future slots or other statuses
   };
 
   tokens.sort((a, b) => {
     const weightA = getSortWeight(a);
     const weightB = getSortWeight(b);
     if (weightA !== weightB) return weightA - weightB;
-    // Secondary sort: queuePosition or check-in time
-    return a.queuePosition - b.queuePosition;
+    
+    // Within each priority group, order by earliest appointmentTime
+    const timeA = a.appointmentId?.appointmentTime || '00:00';
+    const timeB = b.appointmentId?.appointmentTime || '00:00';
+    return timeA.localeCompare(timeB);
   });
 
   return tokens;
@@ -336,6 +352,7 @@ const callNextPatient = async (doctorId) => {
     }
   }
 
+  broadcastQueueUpdate(nextToken.doctorId);
   return nextToken;
 };
 
@@ -381,6 +398,7 @@ const startTokenConsultation = async (tokenId) => {
     }
   }
 
+  broadcastQueueUpdate(token.doctorId);
   return token;
 };
 
@@ -403,6 +421,7 @@ const completeTokenConsultation = async (tokenId) => {
     }
   }
 
+  broadcastQueueUpdate(token.doctorId);
   return token;
 };
 
@@ -415,16 +434,32 @@ const getCurrentConsultation = async (doctorId) => {
   const endOfDay = new Date();
   endOfDay.setHours(23, 59, 59, 999);
 
+  const populateOpts = {
+    path: 'appointmentId',
+    populate: { path: 'patientId' }
+  };
+
+  // 1. Look for an active in_consultation token first
   const activeConsultation = await Token.findOne({
     doctorId,
     status: 'in_consultation',
     createdAt: { $gte: startOfDay, $lte: endOfDay }
-  }).populate({
-    path: 'appointmentId',
-    populate: { path: 'patientId' }
-  });
+  }).populate(populateOpts);
 
-  return activeConsultation;
+  if (activeConsultation) {
+    return { activeConsultation, lastCompleted: null };
+  }
+
+  // 2. No active consultation – find the most recently completed token today
+  const lastCompleted = await Token.findOne({
+    doctorId,
+    status: 'completed',
+    createdAt: { $gte: startOfDay, $lte: endOfDay }
+  })
+    .sort({ consultationCompleted: -1 })
+    .populate(populateOpts);
+
+  return { activeConsultation: null, lastCompleted: lastCompleted || null };
 };
 
 /**
@@ -438,8 +473,28 @@ const revisitConsultation = async (tokenId) => {
     throw new AppError('Only completed consultations can be revisited.', HTTP_STATUS.BAD_REQUEST);
   }
 
-  // Audit log for revisit can be handled by a queue audit or consultation audit log.
-  // For now, we simply return the token to allow the doctor to navigate to the consultation page.
+  // 1. Reset Token status
+  token.status = 'in_consultation';
+  await token.save();
+
+  // 2. Reset Appointment status
+  if (token.appointmentId) {
+    const appt = await Appointment.findById(token.appointmentId);
+    if (appt) {
+      appt.status = APPOINTMENT_STATUSES.IN_CONSULTATION;
+      await appt.save();
+    }
+  }
+
+  // 3. Reset Consultation status to in_progress
+  const Consultation = require('../consultations/consultation.model');
+  const consultation = await Consultation.findOne({ appointmentId: token.appointmentId });
+  if (consultation) {
+    consultation.status = 'in_progress';
+    await consultation.save();
+  }
+
+  broadcastQueueUpdate(token.doctorId);
   return token;
 };
 
@@ -454,6 +509,7 @@ const skipToken = async (tokenId) => {
   token.skippedTime = new Date();
   await token.save();
 
+  broadcastQueueUpdate(token.doctorId);
   return token;
 };
 
@@ -494,6 +550,7 @@ const verifyPatientOtp = async (tokenId, enteredOtp) => {
     }
   }
 
+  broadcastQueueUpdate(token.doctorId);
   return token;
 };
 
@@ -546,6 +603,7 @@ const reassignSkippedToken = async (tokenId) => {
     changedBy: token.doctorId
   });
 
+  broadcastQueueUpdate(token.doctorId);
   return token;
 };
 
@@ -560,6 +618,7 @@ const recallToken = async (tokenId, moveToQueueEnd) => {
   }
   await token.save();
 
+  broadcastQueueUpdate(token.doctorId);
   return token;
 };
 
@@ -583,7 +642,14 @@ const reorderQueue = async ({ tokenId, newPosition, reason, changedBy }) => {
     changedBy: changedBy._id
   });
 
+  broadcastQueueUpdate(token.doctorId);
   return token;
+};
+
+const broadcastQueueUpdate = (doctorId) => {
+  if (global.io && doctorId) {
+    global.io.emit('queue_update', { doctorId: doctorId.toString() });
+  }
 };
 
 module.exports = {

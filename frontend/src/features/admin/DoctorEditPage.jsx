@@ -108,6 +108,30 @@ const DoctorEditPage = () => {
     return hrs * 60 + mins;
   };
 
+  const convertTo24Hour = (time12h) => {
+    if (!time12h) return '';
+    const match = String(time12h).match(/^(\d+):(\d+)\s*(AM|PM)$/i);
+    if (!match) return time12h;
+    let hrs = Number(match[1]);
+    const mins = match[2];
+    const ampm = match[3].toUpperCase();
+    if (ampm === 'PM' && hrs < 12) hrs += 12;
+    if (ampm === 'AM' && hrs === 12) hrs = 0;
+    return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+  };
+
+  const convertTo12Hour = (time24h) => {
+    if (!time24h) return '';
+    const match = String(time24h).match(/^(\d{1,2}):(\d{2})$/);
+    if (!match) return time24h;
+    let hrs = Number(match[1]);
+    const mins = match[2];
+    const ampm = hrs >= 12 ? 'PM' : 'AM';
+    hrs = hrs % 12;
+    if (hrs === 0) hrs = 12;
+    return `${String(hrs).padStart(2, '0')}:${mins} ${ampm}`;
+  };
+
   const hasCoordinates = (addr) => {
     return addr && typeof addr.latitude === 'number' && typeof addr.longitude === 'number';
   };
@@ -223,8 +247,10 @@ const DoctorEditPage = () => {
               clinicId: c._id,
               dayOfWeek: day,
               isAvailable: matchSlot ? matchSlot.isAvailable : false,
-              startTime: matchSlot ? matchSlot.startTime : '09:00 AM',
-              endTime: matchSlot ? matchSlot.endTime : '01:00 PM'
+              startTime: matchSlot ? convertTo12Hour(matchSlot.startTime) : '09:00 AM',
+              endTime: matchSlot ? convertTo12Hour(matchSlot.endTime) : '01:00 PM',
+              breakStartTime: (matchSlot && matchSlot.breakStartTime) ? convertTo12Hour(matchSlot.breakStartTime) : '',
+              breakEndTime: (matchSlot && matchSlot.breakEndTime) ? convertTo12Hour(matchSlot.breakEndTime) : ''
             });
             if (matchSlot && matchSlot.slotDurationMinutes) {
               setSelectedSlotDuration(matchSlot.slotDurationMinutes);
@@ -272,16 +298,55 @@ const DoctorEditPage = () => {
     const errors = {};
     DAYS_OF_WEEK.forEach((day) => {
       const daySlots = slots.filter((s) => s.dayOfWeek === day && s.isAvailable && assignedClinicIds.includes(s.clinicId));
+      
+      daySlots.forEach(s => {
+        const start = parseTimeToMinutes(s.startTime);
+        const end = parseTimeToMinutes(s.endTime);
+        if (end <= start) {
+          errors[`${s.clinicId}-${day}`] = 'End time must be later than start time';
+          return;
+        }
+
+        if (s.breakStartTime || s.breakEndTime) {
+          if (!s.breakStartTime || !s.breakEndTime) {
+            errors[`${s.clinicId}-${day}`] = 'Both break times are required if set';
+            return;
+          }
+          const bStart = parseTimeToMinutes(s.breakStartTime);
+          const bEnd = parseTimeToMinutes(s.breakEndTime);
+          
+          if (bStart < start || bStart > end) {
+            errors[`${s.clinicId}-${day}`] = 'Break start must be within working hours';
+            return;
+          }
+          if (bEnd <= bStart || bEnd > end) {
+            errors[`${s.clinicId}-${day}`] = 'Break end must be later than break start and within working hours';
+            return;
+          }
+        }
+      });
+
       if (daySlots.length === 0) return;
       daySlots.sort((a, b) => parseTimeToMinutes(a.startTime) - parseTimeToMinutes(b.startTime));
       for (let i = 0; i < daySlots.length - 1; i++) {
         const s1 = daySlots[i];
         const s2 = daySlots[i + 1];
-        const gap = parseTimeToMinutes(s2.startTime) - parseTimeToMinutes(s1.endTime);
-        if (gap < 90) {
-          const errMsg = `Time conflict: Gap must be >= 1.5 hrs`;
+        const start1 = parseTimeToMinutes(s1.startTime);
+        const end1 = parseTimeToMinutes(s1.endTime);
+        const start2 = parseTimeToMinutes(s2.startTime);
+        const end2 = parseTimeToMinutes(s2.endTime);
+
+        if (start2 < end1) {
+          const errMsg = `Overlap conflict: Sessions overlap!`;
           errors[`${s1.clinicId}-${day}`] = errMsg;
           errors[`${s2.clinicId}-${day}`] = errMsg;
+        } else {
+          const gap = start2 - end1;
+          if (gap < 90) {
+            const errMsg = `Time conflict: Gap must be >= 1.5 hrs`;
+            errors[`${s1.clinicId}-${day}`] = errMsg;
+            errors[`${s2.clinicId}-${day}`] = errMsg;
+          }
         }
         if (String(s1.clinicId) !== String(s2.clinicId)) {
           const dist = calculateDistance(s1.clinicId, s2.clinicId);
@@ -305,6 +370,45 @@ const DoctorEditPage = () => {
       errors: Array.from(new Set(errorList))
     };
   }, [cellErrors]);
+
+  const handleCopySchedule = (fromCid, fromDay) => {
+    const sourceSlot = slots.find(s => s.clinicId === fromCid && s.dayOfWeek === fromDay);
+    if (!sourceSlot) return;
+
+    setSlots(slots.map(s => {
+      if (s.clinicId === fromCid && s.dayOfWeek !== fromDay) {
+        return {
+          ...s,
+          startTime: sourceSlot.startTime,
+          endTime: sourceSlot.endTime,
+          breakStartTime: sourceSlot.breakStartTime || '',
+          breakEndTime: sourceSlot.breakEndTime || ''
+        };
+      }
+      return s;
+    }));
+    toast.success(`Copied schedule of ${fromDay.toUpperCase()} to other days for this clinic.`);
+  };
+
+  const calculateSlotDuration = (slot) => {
+    if (!slot || !slot.startTime || !slot.endTime) return '0 hrs';
+    const startMin = parseTimeToMinutes(slot.startTime);
+    const endMin = parseTimeToMinutes(slot.endTime);
+    let workMin = endMin - startMin;
+    if (workMin <= 0) return '0 hrs';
+
+    if (slot.breakStartTime && slot.breakEndTime) {
+      const bStartMin = parseTimeToMinutes(slot.breakStartTime);
+      const bEndMin = parseTimeToMinutes(slot.breakEndTime);
+      const breakMin = bEndMin - bStartMin;
+      if (breakMin > 0 && bStartMin >= startMin && bEndMin <= endMin) {
+        workMin -= breakMin;
+      }
+    }
+    const hrs = Math.floor(workMin / 60);
+    const mins = workMin % 60;
+    return `${hrs} hrs ${mins} mins`;
+  };
 
   const handleBulkApply = () => {
     if (!bulkClinicId) return;
@@ -353,8 +457,10 @@ const DoctorEditPage = () => {
         availability: activeSlots.map((s) => ({
           dayOfWeek: s.dayOfWeek,
           isAvailable: true,
-          startTime: s.startTime,
-          endTime: s.endTime,
+          startTime: convertTo24Hour(s.startTime),
+          endTime: convertTo24Hour(s.endTime),
+          breakStartTime: s.breakStartTime ? convertTo24Hour(s.breakStartTime) : undefined,
+          breakEndTime: s.breakEndTime ? convertTo24Hour(s.breakEndTime) : undefined,
           slotDurationMinutes: Number(selectedSlotDuration),
           clinicId: s.clinicId,
           consultationMode: getAutoAllowedMode(s.clinicId)
@@ -364,7 +470,11 @@ const DoctorEditPage = () => {
       };
 
       await doctorApi.update(doctorId, payload);
-      toast.success('Assignment changes sent for doctor approval!');
+      if (user?.role === 'admin' || user?.role === 'super_admin') {
+        toast.success('Doctor schedule and policies updated successfully!');
+      } else {
+        toast.success('Assignment changes sent for doctor approval!');
+      }
       navigate(-1);
     } catch (err) {
       console.error(err);
@@ -659,7 +769,19 @@ const DoctorEditPage = () => {
                               : 'bg-white border-slate-100'
                         }`}>
                           <div className="flex justify-between items-center mb-3">
-                            <span className={`capitalize font-bold text-xs ${isAvailable ? 'text-indigo-900' : 'text-slate-400'}`}>{day.slice(0, 3)}</span>
+                            <div className="flex items-center gap-1">
+                              <span className={`capitalize font-bold text-xs ${isAvailable ? 'text-indigo-900' : 'text-slate-400'}`}>{day.slice(0, 3)}</span>
+                              {isAvailable && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopySchedule(cid, day)}
+                                  className="p-0.5 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded transition"
+                                  title="Copy schedule to other days"
+                                >
+                                  <Copy size={10} />
+                                </button>
+                              )}
+                            </div>
                             <label className="relative inline-flex items-center cursor-pointer">
                               <input
                                 type="checkbox"
@@ -682,37 +804,63 @@ const DoctorEditPage = () => {
                           {isAvailable ? (
                             <div className="space-y-2">
                               <div>
-                                <p className="text-[9px] text-slate-500 font-medium mb-0.5">Start</p>
-                                <select
+                                <p className="text-[9px] text-slate-500 font-bold mb-0.5">Start Time</p>
+                                <TimePicker
                                   value={slot.startTime}
-                                  onChange={(e) => {
-                                    setSlots(slots.map(s => s.clinicId === cid && s.dayOfWeek === day ? { ...s, startTime: e.target.value } : s));
+                                  onChange={(val) => {
+                                    setSlots(slots.map(s => s.clinicId === cid && s.dayOfWeek === day ? { ...s, startTime: val } : s));
                                   }}
-                                  className="w-full bg-white border border-slate-200 rounded px-1.5 py-1 text-[10px] text-slate-700 outline-none"
-                                >
-                                  {TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
-                                </select>
+                                  placeholder="Start"
+                                />
                               </div>
                               <div>
-                                <p className="text-[9px] text-slate-500 font-medium mb-0.5">End</p>
-                                <select
+                                <p className="text-[9px] text-slate-500 font-bold mb-0.5">End Time</p>
+                                <TimePicker
                                   value={slot.endTime}
-                                  onChange={(e) => {
-                                    setSlots(slots.map(s => s.clinicId === cid && s.dayOfWeek === day ? { ...s, endTime: e.target.value } : s));
+                                  onChange={(val) => {
+                                    setSlots(slots.map(s => s.clinicId === cid && s.dayOfWeek === day ? { ...s, endTime: val } : s));
                                   }}
-                                  className="w-full bg-white border border-slate-200 rounded px-1.5 py-1 text-[10px] text-slate-700 outline-none"
-                                >
-                                  {TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
-                                </select>
+                                  placeholder="End"
+                                />
                               </div>
+
+                              <div className="pt-2 border-t border-slate-200/50 space-y-1.5">
+                                <p className="text-[8px] text-slate-400 font-extrabold uppercase tracking-wider">Break (Optional)</p>
+                                <div>
+                                  <p className="text-[8px] text-slate-500 font-medium mb-0.5">Break Start</p>
+                                  <TimePicker
+                                    value={slot.breakStartTime || ''}
+                                    onChange={(val) => {
+                                      setSlots(slots.map(s => s.clinicId === cid && s.dayOfWeek === day ? { ...s, breakStartTime: val } : s));
+                                    }}
+                                    placeholder="Break Start"
+                                  />
+                                </div>
+                                <div>
+                                  <p className="text-[8px] text-slate-500 font-medium mb-0.5">Break End</p>
+                                  <TimePicker
+                                    value={slot.breakEndTime || ''}
+                                    onChange={(val) => {
+                                      setSlots(slots.map(s => s.clinicId === cid && s.dayOfWeek === day ? { ...s, breakEndTime: val } : s));
+                                    }}
+                                    placeholder="Break End"
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="bg-slate-100/60 p-1.5 rounded-lg text-center mt-1">
+                                <span className="text-[8px] text-slate-400 font-bold block">DURATION</span>
+                                <span className="text-[9px] text-slate-700 font-black">{calculateSlotDuration(slot)}</span>
+                              </div>
+
                               {hasError && (
-                                <p className="text-[9px] text-rose-600 font-bold leading-tight mt-2 flex items-start gap-1">
-                                  <AlertTriangle size={10} className="shrink-0 mt-0.5"/> {errorMsg}
+                                <p className="text-[8px] text-rose-600 font-bold leading-tight mt-2 flex items-start gap-1">
+                                  <AlertTriangle size={8} className="shrink-0 mt-0.5"/> {errorMsg}
                                 </p>
                               )}
                             </div>
                           ) : (
-                            <div className="h-20 flex items-center justify-center">
+                            <div className="h-44 flex items-center justify-center">
                               <p className="text-[10px] text-slate-400 font-medium">Not Available</p>
                             </div>
                           )}
@@ -957,21 +1105,44 @@ const DoctorEditPage = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Start Time</label>
-                  <select value={bulkOfflineStart} onChange={(e) => setBulkOfflineStart(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 outline-none focus:border-indigo-500">
-                    {TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
-                  </select>
+                  <TimePicker value={bulkOfflineStart} onChange={setBulkOfflineStart} placeholder="Select Start Time" />
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">End Time</label>
-                  <select value={bulkOfflineEnd} onChange={(e) => setBulkOfflineEnd(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 outline-none focus:border-indigo-500">
-                    {TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
-                  </select>
+                  <TimePicker value={bulkOfflineEnd} onChange={setBulkOfflineEnd} placeholder="Select End Time" />
                 </div>
+                {(() => {
+                  const startMin = parseTimeToMinutes(bulkOfflineStart);
+                  const endMin = parseTimeToMinutes(bulkOfflineEnd);
+                  const durationMin = endMin - startMin;
+                  const isValid = durationMin > 0;
+                  const hrs = Math.floor(durationMin / 60);
+                  const mins = durationMin % 60;
+                  return (
+                    <div className="col-span-2">
+                      {isValid ? (
+                        <p className="text-[10px] text-indigo-600 font-bold bg-indigo-50 px-2.5 py-1.5 rounded-lg border border-indigo-100">
+                          Total working duration: {hrs} hrs {mins} mins
+                        </p>
+                      ) : (
+                        <p className="text-[10px] text-rose-600 font-bold bg-rose-50 px-2.5 py-1.5 rounded-lg border border-rose-100">
+                          ⚠️ Invalid Schedule: End time must be later than start time.
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
 
               <div className="flex items-center gap-3 pt-4 border-t border-slate-100">
                 <button onClick={() => setBulkModalOpen(false)} className="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition">Cancel</button>
-                <button onClick={handleBulkApply} className="flex-1 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition">Apply Schedule</button>
+                <button
+                  disabled={parseTimeToMinutes(bulkOfflineEnd) <= parseTimeToMinutes(bulkOfflineStart)}
+                  onClick={handleBulkApply}
+                  className="flex-1 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white text-xs font-bold rounded-xl transition"
+                >
+                  Apply Schedule
+                </button>
               </div>
             </div>
           </div>

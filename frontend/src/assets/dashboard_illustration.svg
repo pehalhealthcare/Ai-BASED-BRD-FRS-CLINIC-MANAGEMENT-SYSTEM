@@ -1,0 +1,483 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1920" height="1080" viewBox="0 0 1920 1080" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Fonts Import -->
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap');
+      text { font-family: 'Inter', sans-serif; }
+    </style>
+
+    <!-- Background Glow -->
+    <radialGradient id="bgGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#EBF3FF" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Dotted Pattern -->
+    <pattern id="dottedPattern" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1.5" fill="#E2E8F0"/>
+    </pattern>
+
+    <!-- Sidebar Navy Gradient -->
+    <linearGradient id="sidebarGrad" x1="0" y1="0" x2="0" y2="720">
+      <stop offset="0%" stop-color="#0B1E54"/>
+      <stop offset="100%" stop-color="#132F80"/>
+    </linearGradient>
+
+    <!-- Blue Glow behind Phone -->
+    <radialGradient id="phoneGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#2563EB" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#2563EB" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Shadow Filters -->
+    <filter id="shadowLarge" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="24" stdDeviation="40" flood-color="#0F172A" flood-opacity="0.12"/>
+    </filter>
+    
+    <filter id="shadowCard" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#0F172A" flood-opacity="0.05"/>
+    </filter>
+
+    <filter id="shadowPhone" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="32" stdDeviation="36" flood-color="#070E24" flood-opacity="0.2"/>
+    </filter>
+
+    <!-- Active Icon Glow -->
+    <filter id="activeGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+
+    <!-- Donut Chart Gradients -->
+    <linearGradient id="donutBlue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2563EB"/>
+      <stop offset="100%" stop-color="#3B82F6"/>
+    </linearGradient>
+    <linearGradient id="donutPink" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#EC4899"/>
+      <stop offset="100%" stop-color="#F472B6"/>
+    </linearGradient>
+    <linearGradient id="donutOrange" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F59E0B"/>
+      <stop offset="100%" stop-color="#FBBF24"/>
+    </linearGradient>
+    <linearGradient id="donutGreen" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#10B981"/>
+      <stop offset="100%" stop-color="#34D399"/>
+    </linearGradient>
+
+    <!-- Button/Active Gradients -->
+    <linearGradient id="btnGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#2563EB"/>
+      <stop offset="100%" stop-color="#4F46E5"/>
+    </linearGradient>
+  </defs>
+
+  <!-- ==================== BACKGROUND ==================== -->
+  <rect width="1920" height="1080" fill="#FFFFFF"/>
+  <rect width="1920" height="1080" fill="url(#bgGlow)"/>
+  
+  <!-- Dotted Pattern on background -->
+  <rect x="1100" y="100" width="700" height="880" fill="url(#dottedPattern)"/>
+
+  <!-- Minimal background floating bubbles -->
+  <circle cx="200" cy="180" r="12" fill="#2563EB" opacity="0.04"/>
+  <circle cx="1680" cy="850" r="28" fill="#7C3AED" opacity="0.03"/>
+  <circle cx="950" cy="900" r="8" fill="#F59E0B" opacity="0.05"/>
+  <circle cx="150" cy="880" r="16" fill="#10B981" opacity="0.04"/>
+
+  <!-- Ambient Glow behind Phone -->
+  <circle cx="1520" cy="540" r="450" fill="url(#phoneGlow)"/>
+
+  <!-- ==================== LEFT DASHBOARD CONTAINER ==================== -->
+  <!-- Size: 1200x720, positioned at x=150, y=180 -->
+  <g id="dashboard" filter="url(#shadowLarge)">
+    <!-- Main Board Card -->
+    <rect x="150" y="180" width="1200" height="720" rx="28" fill="#FFFFFF"/>
+
+    <!-- ── LEFT SIDEBAR (Width: 90px) ── -->
+    <g id="sidebar">
+      <rect x="150" y="180" width="90" height="720" rx="28 0 0 28" fill="url(#sidebarGrad)"/>
+      
+      <!-- Logo placeholder top -->
+      <circle cx="195" cy="235" r="18" fill="#ffffff" fill-opacity="0.15"/>
+      <path d="M190 235 H200 M195 230 V240" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round"/>
+
+      <!-- Navigation Icons -->
+      <!-- Active Home Icon with Glow background -->
+      <g transform="translate(167, 300)">
+        <rect width="56" height="56" rx="14" fill="#ffffff" fill-opacity="0.15" filter="url(#activeGlow)"/>
+        <!-- Home Outline Icon -->
+        <path d="M18 16 L28 8 L38 16 V42 H18 Z" stroke="#ffffff" stroke-width="2.5" fill="none" stroke-linejoin="round"/>
+        <path d="M24 42 V30 H32 V42" stroke="#ffffff" stroke-width="2.5" fill="none" stroke-linejoin="round"/>
+      </g>
+
+      <!-- Calendar Icon -->
+      <g transform="translate(178, 390)" opacity="0.5">
+        <rect x="0" y="0" width="34" height="34" fill="none"/>
+        <rect x="3" y="6" width="28" height="25" rx="5" stroke="#ffffff" stroke-width="2.5" fill="none"/>
+        <path d="M9 3 V9 M25 3 V9 M3 14 H31" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round"/>
+      </g>
+
+      <!-- Patients Icon -->
+      <g transform="translate(178, 470)" opacity="0.5">
+        <circle cx="17" cy="12" r="7" stroke="#ffffff" stroke-width="2.5" fill="none"/>
+        <path d="M4 29 C4 23 9 20 17 20 C25 20 30 23 30 29" stroke="#ffffff" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      </g>
+
+      <!-- Reports Icon -->
+      <g transform="translate(178, 550)" opacity="0.5">
+        <rect x="4" y="4" width="26" height="26" rx="4" stroke="#ffffff" stroke-width="2.5" fill="none"/>
+        <path d="M10 11 H24 M10 17 H24 M10 23 H18" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round"/>
+      </g>
+
+      <!-- Settings Icon -->
+      <g transform="translate(178, 630)" opacity="0.5">
+        <circle cx="17" cy="17" r="5" stroke="#ffffff" stroke-width="2.5" fill="none"/>
+        <path d="M17 5 V8 M17 26 V29 M5 17 H8 M26 17 H29" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round"/>
+      </g>
+    </g>
+
+    <!-- ── HEADER ── -->
+    <g id="header">
+      <text x="280" y="240" fill="#0F172A" font-size="28" font-weight="800">Welcome back, Dr. Arjun Mehta 👋</text>
+      <text x="280" y="268" fill="#64748B" font-size="15" font-weight="500">Here's what's happening in your clinic today.</text>
+
+      <!-- Notification Bell -->
+      <g transform="translate(1030, 215)" filter="url(#shadowCard)">
+        <rect width="46" height="46" rx="12" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1"/>
+        <path d="M23 13 C19 13 17 16 17 20 V27 L15 30 H31 L29 27 V20 C29 16 27 13 23 13 Z" stroke="#64748B" stroke-width="2" fill="none"/>
+        <path d="M20 30 C20 32 21 34 23 34 C25 34 26 32 26 30" stroke="#64748B" stroke-width="2" fill="none"/>
+        <circle cx="28" cy="16" r="4.5" fill="#EF4444"/>
+      </g>
+
+      <!-- Doctor Avatar -->
+      <g transform="translate(1095, 215)" filter="url(#shadowCard)">
+        <rect width="46" height="46" rx="12" fill="#E2E8F0"/>
+        <!-- Simple Doctor Avatar Path -->
+        <circle cx="23" cy="18" r="8" fill="#94A3B8"/>
+        <path d="M11 36 C11 29 16 26 23 26 C30 26 35 29 35 36 Z" fill="#94A3B8"/>
+      </g>
+    </g>
+
+    <!-- ── TOP STATS ROW / KPI CARDS ── -->
+    <!-- Card 1: Today's Appointments -->
+    <g id="kpi1" transform="translate(280, 310)" filter="url(#shadowCard)">
+      <rect width="215" height="110" rx="18" fill="#FFFFFF" stroke="#F1F5F9" stroke-width="1.5"/>
+      <circle cx="36" cy="36" r="18" fill="#EFF6FF"/>
+      <!-- Calendar Mini Icon -->
+      <rect x="28" y="28" width="16" height="16" rx="3" stroke="#2563EB" stroke-width="1.8" fill="none"/>
+      <path d="M31 26 V30 M41 26 V30 M28 33 H44" stroke="#2563EB" stroke-width="1.8"/>
+
+      <text x="24" y="78" fill="#0F172A" font-size="24" font-weight="800">42</text>
+      <text x="24" y="96" fill="#64748B" font-size="11" font-weight="600">Appointments Today</text>
+      
+      <!-- Sparkline -->
+      <path d="M125 46 L140 38 L155 52 L170 32 L185 40" stroke="#2563EB" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <text x="188" y="96" fill="#22C55E" font-size="11" font-weight="700" text-anchor="end">↑ 12%</text>
+    </g>
+
+    <!-- Card 2: Patients Checked In -->
+    <g id="kpi2" transform="translate(515, 310)" filter="url(#shadowCard)">
+      <rect width="215" height="110" rx="18" fill="#FFFFFF" stroke="#F1F5F9" stroke-width="1.5"/>
+      <circle cx="36" cy="36" r="18" fill="#ECFDF5"/>
+      <!-- User Icon -->
+      <circle cx="36" cy="33" r="5" stroke="#10B981" stroke-width="1.8" fill="none"/>
+      <path d="M28 43 C28 39 31 38 36 38 C41 38 44 39 44 43" stroke="#10B981" stroke-width="1.8" fill="none"/>
+
+      <text x="24" y="78" fill="#0F172A" font-size="24" font-weight="800">28</text>
+      <text x="24" y="96" fill="#64748B" font-size="11" font-weight="600">Checked In Today</text>
+      
+      <!-- Sparkline -->
+      <path d="M125 40 L140 48 L155 35 L170 42 L185 30" stroke="#10B981" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <text x="188" y="96" fill="#10B981" font-size="11" font-weight="700" text-anchor="end">↑ 8%</text>
+    </g>
+
+    <!-- Card 3: Doctors Available -->
+    <g id="kpi3" transform="translate(750, 310)" filter="url(#shadowCard)">
+      <rect width="215" height="110" rx="18" fill="#FFFFFF" stroke="#F1F5F9" stroke-width="1.5"/>
+      <circle cx="36" cy="36" r="18" fill="#F5F3FF"/>
+      <!-- Medical Cross Stethoscope -->
+      <rect x="29" y="29" width="14" height="14" rx="3" stroke="#7C3AED" stroke-width="1.8" fill="none"/>
+      <path d="M33 36 H39 M36 33 V39" stroke="#7C3AED" stroke-width="1.8"/>
+
+      <text x="24" y="78" fill="#0F172A" font-size="24" font-weight="800">14 / 16</text>
+      <text x="24" y="96" fill="#64748B" font-size="11" font-weight="600">Doctors Available</text>
+      
+      <!-- Sparkline -->
+      <path d="M125 48 L140 48 L155 36 L170 36 L185 36" stroke="#7C3AED" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <text x="188" y="96" fill="#7C3AED" font-size="11" font-weight="700" text-anchor="end">92%</text>
+    </g>
+
+    <!-- Card 4: Revenue Today -->
+    <g id="kpi4" transform="translate(985, 310)" filter="url(#shadowCard)">
+      <rect width="215" height="110" rx="18" fill="#FFFFFF" stroke="#F1F5F9" stroke-width="1.5"/>
+      <circle cx="36" cy="36" r="18" fill="#FEF3C7"/>
+      <!-- Rupee Badge Icon -->
+      <text x="36" y="42" fill="#D97706" font-size="16" font-weight="900" text-anchor="middle">₹</text>
+
+      <text x="24" y="78" fill="#0F172A" font-size="24" font-weight="800">₹24,850</text>
+      <text x="24" y="96" fill="#64748B" font-size="11" font-weight="600">Revenue Today</text>
+      
+      <!-- Sparkline -->
+      <path d="M125 35 L140 45 L155 32 L170 28 L185 24" stroke="#F59E0B" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <text x="188" y="96" fill="#F59E0B" font-size="11" font-weight="700" text-anchor="end">↑ 18%</text>
+    </g>
+
+    <!-- ── MIDDLE CONTENT SECTION (y=440 to 860) ── -->
+    <!-- Column 1: Appointments List (Left) -->
+    <g id="appointments-card" transform="translate(280, 445)" filter="url(#shadowCard)">
+      <rect width="285" height="430" rx="20" fill="#FFFFFF" stroke="#F1F5F9" stroke-width="1.5"/>
+      
+      <!-- Title -->
+      <text x="20" y="36" fill="#0F172A" font-size="16" font-weight="800">Today's Schedule</text>
+      
+      <!-- Button: New Appointment -->
+      <rect x="155" y="16" width="110" height="28" rx="8" fill="#EFF6FF"/>
+      <text x="210" y="34" fill="#2563EB" font-size="11" font-weight="800" text-anchor="middle">+ New Appt</text>
+
+      <!-- Appt Row 1 -->
+      <g transform="translate(20, 65)">
+        <rect width="245" height="74" rx="12" fill="#F8FAFC"/>
+        <text x="15" y="28" fill="#0F172A" font-size="13" font-weight="800">Rahul Sharma</text>
+        <text x="15" y="48" fill="#64748B" font-size="11" font-weight="500">General Checkup</text>
+        <text x="15" y="62" fill="#2563EB" font-size="10" font-weight="700">10:30 AM</text>
+        
+        <!-- Status Green -->
+        <rect x="175" y="18" width="55" height="20" rx="6" fill="#DCFCE7"/>
+        <text x="202" y="32" fill="#16A34A" font-size="9" font-weight="800" text-anchor="middle">Checked-In</text>
+      </g>
+
+      <!-- Appt Row 2 -->
+      <g transform="translate(20, 150)">
+        <rect width="245" height="74" rx="12" fill="#F8FAFC"/>
+        <text x="15" y="28" fill="#0F172A" font-size="13" font-weight="800">Priya Patel</text>
+        <text x="15" y="48" fill="#64748B" font-size="11" font-weight="500">Dental Consult</text>
+        <text x="15" y="62" fill="#7C3AED" font-size="10" font-weight="700">11:15 AM</text>
+
+        <!-- Status Purple -->
+        <rect x="175" y="18" width="55" height="20" rx="6" fill="#F3E8FF"/>
+        <text x="202" y="32" fill="#7E22CE" font-size="9" font-weight="800" text-anchor="middle">Confirmed</text>
+      </g>
+
+      <!-- Appt Row 3 -->
+      <g transform="translate(20, 235)">
+        <rect width="245" height="74" rx="12" fill="#F8FAFC"/>
+        <text x="15" y="28" fill="#0F172A" font-size="13" font-weight="800">Amit Kumar</text>
+        <text x="15" y="48" fill="#64748B" font-size="11" font-weight="500">Cardiology follow-up</text>
+        <text x="15" y="62" fill="#EF4444" font-size="10" font-weight="700">12:00 PM</text>
+
+        <!-- Status Red -->
+        <rect x="175" y="18" width="55" height="20" rx="6" fill="#FEE2E2"/>
+        <text x="202" y="32" fill="#DC2626" font-size="9" font-weight="800" text-anchor="middle">Delayed</text>
+      </g>
+
+      <!-- Appt Row 4 -->
+      <g transform="translate(20, 320)">
+        <rect width="245" height="74" rx="12" fill="#F8FAFC"/>
+        <text x="15" y="28" fill="#0F172A" font-size="13" font-weight="800">Sneha Gupta</text>
+        <text x="15" y="48" fill="#64748B" font-size="11" font-weight="500">Pediatric checkup</text>
+        <text x="15" y="62" fill="#2563EB" font-size="10" font-weight="700">01:00 PM</text>
+
+        <!-- Status Yellow -->
+        <rect x="175" y="18" width="55" height="20" rx="6" fill="#FEF3C7"/>
+        <text x="202" y="32" fill="#D97706" font-size="9" font-weight="800" text-anchor="middle">Pending</text>
+      </g>
+    </g>
+
+    <!-- Column 2: Patient Demographics (Center Donut) -->
+    <g id="demographics-card" transform="translate(585, 445)" filter="url(#shadowCard)">
+      <rect width="300" height="430" rx="20" fill="#FFFFFF" stroke="#F1F5F9" stroke-width="1.5"/>
+      <text x="20" y="36" fill="#0F172A" font-size="16" font-weight="800">Patient Demographics</text>
+
+      <!-- Donut Circle Group -->
+      <g transform="translate(150, 180)">
+        <!-- Outer circle sections -->
+        <!-- Blue Section (45%) -->
+        <circle cx="0" cy="0" r="70" stroke="url(#donutBlue)" stroke-width="26" fill="none" stroke-dasharray="297 440" stroke-dashoffset="0" transform="rotate(-90)"/>
+        <!-- Pink Section (25%) -->
+        <circle cx="0" cy="0" r="70" stroke="url(#donutPink)" stroke-width="26" fill="none" stroke-dasharray="110 440" stroke-dashoffset="-297" transform="rotate(-90)"/>
+        <!-- Orange Section (18%) -->
+        <circle cx="0" cy="0" r="70" stroke="url(#donutOrange)" stroke-width="26" fill="none" stroke-dasharray="79 440" stroke-dashoffset="-407" transform="rotate(-90)"/>
+        <!-- Green Section (12%) -->
+        <circle cx="0" cy="0" r="70" stroke="url(#donutGreen)" stroke-width="26" fill="none" stroke-dasharray="54 440" stroke-dashoffset="-486" transform="rotate(-90)"/>
+
+        <!-- Center Label -->
+        <text x="0" y="-5" fill="#64748B" font-size="12" font-weight="600" text-anchor="middle">TOTAL</text>
+        <text x="0" y="16" fill="#0F172A" font-size="22" font-weight="800" text-anchor="middle">2,856</text>
+      </g>
+
+      <!-- Legend details below donut -->
+      <g transform="translate(30, 310)">
+        <!-- Blue: Adult -->
+        <circle cx="10" cy="10" r="6" fill="#2563EB"/>
+        <text x="25" y="15" fill="#0F172A" font-size="12" font-weight="700">Adults (45%)</text>
+        <text x="220" y="15" fill="#64748B" font-size="12" font-weight="600" text-anchor="end">1,285</text>
+
+        <!-- Pink: Pediatric -->
+        <circle cx="10" cy="35" r="6" fill="#EC4899"/>
+        <text x="25" y="40" fill="#0F172A" font-size="12" font-weight="700">Pediatric (25%)</text>
+        <text x="220" y="40" fill="#64748B" font-size="12" font-weight="600" text-anchor="end">714</text>
+
+        <!-- Orange: Geriatric -->
+        <circle cx="10" cy="60" r="6" fill="#F59E0B"/>
+        <text x="25" y="65" fill="#0F172A" font-size="12" font-weight="700">Geriatric (18%)</text>
+        <text x="220" y="65" fill="#64748B" font-size="12" font-weight="600" text-anchor="end">514</text>
+
+        <!-- Green: Infant -->
+        <circle cx="10" cy="85" r="6" fill="#10B981"/>
+        <text x="25" y="90" fill="#0F172A" font-size="12" font-weight="700">Infants (12%)</text>
+        <text x="220" y="90" fill="#64748B" font-size="12" font-weight="600" text-anchor="end">343</text>
+      </g>
+    </g>
+
+    <!-- Column 3: Revenue Overview (Right Line Chart) -->
+    <g id="revenue-card" transform="translate(900, 445)" filter="url(#shadowCard)">
+      <rect width="320" height="430" rx="20" fill="#FFFFFF" stroke="#F1F5F9" stroke-width="1.5"/>
+      <text x="20" y="36" fill="#0F172A" font-size="16" font-weight="800">Revenue Overview</text>
+      
+      <!-- Period Dropdown -->
+      <rect x="210" y="20" width="90" height="26" rx="8" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1"/>
+      <text x="220" y="37" fill="#64748B" font-size="11" font-weight="700">This Month</text>
+      <path d="M285 32 L290 37 L295 32" stroke="#64748B" stroke-width="1.5" fill="none"/>
+
+      <text x="20" y="90" fill="#64748B" font-size="12" font-weight="500">Total Revenue Earned</text>
+      <text x="20" y="125" fill="#0F172A" font-size="28" font-weight="900">₹3,45,230</text>
+
+      <!-- Main Revenue Chart Area -->
+      <!-- Gridlines -->
+      <line x1="20" y1="210" x2="300" y2="210" stroke="#F1F5F9" stroke-width="1"/>
+      <line x1="20" y1="280" x2="300" y2="280" stroke="#F1F5F9" stroke-width="1"/>
+      <line x1="20" y1="350" x2="300" y2="350" stroke="#F1F5F9" stroke-width="1"/>
+
+      <!-- Smooth Area Under Graph -->
+      <path d="M20 350 C80 320 120 230 180 250 T280 180 V350 Z" fill="#EFF6FF" opacity="0.6"/>
+      <!-- Chart line -->
+      <path d="M20 350 C80 320 120 230 180 250 T280 180" stroke="#2563EB" stroke-width="3.5" fill="none" stroke-linecap="round" filter="url(#activeGlow)"/>
+
+      <!-- Axis Labels -->
+      <text x="20" y="380" fill="#94A3B8" font-size="10" font-weight="700" text-anchor="middle">W1</text>
+      <text x="100" y="380" fill="#94A3B8" font-size="10" font-weight="700" text-anchor="middle">W2</text>
+      <text x="180" y="380" fill="#94A3B8" font-size="10" font-weight="700" text-anchor="middle">W3</text>
+      <text x="280" y="380" fill="#94A3B8" font-size="10" font-weight="700" text-anchor="middle">W4</text>
+    </g>
+  </g>
+
+  <!-- ==================== PHONE MOCKUP (Right: Overlapping Dashboard) ==================== -->
+  <!-- Size: 410px width, 840px height, centered vertically around y=540, positioned at x=1420 -->
+  <g id="phone-mockup" transform="translate(1380, 120)" filter="url(#shadowPhone)">
+    <!-- Outer iPhone Bezel -->
+    <rect width="400" height="820" rx="55" fill="#0F172A" stroke="#334155" stroke-width="5"/>
+    <!-- Thin Inner Screen Bezel -->
+    <rect x="10" y="10" width="380" height="800" rx="46" fill="#020817"/>
+
+    <!-- Inside Phone Screen Display Area -->
+    <rect x="12" y="12" width="376" height="796" rx="44" fill="#F8FAFC"/>
+
+    <!-- Dynamic Island -->
+    <rect x="135" y="24" width="130" height="30" rx="15" fill="#000000"/>
+    <circle cx="155" cy="39" r="5.5" fill="#1E293B"/>
+
+    <!-- Phone Screen Content -->
+    <!-- App Header -->
+    <text x="32" y="94" fill="#0F172A" font-size="22" font-weight="800">Book Appointment</text>
+    
+    <!-- Search Bar -->
+    <rect x="30" y="118" width="320" height="46" rx="12" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5"/>
+    <!-- Magnifier outline -->
+    <circle cx="52" cy="140" r="5" stroke="#94A3B8" stroke-width="1.8" fill="none"/>
+    <line x1="56" y1="144" x2="62" y2="150" stroke="#94A3B8" stroke-width="1.8"/>
+    <text x="76" y="146" fill="#94A3B8" font-size="13" font-weight="500">Search doctor, specialty...</text>
+
+    <!-- Doctor Card (Active/Selected) -->
+    <g transform="translate(30, 185)" filter="url(#shadowCard)">
+      <rect width="320" height="154" rx="20" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1"/>
+      
+      <!-- Doctor Avatar -->
+      <rect x="20" y="22" width="64" height="64" rx="16" fill="#EFF6FF"/>
+      <circle cx="52" cy="48" r="10" fill="#2563EB" opacity="0.4"/>
+      <path d="M42 66 C42 60 46 56 52 56 C58 56 62 60 62 66 Z" fill="#2563EB" opacity="0.6"/>
+
+      <!-- Doc info -->
+      <text x="100" y="44" fill="#0F172A" font-size="15" font-weight="800">Dr. Arjun Mehta</text>
+      <text x="100" y="65" fill="#2563EB" font-size="12" font-weight="700">Cardiologist</text>
+      <text x="100" y="82" fill="#F59E0B" font-size="11" font-weight="600">★ 4.9 (120 reviews)</text>
+
+      <!-- Divider line inside card -->
+      <line x1="20" y1="102" x2="300" y2="102" stroke="#F1F5F9" stroke-width="1"/>
+      
+      <!-- Next slot info -->
+      <text x="20" y="128" fill="#64748B" font-size="11" font-weight="600">Next Available Slot</text>
+      <text x="300" y="128" fill="#10B981" font-size="12" font-weight="700" text-anchor="end">Today, 03:00 PM</text>
+    </g>
+
+    <!-- Date Selection -->
+    <text x="32" y="375" fill="#0F172A" font-size="15" font-weight="800">Select Date</text>
+    
+    <g transform="translate(30, 395)">
+      <!-- Oct 12 Pill (Inactive) -->
+      <rect x="0" y="0" width="56" height="74" rx="14" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1"/>
+      <text x="28" y="32" fill="#64748B" font-size="12" font-weight="600" text-anchor="middle">Mon</text>
+      <text x="28" y="58" fill="#0F172A" font-size="16" font-weight="800" text-anchor="middle">12</text>
+
+      <!-- Oct 13 Pill (Active - Blue) -->
+      <rect x="66" y="0" width="56" height="74" rx="14" fill="#2563EB" filter="url(#glowFilter)"/>
+      <text x="94" y="32" fill="#E0F2FE" font-size="12" font-weight="600" text-anchor="middle">Tue</text>
+      <text x="94" y="58" fill="#FFFFFF" font-size="16" font-weight="900" text-anchor="middle">13</text>
+
+      <!-- Oct 14 Pill (Inactive) -->
+      <rect x="132" y="0" width="56" height="74" rx="14" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1"/>
+      <text x="160" y="32" fill="#64748B" font-size="12" font-weight="600" text-anchor="middle">Wed</text>
+      <text x="160" y="58" fill="#0F172A" font-size="16" font-weight="800" text-anchor="middle">14</text>
+
+      <!-- Oct 15 Pill (Inactive) -->
+      <rect x="198" y="0" width="56" height="74" rx="14" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1"/>
+      <text x="226" y="32" fill="#64748B" font-size="12" font-weight="600" text-anchor="middle">Thu</text>
+      <text x="226" y="58" fill="#0F172A" font-size="16" font-weight="800" text-anchor="middle">15</text>
+
+      <!-- Oct 16 Pill (Inactive) -->
+      <rect x="264" y="0" width="56" height="74" rx="14" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1"/>
+      <text x="292" y="32" fill="#64748B" font-size="12" font-weight="600" text-anchor="middle">Fri</text>
+      <text x="292" y="58" fill="#0F172A" font-size="16" font-weight="800" text-anchor="middle">16</text>
+    </g>
+
+    <!-- Time Selection -->
+    <text x="32" y="505" fill="#0F172A" font-size="15" font-weight="800">Select Time</text>
+    
+    <g transform="translate(30, 525)">
+      <!-- 09:00 AM Pill -->
+      <rect x="0" y="0" width="94" height="38" rx="10" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1"/>
+      <text x="47" y="24" fill="#64748B" font-size="12" font-weight="700" text-anchor="middle">09:00 AM</text>
+
+      <!-- 10:30 AM Pill -->
+      <rect x="106" y="0" width="94" height="38" rx="10" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1"/>
+      <text x="153" y="24" fill="#64748B" font-size="12" font-weight="700" text-anchor="middle">10:30 AM</text>
+
+      <!-- 12:00 PM Pill -->
+      <rect x="212" y="0" width="94" height="38" rx="10" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1"/>
+      <text x="259" y="24" fill="#64748B" font-size="12" font-weight="700" text-anchor="middle">12:00 PM</text>
+
+      <!-- 03:00 PM Pill (Active - Blue) -->
+      <rect x="0" y="50" width="94" height="38" rx="10" fill="#2563EB" filter="url(#glowFilter)"/>
+      <text x="47" y="74" fill="#FFFFFF" font-size="12" font-weight="800" text-anchor="middle">03:00 PM</text>
+
+      <!-- 04:30 PM Pill -->
+      <rect x="106" y="50" width="94" height="38" rx="10" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1"/>
+      <text x="153" y="74" fill="#64748B" font-size="12" font-weight="700" text-anchor="middle">04:30 PM</text>
+
+      <!-- 06:00 PM Pill -->
+      <rect x="212" y="50" width="94" height="38" rx="10" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1"/>
+      <text x="259" y="74" fill="#64748B" font-size="12" font-weight="700" text-anchor="middle">06:00 PM</text>
+    </g>
+
+    <!-- Confirm Booking Button -->
+    <g transform="translate(30, 715)">
+      <rect width="320" height="54" rx="14" fill="url(#btnGrad)" filter="url(#glowFilter)"/>
+      <text x="160" y="32" fill="#FFFFFF" font-size="15" font-weight="800" text-anchor="middle">Confirm Booking</text>
+    </g>
+
+    <!-- Screen Gloss reflection overlay -->
+    <path d="M12 12 Q100 120 388 12 L388 796 Q200 700 12 796 Z" fill="#ffffff" fill-opacity="0.03" pointer-events="none"/>
+  </g>
+</svg>

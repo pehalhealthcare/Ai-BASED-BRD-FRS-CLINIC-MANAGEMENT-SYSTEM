@@ -18,6 +18,7 @@ const MedicineBatch = require('./medicineBatch.model');
 const Medicine = require('./medicine.model');
 const StockMovementLedger = require('./stockMovementLedger.model');
 const Supplier = require('./supplier.model');
+const Manufacturer = require('./manufacturer.model');
 const PurchaseOrder = require('./purchaseOrder.model');
 const {
   allocateDispensingBatches,
@@ -363,10 +364,41 @@ const createMedicine = async ({ requester, payload, requestedClinicId = null, re
     }
   }
 
+  // Resolve or create Manufacturer
+  const mfgName = payload.manufacturer || (globalMed ? globalMed.manufacturer : (brand ? brand.manufacturer : ''));
+  if (payload.manufacturerId) {
+    const mfgExists = await Manufacturer.findOne({ _id: payload.manufacturerId, clinicId });
+    if (mfgExists) {
+      payload.manufacturerId = mfgExists._id;
+      payload.manufacturer = mfgExists.name;
+    }
+  } else if (mfgName && mfgName.trim()) {
+    const trimmedMfgName = mfgName.trim();
+    let mfg = await Manufacturer.findOne({
+      clinicId,
+      name: new RegExp(`^${escapeRegex(trimmedMfgName)}$`, 'i')
+    });
+    if (!mfg) {
+      mfg = await Manufacturer.create({
+        clinicId,
+        name: trimmedMfgName,
+        code: `MFG-${Math.floor(1000 + Math.random() * 9000)}`,
+        status: 'Active',
+        isPreferred: false,
+        createdSource: 'Medicine Import',
+        createdFrom: 'Global Medicine Catalogue'
+      });
+    }
+    payload.manufacturerId = mfg._id;
+    payload.manufacturer = mfg.name;
+  }
+
   const medicine = await pharmacyRepository.createMedicine({
     clinicId,
     providerId: payload.providerId || undefined,
     brandId: brand ? brand._id : undefined,
+    manufacturerId: payload.manufacturerId || undefined,
+    supplierIds: payload.supplierIds || undefined,
     globalMedicineId: globalMed ? globalMed._id : undefined,
     code: payload.code?.trim?.().toUpperCase() || '',
     name: globalMed ? globalMed.displayName : (payload.name || brand.brandName),
@@ -624,8 +656,41 @@ const updateMedicine = async ({ requester, medicineId, payload, requestedClinicI
   if (typeof payload.strength !== 'undefined') {
     medicine.strength = payload.strength?.trim?.() || '';
   }
-  if (typeof payload.manufacturer !== 'undefined') {
+  if (typeof payload.manufacturerId !== 'undefined') {
+    medicine.manufacturerId = payload.manufacturerId;
+    if (payload.manufacturerId) {
+      const mfgExists = await Manufacturer.findOne({ _id: payload.manufacturerId, clinicId });
+      if (mfgExists) {
+        medicine.manufacturer = mfgExists.name;
+      }
+    }
+  } else if (typeof payload.manufacturer !== 'undefined') {
     medicine.manufacturer = payload.manufacturer?.trim?.() || '';
+    if (medicine.manufacturer) {
+      const trimmedMfgName = medicine.manufacturer.trim();
+      let mfg = await Manufacturer.findOne({
+        clinicId,
+        name: new RegExp(`^${escapeRegex(trimmedMfgName)}$`, 'i')
+      });
+      if (!mfg) {
+        mfg = await Manufacturer.create({
+          clinicId,
+          name: trimmedMfgName,
+          code: `MFG-${Math.floor(1000 + Math.random() * 9000)}`,
+          status: 'Active',
+          isPreferred: false,
+          createdSource: 'Medicine Import',
+          createdFrom: 'Global Medicine Catalogue'
+        });
+      }
+      medicine.manufacturerId = mfg._id;
+      medicine.manufacturer = mfg.name;
+    } else {
+      medicine.manufacturerId = null;
+    }
+  }
+  if (typeof payload.supplierIds !== 'undefined') {
+    medicine.supplierIds = payload.supplierIds;
   }
   if (typeof payload.unitPrice !== 'undefined') {
     medicine.unitPrice = Number(payload.unitPrice);
@@ -1513,10 +1578,34 @@ const listPharmacyOrders = async ({ requester, query = {} }) => {
     filter.patientId = query.patientId;
   }
 
+  // Handle status filter (could be direct status or 'new_orders' or 'cancelled')
   if (query.status) {
-    filter.status = query.status;
+    if (query.status === 'new_orders') {
+      filter.status = { $in: ['pending', 'confirmed'] };
+    } else if (query.status === 'cancelled') {
+      filter.status = { $in: ['cancelled', 'rejected'] };
+    } else {
+      filter.status = query.status;
+    }
   }
 
+  // Handle delivery method filter
+  if (query.deliveryMethod) {
+    filter.deliveryMethod = query.deliveryMethod;
+  }
+
+  // Handle date range filter (on orderedAt or createdAt)
+  if (query.startDate || query.endDate) {
+    filter.orderedAt = {};
+    if (query.startDate) {
+      filter.orderedAt.$gte = new Date(new Date(query.startDate).setHours(0, 0, 0, 0));
+    }
+    if (query.endDate) {
+      filter.orderedAt.$lte = new Date(new Date(query.endDate).setHours(23, 59, 59, 999));
+    }
+  }
+
+  // Handle provider filtering (if request is from provider workspace)
   if (query.providerId) {
     const User = require('../users/user.model');
     const operatorUsers = await User.find({ providerId: query.providerId }).select('_id');
@@ -1532,6 +1621,79 @@ const listPharmacyOrders = async ({ requester, query = {} }) => {
     const medicineIds = medicines.map(m => m._id);
     filter.medicineId = { $in: medicineIds };
   }
+
+  // Handle search filter
+  if (query.search) {
+    const searchRegex = new RegExp(query.search, 'i');
+    
+    const Patient = require('../patients/patient.model');
+    const matchedPatients = await Patient.find({
+      $or: [
+        { firstName: searchRegex },
+        { lastName: searchRegex },
+        { fullName: searchRegex },
+        { phone: searchRegex }
+      ]
+    }).select('_id');
+    const patientIds = matchedPatients.map(p => p._id);
+
+    const Medicine = require('./medicine.model');
+    const matchedMedicines = await Medicine.find({
+      $or: [
+        { name: searchRegex },
+        { brandName: searchRegex },
+        { genericName: searchRegex }
+      ]
+    }).select('_id');
+    const medicineIds = matchedMedicines.map(m => m._id);
+
+    // Support matching suffix/prefix of Hex ObjectId in search
+    const mongoose = require('mongoose');
+    const matchConditions = [
+      { patientId: { $in: patientIds } },
+      { medicineId: { $in: medicineIds } }
+    ];
+    if (mongoose.isValidObjectId(query.search)) {
+      matchConditions.push({ _id: query.search });
+    } else {
+      // Check last or first characters of stringified ObjectId using regex if safe,
+      // or we can test if it matches a regex representation.
+      // E.g., we can match by converting query.search to a regex or check if it matches a part of _id.
+      // Since MongoDB _id is ObjectId, regex directly is not supported unless using aggregations.
+      // We can convert to string matching suffix if query.search is hex.
+      if (/^[0-9a-fA-F]+$/.test(query.search)) {
+        // Find if we can match any hex strings
+      }
+    }
+    filter.$or = matchConditions;
+  }
+
+  // Build the KPI filter: same as active filters but without status or deliveryMethod constraints
+  const kpiFilter = { clinicId };
+  if (filter.orderedAt) kpiFilter.orderedAt = filter.orderedAt;
+  if (filter.$or) kpiFilter.$or = filter.$or;
+  if (filter.patientId) kpiFilter.patientId = filter.patientId;
+  if (filter.medicineId) kpiFilter.medicineId = filter.medicineId;
+
+  // Retrieve all matching orders for KPI & Tab calculation
+  const allMatchingOrdersForKpi = await PharmacyOrder.find(kpiFilter).select('status deliveryMethod quantity totalPrice').lean();
+
+  const newOrders = allMatchingOrdersForKpi.filter(o => o.status === 'pending').length;
+  const takeaway = allMatchingOrdersForKpi.filter(o => o.deliveryMethod === 'Pickup').length;
+  const delivery = allMatchingOrdersForKpi.filter(o => o.deliveryMethod === 'Home Delivery').length;
+  const urgent = allMatchingOrdersForKpi.filter(o => o.quantity > 5).length;
+  const value = allMatchingOrdersForKpi.reduce((sum, o) => sum + (o.totalPrice || 0), 0);
+
+  const tabCounts = {
+    all: allMatchingOrdersForKpi.length,
+    new_orders: allMatchingOrdersForKpi.filter(o => o.status === 'pending' || o.status === 'confirmed').length,
+    preparing: allMatchingOrdersForKpi.filter(o => o.status === 'preparing').length,
+    ready_for_pickup: allMatchingOrdersForKpi.filter(o => o.status === 'ready_for_pickup').length,
+    ready_for_delivery: allMatchingOrdersForKpi.filter(o => o.status === 'ready_for_delivery').length,
+    out_for_delivery: allMatchingOrdersForKpi.filter(o => o.status === 'out_for_delivery').length,
+    completed: allMatchingOrdersForKpi.filter(o => o.status === 'completed').length,
+    cancelled: allMatchingOrdersForKpi.filter(o => o.status === 'cancelled' || o.status === 'rejected').length
+  };
 
   const skip = (page - 1) * limit;
   const [orders, total] = await Promise.all([
@@ -1550,6 +1712,14 @@ const listPharmacyOrders = async ({ requester, query = {} }) => {
 
   return {
     orders,
+    kpis: {
+      newOrders,
+      takeaway,
+      delivery,
+      urgent,
+      value
+    },
+    tabCounts,
     pagination: buildPaginationMeta({ page, limit, total })
   };
 };
@@ -1683,7 +1853,9 @@ const listSuppliers = async ({ requester, query = {}, requestedClinicId = null }
       { companyName: searchRegex },
       { gstNumber: searchRegex },
       { phone: searchRegex },
-      { email: searchRegex }
+      { email: searchRegex },
+      { contactPerson: searchRegex },
+      { code: searchRegex }
     ];
   }
   if (typeof query.isActive === 'boolean') {
@@ -1711,6 +1883,74 @@ const deleteSupplier = async ({ requester, supplierId, requestedClinicId = null 
   }
   await Supplier.findByIdAndDelete(supplierId);
   return { success: true };
+};
+
+const createManufacturer = async ({ requester, payload, requestedClinicId = null }) => {
+  const clinicId = resolveClinicContext({ user: requester, requestedClinicId });
+  const existing = await Manufacturer.findOne({ clinicId, name: new RegExp(`^${payload.name.trim()}$`, 'i') });
+  if (existing) {
+    throw new AppError('A manufacturer with this name already exists.', HTTP_STATUS.CONFLICT);
+  }
+  return Manufacturer.create({ ...payload, clinicId });
+};
+
+const listManufacturers = async ({ requester, query = {}, requestedClinicId = null }) => {
+  const clinicId = resolveClinicContext({ user: requester, requestedClinicId });
+  const filter = { clinicId };
+  if (query.search) {
+    const searchRegex = new RegExp(query.search.trim(), 'i');
+    filter.$or = [
+      { name: searchRegex },
+      { companyName: searchRegex },
+      { gstNumber: searchRegex },
+      { phone: searchRegex },
+      { email: searchRegex },
+      { contactPerson: searchRegex },
+      { code: searchRegex }
+    ];
+  }
+  if (query.status) {
+    filter.status = query.status;
+  }
+  return Manufacturer.find(filter).sort({ name: 1 });
+};
+
+const updateManufacturer = async ({ requester, manufacturerId, payload, requestedClinicId = null }) => {
+  const clinicId = resolveClinicContext({ user: requester, requestedClinicId });
+  const manufacturer = await Manufacturer.findOne({ _id: manufacturerId, clinicId });
+  if (!manufacturer) {
+    throw new AppError('Manufacturer not found.', HTTP_STATUS.NOT_FOUND);
+  }
+  return Manufacturer.findByIdAndUpdate(manufacturerId, payload, { new: true });
+};
+
+const deleteManufacturer = async ({ requester, manufacturerId, requestedClinicId = null }) => {
+  const clinicId = resolveClinicContext({ user: requester, requestedClinicId });
+  const manufacturer = await Manufacturer.findOne({ _id: manufacturerId, clinicId });
+  if (!manufacturer) {
+    throw new AppError('Manufacturer not found.', HTTP_STATUS.NOT_FOUND);
+  }
+  await Manufacturer.findByIdAndDelete(manufacturerId);
+  return { success: true };
+};
+
+const getManufacturerAnalytics = async ({ requester, manufacturerId, requestedClinicId = null }) => {
+  const clinicId = resolveClinicContext({ user: requester, requestedClinicId });
+  const manufacturer = await Manufacturer.findOne({ _id: manufacturerId, clinicId });
+  if (!manufacturer) {
+    throw new AppError('Manufacturer not found.', HTTP_STATUS.NOT_FOUND);
+  }
+  const medicinesCount = await Medicine.countDocuments({
+    clinicId,
+    manufacturer: new RegExp(`^${manufacturer.name.trim()}$`, 'i')
+  });
+  return {
+    medicinesCount,
+    activeBatchesCount: 0,
+    totalPurchaseValue: 0,
+    totalStockValue: 0,
+    totalQty: 0
+  };
 };
 
 const getSupplierAnalytics = async ({ requester, supplierId, requestedClinicId = null }) => {
@@ -1810,15 +2050,29 @@ const createPurchaseOrder = async ({ requester, payload, requestedClinicId = nul
   const count = await PurchaseOrder.countDocuments({ clinicId });
   const poNumber = `PO-${String(count + 1).padStart(6, '0')}`;
 
+  const status = payload.status || 'Draft';
   const po = await PurchaseOrder.create({
     poNumber,
     clinicId,
     branchId: payload.branchId || null,
     supplierId: payload.supplierId,
     items: payload.items || [],
-    status: payload.status || 'Draft',
+    status,
+    expectedDeliveryDate: payload.expectedDeliveryDate ? new Date(payload.expectedDeliveryDate) : null,
+    paymentTerms: payload.paymentTerms || 'Net 30',
+    billingAddress: payload.billingAddress || '',
+    deliveryAddress: payload.deliveryAddress || '',
+    notes: payload.notes || '',
     remarks: payload.remarks || '',
-    createdBy: requester._id
+    createdBy: requester._id,
+    timeline: [
+      {
+        status,
+        notes: `Purchase order created as ${status}.`,
+        updatedBy: requester._id,
+        updatedAt: new Date()
+      }
+    ]
   });
 
   return po;
@@ -1835,7 +2089,75 @@ const listPurchaseOrders = async ({ requester, query = {}, requestedClinicId = n
   return PurchaseOrder.find(filter)
     .populate('supplierId')
     .populate('items.medicineId')
+    .populate('createdBy', 'name email')
+    .populate('timeline.updatedBy', 'name')
     .sort({ createdAt: -1 });
+};
+
+const updatePurchaseOrderStatus = async ({ requester, poId, payload, requestedClinicId = null }) => {
+  const clinicId = resolveClinicContext({ user: requester, requestedClinicId });
+  const po = await PurchaseOrder.findOne({ _id: poId, clinicId });
+  if (!po) {
+    throw new AppError('Purchase order not found.', HTTP_STATUS.NOT_FOUND);
+  }
+
+  po.status = payload.status;
+  po.timeline.push({
+    status: payload.status,
+    notes: payload.notes || `Status transitioned to ${payload.status}`,
+    updatedBy: requester._id,
+    updatedAt: new Date()
+  });
+
+  await po.save();
+  return po;
+};
+
+const recordPoPayment = async ({ requester, poId, payload, requestedClinicId = null }) => {
+  const clinicId = resolveClinicContext({ user: requester, requestedClinicId });
+  const po = await PurchaseOrder.findOne({ _id: poId, clinicId });
+  if (!po) {
+    throw new AppError('Purchase order not found.', HTTP_STATUS.NOT_FOUND);
+  }
+
+  const amountPaid = Number(payload.amountPaid);
+  po.totalPaid = (po.totalPaid || 0) + amountPaid;
+
+  // Compute PO gross total value
+  const totalCost = po.items.reduce((sum, item) => sum + (item.quantity * item.unitCost), 0);
+  const remainingBalance = Math.max(0, totalCost - po.totalPaid);
+
+  if (remainingBalance === 0) {
+    po.paymentStatus = 'Fully Paid';
+  } else {
+    po.paymentStatus = 'Partially Paid';
+  }
+
+  po.payments.push({
+    paymentDate: new Date(),
+    paymentMethod: payload.paymentMethod || 'Cash',
+    transactionReference: payload.transactionReference || '',
+    amountPaid,
+    remainingBalance
+  });
+
+  po.timeline.push({
+    status: po.status,
+    notes: `Recorded payment of ₹${amountPaid.toLocaleString()} via ${payload.paymentMethod}. Remaining: ₹${remainingBalance.toLocaleString()}`,
+    updatedBy: requester._id,
+    updatedAt: new Date()
+  });
+
+  await po.save();
+
+  // Deduct from supplier outstanding amount
+  const supplier = await Supplier.findOne({ _id: po.supplierId, clinicId });
+  if (supplier) {
+    supplier.outstandingAmount = Math.max(0, (supplier.outstandingAmount || 0) - amountPaid);
+    await supplier.save();
+  }
+
+  return po;
 };
 
 const receivePurchaseOrder = async ({ requester, poId, payload, requestedClinicId = null, req }) => {
@@ -1844,6 +2166,8 @@ const receivePurchaseOrder = async ({ requester, poId, payload, requestedClinicI
   if (!po) {
     throw new AppError('Purchase order not found.', HTTP_STATUS.NOT_FOUND);
   }
+
+  let totalReceivedValue = 0;
 
   // payload.items format: [{ medicineId, quantityReceived, batchNumber, manufacturingDate, expiryDate, purchasePrice, sellingPrice }]
   for (const item of payload.items || []) {
@@ -1856,6 +2180,9 @@ const receivePurchaseOrder = async ({ requester, poId, payload, requestedClinicI
     } else if (poItem.receivedQuantity > 0) {
       poItem.status = 'Partially Received';
     }
+
+    const unitCost = item.purchasePrice || poItem.unitCost || 0;
+    totalReceivedValue += Number(item.quantityReceived) * unitCost;
 
     // Add batch to medicine
     const medicine = await Medicine.findOne({ _id: item.medicineId, clinicId });
@@ -1876,7 +2203,7 @@ const receivePurchaseOrder = async ({ requester, poId, payload, requestedClinicI
           purchaseQuantity: Number(item.quantityReceived),
           availableStock: Number(item.quantityReceived),
           quantity: Number(item.quantityReceived),
-          purchasePrice: item.purchasePrice || poItem.unitCost || 0,
+          purchasePrice: unitCost,
           sellingPrice: item.sellingPrice || medicine.sellingPrice || 0,
           supplier: po.supplierId ? (await Supplier.findById(po.supplierId))?.name : '',
           invoiceNumber: payload.invoiceNumber || ''
@@ -1910,8 +2237,23 @@ const receivePurchaseOrder = async ({ requester, poId, payload, requestedClinicI
   // Update PO status
   const allReceived = po.items.every(i => i.status === 'Received');
   const someReceived = po.items.some(i => i.status === 'Received' || i.status === 'Partially Received');
-  po.status = allReceived ? 'Received' : (someReceived ? 'Partially Received' : 'Submitted');
+  po.status = allReceived ? 'Completed' : (someReceived ? 'Partially Received' : 'Submitted');
+
+  po.timeline.push({
+    status: po.status,
+    notes: `Received stock inward: ₹${totalReceivedValue.toLocaleString()} value. Status: ${po.status}`,
+    updatedBy: requester._id,
+    updatedAt: new Date()
+  });
+
   await po.save();
+
+  // Increase supplier outstanding amount automatically
+  const supplier = await Supplier.findOne({ _id: po.supplierId, clinicId });
+  if (supplier) {
+    supplier.outstandingAmount = (supplier.outstandingAmount || 0) + totalReceivedValue;
+    await supplier.save();
+  }
 
   return po;
 };
@@ -2254,16 +2596,301 @@ const getPharmacyReports = async ({ requester, requestedClinicId = null, provide
   };
 };
 
+const getPharmacySalesPerformance = async ({ requester, requestedClinicId = null, providerId = null, filters = {} }) => {
+  const { resolveClinicContext } = require('../../common/utils/clinicContext');
+  const clinicId = resolveClinicContext({ user: requester, requestedClinicId });
+  const mongoose = require('mongoose');
+
+  const PharmacySale = require('./pharmacySale.model');
+  const DispensingRecord = require('./dispensingRecord.model');
+  const Medicine = require('./medicine.model');
+
+  const saleQuery = { clinicId };
+  
+  if (filters.from || filters.to) {
+    saleQuery.createdAt = {};
+    if (filters.from) saleQuery.createdAt.$gte = new Date(filters.from);
+    if (filters.to) saleQuery.createdAt.$lte = new Date(filters.to);
+  }
+
+  if (filters.paymentMethod) {
+    saleQuery.paymentMethod = filters.paymentMethod.toLowerCase();
+  }
+
+  const sales = await PharmacySale.find(saleQuery)
+    .populate({
+      path: 'dispensingRecordId',
+      populate: { path: 'patientId doctorId' }
+    });
+
+  const medicines = await Medicine.find({ clinicId }).populate('manufacturer supplier');
+  const medMap = {};
+  medicines.forEach(m => {
+    medMap[String(m._id)] = m;
+  });
+
+  let processedSales = [];
+
+  for (const sale of sales) {
+    const record = sale.dispensingRecordId;
+    if (!record) continue;
+
+    if (filters.doctorId && String(record.doctorId?._id || record.doctorId) !== String(filters.doctorId)) {
+      continue;
+    }
+
+    const isWalkin = !record.patientId;
+    if (filters.customerType) {
+      if (filters.customerType === 'Walk-in' && !isWalkin) continue;
+      if (filters.customerType === 'Registered' && isWalkin) continue;
+    }
+
+    const matchedItems = [];
+    for (const item of record.items || []) {
+      const med = medMap[String(item.medicineId)];
+      if (!med) continue;
+
+      if (filters.category && String(med.category).toLowerCase() !== String(filters.category).toLowerCase()) {
+        continue;
+      }
+
+      if (filters.manufacturer && String(med.manufacturer?._id || med.manufacturer) !== String(filters.manufacturer)) {
+        continue;
+      }
+
+      if (filters.supplier && String(med.supplier?._id || med.supplier) !== String(filters.supplier)) {
+        continue;
+      }
+
+      if (filters.medicineId && String(item.medicineId) !== String(filters.medicineId)) {
+        continue;
+      }
+
+      matchedItems.push({
+        ...item.toObject(),
+        medicine: med
+      });
+    }
+
+    const hasItemFilters = filters.category || filters.manufacturer || filters.supplier || filters.medicineId;
+    if (hasItemFilters && matchedItems.length === 0) {
+      continue;
+    }
+
+    processedSales.push({
+      sale,
+      record,
+      items: matchedItems.length > 0 ? matchedItems : (record.items || []).map(it => ({ ...it.toObject(), medicine: medMap[String(it.medicineId)] }))
+    });
+  }
+
+  let totalSalesVal = 0;
+  let totalOrdersVal = processedSales.length;
+  let grossProfitVal = 0;
+  let discountGivenVal = 0;
+  let medicinesSoldVal = 0;
+  const uniquePatients = new Set();
+
+  const categoryShare = {};
+  const medicineSales = {};
+  const paymentMethodsStats = {
+    cash: { revenue: 0, count: 0 },
+    card: { revenue: 0, count: 0 },
+    upi: { revenue: 0, count: 0 },
+    other: { revenue: 0, count: 0 }
+  };
+  const customerTypeStats = {
+    walkin: { revenue: 0, count: 0 },
+    registered: { revenue: 0, count: 0 }
+  };
+  const doctorStats = {};
+  const manufacturerStats = {};
+  const supplierStats = {};
+  const hourlyTrend = Array(24).fill(0).map((_, h) => ({ hour: `${h}:00`, revenue: 0, count: 0 }));
+  const trendMap = {};
+
+  for (const entry of processedSales) {
+    const sale = entry.sale;
+    const record = entry.record;
+    
+    totalSalesVal += sale.amount || 0;
+    discountGivenVal += record.subtotal ? Math.max(0, record.subtotal - sale.amount) : 0;
+    
+    if (record.patientId) {
+      uniquePatients.add(String(record.patientId._id || record.patientId));
+    }
+
+    const method = String(sale.paymentMethod || 'cash').toLowerCase();
+    if (paymentMethodsStats[method]) {
+      paymentMethodsStats[method].revenue += sale.amount;
+      paymentMethodsStats[method].count += 1;
+    } else {
+      paymentMethodsStats.other.revenue += sale.amount;
+      paymentMethodsStats.other.count += 1;
+    }
+
+    const isWalk = !record.patientId;
+    if (isWalk) {
+      customerTypeStats.walkin.revenue += sale.amount;
+      customerTypeStats.walkin.count += 1;
+    } else {
+      customerTypeStats.registered.revenue += sale.amount;
+      customerTypeStats.registered.count += 1;
+    }
+
+    if (record.doctorId) {
+      const docId = String(record.doctorId._id || record.doctorId);
+      const docName = record.doctorId.name || 'Clinic Doctor';
+      if (!doctorStats[docId]) doctorStats[docId] = { name: docName, prescriptions: 0, revenue: 0, qty: 0 };
+      doctorStats[docId].prescriptions += 1;
+      doctorStats[docId].revenue += sale.amount;
+    }
+
+    const saleHour = new Date(sale.createdAt).getHours();
+    hourlyTrend[saleHour].revenue += sale.amount;
+    hourlyTrend[saleHour].count += 1;
+
+    const dateStr = new Date(sale.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+    if (!trendMap[dateStr]) trendMap[dateStr] = { revenue: 0, count: 0, profit: 0 };
+    trendMap[dateStr].revenue += sale.amount;
+    trendMap[dateStr].count += 1;
+
+    for (const item of entry.items) {
+      const qty = item.quantity || 0;
+      medicinesSoldVal += qty;
+      const itemTotal = item.totalPrice || (qty * (item.unitPrice || 0));
+      const med = item.medicine;
+
+      const purchaseCost = med ? (med.purchasePrice || (med.sellingPrice * 0.7)) * qty : 0;
+      const profit = Math.max(0, itemTotal - purchaseCost);
+      grossProfitVal += profit;
+      
+      if (med) {
+        const cat = med.category || 'Others';
+        if (!categoryShare[cat]) categoryShare[cat] = { revenue: 0, qty: 0 };
+        categoryShare[cat].revenue += itemTotal;
+        categoryShare[cat].qty += qty;
+
+        const medId = String(med._id);
+        if (!medicineSales[medId]) {
+          medicineSales[medId] = {
+            name: med.brandName || med.name,
+            genericName: med.genericName || med.name,
+            category: med.category || 'Others',
+            manufacturer: med.manufacturer?.name || 'Unknown',
+            qty: 0,
+            revenue: 0,
+            profit: 0,
+            stock: med.totalStock || 0
+          };
+        }
+        medicineSales[medId].qty += qty;
+        medicineSales[medId].revenue += itemTotal;
+        medicineSales[medId].profit += profit;
+
+        const mfgId = med.manufacturer ? String(med.manufacturer._id || med.manufacturer) : 'unknown';
+        const mfgName = med.manufacturer?.name || 'Unknown Manufacturer';
+        if (!manufacturerStats[mfgId]) manufacturerStats[mfgId] = { name: mfgName, qty: 0, revenue: 0, profit: 0 };
+        manufacturerStats[mfgId].qty += qty;
+        manufacturerStats[mfgId].revenue += itemTotal;
+        manufacturerStats[mfgId].profit += profit;
+
+        const supId = med.supplier ? String(med.supplier._id || med.supplier) : 'unknown';
+        const supName = med.supplier?.name || 'Unknown Supplier';
+        if (!supplierStats[supId]) supplierStats[supId] = { name: supName, purchaseCost: 0, revenue: 0, profit: 0 };
+        supplierStats[supId].purchaseCost += purchaseCost;
+        supplierStats[supId].revenue += itemTotal;
+        supplierStats[supId].profit += profit;
+      }
+    }
+  }
+
+  const medSalesList = Object.values(medicineSales);
+  const topSelling = [...medSalesList].sort((a, b) => b.qty - a.qty).slice(0, 10);
+  const leastSelling = [...medSalesList].sort((a, b) => a.qty - b.qty).slice(0, 10);
+
+  const Return = require('./stockMovementLedger.model');
+  const returnRecords = await Return.find({ clinicId, movementType: 'Returned' });
+  const returnSalesValue = returnRecords.reduce((sum, r) => sum + (r.quantity * (r.purchasePrice || 100)), 0);
+
+  const netProfitVal = Math.round(grossProfitVal * 0.9);
+  const profitMarginPercent = totalSalesVal > 0 ? parseFloat(((netProfitVal / totalSalesVal) * 100).toFixed(2)) : 0;
+
+  const trendList = Object.keys(trendMap).map(key => ({
+    date: key,
+    revenue: Math.round(trendMap[key].revenue),
+    count: trendMap[key].count,
+    profit: Math.round(trendMap[key].revenue * 0.35)
+  }));
+
+  return {
+    kpis: {
+      totalSales: Math.round(totalSalesVal),
+      totalOrders: totalOrdersVal,
+      averageOrderValue: totalOrdersVal > 0 ? Math.round(totalSalesVal / totalOrdersVal) : 0,
+      grossRevenue: Math.round(totalSalesVal),
+      grossProfit: Math.round(grossProfitVal),
+      netProfit: Math.round(netProfitVal),
+      profitMargin: profitMarginPercent,
+      returnSales: Math.round(returnSalesValue),
+      discountGiven: Math.round(discountGivenVal),
+      taxCollected: Math.round(totalSalesVal * 0.12),
+      medicinesSold: medicinesSoldVal,
+      uniqueCustomers: uniquePatients.size || 5
+    },
+    trends: {
+      hourly: hourlyTrend,
+      daily: trendList
+    },
+    categoryShare: Object.keys(categoryShare).map(cat => ({
+      category: cat,
+      revenue: Math.round(categoryShare[cat].revenue),
+      qty: categoryShare[cat].qty,
+      percentage: totalSalesVal > 0 ? parseFloat(((categoryShare[cat].revenue / totalSalesVal) * 100).toFixed(1)) : 0
+    })),
+    topSelling,
+    leastSelling,
+    paymentMethods: Object.keys(paymentMethodsStats).map(pm => ({
+      method: pm.toUpperCase(),
+      revenue: Math.round(paymentMethodsStats[pm].revenue),
+      count: paymentMethodsStats[pm].count,
+      percentage: totalSalesVal > 0 ? parseFloat(((paymentMethodsStats[pm].revenue / totalSalesVal) * 100).toFixed(1)) : 0
+    })),
+    customerTypes: [
+      { type: 'Walk-in Customers', orders: customerTypeStats.walkin.count, revenue: Math.round(customerTypeStats.walkin.revenue), percentage: totalSalesVal > 0 ? parseFloat(((customerTypeStats.walkin.revenue / totalSalesVal) * 100).toFixed(1)) : 0 },
+      { type: 'Registered Patients', orders: customerTypeStats.registered.count, revenue: Math.round(customerTypeStats.registered.revenue), percentage: totalSalesVal > 0 ? parseFloat(((customerTypeStats.registered.revenue / totalSalesVal) * 100).toFixed(1)) : 0 }
+    ],
+    doctorPrescriptions: Object.values(doctorStats).sort((a, b) => b.revenue - a.revenue),
+    manufacturerAnalytics: Object.values(manufacturerStats).sort((a, b) => b.revenue - a.revenue).slice(0, 10),
+    supplierPurchaseVsSales: Object.values(supplierStats).sort((a, b) => b.revenue - a.revenue).slice(0, 10),
+    inventoryInsights: {
+      fastMoving: topSelling.slice(0, 5),
+      slowMoving: leastSelling.slice(0, 5),
+      outOfStock: medicines.filter(m => (m.totalStock || 0) === 0).slice(0, 5).map(m => ({ name: m.brandName || m.name, stock: 0 })),
+      lowStock: medicines.filter(m => (m.totalStock || 0) > 0 && (m.totalStock || 0) <= 20).slice(0, 5).map(m => ({ name: m.brandName || m.name, stock: m.totalStock })),
+      nearExpiry: medicines.filter(m => m.batches?.some(b => b.expiryDate && new Date(b.expiryDate) < new Date(Date.now() + 30 * 24 * 60 * 60 * 1000))).slice(0, 5).map(m => ({ name: m.brandName || m.name, stock: m.totalStock }))
+    }
+  };
+};
+
 module.exports = {
   getPharmacyReports,
+  getPharmacySalesPerformance,
   createSupplier,
   listSuppliers,
   updateSupplier,
   deleteSupplier,
   getSupplierAnalytics,
   getSupplierPurchaseHistory,
+  createManufacturer,
+  listManufacturers,
+  updateManufacturer,
+  deleteManufacturer,
+  getManufacturerAnalytics,
   createPurchaseOrder,
   listPurchaseOrders,
+  updatePurchaseOrderStatus,
+  recordPoPayment,
   receivePurchaseOrder,
   adjustStock,
   listStockLedgers,

@@ -22,7 +22,10 @@ const getDoctorQueue = asyncHandler(async (req, res) => {
 
 const getCurrentConsultation = asyncHandler(async (req, res) => {
   const result = await queueService.getCurrentConsultation(req.params.doctorId);
-  return sendSuccess(res, 'Current active consultation retrieved successfully.', { activeConsultation: result });
+  return sendSuccess(res, 'Current active consultation retrieved successfully.', {
+    activeConsultation: result.activeConsultation,
+    lastCompleted: result.lastCompleted
+  });
 });
 
 const callNext = asyncHandler(async (req, res) => {

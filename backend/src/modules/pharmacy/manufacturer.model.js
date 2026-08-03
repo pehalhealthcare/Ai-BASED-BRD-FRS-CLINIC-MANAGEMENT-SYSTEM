@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const supplierSchema = new mongoose.Schema(
+const manufacturerSchema = new mongoose.Schema(
   {
     clinicId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -41,11 +41,6 @@ const supplierSchema = new mongoose.Schema(
       pincode: { type: String, default: '' },
       country: { type: String, default: 'India' }
     },
-    paymentTerms: {
-      type: String,
-      trim: true,
-      default: ''
-    },
     companyName: {
       type: String,
       trim: true,
@@ -56,11 +51,6 @@ const supplierSchema = new mongoose.Schema(
       trim: true,
       unique: true,
       sparse: true
-    },
-    type: {
-      type: String,
-      enum: ['manufacturer', 'distributor', 'wholesaler', 'local_vendor', 'importer', 'other'],
-      default: 'other'
     },
     alternatePhone: {
       type: String,
@@ -82,28 +72,10 @@ const supplierSchema = new mongoose.Schema(
       trim: true,
       default: ''
     },
-    creditDays: {
-      type: Number,
-      default: 0
-    },
-    preferredCurrency: {
+    status: {
       type: String,
-      default: 'INR'
-    },
-    bankDetails: {
-      bankName: { type: String, default: '' },
-      accountHolder: { type: String, default: '' },
-      accountNumber: { type: String, default: '' },
-      ifsc: { type: String, default: '' },
-      upi: { type: String, default: '' }
-    },
-    preferredSupplier: {
-      type: Boolean,
-      default: false
-    },
-    notes: {
-      type: String,
-      default: ''
+      enum: ['Active', 'Blocked'],
+      default: 'Active'
     },
     createdSource: {
       type: String,
@@ -113,25 +85,24 @@ const supplierSchema = new mongoose.Schema(
       type: String,
       default: ''
     },
-    isActive: {
+    isPreferred: {
       type: Boolean,
-      default: true
+      default: false
+    },
+    outstandingAmount: {
+      type: Number,
+      default: 0
+    },
+    leadTimeDays: {
+      type: Number,
+      default: 3
     }
   },
   {
     timestamps: true,
-    collection: 'suppliers'
+    collection: 'manufacturers'
   }
 );
 
-supplierSchema.pre('save', function (next) {
-  if (!this.code) {
-    this.code = 'SUP-' + Math.random().toString(36).substring(2, 8).toUpperCase();
-  }
-  next();
-});
-
-supplierSchema.index({ clinicId: 1, name: 1 }, { unique: true });
-
-const Supplier = mongoose.models.Supplier || mongoose.model('Supplier', supplierSchema);
-module.exports = Supplier;
+const Manufacturer = mongoose.models.Manufacturer || mongoose.model('Manufacturer', manufacturerSchema);
+module.exports = Manufacturer;

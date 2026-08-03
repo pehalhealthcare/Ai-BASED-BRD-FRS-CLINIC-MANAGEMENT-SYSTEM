@@ -112,7 +112,14 @@ const clinicSchema = new mongoose.Schema(
       images: { type: [String], default: [] },
       logo: { type: String, default: '' },
       description: { type: String, default: '' },
-      departments: { type: [String], default: [] }
+      departments: [
+        {
+          name: { type: String, required: true },
+          active: { type: Boolean, default: true },
+          departmentId: { type: mongoose.Schema.Types.ObjectId, default: () => new mongoose.Types.ObjectId() },
+          createdAt: { type: Date, default: Date.now }
+        }
+      ]
     },
     approvalStatus: {
       type: String,

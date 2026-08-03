@@ -113,11 +113,18 @@ const buildExistingDrugSafetyMedications = (patient) =>
 
 const buildDrugSafetyPayload = ({ patient, medicines }) => {
   const conditionFlags = extractConditionFlags(patient?.chronicConditions || []);
+  let age = patient?.age;
+  if (typeof age === 'number' && !Number.isNaN(age)) {
+    if (age < 0) age = 0;
+    if (age > 120) age = 120;
+  } else {
+    age = null;
+  }
 
   return {
     patient: {
       id: String(patient?._id || ''),
-      age: patient?.age ?? null,
+      age,
       gender: patient?.gender || null,
       allergies: patient?.allergies || [],
       conditions: patient?.chronicConditions || [],
@@ -164,6 +171,21 @@ const ensureHighSeverityOverride = ({ requester, drugSafetyCheck, overrideReason
 };
 
 const evaluateDrugSafety = async ({ requester, patient, medicines, req, prescriptionId = null }) => {
+  if (!medicines || medicines.length === 0) {
+    return {
+      drugSafetyCheck: {
+        output: {
+          severity: 'none',
+          interaction_alerts: [],
+          allergy_alerts: [],
+          contraindication_alerts: [],
+          duplicate_therapy_alerts: []
+        }
+      },
+      drugSafetySeverity: 'none'
+    };
+  }
+
   const payload = buildDrugSafetyPayload({ patient, medicines });
   const response = await aiService.checkDrugSafety(payload);
   const drugSafetyCheck = normalizeDrugSafetyResult(response);

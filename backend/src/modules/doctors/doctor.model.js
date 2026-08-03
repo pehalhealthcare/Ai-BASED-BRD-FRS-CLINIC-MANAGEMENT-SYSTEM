@@ -137,6 +137,11 @@ const doctorSchema = new mongoose.Schema(
       trim: true,
       default: ''
     },
+    title: {
+      type: String,
+      trim: true,
+      default: 'Dr.'
+    },
     fullName: {
       type: String,
       required: true,

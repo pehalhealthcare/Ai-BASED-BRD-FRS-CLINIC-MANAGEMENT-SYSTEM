@@ -21,6 +21,12 @@ router.get('/register/draft/:email', clinicController.getDraft);
 router.post('/register/send-otp', clinicController.sendOtp);
 router.post('/register/verify-otp', clinicController.verifyOtp);
 
+// Onboarding Draft Routes
+router.post('/onboarding/draft/save', protect, clinicController.saveOnboardingDraft);
+router.get('/onboarding/draft', protect, clinicController.getOnboardingDraft);
+router.put('/onboarding/draft/update', protect, clinicController.saveOnboardingDraft);
+router.delete('/onboarding/draft', protect, clinicController.deleteOnboardingDraft);
+
 // Super admin clinic management & approval routes
 router.get(
   '/requests/pending',
@@ -217,6 +223,18 @@ router.patch(
   protect,
   authorize(ROLES.ADMIN),
   clinicController.updateBillingSettings
+);
+
+router.get(
+  '/:id/subscription/modules',
+  protect,
+  clinicController.getSubscriptionModules
+);
+
+router.get(
+  '/:id/healthcare-providers',
+  protect,
+  clinicController.getHealthcareProviders
 );
 
 module.exports = router;

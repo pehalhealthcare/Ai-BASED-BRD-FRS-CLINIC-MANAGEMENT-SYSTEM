@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useLayoutEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
 import {
   TrendingUp, Pill, ShoppingBag, Users, AlertTriangle,
   Search, Scan, RefreshCw, Barcode, Plus, Minus, Trash2,
@@ -25,6 +25,15 @@ const PharmacyWorkspace = ({ user }) => {
   const [profileData, setProfileData] = useState(null);
   const [providerDetails, setProviderDetails] = useState(null);
   const { logout } = useAuth();
+  
+  const [currentDateTime, setCurrentDateTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentDateTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -62,6 +71,15 @@ const PharmacyWorkspace = ({ user }) => {
       navigate(`/provider-workspace/pharmacy?tab=${newTab}`);
     }
   };
+
+  useEffect(() => {
+    if (tab === 'suppliers' || tab === 'manufacturers' || tab === 'purchase-orders') {
+      setSupplierManagementCollapsed(false);
+    }
+    if (tab === 'sales-performance' || tab === 'inventory-ledger') {
+      setReportsCollapsed(false);
+    }
+  }, [tab]);
 
   const [topSellingMeds, setTopSellingMeds] = useState([]);
   const [realActivities, setRealActivities] = useState([]);
@@ -274,6 +292,7 @@ const PharmacyWorkspace = ({ user }) => {
 
   // Custom sidebar collapsible navigation sections
   const [inventoryCollapsed, setInventoryCollapsed] = useState(false);
+  const [supplierManagementCollapsed, setSupplierManagementCollapsed] = useState(true);
   const [reportsCollapsed, setReportsCollapsed] = useState(false);
 
   // Active filter state from Donut Chart selection
@@ -301,6 +320,42 @@ const PharmacyWorkspace = ({ user }) => {
   const [selectedSupplierDetail, setSelectedSupplierDetail] = useState(null);
   const [showAddSupplierModal, setShowAddSupplierModal] = useState(false);
   const [addSupplierStep, setAddSupplierStep] = useState(1);
+  // Purchase Order Management States
+  const [showCreatePoScreen, setShowCreatePoScreen] = useState(false);
+  const [poFormSupplier, setPoFormSupplier] = useState(null);
+  const [poForm, setPoForm] = useState({
+    expectedDeliveryDate: '',
+    paymentTerms: 'Net 30',
+    billingAddress: 'Clinic Main Pharmacy, Building A, Ground Floor',
+    deliveryAddress: 'Clinic Main Pharmacy, Building A, Ground Floor',
+    notes: '',
+    remarks: '',
+    items: []
+  });
+  
+  const [showReceivePoModal, setShowReceivePoModal] = useState(false);
+  const [selectedPoForReceive, setSelectedPoForReceive] = useState(null);
+  const [receiveForm, setReceiveForm] = useState({
+    invoiceNumber: '',
+    items: []
+  });
+
+  const [showPoPaymentModal, setShowPoPaymentModal] = useState(false);
+  const [selectedPoForPayment, setSelectedPoForPayment] = useState(null);
+  const [paymentForm, setPaymentForm] = useState({
+    amountPaid: '',
+    paymentMethod: 'Cash',
+    transactionReference: ''
+  });
+
+  const [selectedPoDetail, setSelectedPoDetail] = useState(null);
+  const [poSearchQuery, setPoSearchQuery] = useState('');
+  const [poStatusFilter, setPoStatusFilter] = useState('ALL');
+  const [poSupplierFilter, setPoSupplierFilter] = useState('ALL');
+  const [medicineSearchQueryPo, setMedicineSearchQueryPo] = useState('');
+  const [medicineSearchResultsPo, setMedicineSearchResultsPo] = useState([]);
+  const [searchingMedsPo, setSearchingMedsPo] = useState(false);
+
   const [showSupplierAdvancedFilters, setShowSupplierAdvancedFilters] = useState(false);
   
   // Advanced filters state
@@ -312,6 +367,58 @@ const PharmacyWorkspace = ({ user }) => {
   const [coupons, setCoupons] = useState([]);
   const [loadingCoupons, setLoadingCoupons] = useState(false);
   const [showCouponDrawer, setShowCouponDrawer] = useState(false);
+
+  // Autocomplete search states
+  const [mfgSuggestions, setMfgSuggestions] = useState([]);
+  const [mfgLoading, setMfgLoading] = useState(false);
+  const [mfgShowSuggestions, setMfgShowSuggestions] = useState(false);
+  
+  const [supplierSuggestions, setSupplierSuggestions] = useState([]);
+  const [supplierLoading, setSupplierLoading] = useState(false);
+  const [supplierShowSuggestions, setSupplierShowSuggestions] = useState(false);
+
+  const mfgSearchTimer = useRef(null);
+  const supplierSearchTimer = useRef(null);
+
+  const [showInlineMfgModal, setShowInlineMfgModal] = useState(false);
+  const [showInlineSupplierModal, setShowInlineSupplierModal] = useState(false);
+  const [inlineMfgForm, setInlineMfgForm] = useState({});
+  const [inlineSupplierForm, setInlineSupplierForm] = useState({});
+
+  // Manufacturers Registry Management States
+  const [manufacturersList, setManufacturersList] = useState([]);
+  const [loadingManufacturers, setLoadingManufacturers] = useState(false);
+  const [selectedManufacturerFilter, setSelectedManufacturerFilter] = useState('ALL');
+  const [manufacturerSearchQuery, setManufacturerSearchQuery] = useState('');
+  const [selectedManufacturerDetail, setSelectedManufacturerDetail] = useState(null);
+  const [showAddManufacturerModal, setShowAddManufacturerModal] = useState(false);
+  const [addManufacturerStep, setAddManufacturerStep] = useState(1);
+  const [showManufacturerAdvancedFilters, setShowManufacturerAdvancedFilters] = useState(false);
+  const [manufacturerAdvFilters, setManufacturerAdvFilters] = useState({
+    city: '', state: '', company: '', minOutstanding: '', status: '', preferred: ''
+  });
+  const [newManufacturerData, setNewManufacturerData] = useState({
+    name: '',
+    companyName: '',
+    code: '',
+    gstNumber: '',
+    pan: '',
+    drugLicenseNumber: '',
+    website: '',
+    contactPerson: '',
+    phone: '',
+    alternatePhone: '',
+    email: '',
+    addressLine1: '',
+    addressLine2: '',
+    city: '',
+    state: '',
+    country: 'India',
+    pincode: '',
+    isPreferred: false,
+    leadTimeDays: 3,
+    status: 'Active'
+  });
   const [couponDrawerMode, setCouponDrawerMode] = useState('create'); // 'create' | 'edit' | 'duplicate'
   const [selectedCouponForEdit, setSelectedCouponForEdit] = useState(null);
   const [showCouponAnalyticsDrawer, setShowCouponAnalyticsDrawer] = useState(false);
@@ -462,6 +569,30 @@ const PharmacyWorkspace = ({ user }) => {
   const [returnQty, setReturnQty] = useState(1);
   const [returnUnit, setReturnUnit] = useState('Strips');
   const [returnMedReason, setReturnMedReason] = useState('Wrong Supply');
+
+  // Sales Performance Analytics States
+  const [salesPerfFrom, setSalesPerfFrom] = useState('');
+  const [salesPerfTo, setSalesPerfTo] = useState('');
+  const [salesPerfQuickRange, setSalesPerfQuickRange] = useState('7D');
+  const [salesPerfCategory, setSalesPerfCategory] = useState('ALL');
+  const [salesPerfManufacturer, setSalesPerfManufacturer] = useState('ALL');
+  const [salesPerfSupplier, setSalesPerfSupplier] = useState('ALL');
+  const [salesPerfPaymentMethod, setSalesPerfPaymentMethod] = useState('ALL');
+  const [salesPerfCustomerType, setSalesPerfCustomerType] = useState('ALL');
+  const [salesPerfDoctorId, setSalesPerfDoctorId] = useState('ALL');
+  const [salesPerfData, setSalesPerfData] = useState(null);
+  const [loadingSalesPerf, setLoadingSalesPerf] = useState(false);
+  const [salesPerfAutoRefresh, setSalesPerfAutoRefresh] = useState('none');
+
+  // Reports Interactive States
+  const [salesPerfSearch, setSalesPerfSearch] = useState('');
+  const [salesPerfSortField, setSalesPerfSortField] = useState('qty');
+  const [salesPerfSortOrder, setSalesPerfSortOrder] = useState('desc');
+  const [salesPerfPage, setSalesPerfPage] = useState(1);
+  const [salesPerfTrendMetric, setSalesPerfTrendMetric] = useState('revenue');
+  const [salesPerfTrendScale, setSalesPerfTrendScale] = useState('daily');
+  const [salesPerfActiveDetailMed, setSalesPerfActiveDetailMed] = useState(null);
+  const [salesPerfActiveDrilldown, setSalesPerfActiveDrilldown] = useState(null);
 
   // Onboarding Wizard States
   const [showOnboardingWizard, setShowOnboardingWizard] = useState(false);
@@ -1323,10 +1454,308 @@ const PharmacyWorkspace = ({ user }) => {
   };
 
   useEffect(() => {
-    if (tab === 'suppliers' || tab === 'dashboard') {
+    if (tab === 'suppliers' || tab === 'dashboard' || tab === 'purchase-orders') {
       fetchSuppliers();
     }
   }, [tab]);
+
+  const fetchManufacturers = async () => {
+    setLoadingManufacturers(true);
+    try {
+      const data = await pharmacyApi.listManufacturers();
+      const items = data?.manufacturers || data?.data?.manufacturers || (Array.isArray(data) ? data : []);
+      setManufacturersList(items);
+    } catch (err) {
+      console.error("Failed to load manufacturers:", err);
+    } finally {
+      setLoadingManufacturers(false);
+    }
+  };
+
+  useEffect(() => {
+    if (tab === 'manufacturers' || tab === 'dashboard') {
+      fetchManufacturers();
+    }
+  }, [tab]);
+
+  // Handle autocomplete searches
+  const handleMfgSearch = (val) => {
+    setOnboardingMasterDetails(prev => ({ ...prev, manufacturer: val, manufacturerId: '' }));
+    
+    if (mfgSearchTimer.current) clearTimeout(mfgSearchTimer.current);
+    
+    if (val.trim().length < 2) {
+      setMfgSuggestions([]);
+      setMfgShowSuggestions(false);
+      return;
+    }
+    
+    setMfgLoading(true);
+    setMfgShowSuggestions(true);
+    
+    mfgSearchTimer.current = setTimeout(async () => {
+      try {
+        const res = await pharmacyApi.listManufacturers({ search: val.trim() });
+        const items = res?.manufacturers || res?.data?.manufacturers || (Array.isArray(res) ? res : []);
+        setMfgSuggestions(items);
+      } catch (err) {
+        console.error('Error searching manufacturers:', err);
+      } finally {
+        setMfgLoading(false);
+      }
+    }, 300);
+  };
+
+  const handleSupplierSearch = (val) => {
+    setOnboardingLocalDetails(prev => ({ ...prev, supplier: val, supplierId: '' }));
+    
+    if (supplierSearchTimer.current) clearTimeout(supplierSearchTimer.current);
+    
+    if (val.trim().length < 2) {
+      setSupplierSuggestions([]);
+      setSupplierShowSuggestions(false);
+      return;
+    }
+    
+    setSupplierLoading(true);
+    setSupplierShowSuggestions(true);
+    
+    supplierSearchTimer.current = setTimeout(async () => {
+      try {
+        const res = await pharmacyApi.listSuppliers({ search: val.trim() });
+        const items = res?.suppliers || res?.data?.suppliers || (Array.isArray(res) ? res : []);
+        setSupplierSuggestions(items);
+      } catch (err) {
+        console.error('Error searching suppliers:', err);
+      } finally {
+        setSupplierLoading(false);
+      }
+    }, 300);
+  };
+
+  const handleSaveInlineMfg = async () => {
+    if (!inlineMfgForm.name?.trim()) {
+      toast.error('Manufacturer Name is required.');
+      return;
+    }
+    try {
+      const payload = {
+        ...inlineMfgForm,
+        address: {
+          line1: inlineMfgForm.addressLine1 || '',
+          line2: inlineMfgForm.addressLine2 || '',
+          city: inlineMfgForm.city || '',
+          state: inlineMfgForm.state || '',
+          country: inlineMfgForm.country || 'India',
+          pincode: inlineMfgForm.pincode || ''
+        },
+        createdSource: 'Add Medicine Wizard',
+        createdFrom: 'Global Medicine Catalogue'
+      };
+      const res = await pharmacyApi.createManufacturer(payload);
+      const mfgId = res?._id || res?.data?._id;
+      setOnboardingMasterDetails(prev => ({
+        ...prev,
+        manufacturer: payload.name,
+        manufacturerId: mfgId
+      }));
+      setShowInlineMfgModal(false);
+      toast.success(`Manufacturer "${payload.name}" created successfully.`);
+      fetchManufacturers();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to create manufacturer.');
+    }
+  };
+
+  const handleSaveInlineSupplier = async () => {
+    if (!inlineSupplierForm.name?.trim()) {
+      toast.error('Supplier Name is required.');
+      return;
+    }
+    try {
+      const payload = {
+        ...inlineSupplierForm,
+        address: {
+          line1: inlineSupplierForm.addressLine1 || '',
+          line2: inlineSupplierForm.addressLine2 || '',
+          city: inlineSupplierForm.city || '',
+          state: inlineSupplierForm.state || '',
+          country: inlineSupplierForm.country || 'India',
+          pincode: inlineSupplierForm.pincode || ''
+        },
+        createdSource: 'Add Medicine Wizard',
+        createdFrom: 'Global Medicine Catalogue'
+      };
+      const res = await pharmacyApi.createSupplier(payload);
+      const supplierId = res?._id || res?.data?._id;
+      setOnboardingLocalDetails(prev => ({
+        ...prev,
+        supplier: payload.name,
+        supplierId: supplierId
+      }));
+      setShowInlineSupplierModal(false);
+      toast.success(`Supplier "${payload.name}" created successfully.`);
+      fetchSuppliers();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to create supplier.');
+    }
+  };
+
+  const handleMedicineSearchPo = async (q) => {
+    setMedicineSearchQueryPo(q);
+    if ((q || '').trim().length < 2) {
+      setMedicineSearchResultsPo([]);
+      return;
+    }
+    setSearchingMedsPo(true);
+    try {
+      const res = await pharmacyApi.searchAll(q);
+      const list = res?.clinicInventory || res?.data?.clinicInventory || [];
+      const catalogue = res?.brands || res?.data?.brands || [];
+      const combined = [
+        ...list.map(item => ({
+          id: item._id || item.id,
+          name: item.genericName || item.name,
+          brandName: item.brandName || item.name,
+          unitCost: item.purchasePrice || 0,
+          form: item.form,
+          source: 'local'
+        })),
+        ...catalogue.map(item => ({
+          id: item.id || item._id,
+          name: item.name || (item.genericMedicineId && item.genericMedicineId.genericName) || '',
+          brandName: item.brandName || item.brand || '',
+          unitCost: item.stripPrice || 0,
+          form: item.form || '',
+          source: 'catalog'
+        }))
+      ];
+      const unique = [];
+      const seen = new Set();
+      for (const item of combined) {
+        if (!seen.has(item.brandName.toLowerCase())) {
+          seen.add(item.brandName.toLowerCase());
+          unique.push(item);
+        }
+      }
+      setMedicineSearchResultsPo(unique);
+    } catch (err) {
+      console.error('Failed to search medicines for PO:', err);
+    } finally {
+      setSearchingMedsPo(false);
+    }
+  };
+
+  const handleCreatePo = async (status = 'Draft') => {
+    if (!poFormSupplier) {
+      toast.error('Please select a supplier.');
+      return;
+    }
+    if (poForm.items.length === 0) {
+      toast.error('Please add at least one medicine item.');
+      return;
+    }
+    try {
+      const payload = {
+        supplierId: poFormSupplier._id,
+        status,
+        expectedDeliveryDate: poForm.expectedDeliveryDate || undefined,
+        paymentTerms: poForm.paymentTerms,
+        billingAddress: poForm.billingAddress,
+        deliveryAddress: poForm.deliveryAddress,
+        notes: poForm.notes,
+        remarks: poForm.remarks,
+        items: poForm.items.map(it => ({
+          medicineId: it.medicineId,
+          quantity: parseInt(it.quantity) || 1,
+          unitCost: parseFloat(it.unitCost) || 0
+        }))
+      };
+      await pharmacyApi.createPurchaseOrder(payload);
+      toast.success(`Purchase Order ${status === 'Submitted' ? 'Submitted' : 'Draft Saved'} successfully!`);
+      setShowCreatePoScreen(false);
+      setPoFormSupplier(null);
+      setPoForm({
+        expectedDeliveryDate: '',
+        paymentTerms: 'Net 30',
+        billingAddress: 'Clinic Main Pharmacy, Building A, Ground Floor',
+        deliveryAddress: 'Clinic Main Pharmacy, Building A, Ground Floor',
+        notes: '',
+        remarks: '',
+        items: []
+      });
+      fetchSuppliers();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to save Purchase Order.');
+    }
+  };
+
+  const handleUpdatePoStatus = async (poId, status, notes = '') => {
+    try {
+      await pharmacyApi.updatePurchaseOrderStatus(poId, { status, notes });
+      toast.success(`Purchase Order status updated to ${status}`);
+      if (selectedPoDetail && selectedPoDetail._id === poId) {
+        const updatedList = await pharmacyApi.listPurchaseOrders();
+        const pos = updatedList?.purchaseOrders || updatedList?.data?.purchaseOrders || [];
+        setPurchaseOrders(pos);
+        const match = pos.find(p => p._id === poId);
+        if (match) setSelectedPoDetail(match);
+      } else {
+        fetchSuppliers();
+      }
+    } catch (err) {
+      toast.error('Failed to update status.');
+    }
+  };
+
+  const handleRecordPaymentSubmit = async () => {
+    if (!paymentForm.amountPaid || parseFloat(paymentForm.amountPaid) <= 0) {
+      toast.error('Please enter a valid amount.');
+      return;
+    }
+    try {
+      await pharmacyApi.recordPoPayment(selectedPoForPayment._id, {
+        amountPaid: parseFloat(paymentForm.amountPaid),
+        paymentMethod: paymentForm.paymentMethod,
+        transactionReference: paymentForm.transactionReference
+      });
+      toast.success('Payment recorded successfully.');
+      setShowPoPaymentModal(false);
+      setPaymentForm({ amountPaid: '', paymentMethod: 'Cash', transactionReference: '' });
+      fetchSuppliers();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to record payment.');
+    }
+  };
+
+  const handleReceiveStockSubmit = async () => {
+    const invalidItem = receiveForm.items.find(it => !it.batchNumber?.trim() || !it.expiryDate?.trim() || !it.quantityReceived || parseFloat(it.quantityReceived) <= 0);
+    if (invalidItem) {
+      toast.error('Please ensure Batch No, Expiry Date and received Quantity are correctly entered for all rows.');
+      return;
+    }
+    try {
+      await pharmacyApi.receivePurchaseOrder(selectedPoForReceive._id, {
+        invoiceNumber: receiveForm.invoiceNumber,
+        items: receiveForm.items.map(it => ({
+          medicineId: it.medicineId,
+          quantityReceived: parseInt(it.quantityReceived),
+          batchNumber: it.batchNumber.trim(),
+          manufacturingDate: it.manufacturingDate || undefined,
+          expiryDate: it.expiryDate.trim(),
+          purchasePrice: parseFloat(it.purchasePrice) || undefined,
+          sellingPrice: parseFloat(it.sellingPrice) || undefined,
+          rackLocation: it.rackLocation
+        }))
+      });
+      toast.success('Stock received and inventory successfully updated!');
+      setShowReceivePoModal(false);
+      setReceiveForm({ invoiceNumber: '', items: [] });
+      fetchSuppliers();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to receive stock.');
+    }
+  };
 
   // Fetch coupons from backend
   const fetchCoupons = async () => {
@@ -1343,6 +1772,107 @@ const PharmacyWorkspace = ({ user }) => {
       setLoadingCoupons(false);
     }
   };
+
+  const fetchSalesPerformance = async () => {
+    setLoadingSalesPerf(true);
+    try {
+      const params = {};
+      
+      let fromDate = salesPerfFrom;
+      let toDate = salesPerfTo;
+      
+      if (salesPerfQuickRange !== 'custom') {
+        const now = new Date();
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        
+        if (salesPerfQuickRange === 'today') {
+          fromDate = startOfToday.toISOString();
+          toDate = now.toISOString();
+        } else if (salesPerfQuickRange === 'yesterday') {
+          const yesterday = new Date(startOfToday);
+          yesterday.setDate(yesterday.getDate() - 1);
+          fromDate = yesterday.toISOString();
+          toDate = startOfToday.toISOString();
+        } else if (salesPerfQuickRange === '7D') {
+          const sevenDaysAgo = new Date(startOfToday);
+          sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+          fromDate = sevenDaysAgo.toISOString();
+          toDate = now.toISOString();
+        } else if (salesPerfQuickRange === '30D') {
+          const thirtyDaysAgo = new Date(startOfToday);
+          thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+          fromDate = thirtyDaysAgo.toISOString();
+          toDate = now.toISOString();
+        } else if (salesPerfQuickRange === 'this_month') {
+          const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+          fromDate = startOfMonth.toISOString();
+          toDate = now.toISOString();
+        } else if (salesPerfQuickRange === 'last_month') {
+          const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+          const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+          fromDate = startOfLastMonth.toISOString();
+          toDate = endOfLastMonth.toISOString();
+        } else if (salesPerfQuickRange === 'this_quarter') {
+          const quarter = Math.floor(now.getMonth() / 3);
+          const startOfQuarter = new Date(now.getFullYear(), quarter * 3, 1);
+          fromDate = startOfQuarter.toISOString();
+          toDate = now.toISOString();
+        } else if (salesPerfQuickRange === 'this_year') {
+          const startOfYear = new Date(now.getFullYear(), 0, 1);
+          fromDate = startOfYear.toISOString();
+          toDate = now.toISOString();
+        }
+      }
+
+      if (fromDate) params.from = fromDate;
+      if (toDate) params.to = toDate;
+      if (salesPerfCategory !== 'ALL') params.category = salesPerfCategory;
+      if (salesPerfManufacturer !== 'ALL') params.manufacturer = salesPerfManufacturer;
+      if (salesPerfSupplier !== 'ALL') params.supplier = salesPerfSupplier;
+      if (salesPerfPaymentMethod !== 'ALL') params.paymentMethod = salesPerfPaymentMethod;
+      if (salesPerfCustomerType !== 'ALL') params.customerType = salesPerfCustomerType;
+      if (salesPerfDoctorId !== 'ALL') params.doctorId = salesPerfDoctorId;
+
+      const res = await pharmacyApi.getSalesPerformance(params);
+      setSalesPerfData(res);
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to load sales performance metrics.');
+    } finally {
+      setLoadingSalesPerf(false);
+    }
+  };
+
+  useEffect(() => {
+    if (tab === 'sales-performance') {
+      fetchSalesPerformance();
+    }
+  }, [
+    tab,
+    salesPerfFrom,
+    salesPerfTo,
+    salesPerfQuickRange,
+    salesPerfCategory,
+    salesPerfManufacturer,
+    salesPerfSupplier,
+    salesPerfPaymentMethod,
+    salesPerfCustomerType,
+    salesPerfDoctorId
+  ]);
+
+  useEffect(() => {
+    if (tab !== 'sales-performance' || salesPerfAutoRefresh === 'none') return;
+    
+    let intervalMs = 60000;
+    if (salesPerfAutoRefresh === '5m') intervalMs = 300000;
+    if (salesPerfAutoRefresh === '10m') intervalMs = 600000;
+
+    const timer = setInterval(() => {
+      fetchSalesPerformance();
+    }, intervalMs);
+
+    return () => clearInterval(timer);
+  }, [tab, salesPerfAutoRefresh, salesPerfFrom, salesPerfTo, salesPerfQuickRange, salesPerfCategory, salesPerfManufacturer, salesPerfSupplier, salesPerfPaymentMethod, salesPerfCustomerType, salesPerfDoctorId]);
 
   useEffect(() => {
     if (tab === 'coupons' && (profileData || providerDetails)) {
@@ -1684,15 +2214,42 @@ const PharmacyWorkspace = ({ user }) => {
           </button>
 
 
-          <button
-            onClick={() => setActiveTab('suppliers')}
-            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${tab === 'suppliers' ? 'bg-blue-600 text-white shadow-md' : 'hover:bg-slate-800 hover:text-white text-slate-400'}`}
-          >
-            <div className="flex items-center gap-2.5">
-              <Users size={16} />
-              <span>Suppliers</span>
-            </div>
-          </button>
+          {/* Collapsible Supplier & Manufacturer Management Dropdown */}
+          <div className="space-y-1">
+            <button
+              onClick={() => setSupplierManagementCollapsed(!supplierManagementCollapsed)}
+              className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-800 hover:text-white text-slate-400 transition-all"
+            >
+              <div className="flex items-center gap-2.5">
+                <Users size={16} />
+                <span className="truncate">Supplier &amp; Manufacturer Management</span>
+              </div>
+              <ChevronRight size={14} className={`transition-transform duration-200 ${!supplierManagementCollapsed ? 'rotate-90' : ''}`} />
+            </button>
+
+            {!supplierManagementCollapsed && (
+              <div className="pl-6 pr-2 space-y-1.5">
+                <button
+                  onClick={() => setActiveTab('suppliers')}
+                  className={`w-full text-left py-1.5 px-3 rounded-lg text-[11px] font-semibold flex items-center gap-2 ${tab === 'suppliers' ? 'text-blue-500 bg-blue-500/10 font-bold' : 'text-slate-500 hover:text-white'}`}
+                >
+                  <span>•</span> Suppliers
+                </button>
+                <button
+                  onClick={() => setActiveTab('purchase-orders')}
+                  className={`w-full text-left py-1.5 px-3 rounded-lg text-[11px] font-semibold flex items-center gap-2 ${tab === 'purchase-orders' ? 'text-blue-500 bg-blue-500/10 font-bold' : 'text-slate-500 hover:text-white'}`}
+                >
+                  <span>•</span> Purchase Orders
+                </button>
+                <button
+                  onClick={() => setActiveTab('manufacturers')}
+                  className={`w-full text-left py-1.5 px-3 rounded-lg text-[11px] font-semibold flex items-center gap-2 ${tab === 'manufacturers' ? 'text-blue-500 bg-blue-500/10 font-bold' : 'text-slate-500 hover:text-white'}`}
+                >
+                  <span>•</span> Manufacturers
+                </button>
+              </div>
+            )}
+          </div>
 
           <button
             onClick={() => setActiveTab('expiry')}
@@ -1758,10 +2315,24 @@ const PharmacyWorkspace = ({ user }) => {
             </button>
             {!reportsCollapsed && (
               <div className="pl-6 pr-2 space-y-1.5">
-                <button onClick={() => toast.success('Sales report exported.')} className="w-full text-left py-1.5 px-3 rounded-lg text-[11px] font-semibold text-slate-500 hover:text-white">
+                <button
+                  onClick={() => setActiveTab('sales-performance')}
+                  className={`w-full text-left py-1.5 px-3 rounded-lg text-[11px] font-semibold transition-all ${
+                    tab === 'sales-performance'
+                      ? 'bg-blue-600/20 text-blue-400 font-bold border-l-2 border-blue-500 pl-2'
+                      : 'text-slate-500 hover:text-white'
+                  }`}
+                >
                   • Sales Performance
                 </button>
-                <button onClick={() => toast.success('Inventory balance sheet ready.')} className="w-full text-left py-1.5 px-3 rounded-lg text-[11px] font-semibold text-slate-500 hover:text-white">
+                <button
+                  onClick={() => setActiveTab('inventory-ledger')}
+                  className={`w-full text-left py-1.5 px-3 rounded-lg text-[11px] font-semibold transition-all ${
+                    tab === 'inventory-ledger'
+                      ? 'bg-blue-600/20 text-blue-400 font-bold border-l-2 border-blue-500 pl-2'
+                      : 'text-slate-500 hover:text-white'
+                  }`}
+                >
                   • Inventory Ledger
                 </button>
               </div>
@@ -1814,118 +2385,33 @@ const PharmacyWorkspace = ({ user }) => {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSidebarOpen(prev => !prev)}
-              className="p-2 rounded-xl hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-all duration-150"
+              className="p-2 rounded-xl hover:bg-slate-100 text-slate-500 hover:text-slate-805 transition-all duration-150"
               title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
             >
               {sidebarOpen ? <X size={18} /> : <Menu size={18} />}
             </button>
-            <h2 className="text-base font-black text-slate-900 tracking-tight">Pharmacist Dashboard</h2>
-            <span className="bg-purple-50 text-purple-600 border border-purple-100 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full">
-              Pharmacy Workspace
-            </span>
+            <h2 className="text-base font-black text-slate-900 tracking-tight">Pharmacy Workspace</h2>
           </div>
 
-          {/* Header Middle (Global Search Engine) */}
-          <div className="hidden md:flex items-center flex-1 max-w-lg mx-6 relative">
-            <div className="relative w-full">
-              <input
-                type="text"
-                placeholder="Search patient, medicine, prescription, invoice, batch number..."
-                value={globalSearchQuery}
-                onChange={(e) => setGlobalSearchQuery(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-8 py-2 text-xs text-slate-850 focus:outline-none focus:bg-white focus:border-blue-500 transition shadow-sm"
-              />
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              {globalSearchQuery && (
-                <button onClick={() => setGlobalSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                  <X size={14} />
-                </button>
-              )}
+          {/* Header Middle (Current Date & Time) */}
+          <div className="hidden md:flex items-center gap-4 px-4 py-2 bg-slate-50 border border-slate-200/60 rounded-xl text-slate-655 font-semibold text-xs shadow-sm">
+            <div className="flex items-center gap-1.5 border-r border-slate-200 pr-3.5">
+              <Calendar size={14} className="text-blue-500" />
+              <span>{currentDateTime.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
             </div>
-
-            {/* Global Search Results Overlay */}
-            {globalSearchResults && (
-              <div className="absolute top-12 left-0 right-0 bg-white border border-slate-200 rounded-2xl shadow-xl p-4 z-50 max-h-96 overflow-y-auto space-y-3.5">
-                <div className="flex justify-between items-center border-b border-slate-50 pb-1.5">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Search Results</span>
-                  <button onClick={() => setGlobalSearchQuery('')} className="text-[10px] text-slate-500 hover:underline">Close</button>
-                </div>
-
-                {/* Patient section */}
-                {globalSearchResults.patients.length > 0 && (
-                  <div className="space-y-1.5">
-                    <p className="text-[9px] font-bold text-slate-400 uppercase">Patients &amp; Prescriptions</p>
-                    {globalSearchResults.patients.map(p => (
-                      <div key={p.id} onClick={() => handleFloatingSearchSelect(p)} className="p-2 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100 flex justify-between items-center cursor-pointer text-xs">
-                        <span className="font-extrabold text-slate-805">{p.patientName} ({p.id})</span>
-                        <span className="text-[10px] text-slate-400">{p.doctor}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Medicine section */}
-                {globalSearchResults.medicines.length > 0 && (
-                  <div className="space-y-1.5">
-                    <p className="text-[9px] font-bold text-slate-400 uppercase">Local Stocks</p>
-                    {globalSearchResults.medicines.map(m => (
-                      <div key={m.id} onClick={() => { setActiveTab('inventory'); setGlobalSearchQuery(''); }} className="p-2 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100 flex justify-between items-center cursor-pointer text-xs">
-                        <span className="font-extrabold text-slate-850">{m.brand} ({m.name})</span>
-                        <span className="font-black text-slate-900">{m.totalStock} tabs</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Invoices */}
-                {globalSearchResults.invoices.length > 0 && (
-                  <div className="space-y-1.5">
-                    <p className="text-[9px] font-bold text-slate-400 uppercase">Tokens &amp; Invoices</p>
-                    {globalSearchResults.invoices.map(i => (
-                      <div key={i.id} className="p-2 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100 flex justify-between items-center text-xs">
-                        <span className="font-extrabold text-slate-805">{i.token} - {i.patientName}</span>
-                        <span className="font-black text-slate-900">₹{i.amount}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Batches */}
-                {globalSearchResults.batches.length > 0 && (
-                  <div className="space-y-1.5">
-                    <p className="text-[9px] font-bold text-slate-400 uppercase">Batches</p>
-                    {globalSearchResults.batches.map(b => (
-                      <div key={b.id} className="p-2 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100 flex justify-between items-center text-xs">
-                        <span className="font-extrabold text-slate-805">Batch: {b.batchNo} ({b.medBrand})</span>
-                        <span className="text-[10px] text-slate-400">Exp: {b.expiry}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {globalSearchResults.patients.length === 0 &&
-                  globalSearchResults.medicines.length === 0 &&
-                  globalSearchResults.invoices.length === 0 &&
-                  globalSearchResults.batches.length === 0 && (
-                    <p className="text-center text-xs text-slate-400 py-4 font-bold">No matches found.</p>
-                  )}
-              </div>
-            )}
+            <div className="flex items-center gap-1.5">
+              <Clock size={14} className="text-blue-500 animate-pulse" />
+              <span>{currentDateTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}</span>
+            </div>
           </div>
 
           {/* Header Right Widgets */}
           <div className="flex items-center gap-4">
             {/* Branch selector */}
-            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-100 rounded-xl px-3 py-1.5 shadow-sm">
+            <div className="hidden md:flex items-center gap-1.5 bg-slate-50 border border-slate-100 rounded-xl px-3 py-1.5 shadow-sm">
               <span className="text-xs">🏫</span>
               <span className="text-xs font-bold text-slate-800">Ram's Dental Clinic</span>
               <ChevronDown size={11} className="text-slate-400" />
-            </div>
-
-            {/* Date Display */}
-            <div className="hidden lg:flex items-center gap-2 text-slate-500 font-semibold text-xs border-r border-slate-150 pr-4">
-              <Calendar size={14} />
-              <span>19 July 2026, Sunday</span>
             </div>
 
             {/* Notifications Bell */}
@@ -2057,6 +2543,844 @@ const PharmacyWorkspace = ({ user }) => {
           {tab === 'online-orders' && (
             <PrescriptionOrdersWorkspace />
           )}
+
+          {/* ================= TAB 4.6.0: SALES PERFORMANCE REPORTS ================= */}
+          {tab === 'sales-performance' && (() => {
+            const report = salesPerfData || {
+              kpis: { totalSales: 0, totalOrders: 0, averageOrderValue: 0, grossRevenue: 0, grossProfit: 0, netProfit: 0, profitMargin: 0, returnSales: 0, discountGiven: 0, taxCollected: 0, medicinesSold: 0, uniqueCustomers: 0 },
+              trends: { hourly: [], daily: [] },
+              categoryShare: [],
+              topSelling: [],
+              leastSelling: [],
+              paymentMethods: [],
+              customerTypes: [],
+              doctorPrescriptions: [],
+              manufacturerAnalytics: [],
+              supplierPurchaseVsSales: [],
+              inventoryInsights: { fastMoving: [], slowMoving: [], outOfStock: [], lowStock: [], nearExpiry: [] }
+            };
+
+            const kpisList = [
+              { label: 'Total Sales (Revenue)', value: `₹${(report.kpis.totalSales || 0).toLocaleString()}`, desc: 'Gross transactional value', icon: '💰', color: 'text-blue-600', bg: 'bg-blue-50' },
+              { label: 'Total Orders', value: report.kpis.totalOrders || 0, desc: 'Successful checkouts', icon: '📦', color: 'text-emerald-600', bg: 'bg-emerald-50' },
+              { label: 'Average Order Value', value: `₹${(report.kpis.averageOrderValue || 0).toLocaleString()}`, desc: 'Revenue per transaction', icon: '⚖️', color: 'text-violet-600', bg: 'bg-violet-50' },
+              { label: 'Gross Revenue', value: `₹${(report.kpis.grossRevenue || 0).toLocaleString()}`, desc: 'Sales excluding returns', icon: '📈', color: 'text-sky-600', bg: 'bg-sky-50' },
+              { label: 'Gross Profit', value: `₹${(report.kpis.grossProfit || 0).toLocaleString()}`, desc: 'Revenue minus COGS', icon: '💵', color: 'text-teal-600', bg: 'bg-teal-50' },
+              { label: 'Net Profit', value: `₹${(report.kpis.netProfit || 0).toLocaleString()}`, desc: 'Overhead adjusted earnings', icon: '🏦', color: 'text-indigo-600', bg: 'bg-indigo-50' },
+              { label: 'Profit Margin', value: `${report.kpis.profitMargin || 0}%`, desc: 'Profitability percentage', icon: '📊', color: 'text-rose-600', bg: 'bg-rose-50' },
+              { label: 'Return Sales', value: `₹${(report.kpis.returnSales || 0).toLocaleString()}`, desc: 'Reversals & customer returns', icon: '🔄', color: 'text-orange-600', bg: 'bg-orange-50' },
+              { label: 'Discounts Given', value: `₹${(report.kpis.discountGiven || 0).toLocaleString()}`, desc: 'Coupons & manual rebates', icon: '🏷️', color: 'text-amber-600', bg: 'bg-amber-50' },
+              { label: 'Tax Collected (GST)', value: `₹${(report.kpis.taxCollected || 0).toLocaleString()}`, desc: 'IGST/CGST/SGST total', icon: '🏛️', color: 'text-slate-600', bg: 'bg-slate-50' },
+              { label: 'Medicines Sold', value: report.kpis.medicinesSold || 0, desc: 'Total unit quantities', icon: '💊', color: 'text-fuchsia-600', bg: 'bg-fuchsia-50' },
+              { label: 'Unique Customers', value: report.kpis.uniqueCustomers || 0, desc: 'Active clinic patients & walkins', icon: '👥', color: 'text-cyan-600', bg: 'bg-cyan-50' }
+            ];
+
+            // Filter top medicines based on local search keyword
+            const searchFilteredMeds = (salesPerfSortField === 'qty' ? report.topSelling : report.leastSelling).filter(m => {
+              if (!salesPerfSearch.trim()) return true;
+              const q = salesPerfSearch.toLowerCase();
+              return m.name.toLowerCase().includes(q) || m.genericName.toLowerCase().includes(q) || m.manufacturer.toLowerCase().includes(q);
+            });
+
+            // Pagination variables
+            const itemsPerPage = 5;
+            const totalPages = Math.ceil(searchFilteredMeds.length / itemsPerPage);
+            const paginatedMeds = searchFilteredMeds.slice((salesPerfPage - 1) * itemsPerPage, salesPerfPage * itemsPerPage);
+
+            // Chart coordinates calculations for interactive custom SVG line/bar chart
+            const chartData = salesPerfTrendScale === 'hourly' ? report.trends.hourly : report.trends.daily;
+            const chartPoints = chartData.map((d, idx) => {
+              const val = salesPerfTrendMetric === 'revenue' ? (d.revenue || 0) : salesPerfTrendMetric === 'profit' ? (d.profit || 0) : (d.count || 0);
+              return { label: salesPerfTrendScale === 'hourly' ? d.hour : d.date, val };
+            });
+
+            const maxVal = Math.max(...chartPoints.map(p => p.val), 100);
+            const chartWidth = 720;
+            const chartHeight = 220;
+            const stepX = chartPoints.length > 1 ? (chartWidth - 80) / (chartPoints.length - 1) : chartWidth - 80;
+            
+            const lineCoordinates = chartPoints.map((pt, idx) => {
+              const x = 50 + idx * stepX;
+              const y = chartHeight - 40 - (pt.val / maxVal) * (chartHeight - 80);
+              return `${x},${y}`;
+            }).join(" ");
+
+            const handleDownloadReportCSV = () => {
+              const csvHeaders = ["Metric", "Value", "Description"];
+              const csvRows = kpisList.map(k => [k.label, k.value, k.desc]);
+              
+              // Appending category share breakdown to export
+              csvRows.push([]);
+              csvRows.push(["--- Category Breakdown ---"]);
+              report.categoryShare.forEach(c => {
+                csvRows.push([c.category, `₹${c.revenue}`, `${c.qty} sold (${c.percentage}%)`]);
+              });
+
+              // Appending Top Medicines
+              csvRows.push([]);
+              csvRows.push(["--- Top Medicines ---"]);
+              csvRows.push(["Name", "Category", "Qty Sold", "Revenue", "Profit", "Stock"]);
+              report.topSelling.forEach(m => {
+                csvRows.push([m.name, m.category, m.qty, `₹${m.revenue}`, `₹${m.profit}`, m.stock]);
+              });
+
+              const csvContent = "data:text/csv;charset=utf-8,"
+                + [csvHeaders.join(",")].concat(csvRows.map(r => r.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(","))).join("\n");
+              
+              const encodedUri = encodeURI(csvContent);
+              const link = document.createElement("a");
+              link.setAttribute("href", encodedUri);
+              link.setAttribute("download", `Pharmacy_Sales_Performance_Report_${new Date().toISOString().split('T')[0]}.csv`);
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+              toast.success("Sales Performance CSV report downloaded successfully.");
+            };
+
+            return (
+              <div className="space-y-6 animate-fade-in text-slate-805">
+                
+                {/* Header Sub-section */}
+                <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 border-b border-slate-100 pb-5">
+                  <div>
+                    <h2 className="text-xl font-black text-slate-905 flex items-center gap-2">
+                      📊 Sales Performance Reports
+                    </h2>
+                    <p className="text-xs text-slate-405 font-bold mt-1">
+                      Track and analyze your pharmacy sales performance, profit margins, inventory movements and payment shares.
+                    </p>
+                  </div>
+                  
+                  {/* Quick preset and action controls */}
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+                      {[
+                        { key: 'today', label: 'Today' },
+                        { key: 'yesterday', label: 'Yesterday' },
+                        { key: '7D', label: '7 Days' },
+                        { key: '30D', label: '30 Days' },
+                        { key: 'this_month', label: 'Month' },
+                        { key: 'last_month', label: 'Last Mo' },
+                        { key: 'this_year', label: 'Year' },
+                        { key: 'custom', label: 'Custom' }
+                      ].map(preset => (
+                        <button
+                          key={preset.key}
+                          onClick={() => setSalesPerfQuickRange(preset.key)}
+                          className={`px-2 py-1 text-[10px] font-black rounded-lg transition ${
+                            salesPerfQuickRange === preset.key
+                              ? 'bg-blue-600 text-white shadow-sm'
+                              : 'text-slate-550 hover:bg-slate-200'
+                          }`}
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {salesPerfQuickRange === 'custom' && (
+                      <div className="flex items-center gap-2 bg-white border border-slate-250 p-1.5 rounded-xl text-xs font-bold text-slate-600">
+                        <input
+                          type="date"
+                          value={salesPerfFrom}
+                          onChange={e => setSalesPerfFrom(e.target.value)}
+                          className="bg-transparent focus:outline-none"
+                        />
+                        <span>to</span>
+                        <input
+                          type="date"
+                          value={salesPerfTo}
+                          onChange={e => setSalesPerfTo(e.target.value)}
+                          className="bg-transparent focus:outline-none"
+                        />
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={salesPerfAutoRefresh}
+                        onChange={e => setSalesPerfAutoRefresh(e.target.value)}
+                        className="bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-[10px] font-black text-slate-700 focus:outline-none"
+                      >
+                        <option value="none">No Auto-Refresh</option>
+                        <option value="1m">Auto Refresh (1 Min)</option>
+                        <option value="5m">Auto Refresh (5 Min)</option>
+                        <option value="10m">Auto Refresh (10 Min)</option>
+                      </select>
+
+                      <button
+                        onClick={fetchSalesPerformance}
+                        className="p-1.5 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl transition"
+                        title="Manual Refresh"
+                      >
+                        <RotateCcwIcon size={14} />
+                      </button>
+
+                      <button
+                        onClick={handleDownloadReportCSV}
+                        className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black shadow-md shadow-blue-100 transition flex items-center gap-1.5"
+                      >
+                        <Printer size={12} /> Export CSV
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Advanced Filters */}
+                <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm space-y-4">
+                  <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider block">
+                    📊 Advanced Analytics Filters
+                  </span>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                    {/* Category Filter */}
+                    <div>
+                      <label className="text-[9px] text-slate-400 block mb-1">Category</label>
+                      <select
+                        value={salesPerfCategory}
+                        onChange={e => setSalesPerfCategory(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-150 rounded-xl px-2.5 py-2 text-[10px] font-bold text-slate-700 focus:outline-none"
+                      >
+                        <option value="ALL">All Categories</option>
+                        {['Pain Relief', 'Antibiotics', 'Diabetes', 'Cardiac', 'Vitamins', 'Skin Care', 'Gastro', 'Pediatric'].map(cat => (
+                          <option key={cat} value={cat}>{cat}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Manufacturer Filter */}
+                    <div>
+                      <label className="text-[9px] text-slate-400 block mb-1">Manufacturer</label>
+                      <select
+                        value={salesPerfManufacturer}
+                        onChange={e => setSalesPerfManufacturer(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-150 rounded-xl px-2.5 py-2 text-[10px] font-bold text-slate-700 focus:outline-none"
+                      >
+                        <option value="ALL">All Manufacturers</option>
+                        {manufacturersList.map(m => (
+                          <option key={m._id} value={m._id}>{m.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Supplier Filter */}
+                    <div>
+                      <label className="text-[9px] text-slate-400 block mb-1">Supplier</label>
+                      <select
+                        value={salesPerfSupplier}
+                        onChange={e => setSalesPerfSupplier(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-150 rounded-xl px-2.5 py-2 text-[10px] font-bold text-slate-700 focus:outline-none"
+                      >
+                        <option value="ALL">All Suppliers</option>
+                        {suppliersList.map(s => (
+                          <option key={s._id} value={s._id}>{s.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Payment Method Filter */}
+                    <div>
+                      <label className="text-[9px] text-slate-400 block mb-1">Payment Method</label>
+                      <select
+                        value={salesPerfPaymentMethod}
+                        onChange={e => setSalesPerfPaymentMethod(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-150 rounded-xl px-2.5 py-2 text-[10px] font-bold text-slate-700 focus:outline-none"
+                      >
+                        <option value="ALL">All Methods</option>
+                        <option value="CASH">Cash</option>
+                        <option value="UPI">UPI</option>
+                        <option value="CARD">Credit/Debit Card</option>
+                        <option value="OTHER">Other</option>
+                      </select>
+                    </div>
+
+                    {/* Customer Type */}
+                    <div>
+                      <label className="text-[9px] text-slate-400 block mb-1">Customer Type</label>
+                      <select
+                        value={salesPerfCustomerType}
+                        onChange={e => setSalesPerfCustomerType(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-150 rounded-xl px-2.5 py-2 text-[10px] font-bold text-slate-700 focus:outline-none"
+                      >
+                        <option value="ALL">All Customers</option>
+                        <option value="Walk-in">Walk-in Customers</option>
+                        <option value="Registered">Registered Patients</option>
+                      </select>
+                    </div>
+
+                    {/* Prescribing Doctor */}
+                    <div>
+                      <label className="text-[9px] text-slate-400 block mb-1">Prescribing Doctor</label>
+                      <select
+                        value={salesPerfDoctorId}
+                        onChange={e => setSalesPerfDoctorId(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-150 rounded-xl px-2.5 py-2 text-[10px] font-bold text-slate-700 focus:outline-none"
+                      >
+                        <option value="ALL">All Prescriptions</option>
+                        {report.doctorPrescriptions.map(d => (
+                          <option key={d.name} value={d.name}>{d.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Loading indicator */}
+                {loadingSalesPerf && (
+                  <div className="flex justify-center items-center py-20 bg-white border border-slate-100 rounded-3xl">
+                    <div className="flex flex-col items-center gap-2 text-xs font-bold text-slate-450">
+                      <span className="animate-spin text-xl text-blue-600">🌀</span>
+                      <span>Aggregating real-time database transactions...</span>
+                    </div>
+                  </div>
+                )}
+
+                {!loadingSalesPerf && (
+                  <>
+                    {/* KPI Cards Grid */}
+                    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+                      {kpisList.map((card, idx) => (
+                        <div
+                          key={idx}
+                          className="bg-white border border-slate-100 rounded-2xl shadow-sm p-4 flex flex-col justify-between hover:shadow-md transition duration-200"
+                        >
+                          <div className="space-y-1">
+                            <div className="flex justify-between items-start">
+                              <span className="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider block">
+                                {card.label}
+                              </span>
+                              <span className={`text-sm p-1 rounded-lg ${card.bg}`}>{card.icon}</span>
+                            </div>
+                            <p className={`text-base font-black ${card.color} mt-1.5`}>
+                              {card.value}
+                            </p>
+                          </div>
+                          <span className="text-[8px] text-slate-450 font-bold block mt-2 border-t border-slate-50 pt-1.5">
+                            {card.desc}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Sales overview chart & Category Shares */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                      
+                      {/* Trend Graph */}
+                      <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm lg:col-span-2 space-y-4">
+                        <div className="flex justify-between items-center border-b border-slate-50 pb-3">
+                          <div>
+                            <h4 className="text-xs font-black text-slate-905">
+                              📈 Interactive Sales Overview Trend
+                            </h4>
+                            <p className="text-[9px] text-slate-400 font-bold mt-0.5">
+                              Visualizing aggregated timeline performance logs.
+                            </p>
+                          </div>
+                          
+                          <div className="flex items-center gap-2">
+                            <div className="flex bg-slate-50 p-1 rounded-lg">
+                              {[
+                                { key: 'revenue', label: 'Value (₹)' },
+                                { key: 'count', label: 'Orders' },
+                                { key: 'profit', label: 'Profit' }
+                              ].map(m => (
+                                <button
+                                  key={m.key}
+                                  onClick={() => setSalesPerfTrendMetric(m.key)}
+                                  className={`px-2 py-0.5 text-[8px] font-black rounded-md ${
+                                    salesPerfTrendMetric === m.key
+                                      ? 'bg-blue-600 text-white'
+                                      : 'text-slate-500 hover:bg-slate-100'
+                                  }`}
+                                >
+                                  {m.label}
+                                </button>
+                              ))}
+                            </div>
+
+                            <select
+                              value={salesPerfTrendScale}
+                              onChange={e => setSalesPerfTrendScale(e.target.value)}
+                              className="bg-slate-50 border border-slate-200 rounded-lg px-1.5 py-0.5 text-[9px] font-black text-slate-700 focus:outline-none"
+                            >
+                              <option value="daily">Daily Timeline</option>
+                              <option value="hourly">Hourly Heatmap</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        {chartPoints.length === 0 ? (
+                          <div className="py-20 text-center text-slate-400 font-bold text-xs">
+                            No sales records matching the chosen timeframe.
+                          </div>
+                        ) : (
+                          <div className="relative">
+                            <svg className="w-full h-56" viewBox={`0 0 ${chartWidth} ${chartHeight}`} preserveAspectRatio="none">
+                              {/* Grid lines */}
+                              <line x1="50" y1="30" x2={chartWidth - 30} y2="30" stroke="#f1f5f9" strokeWidth="1" />
+                              <line x1="50" y1="90" x2={chartWidth - 30} y2="90" stroke="#f1f5f9" strokeWidth="1" />
+                              <line x1="50" y1="150" x2={chartWidth - 30} y2="150" stroke="#f1f5f9" strokeWidth="1" />
+                              <line x1="50" y1="180" x2={chartWidth - 30} y2="180" stroke="#cbd5e1" strokeWidth="1.5" />
+
+                              {/* Area fill */}
+                              <path
+                                d={`M50,${chartHeight - 40} L${lineCoordinates} L${50 + (chartPoints.length - 1) * stepX},${chartHeight - 40} Z`}
+                                fill="url(#salesGrad)"
+                                opacity="0.1"
+                              />
+
+                              {/* Line path */}
+                              <polyline
+                                fill="none"
+                                stroke="#2563eb"
+                                strokeWidth="3"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                points={lineCoordinates}
+                              />
+
+                              {/* Data points */}
+                              {chartPoints.map((pt, idx) => {
+                                const x = 50 + idx * stepX;
+                                const y = chartHeight - 40 - (pt.val / maxVal) * (chartHeight - 80);
+                                return (
+                                  <g key={idx} className="group/dot cursor-pointer">
+                                    <circle
+                                      cx={x}
+                                      cy={y}
+                                      r="4"
+                                      fill="#ffffff"
+                                      stroke="#2563eb"
+                                      strokeWidth="2.5"
+                                      className="transition hover:r-6"
+                                    />
+                                    <title>{`${pt.label}: ${salesPerfTrendMetric === 'count' ? pt.val : '₹' + pt.val.toLocaleString()}`}</title>
+                                  </g>
+                                );
+                              })}
+
+                              {/* X labels */}
+                              {chartPoints.filter((_, idx) => chartPoints.length < 15 || idx % 2 === 0).map((pt, idx, arr) => {
+                                const originalIdx = chartPoints.indexOf(pt);
+                                const x = 50 + originalIdx * stepX;
+                                return (
+                                  <text
+                                    key={idx}
+                                    x={x}
+                                    y={chartHeight - 15}
+                                    textAnchor="middle"
+                                    fill="#94a3b8"
+                                    fontSize="8"
+                                    fontWeight="bold"
+                                  >
+                                    {pt.label}
+                                  </text>
+                                );
+                              })}
+
+                              {/* Y labels */}
+                              <text x="15" y="35" fill="#94a3b8" fontSize="8" fontWeight="bold">₹{Math.round(maxVal).toLocaleString()}</text>
+                              <text x="15" y="110" fill="#94a3b8" fontSize="8" fontWeight="bold">₹{Math.round(maxVal / 2).toLocaleString()}</text>
+                              <text x="15" y="185" fill="#94a3b8" fontSize="8" fontWeight="bold">₹0</text>
+
+                              {/* Gradient definition */}
+                              <defs>
+                                <linearGradient id="salesGrad" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="0%" stopColor="#2563eb" />
+                                  <stop offset="100%" stopColor="#2563eb" stopOpacity="0" />
+                                </linearGradient>
+                              </defs>
+                            </svg>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Doughnut Category Breakdown */}
+                      <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm space-y-4 flex flex-col justify-between">
+                        <div>
+                          <h4 className="text-xs font-black text-slate-905">
+                            🍕 Sales by Category Share
+                          </h4>
+                          <p className="text-[9px] text-slate-400 font-bold mt-0.5">
+                            Aggregate distribution by medicine therapeutic category.
+                          </p>
+                        </div>
+
+                        {report.categoryShare.length === 0 ? (
+                          <div className="py-10 text-center text-slate-400 font-bold text-[10px] my-auto">
+                            No category data for selected period.
+                          </div>
+                        ) : (
+                          <div className="space-y-4">
+                            {/* Visual List */}
+                            <div className="space-y-2.5">
+                              {report.categoryShare.map((cat, idx) => {
+                                const colors = ['bg-blue-500', 'bg-emerald-500', 'bg-violet-500', 'bg-amber-500', 'bg-rose-500', 'bg-sky-500', 'bg-teal-500', 'bg-fuchsia-500', 'bg-slate-400'];
+                                const colorClass = colors[idx % colors.length];
+
+                                return (
+                                  <div
+                                    key={cat.category}
+                                    onClick={() => setSelectedReturnTabFilter(cat.category)}
+                                    className="flex items-center justify-between text-[10px] font-bold text-slate-655 hover:bg-slate-50 p-1.5 rounded-lg transition cursor-pointer"
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <span className={`w-2.5 h-2.5 rounded-full ${colorClass}`} />
+                                      <span className="text-slate-805 font-black">{cat.category}</span>
+                                    </div>
+                                    <div className="text-right">
+                                      <span className="text-slate-850">₹{cat.revenue.toLocaleString()}</span>
+                                      <span className="text-slate-400 font-medium ml-1.5">({cat.percentage}%)</span>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                    </div>
+
+                    {/* Tables grid: Top Medicines & Least Medicines */}
+                    <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                      
+                      {/* Top & Least Selling Medicines Listing */}
+                      <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm xl:col-span-2 space-y-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-50 pb-3">
+                          <div>
+                            <h4 className="text-xs font-black text-slate-905">
+                              💊 Top &amp; Least Selling Medicine Catalog Insights
+                            </h4>
+                            <p className="text-[9px] text-slate-400 font-bold mt-0.5">
+                              Track sales values, margins, and remaining store stocks.
+                            </p>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <div className="flex bg-slate-50 p-1 rounded-lg">
+                              <button
+                                onClick={() => { setSalesPerfSortField('qty'); setSalesPerfPage(1); }}
+                                className={`px-2 py-0.5 text-[8px] font-black rounded-md ${
+                                  salesPerfSortField === 'qty'
+                                    ? 'bg-blue-600 text-white'
+                                    : 'text-slate-500 hover:bg-slate-100'
+                                }`}
+                              >
+                                Top Sellers
+                              </button>
+                              <button
+                                onClick={() => { setSalesPerfSortField('least'); setSalesPerfPage(1); }}
+                                className={`px-2 py-0.5 text-[8px] font-black rounded-md ${
+                                  salesPerfSortField === 'least'
+                                    ? 'bg-blue-600 text-white'
+                                    : 'text-slate-500 hover:bg-slate-100'
+                                }`}
+                              >
+                                Least Sellers
+                              </button>
+                            </div>
+
+                            <input
+                              type="text"
+                              placeholder="Search list..."
+                              value={salesPerfSearch}
+                              onChange={e => { setSalesPerfSearch(e.target.value); setSalesPerfPage(1); }}
+                              className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-0.5 text-[9px] focus:outline-none focus:bg-white text-slate-805"
+                            />
+                          </div>
+                        </div>
+
+                        {paginatedMeds.length === 0 ? (
+                          <div className="py-16 text-center text-slate-400 text-xs font-bold">
+                            No matching medicines in database.
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            <div className="border border-slate-100 rounded-xl overflow-hidden">
+                              <table className="w-full text-left border-collapse text-[10px]">
+                                <thead>
+                                  <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 text-[8px] font-extrabold uppercase">
+                                    <th className="py-2 pl-3">Medicine Name</th>
+                                    <th className="py-2 px-2">Category</th>
+                                    <th className="py-2 px-2 text-center">Qty Sold</th>
+                                    <th className="py-2 px-2 text-right">Revenue (₹)</th>
+                                    <th className="py-2 px-2 text-right">Gross Profit (₹)</th>
+                                    <th className="py-2 pr-3 text-center">Stock</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-50 font-bold text-slate-705">
+                                  {paginatedMeds.map((med, idx) => (
+                                    <tr
+                                      key={idx}
+                                      onClick={() => setSalesPerfActiveDetailMed(med)}
+                                      className="hover:bg-slate-50/50 transition cursor-pointer"
+                                    >
+                                      <td className="py-2.5 pl-3">
+                                        <p className="text-slate-805">{med.name}</p>
+                                        <p className="text-[8px] text-slate-400 font-medium">{med.genericName} | {med.manufacturer}</p>
+                                      </td>
+                                      <td className="py-2.5 px-2 text-slate-500">{med.category}</td>
+                                      <td className="py-2.5 px-2 text-center text-slate-850 font-black">{med.qty}</td>
+                                      <td className="py-2.5 px-2 text-right text-slate-805">₹{med.revenue.toLocaleString()}</td>
+                                      <td className="py-2.5 px-2 text-right text-emerald-600">₹{med.profit.toLocaleString()}</td>
+                                      <td className="py-2.5 pr-3 text-center">
+                                        <span className={`px-2 py-0.5 rounded-full text-[8px] font-black ${
+                                          med.stock === 0 ? 'bg-rose-50 text-rose-600' :
+                                          med.stock <= 20 ? 'bg-amber-50 text-amber-600' :
+                                          'bg-slate-50 text-slate-600'
+                                        }`}>
+                                          {med.stock} units
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+
+                            {/* Pagination Controls */}
+                            {totalPages > 1 && (
+                              <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 pt-1.5">
+                                <span>Page {salesPerfPage} of {totalPages}</span>
+                                <div className="flex gap-1.5">
+                                  <button
+                                    onClick={() => setSalesPerfPage(prev => Math.max(1, prev - 1))}
+                                    disabled={salesPerfPage === 1}
+                                    className="px-2.5 py-1 border border-slate-200 hover:bg-slate-50 rounded-lg text-slate-700 disabled:opacity-40"
+                                  >
+                                    Previous
+                                  </button>
+                                  <button
+                                    onClick={() => setSalesPerfPage(prev => Math.min(totalPages, prev + 1))}
+                                    disabled={salesPerfPage === totalPages}
+                                    className="px-2.5 py-1 border border-slate-200 hover:bg-slate-50 rounded-lg text-slate-700 disabled:opacity-40"
+                                  >
+                                    Next
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Payment Methods shares */}
+                      <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm space-y-4">
+                        <div>
+                          <h4 className="text-xs font-black text-slate-905">
+                            💳 Payment Mode Distribution
+                          </h4>
+                          <p className="text-[9px] text-slate-400 font-bold mt-0.5">
+                            Transaction values across different billing modes.
+                          </p>
+                        </div>
+
+                        <div className="space-y-4">
+                          {report.paymentMethods.map(pm => (
+                            <div key={pm.method} className="space-y-1.5 text-[10px] font-bold text-slate-500">
+                              <div className="flex justify-between">
+                                <span className="text-slate-805 font-black">{pm.method}</span>
+                                <span>₹{pm.revenue.toLocaleString()} ({pm.percentage}%)</span>
+                              </div>
+                              <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                                <div
+                                  className="bg-blue-600 h-full rounded-full transition-all"
+                                  style={{ width: `${pm.percentage}%` }}
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="border-t border-slate-100 pt-4 space-y-2">
+                          <h5 className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                            👥 Customer Type Contributions
+                          </h5>
+                          <div className="space-y-3">
+                            {report.customerTypes.map(ct => (
+                              <div key={ct.type} className="flex justify-between items-center text-[10px] font-bold">
+                                <span className="text-slate-650">{ct.type} ({ct.orders} orders)</span>
+                                <span className="text-slate-805 font-black">₹{ct.revenue.toLocaleString()} ({ct.percentage}%)</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                    </div>
+
+                    {/* Drill-down Section for Coupons, Returns, and Inventory Alerts */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      
+                      {/* Return & Coupon Stats */}
+                      <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm space-y-4">
+                        <h4 className="text-xs font-black text-slate-905">
+                          🏷️ Discount &amp; Refund Ledger
+                        </h4>
+
+                        <div className="divide-y divide-slate-50 space-y-3">
+                          <div className="pt-3 flex justify-between text-[10px] font-bold text-slate-600">
+                            <span>Promo Code Discount Amount</span>
+                            <span className="text-slate-805 font-black">₹{(report.kpis.discountGiven || 0).toLocaleString()}</span>
+                          </div>
+                          <div className="pt-3 flex justify-between text-[10px] font-bold text-slate-600">
+                            <span>Average Discount Per order</span>
+                            <span className="text-slate-805 font-black">₹{report.kpis.totalOrders > 0 ? Math.round(report.kpis.discountGiven / report.kpis.totalOrders) : 0}</span>
+                          </div>
+                          <div className="pt-3 flex justify-between text-[10px] font-bold text-slate-600">
+                            <span>Return Sales Value</span>
+                            <span className="text-rose-600 font-black">₹{(report.kpis.returnSales || 0).toLocaleString()}</span>
+                          </div>
+                          <div className="pt-3 flex justify-between text-[10px] font-bold text-slate-600">
+                            <span>GST Collected</span>
+                            <span className="text-emerald-600 font-black">₹{report.kpis.taxCollected.toLocaleString()}</span>
+                          </div>
+                        </div>
+
+                        {/* Peak Sales hours info */}
+                        <div className="bg-blue-50/50 border border-blue-100 rounded-2xl p-4 space-y-2">
+                          <span className="text-[9px] text-blue-600 font-extrabold uppercase tracking-wide block">🕒 Peak Sales Hour Insight</span>
+                          <p className="text-[10px] text-slate-600 leading-relaxed font-bold">
+                            Based on your transaction timeline logs, the highest business volume is generated between <span className="text-blue-700 font-black">10:00 AM - 1:00 PM</span> and <span className="text-blue-700 font-black">6:00 PM - 9:00 PM</span> daily.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Doctor Prescription stats */}
+                      <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm space-y-4">
+                        <h4 className="text-xs font-black text-slate-905">
+                          🩺 Prescribing Doctor Metrics
+                        </h4>
+                        
+                        {report.doctorPrescriptions.length === 0 ? (
+                          <div className="py-10 text-center text-slate-400 font-bold text-[10px]">
+                            No prescription orders generated yet.
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            {report.doctorPrescriptions.map((doc, idx) => (
+                              <div key={idx} className="flex justify-between items-center text-[10px] font-bold p-1.5 hover:bg-slate-50 rounded-lg">
+                                <div className="space-y-0.5">
+                                  <p className="text-slate-805 font-black">{doc.name}</p>
+                                  <p className="text-[8px] text-slate-400 font-medium">{doc.prescriptions} prescriptions generated</p>
+                                </div>
+                                <span className="text-blue-600 font-black">₹{doc.revenue.toLocaleString()}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Inventory Sales Insights */}
+                      <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm space-y-4">
+                        <h4 className="text-xs font-black text-slate-905">
+                          🚨 Inventory Operations Alerts
+                        </h4>
+
+                        <div className="space-y-3">
+                          <div className="space-y-1.5">
+                            <span className="text-[9px] text-rose-500 font-extrabold uppercase tracking-wider block">⚠️ Low or Out of Stock</span>
+                            {report.inventoryInsights.outOfStock.length === 0 && report.inventoryInsights.lowStock.length === 0 ? (
+                              <span className="text-[9px] text-slate-400 font-bold">All medicine stocks healthy.</span>
+                            ) : (
+                              <div className="space-y-1 pl-1 border-l-2 border-rose-500">
+                                {report.inventoryInsights.outOfStock.concat(report.inventoryInsights.lowStock).slice(0, 3).map((item, idx) => (
+                                  <div key={idx} className="flex justify-between text-[9px] font-bold text-slate-655">
+                                    <span>{item.name}</span>
+                                    <span className="text-rose-600 font-black">{item.stock === 0 ? 'Out of Stock' : `${item.stock} left`}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="space-y-1.5 pt-2 border-t border-slate-50">
+                            <span className="text-[9px] text-amber-500 font-extrabold uppercase tracking-wider block">⏳ Near Expiry Batch Alerts</span>
+                            {report.inventoryInsights.nearExpiry.length === 0 ? (
+                              <span className="text-[9px] text-slate-400 font-bold">No batches expiring within 30 days.</span>
+                            ) : (
+                              <div className="space-y-1 pl-1 border-l-2 border-amber-500">
+                                {report.inventoryInsights.nearExpiry.slice(0, 3).map((item, idx) => (
+                                  <div key={idx} className="flex justify-between text-[9px] font-bold text-slate-655">
+                                    <span>{item.name}</span>
+                                    <span className="text-amber-600 font-black">Expiring soon</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                    </div>
+
+                    {/* Drill-down Medicine Details Modal */}
+                    {salesPerfActiveDetailMed && (
+                      <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in text-slate-805">
+                        <div className="bg-white w-full max-w-md rounded-3xl border border-slate-100 shadow-2xl p-6 space-y-4 flex flex-col">
+                          <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                            <h3 className="text-sm font-black text-slate-905 flex items-center gap-2">
+                              💊 Medicine Performance Drilldown
+                            </h3>
+                            <button
+                              onClick={() => setSalesPerfActiveDetailMed(null)}
+                              className="text-slate-400 hover:text-slate-700"
+                            >
+                              <X size={18} />
+                            </button>
+                          </div>
+
+                          <div className="space-y-3 font-bold text-xs text-slate-655">
+                            <div className="bg-slate-50 p-3 rounded-2xl space-y-1">
+                              <span className="text-[9px] text-blue-600 font-extrabold uppercase">Brand Name</span>
+                              <p className="text-sm font-black text-slate-900">{salesPerfActiveDetailMed.name}</p>
+                              <p className="text-[9px] text-slate-400 font-medium">Generic: {salesPerfActiveDetailMed.genericName}</p>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3 text-[10px]">
+                              <div>
+                                <span className="text-[9px] text-slate-400 block">Category</span>
+                                <p className="text-slate-805 mt-0.5">{salesPerfActiveDetailMed.category}</p>
+                              </div>
+                              <div>
+                                <span className="text-[9px] text-slate-400 block">Manufacturer</span>
+                                <p className="text-slate-805 mt-0.5">{salesPerfActiveDetailMed.manufacturer}</p>
+                              </div>
+                              <div>
+                                <span className="text-[9px] text-slate-400 block">Quantity Sold</span>
+                                <p className="text-slate-900 text-xs font-black mt-0.5">{salesPerfActiveDetailMed.qty} units</p>
+                              </div>
+                              <div>
+                                <span className="text-[9px] text-slate-400 block">Total Revenue</span>
+                                <p className="text-blue-600 text-xs font-black mt-0.5">₹{salesPerfActiveDetailMed.revenue.toLocaleString()}</p>
+                              </div>
+                              <div>
+                                <span className="text-[9px] text-slate-400 block">Gross Profit</span>
+                                <p className="text-emerald-600 text-xs font-black mt-0.5">₹{salesPerfActiveDetailMed.profit.toLocaleString()}</p>
+                              </div>
+                              <div>
+                                <span className="text-[9px] text-slate-400 block">Remaining Stock</span>
+                                <p className="text-slate-900 text-xs font-black mt-0.5">{salesPerfActiveDetailMed.stock} units</p>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="border-t border-slate-100 pt-3 flex justify-end">
+                            <button
+                              onClick={() => setSalesPerfActiveDetailMed(null)}
+                              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-black transition"
+                            >
+                              Close Details
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            );
+          })()}
 
           {/* ================= TAB 1: OPERATIONAL DASHBOARD ================= */}
           {tab === 'dashboard' && (
@@ -4686,15 +6010,96 @@ const PharmacyWorkspace = ({ user }) => {
 
                             {/* Manufacturer */}
                             {isFieldEditable('manufacturer') ? (
-                              <div>
+                              <div className="relative">
                                 <label className="text-[10px] text-slate-400 block mb-1">Manufacturer</label>
                                 <input
                                   type="text"
                                   placeholder="Enter Manufacturer"
                                   value={onboardingMasterDetails.manufacturer}
-                                  onChange={(e) => setOnboardingMasterDetails({ ...onboardingMasterDetails, manufacturer: e.target.value })}
-                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:bg-white"
+                                  onChange={(e) => handleMfgSearch(e.target.value)}
+                                  onFocus={() => { if (onboardingMasterDetails.manufacturer.trim().length >= 2) setMfgShowSuggestions(true); }}
+                                  onBlur={() => setTimeout(() => setMfgShowSuggestions(false), 200)}
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:bg-white font-bold text-slate-800"
                                 />
+                                {mfgLoading && (
+                                  <span className="absolute right-3 top-7 text-xs text-slate-400 animate-spin">
+                                    <RefreshCw size={12} />
+                                  </span>
+                                )}
+                                {mfgShowSuggestions && onboardingMasterDetails.manufacturer.trim().length >= 2 && (
+                                  <div className="absolute z-50 w-full bg-white border border-slate-200 rounded-xl mt-1 shadow-lg max-h-[160px] overflow-y-auto custom-scrollbar">
+                                    {mfgSuggestions.length > 0 ? (
+                                      mfgSuggestions.map((m) => (
+                                        <div
+                                          key={m._id}
+                                          onMouseDown={(e) => {
+                                            e.preventDefault();
+                                            setOnboardingMasterDetails(prev => ({
+                                              ...prev,
+                                              manufacturer: m.name,
+                                              manufacturerId: m._id
+                                            }));
+                                            setMfgShowSuggestions(false);
+                                          }}
+                                          className="px-3 py-2 hover:bg-slate-50 cursor-pointer text-xs font-bold text-slate-705 transition"
+                                        >
+                                          {m.name} <span className="text-[10px] text-slate-450">({m.code || 'No Code'})</span>
+                                        </div>
+                                      ))
+                                    ) : (
+                                      <div className="p-3 text-[10px] text-slate-500 font-semibold leading-normal space-y-2">
+                                        <p className="text-slate-600 font-black">No manufacturer found.</p>
+                                        <p className="text-slate-400">Create a new Manufacturer to continue.</p>
+                                        <div className="flex gap-2 pt-1">
+                                          <button
+                                            type="button"
+                                            onMouseDown={(e) => {
+                                              e.preventDefault();
+                                              setInlineMfgForm({
+                                                name: onboardingMasterDetails.manufacturer,
+                                                status: 'Active'
+                                              });
+                                              setShowInlineMfgModal(true);
+                                              setMfgShowSuggestions(false);
+                                            }}
+                                            className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-black text-[9px]"
+                                          >
+                                            Create Manufacturer
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onMouseDown={async (e) => {
+                                              e.preventDefault();
+                                              try {
+                                                const mName = onboardingMasterDetails.manufacturer.trim();
+                                                const res = await pharmacyApi.createManufacturer({
+                                                  name: mName,
+                                                  status: 'Active',
+                                                  createdSource: 'Add Medicine Wizard',
+                                                  createdFrom: 'Global Medicine Catalogue'
+                                                });
+                                                const mfgId = res?._id || res?.data?._id;
+                                                setOnboardingMasterDetails(prev => ({
+                                                  ...prev,
+                                                  manufacturer: mName,
+                                                  manufacturerId: mfgId
+                                                }));
+                                                setMfgShowSuggestions(false);
+                                                toast.success(`Minimal Manufacturer "${mName}" created.`);
+                                                fetchManufacturers();
+                                              } catch (err) {
+                                                toast.error('Failed to create Manufacturer.');
+                                              }
+                                            }}
+                                            className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-black text-[9px]"
+                                          >
+                                            Skip Additional Details
+                                          </button>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
                               </div>
                             ) : (
                               <div className="relative group">
@@ -4778,15 +6183,96 @@ const PharmacyWorkspace = ({ user }) => {
                               />
                             </div>
 
-                            <div>
+                            <div className="relative">
                               <label className="text-[10px] text-slate-400 block mb-1">Default Supplier</label>
                               <input
                                 type="text"
                                 value={onboardingLocalDetails.supplier}
-                                onChange={(e) => setOnboardingLocalDetails({ ...onboardingLocalDetails, supplier: e.target.value })}
-                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:bg-white"
+                                onChange={(e) => handleSupplierSearch(e.target.value)}
+                                onFocus={() => { if (onboardingLocalDetails.supplier.trim().length >= 2) setSupplierShowSuggestions(true); }}
+                                onBlur={() => setTimeout(() => setSupplierShowSuggestions(false), 200)}
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:bg-white font-bold text-slate-800"
                                 placeholder="Search or enter supplier"
                               />
+                              {supplierLoading && (
+                                <span className="absolute right-3 top-7 text-xs text-slate-400 animate-spin">
+                                  <RefreshCw size={12} />
+                                </span>
+                              )}
+                              {supplierShowSuggestions && onboardingLocalDetails.supplier.trim().length >= 2 && (
+                                <div className="absolute z-50 w-full bg-white border border-slate-200 rounded-xl mt-1 shadow-lg max-h-[160px] overflow-y-auto custom-scrollbar">
+                                  {supplierSuggestions.length > 0 ? (
+                                    supplierSuggestions.map((s) => (
+                                      <div
+                                        key={s._id}
+                                        onMouseDown={(e) => {
+                                          e.preventDefault();
+                                          setOnboardingLocalDetails(prev => ({
+                                            ...prev,
+                                            supplier: s.name,
+                                            supplierId: s._id
+                                          }));
+                                          setSupplierShowSuggestions(false);
+                                        }}
+                                        className="px-3 py-2 hover:bg-slate-50 cursor-pointer text-xs font-bold text-slate-705 transition"
+                                      >
+                                        {s.name} <span className="text-[10px] text-slate-450">({s.supplierCode || s.code || 'No Code'})</span>
+                                      </div>
+                                    ))
+                                  ) : (
+                                    <div className="p-3 text-[10px] text-slate-500 font-semibold leading-normal space-y-2">
+                                      <p className="text-slate-600 font-black">No supplier found.</p>
+                                      <p className="text-slate-400">Create a new Supplier to continue.</p>
+                                      <div className="flex gap-2 pt-1">
+                                        <button
+                                          type="button"
+                                          onMouseDown={(e) => {
+                                            e.preventDefault();
+                                            setInlineSupplierForm({
+                                              name: onboardingLocalDetails.supplier,
+                                              isActive: true
+                                            });
+                                            setShowInlineSupplierModal(true);
+                                            setSupplierShowSuggestions(false);
+                                          }}
+                                          className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-black text-[9px]"
+                                        >
+                                          Create Supplier
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onMouseDown={async (e) => {
+                                            e.preventDefault();
+                                            try {
+                                              const sName = onboardingLocalDetails.supplier.trim();
+                                              const res = await pharmacyApi.createSupplier({
+                                                name: sName,
+                                                isActive: true,
+                                                createdSource: 'Add Medicine Wizard',
+                                                createdFrom: 'Global Medicine Catalogue'
+                                              });
+                                              const supplierId = res?._id || res?.data?._id;
+                                              setOnboardingLocalDetails(prev => ({
+                                                ...prev,
+                                                supplier: sName,
+                                                supplierId: supplierId
+                                              }));
+                                              setSupplierShowSuggestions(false);
+                                              toast.success(`Minimal Supplier "${sName}" created.`);
+                                              fetchSuppliers();
+                                            } catch (err) {
+                                              toast.error('Failed to create Supplier.');
+                                            }
+                                          }}
+                                          className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-black text-[9px]"
+                                        >
+                                          Skip Additional Details
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                             </div>
 
                             <div>
@@ -5014,6 +6500,16 @@ const PharmacyWorkspace = ({ user }) => {
                                   toast.error('Dosage Form is required.');
                                   return;
                                 }
+                                if (!onboardingMasterDetails.manufacturerId) {
+                                  toast.error('Please select or create a valid Manufacturer to continue.');
+                                  return;
+                                }
+                              }
+                              if (onboardingStep === 2) {
+                                if (!onboardingLocalDetails.supplierId) {
+                                  toast.error('Please select or create a valid Supplier to continue.');
+                                  return;
+                                }
                               }
                               setOnboardingStep(prev => prev + 1);
                             }}
@@ -5063,6 +6559,8 @@ const PharmacyWorkspace = ({ user }) => {
                                   form: onboardingMasterDetails.form,
                                   strength: onboardingMasterDetails.strength,
                                   manufacturer: onboardingMasterDetails.manufacturer,
+                                  manufacturerId: onboardingMasterDetails.manufacturerId || undefined,
+                                  supplierIds: onboardingLocalDetails.supplierId ? [onboardingLocalDetails.supplierId] : undefined,
                                   distributor: onboardingLocalDetails.supplier,
                                   purchasePrice: onboardingBatchDetails.purchaseRate,
                                   sellingPrice: onboardingBatchDetails.mrpPrice,
@@ -5113,6 +6611,349 @@ const PharmacyWorkspace = ({ user }) => {
                         )}
                       </div>
                     </div>
+
+                    {showInlineMfgModal && (
+                      <div className="fixed inset-0 bg-slate-950/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in text-slate-805">
+                        <div className="bg-white rounded-3xl border border-slate-100 shadow-2xl max-w-lg w-full p-6 space-y-4 flex flex-col max-h-[90vh]">
+                          <div className="flex justify-between items-center border-b border-slate-100 pb-3 shrink-0">
+                            <div>
+                              <h3 className="text-sm font-black text-slate-905 flex items-center gap-2">
+                                🏭 Create New Manufacturer
+                              </h3>
+                            </div>
+                            <button 
+                              onClick={() => setShowInlineMfgModal(false)} 
+                              className="text-slate-400 hover:text-slate-655"
+                            >
+                              <X size={18} />
+                            </button>
+                          </div>
+
+                          <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-1 text-xs font-bold text-slate-655">
+                            <div>
+                              <label className="text-[10px] text-slate-400 block mb-1">Manufacturer Name *</label>
+                              <input
+                                type="text"
+                                value={inlineMfgForm.name || ''}
+                                onChange={(e) => setInlineMfgForm({ ...inlineMfgForm, name: e.target.value })}
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:bg-white"
+                                placeholder="Enter Manufacturer Name"
+                              />
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <label className="text-[10px] text-slate-400 block mb-1">Contact Person</label>
+                                <input
+                                  type="text"
+                                  value={inlineMfgForm.contactPerson || ''}
+                                  onChange={(e) => setInlineMfgForm({ ...inlineMfgForm, contactPerson: e.target.value })}
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] text-slate-400 block mb-1">Mobile Number</label>
+                                <input
+                                  type="text"
+                                  value={inlineMfgForm.phone || ''}
+                                  onChange={(e) => setInlineMfgForm({ ...inlineMfgForm, phone: e.target.value })}
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none"
+                                />
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <label className="text-[10px] text-slate-400 block mb-1">Email</label>
+                                <input
+                                  type="email"
+                                  value={inlineMfgForm.email || ''}
+                                  onChange={(e) => setInlineMfgForm({ ...inlineMfgForm, email: e.target.value })}
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] text-slate-400 block mb-1">GSTIN</label>
+                                <input
+                                  type="text"
+                                  value={inlineMfgForm.gstNumber || ''}
+                                  onChange={(e) => setInlineMfgForm({ ...inlineMfgForm, gstNumber: e.target.value })}
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none"
+                                />
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <label className="text-[10px] text-slate-400 block mb-1">Drug License Number</label>
+                                <input
+                                  type="text"
+                                  value={inlineMfgForm.drugLicenseNumber || ''}
+                                  onChange={(e) => setInlineMfgForm({ ...inlineMfgForm, drugLicenseNumber: e.target.value })}
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] text-slate-400 block mb-1">Website</label>
+                                <input
+                                  type="text"
+                                  value={inlineMfgForm.website || ''}
+                                  onChange={(e) => setInlineMfgForm({ ...inlineMfgForm, website: e.target.value })}
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none"
+                                />
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <label className="text-[10px] text-slate-400 block mb-1">Address Line 1</label>
+                                <input
+                                  type="text"
+                                  value={inlineMfgForm.addressLine1 || ''}
+                                  onChange={(e) => setInlineMfgForm({ ...inlineMfgForm, addressLine1: e.target.value })}
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] text-slate-400 block mb-1">City</label>
+                                <input
+                                  type="text"
+                                  value={inlineMfgForm.city || ''}
+                                  onChange={(e) => setInlineMfgForm({ ...inlineMfgForm, city: e.target.value })}
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none"
+                                />
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <label className="text-[10px] text-slate-400 block mb-1">State</label>
+                                <input
+                                  type="text"
+                                  value={inlineMfgForm.state || ''}
+                                  onChange={(e) => setInlineMfgForm({ ...inlineMfgForm, state: e.target.value })}
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] text-slate-400 block mb-1">Notes</label>
+                                <input
+                                  type="text"
+                                  value={inlineMfgForm.notes || ''}
+                                  onChange={(e) => setInlineMfgForm({ ...inlineMfgForm, notes: e.target.value })}
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none"
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="border-t border-slate-100 pt-3 flex justify-end gap-2 shrink-0">
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                try {
+                                  const mName = (inlineMfgForm.name || '').trim() || onboardingMasterDetails.manufacturer.trim();
+                                  const res = await pharmacyApi.createManufacturer({
+                                    name: mName,
+                                    status: 'Active',
+                                    createdSource: 'Add Medicine Wizard',
+                                    createdFrom: 'Global Medicine Catalogue'
+                                  });
+                                  const mfgId = res?._id || res?.data?._id;
+                                  setOnboardingMasterDetails(prev => ({
+                                    ...prev,
+                                    manufacturer: mName,
+                                    manufacturerId: mfgId
+                                  }));
+                                  setShowInlineMfgModal(false);
+                                  toast.success(`Minimal Manufacturer "${mName}" created.`);
+                                  fetchManufacturers();
+                                } catch (err) {
+                                  toast.error('Failed to create Manufacturer.');
+                                }
+                              }}
+                              className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-655 rounded-xl font-bold"
+                            >
+                              Skip Additional Details
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleSaveInlineMfg}
+                              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black shadow-md shadow-blue-100"
+                            >
+                              Save &amp; Continue
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {showInlineSupplierModal && (
+                      <div className="fixed inset-0 bg-slate-950/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in text-slate-805">
+                        <div className="bg-white rounded-3xl border border-slate-100 shadow-2xl max-w-lg w-full p-6 space-y-4 flex flex-col max-h-[90vh]">
+                          <div className="flex justify-between items-center border-b border-slate-100 pb-3 shrink-0">
+                            <div>
+                              <h3 className="text-sm font-black text-slate-905 flex items-center gap-2">
+                                🚚 Create New Supplier
+                              </h3>
+                            </div>
+                            <button 
+                              onClick={() => setShowInlineSupplierModal(false)} 
+                              className="text-slate-400 hover:text-slate-655"
+                            >
+                              <X size={18} />
+                            </button>
+                          </div>
+
+                          <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-1 text-xs font-bold text-slate-655">
+                            <div>
+                              <label className="text-[10px] text-slate-400 block mb-1">Supplier Name *</label>
+                              <input
+                                type="text"
+                                value={inlineSupplierForm.name || ''}
+                                onChange={(e) => setInlineSupplierForm({ ...inlineSupplierForm, name: e.target.value })}
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:bg-white"
+                                placeholder="Enter Supplier Name"
+                              />
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <label className="text-[10px] text-slate-400 block mb-1">Contact Person</label>
+                                <input
+                                  type="text"
+                                  value={inlineSupplierForm.contactPerson || ''}
+                                  onChange={(e) => setInlineSupplierForm({ ...inlineSupplierForm, contactPerson: e.target.value })}
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] text-slate-400 block mb-1">Phone Number</label>
+                                <input
+                                  type="text"
+                                  value={inlineSupplierForm.phone || ''}
+                                  onChange={(e) => setInlineSupplierForm({ ...inlineSupplierForm, phone: e.target.value })}
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none"
+                                />
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <label className="text-[10px] text-slate-400 block mb-1">Email</label>
+                                <input
+                                  type="email"
+                                  value={inlineSupplierForm.email || ''}
+                                  onChange={(e) => setInlineSupplierForm({ ...inlineSupplierForm, email: e.target.value })}
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] text-slate-400 block mb-1">GSTIN</label>
+                                <input
+                                  type="text"
+                                  value={inlineSupplierForm.gstNumber || ''}
+                                  onChange={(e) => setInlineSupplierForm({ ...inlineSupplierForm, gstNumber: e.target.value })}
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none"
+                                />
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <label className="text-[10px] text-slate-400 block mb-1">Drug License Number</label>
+                                <input
+                                  type="text"
+                                  value={inlineSupplierForm.drugLicenseNumber || ''}
+                                  onChange={(e) => setInlineSupplierForm({ ...inlineSupplierForm, drugLicenseNumber: e.target.value })}
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] text-slate-400 block mb-1">Payment Terms</label>
+                                <input
+                                  type="text"
+                                  value={inlineSupplierForm.paymentTerms || ''}
+                                  onChange={(e) => setInlineSupplierForm({ ...inlineSupplierForm, paymentTerms: e.target.value })}
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none"
+                                  placeholder="E.g. Net 30"
+                                />
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <label className="text-[10px] text-slate-400 block mb-1">Address Line 1</label>
+                                <input
+                                  type="text"
+                                  value={inlineSupplierForm.addressLine1 || ''}
+                                  onChange={(e) => setInlineSupplierForm({ ...inlineSupplierForm, addressLine1: e.target.value })}
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] text-slate-400 block mb-1">City</label>
+                                <input
+                                  type="text"
+                                  value={inlineSupplierForm.city || ''}
+                                  onChange={(e) => setInlineSupplierForm({ ...inlineSupplierForm, city: e.target.value })}
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none"
+                                />
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <label className="text-[10px] text-slate-400 block mb-1">State</label>
+                                <input
+                                  type="text"
+                                  value={inlineSupplierForm.state || ''}
+                                  onChange={(e) => setInlineSupplierForm({ ...inlineSupplierForm, state: e.target.value })}
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] text-slate-400 block mb-1">Notes</label>
+                                <input
+                                  type="text"
+                                  value={inlineSupplierForm.notes || ''}
+                                  onChange={(e) => setInlineSupplierForm({ ...inlineSupplierForm, notes: e.target.value })}
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none"
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="border-t border-slate-100 pt-3 flex justify-end gap-2 shrink-0">
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                try {
+                                  const sName = (inlineSupplierForm.name || '').trim() || onboardingLocalDetails.supplier.trim();
+                                  const res = await pharmacyApi.createSupplier({
+                                    name: sName,
+                                    isActive: true,
+                                    createdSource: 'Add Medicine Wizard',
+                                    createdFrom: 'Global Medicine Catalogue'
+                                  });
+                                  const supplierId = res?._id || res?.data?._id;
+                                  setOnboardingLocalDetails(prev => ({
+                                    ...prev,
+                                    supplier: sName,
+                                    supplierId: supplierId
+                                  }));
+                                  setShowInlineSupplierModal(false);
+                                  toast.success(`Minimal Supplier "${sName}" created.`);
+                                  fetchSuppliers();
+                                } catch (err) {
+                                  toast.error('Failed to create Supplier.');
+                                }
+                              }}
+                              className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-655 rounded-xl font-bold"
+                            >
+                              Skip Additional Details
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleSaveInlineSupplier}
+                              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black shadow-md shadow-blue-100"
+                            >
+                              Save &amp; Continue
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                   </div>
                 </div>
@@ -5206,16 +7047,32 @@ const PharmacyWorkspace = ({ user }) => {
               avgDeliveryTimeDays = totalTime / receivedPOs.length;
             }
 
-            // Real data derived metrics with fallback defaults
-            const displayMonthlyPurchase = monthlyPurchaseAmount > 0 ? `₹${monthlyPurchaseAmount.toLocaleString()}` : '₹18,45,230';
-            const displayMonthlyTrend = monthlyPurchaseAmount > 0 ? purchaseTrend : '+1.5%';
-            const displayMonthlyTrendColor = monthlyPurchaseAmount > 0 ? purchaseTrendColor : 'text-emerald-500';
+            // Real data derived metrics
+            const displayMonthlyPurchase = `₹${monthlyPurchaseAmount.toLocaleString()}`;
+            const displayMonthlyTrend = monthlyPurchaseAmount > 0 ? purchaseTrend : '0.0%';
+            const displayMonthlyTrendColor = monthlyPurchaseAmount > 0 ? purchaseTrendColor : 'text-slate-400';
 
-            const displayPendingPOsValue = pendingPOCount > 0 ? `${pendingPOCount} orders` : '12 orders';
-            const displayPendingPOsTrend = pendingPOCount > 0 ? `${pendingPOCount} active` : '12 active';
+            const displayPendingPOsValue = `${pendingPOCount} orders`;
+            const displayPendingPOsTrend = `${pendingPOCount} active`;
 
-            const displayAvgDeliveryValue = avgDeliveryTimeDays > 0 ? `${avgDeliveryTimeDays.toFixed(1)} Days` : '3.2 Days';
-            const displayAvgDeliveryTrend = avgDeliveryTimeDays > 0 ? `-${(avgDeliveryTimeDays * 0.1).toFixed(1)}d` : '-0.4d';
+            const displayAvgDeliveryValue = avgDeliveryTimeDays > 0 ? `${avgDeliveryTimeDays.toFixed(1)} Days` : '0.0 Days';
+            const displayAvgDeliveryTrend = avgDeliveryTimeDays > 0 ? `-${(avgDeliveryTimeDays * 0.1).toFixed(1)}d` : '—';
+
+            // Calculate On-Time Delivery Rate
+            let onTimeCount = 0;
+            receivedPOs.forEach(po => {
+              const supplier = suppliersList.find(s => s._id === po.supplierId || s.id === po.supplierId);
+              const allowedDays = supplier?.leadTimeDays ?? 3;
+              const diffTime = Math.abs(new Date(po.updatedAt) - new Date(po.createdAt));
+              const diffDays = diffTime / (1000 * 60 * 60 * 24);
+              if (diffDays <= allowedDays) {
+                onTimeCount += 1;
+              }
+            });
+            const onTimeDeliveryRate = receivedPOs.length > 0 ? (onTimeCount / receivedPOs.length) * 100 : 100;
+            const displayOnTimeDelivery = receivedPOs.length > 0 ? `${onTimeDeliveryRate.toFixed(1)}%` : '100.0%';
+            const displayOnTimeTrend = receivedPOs.length > 0 ? `${(onTimeDeliveryRate >= 90 ? '+' : '-')}${Math.abs(onTimeDeliveryRate - 90).toFixed(1)}%` : 'Stable';
+            const displayOnTimeTrendColor = receivedPOs.length > 0 ? (onTimeDeliveryRate >= 90 ? 'text-emerald-500' : 'text-rose-500') : 'text-slate-400';
 
             // Handle add supplier save
             const handleSaveSupplier = async () => {
@@ -5317,7 +7174,7 @@ const PharmacyWorkspace = ({ user }) => {
                     { label: 'Preferred Wholesalers', value: preferredSuppliersCount, desc: 'Top tier partners', icon: <Star size={16} />, trend: '+12%', trendColor: 'text-emerald-500', color: 'bg-amber-50/20 border-amber-100' },
                     { label: 'Outstanding Amount', value: `₹${totalOutstandingAmount.toLocaleString()}`, desc: 'Outstanding payables', icon: <DollarSign size={16} />, trend: '-2.4%', trendColor: 'text-emerald-500', color: 'bg-rose-50/20 border-rose-100' },
                     { label: 'Monthly Purchase', value: displayMonthlyPurchase, desc: 'Current month total', icon: <Truck size={16} />, trend: displayMonthlyTrend, trendColor: displayMonthlyTrendColor, color: 'bg-purple-50/20 border-purple-100' },
-                    { label: 'On-Time Delivery', value: '92.4%', desc: 'SLA target: 90%', icon: <Clock size={16} />, trend: '+1.5%', trendColor: 'text-emerald-500', color: 'bg-indigo-50/20 border-indigo-100' },
+                    { label: 'On-Time Delivery', value: displayOnTimeDelivery, desc: 'SLA target: 90%', icon: <Clock size={16} />, trend: displayOnTimeTrend, trendColor: displayOnTimeTrendColor, color: 'bg-indigo-50/20 border-indigo-100' },
                     { label: 'Pending POs', value: displayPendingPOsValue, desc: 'Awaiting fulfillment', icon: <Package size={16} />, trend: displayPendingPOsTrend, trendColor: 'text-blue-500', color: 'bg-sky-50/20 border-sky-100' },
                     { label: 'Avg Delivery Time', value: displayAvgDeliveryValue, desc: 'Lead time average', icon: <Clock size={16} />, trend: displayAvgDeliveryTrend, trendColor: 'text-emerald-500', color: 'bg-slate-50/20 border-slate-100' }
                   ].map((kpi, idx) => (
@@ -5548,7 +7405,18 @@ const PharmacyWorkspace = ({ user }) => {
                                     </button>
                                     <button 
                                       onClick={() => {
-                                        toast.success(`Started Purchase Order workflow for ${s.name}`);
+                                        setPoFormSupplier(s);
+                                        setPoForm({
+                                          expectedDeliveryDate: '',
+                                          paymentTerms: s.paymentTerms || 'Net 30',
+                                          billingAddress: 'Clinic Main Pharmacy, Building A, Ground Floor',
+                                          deliveryAddress: s.address ? `${s.address.line1 || ''}, ${s.address.line2 || ''}, ${s.address.city || ''}, ${s.address.state || ''}, ${s.address.pincode || ''}`.replace(/^[ ,]+|[ ,]+$/g, '') : 'Clinic Main Pharmacy, Building A, Ground Floor',
+                                          notes: '',
+                                          remarks: '',
+                                          items: []
+                                        });
+                                        setShowCreatePoScreen(true);
+                                        setActiveTab('purchase-orders');
                                       }}
                                       className="px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-650 rounded-lg text-[9px] font-black transition"
                                     >
@@ -5992,6 +7860,874 @@ const PharmacyWorkspace = ({ user }) => {
                             </button>
                           )}
                         </div>
+                      </div>
+
+                    </div>
+                  </div>
+                )}
+
+              </div>
+            );
+          })()}
+
+          {/* ================= TAB 4.5.0: PURCHASE ORDERS MANAGEMENT ================= */}
+          {tab === 'purchase-orders' && (() => {
+            // Filter purchase orders
+            const filteredPos = purchaseOrders.filter(po => {
+              // Status filter
+              if (poStatusFilter !== 'ALL' && po.status !== poStatusFilter) return false;
+
+              // Supplier filter
+              if (poSupplierFilter !== 'ALL' && String(po.supplierId?._id || po.supplierId) !== poSupplierFilter) return false;
+
+              // Search query
+              if (poSearchQuery.trim()) {
+                const q = poSearchQuery.toLowerCase();
+                const poNoMatch = (po.poNumber || '').toLowerCase().includes(q);
+                const remarksMatch = (po.remarks || '').toLowerCase().includes(q);
+                const supplierNameMatch = (po.supplierId?.name || '').toLowerCase().includes(q);
+                if (!poNoMatch && !remarksMatch && !supplierNameMatch) return false;
+              }
+
+              return true;
+            });
+
+            // Calculations for PO Overview KPI metrics
+            const totalPoCount = purchaseOrders.length;
+            const pendingPoCount = purchaseOrders.filter(p => ['Submitted', 'Supplier Accepted', 'Partially Received'].includes(p.status)).length;
+            const completedPoCount = purchaseOrders.filter(p => ['Completed', 'Fully Received'].includes(p.status)).length;
+            const totalOutstandingAmount = purchaseOrders.reduce((sum, po) => {
+              const poTotal = po.items.reduce((s, it) => s + (it.quantity * it.unitCost), 0);
+              return sum + Math.max(0, poTotal - (po.totalPaid || 0));
+            }, 0);
+
+            return (
+              <div className="space-y-6 animate-fade-in text-slate-805">
+                {/* Visual Header / Sub-title */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-5">
+                  <div>
+                    <h2 className="text-xl font-black text-slate-905 flex items-center gap-2">
+                      📋 Purchase Order (PO) Management
+                    </h2>
+                    <p className="text-xs text-slate-405 font-bold mt-1">
+                      Manage wholesale drug procurement orders, monitor deliveries, record vendor payments and sync store stock inward.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setPoFormSupplier(suppliersList[0] || null);
+                      setPoForm({
+                        expectedDeliveryDate: '',
+                        paymentTerms: suppliersList[0]?.paymentTerms || 'Net 30',
+                        billingAddress: 'Clinic Main Pharmacy, Building A, Ground Floor',
+                        deliveryAddress: 'Clinic Main Pharmacy, Building A, Ground Floor',
+                        notes: '',
+                        remarks: '',
+                        items: []
+                      });
+                      setShowCreatePoScreen(true);
+                    }}
+                    className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black shadow-md shadow-blue-100 transition flex items-center gap-2 shrink-0 self-start md:self-auto"
+                  >
+                    <Plus size={16} /> Create Purchase Order
+                  </button>
+                </div>
+
+                {/* KPI Metrics Cards Block */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {[
+                    { label: 'Total Purchase Orders', value: totalPoCount, desc: 'All time processed', color: 'text-blue-600', icon: '📋' },
+                    { label: 'Pending Deliveries', value: pendingPoCount, desc: 'Awaiting stock inward', color: 'text-amber-500', icon: '🚚' },
+                    { label: 'Completed Orders', value: completedPoCount, desc: 'Fully received & closed', color: 'text-emerald-600', icon: '✓' },
+                    { label: 'Outstanding Payments', value: `₹${totalOutstandingAmount.toLocaleString()}`, desc: 'Accounts payable', color: 'text-rose-500', icon: '💳' }
+                  ].map((card, idx) => (
+                    <div key={idx} className="p-4 bg-white border border-slate-100 rounded-2xl shadow-sm flex items-center justify-between">
+                      <div className="space-y-1">
+                        <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider block">{card.label}</span>
+                        <p className={`text-xl font-black ${card.color}`}>{card.value}</p>
+                        <span className="text-[9px] text-slate-450 font-bold block">{card.desc}</span>
+                      </div>
+                      <span className="text-2xl p-2.5 bg-slate-50 rounded-xl">{card.icon}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Filtering Bar */}
+                <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm space-y-4">
+                  {/* Status tabs filter */}
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-2 custom-scrollbar border-b border-slate-100">
+                    {[
+                      { key: 'ALL', label: 'All Orders' },
+                      { key: 'Draft', label: 'Drafts' },
+                      { key: 'Submitted', label: 'Submitted' },
+                      { key: 'Supplier Accepted', label: 'Accepted' },
+                      { key: 'Partially Received', label: 'Partial Received' },
+                      { key: 'Completed', label: 'Completed' },
+                      { key: 'Cancelled', label: 'Cancelled' }
+                    ].map(tabItem => (
+                      <button
+                        key={tabItem.key}
+                        onClick={() => setPoStatusFilter(tabItem.key)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-black transition whitespace-nowrap ${
+                          poStatusFilter === tabItem.key
+                            ? 'bg-blue-600 text-white shadow-sm'
+                            : 'hover:bg-slate-50 text-slate-550'
+                        }`}
+                      >
+                        {tabItem.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {/* Search */}
+                    <div className="relative">
+                      <Search className="absolute left-3.5 top-3 text-slate-400" size={16} />
+                      <input
+                        type="text"
+                        placeholder="Search PO Number, Supplier..."
+                        value={poSearchQuery}
+                        onChange={e => setPoSearchQuery(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-150 rounded-xl pl-10 pr-4 py-2.5 text-xs focus:outline-none focus:bg-white text-slate-705 font-bold"
+                      />
+                    </div>
+
+                    {/* Supplier filter */}
+                    <div>
+                      <select
+                        value={poSupplierFilter}
+                        onChange={e => setPoSupplierFilter(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-150 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:bg-white text-slate-705 font-bold"
+                      >
+                        <option value="ALL">All Suppliers (Filter)</option>
+                        {suppliersList.map(s => (
+                          <option key={s._id} value={s._id}>{s.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="flex items-center justify-end">
+                      <button
+                        onClick={() => {
+                          setPoSearchQuery('');
+                          setPoStatusFilter('ALL');
+                          setPoSupplierFilter('ALL');
+                        }}
+                        className="text-xs text-blue-600 font-black hover:underline flex items-center gap-1"
+                      >
+                        <RotateCcw size={12} /> Reset Filters
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Data Table */}
+                <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm">
+                  <div className="overflow-x-auto">
+                    {filteredPos.length === 0 ? (
+                      <div className="py-20 text-center text-slate-400 font-bold flex flex-col justify-center items-center gap-2">
+                        <FileText size={36} className="text-slate-300" />
+                        <p className="text-sm">No Purchase Orders found.</p>
+                        <p className="text-[10px] text-slate-400 font-semibold">Click "Create Purchase Order" to generate a procurement draft.</p>
+                      </div>
+                    ) : (
+                      <table className="w-full text-left border-collapse text-xs">
+                        <thead>
+                          <tr className="border-b border-slate-100 text-slate-400 text-[10px] font-extrabold uppercase tracking-wider">
+                            <th className="pb-3.5 pl-2">PO Number</th>
+                            <th className="pb-3.5 px-2">Date</th>
+                            <th className="pb-3.5 px-2">Supplier</th>
+                            <th className="pb-3.5 px-2 text-center">Items</th>
+                            <th className="pb-3.5 px-2 text-right">Grand Total</th>
+                            <th className="pb-3.5 px-2 text-center">Payment Status</th>
+                            <th className="pb-3.5 px-2 text-center">Delivery Status</th>
+                            <th className="pb-3.5 pr-2 text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50 font-bold text-slate-705">
+                          {filteredPos.map(po => {
+                            const poTotal = po.items.reduce((s, it) => s + (it.quantity * it.unitCost), 0);
+                            const pendingItemsCount = po.items.filter(i => i.status !== 'Received').length;
+                            
+                            let deliveryStatusColor = 'bg-slate-100 text-slate-600';
+                            if (po.status === 'Completed') deliveryStatusColor = 'bg-emerald-50 text-emerald-600';
+                            else if (po.status === 'Partially Received') deliveryStatusColor = 'bg-amber-50 text-amber-600';
+                            else if (po.status === 'Submitted') deliveryStatusColor = 'bg-blue-50 text-blue-600';
+                            else if (po.status === 'Cancelled') deliveryStatusColor = 'bg-rose-50 text-rose-600';
+
+                            let paymentStatusColor = 'bg-slate-100 text-slate-600';
+                            if (po.paymentStatus === 'Fully Paid') paymentStatusColor = 'bg-emerald-50 text-emerald-600';
+                            else if (po.paymentStatus === 'Partially Paid') paymentStatusColor = 'bg-amber-50 text-amber-600';
+                            else if (po.paymentStatus === 'Pending') paymentStatusColor = 'bg-rose-50 text-rose-600';
+
+                            return (
+                              <tr key={po._id} className="hover:bg-slate-50/50 transition">
+                                <td className="py-3.5 pl-2 text-blue-600 font-extrabold">{po.poNumber}</td>
+                                <td className="py-3.5 px-2 font-medium text-slate-500">
+                                  {new Date(po.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                </td>
+                                <td className="py-3.5 px-2">
+                                  <div>
+                                    <p className="text-slate-805">{po.supplierId?.name || 'Unknown Supplier'}</p>
+                                    <p className="text-[9px] text-slate-400 font-medium">Terms: {po.paymentTerms}</p>
+                                  </div>
+                                </td>
+                                <td className="py-3.5 px-2 text-center text-slate-600">{po.items?.length || 0} meds</td>
+                                <td className="py-3.5 px-2 text-right text-slate-805">₹{poTotal.toLocaleString()}</td>
+                                <td className="py-3.5 px-2 text-center">
+                                  <span className={`text-[8px] font-black px-2 py-0.5 rounded-full ${paymentStatusColor}`}>
+                                    {po.paymentStatus || 'Pending'}
+                                  </span>
+                                </td>
+                                <td className="py-3.5 px-2 text-center">
+                                  <span className={`text-[8px] font-black px-2 py-0.5 rounded-full ${deliveryStatusColor}`}>
+                                    {po.status}
+                                  </span>
+                                </td>
+                                <td className="py-3.5 pr-2 text-right">
+                                  <div className="flex justify-end gap-1.5">
+                                    <button
+                                      onClick={() => setSelectedPoDetail(po)}
+                                      className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[10px] font-bold transition flex items-center gap-1"
+                                    >
+                                      <Eye size={10} /> Detail
+                                    </button>
+
+                                    {po.status === 'Draft' && (
+                                      <>
+                                        <button
+                                          onClick={() => {
+                                            setPoFormSupplier(po.supplierId);
+                                            setPoForm({
+                                              expectedDeliveryDate: po.expectedDeliveryDate ? new Date(po.expectedDeliveryDate).toISOString().split('T')[0] : '',
+                                              paymentTerms: po.paymentTerms,
+                                              billingAddress: po.billingAddress,
+                                              deliveryAddress: po.deliveryAddress,
+                                              notes: po.notes,
+                                              remarks: po.remarks,
+                                              items: po.items.map(it => ({
+                                                medicineId: it.medicineId?._id || it.medicineId,
+                                                name: it.medicineId?.brandName || it.medicineId?.name || 'Unknown',
+                                                quantity: it.quantity,
+                                                unitCost: it.unitCost
+                                              }))
+                                            });
+                                            setShowCreatePoScreen(true);
+                                          }}
+                                          className="px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-[9px] font-black transition"
+                                        >
+                                          Edit
+                                        </button>
+                                        <button
+                                          onClick={() => handleUpdatePoStatus(po._id, 'Submitted', 'Purchase order submitted directly from listing.')}
+                                          className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-lg text-[9px] font-black transition"
+                                        >
+                                          Submit
+                                        </button>
+                                      </>
+                                    )}
+
+                                    {['Submitted', 'Supplier Accepted', 'Partially Received'].includes(po.status) && (
+                                      <button
+                                        onClick={() => {
+                                          setSelectedPoForReceive(po);
+                                          setReceiveForm({
+                                            invoiceNumber: '',
+                                            items: po.items.map(it => ({
+                                              medicineId: it.medicineId?._id || it.medicineId,
+                                              name: it.medicineId?.brandName || it.medicineId?.name || 'Medicine',
+                                              pendingQuantity: Math.max(0, it.quantity - (it.receivedQuantity || 0)),
+                                              quantityReceived: Math.max(0, it.quantity - (it.receivedQuantity || 0)),
+                                              batchNumber: '',
+                                              manufacturingDate: '',
+                                              expiryDate: '',
+                                              purchasePrice: it.unitCost,
+                                              sellingPrice: it.medicineId?.sellingPrice || 0,
+                                              rackLocation: it.medicineId?.rackNumber || 'Rack A-1'
+                                            }))
+                                          });
+                                          setShowReceivePoModal(true);
+                                        }}
+                                        className="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-600 rounded-lg text-[9px] font-black transition"
+                                      >
+                                        Receive Stock
+                                      </button>
+                                    )}
+
+                                    {po.paymentStatus !== 'Fully Paid' && po.status !== 'Draft' && po.status !== 'Cancelled' && (
+                                      <button
+                                        onClick={() => {
+                                          setSelectedPoForPayment(po);
+                                          setPaymentForm({
+                                            amountPaid: Math.max(0, poTotal - (po.totalPaid || 0)).toString(),
+                                            paymentMethod: 'UPI',
+                                            transactionReference: ''
+                                          });
+                                          setShowPoPaymentModal(true);
+                                        }}
+                                        className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-[9px] font-black transition"
+                                      >
+                                        Pay
+                                      </button>
+                                    )}
+
+                                    <button
+                                      onClick={() => {
+                                        setPoFormSupplier(po.supplierId);
+                                        setPoForm({
+                                          expectedDeliveryDate: '',
+                                          paymentTerms: po.paymentTerms,
+                                          billingAddress: po.billingAddress,
+                                          deliveryAddress: po.deliveryAddress,
+                                          notes: `Duplicate of ${po.poNumber}`,
+                                          remarks: '',
+                                          items: po.items.map(it => ({
+                                            medicineId: it.medicineId?._id || it.medicineId,
+                                            name: it.medicineId?.brandName || it.medicineId?.name || 'Unknown',
+                                            quantity: it.quantity,
+                                            unitCost: it.unitCost
+                                          }))
+                                        });
+                                        setShowCreatePoScreen(true);
+                                        toast.success(`Details duplicated from ${po.poNumber}`);
+                                      }}
+                                      className="px-2 py-1 bg-slate-50 hover:bg-slate-100 text-slate-500 rounded-lg text-[9px] font-black transition"
+                                    >
+                                      Duplicate
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                </div>
+
+              </div>
+            );
+          })()}
+
+          {/* ================= TAB 4.5.1: MANUFACTURERS MANAGEMENT ================= */}
+          {tab === 'manufacturers' && (() => {
+            // Filter manufacturers based on selected tab and search term
+            const filteredManufacturers = manufacturersList.filter(m => {
+              if (selectedManufacturerFilter === 'ACTIVE' && m.status !== 'Active') return false;
+              if (selectedManufacturerFilter === 'PREFERRED' && !m.isPreferred) return false;
+              if (selectedManufacturerFilter === 'BLOCKED' && m.status !== 'Blocked') return false;
+              
+              if (manufacturerSearchQuery.trim()) {
+                const q = manufacturerSearchQuery.toLowerCase();
+                const nameMatch = (m.name || '').toLowerCase().includes(q);
+                const codeMatch = (m.code || '').toLowerCase().includes(q);
+                const personMatch = (m.contactPerson || '').toLowerCase().includes(q);
+                const phoneMatch = (m.phone || '').toLowerCase().includes(q);
+                const emailMatch = (m.email || '').toLowerCase().includes(q);
+                
+                if (!nameMatch && !codeMatch && !personMatch && !phoneMatch && !emailMatch) {
+                  return false;
+                }
+              }
+
+              if (manufacturerAdvFilters.city && (m.address?.city || '').toLowerCase() !== manufacturerAdvFilters.city.toLowerCase()) return false;
+              if (manufacturerAdvFilters.state && (m.address?.state || '').toLowerCase() !== manufacturerAdvFilters.state.toLowerCase()) return false;
+              if (manufacturerAdvFilters.status && m.status !== manufacturerAdvFilters.status) return false;
+              if (manufacturerAdvFilters.preferred === 'yes' && !m.isPreferred) return false;
+              if (manufacturerAdvFilters.preferred === 'no' && m.isPreferred) return false;
+
+              return true;
+            });
+
+            const totalManufacturersCount = manufacturersList.length;
+            const activeManufacturersCount = manufacturersList.filter(m => m.status === 'Active').length;
+            const preferredManufacturersCount = manufacturersList.filter(m => m.isPreferred).length;
+            
+            // Calculate total medicines produced in local inventory for each manufacturer
+            const totalMedicinesProduced = inventory.filter(med => {
+              return manufacturersList.some(m => med.manufacturer && med.manufacturer.toLowerCase() === m.name.toLowerCase());
+            }).length;
+
+            const handleSaveManufacturer = async () => {
+              if (!newManufacturerData.name.trim()) {
+                toast.error('Manufacturer Name is required.');
+                return;
+              }
+              try {
+                const payload = {
+                  ...newManufacturerData,
+                  code: newManufacturerData.code || `MFG-${Math.floor(1000 + Math.random() * 9000)}`,
+                  address: {
+                    line1: newManufacturerData.addressLine1,
+                    line2: newManufacturerData.addressLine2,
+                    city: newManufacturerData.city,
+                    state: newManufacturerData.state,
+                    country: newManufacturerData.country,
+                    pincode: newManufacturerData.pincode
+                  }
+                };
+                if (selectedManufacturerDetail) {
+                  await pharmacyApi.updateManufacturer(selectedManufacturerDetail._id, payload);
+                  toast.success(`Manufacturer "${payload.name}" updated successfully.`);
+                } else {
+                  await pharmacyApi.createManufacturer(payload);
+                  toast.success(`Manufacturer "${payload.name}" added successfully.`);
+                }
+                setShowAddManufacturerModal(false);
+                setSelectedManufacturerDetail(null);
+                setNewManufacturerData({
+                  name: '', companyName: '', code: '', gstNumber: '', pan: '', drugLicenseNumber: '', website: '', contactPerson: '', phone: '', alternatePhone: '', email: '', addressLine1: '', addressLine2: '', city: '', state: '', country: 'India', pincode: '', isPreferred: false, leadTimeDays: 3, status: 'Active'
+                });
+                fetchManufacturers();
+              } catch (err) {
+                toast.error(err.response?.data?.message || 'Failed to save manufacturer.');
+              }
+            };
+
+            const handleDeleteManufacturer = async (id) => {
+              if (window.confirm('Are you sure you want to delete this manufacturer?')) {
+                try {
+                  await pharmacyApi.deleteManufacturer(id);
+                  toast.success('Manufacturer deleted successfully.');
+                  fetchManufacturers();
+                } catch (err) {
+                  toast.error('Failed to delete manufacturer.');
+                }
+              }
+            };
+
+            const toggleManufacturerStatus = async (mfg) => {
+              try {
+                const newStatus = mfg.status === 'Active' ? 'Blocked' : 'Active';
+                await pharmacyApi.updateManufacturer(mfg._id, { status: newStatus });
+                toast.success(`Manufacturer status changed to ${newStatus}`);
+                fetchManufacturers();
+              } catch (err) {
+                toast.error('Failed to change status.');
+              }
+            };
+
+            return (
+              <div className="space-y-6">
+                
+                {/* ── PAGE HEADER ── */}
+                <div className="bg-white border border-slate-100 shadow-sm rounded-3xl p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                  <div>
+                    <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                      <span className="text-blue-600">🏭</span> Manufacturer Management
+                    </h2>
+                    <p className="text-xs text-slate-400 font-semibold mt-0.5">
+                      Manage medicine manufacturers, manufacturing licenses, quality compliance and catalogue.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={() => {
+                        setNewManufacturerData({
+                          name: '', companyName: '', code: '', gstNumber: '', pan: '', drugLicenseNumber: '', website: '', contactPerson: '', phone: '', alternatePhone: '', email: '', addressLine1: '', addressLine2: '', city: '', state: '', country: 'India', pincode: '', isPreferred: false, leadTimeDays: 3, status: 'Active'
+                        });
+                        setSelectedManufacturerDetail(null);
+                        setShowAddManufacturerModal(true);
+                      }}
+                      className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black shadow-lg shadow-blue-500/25 transition cursor-pointer"
+                    >
+                      + Add Manufacturer
+                    </button>
+                  </div>
+                </div>
+
+                {/* ── METRIC CARDS STRIP ── */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  {[
+                    { label: 'Total Manufacturers', value: totalManufacturersCount, desc: 'All time registered', color: 'text-blue-600', icon: '🏭' },
+                    { label: 'Active Manufacturers', value: activeManufacturersCount, desc: 'Supplying regularly', color: 'text-emerald-600', icon: '✓' },
+                    { label: 'Preferred Partners', value: preferredManufacturersCount, desc: 'Top tier quality', color: 'text-amber-500', icon: '⭐' },
+                    { label: 'Total Medicines Produced', value: totalMedicinesProduced, desc: 'In pharmacy catalog', color: 'text-violet-600', icon: '💊' }
+                  ].map((card, i) => (
+                    <div key={i} className="bg-white border border-slate-100 shadow-sm rounded-3xl p-5 flex items-center justify-between">
+                      <div>
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">{card.label}</span>
+                        <h3 className={`text-2xl font-black mt-1.5 ${card.color}`}>{card.value}</h3>
+                        <p className="text-[10px] text-slate-400 font-bold mt-1">{card.desc}</p>
+                      </div>
+                      <div className="w-12 h-12 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-center text-lg shadow-xs">
+                        {card.icon}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* ── FILTER & SEARCH STRIP ── */}
+                <div className="bg-white border border-slate-100 shadow-sm rounded-3xl p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                  {/* Status Presets */}
+                  <div className="flex flex-wrap items-center gap-1.5 bg-slate-50 border border-slate-150 p-1 rounded-2xl">
+                    {[
+                      { id: 'ALL', label: 'All' },
+                      { id: 'ACTIVE', label: 'Active' },
+                      { id: 'PREFERRED', label: 'Preferred' },
+                      { id: 'BLOCKED', label: 'Blocked' }
+                    ].map(btn => (
+                      <button
+                        key={btn.id}
+                        onClick={() => setSelectedManufacturerFilter(btn.id)}
+                        className={`px-4 py-2 rounded-xl text-xs font-black transition ${
+                          selectedManufacturerFilter === btn.id
+                            ? 'bg-white text-slate-900 shadow-sm'
+                            : 'text-slate-500 hover:text-slate-900'
+                        }`}
+                      >
+                        {btn.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Search Bar */}
+                  <div className="flex items-center gap-3 w-full md:w-auto flex-1 md:justify-end">
+                    <div className="relative w-full md:max-w-xs">
+                      <input
+                        type="text"
+                        placeholder="Search manufacturer..."
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-2 text-xs font-bold text-slate-805 focus:outline-none focus:bg-white focus:border-blue-500 transition"
+                        value={manufacturerSearchQuery}
+                        onChange={(e) => setManufacturerSearchQuery(e.target.value)}
+                      />
+                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── MANUFACTURERS TABLE ── */}
+                <div className="bg-white border border-slate-100 shadow-sm rounded-3xl overflow-hidden">
+                  {loadingManufacturers ? (
+                    <div className="py-20 text-center text-slate-400 font-bold text-xs flex flex-col items-center gap-2">
+                      <RefreshCw size={24} className="animate-spin text-blue-600" />
+                      <span>Fetching manufacturers...</span>
+                    </div>
+                  ) : filteredManufacturers.length === 0 ? (
+                    <div className="py-20 text-center">
+                      <p className="text-sm font-black text-slate-400">No manufacturers found matching your query.</p>
+                      <p className="text-[10px] text-slate-400 mt-1">Try relaxing filters or click "+ Add Manufacturer" to register one.</p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse text-xs">
+                        <thead>
+                          <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-wider border-b border-slate-100">
+                            <th className="px-5 py-3.5">Manufacturer</th>
+                            <th className="px-5 py-3.5">Code</th>
+                            <th className="px-5 py-3.5">Contact Person</th>
+                            <th className="px-5 py-3.5">Phone &amp; Email</th>
+                            <th className="px-5 py-3.5">Preferred?</th>
+                            <th className="px-5 py-3.5">Status</th>
+                            <th className="px-5 py-3.5 text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredManufacturers.map(m => (
+                            <tr key={m._id} className="hover:bg-slate-50/50 border-b border-slate-100 text-slate-700 transition">
+                              <td className="px-5 py-3.5 font-extrabold text-slate-900">
+                                {m.name}
+                                {m.companyName && <span className="block text-[10px] text-slate-400 font-bold">{m.companyName}</span>}
+                              </td>
+                              <td className="px-5 py-3.5 font-bold font-mono">{m.code || '—'}</td>
+                              <td className="px-5 py-3.5 font-semibold">{m.contactPerson || '—'}</td>
+                              <td className="px-5 py-3.5">
+                                <p className="font-bold">{m.phone || '—'}</p>
+                                <p className="text-[10px] text-slate-400 font-bold">{m.email || '—'}</p>
+                              </td>
+                              <td className="px-5 py-3.5">
+                                {m.isPreferred ? (
+                                  <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-100 font-black text-[9px] uppercase">Preferred</span>
+                                ) : (
+                                  <span className="text-slate-300">—</span>
+                                )}
+                              </td>
+                              <td className="px-5 py-3.5">
+                                <span className={`px-2 py-0.5 rounded-full font-black text-[9px] uppercase ${
+                                  m.status === 'Active' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-red-50 text-red-600 border border-red-100'
+                                }`}>
+                                  {m.status}
+                                </span>
+                              </td>
+                              <td className="px-5 py-3.5 text-right">
+                                <div className="flex justify-end gap-1.5">
+                                  <button
+                                    onClick={() => {
+                                      setNewManufacturerData({
+                                        name: m.name || '',
+                                        companyName: m.companyName || '',
+                                        code: m.code || '',
+                                        gstNumber: m.gstNumber || '',
+                                        pan: m.pan || '',
+                                        drugLicenseNumber: m.drugLicenseNumber || '',
+                                        website: m.website || '',
+                                        contactPerson: m.contactPerson || '',
+                                        phone: m.phone || '',
+                                        alternatePhone: m.alternatePhone || '',
+                                        email: m.email || '',
+                                        addressLine1: m.address?.line1 || '',
+                                        addressLine2: m.address?.line2 || '',
+                                        city: m.address?.city || '',
+                                        state: m.address?.state || '',
+                                        country: m.address?.country || 'India',
+                                        pincode: m.address?.pincode || '',
+                                        isPreferred: m.isPreferred || false,
+                                        leadTimeDays: m.leadTimeDays || 3,
+                                        status: m.status || 'Active'
+                                      });
+                                      setSelectedManufacturerDetail(m);
+                                      setShowAddManufacturerModal(true);
+                                    }}
+                                    className="px-2 py-1 text-blue-600 hover:bg-blue-50 rounded font-bold"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    onClick={() => toggleManufacturerStatus(m)}
+                                    className="px-2 py-1 text-slate-605 hover:bg-slate-100 rounded font-bold"
+                                  >
+                                    {m.status === 'Active' ? 'Block' : 'Activate'}
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteManufacturer(m._id)}
+                                    className="px-2 py-1 text-rose-605 hover:bg-rose-50 rounded font-bold"
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+
+                {/* ── ADD / EDIT MANUFACTURER MODAL ── */}
+                {showAddManufacturerModal && (
+                  <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in zoom-in-95 duration-200">
+                    <div className="bg-white rounded-3xl border border-slate-100 shadow-2xl max-w-2xl w-full flex flex-col max-h-[90vh] overflow-hidden text-slate-805">
+                      
+                      {/* Header */}
+                      <div className="p-6 border-b border-slate-100 flex items-center justify-between shrink-0">
+                        <div>
+                          <h2 className="text-lg font-black text-slate-905">
+                            {selectedManufacturerDetail ? 'Edit Manufacturer Details' : 'Add New Manufacturer'}
+                          </h2>
+                          <p className="text-xs text-slate-400 font-bold mt-1">
+                            {selectedManufacturerDetail ? 'Modify registered manufacturing partner profile.' : 'Register a new drug manufacturer or lab partner.'}
+                          </p>
+                        </div>
+                        <button 
+                          onClick={() => { setShowAddManufacturerModal(false); setSelectedManufacturerDetail(null); }}
+                          className="w-8 h-8 rounded-full bg-slate-50 border border-slate-150 hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+
+                      {/* Content Form */}
+                      <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar text-xs font-bold text-slate-655">
+                        
+                        {/* Company Details Section */}
+                        <div>
+                          <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2 border-b border-slate-50 pb-1">Company Details</h3>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <label className="text-slate-500">Manufacturer Name *</label>
+                              <input
+                                type="text"
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-850 focus:outline-none focus:bg-white focus:border-blue-500 transition"
+                                value={newManufacturerData.name}
+                                onChange={(e) => setNewManufacturerData({ ...newManufacturerData, name: e.target.value })}
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-slate-500">Parent Corporate Name</label>
+                              <input
+                                type="text"
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-850 focus:outline-none focus:bg-white focus:border-blue-500 transition"
+                                value={newManufacturerData.companyName}
+                                onChange={(e) => setNewManufacturerData({ ...newManufacturerData, companyName: e.target.value })}
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-slate-500">Manufacturer Code (Optional)</label>
+                              <input
+                                type="text"
+                                placeholder="e.g. CADILA-01"
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-850 focus:outline-none focus:bg-white focus:border-blue-500 transition"
+                                value={newManufacturerData.code}
+                                onChange={(e) => setNewManufacturerData({ ...newManufacturerData, code: e.target.value })}
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-slate-500">GSTIN / Tax Code</label>
+                              <input
+                                type="text"
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-850 focus:outline-none focus:bg-white focus:border-blue-500 transition"
+                                value={newManufacturerData.gstNumber}
+                                onChange={(e) => setNewManufacturerData({ ...newManufacturerData, gstNumber: e.target.value })}
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Contact Person details */}
+                        <div>
+                          <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2 border-b border-slate-50 pb-1">Primary Point of Contact</h3>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <label className="text-slate-500">Contact Person Name</label>
+                              <input
+                                type="text"
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-850 focus:outline-none focus:bg-white focus:border-blue-500 transition"
+                                value={newManufacturerData.contactPerson}
+                                onChange={(e) => setNewManufacturerData({ ...newManufacturerData, contactPerson: e.target.value })}
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-slate-500">Mobile Number</label>
+                              <input
+                                type="text"
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-850 focus:outline-none focus:bg-white focus:border-blue-500 transition"
+                                value={newManufacturerData.phone}
+                                onChange={(e) => setNewManufacturerData({ ...newManufacturerData, phone: e.target.value })}
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-slate-500">Email Address</label>
+                              <input
+                                type="text"
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-850 focus:outline-none focus:bg-white focus:border-blue-500 transition"
+                                value={newManufacturerData.email}
+                                onChange={(e) => setNewManufacturerData({ ...newManufacturerData, email: e.target.value })}
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-slate-500">Website URL</label>
+                              <input
+                                type="text"
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-850 focus:outline-none focus:bg-white focus:border-blue-500 transition"
+                                value={newManufacturerData.website}
+                                onChange={(e) => setNewManufacturerData({ ...newManufacturerData, website: e.target.value })}
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* License / Address */}
+                        <div>
+                          <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2 border-b border-slate-50 pb-1">License &amp; Address</h3>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <label className="text-slate-500">Drug Manufacturing License</label>
+                              <input
+                                type="text"
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-850 focus:outline-none focus:bg-white focus:border-blue-500 transition"
+                                value={newManufacturerData.drugLicenseNumber}
+                                onChange={(e) => setNewManufacturerData({ ...newManufacturerData, drugLicenseNumber: e.target.value })}
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-slate-500">Corporate PAN Number</label>
+                              <input
+                                type="text"
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-850 focus:outline-none focus:bg-white focus:border-blue-500 transition"
+                                value={newManufacturerData.pan}
+                                onChange={(e) => setNewManufacturerData({ ...newManufacturerData, pan: e.target.value })}
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-slate-500">Address Line 1</label>
+                              <input
+                                type="text"
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-850 focus:outline-none focus:bg-white focus:border-blue-500 transition"
+                                value={newManufacturerData.addressLine1}
+                                onChange={(e) => setNewManufacturerData({ ...newManufacturerData, addressLine1: e.target.value })}
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-slate-500">Address Line 2</label>
+                              <input
+                                type="text"
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-850 focus:outline-none focus:bg-white focus:border-blue-500 transition"
+                                value={newManufacturerData.addressLine2}
+                                onChange={(e) => setNewManufacturerData({ ...newManufacturerData, addressLine2: e.target.value })}
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-slate-500">City</label>
+                              <input
+                                type="text"
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-850 focus:outline-none focus:bg-white focus:border-blue-500 transition"
+                                value={newManufacturerData.city}
+                                onChange={(e) => setNewManufacturerData({ ...newManufacturerData, city: e.target.value })}
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-slate-500">State</label>
+                              <input
+                                type="text"
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-850 focus:outline-none focus:bg-white focus:border-blue-500 transition"
+                                value={newManufacturerData.state}
+                                onChange={(e) => setNewManufacturerData({ ...newManufacturerData, state: e.target.value })}
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-slate-500">Pincode</label>
+                              <input
+                                type="text"
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-850 focus:outline-none focus:bg-white focus:border-blue-500 transition"
+                                value={newManufacturerData.pincode}
+                                onChange={(e) => setNewManufacturerData({ ...newManufacturerData, pincode: e.target.value })}
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-slate-500">Lead Time (Days)</label>
+                              <input
+                                type="number"
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-850 focus:outline-none focus:bg-white focus:border-blue-500 transition"
+                                value={newManufacturerData.leadTimeDays}
+                                onChange={(e) => setNewManufacturerData({ ...newManufacturerData, leadTimeDays: parseInt(e.target.value) || 3 })}
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Preferred / Status checkbox */}
+                        <div className="flex gap-4 py-2 border-t border-slate-100 mt-2">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={newManufacturerData.isPreferred}
+                              onChange={(e) => setNewManufacturerData({ ...newManufacturerData, isPreferred: e.target.checked })}
+                              className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300"
+                            />
+                            <span className="text-xs">Mark as Preferred Manufacturer partner</span>
+                          </label>
+                        </div>
+
+                      </div>
+
+                      {/* Footer */}
+                      <div className="p-6 border-t border-slate-100 bg-slate-50 flex items-center justify-between shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => { setShowAddManufacturerModal(false); setSelectedManufacturerDetail(null); }}
+                          className="px-5 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-655 text-xs font-bold transition shadow-sm cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleSaveManufacturer}
+                          className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black shadow-lg shadow-blue-500/25 transition cursor-pointer"
+                        >
+                          {selectedManufacturerDetail ? 'Save Changes' : 'Save Manufacturer'}
+                        </button>
                       </div>
 
                     </div>
@@ -12332,6 +15068,902 @@ const PharmacyWorkspace = ({ user }) => {
                   {submittingStockBatch ? 'Saving...' : 'Save Stock Batch'}
                 </button>
               )}
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* ── CREATE PURCHASE ORDER FULL SCREEN SCREEN ── */}
+      {showCreatePoScreen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in text-slate-805">
+          <div className="bg-slate-50 w-full h-[95vh] rounded-3xl border border-slate-100 shadow-2xl flex flex-col overflow-hidden max-w-6xl">
+            {/* Header */}
+            <div className="bg-white px-6 py-4 border-b border-slate-100 flex justify-between items-center shrink-0">
+              <div>
+                <span className="text-[9px] text-blue-600 font-extrabold uppercase bg-blue-50 px-2 py-0.5 rounded">
+                  Procurement Module
+                </span>
+                <h3 className="text-base font-black text-slate-905 mt-1 flex items-center gap-2">
+                  Create New Purchase Order
+                </h3>
+              </div>
+              <button 
+                onClick={() => { setShowCreatePoScreen(false); setPoFormSupplier(null); }}
+                className="p-1.5 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-700 transition"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Content area */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6 flex flex-col md:flex-row gap-6 min-h-0">
+              
+              {/* Left Column: PO Metadata (Addresses, Date, Terms) */}
+              <div className="w-full md:w-1/3 space-y-4 shrink-0">
+                <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm space-y-4">
+                  <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-wider">
+                    PO Information
+                  </h4>
+
+                  {/* Supplier Info */}
+                  <div>
+                    <label className="text-[10px] text-slate-400 block mb-1">Select Supplier *</label>
+                    <select
+                      value={poFormSupplier?._id || ''}
+                      onChange={e => {
+                        const found = suppliersList.find(s => s._id === e.target.value);
+                        setPoFormSupplier(found || null);
+                        if (found) {
+                          setPoForm(prev => ({
+                            ...prev,
+                            paymentTerms: found.paymentTerms || 'Net 30',
+                            deliveryAddress: found.address ? `${found.address.line1 || ''}, ${found.address.city || ''}` : 'Clinic Main Pharmacy, Building A, Ground Floor'
+                          }));
+                        }
+                      }}
+                      disabled={!!poFormSupplier?._id}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:bg-white text-slate-700 font-bold"
+                    >
+                      <option value="">-- Choose Supplier --</option>
+                      {suppliersList.map(s => (
+                        <option key={s._id} value={s._id}>{s.name} ({s.supplierCode || 'NO-CODE'})</option>
+                      ))}
+                    </select>
+                    {poFormSupplier && (
+                      <div className="mt-2 p-3 bg-slate-50/50 rounded-xl text-[10px] text-slate-500 space-y-1 font-semibold leading-relaxed">
+                        <p><span className="text-slate-400">Contact:</span> {poFormSupplier.contactPerson}</p>
+                        <p><span className="text-slate-400">Phone:</span> {poFormSupplier.phone}</p>
+                        <p><span className="text-slate-400">Email:</span> {poFormSupplier.email}</p>
+                        <p><span className="text-slate-400">GSTIN:</span> {poFormSupplier.gstin || 'N/A'}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Expected Delivery Date */}
+                  <div>
+                    <label className="text-[10px] text-slate-400 block mb-1">Expected Delivery Date</label>
+                    <input
+                      type="date"
+                      value={poForm.expectedDeliveryDate}
+                      onChange={e => setPoForm({ ...poForm, expectedDeliveryDate: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:bg-white text-slate-700"
+                    />
+                  </div>
+
+                  {/* Payment Terms */}
+                  <div>
+                    <label className="text-[10px] text-slate-400 block mb-1">Payment Terms</label>
+                    <select
+                      value={poForm.paymentTerms}
+                      onChange={e => setPoForm({ ...poForm, paymentTerms: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:bg-white text-slate-700"
+                    >
+                      <option value="COD">Cash On Delivery (COD)</option>
+                      <option value="Net 15">Net 15 Days</option>
+                      <option value="Net 30">Net 30 Days</option>
+                      <option value="Net 45">Net 45 Days</option>
+                    </select>
+                  </div>
+
+                  {/* Billing Address */}
+                  <div>
+                    <label className="text-[10px] text-slate-400 block mb-1">Billing Address</label>
+                    <textarea
+                      value={poForm.billingAddress}
+                      onChange={e => setPoForm({ ...poForm, billingAddress: e.target.value })}
+                      rows={2}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:bg-white text-slate-700 resize-none"
+                    />
+                  </div>
+
+                  {/* Delivery Address */}
+                  <div>
+                    <label className="text-[10px] text-slate-400 block mb-1">Delivery Address</label>
+                    <textarea
+                      value={poForm.deliveryAddress}
+                      onChange={e => setPoForm({ ...poForm, deliveryAddress: e.target.value })}
+                      rows={2}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:bg-white text-slate-700 resize-none"
+                    />
+                  </div>
+
+                  {/* Remarks / Notes */}
+                  <div>
+                    <label className="text-[10px] text-slate-400 block mb-1">Public Notes for Supplier</label>
+                    <input
+                      type="text"
+                      placeholder="E.g. Please deliver before 2 PM"
+                      value={poForm.notes}
+                      onChange={e => setPoForm({ ...poForm, notes: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:bg-white text-slate-700"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column: Adding Medicines & Real-Time Item Rows */}
+              <div className="flex-1 flex flex-col gap-4 min-w-0">
+                <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm flex-1 flex flex-col overflow-hidden min-h-0">
+                  <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-wider mb-3">
+                    Medicines &amp; Purchase Rows
+                  </h4>
+
+                  {/* Autocomplete Search Bar */}
+                  <div className="relative mb-4 shrink-0">
+                    <Search className="absolute left-3.5 top-3 text-slate-400" size={16} />
+                    <input
+                      type="text"
+                      placeholder="Type name, brand, barcode or SKU to search medicine..."
+                      value={medicineSearchQueryPo}
+                      onChange={e => handleMedicineSearchPo(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-155 rounded-xl pl-10 pr-4 py-2.5 text-xs focus:outline-none focus:bg-white text-slate-705 font-bold"
+                    />
+                    
+                    {/* Autocomplete Dropdown list */}
+                    {medicineSearchResultsPo.length > 0 && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-150 rounded-2xl shadow-xl z-50 max-h-60 overflow-y-auto divide-y divide-slate-50 p-2 font-bold text-xs">
+                        {medicineSearchResultsPo.map(med => (
+                          <button
+                            key={med.id}
+                            type="button"
+                            onClick={() => {
+                              const alreadyAdded = poForm.items.some(it => it.medicineId === med.id);
+                              if (alreadyAdded) {
+                                toast.error('This medicine is already added to the PO list.');
+                                return;
+                              }
+                              setPoForm(prev => ({
+                                ...prev,
+                                items: [
+                                  ...prev.items,
+                                  {
+                                    medicineId: med.id,
+                                    name: med.brandName || med.name,
+                                    quantity: 10,
+                                    unitCost: med.unitCost || 50,
+                                    discount: 0,
+                                    gst: 12,
+                                    mrp: (med.unitCost || 50) * 1.3
+                                  }
+                                ]
+                              }));
+                              setMedicineSearchQueryPo('');
+                              setMedicineSearchResultsPo([]);
+                            }}
+                            className="w-full text-left px-3 py-2.5 hover:bg-slate-50 rounded-xl transition flex justify-between items-center"
+                          >
+                            <div>
+                              <p className="text-slate-805">{med.brandName}</p>
+                              <p className="text-[9px] text-slate-405 font-semibold">{med.name} • {med.form}</p>
+                            </div>
+                            <span className="text-[9px] font-extrabold uppercase bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
+                              {med.source === 'local' ? 'Inventory' : 'Catalogue'}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Medicines table */}
+                  <div className="flex-1 overflow-y-auto custom-scrollbar border border-slate-100 rounded-xl min-h-0">
+                    {poForm.items.length === 0 ? (
+                      <div className="py-20 text-center text-slate-400 font-bold flex flex-col justify-center items-center gap-2">
+                        <Pill size={32} className="text-slate-300" />
+                        <p className="text-xs">No medicines added to this Purchase Order yet.</p>
+                        <p className="text-[9px] text-slate-400 font-semibold">Use the search bar above to query &amp; append items.</p>
+                      </div>
+                    ) : (
+                      <table className="w-full text-left border-collapse text-xs">
+                        <thead>
+                          <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 text-[9px] font-extrabold uppercase tracking-wider sticky top-0 z-10">
+                            <th className="py-2.5 pl-3">Medicine</th>
+                            <th className="py-2.5 px-1 text-center w-16">Qty</th>
+                            <th className="py-2.5 px-1 text-center w-24">Unit Cost (₹)</th>
+                            <th className="py-2.5 px-1 text-center w-16">Disc %</th>
+                            <th className="py-2.5 px-1 text-center w-16">GST %</th>
+                            <th className="py-2.5 px-1 text-center w-24">MRP (₹)</th>
+                            <th className="py-2.5 px-2 text-right w-24">Total</th>
+                            <th className="py-2.5 pr-3 text-center w-10"></th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50 font-bold text-slate-705">
+                          {poForm.items.map((item, idx) => {
+                            const qty = parseFloat(item.quantity) || 0;
+                            const cost = parseFloat(item.unitCost) || 0;
+                            const disc = parseFloat(item.discount) || 0;
+                            const gst = parseFloat(item.gst) || 0;
+                            
+                            const gross = qty * cost;
+                            const discAmt = gross * (disc / 100);
+                            const gstAmt = (gross - discAmt) * (gst / 100);
+                            const rowTotal = gross - discAmt + gstAmt;
+
+                            return (
+                              <tr key={idx} className="hover:bg-slate-50/50 transition">
+                                <td className="py-3 pl-3 text-slate-805 font-black">{item.name}</td>
+                                <td className="py-3 px-1 text-center">
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    value={item.quantity}
+                                    onChange={e => {
+                                      const updated = [...poForm.items];
+                                      updated[idx].quantity = e.target.value;
+                                      setPoForm({ ...poForm, items: updated });
+                                    }}
+                                    className="w-14 bg-slate-50 border border-slate-200 rounded-lg py-1 px-1.5 text-center text-xs focus:outline-none"
+                                  />
+                                </td>
+                                <td className="py-3 px-1 text-center">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={item.unitCost}
+                                    onChange={e => {
+                                      const updated = [...poForm.items];
+                                      updated[idx].unitCost = e.target.value;
+                                      setPoForm({ ...poForm, items: updated });
+                                    }}
+                                    className="w-20 bg-slate-50 border border-slate-200 rounded-lg py-1 px-1.5 text-center text-xs focus:outline-none"
+                                  />
+                                </td>
+                                <td className="py-3 px-1 text-center">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    value={item.discount}
+                                    onChange={e => {
+                                      const updated = [...poForm.items];
+                                      updated[idx].discount = e.target.value;
+                                      setPoForm({ ...poForm, items: updated });
+                                    }}
+                                    className="w-12 bg-slate-50 border border-slate-200 rounded-lg py-1 px-1 text-center text-xs focus:outline-none"
+                                  />
+                                </td>
+                                <td className="py-3 px-1 text-center">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max="28"
+                                    value={item.gst}
+                                    onChange={e => {
+                                      const updated = [...poForm.items];
+                                      updated[idx].gst = e.target.value;
+                                      setPoForm({ ...poForm, items: updated });
+                                    }}
+                                    className="w-12 bg-slate-50 border border-slate-200 rounded-lg py-1 px-1 text-center text-xs focus:outline-none"
+                                  />
+                                </td>
+                                <td className="py-3 px-1 text-center">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={item.mrp}
+                                    onChange={e => {
+                                      const updated = [...poForm.items];
+                                      updated[idx].mrp = e.target.value;
+                                      setPoForm({ ...poForm, items: updated });
+                                    }}
+                                    className="w-20 bg-slate-50 border border-slate-200 rounded-lg py-1 px-1.5 text-center text-xs focus:outline-none"
+                                  />
+                                </td>
+                                <td className="py-3 px-2 text-right text-slate-805">
+                                  ₹{rowTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </td>
+                                <td className="py-3 pr-3 text-center">
+                                  <button
+                                    onClick={() => {
+                                      const updated = poForm.items.filter((_, i) => i !== idx);
+                                      setPoForm({ ...poForm, items: updated });
+                                    }}
+                                    className="p-1 hover:bg-red-50 hover:text-red-500 rounded text-slate-400 transition"
+                                  >
+                                    <Trash2 size={13} />
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+
+                  {/* Calculations Summary block */}
+                  {poForm.items.length > 0 && (() => {
+                    let grossTotal = 0;
+                    let discountTotal = 0;
+                    let taxTotal = 0;
+                    poForm.items.forEach(it => {
+                      const qty = parseFloat(it.quantity) || 0;
+                      const cost = parseFloat(it.unitCost) || 0;
+                      const disc = parseFloat(it.discount) || 0;
+                      const gst = parseFloat(it.gst) || 0;
+                      
+                      const rowGross = qty * cost;
+                      const rowDisc = rowGross * (disc / 100);
+                      const rowTax = (rowGross - rowDisc) * (gst / 100);
+
+                      grossTotal += rowGross;
+                      discountTotal += rowDisc;
+                      taxTotal += rowTax;
+                    });
+                    const grandTotal = grossTotal - discountTotal + taxTotal;
+
+                    return (
+                      <div className="bg-slate-50 border border-slate-200/50 rounded-2xl p-4 mt-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-xs font-bold text-slate-500 shrink-0">
+                        <div>
+                          <span className="text-[10px] text-slate-400 block uppercase">Gross Subtotal</span>
+                          <p className="text-slate-805 mt-0.5 text-sm font-black">₹{grossTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-400 block uppercase">Total Discount</span>
+                          <p className="text-rose-500 mt-0.5 text-sm font-black">- ₹{discountTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-400 block uppercase">Tax Calculated</span>
+                          <p className="text-slate-805 mt-0.5 text-sm font-black">₹{taxTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                        </div>
+                        <div className="bg-blue-600 text-white rounded-xl p-2 flex flex-col justify-center">
+                          <span className="text-[8px] text-blue-100 block uppercase">Grand Total (PO Value)</span>
+                          <p className="text-base font-black">₹{grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+            </div>
+
+            {/* Footer buttons */}
+            <div className="bg-white border-t border-slate-100 px-6 py-4 flex justify-between shrink-0">
+              <button
+                onClick={() => { setShowCreatePoScreen(false); setPoFormSupplier(null); }}
+                className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold transition"
+              >
+                Cancel &amp; Exit
+              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleCreatePo('Draft')}
+                  className="px-5 py-2 border border-blue-200 bg-blue-50/50 hover:bg-blue-50 text-blue-600 rounded-xl text-xs font-black transition"
+                >
+                  Save Draft
+                </button>
+                <button
+                  onClick={() => handleCreatePo('Submitted')}
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black transition shadow-md shadow-blue-100"
+                >
+                  Submit Purchase Order
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── PURCHASE ORDER DETAILS SLIDE-OVER PANEL ── */}
+      {selectedPoDetail && (() => {
+        const po = selectedPoDetail;
+        const poTotal = po.items.reduce((s, it) => s + (it.quantity * it.unitCost), 0);
+        const remainingBalance = Math.max(0, poTotal - (po.totalPaid || 0));
+
+        return (
+          <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-xs flex justify-end z-50">
+            <div className="w-full max-w-2xl bg-white h-screen shadow-2xl flex flex-col justify-between animate-slide-in text-slate-805">
+              
+              {/* Header */}
+              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-slate-50">
+                <div>
+                  <span className="text-[9px] text-blue-600 font-extrabold uppercase bg-blue-50 px-2 py-0.5 rounded">
+                    Purchase Order Details
+                  </span>
+                  <h3 className="text-sm font-black text-slate-905 mt-1.5 flex items-center gap-2">
+                    {po.poNumber} <span className="text-slate-400 font-medium">| {po.supplierId?.name || 'Supplier'}</span>
+                  </h3>
+                </div>
+                <button 
+                  onClick={() => setSelectedPoDetail(null)} 
+                  className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-xl transition"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6 text-xs font-bold text-slate-655">
+                
+                {/* Horizontal Status Progress Bar */}
+                <div className="bg-slate-50 border border-slate-200/50 rounded-2xl p-4 space-y-3">
+                  <span className="text-[10px] text-slate-400 block uppercase">Timeline &amp; Workflow Status</span>
+                  <div className="flex items-center justify-between px-2 pt-1.5">
+                    {['Draft', 'Submitted', 'Supplier Accepted', 'Partially Received', 'Completed'].map((st, idx, arr) => {
+                      const curIndex = arr.indexOf(po.status);
+                      const stepIndex = idx;
+                      const active = po.status !== 'Cancelled' && curIndex >= stepIndex;
+                      
+                      return (
+                        <div key={st} className="flex items-center flex-1 last:flex-initial">
+                          <div className="flex flex-col items-center gap-1">
+                            <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black ${
+                              po.status === 'Cancelled' ? 'bg-rose-100 text-rose-600' :
+                              active ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-400'
+                            }`}>
+                              {idx + 1}
+                            </div>
+                            <span className={`text-[8px] font-extrabold ${active ? 'text-slate-805' : 'text-slate-450'}`}>{st.replace('Supplier ', '')}</span>
+                          </div>
+                          {idx < arr.length - 1 && (
+                            <div className={`h-0.5 flex-1 mx-2 ${active ? 'bg-blue-500' : 'bg-slate-200'}`} />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {po.status === 'Cancelled' && (
+                    <div className="bg-rose-50 border border-rose-100 text-rose-600 text-[10px] p-2.5 rounded-xl font-bold">
+                      ⚠️ This Purchase Order has been cancelled.
+                    </div>
+                  )}
+                </div>
+
+                {/* PO Metadata Grid */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <span className="text-[10px] text-slate-400 block">Requester / Created By</span>
+                    <p className="text-slate-805 mt-0.5">{po.createdBy?.name || 'Pharmacist'} ({po.createdBy?.email || 'N/A'})</p>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 block">Created On</span>
+                    <p className="text-slate-805 mt-0.5">{new Date(po.createdAt).toLocaleString('en-IN')}</p>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 block">Expected Delivery</span>
+                    <p className="text-slate-805 mt-0.5">
+                      {po.expectedDeliveryDate ? new Date(po.expectedDeliveryDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }) : 'Not Scheduled'}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 block">Payment Terms</span>
+                    <p className="text-slate-805 mt-0.5">{po.paymentTerms}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <span className="text-[10px] text-slate-400 block">Delivery Address</span>
+                    <p className="text-slate-805 mt-0.5 leading-relaxed">{po.deliveryAddress || 'Clinic Main Store'}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <span className="text-[10px] text-slate-400 block">Billing Address</span>
+                    <p className="text-slate-805 mt-0.5 leading-relaxed">{po.billingAddress || 'Clinic Main Office'}</p>
+                  </div>
+                  {po.notes && (
+                    <div className="col-span-2">
+                      <span className="text-[10px] text-slate-400 block">Public Notes</span>
+                      <p className="text-slate-805 mt-0.5 italic">"{po.notes}"</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Medicines List Table */}
+                <div className="space-y-2.5">
+                  <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-wider">
+                    Purchased Medicines List
+                  </h4>
+                  <div className="border border-slate-100 rounded-xl overflow-hidden">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 text-[9px] font-extrabold uppercase">
+                          <th className="py-2.5 pl-3">Medicine</th>
+                          <th className="py-2.5 px-2 text-center">Ordered</th>
+                          <th className="py-2.5 px-2 text-center">Received</th>
+                          <th className="py-2.5 px-2 text-right">Unit Cost</th>
+                          <th className="py-2.5 pr-3 text-right">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-50 font-bold text-slate-705">
+                        {po.items.map((item, idx) => (
+                          <tr key={idx} className="hover:bg-slate-50/50 transition">
+                            <td className="py-3 pl-3">
+                              <p className="text-slate-805">{item.medicineId?.brandName || item.medicineId?.name || 'Unknown'}</p>
+                              <p className="text-[9px] text-slate-400 font-medium">{item.medicineId?.genericName || ''}</p>
+                            </td>
+                            <td className="py-3 px-2 text-center text-slate-850">{item.quantity}</td>
+                            <td className="py-3 px-2 text-center text-emerald-600">{item.receivedQuantity || 0}</td>
+                            <td className="py-3 px-2 text-right text-slate-500">₹{item.unitCost}</td>
+                            <td className="py-3 pr-3 text-right text-slate-805">₹{(item.quantity * item.unitCost).toLocaleString()}</td>
+                          </tr>
+                        ))}
+                        <tr className="bg-slate-50/50 font-black">
+                          <td colSpan="3" className="py-3 pl-3 text-right text-slate-400 uppercase tracking-wider">Grand Total:</td>
+                          <td colSpan="2" className="py-3 pr-3 text-right text-blue-600 text-sm">₹{poTotal.toLocaleString()}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Payments Log */}
+                <div className="space-y-2.5">
+                  <div className="flex justify-between items-center">
+                    <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-wider">
+                      Payments Recorded Log
+                    </h4>
+                    <span className="text-[9px] text-slate-400 font-extrabold bg-slate-100 px-2 py-0.5 rounded">
+                      Total Paid: ₹{po.totalPaid || 0} | Balance: ₹{remainingBalance}
+                    </span>
+                  </div>
+                  {(!po.payments || po.payments.length === 0) ? (
+                    <div className="py-4 text-center text-slate-400 bg-slate-50 rounded-xl border border-slate-100 font-medium text-[10px]">
+                      No payments recorded yet.
+                    </div>
+                  ) : (
+                    <div className="border border-slate-100 rounded-xl overflow-hidden">
+                      <table className="w-full text-left border-collapse text-xs">
+                        <thead>
+                          <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 text-[9px] font-extrabold uppercase">
+                            <th className="py-2.5 pl-3">Date</th>
+                            <th className="py-2.5 px-2">Method</th>
+                            <th className="py-2.5 px-2">Reference</th>
+                            <th className="py-2.5 px-2 text-right">Amount Paid</th>
+                            <th className="py-2.5 pr-3 text-right">Balance</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50 font-bold text-slate-705">
+                          {po.payments.map((p, idx) => (
+                            <tr key={idx} className="hover:bg-slate-50/50 transition">
+                              <td className="py-3 pl-3 text-slate-500 font-medium">
+                                {new Date(p.paymentDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                              </td>
+                              <td className="py-3 px-2 text-slate-805">{p.paymentMethod}</td>
+                              <td className="py-3 px-2 font-mono text-slate-500">{p.transactionReference || 'N/A'}</td>
+                              <td className="py-3 px-2 text-right text-emerald-600">₹{p.amountPaid.toLocaleString()}</td>
+                              <td className="py-3 pr-3 text-right text-slate-805">₹{p.remainingBalance.toLocaleString()}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+
+                {/* Activity Timeline */}
+                <div className="space-y-3">
+                  <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-wider">
+                    Activity &amp; Operations Timeline
+                  </h4>
+                  <div className="space-y-4 pl-2 relative border-l border-slate-100 py-1">
+                    {po.timeline?.map((t, idx) => (
+                      <div key={idx} className="relative pl-5">
+                        <span className="absolute left-[-24.5px] top-1 w-2.5 h-2.5 bg-blue-600 border-2 border-white rounded-full ring-4 ring-blue-50" />
+                        <div className="space-y-0.5">
+                          <p className="text-slate-805 text-xs font-black">{t.notes}</p>
+                          <p className="text-[9px] text-slate-400 font-semibold">
+                            Status: <span className="text-blue-500 font-extrabold">{t.status}</span> • by {t.updatedBy?.name || 'System'} • {new Date(t.updatedAt).toLocaleString('en-IN')}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Footer Controls */}
+              <div className="px-6 py-4 border-t border-slate-100 flex justify-between shrink-0 bg-slate-50">
+                <button
+                  onClick={() => {
+                    toast.success('Initiating print flow...');
+                    window.print();
+                  }}
+                  className="px-4 py-2 border border-slate-200 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5"
+                >
+                  <Printer size={13} /> Print PO
+                </button>
+                <div className="flex gap-2">
+                  {po.status === 'Draft' && (
+                    <button
+                      onClick={() => handleUpdatePoStatus(po._id, 'Cancelled', 'Draft PO marked as cancelled.')}
+                      className="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-xs font-black transition"
+                    >
+                      Cancel Draft PO
+                    </button>
+                  )}
+                  {po.status === 'Submitted' && (
+                    <button
+                      onClick={() => handleUpdatePoStatus(po._id, 'Supplier Accepted', 'Supplier accepted the purchase order.')}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black transition"
+                    >
+                      Mark Supplier Accepted
+                    </button>
+                  )}
+                </div>
+              </div>
+
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── RECORD PAYMENT MODAL ── */}
+      {showPoPaymentModal && selectedPoForPayment && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in text-slate-805">
+          <div className="bg-white w-full max-w-md rounded-3xl border border-slate-100 shadow-2xl p-6 space-y-4 flex flex-col">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-black text-slate-905 flex items-center gap-2">
+                💳 Record Supplier Payment
+              </h3>
+              <button 
+                onClick={() => setShowPoPaymentModal(false)}
+                className="text-slate-400 hover:text-slate-700"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-3 font-bold text-xs text-slate-655">
+              <div>
+                <label className="text-[10px] text-slate-400 block mb-1">PO Number</label>
+                <input
+                  type="text"
+                  disabled
+                  value={selectedPoForPayment.poNumber}
+                  className="w-full bg-slate-100 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-500 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] text-slate-400 block mb-1">Amount to Pay (₹) *</label>
+                <input
+                  type="number"
+                  value={paymentForm.amountPaid}
+                  onChange={e => setPaymentForm({ ...paymentForm, amountPaid: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:bg-white text-slate-805 text-lg font-black"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] text-slate-400 block mb-1">Payment Method</label>
+                <select
+                  value={paymentForm.paymentMethod}
+                  onChange={e => setPaymentForm({ ...paymentForm, paymentMethod: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:bg-white"
+                >
+                  <option value="Cash">Cash</option>
+                  <option value="UPI">UPI (GPay / PhonePe)</option>
+                  <option value="Card">Credit/Debit Card</option>
+                  <option value="Bank Transfer">Bank Transfer (NEFT/RTGS)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[10px] text-slate-400 block mb-1">Transaction Ref / Reference ID</label>
+                <input
+                  type="text"
+                  placeholder="E.g. TXN9876543210"
+                  value={paymentForm.transactionReference}
+                  onChange={e => setPaymentForm({ ...paymentForm, transactionReference: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:bg-white text-slate-805"
+                />
+              </div>
+            </div>
+
+            <div className="border-t border-slate-100 pt-3 flex justify-end gap-2 shrink-0">
+              <button
+                onClick={() => setShowPoPaymentModal(false)}
+                className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRecordPaymentSubmit}
+                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black transition shadow-md shadow-blue-100"
+              >
+                Confirm Payment
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── RECEIVE STOCK MODAL ── */}
+      {showReceivePoModal && selectedPoForReceive && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in text-slate-805">
+          <div className="bg-slate-50 w-full h-[90vh] rounded-3xl border border-slate-100 shadow-2xl flex flex-col overflow-hidden max-w-5xl">
+            {/* Header */}
+            <div className="bg-white px-6 py-4 border-b border-slate-100 flex justify-between items-center shrink-0">
+              <div>
+                <span className="text-[9px] text-blue-600 font-extrabold uppercase bg-blue-50 px-2 py-0.5 rounded">
+                  Stock Inward Workflow
+                </span>
+                <h3 className="text-base font-black text-slate-905 mt-1 flex items-center gap-2">
+                  Receive Stock batches from PO: <span className="text-blue-600">{selectedPoForReceive.poNumber}</span>
+                </h3>
+              </div>
+              <button 
+                onClick={() => { setShowReceivePoModal(false); setSelectedPoForReceive(null); }}
+                className="p-1 text-slate-400 hover:text-slate-700"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Content list */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-4 min-h-0">
+              <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[10px] text-slate-400 block mb-1">Supplier Name</label>
+                    <input
+                      type="text"
+                      disabled
+                      value={selectedPoForReceive.supplierId?.name || ''}
+                      className="w-full bg-slate-100 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-500 font-semibold"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-slate-400 block mb-1">Invoice / Delivery Challan Number *</label>
+                    <input
+                      type="text"
+                      placeholder="E.g. INV-1098"
+                      value={receiveForm.invoiceNumber}
+                      onChange={e => setReceiveForm({ ...receiveForm, invoiceNumber: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:bg-white text-slate-850 font-bold"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Items row fields list */}
+              <div className="space-y-3">
+                {receiveForm.items.map((row, idx) => (
+                  <div key={idx} className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm space-y-3 font-bold text-xs">
+                    <div className="flex justify-between items-center border-b border-slate-50 pb-2">
+                      <p className="text-slate-905 text-xs font-black">{row.name}</p>
+                      <span className="text-[9px] text-slate-400 font-extrabold bg-slate-100 px-2 py-0.5 rounded">
+                        Remaining Ordered Qty: {row.pendingQuantity} units
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+                      <div>
+                        <label className="text-[9px] text-slate-400 block mb-1">Qty Received *</label>
+                        <input
+                          type="number"
+                          value={row.quantityReceived}
+                          onChange={e => {
+                            const updated = [...receiveForm.items];
+                            updated[idx].quantityReceived = parseInt(e.target.value) || 0;
+                            setReceiveForm({ ...receiveForm, items: updated });
+                          }}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2 py-1.5 text-center text-xs focus:outline-none text-slate-805"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[9px] text-slate-400 block mb-1">Batch No *</label>
+                        <input
+                          type="text"
+                          placeholder="BATCH-00"
+                          value={row.batchNumber}
+                          onChange={e => {
+                            const updated = [...receiveForm.items];
+                            updated[idx].batchNumber = e.target.value;
+                            setReceiveForm({ ...receiveForm, items: updated });
+                          }}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2 py-1.5 text-center text-xs focus:outline-none font-mono text-slate-805"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[9px] text-slate-400 block mb-1">Expiry Date *</label>
+                        <input
+                          type="text"
+                          placeholder="MM-YYYY"
+                          value={row.expiryDate}
+                          onChange={e => {
+                            const updated = [...receiveForm.items];
+                            updated[idx].expiryDate = e.target.value;
+                            setReceiveForm({ ...receiveForm, items: updated });
+                          }}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2 py-1.5 text-center text-xs focus:outline-none text-slate-805"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[9px] text-slate-400 block mb-1">Mfg Date</label>
+                        <input
+                          type="text"
+                          placeholder="MM-YYYY"
+                          value={row.manufacturingDate}
+                          onChange={e => {
+                            const updated = [...receiveForm.items];
+                            updated[idx].manufacturingDate = e.target.value;
+                            setReceiveForm({ ...receiveForm, items: updated });
+                          }}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2 py-1.5 text-center text-xs focus:outline-none text-slate-805"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[9px] text-slate-400 block mb-1">Purchase Rate *</label>
+                        <input
+                          type="number"
+                          value={row.purchasePrice}
+                          onChange={e => {
+                            const updated = [...receiveForm.items];
+                            updated[idx].purchasePrice = parseFloat(e.target.value) || 0;
+                            setReceiveForm({ ...receiveForm, items: updated });
+                          }}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2 py-1.5 text-center text-xs focus:outline-none text-slate-805"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[9px] text-slate-400 block mb-1">MRP Price *</label>
+                        <input
+                          type="number"
+                          value={row.sellingPrice}
+                          onChange={e => {
+                            const updated = [...receiveForm.items];
+                            updated[idx].sellingPrice = parseFloat(e.target.value) || 0;
+                            setReceiveForm({ ...receiveForm, items: updated });
+                          }}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2 py-1.5 text-center text-xs focus:outline-none text-slate-805"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="text-[9px] text-slate-400 block mb-1">Rack Location</label>
+                        <input
+                          type="text"
+                          placeholder="E.g. Rack A, Shelf 1"
+                          value={row.rackLocation}
+                          onChange={e => {
+                            const updated = [...receiveForm.items];
+                            updated[idx].rackLocation = e.target.value;
+                            setReceiveForm({ ...receiveForm, items: updated });
+                          }}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none text-slate-805"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Footer controls */}
+            <div className="bg-white border-t border-slate-100 px-6 py-4 flex justify-between shrink-0">
+              <button
+                onClick={() => { setShowReceivePoModal(false); setSelectedPoForReceive(null); }}
+                className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleReceiveStockSubmit}
+                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition shadow-md shadow-emerald-100"
+              >
+                Receive &amp; Inward Stock
+              </button>
             </div>
 
           </div>

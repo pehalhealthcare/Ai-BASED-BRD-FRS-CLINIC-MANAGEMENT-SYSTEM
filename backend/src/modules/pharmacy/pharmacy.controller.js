@@ -205,6 +205,52 @@ const listBrandMasters = asyncHandler(async (req, res) => {
 
 // ─── SUPPLIER MANAGEMENT CONTROLLERS ───────────────────────────────────────────
 
+const createManufacturer = asyncHandler(async (req, res) => {
+  const manufacturer = await pharmacyService.createManufacturer({
+    requester: req.user,
+    payload: req.body,
+    requestedClinicId: req.query.clinicId
+  });
+  return sendSuccess(res, 'Manufacturer created successfully', { manufacturer }, 201);
+});
+
+const listManufacturers = asyncHandler(async (req, res) => {
+  const manufacturers = await pharmacyService.listManufacturers({
+    requester: req.user,
+    query: req.query,
+    requestedClinicId: req.query.clinicId
+  });
+  return sendSuccess(res, 'Manufacturers retrieved successfully', { manufacturers });
+});
+
+const updateManufacturer = asyncHandler(async (req, res) => {
+  const manufacturer = await pharmacyService.updateManufacturer({
+    requester: req.user,
+    manufacturerId: req.params.id,
+    payload: req.body,
+    requestedClinicId: req.query.clinicId
+  });
+  return sendSuccess(res, 'Manufacturer updated successfully', { manufacturer });
+});
+
+const deleteManufacturer = asyncHandler(async (req, res) => {
+  const result = await pharmacyService.deleteManufacturer({
+    requester: req.user,
+    manufacturerId: req.params.id,
+    requestedClinicId: req.query.clinicId
+  });
+  return sendSuccess(res, 'Manufacturer deleted successfully', result);
+});
+
+const getManufacturerAnalytics = asyncHandler(async (req, res) => {
+  const analytics = await pharmacyService.getManufacturerAnalytics({
+    requester: req.user,
+    manufacturerId: req.params.id,
+    requestedClinicId: req.query.clinicId
+  });
+  return sendSuccess(res, 'Manufacturer analytics retrieved successfully', { analytics });
+});
+
 const createSupplier = asyncHandler(async (req, res) => {
   const supplier = await pharmacyService.createSupplier({
     requester: req.user,
@@ -290,6 +336,25 @@ const receivePurchaseOrder = asyncHandler(async (req, res) => {
   });
   return sendSuccess(res, 'Purchase order received successfully', { purchaseOrder });
 });
+const updatePurchaseOrderStatus = asyncHandler(async (req, res) => {
+  const purchaseOrder = await pharmacyService.updatePurchaseOrderStatus({
+    requester: req.user,
+    poId: req.params.id,
+    payload: req.body,
+    requestedClinicId: req.query.clinicId
+  });
+  return sendSuccess(res, 'Purchase order status updated successfully', { purchaseOrder });
+});
+
+const recordPoPayment = asyncHandler(async (req, res) => {
+  const purchaseOrder = await pharmacyService.recordPoPayment({
+    requester: req.user,
+    poId: req.params.id,
+    payload: req.body,
+    requestedClinicId: req.query.clinicId
+  });
+  return sendSuccess(res, 'Payment recorded successfully', { purchaseOrder });
+});
 
 // ─── STOCK ADJUSTMENT CONTROLLERS ─────────────────────────────────────────────
 
@@ -321,6 +386,28 @@ const getPharmacyReports = asyncHandler(async (req, res) => {
     providerId: req.query.providerId
   });
   return sendSuccess(res, 'Pharmacy reports and analytics retrieved successfully', reports);
+});
+
+const getPharmacySalesPerformance = asyncHandler(async (req, res) => {
+  const analytics = await pharmacyService.getPharmacySalesPerformance({
+    requester: req.user,
+    requestedClinicId: req.query.clinicId,
+    providerId: req.query.providerId,
+    filters: {
+      from: req.query.from,
+      to: req.query.to,
+      category: req.query.category,
+      manufacturer: req.query.manufacturer,
+      supplier: req.query.supplier,
+      doctorId: req.query.doctorId,
+      customerType: req.query.customerType,
+      paymentMethod: req.query.paymentMethod,
+      medicineId: req.query.medicineId,
+      orderStatus: req.query.orderStatus,
+      couponCode: req.query.couponCode
+    }
+  });
+  return sendSuccess(res, 'Pharmacy sales performance analytics retrieved successfully', analytics);
 });
 
 // ─── INVENTORY DASHBOARD CONTROLLERS ──────────────────────────────────────────
@@ -424,8 +511,15 @@ module.exports = {
   deleteSupplier,
   getSupplierAnalytics,
   getSupplierPurchaseHistory,
+  createManufacturer,
+  listManufacturers,
+  updateManufacturer,
+  deleteManufacturer,
+  getManufacturerAnalytics,
   createPurchaseOrder,
   listPurchaseOrders,
+  updatePurchaseOrderStatus,
+  recordPoPayment,
   receivePurchaseOrder,
   adjustStock,
   listStockLedgers,
@@ -483,5 +577,6 @@ module.exports = {
   }),
   createCoupon,
   listCoupons,
-  deleteCoupon
+  deleteCoupon,
+  getPharmacySalesPerformance
 };

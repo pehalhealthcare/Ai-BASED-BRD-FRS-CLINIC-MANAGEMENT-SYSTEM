@@ -61,6 +61,12 @@ const medicineSchema = new mongoose.Schema(
       trim: true,
       default: ''
     },
+    manufacturerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Manufacturer',
+      default: null,
+      index: true
+    },
     // Clinic specific attributes
     distributor: {
       type: String,

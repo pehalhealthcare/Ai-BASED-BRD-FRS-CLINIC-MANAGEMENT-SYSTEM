@@ -721,6 +721,7 @@ const createAppointment = async ({ requester, payload, requestedClinicId = null,
       invoiceId
     };
   }
+  triggerQueueUpdate(populatedAppointment);
   return resData;
 };
 
@@ -1027,6 +1028,7 @@ const updateAppointmentStatus = async ({ requester, appointmentId, payload, requ
     clinicId,
     populateDetails: true
   });
+  triggerQueueUpdate(updatedAppt);
   return resolveAppointmentDoctorImage(updatedAppt);
 };
 
@@ -1094,6 +1096,7 @@ const cancelAppointment = async ({ requester, appointmentId, payload, requestedC
     // best-effort
   }
 
+  triggerQueueUpdate(updatedAppt);
   return resolveAppointmentDoctorImage(updatedAppt);
 };
 
@@ -1246,6 +1249,7 @@ const rescheduleAppointment = async ({ requester, appointmentId, payload, reques
     // Notification scheduling is best-effort and must not block appointment reschedule.
   }
 
+  triggerQueueUpdate(rescheduledAppt);
   return resolveAppointmentDoctorImage(rescheduledAppt);
 };
 
@@ -1703,6 +1707,15 @@ const checkFollowUp = async ({ requester, patientId, doctorId, clinicId = null }
     followUpWindowDays,
     diffDays
   };
+};
+
+const triggerQueueUpdate = (appointment) => {
+  if (global.io && appointment) {
+    const docId = appointment.doctorId?._id || appointment.doctorId;
+    if (docId) {
+      global.io.emit('queue_update', { doctorId: docId.toString() });
+    }
+  }
 };
 
 module.exports = {

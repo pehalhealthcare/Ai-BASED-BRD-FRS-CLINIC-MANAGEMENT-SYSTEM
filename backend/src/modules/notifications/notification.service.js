@@ -1342,11 +1342,12 @@ const sendAppointmentBookingNotifications = async ({ appointment, patient, docto
 const sendAppointmentCancelNotifications = async ({ appointment, patient, doctor, actorUserId }) =>
   safeNotificationHook('appointment_cancel_notifications', async () => {
     const fs = require('fs');
+    const logPath = require('path').resolve(process.cwd(), 'notification_debug.log');
     try {
-      fs.appendFileSync('d:\\Office_work\\CMS\\backend\\notification_debug.log', `[DEBUG] sendAppointmentCancelNotifications called. hasAppt: ${!!appointment}, hasPatient: ${!!patient}, patientId: ${patient?._id}, patientEmail: ${patient?.email}\n`);
+      fs.appendFileSync(logPath, `[DEBUG] sendAppointmentCancelNotifications called. hasAppt: ${!!appointment}, hasPatient: ${!!patient}, patientId: ${patient?._id}, patientEmail: ${patient?.email}\n`);
       
       if (!appointment || !patient) {
-        fs.appendFileSync('d:\\Office_work\\CMS\\backend\\notification_debug.log', `[DEBUG] Missing appointment or patient. Returning.\n`);
+        fs.appendFileSync(logPath, `[DEBUG] Missing appointment or patient. Returning.\n`);
         return;
       }
 
@@ -1380,9 +1381,9 @@ const sendAppointmentCancelNotifications = async ({ appointment, patient, doctor
         scheduledFor: null,
         sendNow: true
       });
-      fs.appendFileSync('d:\\Office_work\\CMS\\backend\\notification_debug.log', `[DEBUG] createNotificationRecord completed successfully.\n`);
+      fs.appendFileSync(logPath, `[DEBUG] createNotificationRecord completed successfully.\n`);
     } catch (err) {
-      fs.appendFileSync('d:\\Office_work\\CMS\\backend\\notification_debug.log', `[ERROR] sendAppointmentCancelNotifications error: ${err.message}\n${err.stack}\n`);
+      fs.appendFileSync(logPath, `[ERROR] sendAppointmentCancelNotifications error: ${err.message}\n${err.stack}\n`);
       throw err;
     }
   });

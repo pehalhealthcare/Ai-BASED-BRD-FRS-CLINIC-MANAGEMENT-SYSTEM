@@ -182,6 +182,8 @@ const startServer = async () => {
     startSubscriptionMonitor();
     const { startOnboardingDraftCleanupJob } = require('./modules/providers/onboardingCleanup');
     startOnboardingDraftCleanupJob();
+    const { startEmailQueueProcessor } = require('./modules/notifications/emailQueue.service');
+    startEmailQueueProcessor();
   });
 
   // Attach socket.io
@@ -192,6 +194,7 @@ const startServer = async () => {
       methods: ['GET', 'POST']
     }
   });
+  global.io = io;
 
   io.on('connection', (socket) => {
     logger.info(`Socket client connected: ${socket.id}`);

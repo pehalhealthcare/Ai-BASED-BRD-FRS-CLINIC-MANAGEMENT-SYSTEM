@@ -229,8 +229,9 @@ const triggerNotifications = async (proc, receiptNumber) => {
   const notificationText = `Payment received. Procedure ${proc.name} is ready for Patient ${patient?.fullName || 'Patient'}.`;
 
   // Log notifications to backend debug log for validation
+  const logPath = path.resolve(process.cwd(), 'notification_debug.log');
   fs.appendFileSync(
-    'd:/Office_work/CMS/backend/notification_debug.log',
+    logPath,
     `[Notification - Doctor] Sent to Doctor. Body: Payment received. Procedure is ready for ${patient?.fullName}.\n` +
     `[Notification - Nurse/Tech] Sent to Staff. Body: Patient ${patient?.fullName} is ready for ${proc.name}. Please begin procedure.\n` +
     `[Notification - Patient] Sent to Patient (${patient?.fullName}). Body: Payment successful. Please proceed to Procedure Room 2.\n`

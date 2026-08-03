@@ -151,7 +151,7 @@ const rejectAiNote = asyncHandler(async (req, res) => {
 });
 
 const completeConsultation = asyncHandler(async (req, res) => {
-  const consultation = await consultationService.completeConsultation({
+  const result = await consultationService.completeConsultation({
     requester: req.user,
     consultationId: req.params.id,
     payload: req.body,
@@ -159,7 +159,16 @@ const completeConsultation = asyncHandler(async (req, res) => {
     req
   });
 
-  return sendSuccess(res, 'Consultation completed successfully', { consultation });
+  if (result && result.success === false) {
+    return res.status(200).json({
+      success: false,
+      failedStep: result.failedStep,
+      message: result.error,
+      consultationId: result.consultationId
+    });
+  }
+
+  return sendSuccess(res, 'Consultation completed successfully', { consultation: result });
 });
 
 const downloadConsultationPdf = asyncHandler(async (req, res) => {

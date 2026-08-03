@@ -8,7 +8,8 @@ import {
   Eye, EyeOff, Lock, Unlock, ShieldAlert, UploadCloud, Trash2, Edit3,
   Search, Filter, SortAsc, ChevronLeft, Building2, RotateCcw,
   CalendarPlus, XCircle, Video, Star, TrendingUp, MessageSquare, LogOut, Menu,
-  Truck, Percent, ShoppingCart, ShoppingBag, RefreshCw
+  Truck, Percent, ShoppingCart, ShoppingBag, RefreshCw,
+  Loader2
 } from 'lucide-react';
 
 import Avatar from '../../components/ui/Avatar';
@@ -411,10 +412,10 @@ const PatientPortalPage = () => {
   const fetchPharmacyOrders = useCallback(() => {
     if (!selectedClinicId) return;
     setLoadingOrders(true);
-    providersApi.getPharmacyOrders({ 
-      clinicId: selectedClinicId, 
+    providersApi.getPharmacyOrders({
+      clinicId: selectedClinicId,
       providerId: selectedPharmacyId,
-      limit: 100 
+      limit: 100
     })
       .then(res => {
         setPharmacyOrders(res.orders || res.data?.orders || (Array.isArray(res) ? res : []));
@@ -658,35 +659,33 @@ const PatientPortalPage = () => {
 
   const renderOrderTimeline = (order) => {
     const isDelivery = order.deliveryMethod === 'Home Delivery';
-    const steps = isDelivery 
+    const steps = isDelivery
       ? ['pending', 'confirmed', 'preparing', 'packed', 'out_for_delivery', 'completed']
       : ['pending', 'confirmed', 'preparing', 'ready_for_pickup', 'completed'];
-      
+
     const currentIdx = steps.indexOf(order.status);
-    
+
     return (
       <div className="flex items-center justify-between w-full pt-4 text-[9px] font-bold text-slate-450">
         {steps.map((step, idx) => {
           const isDone = idx <= currentIdx;
           const isCurrent = idx === currentIdx;
-          
+
           let label = step.replace('_', ' ');
           if (step === 'pending') label = 'Placed';
           if (step === 'completed') label = isDelivery ? 'Delivered' : 'Picked Up';
-          
+
           return (
             <div key={step} className="flex flex-col items-center flex-1 relative">
               {idx > 0 && (
-                <div className={`absolute right-1/2 top-2 -translate-y-1/2 w-full h-[2px] -z-10 ${
-                  idx <= currentIdx ? 'bg-blue-600' : 'bg-slate-150'
-                }`} />
+                <div className={`absolute right-1/2 top-2 -translate-y-1/2 w-full h-[2px] -z-10 ${idx <= currentIdx ? 'bg-blue-600' : 'bg-slate-150'
+                  }`} />
               )}
-              
-              <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                isCurrent ? 'bg-blue-600 border-blue-600 text-white text-[7px]' :
+
+              <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${isCurrent ? 'bg-blue-600 border-blue-600 text-white text-[7px]' :
                 isDone ? 'bg-blue-100 border-blue-600 text-blue-600 text-[7px]' :
-                'bg-white border-slate-200'
-              }`}>
+                  'bg-white border-slate-200'
+                }`}>
                 {isDone && '✓'}
               </div>
               <span className={`mt-1 capitalize text-center ${isCurrent ? 'text-blue-650 font-black' : isDone ? 'text-slate-700' : 'text-slate-400'}`}>
@@ -808,9 +807,9 @@ const PatientPortalPage = () => {
                     className={`bg-white border border-slate-200 p-4 rounded-2xl flex flex-col items-center justify-center text-center cursor-pointer hover:border-blue-400 transition`}
                   >
                     <span className={`text-2xl font-black ${metric.color === 'blue' ? 'text-blue-600' :
-                        metric.color === 'emerald' ? 'text-emerald-500' :
-                          metric.color === 'amber' ? 'text-amber-500' :
-                            metric.color === 'violet' ? 'text-violet-500' : 'text-rose-500'
+                      metric.color === 'emerald' ? 'text-emerald-500' :
+                        metric.color === 'amber' ? 'text-amber-500' :
+                          metric.color === 'violet' ? 'text-violet-500' : 'text-rose-500'
                       }`}>{metric.count}</span>
                     <span className="text-[9px] font-extrabold text-slate-400 mt-2 uppercase tracking-wide leading-tight">{metric.label}</span>
                     <span className="text-[9px] font-bold text-blue-600 mt-2 hover:underline">View All</span>
@@ -1573,15 +1572,15 @@ const PatientPortalPage = () => {
                               <span className="text-[9px] font-bold bg-rose-50 text-rose-700 px-2 py-0.5 rounded-md uppercase tracking-wider border border-rose-100">Rx Required</span>
                             )}
                           </div>
-                          
+
                           <h4 className="text-xs font-black text-slate-800 leading-snug">{med.name}</h4>
                           <p className="text-[10px] text-slate-400 font-bold italic mt-0.5 truncate">{med.genericName}</p>
-                          
+
                           <div className="text-[10px] text-slate-500 space-y-0.5 pt-1">
                             <p><span className="font-bold text-slate-400">Mfg:</span> {med.mfg || 'N/A'}</p>
                             <p><span className="font-bold text-slate-400">Form:</span> {med.dosageForm} • <span className="font-bold text-slate-400">Strength:</span> {med.strength}</p>
                           </div>
-                          
+
                           <p className="text-[9px] text-slate-400 font-bold bg-slate-50 border border-slate-100 rounded-lg px-2.5 py-1 mt-2 inline-block">1 Strip = {med.packSize} Tablets</p>
 
                           <div className="mt-3 flex items-center justify-between">
@@ -1598,16 +1597,15 @@ const PatientPortalPage = () => {
                               <p className="text-[9px] text-slate-400 font-bold">UNIT PRICE</p>
                               <p className="text-sm font-black text-slate-800 mt-0.5">₹{med.price.toFixed(2)}</p>
                             </div>
-                            
+
                             {!isInCart ? (
                               <button
                                 onClick={handleAddToCart}
                                 disabled={med.totalStock <= 0}
-                                className={`px-4 py-2 font-bold rounded-xl text-xs transition shadow-sm ${
-                                  med.totalStock <= 0 
-                                    ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200' 
-                                    : 'bg-teal-600 hover:bg-teal-700 text-white'
-                                }`}
+                                className={`px-4 py-2 font-bold rounded-xl text-xs transition shadow-sm ${med.totalStock <= 0
+                                  ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
+                                  : 'bg-teal-600 hover:bg-teal-700 text-white'
+                                  }`}
                               >
                                 Add to Cart
                               </button>
@@ -1697,13 +1695,13 @@ const PatientPortalPage = () => {
           {cart.length > 0 ? (() => {
             const hasHomeDelivery = activePharmacy?.services?.homeDelivery;
             const hasPickup = activePharmacy?.services?.pickupAvailable;
-            
+
             // Subtotal calculation
             const subtotal = cart.reduce((sum, item) => {
               const units = ((item.strips || 0) * (item.packSize || 10)) + (item.tablets || 0);
               return sum + (units * (item.price || 0));
             }, 0);
-            
+
             // Coupon discount calculation
             let discountAmt = 0;
             if (appliedCoupon) {
@@ -1746,11 +1744,11 @@ const PatientPortalPage = () => {
                 // Loop through items in cart to create separate pharmacy orders
                 const promises = cart.map((item) => {
                   const qty = ((item.strips || 0) * (item.packSize || 10)) + (item.tablets || 0);
-                  
-                  const chosenAddrObj = deliveryMethod === 'Home Delivery' 
+
+                  const chosenAddrObj = deliveryMethod === 'Home Delivery'
                     ? (profile?.savedAddresses || []).find(a => String(a._id) === String(selectedAddressId))
                     : null;
-                  
+
                   return providersApi.createPharmacyOrder({
                     medicineId: item.id,
                     quantity: qty,
@@ -1769,7 +1767,7 @@ const PatientPortalPage = () => {
                 await Promise.all(promises);
                 toast.success('Your pharmacy order has been placed successfully!');
                 updateCart([]); // Clear cart
-                
+
                 // Reset state
                 setSelectedAddressId('');
                 setSelectedPrescriptionId('');
@@ -1813,10 +1811,10 @@ const PatientPortalPage = () => {
 
             return (
               <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-8 items-start">
-                
+
                 {/* Left Side: Items & Checkout details */}
                 <div className="space-y-6">
-                  
+
                   {/* Cart Items List */}
                   <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
                     <h3 className="text-xs font-black text-slate-450 uppercase tracking-widest">Cart Items</h3>
@@ -1824,7 +1822,7 @@ const PatientPortalPage = () => {
                       {cart.map((item) => {
                         const totalUnits = ((item.strips || 0) * (item.packSize || 10)) + (item.tablets || 0);
                         const itemSubtotal = totalUnits * item.price;
-                        
+
                         const handleItemQtyUpdate = (tabletsOffset, stripsOffset) => {
                           const nextTablets = Math.max(0, (item.tablets || 0) + tabletsOffset);
                           const nextStrips = Math.max(0, (item.strips || 0) + stripsOffset);
@@ -1852,7 +1850,7 @@ const PatientPortalPage = () => {
                                 <span className="inline-block text-[8px] font-bold bg-rose-50 text-rose-700 px-1.5 py-0.5 rounded border border-rose-100 uppercase tracking-wider">Rx Required</span>
                               )}
                             </div>
-                            
+
                             {/* Quantity selection controls */}
                             <div className="flex items-center gap-4 text-xs">
                               <div className="flex items-center gap-3 bg-slate-50 border border-slate-150 p-2 rounded-2xl">
@@ -1900,25 +1898,23 @@ const PatientPortalPage = () => {
                         <h3 className="text-xs font-black text-slate-850 uppercase tracking-widest">Prescription Required</h3>
                       </div>
                       <p className="text-[10px] text-slate-400 leading-normal">One or more medicines in your cart require a valid medical prescription to be dispensed. Please select an option below:</p>
-                      
+
                       <div className="flex gap-4 border-b border-slate-100 pb-3">
                         <button
                           onClick={() => setPrescriptionType('system')}
-                          className={`px-3.5 py-1.5 rounded-xl font-bold text-[10px] border transition ${
-                            prescriptionType === 'system' 
-                              ? 'bg-teal-50 border-teal-200 text-teal-700' 
-                              : 'bg-white border-slate-200 text-slate-600'
-                          }`}
+                          className={`px-3.5 py-1.5 rounded-xl font-bold text-[10px] border transition ${prescriptionType === 'system'
+                            ? 'bg-teal-50 border-teal-200 text-teal-700'
+                            : 'bg-white border-slate-200 text-slate-600'
+                            }`}
                         >
                           Select from EMR Profile
                         </button>
                         <button
                           onClick={() => setPrescriptionType('manual')}
-                          className={`px-3.5 py-1.5 rounded-xl font-bold text-[10px] border transition ${
-                            prescriptionType === 'manual' 
-                              ? 'bg-teal-50 border-teal-200 text-teal-700' 
-                              : 'bg-white border-slate-200 text-slate-600'
-                          }`}
+                          className={`px-3.5 py-1.5 rounded-xl font-bold text-[10px] border transition ${prescriptionType === 'manual'
+                            ? 'bg-teal-50 border-teal-200 text-teal-700'
+                            : 'bg-white border-slate-200 text-slate-600'
+                            }`}
                         >
                           Manual Prescription Details
                         </button>
@@ -1967,25 +1963,25 @@ const PatientPortalPage = () => {
                   ) : (
                     <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
                       <h3 className="text-xs font-black text-slate-450 uppercase tracking-widest">Delivery Method</h3>
-                      
+
                       {/* Scenario 1: Both enabled */}
                       {hasHomeDelivery && hasPickup && (
                         <div className="flex gap-6 text-xs font-bold text-slate-700">
                           <label className="flex items-center gap-2 cursor-pointer">
-                            <input 
-                              type="radio" 
+                            <input
+                              type="radio"
                               name="delivery_pref"
-                              checked={deliveryMethod === 'Home Delivery'} 
+                              checked={deliveryMethod === 'Home Delivery'}
                               onChange={() => setDeliveryMethod('Home Delivery')}
                               className="text-teal-600 focus:ring-teal-500"
                             />
                             <span>Home Delivery</span>
                           </label>
                           <label className="flex items-center gap-2 cursor-pointer">
-                            <input 
-                              type="radio" 
+                            <input
+                              type="radio"
                               name="delivery_pref"
-                              checked={deliveryMethod === 'Pickup'} 
+                              checked={deliveryMethod === 'Pickup'}
                               onChange={() => setDeliveryMethod('Pickup')}
                               className="text-teal-600 focus:ring-teal-500"
                             />
@@ -2011,13 +2007,12 @@ const PatientPortalPage = () => {
                             <div className="space-y-3">
                               {(profile?.savedAddresses || []).length > 0 ? (
                                 (profile.savedAddresses).map((addr) => (
-                                  <label key={addr._id} className={`flex items-start gap-3 p-3.5 border rounded-2xl cursor-pointer transition ${
-                                    String(selectedAddressId) === String(addr._id) 
-                                      ? 'bg-teal-50/50 border-teal-500' 
-                                      : 'bg-slate-50/50 border-slate-200 hover:bg-slate-50'
-                                  }`}>
-                                    <input 
-                                      type="radio" 
+                                  <label key={addr._id} className={`flex items-start gap-3 p-3.5 border rounded-2xl cursor-pointer transition ${String(selectedAddressId) === String(addr._id)
+                                    ? 'bg-teal-50/50 border-teal-500'
+                                    : 'bg-slate-50/50 border-slate-200 hover:bg-slate-50'
+                                    }`}>
+                                    <input
+                                      type="radio"
                                       name="selected_addr"
                                       checked={String(selectedAddressId) === String(addr._id)}
                                       onChange={() => setSelectedAddressId(addr._id)}
@@ -2043,60 +2038,60 @@ const PatientPortalPage = () => {
                             <form onSubmit={handleAddAddress} className="space-y-3 bg-slate-50/50 p-4 rounded-2xl border border-slate-200/60 text-xs text-slate-700 grid grid-cols-1 md:grid-cols-2 gap-4">
                               <div className="space-y-1">
                                 <label className="font-bold text-slate-650">Full Name *</label>
-                                <input required type="text" value={newAddressForm.fullName} onChange={(e) => setNewAddressForm({...newAddressForm, fullName: e.target.value})} className="w-full border border-slate-200 rounded-xl px-3 py-1.5" />
+                                <input required type="text" value={newAddressForm.fullName} onChange={(e) => setNewAddressForm({ ...newAddressForm, fullName: e.target.value })} className="w-full border border-slate-200 rounded-xl px-3 py-1.5" />
                               </div>
                               <div className="space-y-1">
                                 <label className="font-bold text-slate-650">Mobile Number *</label>
-                                <input required type="text" value={newAddressForm.mobileNumber} onChange={(e) => setNewAddressForm({...newAddressForm, mobileNumber: e.target.value})} className="w-full border border-slate-200 rounded-xl px-3 py-1.5" />
+                                <input required type="text" value={newAddressForm.mobileNumber} onChange={(e) => setNewAddressForm({ ...newAddressForm, mobileNumber: e.target.value })} className="w-full border border-slate-200 rounded-xl px-3 py-1.5" />
                               </div>
                               <div className="space-y-1">
                                 <label className="font-bold text-slate-650">Alternate Number</label>
-                                <input type="text" value={newAddressForm.alternateNumber} onChange={(e) => setNewAddressForm({...newAddressForm, alternateNumber: e.target.value})} className="w-full border border-slate-200 rounded-xl px-3 py-1.5" />
+                                <input type="text" value={newAddressForm.alternateNumber} onChange={(e) => setNewAddressForm({ ...newAddressForm, alternateNumber: e.target.value })} className="w-full border border-slate-200 rounded-xl px-3 py-1.5" />
                               </div>
                               <div className="space-y-1">
                                 <label className="font-bold text-slate-650">House / Flat Number *</label>
-                                <input required type="text" value={newAddressForm.houseFlatNumber} onChange={(e) => setNewAddressForm({...newAddressForm, houseFlatNumber: e.target.value})} className="w-full border border-slate-200 rounded-xl px-3 py-1.5" />
+                                <input required type="text" value={newAddressForm.houseFlatNumber} onChange={(e) => setNewAddressForm({ ...newAddressForm, houseFlatNumber: e.target.value })} className="w-full border border-slate-200 rounded-xl px-3 py-1.5" />
                               </div>
                               <div className="space-y-1">
                                 <label className="font-bold text-slate-650">Building Name</label>
-                                <input type="text" value={newAddressForm.buildingName} onChange={(e) => setNewAddressForm({...newAddressForm, buildingName: e.target.value})} className="w-full border border-slate-200 rounded-xl px-3 py-1.5" />
+                                <input type="text" value={newAddressForm.buildingName} onChange={(e) => setNewAddressForm({ ...newAddressForm, buildingName: e.target.value })} className="w-full border border-slate-200 rounded-xl px-3 py-1.5" />
                               </div>
                               <div className="space-y-1">
                                 <label className="font-bold text-slate-650">Street *</label>
-                                <input required type="text" value={newAddressForm.street} onChange={(e) => setNewAddressForm({...newAddressForm, street: e.target.value})} className="w-full border border-slate-200 rounded-xl px-3 py-1.5" />
+                                <input required type="text" value={newAddressForm.street} onChange={(e) => setNewAddressForm({ ...newAddressForm, street: e.target.value })} className="w-full border border-slate-200 rounded-xl px-3 py-1.5" />
                               </div>
                               <div className="space-y-1">
                                 <label className="font-bold text-slate-650">Landmark</label>
-                                <input type="text" value={newAddressForm.landmark} onChange={(e) => setNewAddressForm({...newAddressForm, landmark: e.target.value})} className="w-full border border-slate-200 rounded-xl px-3 py-1.5" />
+                                <input type="text" value={newAddressForm.landmark} onChange={(e) => setNewAddressForm({ ...newAddressForm, landmark: e.target.value })} className="w-full border border-slate-200 rounded-xl px-3 py-1.5" />
                               </div>
                               <div className="space-y-1">
                                 <label className="font-bold text-slate-650">Area *</label>
-                                <input required type="text" value={newAddressForm.area} onChange={(e) => setNewAddressForm({...newAddressForm, area: e.target.value})} className="w-full border border-slate-200 rounded-xl px-3 py-1.5" />
+                                <input required type="text" value={newAddressForm.area} onChange={(e) => setNewAddressForm({ ...newAddressForm, area: e.target.value })} className="w-full border border-slate-200 rounded-xl px-3 py-1.5" />
                               </div>
                               <div className="space-y-1">
                                 <label className="font-bold text-slate-650">City *</label>
-                                <input required type="text" value={newAddressForm.city} onChange={(e) => setNewAddressForm({...newAddressForm, city: e.target.value})} className="w-full border border-slate-200 rounded-xl px-3 py-1.5" />
+                                <input required type="text" value={newAddressForm.city} onChange={(e) => setNewAddressForm({ ...newAddressForm, city: e.target.value })} className="w-full border border-slate-200 rounded-xl px-3 py-1.5" />
                               </div>
                               <div className="space-y-1">
                                 <label className="font-bold text-slate-650">State *</label>
-                                <input required type="text" value={newAddressForm.state} onChange={(e) => setNewAddressForm({...newAddressForm, state: e.target.value})} className="w-full border border-slate-200 rounded-xl px-3 py-1.5" />
+                                <input required type="text" value={newAddressForm.state} onChange={(e) => setNewAddressForm({ ...newAddressForm, state: e.target.value })} className="w-full border border-slate-200 rounded-xl px-3 py-1.5" />
                               </div>
                               <div className="space-y-1">
                                 <label className="font-bold text-slate-650">PIN Code *</label>
-                                <input required type="text" value={newAddressForm.pinCode} onChange={(e) => setNewAddressForm({...newAddressForm, pinCode: e.target.value})} className="w-full border border-slate-200 rounded-xl px-3 py-1.5" />
+                                <input required type="text" value={newAddressForm.pinCode} onChange={(e) => setNewAddressForm({ ...newAddressForm, pinCode: e.target.value })} className="w-full border border-slate-200 rounded-xl px-3 py-1.5" />
                               </div>
                               <div className="space-y-1">
                                 <label className="font-bold text-slate-650">Address Type *</label>
                                 <div className="flex gap-4 py-2">
                                   {['Home', 'Work', 'Other'].map(type => (
                                     <label key={type} className="flex items-center gap-1 cursor-pointer">
-                                      <input type="radio" name="address_type" checked={newAddressForm.addressType === type} onChange={() => setNewAddressForm({...newAddressForm, addressType: type})} />
+                                      <input type="radio" name="address_type" checked={newAddressForm.addressType === type} onChange={() => setNewAddressForm({ ...newAddressForm, addressType: type })} />
                                       <span>{type}</span>
                                     </label>
                                   ))}
                                 </div>
                               </div>
-                              
+
                               <div className="col-span-full pt-2">
                                 <button
                                   type="submit"
@@ -2129,11 +2124,11 @@ const PatientPortalPage = () => {
 
                 {/* Right Side: Order Summary */}
                 <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm space-y-5 sticky top-6">
-                  
+
                   {/* Coupon / Promo Code Panel */}
                   <div className="border-b border-slate-100 pb-4 space-y-3">
                     <h4 className="text-[10px] font-black text-slate-450 uppercase tracking-widest">Apply Promo Code</h4>
-                    
+
                     <div className="flex gap-2">
                       <input
                         type="text"
@@ -2207,18 +2202,18 @@ const PatientPortalPage = () => {
                   </div>
 
                   <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider pb-2 border-b border-slate-100">Order Summary</h3>
-                  
+
                   <div className="space-y-2.5 text-xs text-slate-600">
                     <div className="flex justify-between">
                       <span>Medicines Total</span>
                       <span className="font-bold text-slate-800">₹{subtotal.toFixed(2)}</span>
                     </div>
-                    
+
                     <div className="flex justify-between text-emerald-600 font-bold">
                       <span>Discount {appliedCoupon ? `(${appliedCoupon.code})` : ''}</span>
                       <span>-₹{discountAmt.toFixed(2)}</span>
                     </div>
-                    
+
                     <div className="flex justify-between">
                       <span>Delivery Fee</span>
                       <span>{deliveryFee > 0 ? `₹${deliveryFee.toFixed(2)}` : 'Free'}</span>
@@ -2227,7 +2222,7 @@ const PatientPortalPage = () => {
                       <span>Taxes & GST (5%)</span>
                       <span>₹{taxes.toFixed(2)}</span>
                     </div>
-                    
+
                     <div className="flex justify-between border-t border-slate-100 pt-3 font-black text-sm text-slate-900">
                       <span>Grand Total</span>
                       <span className="text-teal-700 font-black">₹{totalPayable.toFixed(2)}</span>
@@ -2283,406 +2278,395 @@ const PatientPortalPage = () => {
 
       {activeTab === 'pharmacy-orders-workspace' && selectedPharmacyId && (
         <div className="space-y-6 animate-fade-in pb-16 w-full">
-            {/* ── Header ── */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-50 p-6 rounded-3xl border border-slate-150">
-              <div>
-                <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest block mb-1">
-                  Clinic: {activeClinic?.name || 'Clinic'}
-                </span>
-                <h2 className="text-xl font-black text-slate-905">My Pharmacy Orders</h2>
-                <p className="text-xs text-slate-500 mt-1">Track and manage all your medicine orders from {activePharmacy?.name}</p>
-              </div>
-              
-              {/* Search, Filter & Refresh */}
-              <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-                <div className="relative flex-1 md:flex-initial">
-                  <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
-                    type="text"
-                    placeholder="Search orders..."
-                    value={orderSearchQuery}
-                    onChange={(e) => setOrderSearchQuery(e.target.value)}
-                    className="pl-9 pr-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-blue-500 text-xs shadow-sm bg-white w-full md:w-60"
-                  />
-                </div>
-                
-                <select
-                  value={orderStatusFilter}
-                  onChange={(e) => setOrderStatusFilter(e.target.value)}
-                  className="px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white text-slate-655 font-semibold"
-                >
-                  <option value="All">All Statuses</option>
-                  <option value="pending">Pending</option>
-                  <option value="confirmed">Confirmed</option>
-                  <option value="preparing">Preparing</option>
-                  <option value="ready_for_pickup">Ready for Pickup</option>
-                  <option value="out_for_delivery">Out for Delivery</option>
-                  <option value="completed">Completed</option>
-                  <option value="cancelled">Cancelled</option>
-                </select>
-
-                <button
-                  onClick={fetchPharmacyOrders}
-                  className="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 bg-white transition shrink-0"
-                  title="Refresh Orders"
-                >
-                  <RefreshCw size={14} className={`text-slate-500 ${loadingOrders ? 'animate-spin' : ''}`} />
-                </button>
-              </div>
+          {/* ── Header ── */}
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-50 p-6 rounded-3xl border border-slate-150">
+            <div>
+              <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest block mb-1">
+                Clinic: {activeClinic?.name || 'Clinic'}
+              </span>
+              <h2 className="text-xl font-black text-slate-905">My Pharmacy Orders</h2>
+              <p className="text-xs text-slate-500 mt-1">Track and manage all your medicine orders from {activePharmacy?.name}</p>
             </div>
 
-            {/* ── Summary Stats Cards ── */}
-            {(() => {
-              const total = pharmacyOrders.length;
-              const active = pharmacyOrders.filter(o => ['pending', 'confirmed', 'preparing', 'packed', 'ready_for_pickup', 'ready_for_delivery', 'out_for_delivery'].includes(o.status)).length;
-              const ready = pharmacyOrders.filter(o => o.status === 'ready_for_pickup').length;
-              const transit = pharmacyOrders.filter(o => ['ready_for_delivery', 'out_for_delivery'].includes(o.status)).length;
-              const completed = pharmacyOrders.filter(o => o.status === 'completed').length;
+            {/* Search, Filter & Refresh */}
+            <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+              <div className="relative flex-1 md:flex-initial">
+                <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search orders..."
+                  value={orderSearchQuery}
+                  onChange={(e) => setOrderSearchQuery(e.target.value)}
+                  className="pl-9 pr-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-blue-500 text-xs shadow-sm bg-white w-full md:w-60"
+                />
+              </div>
 
-              return (
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                  {[
-                    { label: 'Total Orders', count: total, bg: 'bg-indigo-50 text-indigo-700 border-indigo-100', icon: <FileText size={16} /> },
-                    { label: 'Active Orders', count: active, bg: 'bg-amber-50 text-amber-700 border-amber-100', icon: <Clock size={16} /> },
-                    { label: 'Ready for Pickup', count: ready, bg: 'bg-purple-50 text-purple-700 border-purple-100', icon: <ShoppingBag size={16} /> },
-                    { label: 'Home Deliveries', count: transit, bg: 'bg-sky-50 text-sky-700 border-sky-100', icon: <Truck size={16} /> },
-                    { label: 'Completed Orders', count: completed, bg: 'bg-emerald-50 text-emerald-700 border-emerald-100', icon: <CheckCircle2 size={16} /> }
-                  ].map((card, idx) => (
-                    <div key={idx} className={`p-4 rounded-2xl border ${card.bg} flex flex-col gap-1.5 shadow-sm`}>
-                      <div className="flex justify-between items-center">
-                        <span className="text-[10px] font-black uppercase tracking-wider opacity-80">{card.label}</span>
-                        {card.icon}
-                      </div>
-                      <span className="text-xl font-black">{card.count}</span>
+              <select
+                value={orderStatusFilter}
+                onChange={(e) => setOrderStatusFilter(e.target.value)}
+                className="px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white text-slate-655 font-semibold"
+              >
+                <option value="All">All Statuses</option>
+                <option value="pending">Pending</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="preparing">Preparing</option>
+                <option value="ready_for_pickup">Ready for Pickup</option>
+                <option value="out_for_delivery">Out for Delivery</option>
+                <option value="completed">Completed</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+
+              <button
+                onClick={fetchPharmacyOrders}
+                className="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 bg-white transition shrink-0"
+                title="Refresh Orders"
+              >
+                <RefreshCw size={14} className={`text-slate-500 ${loadingOrders ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
+          </div>
+
+          {/* ── Summary Stats Cards ── */}
+          {(() => {
+            const total = pharmacyOrders.length;
+            const active = pharmacyOrders.filter(o => ['pending', 'confirmed', 'preparing', 'packed', 'ready_for_pickup', 'ready_for_delivery', 'out_for_delivery'].includes(o.status)).length;
+            const ready = pharmacyOrders.filter(o => o.status === 'ready_for_pickup').length;
+            const transit = pharmacyOrders.filter(o => ['ready_for_delivery', 'out_for_delivery'].includes(o.status)).length;
+            const completed = pharmacyOrders.filter(o => o.status === 'completed').length;
+
+            return (
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                {[
+                  { label: 'Total Orders', count: total, bg: 'bg-indigo-50 text-indigo-700 border-indigo-100', icon: <FileText size={16} /> },
+                  { label: 'Active Orders', count: active, bg: 'bg-amber-50 text-amber-700 border-amber-100', icon: <Clock size={16} /> },
+                  { label: 'Ready for Pickup', count: ready, bg: 'bg-purple-50 text-purple-700 border-purple-100', icon: <ShoppingBag size={16} /> },
+                  { label: 'Home Deliveries', count: transit, bg: 'bg-sky-50 text-sky-700 border-sky-100', icon: <Truck size={16} /> },
+                  { label: 'Completed Orders', count: completed, bg: 'bg-emerald-50 text-emerald-700 border-emerald-100', icon: <CheckCircle2 size={16} /> }
+                ].map((card, idx) => (
+                  <div key={idx} className={`p-4 rounded-2xl border ${card.bg} flex flex-col gap-1.5 shadow-sm`}>
+                    <div className="flex justify-between items-center">
+                      <span className="text-[10px] font-black uppercase tracking-wider opacity-80">{card.label}</span>
+                      {card.icon}
                     </div>
+                    <span className="text-xl font-black">{card.count}</span>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+
+          {/* ── Main Orders Layout ── */}
+          <div className="space-y-8">
+
+            {/* SECTION 1: Self Pickup */}
+            <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-6">
+              <div className="flex justify-between items-center border-b border-slate-100 pb-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-teal-50 border border-teal-100 flex items-center justify-center text-teal-600">
+                    <ShoppingBag size={16} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-slate-800">Self Pickup</h3>
+                    <p className="text-[10px] text-slate-400 font-bold mt-0.5">Orders to be picked up from the pharmacy</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-100 p-1 rounded-xl">
+                  {['Recent', 'Completed'].map(tab => (
+                    <button
+                      key={tab}
+                      onClick={() => setActivePickupTab(tab)}
+                      className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition ${activePickupTab === tab ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-505 hover:text-slate-850'
+                        }`}
+                    >
+                      {tab}
+                    </button>
                   ))}
                 </div>
-              );
-            })()}
-
-            {/* ── Main Orders Layout ── */}
-            <div className="space-y-8">
-              
-              {/* SECTION 1: Self Pickup */}
-              <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-6">
-                <div className="flex justify-between items-center border-b border-slate-100 pb-4">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-xl bg-teal-50 border border-teal-100 flex items-center justify-center text-teal-600">
-                      <ShoppingBag size={16} />
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-black text-slate-800">Self Pickup</h3>
-                      <p className="text-[10px] text-slate-400 font-bold mt-0.5">Orders to be picked up from the pharmacy</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-100 p-1 rounded-xl">
-                    {['Recent', 'Completed'].map(tab => (
-                      <button
-                        key={tab}
-                        onClick={() => setActivePickupTab(tab)}
-                        className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition ${
-                          activePickupTab === tab ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-505 hover:text-slate-850'
-                        }`}
-                      >
-                        {tab}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Pickup List */}
-                {(() => {
-                  const pickupOrders = pharmacyOrders.filter(o => {
-                    const isMatch = o.deliveryMethod === 'Pickup';
-                    const matchesTab = activePickupTab === 'Recent' 
-                      ? o.status !== 'completed' && o.status !== 'cancelled' && o.status !== 'rejected'
-                      : o.status === 'completed';
-                    
-                    const matchesSearch = !orderSearchQuery || 
-                      o._id.toLowerCase().includes(orderSearchQuery.toLowerCase()) ||
-                      (o.medicineId?.name && o.medicineId.name.toLowerCase().includes(orderSearchQuery.toLowerCase()));
-
-                    const matchesStatus = orderStatusFilter === 'All' || o.status === orderStatusFilter;
-
-                    return isMatch && matchesTab && matchesSearch && matchesStatus;
-                  });
-
-                  if (loadingOrders) {
-                    return (
-                      <div className="flex justify-center py-8">
-                        <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
-                      </div>
-                    );
-                  }
-
-                  if (pickupOrders.length === 0) {
-                    return (
-                      <div className="py-10 text-center space-y-3 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
-                        <ShoppingBag size={28} className="mx-auto text-slate-300" />
-                        <p className="text-xs font-semibold text-slate-550">
-                          No {activePickupTab.toLowerCase()} self-pickup orders found.
-                        </p>
-                        <button
-                          onClick={() => {
-                            const currentParams = new URLSearchParams(location.search);
-                            currentParams.set('tab', 'pharmacy-medicines');
-                            setSearchParams(currentParams);
-                          }}
-                          className="px-4 py-2 bg-blue-600 hover:bg-blue-750 text-white rounded-xl text-xs font-bold transition shadow-sm"
-                        >
-                          Browse Medicines
-                        </button>
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {pickupOrders.map(order => (
-                        <div key={order._id} className="border border-slate-200 hover:border-slate-300 p-5 rounded-2xl bg-white shadow-sm flex flex-col space-y-4 hover:shadow-md transition duration-200">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <span className="text-[9px] font-black text-slate-400">ORDER ID: {order._id.slice(-8).toUpperCase()}</span>
-                              <h4 className="text-xs font-black text-slate-805 mt-1">{order.medicineId?.name || 'Medicine'}</h4>
-                              <p className="text-[10px] text-slate-400 font-bold mt-0.5">
-                                Qty: {order.quantity} • ₹{Number(order.totalPrice || 0).toFixed(2)}
-                              </p>
-                            </div>
-                            <span className={`px-2 py-0.5 rounded-lg text-[9px] font-bold uppercase border ${
-                              order.status === 'ready_for_pickup' ? 'bg-purple-50 text-purple-700 border-purple-200' :
-                              order.status === 'preparing' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
-                              order.status === 'confirmed' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                              order.status === 'completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                              'bg-slate-50 text-slate-500 border-slate-200'
-                            }`}>
-                              {order.status.replace('_', ' ')}
-                            </span>
-                          </div>
-
-                           {activePickupTab === 'Recent' && (() => {
-                             const isCancelled = order.status === 'cancelled' || order.status === 'rejected';
-                             const isCompleted = order.status === 'completed';
-                             const displayCode = isCompleted ? 'LOCKED (COMPLETED)' : (isCancelled ? 'INVALID (CANCELLED)' : (order.pickupCode || order._id.slice(-6).toUpperCase()));
-                             return (
-                               <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between gap-3 text-[10px] font-semibold text-slate-650">
-                                 <div>
-                                   <p className="font-bold text-slate-700 font-sans">Pickup Code: <span className={`font-black text-xs font-mono ${isCancelled ? 'text-rose-600' : isCompleted ? 'text-slate-400' : 'text-slate-900'}`}>{displayCode}</span></p>
-                                   <p className="text-[9px] text-slate-400 mt-0.5">{isCompleted ? 'Verification successful & closed' : isCancelled ? 'Order cancelled' : 'Ready for scan at counter'}</p>
-                                 </div>
-                                 {!isCompleted && !isCancelled && (
-                                   <div className="w-10 h-10 bg-white border border-slate-200 p-1 rounded-lg shrink-0 flex items-center justify-center font-bold text-xs select-none">
-                                     <svg className="w-full h-full text-slate-750" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                       <path d="M3 3h6v6H3V3zm12 0h6v6h-6V3zM3 15h6v6H3v-6zm14 0h2v2h-2v-2zm2 2h2v2h-2v-2zm-2 2h2v2h-2v-2zm-2-2h2v2h-2v-2zm-2 2h2v2h-2v-2zm2-4h2v2h-2v-2zm-4 0h2v2H9v-2zm0 4h2v2H9v-2z" />
-                                     </svg>
-                                   </div>
-                                 )}
-                               </div>
-                             );
-                           })()}
-
-                          {renderOrderTimeline(order)}
-
-                          <div className="flex items-center justify-between gap-2 border-t border-slate-100 pt-3 text-[10px] font-bold">
-                            <button
-                              onClick={() => setSelectedOrderForDrawer(order)}
-                              className="text-blue-600 hover:text-blue-700 transition"
-                            >
-                              View Details
-                            </button>
-                            
-                            <div className="flex items-center gap-2">
-                              {['pending', 'confirmed'].includes(order.status) && (
-                                <button
-                                  onClick={() => {
-                                    if (window.confirm('Are you sure you want to cancel this order?')) {
-                                      providersApi.updatePharmacyOrderStatus(order._id, 'cancelled')
-                                        .then(() => {
-                                          toast.success('Order cancelled successfully.');
-                                          fetchPharmacyOrders();
-                                        })
-                                        .catch(() => toast.error('Failed to cancel order.'));
-                                    }
-                                  }}
-                                  className="px-2.5 py-1.5 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition"
-                                >
-                                  Cancel
-                                </button>
-                              )}
-                              <button
-                                onClick={() => alert('Downloading invoice PDF...')}
-                                className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition"
-                              >
-                                Invoice
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  );
-                })()}
               </div>
 
-              {/* SECTION 2: Home Delivery */}
-              <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-6">
-                <div className="flex justify-between items-center border-b border-slate-100 pb-4">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600">
-                      <Truck size={16} />
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-black text-slate-805">Home Delivery</h3>
-                      <p className="text-[10px] text-slate-400 font-bold mt-0.5">Orders delivered to your selected address</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-100 p-1 rounded-xl">
-                    {['Recent', 'Completed'].map(tab => (
-                      <button
-                        key={tab}
-                        onClick={() => setActiveDeliveryTab(tab)}
-                        className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition ${
-                          activeDeliveryTab === tab ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-505 hover:text-slate-850'
-                        }`}
-                      >
-                        {tab}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+              {/* Pickup List */}
+              {(() => {
+                const pickupOrders = pharmacyOrders.filter(o => {
+                  const isMatch = o.deliveryMethod === 'Pickup';
+                  const matchesTab = activePickupTab === 'Recent'
+                    ? o.status !== 'completed' && o.status !== 'cancelled' && o.status !== 'rejected'
+                    : o.status === 'completed';
 
-                {/* Delivery List */}
-                {(() => {
-                  const deliveryOrders = pharmacyOrders.filter(o => {
-                    const isMatch = o.deliveryMethod === 'Home Delivery';
-                    const matchesTab = activeDeliveryTab === 'Recent' 
-                      ? o.status !== 'completed' && o.status !== 'cancelled' && o.status !== 'rejected'
-                      : o.status === 'completed';
-                    
-                    const matchesSearch = !orderSearchQuery || 
-                      o._id.toLowerCase().includes(orderSearchQuery.toLowerCase()) ||
-                      (o.medicineId?.name && o.medicineId.name.toLowerCase().includes(orderSearchQuery.toLowerCase()));
+                  const matchesSearch = !orderSearchQuery ||
+                    o._id.toLowerCase().includes(orderSearchQuery.toLowerCase()) ||
+                    (o.medicineId?.name && o.medicineId.name.toLowerCase().includes(orderSearchQuery.toLowerCase()));
 
-                    const matchesStatus = orderStatusFilter === 'All' || o.status === orderStatusFilter;
+                  const matchesStatus = orderStatusFilter === 'All' || o.status === orderStatusFilter;
 
-                    return isMatch && matchesTab && matchesSearch && matchesStatus;
-                  });
+                  return isMatch && matchesTab && matchesSearch && matchesStatus;
+                });
 
-                  if (loadingOrders) {
-                    return (
-                      <div className="flex justify-center py-8">
-                        <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
-                      </div>
-                    );
-                  }
-
-                  if (deliveryOrders.length === 0) {
-                    return (
-                      <div className="py-10 text-center space-y-3 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
-                        <Truck size={28} className="mx-auto text-slate-300" />
-                        <p className="text-xs font-semibold text-slate-550">
-                          No {activeDeliveryTab.toLowerCase()} home delivery orders found.
-                        </p>
-                        <button
-                          onClick={() => {
-                            const currentParams = new URLSearchParams(location.search);
-                            currentParams.set('tab', 'pharmacy-medicines');
-                            setSearchParams(currentParams);
-                          }}
-                          className="px-4 py-2 bg-blue-600 hover:bg-blue-750 text-white rounded-xl text-xs font-bold transition shadow-sm"
-                        >
-                          Browse Medicines
-                        </button>
-                      </div>
-                    );
-                  }
-
+                if (loadingOrders) {
                   return (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {deliveryOrders.map(order => (
-                        <div key={order._id} className="border border-slate-200 hover:border-slate-300 p-5 rounded-2xl bg-white shadow-sm flex flex-col space-y-4 hover:shadow-md transition duration-200">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <span className="text-[9px] font-black text-slate-400">ORDER ID: {order._id.slice(-8).toUpperCase()}</span>
-                              <h4 className="text-xs font-black text-slate-805 mt-1">{order.medicineId?.name || 'Medicine'}</h4>
-                              <p className="text-[10px] text-slate-400 font-bold mt-0.5">
-                                Qty: {order.quantity} • ₹{Number(order.totalPrice || 0).toFixed(2)}
-                              </p>
-                            </div>
-                            <span className={`px-2 py-0.5 rounded-lg text-[9px] font-bold uppercase border ${
-                              order.status === 'out_for_delivery' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
-                              order.status === 'preparing' ? 'bg-amber-50 text-amber-705 border-amber-200' :
-                              order.status === 'completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                              'bg-slate-50 text-slate-500 border-slate-200'
-                            }`}>
-                              {order.status.replace('_', ' ')}
-                            </span>
-                          </div>
+                    <div className="flex justify-center py-8">
+                      <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
+                    </div>
+                  );
+                }
 
-                          <div className="text-[10px] font-medium text-slate-500 space-y-1 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                            <p className="font-bold text-slate-700">Delivery Address:</p>
-                            <p className="truncate">
-                              {order.deliveryAddress?.fullName || 'Patient'}, {order.deliveryAddress?.houseFlatNumber}, {order.deliveryAddress?.street}, {order.deliveryAddress?.city}
+                if (pickupOrders.length === 0) {
+                  return (
+                    <div className="py-10 text-center space-y-3 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                      <ShoppingBag size={28} className="mx-auto text-slate-300" />
+                      <p className="text-xs font-semibold text-slate-550">
+                        No {activePickupTab.toLowerCase()} self-pickup orders found.
+                      </p>
+                      <button
+                        onClick={() => {
+                          const currentParams = new URLSearchParams(location.search);
+                          currentParams.set('tab', 'pharmacy-medicines');
+                          setSearchParams(currentParams);
+                        }}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-750 text-white rounded-xl text-xs font-bold transition shadow-sm"
+                      >
+                        Browse Medicines
+                      </button>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {pickupOrders.map(order => (
+                      <div key={order._id} className="border border-slate-200 hover:border-slate-300 p-5 rounded-2xl bg-white shadow-sm flex flex-col space-y-4 hover:shadow-md transition duration-200">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <span className="text-[9px] font-black text-slate-400">ORDER ID: {order._id.slice(-8).toUpperCase()}</span>
+                            <h4 className="text-xs font-black text-slate-805 mt-1">{order.medicineId?.name || 'Medicine'}</h4>
+                            <p className="text-[10px] text-slate-400 font-bold mt-0.5">
+                              Qty: {order.quantity} • ₹{Number(order.totalPrice || 0).toFixed(2)}
                             </p>
                           </div>
+                          <span className={`px-2 py-0.5 rounded-lg text-[9px] font-bold uppercase border ${order.status === 'ready_for_pickup' ? 'bg-purple-50 text-purple-700 border-purple-200' :
+                            order.status === 'preparing' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
+                              order.status === 'confirmed' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                order.status === 'completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                  'bg-slate-50 text-slate-500 border-slate-200'
+                            }`}>
+                            {order.status.replace('_', ' ')}
+                          </span>
+                        </div>
 
-                          {renderOrderTimeline(order)}
-
-                          <div className="flex items-center justify-between gap-2 border-t border-slate-100 pt-3 text-[10px] font-bold">
-                            <button
-                              onClick={() => setSelectedOrderForDrawer(order)}
-                              className="text-blue-600 hover:text-blue-700 transition"
-                            >
-                              View Details
-                            </button>
-                            
-                            <div className="flex items-center gap-2">
-                              {['pending', 'confirmed'].includes(order.status) && (
-                                <button
-                                  onClick={() => {
-                                    if (window.confirm('Are you sure you want to cancel this order?')) {
-                                      providersApi.updatePharmacyOrderStatus(order._id, 'cancelled')
-                                        .then(() => {
-                                          toast.success('Order cancelled successfully.');
-                                          fetchPharmacyOrders();
-                                        })
-                                        .catch(() => toast.error('Failed to cancel order.'));
-                                    }
-                                  }}
-                                  className="px-2.5 py-1.5 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition"
-                                >
-                                  Cancel
-                                </button>
-                              )}
-                              <button
-                                onClick={() => alert('Downloading invoice PDF...')}
-                                className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition"
-                              >
-                                Invoice
-                              </button>
+                        {activePickupTab === 'Recent' && (
+                          <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between gap-3 text-[10px] font-semibold text-slate-650">
+                            <div>
+                              <p className="font-bold text-slate-700">Pickup Code: <span className="font-black text-slate-900 text-xs">{order._id.slice(-6).toUpperCase()}</span></p>
+                              <p className="text-[9px] text-slate-400 mt-0.5">Ready for scan at counter</p>
+                            </div>
+                            <div className="w-10 h-10 bg-white border border-slate-200 p-1 rounded-lg shrink-0 flex items-center justify-center font-bold text-xs select-none">
+                              <svg className="w-full h-full text-slate-750" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M3 3h6v6H3V3zm12 0h6v6h-6V3zM3 15h6v6H3v-6zm14 0h2v2h-2v-2zm2 2h2v2h-2v-2zm-2 2h2v2h-2v-2zm-2-2h2v2h-2v-2zm-2 2h2v2h-2v-2zm2-4h2v2h-2v-2zm-4 0h2v2H9v-2zm0 4h2v2H9v-2z" />
+                              </svg>
                             </div>
                           </div>
+                        )}
+
+                        {renderOrderTimeline(order)}
+
+                        <div className="flex items-center justify-between gap-2 border-t border-slate-100 pt-3 text-[10px] font-bold">
+                          <button
+                            onClick={() => setSelectedOrderForDrawer(order)}
+                            className="text-blue-600 hover:text-blue-700 transition"
+                          >
+                            View Details
+                          </button>
+
+                          <div className="flex items-center gap-2">
+                            {['pending', 'confirmed'].includes(order.status) && (
+                              <button
+                                onClick={() => {
+                                  if (window.confirm('Are you sure you want to cancel this order?')) {
+                                    providersApi.updatePharmacyOrderStatus(order._id, 'cancelled')
+                                      .then(() => {
+                                        toast.success('Order cancelled successfully.');
+                                        fetchPharmacyOrders();
+                                      })
+                                      .catch(() => toast.error('Failed to cancel order.'));
+                                  }
+                                }}
+                                className="px-2.5 py-1.5 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition"
+                              >
+                                Cancel
+                              </button>
+                            )}
+                            <button
+                              onClick={() => alert('Downloading invoice PDF...')}
+                              className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition"
+                            >
+                              Invoice
+                            </button>
+                          </div>
                         </div>
-                      ))}
-                    </div>
-                  );
-                })()}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* SECTION 2: Home Delivery */}
+            <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-6">
+              <div className="flex justify-between items-center border-b border-slate-100 pb-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600">
+                    <Truck size={16} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-slate-805">Home Delivery</h3>
+                    <p className="text-[10px] text-slate-400 font-bold mt-0.5">Orders delivered to your selected address</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-100 p-1 rounded-xl">
+                  {['Recent', 'Completed'].map(tab => (
+                    <button
+                      key={tab}
+                      onClick={() => setActiveDeliveryTab(tab)}
+                      className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition ${activeDeliveryTab === tab ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-505 hover:text-slate-850'
+                        }`}
+                    >
+                      {tab}
+                    </button>
+                  ))}
+                </div>
               </div>
 
+              {/* Delivery List */}
+              {(() => {
+                const deliveryOrders = pharmacyOrders.filter(o => {
+                  const isMatch = o.deliveryMethod === 'Home Delivery';
+                  const matchesTab = activeDeliveryTab === 'Recent'
+                    ? o.status !== 'completed' && o.status !== 'cancelled' && o.status !== 'rejected'
+                    : o.status === 'completed';
+
+                  const matchesSearch = !orderSearchQuery ||
+                    o._id.toLowerCase().includes(orderSearchQuery.toLowerCase()) ||
+                    (o.medicineId?.name && o.medicineId.name.toLowerCase().includes(orderSearchQuery.toLowerCase()));
+
+                  const matchesStatus = orderStatusFilter === 'All' || o.status === orderStatusFilter;
+
+                  return isMatch && matchesTab && matchesSearch && matchesStatus;
+                });
+
+                if (loadingOrders) {
+                  return (
+                    <div className="flex justify-center py-8">
+                      <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
+                    </div>
+                  );
+                }
+
+                if (deliveryOrders.length === 0) {
+                  return (
+                    <div className="py-10 text-center space-y-3 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                      <Truck size={28} className="mx-auto text-slate-300" />
+                      <p className="text-xs font-semibold text-slate-550">
+                        No {activeDeliveryTab.toLowerCase()} home delivery orders found.
+                      </p>
+                      <button
+                        onClick={() => {
+                          const currentParams = new URLSearchParams(location.search);
+                          currentParams.set('tab', 'pharmacy-medicines');
+                          setSearchParams(currentParams);
+                        }}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-750 text-white rounded-xl text-xs font-bold transition shadow-sm"
+                      >
+                        Browse Medicines
+                      </button>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {deliveryOrders.map(order => (
+                      <div key={order._id} className="border border-slate-200 hover:border-slate-300 p-5 rounded-2xl bg-white shadow-sm flex flex-col space-y-4 hover:shadow-md transition duration-200">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <span className="text-[9px] font-black text-slate-400">ORDER ID: {order._id.slice(-8).toUpperCase()}</span>
+                            <h4 className="text-xs font-black text-slate-805 mt-1">{order.medicineId?.name || 'Medicine'}</h4>
+                            <p className="text-[10px] text-slate-400 font-bold mt-0.5">
+                              Qty: {order.quantity} • ₹{Number(order.totalPrice || 0).toFixed(2)}
+                            </p>
+                          </div>
+                          <span className={`px-2 py-0.5 rounded-lg text-[9px] font-bold uppercase border ${order.status === 'out_for_delivery' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
+                            order.status === 'preparing' ? 'bg-amber-50 text-amber-705 border-amber-200' :
+                              order.status === 'completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                'bg-slate-50 text-slate-500 border-slate-200'
+                            }`}>
+                            {order.status.replace('_', ' ')}
+                          </span>
+                        </div>
+
+                        <div className="text-[10px] font-medium text-slate-500 space-y-1 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                          <p className="font-bold text-slate-700">Delivery Address:</p>
+                          <p className="truncate">
+                            {order.deliveryAddress?.fullName || 'Patient'}, {order.deliveryAddress?.houseFlatNumber}, {order.deliveryAddress?.street}, {order.deliveryAddress?.city}
+                          </p>
+                        </div>
+
+                        {renderOrderTimeline(order)}
+
+                        <div className="flex items-center justify-between gap-2 border-t border-slate-100 pt-3 text-[10px] font-bold">
+                          <button
+                            onClick={() => setSelectedOrderForDrawer(order)}
+                            className="text-blue-600 hover:text-blue-700 transition"
+                          >
+                            View Details
+                          </button>
+
+                          <div className="flex items-center gap-2">
+                            {['pending', 'confirmed'].includes(order.status) && (
+                              <button
+                                onClick={() => {
+                                  if (window.confirm('Are you sure you want to cancel this order?')) {
+                                    providersApi.updatePharmacyOrderStatus(order._id, 'cancelled')
+                                      .then(() => {
+                                        toast.success('Order cancelled successfully.');
+                                        fetchPharmacyOrders();
+                                      })
+                                      .catch(() => toast.error('Failed to cancel order.'));
+                                  }
+                                }}
+                                className="px-2.5 py-1.5 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition"
+                              >
+                                Cancel
+                              </button>
+                            )}
+                            <button
+                              onClick={() => alert('Downloading invoice PDF...')}
+                              className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition"
+                            >
+                              Invoice
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 rounded-xl border border-slate-200 bg-slate-50/50 text-center">
-              {[
-                { label: 'Secure & Fast', desc: 'Your orders are safe and delivered on time' },
-                { label: 'Quality Assured', desc: '100% genuine medicines from trusted sources' },
-                { label: 'Easy Returns', desc: '5 day easy return policy on medicines' },
-                { label: 'Need Help?', desc: 'Call or WhatsApp us anytime' }
-              ].map(b => (
-                <div key={b.label}>
-                  <p className="text-[10px] font-black text-slate-800">{b.label}</p>
-                  <p className="text-[9px] text-slate-400 font-bold mt-0.5">{b.desc}</p>
-                </div>
-              ))}
-            </div>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 rounded-xl border border-slate-200 bg-slate-50/50 text-center">
+            {[
+              { label: 'Secure & Fast', desc: 'Your orders are safe and delivered on time' },
+              { label: 'Quality Assured', desc: '100% genuine medicines from trusted sources' },
+              { label: 'Easy Returns', desc: '5 day easy return policy on medicines' },
+              { label: 'Need Help?', desc: 'Call or WhatsApp us anytime' }
+            ].map(b => (
+              <div key={b.label}>
+                <p className="text-[10px] font-black text-slate-800">{b.label}</p>
+                <p className="text-[9px] text-slate-400 font-bold mt-0.5">{b.desc}</p>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -2695,7 +2679,7 @@ const PatientPortalPage = () => {
                 <h3 className="text-sm font-black text-slate-800">Order Details</h3>
                 <p className="text-[10px] text-slate-400 mt-0.5">Order ID: {selectedOrderForDrawer._id}</p>
               </div>
-              <button 
+              <button
                 onClick={() => setSelectedOrderForDrawer(null)}
                 className="p-1.5 rounded-xl hover:bg-slate-200 transition text-slate-500"
               >

@@ -236,7 +236,7 @@ const MapPicker = ({ isOpen, onClose, onSelectAddress, initialAddress }) => {
         },
         (err) => {
           console.error('Geolocation error:', err);
-          alert('Could not retrieve current location.');
+          setSearchError('Unable to access your current location. Please search for your address manually.');
           setGeocoding(false);
         }
       );

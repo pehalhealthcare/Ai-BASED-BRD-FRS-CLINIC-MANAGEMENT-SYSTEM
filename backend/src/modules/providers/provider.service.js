@@ -66,12 +66,14 @@ const createProvider = async (clinicId, payload, actorUserId) => {
   });
 
   // Automatically create linked Staff member
-  try {
-    await createOperatorStaff(clinicId, provider, actorUserId, payload.deferInvitation);
-  } catch (err) {
-    // If operator creation fails, delete provider to keep transaction atomic
-    await Provider.deleteOne({ _id: provider._id });
-    throw err;
+  if (provider.status !== 'Draft') {
+    try {
+      await createOperatorStaff(clinicId, provider, actorUserId, payload.deferInvitation);
+    } catch (err) {
+      // If operator creation fails, delete provider to keep transaction atomic
+      await Provider.deleteOne({ _id: provider._id });
+      throw err;
+    }
   }
 
   await createAuditLog({
@@ -277,9 +279,53 @@ const getProviderById = async (clinicId, id) => {
 };
 
 const updateProvider = async (clinicId, id, payload, actorUserId) => {
-  const oldProvider = await Provider.findOne({ _id: id, clinicId });
+  let oldProvider = await Provider.findOne({ _id: id, clinicId });
+  let isPromotedFromDraft = false;
+
   if (!oldProvider) {
-    throw new AppError('Provider not found', HTTP_STATUS.NOT_FOUND);
+    const ProviderDraft = require('./providerDraft.model');
+    const draft = await ProviderDraft.findOne({ _id: id, clinicId });
+    if (!draft) {
+      throw new AppError('Provider not found', HTTP_STATUS.NOT_FOUND);
+    }
+
+    const globalId = await getNextGlobalId('PRV', 'global_provider_seq');
+    
+    // Create actual Provider with explicit _id
+    oldProvider = await Provider.create({
+      _id: id,
+      ...payload,
+      globalId,
+      clinicId,
+      status: payload.status || 'Active',
+      createdBy: actorUserId
+    });
+
+    // Delete draft
+    await ProviderDraft.deleteOne({ _id: id });
+    isPromotedFromDraft = true;
+  }
+
+  if (payload.status === 'Active' && oldProvider.status === 'Draft') {
+    payload.deferInvitation = false;
+    try {
+      await handleStatusChange(clinicId, oldProvider, 'Active', actorUserId);
+      const Staff = require('../staff/staff.model');
+      const User = require('../users/user.model');
+      const { sendOperatorOnboardingEmail } = require('./providerOperatorHelper');
+      if (oldProvider.operatorStaffId) {
+        const staff = await Staff.findById(oldProvider.operatorStaffId);
+        if (staff) {
+          const user = await User.findById(staff.userId);
+          if (user) {
+            await sendOperatorOnboardingEmail(clinicId, oldProvider, user, actorUserId);
+          }
+        }
+      }
+    } catch (err) {
+      const { logger } = require('../../common/utils/logger');
+      logger.error('[provider:operator-activation] Failed during status transition Draft -> Active', err);
+    }
   }
 
   if (payload.name && payload.name.trim().toLowerCase() !== oldProvider.name.toLowerCase()) {
@@ -320,21 +366,97 @@ const updateProvider = async (clinicId, id, payload, actorUserId) => {
 };
 
 const archiveProvider = async (clinicId, id, actorUserId) => {
+  const ProviderDraft = require('./providerDraft.model');
+  const draft = await ProviderDraft.findOne({ _id: id, clinicId });
+
+  if (draft) {
+    // Delete the Draft
+    await ProviderDraft.deleteOne({ _id: id });
+
+    // Clean up any other linked records just in case
+    try {
+      const ProviderMapping = require('./providerMapping.model');
+      await ProviderMapping.deleteMany({ providerId: id });
+    } catch (e) {}
+    try {
+      const Staff = require('../staff/staff.model');
+      await Staff.deleteMany({ assignedProviderId: id });
+    } catch (e) {}
+    try {
+      const User = require('../users/user.model');
+      await User.deleteMany({ assignedProviderId: id });
+    } catch (e) {}
+
+    await createAuditLog({
+      actorUserId,
+      action: 'ARCHIVE_PROVIDER',
+      entity: 'ProviderDraft',
+      entityId: id,
+      metadata: { name: draft.basicInfo?.name, isHardDelete: true, isDraft: true },
+      status: 'SUCCESS'
+    });
+
+    return { _id: id, name: draft.basicInfo?.name, providerType: draft.providerType, isDraft: true };
+  }
+
   const provider = await Provider.findOne({ _id: id, clinicId });
   if (!provider) {
     throw new AppError('Provider not found', HTTP_STATUS.NOT_FOUND);
   }
 
-  // Soft delete check
-  provider.status = 'Archived';
-  await provider.save();
+  const Clinic = require('../clinics/clinic.model');
+  const clinic = await Clinic.findById(clinicId);
+  const isClinicOnboarding = clinic && !clinic.isOnboardingCompleted;
+
+  let hasOperationalData = false;
+  if (clinic && clinic.isOnboardingCompleted) {
+    const PharmacyOrder = require('../pharmacy/pharmacyOrder.model');
+    let labOrderCount = 0;
+    try {
+      const LabOrder = require('../labs/labOrder.model');
+      labOrderCount = await LabOrder.countDocuments({ clinicId });
+    } catch (e) {}
+    let pharmacyOrderCount = 0;
+    try {
+      pharmacyOrderCount = await PharmacyOrder.countDocuments({ clinicId });
+    } catch (e) {}
+    hasOperationalData = pharmacyOrderCount > 0 || labOrderCount > 0;
+  }
+
+  const isHardDelete = isClinicOnboarding || !hasOperationalData;
+
+  if (isHardDelete) {
+    try {
+      const ProviderMapping = require('./providerMapping.model');
+      await ProviderMapping.deleteMany({ providerId: id });
+    } catch (e) {}
+
+    try {
+      const Staff = require('../staff/staff.model');
+      await Staff.deleteMany({ assignedProviderId: id });
+    } catch (e) {}
+
+    const User = require('../users/user.model');
+    await User.deleteMany({ assignedProviderId: id });
+
+    await Provider.deleteOne({ _id: id });
+  } else {
+    provider.status = 'Archived';
+    try {
+      const User = require('../users/user.model');
+      await User.updateMany({ assignedProviderId: id }, { isActive: false, approvalStatus: 'disabled' });
+      const Staff = require('../staff/staff.model');
+      await Staff.updateMany({ assignedProviderId: id }, { isActive: false, approvalStatus: 'disabled' });
+    } catch (e) {}
+    await provider.save();
+  }
 
   await createAuditLog({
     actorUserId,
     action: 'ARCHIVE_PROVIDER',
     entity: 'Provider',
     entityId: id,
-    metadata: { name: provider.name },
+    metadata: { name: provider.name, isHardDelete },
     status: 'SUCCESS'
   });
 

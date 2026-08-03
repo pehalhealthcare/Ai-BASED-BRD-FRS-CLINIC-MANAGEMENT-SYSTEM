@@ -22,8 +22,12 @@ const {
   createSupplierSchema,
   updateSupplierSchema,
   createPurchaseOrderSchema,
+  updatePurchaseOrderStatusSchema,
+  recordPoPaymentSchema,
   receivePurchaseOrderSchema,
-  adjustStockSchema
+  adjustStockSchema,
+  createManufacturerSchema,
+  updateManufacturerSchema
 } = require('./pharmacy.validator');
 
 const router = Router();
@@ -198,6 +202,13 @@ router.get(
   pharmacyController.getPharmacyReports
 );
 
+router.get(
+  '/analytics/sales-performance',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.PHARMACIST),
+  pharmacyController.getPharmacySalesPerformance
+);
+
 router.post(
   '/inventory/adjust',
   protect,
@@ -258,6 +269,44 @@ router.get(
   pharmacyController.getSupplierPurchaseHistory
 );
 
+// Manufacturer CRUD
+router.post(
+  '/manufacturers',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.PHARMACIST),
+  validate(createManufacturerSchema),
+  pharmacyController.createManufacturer
+);
+
+router.get(
+  '/manufacturers',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.PHARMACIST),
+  pharmacyController.listManufacturers
+);
+
+router.put(
+  '/manufacturers/:id',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.PHARMACIST),
+  validate(updateManufacturerSchema),
+  pharmacyController.updateManufacturer
+);
+
+router.delete(
+  '/manufacturers/:id',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.PHARMACIST),
+  pharmacyController.deleteManufacturer
+);
+
+router.get(
+  '/manufacturers/:id/analytics',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.PHARMACIST),
+  pharmacyController.getManufacturerAnalytics
+);
+
 // Purchase Orders
 router.post(
   '/purchase-orders',
@@ -280,6 +329,22 @@ router.post(
   authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.PHARMACIST),
   validate(receivePurchaseOrderSchema),
   pharmacyController.receivePurchaseOrder
+);
+
+router.patch(
+  '/purchase-orders/:id/status',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.PHARMACIST),
+  validate(updatePurchaseOrderStatusSchema),
+  pharmacyController.updatePurchaseOrderStatus
+);
+
+router.post(
+  '/purchase-orders/:id/payments',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.PHARMACIST),
+  validate(recordPoPaymentSchema),
+  pharmacyController.recordPoPayment
 );
 
 // ─── Procurement & Grouped Search endpoints ───────────────────────────────────

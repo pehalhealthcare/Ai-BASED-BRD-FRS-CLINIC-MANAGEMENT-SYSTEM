@@ -79,6 +79,13 @@ const PrescriptionOrdersWorkspace = () => {
   const [methodFilter, setMethodFilter] = useState('');
   const [paymentFilter, setPaymentFilter] = useState('');
 
+  // Pagination & Date Range states
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ page: 1, limit: 10, totalPages: 1, total: 0 });
+  const [dateRangePreset, setDateRangePreset] = useState('Last 7 Days');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+
   // Configuration States
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -101,19 +108,92 @@ const PrescriptionOrdersWorkspace = () => {
     }
   }, [profileData]);
 
+  /* ── Get Dates based on Preset ───────────────────────────────────────── */
+  const getPresetDates = (preset, customStart = '', customEnd = '') => {
+    const now = new Date();
+    let start = null;
+    let end = now;
+
+    switch (preset) {
+      case 'Today':
+        start = new Date(now.setHours(0, 0, 0, 0));
+        break;
+      case 'Yesterday':
+        start = new Date();
+        start.setDate(start.getDate() - 1);
+        start.setHours(0, 0, 0, 0);
+        end = new Date(start);
+        end.setHours(23, 59, 59, 999);
+        break;
+      case 'Last 7 Days':
+        start = new Date();
+        start.setDate(start.getDate() - 6);
+        start.setHours(0, 0, 0, 0);
+        break;
+      case 'Last 30 Days':
+        start = new Date();
+        start.setDate(start.getDate() - 29);
+        start.setHours(0, 0, 0, 0);
+        break;
+      case 'This Month':
+        start = new Date(now.getFullYear(), now.getMonth(), 1);
+        break;
+      case 'Previous Month':
+        start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+        break;
+      case 'Custom':
+        start = customStart ? new Date(customStart) : null;
+        end = customEnd ? new Date(customEnd) : null;
+        break;
+      default:
+        start = null;
+        end = null;
+    }
+    return { start, end };
+  };
+
   /* ── Load Orders List ────────────────────────────────────────────────── */
-  const loadOrders = useCallback(async (isSilent = false) => {
+  const loadOrders = useCallback(async (isSilent = false, targetPage = page) => {
     if (!isSilent) setLoading(true);
     try {
       // Query parameters
-      const params = {};
+      const params = {
+        page: targetPage,
+        limit: 10
+      };
       if (profileData?.providerId) {
         params.providerId = profileData.providerId;
       }
+      if (search.trim()) {
+        params.search = search.trim();
+      }
+      if (activeStatusTab !== 'All') {
+        const st = activeStatusTab.toLowerCase().replace(/ /g, '_');
+        params.status = st;
+      } else if (statusFilter) {
+        params.status = statusFilter;
+      }
+      if (activeMethodTab !== 'All') {
+        params.deliveryMethod = activeMethodTab === 'Takeaway' ? 'Pickup' : 'Home Delivery';
+      } else if (methodFilter) {
+        params.deliveryMethod = methodFilter;
+      }
+
+      // Date Range presets
+      const { start, end } = getPresetDates(dateRangePreset, startDate, endDate);
+      if (start) {
+        params.startDate = start.toISOString();
+        params.from = start.toISOString();
+      }
+      if (end) {
+        params.endDate = end.toISOString();
+        params.to = end.toISOString();
+      }
       
       const [ordersRes, dispensingsRes] = await Promise.all([
-        pharmacyApi.listPharmacyOrders(params).catch(() => ({ orders: [] })),
-        pharmacyApi.listDispensings().catch(() => [])
+        pharmacyApi.listPharmacyOrders(params).catch(() => ({ orders: [], kpis: {}, tabCounts: {}, pagination: { page: 1, limit: 10, totalPages: 1, total: 0 } })),
+        pharmacyApi.listDispensings(params).catch(() => [])
       ]);
 
       const onlineList = ordersRes?.orders ?? ordersRes?.data?.orders ?? [];
@@ -155,20 +235,28 @@ const PrescriptionOrdersWorkspace = () => {
         return dateB - dateA;
       });
 
-      // Calculate stats based on loaded orders
-      const newOrdersCount = list.filter(o => o.status === 'pending').length;
-      const takeawayCount = list.filter(o => o.deliveryMethod === 'Pickup').length;
-      const deliveryCount = list.filter(o => o.deliveryMethod === 'Home Delivery').length;
-      const urgentCount = list.filter(o => o.priority === 'High' || o.priority === 'Urgent' || o.quantity > 5).length;
-      const totalVal = list.reduce((acc, curr) => acc + (curr.totalPrice || 0), 0);
+      // Calculate stats
+      if (ordersRes?.kpis) {
+        setStats(ordersRes.kpis);
+      } else {
+        const newOrdersCount = list.filter(o => o.status === 'pending').length;
+        const takeawayCount = list.filter(o => o.deliveryMethod === 'Pickup').length;
+        const deliveryCount = list.filter(o => o.deliveryMethod === 'Home Delivery').length;
+        const urgentCount = list.filter(o => o.priority === 'High' || o.priority === 'Urgent' || o.quantity > 5).length;
+        const totalVal = list.reduce((acc, curr) => acc + (curr.totalPrice || 0), 0);
 
-      setStats({
-        newOrders: newOrdersCount,
-        takeaway: takeawayCount,
-        delivery: deliveryCount,
-        urgent: urgentCount,
-        value: totalVal
-      });
+        setStats({
+          newOrders: newOrdersCount,
+          takeaway: takeawayCount,
+          delivery: deliveryCount,
+          urgent: urgentCount,
+          value: totalVal
+        });
+      }
+
+      if (ordersRes?.pagination) {
+        setPagination(ordersRes.pagination);
+      }
 
       // Sound notification logic
       if (list.length > ordersRef.current.length && ordersRef.current.length > 0 && soundEnabled) {
@@ -199,17 +287,22 @@ const PrescriptionOrdersWorkspace = () => {
     } finally {
       if (!isSilent) setLoading(false);
     }
-  }, [profileData, soundEnabled]);
+  }, [profileData, soundEnabled, search, statusFilter, methodFilter, activeStatusTab, activeMethodTab, dateRangePreset, startDate, endDate, page]);
+
+  // Reset page to 1 on filter changes
+  useEffect(() => {
+    setPage(1);
+  }, [activeStatusTab, activeMethodTab, search, statusFilter, methodFilter, dateRangePreset, startDate, endDate]);
 
   useEffect(() => {
-    loadOrders();
-  }, [loadOrders]);
+    loadOrders(false, page);
+  }, [loadOrders, page]);
 
   /* ── Auto Refresh Effect ──────────────────────────────────────────────── */
   useEffect(() => {
     if (!autoRefresh) return;
     const interval = setInterval(() => {
-      loadOrders(true);
+      loadOrders(true, page);
     }, 15000);
     return () => clearInterval(interval);
   }, [autoRefresh, loadOrders]);
@@ -230,45 +323,8 @@ const PrescriptionOrdersWorkspace = () => {
     }
   };
 
-  /* ── Computed Filtering ───────────────────────────────────────────────── */
-  const filteredOrders = orders.filter(o => {
-    // Status Tab filter
-    if (activeStatusTab !== 'All') {
-      const st = activeStatusTab.toLowerCase().replace(/ /g, '_');
-      if (st === 'new_orders' && o.status !== 'pending' && o.status !== 'confirmed') return false;
-      if (st === 'preparing' && o.status !== 'preparing') return false;
-      if (st === 'ready_for_pickup' && o.status !== 'ready_for_pickup') return false;
-      if (st === 'ready_for_delivery' && o.status !== 'ready_for_delivery') return false;
-      if (st === 'out_for_delivery' && o.status !== 'out_for_delivery') return false;
-      if (st === 'completed' && o.status !== 'completed') return false;
-      if (st === 'cancelled' && o.status !== 'cancelled' && o.status !== 'rejected') return false;
-    }
-
-    // Delivery Method tab filter
-    if (activeMethodTab !== 'All') {
-      if (activeMethodTab === 'Takeaway' && o.deliveryMethod !== 'Pickup') return false;
-      if (activeMethodTab === 'Home Delivery' && o.deliveryMethod !== 'Home Delivery') return false;
-    }
-
-    // Dropdown filters
-    if (statusFilter && o.status !== statusFilter) return false;
-    if (methodFilter && o.deliveryMethod !== (methodFilter === 'Pickup' ? 'Pickup' : 'Home Delivery')) return false;
-    if (paymentFilter && o.paymentStatus !== paymentFilter) return false;
-
-    // Search query
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      const patientName = o.patientId?.fullName || `${o.patientId?.firstName || ''} ${o.patientId?.lastName || ''}`;
-      return (
-        o._id.toLowerCase().includes(q) ||
-        patientName.toLowerCase().includes(q) ||
-        (o.patientId?.phone || '').includes(q) ||
-        (o.medicineId?.name || '').toLowerCase().includes(q)
-      );
-    }
-
-    return true;
-  });
+  /* ── Computed Filtering (Handled Server-side) ─────────────────────────── */
+  const filteredOrders = orders;
 
   return (
     <div className="flex-1 bg-slate-50 flex flex-col min-w-0 text-slate-850 p-6 space-y-6">
@@ -369,6 +425,47 @@ const PrescriptionOrdersWorkspace = () => {
                   />
                 </div>
 
+                {/* Date Range Preset Selector */}
+                <div className="flex items-center gap-2">
+                  <select
+                    value={dateRangePreset}
+                    onChange={e => {
+                      setDateRangePreset(e.target.value);
+                      if (e.target.value !== 'Custom') {
+                        setStartDate('');
+                        setEndDate('');
+                      }
+                    }}
+                    className="px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="Today">📅 Today</option>
+                    <option value="Yesterday">📅 Yesterday</option>
+                    <option value="Last 7 Days">📅 Last 7 Days</option>
+                    <option value="Last 30 Days">📅 Last 30 Days</option>
+                    <option value="This Month">📅 This Month</option>
+                    <option value="Previous Month">📅 Previous Month</option>
+                    <option value="Custom">📅 Custom Range</option>
+                  </select>
+
+                  {dateRangePreset === 'Custom' && (
+                    <div className="flex items-center gap-1.5 animate-in slide-in-from-left duration-200">
+                      <input
+                        type="date"
+                        value={startDate}
+                        onChange={e => setStartDate(e.target.value)}
+                        className="px-2.5 py-1.5 border border-slate-200 rounded-xl text-xs font-semibold bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <span className="text-[10px] font-bold text-slate-400">to</span>
+                      <input
+                        type="date"
+                        value={endDate}
+                        onChange={e => setEndDate(e.target.value)}
+                        className="px-2.5 py-1.5 border border-slate-200 rounded-xl text-xs font-semibold bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  )}
+                </div>
+
                 <select
                   value={statusFilter}
                   onChange={e => setStatusFilter(e.target.value)}
@@ -391,7 +488,15 @@ const PrescriptionOrdersWorkspace = () => {
                 </select>
 
                 <button
-                  onClick={() => { setSearch(''); setStatusFilter(''); setMethodFilter(''); }}
+                  onClick={() => {
+                    setSearch('');
+                    setStatusFilter('');
+                    setMethodFilter('');
+                    setDateRangePreset('Last 7 Days');
+                    setStartDate('');
+                    setEndDate('');
+                    setPage(1);
+                  }}
                   className="flex items-center gap-1.5 px-3 py-2 border border-slate-200 text-slate-600 rounded-xl text-xs font-bold bg-white hover:bg-slate-50 transition"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
@@ -423,9 +528,23 @@ const PrescriptionOrdersWorkspace = () => {
                       ))
                     ) : filteredOrders.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="px-4 py-16 text-center text-slate-400 font-bold">
-                          <ShoppingBag className="w-10 h-10 mx-auto mb-3 text-slate-200" />
-                          No online orders match the filter criteria.
+                        <td colSpan={8} className="px-4 py-16 text-center text-slate-400 font-bold space-y-3">
+                          <ShoppingBag className="w-10 h-10 mx-auto text-slate-200" />
+                          <p>No orders found for the selected date range.</p>
+                          <button
+                            onClick={() => {
+                              setSearch('');
+                              setStatusFilter('');
+                              setMethodFilter('');
+                              setDateRangePreset('Last 7 Days');
+                              setStartDate('');
+                              setEndDate('');
+                              setPage(1);
+                            }}
+                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black shadow-sm transition inline-block"
+                          >
+                            Clear Filters
+                          </button>
                         </td>
                       </tr>
                     ) : (
@@ -512,6 +631,42 @@ const PrescriptionOrdersWorkspace = () => {
                   </tbody>
                 </table>
               </div>
+
+              {/* Pagination Controls */}
+              {pagination.totalPages > 1 && (
+                <div className="p-4 border-t border-slate-50 flex items-center justify-between bg-slate-50/20 text-xs font-semibold text-slate-500">
+                  <div>
+                    Showing {(pagination.page - 1) * pagination.limit + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} orders
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setPage(prev => Math.max(prev - 1, 1))}
+                      disabled={pagination.page <= 1}
+                      className="px-3 py-1.5 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 font-bold transition"
+                    >
+                      Previous
+                    </button>
+                    {Array.from({ length: pagination.totalPages }).map((_, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setPage(i + 1)}
+                        className={`w-8 h-8 rounded-lg flex items-center justify-center border font-bold transition ${
+                          pagination.page === i + 1 ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-200 hover:bg-slate-50'
+                        }`}
+                      >
+                        {i + 1}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => setPage(prev => Math.min(prev + 1, pagination.totalPages))}
+                      disabled={pagination.page >= pagination.totalPages}
+                      className="px-3 py-1.5 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 font-bold transition"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

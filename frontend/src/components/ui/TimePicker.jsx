@@ -14,9 +14,9 @@ export const parseTime12 = (timeStr) => {
 
 export const formatTime12 = (h, m, p) => `${h}:${m} ${p}`;
 
-const TimePicker = ({ value, onChange, label, minuteInterval = 1, className = '' }) => {
+const TimePicker = ({ value, onChange, label, minuteInterval = 5, className = '', placeholder = '09:00 AM' }) => {
   const [open, setOpen] = useState(false);
-  const [typedValue, setTypedValue] = useState(value || '09:00 AM');
+  const [typedValue, setTypedValue] = useState(value || '');
   const [mode, setMode] = useState('hours'); // 'hours' or 'minutes'
   const parsed = parseTime12(value);
   const [draft, setDraft] = useState(parsed);
@@ -360,8 +360,27 @@ const TimePicker = ({ value, onChange, label, minuteInterval = 1, className = ''
         </div>
       </div>
 
+      {/* Preset Suggestions */}
+      <div className="flex flex-wrap gap-1.5 justify-center pb-2 border-b border-slate-100 mb-2 mt-2">
+        {['09:00 AM', '10:00 AM', '01:00 PM', '05:00 PM'].map(preset => (
+          <button
+            key={preset}
+            type="button"
+            onClick={() => {
+              const p = parseTime12(preset);
+              setDraft(p);
+              setTypedValue(preset);
+              onChange(preset);
+            }}
+            className="px-2 py-1 text-[9px] font-extrabold text-indigo-650 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 rounded-lg transition"
+          >
+            {preset}
+          </button>
+        ))}
+      </div>
+
       {/* Footer */}
-      <div className="flex items-center justify-between border-t border-slate-100 pt-3 mt-3">
+      <div className="flex items-center justify-between border-t border-slate-100 pt-3 mt-1">
         <button
           type="button"
           onClick={() => setOpen(false)}
@@ -372,7 +391,7 @@ const TimePicker = ({ value, onChange, label, minuteInterval = 1, className = ''
         <button
           type="button"
           onClick={handleDone}
-          className="px-4 py-1.5 rounded-xl bg-indigo-650 hover:bg-white hover:text-black bg-indigo-700 text-white text-[10px] font-black transition-all shadow-md shadow-indigo-650/10"
+          className="px-4 py-1.5 rounded-xl bg-indigo-700 text-white text-[10px] font-black transition-all shadow-md shadow-indigo-650/10"
         >
           Done ✓
         </button>
@@ -393,7 +412,7 @@ const TimePicker = ({ value, onChange, label, minuteInterval = 1, className = ''
               ? 'border-rose-400 focus:border-rose-500 bg-rose-50/10'
               : 'border-slate-200 focus:border-indigo-400 focus:bg-indigo-50/5'
           }`}
-          placeholder="09:00 AM"
+          placeholder={placeholder}
         />
         <button
           type="button"

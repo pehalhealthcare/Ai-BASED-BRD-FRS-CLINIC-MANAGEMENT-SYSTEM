@@ -227,6 +227,7 @@ const createDoctor = async ({ requester, payload, requestedClinicId = null, req 
   const lastName = parts.slice(1).join(' ') || '';
 
   const doctor = await doctorRepository.createDoctor({
+    title: payload.title || 'Dr.',
     firstName,
     lastName,
     fullName,

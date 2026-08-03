@@ -214,7 +214,7 @@ const replaceOperatorStaff = async (clinicId, provider, oldProvider, actorUserId
     provider.email.toLowerCase() !== oldProvider.email.toLowerCase() ||
     provider.phone !== oldProvider.phone;
 
-  if (!detailsChanged) return;
+  if (!detailsChanged && oldProvider.operatorStaffId) return;
 
   // Unlink & deactivate old operator staff if exists
   if (oldProvider.operatorStaffId) {

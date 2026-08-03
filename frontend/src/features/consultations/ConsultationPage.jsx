@@ -98,6 +98,15 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
   const [error, setError] = useState('');
   const [isDirty, setIsDirty] = useState(false);
 
+  // Sequential completion states
+  const [completionProgress, setCompletionProgress] = useState(null);
+  const [failedStep, setFailedStep] = useState(null);
+  const [skippedSteps, setSkippedSteps] = useState([]);
+  const [showProgressModal, setShowProgressModal] = useState(false);
+  const [showConfirmSkip, setShowConfirmSkip] = useState(false);
+  const [nextPatientPrepared, setNextPatientPrepared] = useState(null);
+  const [preparingNextPatient, setPreparingNextPatient] = useState(false);
+
   // Dynamic user-customizable history and examination states
   const [pastMedicalHistory, setPastMedicalHistory] = useState([
     'No Diabetes', 'No Hypertension', 'No Thyroid Disorder', 'No TB', 'No Asthma', 'No Heart Disease', 'No Known Drug Allergies'
@@ -193,10 +202,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
     isSubstituteAllowed: false
   }]);
   const [labs, setLabs] = useState([]);
-  const [procedures, setProcedures] = useState([
-    { name: 'Nebulization', fee: 250, status: 'scheduled', indication: 'For wheezing and breathlessness', medication: 'Salbutamol 2.5ml', frequency: 'Once', route: 'Nebulizer', duration: '10' },
-    { name: 'Injection (IM)', fee: 100, status: 'scheduled', indication: 'Given for pain relief', medication: 'Diclofenac 75 mg', frequency: 'Once', route: 'IM', dose: '75', site: 'Upper Gluteal' }
-  ]);
+  const [procedures, setProcedures] = useState([]);
 
   // Advice states mapping Image 1
   const [adviceSubTab, setAdviceSubTab] = useState('Diet Advice');
@@ -317,6 +323,16 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
   const [docAvailability, setDocAvailability] = useState({ slots: [], blocked: [] });
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [currentCalendarMonth, setCurrentCalendarMonth] = useState(new Date());
+
+  useEffect(() => {
+    const handleGlobalFocus = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+        lastFocusedElementRef.current = e.target;
+      }
+    };
+    document.addEventListener('focusin', handleGlobalFocus);
+    return () => document.removeEventListener('focusin', handleGlobalFocus);
+  }, []);
 
   useEffect(() => {
     const fetchDocAvail = async () => {
@@ -536,20 +552,43 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
   const [reeditCodeInput, setReeditCodeInput] = useState('');
   const [verifyingReedit, setVerifyingReedit] = useState(false);
 
-  // Persistent Voice-to-Text states
+  // AI Voice Consultation states (Ambient Autofill)
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [recordingLanguage, setRecordingLanguage] = useState('en-US');
-  const [dictatingField, setDictatingField] = useState(null);
   const [voiceUploading, setVoiceUploading] = useState(false);
 
+  // Field-level Speech-to-Text states (Dedicated Voice Dictation)
+  const [isDictating, setIsDictating] = useState(false);
+  const [dictatingField, setDictatingField] = useState(null);
+  const [processingField, setProcessingField] = useState(null);
+  const [dictationSeconds, setDictationSeconds] = useState(0);
+  const [dictationError, setDictationError] = useState(null);
+  const [dictationLanguage, setDictationLanguage] = useState(() => {
+    return localStorage.getItem('fieldDictationLang') || navigator.language || 'en-US';
+  });
+  const [showDictationSettings, setShowDictationSettings] = useState(false);
+
+  // AI Voice Consultation refs
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
   const recognitionRef = useRef(null);
   const timerRef = useRef(null);
+
+  // Field-level dictation refs
+  const dictationRecognitionRef = useRef(null);
+  const dictationTimerRef = useRef(null);
+  const dictationIsActiveRef = useRef(false);
+  const dictationRetryCountRef = useRef(0);
+  const pendingDictationFieldRef = useRef(null);
   const dictationInitialValRef = useRef('');
   const dictationAccumulatedRef = useRef('');
+  const dictationSelectionStartRef = useRef(null);
+  const dictationSelectionEndRef = useRef(null);
+  const dictationValBeforeRef = useRef('');
+  const dictationValAfterRef = useRef('');
+  const lastFocusedElementRef = useRef(null);
 
   const { getFeatureDetail, refresh } = useFeatureAccess();
   const symptomCheckerFeature = getFeatureDetail('symptom_checker');
@@ -929,26 +968,36 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
     } finally { setSaving(false); }
   };
 
-  const handleComplete = async () => {
+  const handleComplete = async (overrideSkipped = null) => {
     // Validate that all required fields have been filled
     if (!form.chiefComplaint?.trim()) {
-      toast.error('Chief complaint is required.');
+      toast.error('Chief Complaint is not filled up by the doctor.');
       return;
     }
     if (!form.diagnosis?.primary?.trim()) {
-      toast.error('Primary diagnosis is required.');
+      toast.error('Primary Diagnosis is not filled up by the doctor.');
       return;
     }
     if (!treatmentPlanText?.trim()) {
-      toast.error('Treatment plan is required.');
+      toast.error('Treatment Plan is not filled up by the doctor.');
       return;
     }
-    
+
+    const currentSkipped = Array.isArray(overrideSkipped) ? overrideSkipped : skippedSteps;
     setCompleting(true);
+    setFailedStep(null);
+    setShowProgressModal(true);
+    setCompletionProgress({
+      saving: 'in_progress',
+      pdf: currentSkipped.includes('pdf') ? 'skipped' : 'pending',
+      email: currentSkipped.includes('email') ? 'skipped' : 'pending',
+      status: 'pending'
+    });
+
     try {
       let activeConsultation = consultation;
       
-      // If consultation draft doesn't exist yet, create it on the fly
+      // Step 1: Save details & prescription (Draft stage)
       if (!activeConsultation?._id) {
         const response = await createConsultation(buildPayload(true));
         activeConsultation = response?.data?.consultation || response?.consultation;
@@ -957,7 +1006,6 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
         }
         applyConsultationToState({ consultation: activeConsultation });
       } else if (isDirty) {
-        // If dirty, save the draft first
         const saveRes = await updateConsultation(activeConsultation._id, { ...buildPayload(false), isEdit: editMode });
         const updatedConsultation = saveRes?.data?.consultation || saveRes?.consultation;
         if (updatedConsultation) {
@@ -993,9 +1041,6 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
         }
       }
 
-      // Send full form data on completion to ensure nothing is lost
-      await completeConsultation(activeConsultation._id, { ...buildPayload(false), isEdit: editMode });
-
       if (activePrescription?._id) {
         await prescriptionApi.finalize(activePrescription._id, {
           followUpDate: followUpDate || undefined,
@@ -1005,28 +1050,159 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
         });
       }
 
-      toast.success(editMode ? 'Consultation edit completed successfully!' : 'Consultation completed successfully!');
+      setCompletionProgress(prev => ({ ...prev, saving: 'success', pdf: currentSkipped.includes('pdf') ? 'skipped' : 'in_progress' }));
+
+      // Call sequential complete endpoint
+      const completeRes = await completeConsultation(activeConsultation._id, {
+        ...buildPayload(false),
+        isEdit: editMode,
+        skippedSteps: currentSkipped
+      });
+
+      // Handle step failures from backend
+      if (completeRes && completeRes.success === false) {
+        const failed = completeRes.failedStep;
+        setFailedStep(failed);
+        setCompletionProgress(prev => {
+          const nextProg = { ...prev };
+          if (failed === 'pdf') {
+            nextProg.pdf = 'failed';
+          } else if (failed === 'email') {
+            nextProg.pdf = currentSkipped.includes('pdf') ? 'skipped' : 'success';
+            nextProg.email = 'failed';
+          }
+          return nextProg;
+        });
+        setCompleting(false);
+        return;
+      }
+
+      // If success
+      setCompletionProgress({
+        saving: 'success',
+        pdf: currentSkipped.includes('pdf') ? 'skipped' : 'success',
+        email: currentSkipped.includes('email') ? 'skipped' : 'success',
+        status: 'success'
+      });
       setIsDirty(false);
-      
+
       if (editMode && onCompleteEdit) {
         onCompleteEdit();
       } else {
-        // Update local consultation status so the page renders read-only view with PDF tools
         setConsultation(prev => ({ ...prev, ...activeConsultation, status: 'completed' }));
       }
 
-      // Auto-trigger PDF download/open
-      try {
-        const res = await downloadConsultationPdf(activeConsultation._id);
-        const blob = new Blob([res.data], { type: 'application/pdf' });
-        const url = window.URL.createObjectURL(blob);
-        window.open(url, '_blank');
-      } catch (pdfErr) {
-        console.error('Failed to auto-open PDF:', pdfErr);
+      // Auto-trigger PDF download/open if not skipped
+      if (!currentSkipped.includes('pdf')) {
+        try {
+          const res = await downloadConsultationPdf(activeConsultation._id);
+          const blob = new Blob([res.data], { type: 'application/pdf' });
+          const url = window.URL.createObjectURL(blob);
+          window.open(url, '_blank');
+        } catch (pdfErr) {
+          console.error('Failed to auto-open PDF:', pdfErr);
+        }
       }
+
+      // Find next eligible patient for the same doctor
+      prepareNextPatient();
+
     } catch (err) {
       toast.error(err.response?.data?.message || err.message || 'Failed to complete consultation.');
-    } finally { setCompleting(false); }
+      setCompletionProgress(prev => ({ ...prev, saving: 'failed' }));
+      setFailedStep('saving');
+    } finally {
+      setCompleting(false);
+    }
+  };
+
+  const prepareNextPatient = async () => {
+    if (!user?.doctorId && !doctor?._id) return;
+    const docId = user?.doctorId || doctor?._id;
+    setPreparingNextPatient(true);
+    try {
+      const queueRes = await appointmentApi.getDoctorQueue(docId);
+      const sortedQueue = queueRes.data?.queue || queueRes.queue || [];
+      // Find the first patient with status 'waiting'
+      const nextToken = sortedQueue.find(t => t.status === 'waiting');
+      if (nextToken) {
+        setNextPatientPrepared(nextToken);
+      } else {
+        setNextPatientPrepared('none');
+      }
+    } catch (err) {
+      console.error('Failed to prepare next patient:', err);
+    } finally {
+      setPreparingNextPatient(false);
+    }
+  };
+
+  const handleCallNextPatient = async () => {
+    if (!nextPatientPrepared || nextPatientPrepared === 'none') return;
+    try {
+      const docId = user?.doctorId || doctor?._id;
+      // 1. Call next patient (sets status to 'called' and generates OTP)
+      const callRes = await appointmentApi.callNext(docId);
+      const token = callRes.data?.token || callRes.token || nextPatientPrepared;
+      
+      if (token) {
+        // 2. Start consultation (sets status to 'in_consultation')
+        await appointmentApi.startTokenConsultation(token._id);
+        
+        toast.success('Next patient loaded and consultation started.');
+        setShowProgressModal(false);
+        
+        // 3. Navigate directly to the consultation page for this patient
+        const apptId = token.appointmentId?._id || token.appointmentId;
+        window.location.href = `/appointments/${apptId}/consultation`;
+      } else {
+        toast.error('No waiting patient found in queue.');
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to call next patient.');
+    }
+  };
+
+  const handleResumeConsultation = async () => {
+    // Determine the token ID to resume
+    let resolvedTokenId = appointment?.meta?.tokenId || appointment?.tokenId || (consultation && (consultation.tokenId || consultation.meta?.tokenId));
+    
+    if (!resolvedTokenId && appointment?._id) {
+      try {
+        const queueRes = await appointmentApi.getDoctorQueue(user?.doctorId || doctor?._id);
+        const sortedQueue = queueRes.data?.queue || queueRes.queue || [];
+        const match = sortedQueue.find(t => String(t.appointmentId?._id || t.appointmentId) === String(appointment._id));
+        if (match) resolvedTokenId = match._id;
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    if (!resolvedTokenId) {
+      toast.error('Token ID not found. Unable to resume consultation.');
+      return;
+    }
+
+    try {
+      await appointmentApi.revisitConsultation(resolvedTokenId);
+      toast.success('Consultation reopened for editing.');
+      setShowProgressModal(false);
+      
+      // Reset statuses to return to edit mode
+      setConsultation(prev => ({ ...prev, status: 'in_progress' }));
+      setIsDirty(true);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to resume consultation.');
+    }
+  };
+
+  const getDurationString = () => {
+    const start = new Date(consultation?.startedAt || consultation?.createdAt || new Date());
+    const end = new Date(consultation?.completedAt || new Date());
+    const diffMs = Math.max(0, end - start);
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffSecs = Math.floor((diffMs % 60000) / 1000);
+    return `${diffMins}m ${diffSecs}s`;
   };
 
   const handleViewPdf = async () => {
@@ -1198,7 +1374,6 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
       rec.onstart = () => {
         setIsRecording(true);
         setIsPaused(false);
-        setDictatingField(fieldPath);
         setRecordingSeconds(0);
         timerRef.current = setInterval(() => {
           setRecordingSeconds(prev => prev + 1);
@@ -1207,7 +1382,6 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
 
       rec.onend = () => {
         setIsRecording(false);
-        setDictatingField(null);
         if (timerRef.current) {
           clearInterval(timerRef.current);
           timerRef.current = null;
@@ -1250,6 +1424,275 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
     if (isPaused) {
       startVoiceDictation(dictatingField);
     }
+  };
+
+  // Dedicated Field-level STT functions
+  const startFieldDictation = (fieldPath) => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      toast.error('Your browser does not support Speech Recognition.');
+      return;
+    }
+
+    // Problem 1 & 2 Fix: If already dictating, set pendingFieldPath and stop previous first.
+    // This stops the active session and waits until `onend` to start the new field.
+    if (dictationIsActiveRef.current || dictatingField || isDictating) {
+      if (dictatingField === fieldPath) {
+        // Clicked same field microphone, stop dictation.
+        stopFieldDictation();
+        return;
+      } else {
+        // Clicked a different field microphone. Queue it and stop current.
+        pendingDictationFieldRef.current = fieldPath;
+        stopFieldDictation();
+        return;
+      }
+    }
+
+    setProcessingField(null);
+    setDictationError(null);
+    dictationIsActiveRef.current = true;
+    dictationRetryCountRef.current = 0;
+    pendingDictationFieldRef.current = null;
+
+    // Capture cursor caret position
+    const el = lastFocusedElementRef.current;
+    const currentVal = getFieldValue(fieldPath) || '';
+    let start = currentVal.length;
+    let end = currentVal.length;
+
+    if (el && document.body.contains(el)) {
+      start = el.selectionStart ?? currentVal.length;
+      end = el.selectionEnd ?? currentVal.length;
+    }
+
+    dictationSelectionStartRef.current = start;
+    dictationSelectionEndRef.current = end;
+    dictationValBeforeRef.current = currentVal.substring(0, start);
+    dictationValAfterRef.current = currentVal.substring(end);
+    dictationAccumulatedRef.current = '';
+
+    const runRecognition = () => {
+      if (!dictationIsActiveRef.current) return;
+
+      try {
+        const rec = new SpeechRecognition();
+        rec.continuous = true;
+        rec.interimResults = true;
+        // Support custom Speech settings language
+        rec.lang = dictationLanguage;
+
+        rec.onstart = () => {
+          setIsDictating(true);
+          setDictatingField(fieldPath);
+          setDictationError(null);
+          dictationRetryCountRef.current = 0;
+          
+          if (!dictationTimerRef.current) {
+            setDictationSeconds(0);
+            dictationTimerRef.current = setInterval(() => {
+              setDictationSeconds(prev => prev + 1);
+            }, 1000);
+          }
+        };
+
+        rec.onresult = (event) => {
+          // CRITICAL: Use event.resultIndex so we only process NEW results from this event.
+          // event.results accumulates ALL results across the session in continuous mode.
+          // If we loop from 0, we re-process already-finalized text on every single event call,
+          // creating massive duplication. Loop ONLY from resultIndex.
+          let newFinalTrans = '';
+          let interimTrans = '';
+
+          for (let i = event.resultIndex; i < event.results.length; ++i) {
+            const transcript = event.results[i][0].transcript;
+            if (event.results[i].isFinal) {
+              newFinalTrans += transcript;
+            } else {
+              interimTrans += transcript;
+            }
+          }
+
+          // Apply corrections to newly-finalized chunk only
+          if (newFinalTrans) {
+            newFinalTrans = newFinalTrans
+              .replace(/\bcomma\b/gi, ',')
+              .replace(/\bperiod\b/gi, '.')
+              .replace(/\bfull stop\b/gi, '.')
+              .replace(/\bquestion mark\b/gi, '?')
+              .replace(/\bnew line\b/gi, '\n');
+
+            const medicalTerms = [
+              'Hypertension', 'Diabetes Mellitus', 'Bronchitis', 'Osteoarthritis', 'Dengue', 'Influenza',
+              'Paracetamol', 'Azithromycin', 'HbA1c', 'Blood Pressure', 'ECG', 'COPD', 'GERD', 'Asthma'
+            ];
+            medicalTerms.forEach(term => {
+              const regex = new RegExp(`\\b${term}\\b`, 'gi');
+              newFinalTrans = newFinalTrans.replace(regex, term);
+            });
+
+            // Append new final text to running accumulator for this session
+            dictationAccumulatedRef.current += newFinalTrans;
+          }
+
+          // streamText = everything finalized so far this session + current interim hypothesis
+          const streamText = (dictationAccumulatedRef.current + interimTrans).trim();
+          const beforeText = dictationValBeforeRef.current;
+          const afterText = dictationValAfterRef.current;
+
+          let updatedText = '';
+          if (beforeText) {
+            const sep = (beforeText.endsWith(' ') || beforeText.endsWith('\n')) ? '' : ' ';
+            const afterSep = (afterText.startsWith(' ') || afterText.startsWith('\n')) ? '' : ' ';
+            updatedText = beforeText + sep + streamText + afterSep + afterText;
+          } else {
+            const afterSep = afterText && !(afterText.startsWith(' ') || afterText.startsWith('\n')) ? ' ' : '';
+            updatedText = streamText + afterSep + afterText;
+          }
+
+          setFieldValue(fieldPath, updatedText.trimEnd());
+          setIsDirty(true);
+        };
+
+        rec.onerror = (err) => {
+          console.error('Field Dictation error:', err.error);
+          
+          if (err.error === 'not-allowed') {
+            dictationIsActiveRef.current = false;
+            setIsDictating(false);
+            setDictatingField(null);
+            setDictationError('Permission Denied');
+            toast.error('Microphone access denied. Please check your browser permissions.');
+            return;
+          }
+
+          // Handle network or other errors with auto recovery retries
+          if (dictationIsActiveRef.current) {
+            dictationRetryCountRef.current += 1;
+            if (dictationRetryCountRef.current >= 5) {
+              dictationIsActiveRef.current = false;
+              setIsDictating(false);
+              setDictatingField(null);
+              setDictationError('Network Error');
+              toast.error('Unable to continue speech recognition. Please check your internet connection or microphone permissions.');
+              
+              if (dictationTimerRef.current) {
+                clearInterval(dictationTimerRef.current);
+                dictationTimerRef.current = null;
+              }
+            }
+          }
+        };
+
+        rec.onend = () => {
+          if (dictationIsActiveRef.current && !pendingDictationFieldRef.current) {
+            // Session ended due to silence/timeout — auto-restart for continuous mode.
+            // Commit this session's accumulated finals into beforeText so the next session
+            // appends after them, not from the original cursor position.
+            const accumulated = dictationAccumulatedRef.current.trim();
+            if (accumulated) {
+              const before = dictationValBeforeRef.current;
+              const sep = (before.endsWith(' ') || before.endsWith('\n') || before === '') ? '' : ' ';
+              dictationValBeforeRef.current = before + sep + accumulated + ' ';
+            }
+            // Reset accumulator for the new session
+            dictationAccumulatedRef.current = '';
+            setTimeout(runRecognition, 80);
+          } else if (pendingDictationFieldRef.current) {
+            // Switching to a different field — clean up and start on the queued field.
+            const nextField = pendingDictationFieldRef.current;
+            pendingDictationFieldRef.current = null;
+            setIsDictating(false);
+            setDictatingField(null);
+            if (dictationTimerRef.current) {
+              clearInterval(dictationTimerRef.current);
+              dictationTimerRef.current = null;
+            }
+            setTimeout(() => {
+              startFieldDictation(nextField);
+            }, 100);
+          } else {
+            // Stopped by user — clean up.
+            setIsDictating(false);
+            setDictatingField(null);
+            if (dictationTimerRef.current) {
+              clearInterval(dictationTimerRef.current);
+              dictationTimerRef.current = null;
+            }
+          }
+        };
+
+        dictationRecognitionRef.current = rec;
+        rec.start();
+      } catch (e) {
+        console.error('Failed to run Speech Recognition:', e);
+      }
+    };
+
+    runRecognition();
+  };
+
+  const stopFieldDictation = () => {
+    const field = dictatingField;
+    dictationIsActiveRef.current = false;
+
+    if (dictationRecognitionRef.current) {
+      try {
+        dictationRecognitionRef.current.stop();
+      } catch (e) {
+        // safe ignore
+      }
+      dictationRecognitionRef.current = null;
+    }
+
+    setIsDictating(false);
+    setDictatingField(null);
+
+    if (dictationTimerRef.current) {
+      clearInterval(dictationTimerRef.current);
+      dictationTimerRef.current = null;
+    }
+
+    if (field) {
+      setProcessingField(field);
+      setTimeout(() => {
+        setProcessingField(current => current === field ? null : current);
+      }, 800);
+    }
+  };
+
+  const formatTime = (totalSeconds) => {
+    const hrs = Math.floor(totalSeconds / 3600);
+    const mins = Math.floor((totalSeconds % 3600) / 60);
+    const secs = totalSeconds % 60;
+    return [
+      String(hrs).padStart(2, '0'),
+      String(mins).padStart(2, '0'),
+      String(secs).padStart(2, '0')
+    ].join(':');
+  };
+
+  const renderDictationStatus = (fieldPath) => {
+    if (dictatingField === fieldPath && isDictating) {
+      return (
+        <span className="flex items-center gap-1 text-[10px] text-rose-600 font-bold bg-rose-50 border border-rose-100 px-2 py-0.5 rounded-full animate-pulse shrink-0 animate-bounce-short">
+          <span className="w-1.5 h-1.5 rounded-full bg-rose-600 animate-ping mr-0.5" />
+          🎙 Listening... {formatTime(dictationSeconds)}
+        </span>
+      );
+    }
+    if (processingField === fieldPath) {
+      return (
+        <span className="flex items-center gap-1 text-[10px] text-indigo-650 font-bold bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-full shrink-0">
+          <svg className="animate-spin h-3 w-3 text-indigo-600 mr-0.5" viewBox="0 0 24 24" fill="none">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
+          Processing speech...
+        </span>
+      );
+    }
+    return null;
   };
 
   // Lab Category & search filters
@@ -1465,6 +1908,99 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Field Speech Recognition Settings Popover */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowDictationSettings(!showDictationSettings)}
+              className={`p-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-655 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                showDictationSettings ? 'ring-2 ring-indigo-500/20 border-indigo-400' : ''
+              }`}
+              title="Speech Recognition Settings"
+            >
+              <FontAwesomeIcon icon={byPrefixAndName.fas['cog'] || byPrefixAndName.fas['sliders-h']} />
+              <span className="hidden sm:inline">Speech Settings</span>
+            </button>
+
+            {showDictationSettings && (
+              <div className="absolute right-0 mt-2 w-56 bg-white border border-slate-200 rounded-2xl shadow-xl p-4 z-[999] space-y-3 text-left">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                  <span className="text-xs font-black text-slate-800 uppercase tracking-wide">Dictation Settings</span>
+                  <button
+                    onClick={() => setShowDictationSettings(false)}
+                    className="text-slate-400 hover:text-slate-600 text-xs font-bold"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Language</label>
+                  <select
+                    value={dictationLanguage}
+                    onChange={(e) => {
+                      const newLang = e.target.value;
+                      setDictationLanguage(newLang);
+                      localStorage.setItem('fieldDictationLang', newLang);
+                      toast.success(`Dictation language set to: ${[
+                        { code: 'en-US', label: 'English (US)' },
+                        { code: 'en-GB', label: 'English (UK)' },
+                        { code: 'en-IN', label: 'English (India)' },
+                        { code: 'hi-IN', label: 'Hindi' },
+                        { code: 'bn-IN', label: 'Bengali' },
+                        { code: 'ta-IN', label: 'Tamil' },
+                        { code: 'te-IN', label: 'Telugu' },
+                        { code: 'mr-IN', label: 'Marathi' },
+                        { code: 'gu-IN', label: 'Gujarati' },
+                        { code: 'pa-IN', label: 'Punjabi' },
+                        { code: 'ur-PK', label: 'Urdu' },
+                        { code: 'es-ES', label: 'Spanish' },
+                        { code: 'fr-FR', label: 'French' },
+                        { code: 'de-DE', label: 'German' },
+                        { code: 'it-IT', label: 'Italian' },
+                        { code: 'pt-PT', label: 'Portuguese' },
+                        { code: 'ja-JP', label: 'Japanese' },
+                        { code: 'ko-KR', label: 'Korean' },
+                        { code: 'zh-CN', label: 'Chinese' },
+                        { code: 'ar-SA', label: 'Arabic' }
+                      ].find(l => l.code === newLang)?.label || newLang}`);
+                    }}
+                    className="w-full text-xs text-slate-700 border border-slate-200 rounded-xl px-2 py-1.5 focus:outline-none focus:border-indigo-400 bg-white font-medium"
+                  >
+                    {[
+                      { code: 'en-US', label: 'English (US)' },
+                      { code: 'en-GB', label: 'English (UK)' },
+                      { code: 'en-IN', label: 'English (India)' },
+                      { code: 'hi-IN', label: 'Hindi' },
+                      { code: 'bn-IN', label: 'Bengali' },
+                      { code: 'ta-IN', label: 'Tamil' },
+                      { code: 'te-IN', label: 'Telugu' },
+                      { code: 'mr-IN', label: 'Marathi' },
+                      { code: 'gu-IN', label: 'Gujarati' },
+                      { code: 'pa-IN', label: 'Punjabi' },
+                      { code: 'ur-PK', label: 'Urdu' },
+                      { code: 'es-ES', label: 'Spanish' },
+                      { code: 'fr-FR', label: 'French' },
+                      { code: 'de-DE', label: 'German' },
+                      { code: 'it-IT', label: 'Italian' },
+                      { code: 'pt-PT', label: 'Portuguese' },
+                      { code: 'ja-JP', label: 'Japanese' },
+                      { code: 'ko-KR', label: 'Korean' },
+                      { code: 'zh-CN', label: 'Chinese' },
+                      { code: 'ar-SA', label: 'Arabic' }
+                    ].map((lang) => (
+                      <option key={lang.code} value={lang.code}>
+                        {lang.label} ({lang.code})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="text-[9px] text-slate-400 leading-normal border-t border-slate-100 pt-2 font-medium">
+                  This affects only field-level dictation. AI Voice Consultation settings remain separate.
+                </div>
+              </div>
+            )}
+          </div>
+
           {consultation?.status !== 'completed' ? (
             <>
               {editMode && (
@@ -1737,28 +2273,33 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
               <div className="space-y-5">
 
                 {/* Chief Complaint */}
-                <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                <div className={`bg-white border rounded-2xl overflow-hidden shadow-sm transition ${
+                  dictatingField === 'chiefComplaint'
+                    ? 'border-indigo-500 ring-2 ring-indigo-500/20'
+                    : 'border-slate-200'
+                }`}>
                   <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50/40">
                     <div className="flex items-center gap-2.5">
                       <div className="w-7 h-7 rounded-lg bg-orange-50 flex items-center justify-center text-sm">📋</div>
                       <span className="text-sm font-bold text-slate-800">Chief Complaint</span>
+                      {renderDictationStatus('chiefComplaint')}
                     </div>
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
                         onClick={() => {
-                          if (isRecording && dictatingField === 'chiefComplaint') {
-                            stopVoiceDictation();
+                          if (isDictating && dictatingField === 'chiefComplaint') {
+                            stopFieldDictation();
                           } else {
-                            startVoiceDictation('chiefComplaint');
+                            startFieldDictation('chiefComplaint');
                           }
                         }}
                         className={`p-1.5 rounded-lg transition ${
-                          isRecording && dictatingField === 'chiefComplaint'
+                          isDictating && dictatingField === 'chiefComplaint'
                             ? 'text-rose-600 bg-rose-50 animate-pulse'
                             : 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50'
                         }`}
-                        title={isRecording && dictatingField === 'chiefComplaint' ? 'Stop Recording' : 'Start Dictation'}
+                        title={isDictating && dictatingField === 'chiefComplaint' ? 'Stop Recording' : 'Start Dictation'}
                       >
                         <Mic size={13} />
                       </button>
@@ -1780,28 +2321,33 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                 </div>
 
                 {/* History of Present Illness */}
-                <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                <div className={`bg-white border rounded-2xl overflow-hidden shadow-sm transition ${
+                  dictatingField === 'clinicalNotes'
+                    ? 'border-indigo-500 ring-2 ring-indigo-500/20'
+                    : 'border-slate-200'
+                }`}>
                   <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50/40">
                     <div className="flex items-center gap-2.5">
                       <div className="w-7 h-7 rounded-lg bg-purple-50 flex items-center justify-center text-sm">🔮</div>
                       <span className="text-sm font-bold text-slate-800">History of Present Illness</span>
+                      {renderDictationStatus('clinicalNotes')}
                     </div>
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
                         onClick={() => {
-                          if (isRecording && dictatingField === 'clinicalNotes') {
-                            stopVoiceDictation();
+                          if (isDictating && dictatingField === 'clinicalNotes') {
+                            stopFieldDictation();
                           } else {
-                            startVoiceDictation('clinicalNotes');
+                            startFieldDictation('clinicalNotes');
                           }
                         }}
                         className={`p-1.5 rounded-lg transition ${
-                          isRecording && dictatingField === 'clinicalNotes'
+                          isDictating && dictatingField === 'clinicalNotes'
                             ? 'text-rose-600 bg-rose-50 animate-pulse'
                             : 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50'
                         }`}
-                        title={isRecording && dictatingField === 'clinicalNotes' ? 'Stop Recording' : 'Start Dictation'}
+                        title={isDictating && dictatingField === 'clinicalNotes' ? 'Stop Recording' : 'Start Dictation'}
                       >
                         <Mic size={13} />
                       </button>
@@ -2394,25 +2940,32 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                   {/* General Examination + Anthropometry (right) */}
                   <div className="space-y-4">
                     {/* General Examination */}
-                    <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                    <div className={`bg-white border rounded-2xl overflow-hidden shadow-sm transition ${
+                      dictatingField === 'formattedClinicalNotes.objective'
+                        ? 'border-indigo-500 ring-2 ring-indigo-500/20'
+                        : 'border-slate-200'
+                    }`}>
                       <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50/40">
-                        <span className="text-sm font-bold text-slate-800">General Examination</span>
+                        <div className="flex items-center gap-2.5">
+                          <span className="text-sm font-bold text-slate-800">General Examination</span>
+                          {renderDictationStatus('formattedClinicalNotes.objective')}
+                        </div>
                         <div className="flex items-center gap-2">
                           <button
                             type="button"
                             onClick={() => {
-                              if (isRecording && dictatingField === 'formattedClinicalNotes.objective') {
-                                stopVoiceDictation();
+                              if (isDictating && dictatingField === 'formattedClinicalNotes.objective') {
+                                stopFieldDictation();
                               } else {
-                                startVoiceDictation('formattedClinicalNotes.objective');
+                                startFieldDictation('formattedClinicalNotes.objective');
                               }
                             }}
                             className={`p-1.5 rounded-lg transition ${
-                              isRecording && dictatingField === 'formattedClinicalNotes.objective'
+                              isDictating && dictatingField === 'formattedClinicalNotes.objective'
                                 ? 'text-rose-600 bg-rose-50 animate-pulse'
                                 : 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50'
                             }`}
-                            title={isRecording && dictatingField === 'formattedClinicalNotes.objective' ? 'Stop Recording' : 'Start Dictation'}
+                            title={isDictating && dictatingField === 'formattedClinicalNotes.objective' ? 'Stop Recording' : 'Start Dictation'}
                           >
                             <Mic size={13} />
                           </button>
@@ -2512,22 +3065,25 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                 <div className="grid grid-cols-[1fr_160px_130px] gap-3">
                   <div>
                     <div className="flex justify-between items-center mb-1">
-                      <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Primary Diagnosis *</label>
+                      <div className="flex items-center gap-1.5">
+                        <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Primary Diagnosis *</label>
+                        {renderDictationStatus('diagnosis.primary')}
+                      </div>
                       <button
                         type="button"
                         onClick={() => {
-                          if (isRecording && dictatingField === 'diagnosis.primary') {
-                            stopVoiceDictation();
+                          if (isDictating && dictatingField === 'diagnosis.primary') {
+                            stopFieldDictation();
                           } else {
-                            startVoiceDictation('diagnosis.primary');
+                            startFieldDictation('diagnosis.primary');
                           }
                         }}
                         className={`p-0.5 rounded transition ${
-                          isRecording && dictatingField === 'diagnosis.primary'
+                          isDictating && dictatingField === 'diagnosis.primary'
                             ? 'text-rose-600 bg-rose-50 animate-pulse'
                             : 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50'
                         }`}
-                        title={isRecording && dictatingField === 'diagnosis.primary' ? 'Stop Recording' : 'Start Dictation'}
+                        title={isDictating && dictatingField === 'diagnosis.primary' ? 'Stop Recording' : 'Start Dictation'}
                       >
                         <Mic size={11} />
                       </button>
@@ -2537,7 +3093,11 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                       value={form.diagnosis.primary}
                       onChange={(e) => handleFieldChange('diagnosis.primary', e.target.value)}
                       placeholder="Acute Viral Fever"
-                      className="w-full px-3 py-2.5 text-xs text-slate-700 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-400 transition"
+                      className={`w-full px-3 py-2.5 text-xs text-slate-700 border rounded-xl focus:outline-none transition ${
+                        dictatingField === 'diagnosis.primary'
+                          ? 'border-indigo-500 ring-2 ring-indigo-500/20 shadow-sm shadow-indigo-500/10'
+                          : 'border-slate-200 focus:border-indigo-400'
+                      }`}
                     />
                   </div>
                   <div>
@@ -2596,22 +3156,25 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                 {/* Row 3: Clinical Impression */}
                 <div>
                   <div className="flex justify-between items-center mb-1">
-                    <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Clinical Impression / Summary</label>
+                    <div className="flex items-center gap-1.5">
+                      <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Clinical Impression / Summary</label>
+                      {renderDictationStatus('diagnosis.notes')}
+                    </div>
                     <button
                       type="button"
                       onClick={() => {
-                        if (isRecording && dictatingField === 'diagnosis.notes') {
-                          stopVoiceDictation();
+                        if (isDictating && dictatingField === 'diagnosis.notes') {
+                          stopFieldDictation();
                         } else {
-                          startVoiceDictation('diagnosis.notes');
+                          startFieldDictation('diagnosis.notes');
                         }
                       }}
                       className={`p-0.5 rounded transition ${
-                        isRecording && dictatingField === 'diagnosis.notes'
+                        isDictating && dictatingField === 'diagnosis.notes'
                           ? 'text-rose-600 bg-rose-50 animate-pulse'
                           : 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50'
                       }`}
-                      title={isRecording && dictatingField === 'diagnosis.notes' ? 'Stop Recording' : 'Start Dictation'}
+                      title={isDictating && dictatingField === 'diagnosis.notes' ? 'Stop Recording' : 'Start Dictation'}
                     >
                       <Mic size={11} />
                     </button>
@@ -2621,7 +3184,11 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                     onChange={(e) => handleFieldChange('diagnosis.notes', e.target.value)}
                     placeholder="Patient presents with acute febrile illness with body ache and mild headache. No signs of bacterial infection."
                     rows={3}
-                    className="w-full px-3 py-2.5 text-xs text-slate-700 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-400 transition resize-none"
+                    className={`w-full px-3 py-2.5 text-xs text-slate-700 border rounded-xl focus:outline-none transition resize-none ${
+                      dictatingField === 'diagnosis.notes'
+                        ? 'border-indigo-500 ring-2 ring-indigo-500/20 shadow-sm shadow-indigo-500/10'
+                        : 'border-slate-200 focus:border-indigo-400'
+                    }`}
                   />
                 </div>
 
@@ -2696,22 +3263,25 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                 {/* Row 6: Treatment Plan */}
                 <div>
                   <div className="flex justify-between items-center mb-1">
-                    <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Treatment Plan (Summary)</label>
+                    <div className="flex items-center gap-1.5">
+                      <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Treatment Plan (Summary)</label>
+                      {renderDictationStatus('treatmentPlanText')}
+                    </div>
                     <button
                       type="button"
                       onClick={() => {
-                        if (isRecording && dictatingField === 'treatmentPlanText') {
-                          stopVoiceDictation();
+                        if (isDictating && dictatingField === 'treatmentPlanText') {
+                          stopFieldDictation();
                         } else {
-                          startVoiceDictation('treatmentPlanText');
+                          startFieldDictation('treatmentPlanText');
                         }
                       }}
                       className={`p-0.5 rounded transition ${
-                        isRecording && dictatingField === 'treatmentPlanText'
+                        isDictating && dictatingField === 'treatmentPlanText'
                           ? 'text-rose-600 bg-rose-50 animate-pulse'
                           : 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50'
                       }`}
-                      title={isRecording && dictatingField === 'treatmentPlanText' ? 'Stop Recording' : 'Start Dictation'}
+                      title={isDictating && dictatingField === 'treatmentPlanText' ? 'Stop Recording' : 'Start Dictation'}
                     >
                       <Mic size={11} />
                     </button>
@@ -2721,7 +3291,11 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                     onChange={(e) => { setTreatmentPlanText(e.target.value); setIsDirty(true); }}
                     placeholder="Symptomatic treatment, hydration, rest and monitoring."
                     rows={2}
-                    className="w-full px-3 py-2.5 text-xs text-slate-700 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-400 transition resize-none"
+                    className={`w-full px-3 py-2.5 text-xs text-slate-700 border rounded-xl focus:outline-none transition resize-none ${
+                      dictatingField === 'treatmentPlanText'
+                        ? 'border-indigo-500 ring-2 ring-indigo-500/20 shadow-sm shadow-indigo-500/10'
+                        : 'border-slate-200 focus:border-indigo-400'
+                    }`}
                   />
                 </div>
 
@@ -3788,11 +4362,29 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                   {/* Left: Active card and lists */}
                   <div className="space-y-4">
                     {/* Active Advice Sub-tab details */}
-                    <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                    {/* Re-render wrapper details card separately so we don't break JSX hierarchy */}
+                    <div className={`bg-white border rounded-2xl overflow-hidden shadow-sm transition ${
+                      dictatingField === (
+                        adviceSubTab === 'Diet Advice' ? 'dietAdviceText' :
+                        adviceSubTab === 'Lifestyle Advice' ? 'lifestyleAdviceText' :
+                        adviceSubTab === 'Activity / Exercise' ? 'activityAdviceText' :
+                        adviceSubTab === 'Restrictions' ? 'restrictionsText' :
+                        adviceSubTab === 'Precautions' ? 'precautionsText' : 'generalInstructionsText'
+                      )
+                        ? 'border-indigo-500 ring-2 ring-indigo-500/20'
+                        : 'border-slate-200'
+                    }`}>
                       <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50/40">
                         <div className="flex items-center gap-2">
                           <span className="text-emerald-500">🥦</span>
                           <span className="text-xs font-bold text-slate-800">{adviceSubTab} Details</span>
+                          {renderDictationStatus(
+                            adviceSubTab === 'Diet Advice' ? 'dietAdviceText' :
+                            adviceSubTab === 'Lifestyle Advice' ? 'lifestyleAdviceText' :
+                            adviceSubTab === 'Activity / Exercise' ? 'activityAdviceText' :
+                            adviceSubTab === 'Restrictions' ? 'restrictionsText' :
+                            adviceSubTab === 'Precautions' ? 'precautionsText' : 'generalInstructionsText'
+                          )}
                         </div>
                         <div className="flex items-center gap-2">
                           <button
@@ -3805,14 +4397,14 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                                 adviceSubTab === 'Restrictions' ? 'restrictionsText' :
                                 adviceSubTab === 'Precautions' ? 'precautionsText' : 'generalInstructionsText';
 
-                              if (isRecording && dictatingField === activeField) {
-                                stopVoiceDictation();
+                              if (isDictating && dictatingField === activeField) {
+                                stopFieldDictation();
                               } else {
-                                startVoiceDictation(activeField);
+                                startFieldDictation(activeField);
                               }
                             }}
                             className={`p-1.5 rounded-lg transition ${
-                              isRecording && dictatingField === (
+                              isDictating && dictatingField === (
                                 adviceSubTab === 'Diet Advice' ? 'dietAdviceText' :
                                 adviceSubTab === 'Lifestyle Advice' ? 'lifestyleAdviceText' :
                                 adviceSubTab === 'Activity / Exercise' ? 'activityAdviceText' :
@@ -3822,7 +4414,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                                 ? 'text-rose-600 bg-rose-50 animate-pulse'
                                 : 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50'
                             }`}
-                            title={isRecording && dictatingField ? 'Stop Recording' : 'Start Dictation'}
+                            title={isDictating && dictatingField ? 'Stop Recording' : 'Start Dictation'}
                           >
                             <Mic size={13} />
                           </button>
@@ -4059,22 +4651,25 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                   <div className="grid grid-cols-[1fr_200px] gap-4">
                     <div className="space-y-1">
                       <div className="flex justify-between items-center mb-1">
-                        <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Reason for Follow-up *</label>
+                        <div className="flex items-center gap-1.5">
+                          <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Reason for Follow-up *</label>
+                          {renderDictationStatus('followUpReason')}
+                        </div>
                         <button
                           type="button"
                           onClick={() => {
-                            if (isRecording && dictatingField === 'followUpReason') {
-                              stopVoiceDictation();
+                            if (isDictating && dictatingField === 'followUpReason') {
+                              stopFieldDictation();
                             } else {
-                              startVoiceDictation('followUpReason');
+                              startFieldDictation('followUpReason');
                             }
                           }}
                           className={`p-0.5 rounded transition ${
-                            isRecording && dictatingField === 'followUpReason'
+                            isDictating && dictatingField === 'followUpReason'
                               ? 'text-rose-600 bg-rose-50 animate-pulse'
                               : 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50'
                           }`}
-                          title={isRecording && dictatingField === 'followUpReason' ? 'Stop Recording' : 'Start Dictation'}
+                          title={isDictating && dictatingField === 'followUpReason' ? 'Stop Recording' : 'Start Dictation'}
                         >
                           <Mic size={11} />
                         </button>
@@ -4084,7 +4679,11 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                         onChange={(e) => setFollowUpReason(e.target.value)}
                         placeholder="Review of symptoms and response to medication."
                         rows={2}
-                        className="w-full px-3 py-2 text-xs text-slate-700 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-400 resize-none leading-relaxed"
+                        className={`w-full px-3 py-2 text-xs text-slate-700 border rounded-xl focus:outline-none transition resize-none leading-relaxed ${
+                          dictatingField === 'followUpReason'
+                            ? 'border-indigo-500 ring-2 ring-indigo-500/20 shadow-sm shadow-indigo-500/10'
+                            : 'border-slate-200 focus:border-indigo-400'
+                        }`}
                       />
                     </div>
                     <div className="space-y-1">
@@ -4110,27 +4709,32 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
 
                 {/* Instructions + Templates section */}
                 <div className="grid grid-cols-[1fr_260px] gap-4">
-                  <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                  <div className={`bg-white border rounded-2xl overflow-hidden shadow-sm transition ${
+                    dictatingField === 'followUpInstructions'
+                      ? 'border-indigo-500 ring-2 ring-indigo-500/20'
+                      : 'border-slate-200'
+                  }`}>
                     <div className="flex justify-between items-center px-4 py-3 border-b border-slate-100 bg-slate-50/40">
                       <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                         <span className="text-indigo-500">📄</span> Follow-up Instructions for Patient
+                        {renderDictationStatus('followUpInstructions')}
                       </span>
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
                           onClick={() => {
-                            if (isRecording && dictatingField === 'followUpInstructions') {
-                              stopVoiceDictation();
+                            if (isDictating && dictatingField === 'followUpInstructions') {
+                              stopFieldDictation();
                             } else {
-                              startVoiceDictation('followUpInstructions');
+                              startFieldDictation('followUpInstructions');
                             }
                           }}
                           className={`p-1.5 rounded-lg transition ${
-                            isRecording && dictatingField === 'followUpInstructions'
+                            isDictating && dictatingField === 'followUpInstructions'
                               ? 'text-rose-600 bg-rose-50 animate-pulse'
                               : 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50'
                           }`}
-                          title={isRecording && dictatingField === 'followUpInstructions' ? 'Stop Recording' : 'Start Dictation'}
+                          title={isDictating && dictatingField === 'followUpInstructions' ? 'Stop Recording' : 'Start Dictation'}
                         >
                           <Mic size={13} />
                         </button>
@@ -4786,6 +5390,236 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
         )}
 
       </div>
+
+      {showProgressModal && completionProgress && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-xl border border-slate-100 space-y-5">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-black text-slate-800 flex items-center gap-2">
+                {completionProgress.status === 'success' ? (
+                  <span className="text-emerald-500 text-base">✓</span>
+                ) : (
+                  <RefreshCw size={14} className="animate-spin text-indigo-500" />
+                )}
+                {completionProgress.status === 'success' ? 'Consultation Completed' : 'Completing Consultation...'}
+              </h3>
+              {failedStep && (
+                <button
+                  onClick={() => setShowProgressModal(false)}
+                  className="text-slate-400 hover:text-slate-600 transition"
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+
+            {/* Step Progress List */}
+            <div className="space-y-3.5 py-1">
+              {[
+                { key: 'saving', label: 'Saving consultation details' },
+                { key: 'pdf', label: 'Generating consultation PDF' },
+                { key: 'email', label: 'Sending consultation summary email' },
+                { key: 'status', label: 'Updating dashboard & queue' }
+              ].map((step) => {
+                const status = completionProgress[step.key];
+                return (
+                  <div key={step.key} className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2.5">
+                      {status === 'success' && <CheckCircle size={15} className="text-emerald-500 shrink-0" />}
+                      {status === 'failed' && <XCircle size={15} className="text-rose-500 shrink-0" />}
+                      {status === 'in_progress' && <RefreshCw size={14} className="animate-spin text-indigo-500 shrink-0" />}
+                      {status === 'pending' && <span className="w-3.5 h-3.5 rounded-full border border-slate-200 shrink-0 block" />}
+                      {status === 'skipped' && <CheckCircle size={15} className="text-slate-400 shrink-0" />}
+                      
+                      <span className={`font-bold ${
+                        status === 'success' ? 'text-slate-700' :
+                        status === 'failed' ? 'text-rose-600 font-extrabold' :
+                        status === 'in_progress' ? 'text-indigo-650' :
+                        status === 'skipped' ? 'text-slate-400 italic' :
+                        'text-slate-450'
+                      }`}>
+                        {step.label}
+                      </span>
+                    </div>
+                    {status === 'skipped' && (
+                      <span className="text-[9px] font-black uppercase text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
+                        Skipped
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Error Message & Recovery Controls */}
+            {failedStep && (
+              <div className="bg-rose-50 border border-rose-100 rounded-2xl p-4 space-y-3.5 text-xs">
+                <div>
+                  <strong className="text-rose-800 font-bold block">Unable to complete consultation</strong>
+                  <p className="text-rose-600 text-[10px] mt-0.5 leading-relaxed">
+                    The consultation record has been saved, but one or more post-processing steps failed: 
+                    <span className="font-extrabold ml-1 uppercase">{failedStep === 'pdf' ? 'Consultation PDF generation' : 'Consultation email sending'}</span>
+                  </p>
+                </div>
+
+                <div className="flex flex-col gap-2 pt-1 border-t border-rose-100/50">
+                  <button
+                    onClick={() => handleComplete()}
+                    className="w-full py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl transition text-[11px]"
+                  >
+                    Retry Failed Step
+                  </button>
+                  <button
+                    onClick={() => setShowConfirmSkip(true)}
+                    className="w-full py-2 bg-white border border-rose-200 hover:bg-rose-50 text-rose-700 font-bold rounded-xl transition text-[11px]"
+                  >
+                    Skip Failed Step & Complete Consultation
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Skip Confirmation Dialog Overlay */}
+            {showConfirmSkip && (
+              <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[10000] p-4 animate-fadeIn">
+                <div className="bg-white rounded-3xl p-5 max-w-sm w-full shadow-2xl border border-slate-100 space-y-4">
+                  <div className="flex items-center gap-2.5 text-amber-600">
+                    <AlertTriangle size={18} />
+                    <strong className="text-xs font-black uppercase tracking-wider">Confirm Skip</strong>
+                  </div>
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    Skipping this step means the patient may not receive the consultation PDF or email. Are you sure?
+                  </p>
+                  <div className="flex gap-2.5 justify-end pt-1">
+                    <button
+                      onClick={() => setShowConfirmSkip(false)}
+                      className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-650 font-bold rounded-xl text-[10px] transition"
+                    >
+                      No, Keep Step
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowConfirmSkip(false);
+                        const nextSkipped = [...skippedSteps, failedStep];
+                        setSkippedSteps(nextSkipped);
+                        handleComplete(nextSkipped);
+                      }}
+                      className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-[10px] transition"
+                    >
+                      Yes, Skip & Complete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Success Details & Options */}
+            {completionProgress.status === 'success' && (
+              <div className="border-t border-slate-100 pt-4 space-y-4">
+                <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 text-center space-y-1">
+                  <span className="text-emerald-700 text-sm font-extrabold block">✅ Consultation Completed Successfully</span>
+                  <p className="text-[10px] text-emerald-600">All records and prescriptions have been committed to the database.</p>
+                </div>
+
+                {/* Consultation Summary */}
+                <div className="bg-slate-50 border border-slate-150 rounded-2xl p-4 space-y-2.5 text-xs text-slate-700">
+                  <span className="text-slate-400 font-extrabold uppercase text-[9px] tracking-widest block border-b border-slate-200 pb-1.5 mb-1.5">Consultation Summary</span>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                    <div>
+                      <span className="text-[10px] text-slate-400 font-bold block">Patient Name</span>
+                      <strong className="text-slate-800">{patient?.fullName || '—'}</strong>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 font-bold block">UHID</span>
+                      <strong className="text-slate-800">{patient?.uhid || patient?._id || '—'}</strong>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 font-bold block">Token Number</span>
+                      <strong className="text-slate-800">T-{appointment?.tokenNumber || appointment?.meta?.tokenNumber || '—'}</strong>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 font-bold block">Appointment Number</span>
+                      <strong className="text-slate-800">{appointment?.appointmentCode || '—'}</strong>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 font-bold block">Consultation Date</span>
+                      <strong className="text-slate-800">{new Date(consultation?.createdAt || new Date()).toLocaleDateString('en-IN')}</strong>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 font-bold block">Start Time</span>
+                      <strong className="text-slate-800">{new Date(consultation?.startedAt || consultation?.createdAt || new Date()).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</strong>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 font-bold block">End Time</span>
+                      <strong className="text-slate-800">{new Date(consultation?.completedAt || new Date()).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</strong>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 font-bold block">Duration</span>
+                      <strong className="text-slate-800">{getDurationString()}</strong>
+                    </div>
+                  </div>
+                  <div className="border-t border-slate-200 pt-2 mt-2">
+                    <span className="text-[10px] text-slate-400 font-bold block">Doctor Name</span>
+                    <strong className="text-slate-800">Dr. {doctor?.fullName || user?.fullName || '—'}</strong>
+                  </div>
+                </div>
+
+                {/* Primary Actions */}
+                <div className="space-y-2.5 pt-1">
+                  
+                  {preparingNextPatient ? (
+                    <div className="flex items-center justify-center gap-2 text-xs text-slate-500 py-3">
+                      <RefreshCw size={14} className="animate-spin text-slate-400" />
+                      <span>Checking queue for next patient...</span>
+                    </div>
+                  ) : nextPatientPrepared && nextPatientPrepared !== 'none' ? (
+                    <button
+                      onClick={handleCallNextPatient}
+                      className="w-full py-3 bg-[#00A884] hover:bg-[#009675] text-xs font-bold text-white rounded-2xl transition shadow-sm flex items-center justify-center gap-1.5"
+                    >
+                      Call Next Patient ({nextPatientPrepared.appointmentId?.patientId?.fullName || nextPatientPrepared.tokenNumber})
+                    </button>
+                  ) : (
+                    <div className="text-[10px] text-center text-slate-500 bg-slate-100 p-2.5 rounded-xl font-medium">
+                      No patients are currently waiting in the consultation queue.
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <button
+                      onClick={() => {
+                        setShowProgressModal(false);
+                        navigate(`/consultations/${consultation?._id || paramConsultationId || consultationId}`);
+                      }}
+                      className="py-2.5 border border-slate-250 hover:bg-slate-50 text-xs font-bold text-slate-700 rounded-2xl transition flex items-center justify-center gap-1 bg-white"
+                    >
+                      <Eye size={13} /> View Report
+                    </button>
+                    <button
+                      onClick={handleResumeConsultation}
+                      className="py-2.5 border border-indigo-250 hover:bg-indigo-50/30 text-xs font-bold text-indigo-700 rounded-2xl transition flex items-center justify-center gap-1 bg-white"
+                    >
+                      <RefreshCw size={13} /> Resume
+                    </button>
+                  </div>
+                  
+                  <button
+                    onClick={() => {
+                      setShowProgressModal(false);
+                      navigate('/dashboard');
+                    }}
+                    className="w-full py-2.5 text-center text-xs text-slate-500 hover:text-slate-700 font-bold uppercase tracking-wider block"
+                  >
+                    Return to Dashboard
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {promptGlobalTest && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">

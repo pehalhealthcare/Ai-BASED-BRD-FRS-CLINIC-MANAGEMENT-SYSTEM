@@ -31,6 +31,8 @@ const healthcareCatalogRoutes = require('../modules/healthcare-catalog/healthcar
 const providerRoutes = require('../modules/providers/provider.routes');
 const procedureRoutes = require('../modules/procedures/procedure.routes');
 const chatRoutes = require('../modules/chat/chat.routes');
+const supportRoutes = require('../modules/support/support.routes');
+const validationRoutes = require('../modules/validation/validation.routes');
 
 const router = Router();
 
@@ -57,6 +59,7 @@ router.use('/staff', staffRoutes);
 router.use('/prescriptions', prescriptionRoutes);
 router.use('/audit', auditRoutes);
 router.use('/clinics', clinicRoutes);
+router.use('/clinic', clinicRoutes);
 router.use('/specializations', specializationRoutes);
 router.use('/holidays', holidayRoutes);
 router.use('/leaves', leaveRoutes);
@@ -67,7 +70,85 @@ router.use('/billing', billingModuleRoutes);
 router.use('/subscriptions', subscriptionsRoutes);
 router.use('/healthcare-catalog', healthcareCatalogRoutes);
 router.use('/providers', providerRoutes);
+const providerController = require('../modules/providers/provider.controller');
+const onboardingDraftRouter = Router();
+onboardingDraftRouter.post('/', protect, providerController.createPharmacyDraft);
+onboardingDraftRouter.get('/:clinicId', protect, providerController.getPharmacyDraft);
+onboardingDraftRouter.put('/:draftId', protect, providerController.savePharmacyDraft);
+router.use('/onboarding/pharmacy/draft', onboardingDraftRouter);
+
 router.use('/procedures', procedureRoutes);
 router.use('/chat', chatRoutes);
+router.use('/support', supportRoutes);
+router.use('/validation', validationRoutes);
+
+// In-memory FAQ database seeded with standard clinic questions
+let faqsDb = [
+  {
+    _id: "faq1",
+    q: "Is the PEHAL AI-CMS platform HIPAA compliant?",
+    a: "Yes, PEHAL AI-CMS is fully HIPAA compliant. We follow industry-standard security protocols, data encryption, role-based access control, audit logs, and secure cloud infrastructure to ensure complete protection of patient data and privacy.",
+    category: "Security",
+    displayOrder: 1,
+    icon: "Shield",
+    illustration: "security_shield"
+  },
+  {
+    _id: "faq2",
+    q: "Can I manage multiple clinic branches from one account?",
+    a: "Absolutely. The multi-branch dashboard allows clinic administrators to track schedules, billing, inventory, and staff rosters across multiple locations from one centralized account.",
+    category: "Branches",
+    displayOrder: 2,
+    icon: "Hospital",
+    illustration: "hospital_network"
+  },
+  {
+    _id: "faq3",
+    q: "How does the AI Consultation Assistant work?",
+    a: "The AI assistant transcribes doctor-patient conversations in real-time, extracts key symptoms and diagnosis notes, and automatically populates the digital EMR templates for doctor review.",
+    category: "AI",
+    displayOrder: 3,
+    icon: "Brain",
+    illustration: "ai_assistant"
+  },
+  {
+    _id: "faq4",
+    q: "Is my data safe and how is it backed up?",
+    a: "Your data is stored in secure cloud infrastructure with real-time replication and daily automated encrypted backups, ensuring zero data loss and 24/7 disaster recovery.",
+    category: "Cloud",
+    displayOrder: 4,
+    icon: "Cloud",
+    illustration: "cloud_backup"
+  },
+  {
+    _id: "faq5",
+    q: "Do you provide training and customer support?",
+    a: "Yes, we provide 24/7 priority support and custom training sessions for clinic staff to ensure a smooth transition and operational success.",
+    category: "Support",
+    displayOrder: 5,
+    icon: "Support",
+    illustration: "customer_support"
+  }
+];
+
+router.get('/faqs', (req, res) => {
+  const visible = faqsDb.sort((a, b) => a.displayOrder - b.displayOrder);
+  return res.json({ success: true, faqs: visible });
+});
+
+router.post('/admin/faqs', (req, res) => {
+  const { q, a, category, displayOrder, icon, illustration } = req.body;
+  const newFaq = {
+    _id: `faq_${Date.now()}`,
+    q,
+    a,
+    category: category || "General",
+    displayOrder: parseInt(displayOrder) || (faqsDb.length + 1),
+    icon: icon || "HelpCircle",
+    illustration: illustration || ""
+  };
+  faqsDb.push(newFaq);
+  return res.json({ success: true, faq: newFaq });
+});
 
 module.exports = router;

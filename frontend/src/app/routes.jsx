@@ -147,7 +147,8 @@ import ReportsPage from '../features/admin/ReportsPage';
 import SubscriptionPage from '../features/admin/SubscriptionPage';
 import PatientAppointmentsPage from '../features/patients/PatientAppointmentsPage';
 import LandingPage from '../pages/LandingPage';
-import ClinicWizard from '../features/clinics/ClinicWizard';
+import ContactPage from '../pages/ContactPage';
+import ClinicRegister from '../features/clinics/ClinicRegister';
 import SuperAdminClinics from '../features/super-admin/SuperAdminClinics';
 import SuperAdminPlans from '../features/super-admin/SuperAdminPlans';
 import SuperAdminPromoCodes from '../features/super-admin/SuperAdminPromoCodes';
@@ -183,8 +184,16 @@ export const router = createBrowserRouter([
     element: <LandingPage />
   },
   {
+    path: '/contact',
+    element: <ContactPage />
+  },
+  {
     path: '/set-your-clinic',
-    element: <ClinicWizard />
+    element: <ClinicRegister />
+  },
+  {
+    path: '/register-clinic',
+    element: <ClinicRegister />
   },
   {
     path: '/login',
@@ -209,6 +218,10 @@ export const router = createBrowserRouter([
   },
   {
     path: '/clinic/onboarding',
+    element: protect(<ClinicOnboarding />, [ROLES.ADMIN])
+  },
+  {
+    path: '/clinic/setup',
     element: protect(<ClinicOnboarding />, [ROLES.ADMIN])
   },
   {

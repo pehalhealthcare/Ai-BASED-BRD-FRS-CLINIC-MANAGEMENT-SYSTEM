@@ -1137,6 +1137,52 @@ const getDraft = asyncHandler(async (req, res) => {
   return sendSuccess(res, 'Draft retrieved successfully', { draft });
 });
 
+const ClinicOnboardingDraft = require('./clinicOnboardingDraft.model');
+
+const saveOnboardingDraft = asyncHandler(async (req, res) => {
+  const { currentStep, draftData } = req.body;
+  const clinicId = req.user.clinicId || req.user.clinic?._id;
+  const adminId = req.user._id;
+
+  if (!clinicId) {
+    throw new AppError('Clinic ID is required to save onboarding draft', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  const draft = await ClinicOnboardingDraft.findOneAndUpdate(
+    { clinicId },
+    {
+      clinicId,
+      adminId,
+      currentStep,
+      draftData,
+      updatedAt: new Date()
+    },
+    { upsert: true, new: true }
+  );
+
+  return sendSuccess(res, 'Onboarding draft saved successfully', { draft });
+});
+
+const getOnboardingDraft = asyncHandler(async (req, res) => {
+  const clinicId = req.user.clinicId || req.user.clinic?._id;
+  if (!clinicId) {
+    throw new AppError('Clinic ID is required to fetch onboarding draft', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  const draft = await ClinicOnboardingDraft.findOne({ clinicId });
+  return sendSuccess(res, 'Onboarding draft retrieved successfully', { draft });
+});
+
+const deleteOnboardingDraft = asyncHandler(async (req, res) => {
+  const clinicId = req.user.clinicId || req.user.clinic?._id;
+  if (!clinicId) {
+    throw new AppError('Clinic ID is required to delete onboarding draft', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  await ClinicOnboardingDraft.deleteOne({ clinicId });
+  return sendSuccess(res, 'Onboarding draft deleted successfully');
+});
+
 const sendStaffWelcomeEmail = async (clinicId, staff, user) => {
   const nodemailer = require('nodemailer');
   const { env } = require('../../config/env');
@@ -1190,104 +1236,254 @@ const launchOnboarding = asyncHandler(async (req, res) => {
   const Staff = require('../staff/staff.model');
   const Doctor = require('../doctors/doctor.model');
   const Provider = require('../providers/provider.model');
+  const SubscriptionPlan = require('../subscriptions/subscriptionPlan.model');
+  const EmailJob = require('../notifications/emailJob.model');
+  const AuditLog = require('../audit/audit.model');
+  const NotificationLog = require('../notifications/notificationLog.model');
   const bcrypt = require('bcryptjs');
+  const { generateDoctorCode } = require('../../common/utils/generateDoctorCode');
 
   onboardingProgressMap.delete(id);
-  updateProgress(id, { percent: 5, currentTask: 'Validating onboarding data...' });
+  logger.info(`[Launch] Validation Started for clinic: ${id}`);
+  updateProgress(id, { percent: 0, currentTask: 'Validating Clinic Information', status: 'RUNNING' });
 
+  // 1. Fetch clinic & active plan
   const clinic = await Clinic.findById(id);
   if (!clinic) throw new AppError('Clinic not found', HTTP_STATUS.NOT_FOUND);
 
-  // Validation phase: check emails and phones first
-  if (!skipDoctors && Array.isArray(doctors)) {
-    for (let i = 0; i < doctors.length; i++) {
-      const doc = doctors[i];
-      if (!doc.fullName?.trim() || !doc.email?.trim() || !doc.phone?.trim()) {
-        throw new AppError(`Please fill all fields for Doctor #${i + 1}`, HTTP_STATUS.BAD_REQUEST);
-      }
-      const du = await User.findOne({ email: doc.email.toLowerCase().trim() });
-      if (du) throw new AppError(`Doctor email ${doc.email} is already registered.`, HTTP_STATUS.CONFLICT);
-      const dp = await User.findOne({ phone: doc.phone.trim() });
-      if (dp) throw new AppError(`Doctor phone ${doc.phone} is already registered.`, HTTP_STATUS.CONFLICT);
+  // STEP 1: Validate entire onboarding payload
+  if (!clinic.ownerDetails?.name || !clinic.ownerDetails?.email) {
+    throw new AppError('Onboarding validation failed: Owner Profile details are incomplete.', HTTP_STATUS.BAD_REQUEST);
+  }
+  if (!skipDoctors && (!Array.isArray(doctors) || doctors.length === 0)) {
+    throw new AppError('Onboarding validation failed: At least one doctor must be configured.', HTTP_STATUS.BAD_REQUEST);
+  }
+  if (!clinicDetails?.departments || !Array.isArray(clinicDetails.departments) || clinicDetails.departments.filter(d => d.active).length === 0) {
+    throw new AppError('Onboarding validation failed: At least one active department is required.', HTTP_STATUS.BAD_REQUEST);
+  }
+  if (!skipBranches && (!Array.isArray(branches) || branches.length === 0)) {
+    throw new AppError('Onboarding validation failed: At least one branch must be configured.', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  // STEP 2: Validate plan limits
+  const plan = await SubscriptionPlan.findById(clinic.subscription?.planId);
+  const planName = (plan?.name || '').toLowerCase();
+  
+  let maxDocs = 999999;
+  let maxStaff = 999999;
+  let maxBranches = 999999;
+  let maxDepts = 999999;
+  let aiEnabled = true;
+  let videoEnabled = true;
+  let healthcareEnabled = true;
+
+  if (planName.includes('starter')) {
+    maxDocs = 1;
+    maxStaff = 2;
+    maxBranches = 1;
+    maxDepts = 2;
+    aiEnabled = false;
+    videoEnabled = false;
+    healthcareEnabled = false;
+  } else if (planName.includes('professional')) {
+    maxDocs = 3;
+    maxStaff = 5;
+    maxBranches = 2;
+    maxDepts = 5;
+    aiEnabled = false;
+    videoEnabled = true;
+    healthcareEnabled = true;
+  }
+
+  if (!skipDoctors && Array.isArray(doctors) && doctors.length > maxDocs) {
+    throw new AppError(`Subscription plan limit exceeded: Maximum allowed doctors is ${maxDocs}.`, HTTP_STATUS.BAD_REQUEST);
+  }
+  if (!skipStaff && Array.isArray(staffList) && staffList.length > maxStaff) {
+    throw new AppError(`Subscription plan limit exceeded: Maximum allowed staff is ${maxStaff}.`, HTTP_STATUS.BAD_REQUEST);
+  }
+  if (!skipBranches && Array.isArray(branches) && branches.length > maxBranches) {
+    throw new AppError(`Subscription plan limit exceeded: Maximum allowed branches is ${maxBranches}.`, HTTP_STATUS.BAD_REQUEST);
+  }
+  if (clinicDetails?.departments && Array.isArray(clinicDetails.departments) && clinicDetails.departments.length > maxDepts) {
+    throw new AppError(`Subscription plan limit exceeded: Maximum allowed departments is ${maxDepts}.`, HTTP_STATUS.BAD_REQUEST);
+  }
+  if (!aiEnabled && clinicDetails?.aiConfig && Object.values(clinicDetails.aiConfig).some(Boolean)) {
+    throw new AppError('Subscription plan limit exceeded: AI modules are not included in your starter/professional subscription plan.', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  // STEP 3: Validate duplicates against database & payload
+  const payloadEmails = [clinic.ownerDetails?.email, ...((skipDoctors ? [] : doctors) || []).map(d => d.email), ...((skipStaff ? [] : staffList) || []).map(s => s.email)].filter(Boolean).map(e => e.toLowerCase().trim());
+  const payloadPhones = [clinic.ownerDetails?.phone, ...((skipDoctors ? [] : doctors) || []).map(d => d.phone), ...((skipStaff ? [] : staffList) || []).map(s => s.phone)].filter(Boolean).map(p => p.replace(/\D/g, '').trim());
+
+  // Check unique in payload
+  const emailSet = new Set(payloadEmails);
+  if (emailSet.size !== payloadEmails.length) {
+    throw new AppError('Onboarding validation failed: Duplicate emails detected inside your onboarding payload.', HTTP_STATUS.BAD_REQUEST);
+  }
+  const phoneSet = new Set(payloadPhones);
+  if (phoneSet.size !== payloadPhones.length) {
+    throw new AppError('Onboarding validation failed: Duplicate phone numbers detected inside your onboarding payload.', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  // Check against database (excluding records belonging to the current clinic context)
+  for (const email of payloadEmails) {
+    const existingUser = await User.findOne({ email });
+    if (existingUser && String(existingUser.clinicId) !== String(id)) {
+      throw new AppError(`Email address ${email} is already registered to another user account.`, HTTP_STATUS.CONFLICT);
+    }
+  }
+  for (const phone of payloadPhones) {
+    const existingUser = await User.findOne({ phone });
+    if (existingUser && String(existingUser.clinicId) !== String(id)) {
+      throw new AppError(`Phone number ${phone} is already registered to another user account.`, HTTP_STATUS.CONFLICT);
     }
   }
 
-  if (!skipStaff && Array.isArray(staffList)) {
-    for (let i = 0; i < staffList.length; i++) {
-      const staff = staffList[i];
-      if (!staff.name?.trim() || !staff.email?.trim() || !staff.phone?.trim()) {
-        throw new AppError(`Please fill all fields for Staff #${i + 1}`, HTTP_STATUS.BAD_REQUEST);
-      }
-      const su = await User.findOne({ email: staff.email.toLowerCase().trim() });
-      if (su) throw new AppError(`Staff email ${staff.email} is already registered.`, HTTP_STATUS.CONFLICT);
-      const sp = await User.findOne({ phone: staff.phone.trim() });
-      if (sp) throw new AppError(`Staff phone ${staff.phone} is already registered.`, HTTP_STATUS.CONFLICT);
-    }
-  }
+  logger.info('[Launch] Validation Passed');
+  updateProgress(id, { percent: 10, currentTask: 'Creating Clinic' });
 
-  if (!skipBranches && Array.isArray(branches)) {
-    for (let i = 0; i < branches.length; i++) {
-      const br = branches[i];
-      if (!br.name?.trim() || !br.code?.trim()) {
-        throw new AppError(`Please fill all fields for Branch #${i + 1}`, HTTP_STATUS.BAD_REQUEST);
-      }
-      const be = await Clinic.findOne({ code: br.code.toUpperCase().trim() });
-      if (be) throw new AppError(`Branch code ${br.code} already exists.`, HTTP_STATUS.CONFLICT);
-    }
+  // STEP 4: Transaction configuration
+  const session = await mongoose.startSession();
+  let useTransaction = true;
+  try {
+    session.startTransaction();
+  } catch (tErr) {
+    logger.warn('[launchOnboarding] Transactions not supported by environment. Falling back to non-transactional execution.');
+    useTransaction = false;
   }
+  const opts = useTransaction ? { session } : {};
 
   const createdDocIds = [];
   const createdStaffIds = [];
   const createdUserIds = [];
   const createdBranchIds = [];
+  const queuedEmails = [];
 
   try {
-    updateProgress(id, { percent: 15, currentTask: 'Creating doctors...', checklistItem: 'Onboarding Data Validated' });
-    // Create Doctors
-    if (!skipDoctors && Array.isArray(doctors)) {
-      const doctorService = require('../doctors/doctor.service');
-      for (const doc of doctors) {
-        const createdDoc = await doctorService.createDoctor({
-          requester: req.user || { _id: clinic.ownerDetails?._id || clinic._id, role: 'ADMIN', clinicId: id },
-          payload: {
-            fullName: doc.fullName.trim(),
-            email: doc.email.toLowerCase().trim(),
-            phone: doc.phone.trim(),
-            specialization: 'General Medicine'
-          },
-          requestedClinicId: id,
-          req
-        });
-        createdDocIds.push(createdDoc._id);
-        const u = await User.findOne({ email: doc.email.toLowerCase().trim() });
-        if (u) createdUserIds.push(u._id);
+    // Update Clinic Details & Activate Clinic
+    clinic.clinicDetails = {
+      ...clinic.clinicDetails,
+      ...clinicDetails
+    };
+    clinic.isOnboardingCompleted = true;
+    clinic.isActive = true;
+    await clinic.save(opts);
+    logger.info('[Launch] Clinic Created');
+
+    // Create Departments
+    updateProgress(id, { percent: 20, currentTask: 'Creating Departments', checklistItem: 'Clinic Created' });
+    // In our Option B schema, departments are embedded directly in the Clinic model's clinicDetails.departments array,
+    // which has been saved successfully above.
+    logger.info('[Launch] Departments Created');
+
+    // Create Branches
+    updateProgress(id, { percent: 30, currentTask: 'Creating Branches', checklistItem: 'Departments Created' });
+    if (!skipBranches && Array.isArray(branches)) {
+      for (const br of branches) {
+        const newBranch = await Clinic.create([{
+          ...br,
+          name: br.name.trim(),
+          code: br.code.toUpperCase().trim(),
+          parentClinicId: id,
+          isActive: true,
+          approvalStatus: 'approved'
+        }], opts);
+        createdBranchIds.push(newBranch[0]._id);
       }
     }
+    logger.info('[Launch] Branches Created');
 
-    // Create Staff
-    updateProgress(id, { percent: 35, currentTask: 'Creating staff members...', checklistItem: 'Doctors Configured' });
+    // Create Doctors
+    updateProgress(id, { percent: 40, currentTask: 'Creating Doctors', checklistItem: 'Branches Created' });
+    if (!skipDoctors && Array.isArray(doctors)) {
+      for (const doc of doctors) {
+        const fullName = doc.fullName.trim();
+        const email = doc.email.toLowerCase().trim();
+        const phone = doc.phone.trim();
+        const hashedPassword = await bcrypt.hash(phone, 10);
+
+        // Check if user already exists
+        let userObj = await User.findOne({ email }).session(session);
+        if (!userObj) {
+          const userArr = await User.create([{
+            name: fullName,
+            email,
+            phone,
+            password: hashedPassword,
+            role: ROLES.DOCTOR,
+            clinicId: id,
+            isActive: true,
+            approvalStatus: 'pending_profile'
+          }], opts);
+          userObj = userArr[0];
+          createdUserIds.push(userObj._id);
+        }
+
+        const parts = fullName.split(' ');
+        const firstName = parts[0];
+        const lastName = parts.slice(1).join(' ') || '';
+
+        const docArr = await Doctor.create([{
+          title: doc.title || 'Dr.',
+          firstName,
+          lastName,
+          fullName,
+          clinicId: id,
+          userId: userObj._id,
+          assignedClinics: [id],
+          email,
+          phone,
+          approvalStatus: 'pending_profile',
+          isActive: false,
+          doctorCode: await generateDoctorCode(id),
+          createdBy: req.user?._id || clinic.ownerDetails?._id || clinic._id,
+          updatedBy: req.user?._id || clinic.ownerDetails?._id || clinic._id
+        }], opts);
+        createdDocIds.push(docArr[0]._id);
+
+        // Queue doctor welcome email
+        const onboardingLink = `${env.frontendUrl || 'http://localhost:3000'}/login`;
+        const emailBody = `Hello ${fullName},\n\nWelcome to AICMS at ${clinic.name}! Your doctor profile has been created.\n\nLogin credentials:\nEmail: ${email}\nTemporary Password: ${phone}\nLogin URL: ${onboardingLink}\n\nSupport team: support@pehalhealth.com`;
+        const emailJob = await EmailJob.create([{
+          clinicId: id,
+          recipient: email,
+          subject: 'Welcome to AICMS - Doctor Activation',
+          body: emailBody,
+          status: 'Pending'
+        }], opts);
+        queuedEmails.push(emailJob[0]);
+      }
+    }
+    logger.info('[Launch] Doctors Created');
+
+    // Create Staff Accounts
+    updateProgress(id, { percent: 50, currentTask: 'Creating Staff Accounts', checklistItem: 'Doctors Created' });
     if (!skipStaff && Array.isArray(staffList)) {
       for (const st of staffList) {
-        const hashedPassword = await bcrypt.hash(st.phone.trim(), 10);
-        const newUser = await User.create({
+        const email = st.email.toLowerCase().trim();
+        const phone = st.phone.trim();
+        const hashedPassword = await bcrypt.hash(phone, 10);
+
+        const userArr = await User.create([{
           name: st.name.trim(),
-          email: st.email.toLowerCase().trim(),
-          phone: st.phone.trim(),
+          email,
+          phone,
           password: hashedPassword,
           role: st.role || 'RECEPTIONIST',
           clinicId: id,
           isActive: false,
           approvalStatus: 'pending_onboarding'
-        });
+        }], opts);
+        const newUser = userArr[0];
         createdUserIds.push(newUser._id);
 
-        const newStaff = await Staff.create({
+        const newStaff = await Staff.create([{
           userId: newUser._id,
           fullName: st.name.trim(),
           firstName: st.name.trim().split(' ')[0],
           lastName: st.name.trim().split(' ').slice(1).join(' ') || '',
-          email: st.email.toLowerCase().trim(),
-          phone: st.phone.trim(),
+          email,
+          phone,
           role: st.role || 'RECEPTIONIST',
           clinicId: id,
           isActive: false,
@@ -1295,124 +1491,159 @@ const launchOnboarding = asyncHandler(async (req, res) => {
           staffCode: `STF-${String(newUser._id).slice(-4).toUpperCase()}`,
           creationSource: 'CLINIC_SETUP',
           invitationStatus: 'Draft'
-        });
-        createdStaffIds.push(newStaff._id);
+        }], opts);
+        createdStaffIds.push(newStaff[0]._id);
+
+        // Queue staff welcome email
+        const onboardingLink = `${env.frontendUrl || 'http://localhost:3000'}/login`;
+        const emailBody = `Hello ${st.name},\n\nAn account has been prepared for you at ${clinic.name} as ${st.role}.\n\nLogin credentials:\nEmail: ${email}\nTemporary Password: ${phone}\nLogin URL: ${onboardingLink}\n\nSupport team: support@pehalhealth.com`;
+        const emailJob = await EmailJob.create([{
+          clinicId: id,
+          recipient: email,
+          subject: `Welcome to AICMS - Staff Activation (${st.role})`,
+          body: emailBody,
+          status: 'Pending'
+        }], opts);
+        queuedEmails.push(emailJob[0]);
       }
     }
+    logger.info('[Launch] Staff Created');
 
-    // Create Branches
-    updateProgress(id, { percent: 50, currentTask: 'Creating branches...', checklistItem: 'Staff Configured' });
-    if (!skipBranches && Array.isArray(branches)) {
-      for (const br of branches) {
-        const newBranch = await Clinic.create({
-          ...br,
-          name: br.name.trim(),
-          code: br.code.toUpperCase().trim(),
-          parentClinicId: id,
-          isActive: true,
-          approvalStatus: 'approved'
-        });
-        createdBranchIds.push(newBranch._id);
-      }
-    }
-
-    // Update Clinic Details & Activate Clinic
-    updateProgress(id, { percent: 65, currentTask: 'Saving clinic configuration...', checklistItem: 'Branches Configured' });
-    clinic.clinicDetails = {
-      ...clinic.clinicDetails,
-      ...clinicDetails
-    };
-    clinic.isOnboardingCompleted = true;
-    clinic.isActive = true;
-    await clinic.save();
-
-    // Activate all draft providers & linked managers
-    updateProgress(id, { percent: 75, currentTask: 'Activating healthcare providers...', checklistItem: 'Clinic Configuration Saved' });
-    const pendingProviders = await Provider.find({ clinicId: id, status: { $in: ['Pending Activation', 'Draft'] } });
+    // Configure Pharmacy / Lab
+    updateProgress(id, { percent: 60, currentTask: 'Configuring Pharmacy', checklistItem: 'Staff Accounts Created' });
+    const pendingProviders = await Provider.find({ clinicId: id, status: { $in: ['Pending Activation', 'Draft'] } }).session(session);
+    
+    let pharmacyCount = 0;
+    let laboratoryCount = 0;
+    
     for (const provider of pendingProviders) {
       provider.status = 'Active';
-      await provider.save();
+      await provider.save(opts);
 
-      const user = await User.findOne({ assignedProviderId: provider._id });
-      const staff = await Staff.findOne({ assignedProviderId: provider._id });
+      if (provider.providerType === 'Pharmacy') pharmacyCount++;
+      if (provider.providerType === 'Laboratory') laboratoryCount++;
 
-      if (user) {
-        user.isActive = true;
-        user.approvalStatus = 'pending_invitation';
-        await user.save();
+      const providerUser = await User.findOne({ assignedProviderId: provider._id }).session(session);
+      const providerStaff = await Staff.findOne({ assignedProviderId: provider._id }).session(session);
+
+      if (providerUser) {
+        providerUser.isActive = true;
+        providerUser.approvalStatus = 'pending_invitation';
+        await providerUser.save(opts);
+
+        // Queue welcome email for pharmacy/lab manager
+        const onboardingLink = `${env.frontendUrl || 'http://localhost:3000'}/login`;
+        const emailBody = `Hello ${provider.contactPerson || 'Manager'},\n\nYour facility (${provider.name}) has been activated at ${clinic.name}.\n\nLogin credentials:\nEmail: ${providerUser.email}\nTemporary Password: ${providerUser.phone}\nLogin URL: ${onboardingLink}\n\nSupport team: support@pehalhealth.com`;
+        const emailJob = await EmailJob.create([{
+          clinicId: id,
+          recipient: providerUser.email,
+          subject: `Welcome to AICMS - Provider Activation (${provider.providerType})`,
+          body: emailBody,
+          status: 'Pending'
+        }], opts);
+        queuedEmails.push(emailJob[0]);
       }
 
-      if (staff) {
-        staff.isActive = true;
-        staff.approvalStatus = 'pending_invitation';
-        await staff.save();
-      }
-
-      if (user) {
-        try {
-          const { sendOperatorOnboardingEmail } = require('../providers/providerOperatorHelper');
-          await sendOperatorOnboardingEmail(id, provider, user, req.user?._id || user._id);
-          updateProgress(id, { percent: 80, emailItem: { name: provider.contactPerson, email: user.email, role: provider.providerType === 'Pharmacy' ? 'Pharmacy Manager' : 'Laboratory Manager', status: 'Delivered' } });
-        } catch (mailErr) {
-          logger.error(`Failed to send deferred operator email to ${user.email}:`, mailErr);
-        }
-      }
-    }
-
-    // Send welcome emails to created setup staff
-    updateProgress(id, { percent: 85, currentTask: 'Sending welcome emails...', checklistItem: 'Providers Activated' });
-    if (createdStaffIds.length > 0) {
-      for (const staffId of createdStaffIds) {
-        const staffObj = await Staff.findById(staffId);
-        if (staffObj) {
-          const userObj = await User.findById(staffObj.userId);
-          if (userObj) {
-            await sendStaffWelcomeEmail(id, staffObj, userObj);
-            updateProgress(id, { percent: 90, emailItem: { name: staffObj.fullName, email: userObj.email, role: staffObj.role, status: 'Delivered' } });
-            staffObj.invitationStatus = 'Invitation Sent';
-            staffObj.onboardingStatus = 'Invitation Sent';
-            await staffObj.save();
-          }
-        }
+      if (providerStaff) {
+        providerStaff.isActive = true;
+        providerStaff.approvalStatus = 'pending_invitation';
+        await providerStaff.save(opts);
       }
     }
+    updateProgress(id, { percent: 70, currentTask: 'Configuring Laboratory', checklistItem: 'Pharmacy Configured' });
 
-    // Activate and approve all doctors created during setup wizard
-    if (createdDocIds.length > 0) {
-      await Doctor.updateMany({ _id: { $in: createdDocIds } }, { isActive: true, approvalStatus: 'approved' });
-      const docs = await Doctor.find({ _id: { $in: createdDocIds } }).select('userId');
-      const docUserIds = docs.map(d => d.userId).filter(Boolean);
-      if (docUserIds.length > 0) {
-        await User.updateMany({ _id: { $in: docUserIds } }, { isActive: true, approvalStatus: 'approved' });
-      }
-    }
+    // Step 8 & 9: Configure AI settings & Video Consultation
+    updateProgress(id, { percent: 75, currentTask: 'Configuring AI Modules', checklistItem: 'Laboratory Configured' });
+    updateProgress(id, { percent: 80, currentTask: 'Configuring Video Consultation', checklistItem: 'AI Modules Configured' });
+
+    // Step 10 & 11: Generating Dashboard & Permissions
+    updateProgress(id, { percent: 85, currentTask: 'Generating Dashboard', checklistItem: 'Video Consultation Configured' });
+    updateProgress(id, { percent: 90, currentTask: 'Configuring Permissions', checklistItem: 'Dashboard Generated' });
+
+    // Create Notifications & Audit Logs
+    updateProgress(id, { percent: 95, currentTask: 'Creating Notifications', checklistItem: 'Permissions Configured' });
+
+    // Super admin & owner activation notification
+    await NotificationLog.create([{
+      clinicId: id,
+      type: 'custom',
+      channel: 'in_app',
+      recipient: { name: clinic.ownerDetails.name, email: clinic.ownerDetails.email, phone: clinic.ownerDetails.phone },
+      subject: 'Clinic Workspace Activated',
+      body: `Congratulations! ${clinic.name} is now live and fully activated.`,
+      status: 'sent'
+    }], opts);
+
+    // Create Audit Log
+    await AuditLog.create([{
+      actorUserId: req.user?._id || clinic.ownerDetails?._id || clinic._id,
+      action: 'CLINIC_ACTIVATION',
+      entity: 'Clinic',
+      entityId: id,
+      metadata: {
+        activatedAt: new Date(),
+        plan: planName,
+        doctorsCount: createdDocIds.length,
+        staffCount: createdStaffIds.length
+      },
+      ipAddress: req.ip || '127.0.0.1',
+      userAgent: req.headers['user-agent'] || 'Mozilla',
+      status: 'SUCCESS'
+    }], opts);
+    logger.info('[Launch] Permissions Created');
+
+    // Queue welcome email for Clinic Owner
+    const ownerEmailBody = `Congratulations!\n\nYour clinic "${clinic.name}" is now live and ready.\n\nClinic ID: ${clinic._id}\nSubscription Plan: ${plan?.name || 'Trial'}\nActivation Time: ${new Date().toLocaleString()}\n\nSupport team: support@pehalhealth.com`;
+    const ownerEmailJob = await EmailJob.create([{
+      clinicId: id,
+      recipient: clinic.ownerDetails.email,
+      subject: 'Congratulations! Your Clinic is Activated - AICMS',
+      body: ownerEmailBody,
+      status: 'Pending'
+    }], opts);
+    queuedEmails.push(ownerEmailJob[0]);
+
+    updateProgress(id, { percent: 98, currentTask: 'Sending Emails', checklistItem: 'Notifications Created' });
 
     // Clean up draft onboarding record
     const OnboardingDraft = require('./onboardingDraft.model');
-    await OnboardingDraft.deleteOne({ email: clinic.ownerDetails?.email?.toLowerCase() });
+    await OnboardingDraft.deleteOne({ email: clinic.ownerDetails?.email?.toLowerCase() }).session(session);
 
-    updateProgress(id, { percent: 100, currentTask: 'Dashboard prepared!', checklistItem: 'Dashboard Prepared', status: 'SUCCESS' });
-    return sendSuccess(res, 'Clinic onboarding completed successfully.', { clinic });
+    if (useTransaction) {
+      await session.commitTransaction();
+    }
+    session.endSession();
+
+    logger.info('[Launch] Activation Completed');
+    updateProgress(id, { percent: 100, currentTask: 'Finalizing Setup', checklistItem: 'Emails Queued', status: 'SUCCESS' });
+
+    return sendSuccess(res, 'Clinic activated and launch workflow completed successfully.', {
+      success: true,
+      clinicActivated: true,
+      dashboardCreated: true,
+      activationId: clinic._id,
+      emailsQueued: queuedEmails.length,
+      emailsSent: 0,
+      failedEmails: 0,
+      redirect: '/clinic/dashboard',
+      summary: {
+        doctors: createdDocIds.length,
+        staff: createdStaffIds.length,
+        departments: clinicDetails?.departments?.length || 0,
+        branches: createdBranchIds.length,
+        pharmacy: pharmacyCount,
+        laboratory: laboratoryCount
+      }
+    });
 
   } catch (error) {
-    updateProgress(id, { percent: 100, status: 'FAILED', error: error.message || 'Setup could not be completed.' });
-    // Clean up users
-    if (createdUserIds.length > 0) {
-      await User.deleteMany({ _id: { $in: createdUserIds } });
+    if (useTransaction) {
+      await session.abortTransaction();
     }
-    // Clean up staff
-    if (createdStaffIds.length > 0) {
-      await Staff.deleteMany({ _id: { $in: createdStaffIds } });
-    }
-    // Clean up doctors
-    if (createdDocIds.length > 0) {
-      await Doctor.deleteMany({ _id: { $in: createdDocIds } });
-    }
-    // Clean up branches
-    if (createdBranchIds.length > 0) {
-      await Clinic.deleteMany({ _id: { $in: createdBranchIds } });
-    }
+    session.endSession();
 
+    logger.error('[Launch] Activation Failed', error);
+    updateProgress(id, { percent: 100, status: 'FAILED', error: error.message || 'Setup could not be completed.' });
     throw error;
   }
 });
@@ -1446,7 +1677,246 @@ const getOnboardingProgressStream = (req, res) => {
   });
 };
 
+const getSubscriptionModules = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const planIdParam = req.query.planId;
+
+  let planCode = '';
+  let planName = '';
+
+  const clinic = await Clinic.findById(id).populate('subscription.planId');
+  if (clinic && clinic.subscription?.planId) {
+    planCode = (clinic.subscription.planId.code || '').toUpperCase();
+    planName = (clinic.subscription.planId.name || '').toLowerCase();
+  } else if (planIdParam) {
+    const SubscriptionPlan = require('../subscriptions/subscriptionPlan.model');
+    const plan = await SubscriptionPlan.findById(planIdParam);
+    if (plan) {
+      planCode = (plan.code || '').toUpperCase();
+      planName = (plan.name || '').toLowerCase();
+    }
+  }
+
+  const allModules = [
+    {
+      moduleId: 'voiceTranscription',
+      moduleName: 'Voice Transcription',
+      description: 'Convert doctor speech into structured clinical notes in real time.',
+      category: 'Documentation',
+      icon: '🎙',
+      tags: ['Real-time', 'Voice AI', 'Clinical Notes']
+    },
+    {
+      moduleId: 'consultationAssistant',
+      moduleName: 'AI Consultation Assistant',
+      description: 'Generates automated clinical SOAP notes and treatment suggestions.',
+      category: 'Assistant',
+      icon: '✨',
+      tags: ['Documentation', 'SOAP Notes', 'Automation']
+    },
+    {
+      moduleId: 'symptomChecker',
+      moduleName: 'Symptom Checker',
+      description: 'Predicts diagnostic risk pathways using clinical AI models.',
+      category: 'Diagnostics',
+      icon: '🩺',
+      tags: ['Diagnostics', 'Risk Analysis', 'Symptom AI']
+    },
+    {
+      moduleId: 'prescriptionSuggestions',
+      moduleName: 'Prescription Suggestions',
+      description: 'Checks drug-drug interaction warnings and dosage recommendations.',
+      category: 'Prescriptions',
+      icon: '💊',
+      tags: ['Safety', 'Drug Interactions', 'Prescriptions']
+    },
+    {
+      moduleId: 'riskScoring',
+      moduleName: 'Patient Risk Scoring',
+      description: 'Analyzes post-op readmission risks and patient deterioration.',
+      category: 'Diagnostics',
+      icon: '📊',
+      tags: ['Risk Analysis', 'Clinical Metrics', 'Predictive']
+    },
+    {
+      moduleId: 'labRecommendation',
+      moduleName: 'Lab Test Recommendation',
+      description: 'Auto recommends relevant diagnostics based on patient symptoms.',
+      category: 'Diagnostics',
+      icon: '🧪',
+      tags: ['Labs', 'Diagnostics', 'Lab Recommendations']
+    },
+    {
+      moduleId: 'soapGenerator',
+      moduleName: 'Clinical SOAP Generator',
+      description: 'Generates highly structured SOAP summaries from text inputs.',
+      category: 'Documentation',
+      icon: '📄',
+      tags: ['SOAP', 'Clinical Notes', 'Documentation']
+    },
+    {
+      moduleId: 'prescriptionOcr',
+      moduleName: 'Prescription OCR',
+      description: 'Extracts medicine names and dosages from prescription images.',
+      category: 'Scanning',
+      icon: '📷',
+      tags: ['OCR', 'Prescription Reader', 'Computer Vision']
+    },
+    {
+      moduleId: 'diseaseAnalytics',
+      moduleName: 'Disease Analytics',
+      description: 'Tracks epidemiologic trends and patient demographic analytics.',
+      category: 'Analytics',
+      icon: '📈',
+      tags: ['Analytics', 'Trends', 'Epidemiology']
+    },
+    {
+      moduleId: 'smartFollowUp',
+      moduleName: 'Smart Follow-up Reminder',
+      description: 'Determines optimal follow-up dates based on clinical history.',
+      category: 'Assistant',
+      icon: '🤖',
+      tags: ['Reminders', 'Follow-up', 'Automation']
+    },
+    {
+      moduleId: 'patientChat',
+      moduleName: 'AI Patient Chat Assistant',
+      description: 'Handles basic scheduling queries and health information for patients.',
+      category: 'Communication',
+      icon: '💬',
+      tags: ['Chatbot', 'Support', 'Engagement']
+    },
+    {
+      moduleId: 'clinicalDocumentation',
+      moduleName: 'Clinical Documentation Assistant',
+      description: 'Drafts discharge summaries, referral letters, and lab instructions.',
+      category: 'Documentation',
+      icon: '📋',
+      tags: ['Documentation', 'Letters', 'Discharge Summary']
+    }
+  ];
+
+  const modules = allModules.map((mod, index) => {
+    let included = true;
+    if (planName.includes('starter') || planCode === 'STARTER') {
+      included = false;
+    } else if (planName.includes('professional') || planCode === 'PROFESSIONAL') {
+      included = index < 6;
+    }
+
+    return {
+      ...mod,
+      includedInPlan: included,
+      requiresUpgrade: !included,
+      availability: included ? 'Included in Plan' : 'Upgrade Required'
+    };
+  });
+
+  return sendSuccess(res, 'Subscription modules retrieved successfully', { modules });
+});
+
+const getHealthcareProviders = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const Provider = require('../providers/provider.model');
+  const ProviderDraft = require('../providers/providerDraft.model');
+
+  const [providers, drafts] = await Promise.all([
+    Provider.find({ clinicId: id }),
+    ProviderDraft.find({ clinicId: id })
+  ]);
+
+  const mappedProviders = providers.map(p => {
+    let completionPercentage = 33;
+    let managerStatus = 'Manager Pending';
+    if (p.contactPerson && p.managerEmail && p.managerPhone) {
+      completionPercentage += 33;
+      managerStatus = 'Manager Assigned';
+    }
+    if (p.drugLicenseNumber || (p.workingHours && p.workingHours.openingTime)) {
+      completionPercentage += 34;
+    }
+
+    return {
+      providerId: p._id,
+      _id: p._id,
+      providerType: p.providerType,
+      status: p.status,
+      name: p.name,
+      draftStatus: completionPercentage === 100 ? 'Completed' : 'Draft',
+      branch: p.assignedBranchName || 'Main Branch',
+      manager: p.contactPerson || null,
+      email: p.email,
+      phone: p.phone,
+      ownership: p.providerSubtype || 'Internal',
+      createdAt: p.createdAt,
+      updatedAt: p.updatedAt,
+      completionPercentage,
+      // For expand view:
+      contactPerson: p.contactPerson || '',
+      managerPhone: p.managerPhone || '',
+      managerEmail: p.managerEmail || '',
+      managerGender: p.managerGender || '',
+      managerEmployeeId: p.managerEmployeeId || '',
+      workingHours: p.workingHours || { openingTime: '09:00', closingTime: '21:00' },
+      gstNumber: p.gstNumber || p.gstin || '',
+      drugLicenseNumber: p.drugLicenseNumber || p.licenseNumber || '',
+      licenseExpiry: p.licenseExpiry || '',
+      emergencyContact: p.emergencyContact || '',
+      reorderThreshold: p.reorderThreshold || 10,
+      barcodeEnabled: !!p.barcodeEnabled,
+      printerEnabled: !!p.printerEnabled,
+      invoicePrefix: p.invoicePrefix || ''
+    };
+  });
+
+  const mappedDrafts = drafts.map(d => {
+    let completionPercentage = 25;
+    if (d.currentStep === 2) completionPercentage = 50;
+    if (d.currentStep === 3) completionPercentage = 75;
+    if (d.currentStep === 4) completionPercentage = 100;
+
+    return {
+      providerId: d._id,
+      _id: d._id,
+      providerType: d.providerType,
+      status: d.status || 'Draft',
+      name: d.basicInfo?.name || 'New Draft',
+      draftStatus: 'Draft',
+      branch: d.basicInfo?.assignedBranchName || 'Main Branch',
+      manager: d.manager?.contactPerson || null,
+      email: d.basicInfo?.email || '',
+      phone: d.basicInfo?.phone || '',
+      ownership: d.basicInfo?.providerSubtype || 'Internal',
+      createdAt: d.createdAt,
+      updatedAt: d.updatedAt,
+      completionPercentage,
+      currentStep: d.currentStep,
+      // For expand view:
+      contactPerson: d.manager?.contactPerson || '',
+      managerPhone: d.manager?.managerPhone || '',
+      managerEmail: d.manager?.managerEmail || '',
+      managerGender: d.manager?.managerGender || '',
+      managerEmployeeId: d.manager?.managerEmployeeId || '',
+      workingHours: d.operationalSetup?.workingHours || { openingTime: '09:00', closingTime: '21:00' },
+      gstNumber: d.operationalSetup?.gstNumber || '',
+      drugLicenseNumber: d.operationalSetup?.drugLicenseNumber || '',
+      licenseExpiry: d.operationalSetup?.licenseExpiry || '',
+      emergencyContact: d.operationalSetup?.emergencyContact || '',
+      reorderThreshold: d.operationalSetup?.reorderThreshold || 10,
+      barcodeEnabled: !!d.operationalSetup?.barcodeEnabled,
+      printerEnabled: !!d.operationalSetup?.printerEnabled,
+      invoicePrefix: d.operationalSetup?.invoicePrefix || ''
+    };
+  });
+
+  return sendSuccess(res, 'Healthcare providers retrieved successfully', {
+    providers: [...mappedProviders, ...mappedDrafts]
+  });
+});
+
 module.exports = {
+  getHealthcareProviders,
+  getSubscriptionModules,
   createClinic,
   listClinics,
   getClinicDetails,
@@ -1481,5 +1951,8 @@ module.exports = {
   uploadFile,
   deleteFile,
   saveDraft,
-  getDraft
+  getDraft,
+  saveOnboardingDraft,
+  getOnboardingDraft,
+  deleteOnboardingDraft
 };

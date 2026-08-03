@@ -1,8 +1,10 @@
 import { useEffect, useState, useMemo } from 'react';
+import { io } from 'socket.io-client';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Calendar as CalendarIcon,
   Clock,
+  Eye,
   User,
   Plus,
   Search,
@@ -67,6 +69,10 @@ const DoctorDashboardPage = () => {
 
   // Active status tab for Today's Appointments (Left Column)
   const [activeTab, setActiveTab] = useState('All');
+  
+  // Queue Search and Filters
+  const [queueSearchQuery, setQueueSearchQuery] = useState('');
+  const [queueActiveFilter, setQueueActiveFilter] = useState('All');
 
   // Consultation duration counter simulation
   const [consultationSeconds, setConsultationSeconds] = useState(0);
@@ -160,7 +166,7 @@ const DoctorDashboardPage = () => {
         const activeToken = activeRes.data?.activeConsultation || activeRes.activeConsultation || null;
         setActiveConsultation(activeToken);
 
-        // Auto select current active token if any, or the first waiting
+        // Auto-select: active in_consultation > called > nothing (never auto-select waiting queue patients)
         if (activeToken) {
           setSelectedToken(activeToken);
           setSelectedAppointment(null);
@@ -169,10 +175,8 @@ const DoctorDashboardPage = () => {
           if (called) {
             setSelectedToken(called);
             setSelectedAppointment(null);
-          } else if (sortedQueue.length > 0 && !selectedToken) {
-            setSelectedToken(sortedQueue[0]);
-            setSelectedAppointment(null);
           }
+          // Do NOT fall through to pick an arbitrary waiting patient
         }
       }
     } catch (err) {
@@ -188,17 +192,33 @@ const DoctorDashboardPage = () => {
   }, [selectedDateStr]);
 
   // Auto-refresh queue every 5 seconds for real-time simulation
+  // WebSocket real-time updates and fallback refresh interval
   useEffect(() => {
     if (!profile?._id) return;
-    const interval = setInterval(() => {
+    
+    // Connect to Socket.IO server
+    const socketUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+    const socket = io(socketUrl);
+
+    socket.on('connect', () => {
+      console.log('Connected to socket in Doctor console:', socket.id);
+      socket.emit('join_user', user?._id);
+    });
+
+    const triggerRefresh = () => {
       appointmentApi.getDoctorQueue(profile._id)
         .then(res => {
           const sortedQueue = res.data?.queue || res.queue || [];
           setQueue(sortedQueue);
-          // Sync selected token state if in queue
           if (selectedToken) {
             const updated = sortedQueue.find(t => t._id === selectedToken._id);
-            if (updated) setSelectedToken(updated);
+            if (updated) {
+              // Keep selectedToken in sync if it's still in the active queue
+              setSelectedToken(updated);
+            } else if (selectedToken.status === 'in_consultation') {
+              // Token left the active queue (likely completed) — clear it to show empty state
+              setSelectedToken(null);
+            }
           }
         })
         .catch(() => null);
@@ -212,9 +232,22 @@ const DoctorDashboardPage = () => {
           }
         })
         .catch(() => null);
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [profile?._id, selectedToken]);
+    };
+
+    socket.on('queue_update', (data) => {
+      if (String(data.doctorId) === String(profile._id)) {
+        console.log('Real-time queue update notification received via Socket');
+        triggerRefresh();
+      }
+    });
+
+    const interval = setInterval(triggerRefresh, 10000);
+
+    return () => {
+      socket.disconnect();
+      clearInterval(interval);
+    };
+  }, [profile?._id, selectedToken, user?._id]);
 
   // Live timer for active consultation
   useEffect(() => {
@@ -237,14 +270,19 @@ const DoctorDashboardPage = () => {
   // Handle Call Next Patient
   const handleCallNext = async () => {
     if (!profile?._id) return;
-    if (activeConsultation) {
-      toast.error('Cannot call next patient while a consultation is active.');
-      return;
-    }
     try {
+      // Always re-fetch the current consultation from the backend — never trust stale local state
+      const currentRes = await appointmentApi.getCurrentConsultation(profile._id);
+      const liveActive = currentRes.data?.activeConsultation || currentRes.activeConsultation || null;
+      setActiveConsultation(liveActive); // keep local state in sync
+      if (liveActive) {
+        toast.error('Cannot call next patient while a consultation is active.');
+        return;
+      }
+
       await appointmentApi.callNext(profile._id);
       toast.success('Next patient called.');
-      // Re-fetch queue and auto-select the called token (which now has OTP)
+      // Re-fetch queue and auto-select the called token
       const queueRes = await appointmentApi.getDoctorQueue(profile._id);
       const sortedQueue = queueRes.data?.queue || queueRes.queue || [];
       setQueue(sortedQueue);
@@ -255,6 +293,8 @@ const DoctorDashboardPage = () => {
       toast.error(err.response?.data?.message || 'No waiting patients in the queue.');
     }
   };
+
+
 
   // Handle Start Consultation
   const handleStartConsultation = async (token) => {
@@ -383,6 +423,7 @@ const DoctorDashboardPage = () => {
       await appointmentApi.completeTokenConsultation(token._id);
       toast.success('Consultation completed.');
       setSelectedToken(null);
+      setActiveConsultation(null);
       loadData(false);
     } catch (err) {
       toast.error('Failed to complete consultation.');
@@ -475,6 +516,35 @@ const DoctorDashboardPage = () => {
   const nextPatientInQueue = useMemo(() => {
     return queue.find(t => t.status === 'waiting') || null;
   }, [queue]);
+
+  const filteredQueue = useMemo(() => {
+    return queue.filter((t) => {
+      if (queueSearchQuery.trim() !== '') {
+        const queryStr = queueSearchQuery.toLowerCase();
+        const pName = t.appointmentId?.patientId?.fullName || '';
+        const pPhone = t.appointmentId?.patientId?.phone || '';
+        const pUhid = t.appointmentId?.patientId?.uhid || '';
+        const tokenNum = t.tokenNumber || '';
+        if (!pName.toLowerCase().includes(queryStr) &&
+            !pPhone.toLowerCase().includes(queryStr) &&
+            !pUhid.toLowerCase().includes(queryStr) &&
+            !tokenNum.toLowerCase().includes(queryStr)) {
+          return false;
+        }
+      }
+
+      if (queueActiveFilter === 'Waiting') return t.status === 'waiting';
+      if (queueActiveFilter === 'Skipped') return t.status === 'skipped';
+      if (queueActiveFilter === 'Emergency') return t.priority === 'emergency';
+      if (queueActiveFilter === 'Walk-in') return t.appointmentId?.appointmentType === 'walk_in';
+      if (queueActiveFilter === 'Follow-up') return t.appointmentId?.appointmentType === 'followup';
+      if (queueActiveFilter === 'New') return t.appointmentId?.appointmentType === 'new' || t.appointmentId?.appointmentType === 'opd';
+      if (queueActiveFilter === 'VIP') return t.priority === 'vip';
+      if (queueActiveFilter === 'Late Arrivals') return t.appointmentId?.status === 'late_check_in';
+
+      return true;
+    });
+  }, [queue, queueSearchQuery, queueActiveFilter]);
 
   if (loading) {
     return <LoadingState label="Loading Premium Doctor Console..." />;
@@ -748,27 +818,22 @@ const DoctorDashboardPage = () => {
           <div>
             <div className="flex justify-between items-center pb-2 border-b border-slate-100 mb-4">
               <h2 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
-                {selectedToken ? 'Current Patient' : 'Appointment Info'}
+                Current Patient
               </h2>
               {selectedToken ? (
                 selectedToken.status === 'in_consultation' ? (
                   <span className="text-[8px] font-black uppercase tracking-widest px-2.5 py-1 rounded bg-emerald-50 border border-emerald-200 text-emerald-700 animate-pulse">
                     IN CONSULTATION
                   </span>
+                ) : selectedToken.status === 'called' ? (
+                  <span className="text-[8px] font-black uppercase tracking-widest px-2.5 py-1 rounded bg-indigo-50 border border-indigo-200 text-indigo-700">
+                    CALLED
+                  </span>
                 ) : (
                   <span className="text-[8px] font-black uppercase tracking-widest px-2.5 py-1 rounded bg-slate-50 border border-slate-200 text-slate-500">
-                    WAITING
+                    {selectedToken.status?.toUpperCase() || 'WAITING'}
                   </span>
                 )
-              ) : selectedAppointment ? (
-                <span className={`text-[8px] font-black uppercase tracking-widest px-2.5 py-1 rounded border ${
-                  selectedAppointment.status === 'completed' ? 'bg-slate-50 border-slate-200 text-slate-650' :
-                  ['cancelled', 'patient_cancelled', 'clinic_cancelled'].includes(selectedAppointment.status) ? 'bg-rose-50 border-rose-200 text-rose-700' :
-                  ['checked_in', 'late_check_in'].includes(selectedAppointment.status) ? 'bg-emerald-50 border-emerald-200 text-emerald-750' :
-                  'bg-blue-50 border-blue-200 text-blue-700'
-                }`}>
-                  {selectedAppointment.status}
-                </span>
               ) : (
                 <span className="text-[8px] font-black uppercase tracking-widest px-2.5 py-1 rounded bg-slate-50 border border-slate-200 text-slate-500">
                   NONE
@@ -1048,13 +1113,22 @@ const DoctorDashboardPage = () => {
                 </div>
               </div>
             ) : (
-              <div className="py-20 text-center text-slate-450 italic text-xs">
-                No patient selected. Choose an active patient to start.
+              <div className="flex flex-col items-center justify-center py-16 text-center gap-4">
+                <div className="w-14 h-14 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center">
+                  <Stethoscope size={22} className="text-slate-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-600">No Patient in Consultation</p>
+                  <p className="text-[10px] text-slate-400 mt-1 max-w-[200px] mx-auto leading-relaxed">
+                    There is currently no patient with the doctor. Call the next patient from the queue to begin.
+                  </p>
+                </div>
               </div>
             )}
           </div>
 
-          {selectedToken && selectedToken.status !== 'called' && (
+          {selectedToken && selectedToken.status === 'in_consultation' && (
+            /* ── Active In-Consultation Actions ── */
             <div className="space-y-3.5 pt-4 border-t border-slate-150 mt-4">
               <div className="flex justify-between gap-3">
                 <button
@@ -1071,41 +1145,58 @@ const DoctorDashboardPage = () => {
                   Manage Waiver
                 </button>
 
-                {!isTokenPaid(selectedToken) ? (
-                  <button
-                    disabled
-                    className="flex-1 py-3 bg-slate-100 text-slate-400 border border-slate-200 text-xs font-bold rounded-2xl transition cursor-not-allowed flex items-center justify-center gap-1"
-                  >
-                    <AlertTriangle size={13} className="text-amber-500" />
-                    Locked (Unpaid)
-                  </button>
-                ) : (
-                  <button
-                    onClick={async () => {
-                      if (!selectedToken) return;
-                      if (selectedToken.status !== 'in_consultation') {
-                        await handleStartConsultation(selectedToken);
-                      } else {
-                        const apptId = selectedToken.appointmentId?._id || selectedToken.appointmentId;
-                        navigate(`/appointments/${apptId}/consultation`);
-                      }
-                    }}
-                    disabled={!selectedToken || (activeConsultation && activeConsultation._id !== selectedToken._id)}
-                    className="flex-1 py-3 bg-[#00A884] hover:bg-[#009675] text-xs font-bold text-white rounded-2xl transition shadow-sm disabled:opacity-40"
-                  >
-                    {selectedToken?.status === 'in_consultation' ? 'Resume Consultation' : 'Start Consultation'}
-                  </button>
-                )}
+                <button
+                  onClick={() => {
+                    const apptId = selectedToken.appointmentId?._id || selectedToken.appointmentId;
+                    navigate(`/appointments/${apptId}/consultation`);
+                  }}
+                  className="flex-1 py-3 bg-[#00A884] hover:bg-[#009675] text-xs font-bold text-white rounded-2xl transition shadow-sm"
+                >
+                  Resume Consultation
+                </button>
               </div>
 
               <div className="flex justify-between items-center text-[10px] text-slate-500 px-1">
-                <span className="flex items-center gap-1.5"><Clock size={12} /> Consultation Duration: <strong>{consultationDurationStr}</strong></span>
+                <span className="flex items-center gap-1.5"><Clock size={12} /> Duration: <strong>{consultationDurationStr}</strong></span>
                 <button
                   onClick={() => selectedToken && handleSkip(selectedToken._id)}
                   disabled={!selectedToken}
                   className="text-rose-600 hover:text-rose-750 font-black uppercase tracking-wider"
                 >
                   End Without Consultation
+                </button>
+              </div>
+            </div>
+          )}
+
+          {selectedToken && selectedToken.status === 'called' && (
+            /* ── Called Patient Actions (not yet in consultation) ── */
+            <div className="space-y-2.5 pt-4 border-t border-slate-150 mt-4">
+              {!isTokenPaid(selectedToken) ? (
+                <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 text-[10px] text-amber-700 font-bold">
+                  <AlertTriangle size={13} className="shrink-0" />
+                  Payment pending — consultation cannot start until payment is cleared.
+                </div>
+              ) : (
+                <button
+                  onClick={() => handleStartConsultation(selectedToken)}
+                  className="w-full py-3 bg-[#00A884] hover:bg-[#009675] text-xs font-bold text-white rounded-2xl transition shadow-sm flex items-center justify-center gap-1.5"
+                >
+                  <Play size={13} /> Start Consultation
+                </button>
+              )}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => handleSkip(selectedToken._id)}
+                  className="py-2.5 bg-rose-50 hover:bg-rose-100/50 text-rose-600 text-[10px] font-black uppercase rounded-xl transition border border-rose-200"
+                >
+                  Skip Patient
+                </button>
+                <button
+                  onClick={() => setPatientNotResponding(true)}
+                  className="py-2.5 bg-white border border-slate-250 hover:bg-slate-50 text-slate-600 text-[10px] font-black uppercase rounded-xl transition"
+                >
+                  Not Present
                 </button>
               </div>
             </div>
@@ -1129,7 +1220,7 @@ const DoctorDashboardPage = () => {
         <div className="lg:col-span-4 bg-white border border-slate-200 rounded-3xl p-5 shadow-sm flex flex-col gap-4">
           <div className="flex justify-between items-center pb-2 border-b border-slate-100">
             <h2 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
-              <span className="w-5 h-5 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-[10px] flex items-center justify-center font-bold">{queue.length}</span>
+              <span className="w-5 h-5 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-[10px] flex items-center justify-center font-bold">{filteredQueue.length}</span>
               Consultation Queue
             </h2>
             <button className="text-[9px] font-black text-slate-500 hover:text-slate-800 uppercase tracking-wider flex items-center gap-1">
@@ -1137,12 +1228,42 @@ const DoctorDashboardPage = () => {
             </button>
           </div>
 
+          {/* Search Input */}
+          <div className="relative">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search by name, token, phone, UHID..."
+              value={queueSearchQuery}
+              onChange={(e) => setQueueSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:border-indigo-500 focus:bg-white transition"
+            />
+          </div>
+
+          {/* Filter Tabs */}
+          <div className="flex flex-wrap gap-1 pb-1">
+            {['All', 'Waiting', 'Skipped', 'Emergency', 'Walk-in', 'Follow-up', 'New', 'VIP', 'Late Arrivals'].map((filterName) => (
+              <button
+                key={filterName}
+                type="button"
+                onClick={() => setQueueActiveFilter(filterName)}
+                className={`px-2 py-1 text-[9px] font-bold rounded-lg border transition ${
+                  queueActiveFilter === filterName
+                    ? 'bg-indigo-650 border-indigo-650 text-white'
+                    : 'bg-white border-slate-200 text-slate-550 hover:bg-slate-50'
+                }`}
+              >
+                {filterName}
+              </button>
+            ))}
+          </div>
+
           {/* Next Patient Call Panel Card */}
-          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4.5 flex justify-between items-center relative overflow-hidden">
+          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex justify-between items-center relative overflow-hidden">
             {nextPatientInQueue ? (
               <>
                 <div>
-                  <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest block">Next Patient</span>
+                  <span className="text-[8px] font-black text-slate-555 uppercase tracking-widest block">Next Patient</span>
                   <strong className="text-2xl font-black text-indigo-650 mt-1 block">{nextPatientInQueue.tokenNumber}</strong>
                   <p className="text-[10px] font-bold text-slate-800 mt-1">{nextPatientInQueue.appointmentId?.patientId?.fullName || 'Patient'}</p>
                   <span className="text-[9px] text-slate-500 mt-0.5 block">
@@ -1159,7 +1280,7 @@ const DoctorDashboardPage = () => {
                   </div>
                   <button
                     onClick={handleCallNext}
-                    className="px-3.5 py-1.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] uppercase flex items-center gap-1 transition"
+                    className="px-3 py-1.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-[9px] uppercase flex items-center gap-1 transition"
                   >
                     Call Next <ChevronRight size={12} />
                   </button>
@@ -1171,7 +1292,7 @@ const DoctorDashboardPage = () => {
                 <span>No waiting patients in queue</span>
                 <button
                   onClick={handleCallNext}
-                  className="mt-2 px-4 py-1.5 rounded-full bg-blue-650/10 border border-blue-500/20 hover:bg-blue-650/20 text-indigo-600 font-bold text-[9px] uppercase transition"
+                  className="mt-2 px-4 py-1.5 rounded-full bg-blue-655/10 border border-blue-500/20 hover:bg-blue-655/20 text-indigo-600 font-bold text-[9px] uppercase transition"
                 >
                   Call Next Patient
                 </button>
@@ -1181,42 +1302,95 @@ const DoctorDashboardPage = () => {
 
           {/* Queue Rows Table List */}
           <div className="space-y-2.5 max-h-[350px] overflow-y-auto pr-1">
-            <span className="text-[9px] font-bold text-slate-550 uppercase tracking-wider block">Queue ({queue.length} Patients)</span>
-            {queue.map((token, idx) => {
-              const isLately = token.appointmentId?.status === 'late_check_in';
-              return (
-                <div
-                  key={token._id}
-                  className={`p-3 bg-slate-50/50 border border-slate-100 rounded-xl flex items-center justify-between hover:bg-slate-50 transition cursor-pointer ${
-                    selectedToken?._id === token._id ? 'border-emerald-500 bg-white' : ''
-                  }`}
-                  onClick={() => {
-                    setSelectedToken(token);
-                    setSelectedAppointment(null);
-                  }}
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="text-[10px] font-bold text-slate-450 w-4">{idx + 1}</span>
-                    <span className="text-xs font-bold text-indigo-650 bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 rounded">
-                      {token.tokenNumber}
-                    </span>
-                    <div>
-                      <h5 className="text-[11px] font-bold text-slate-800">{token.appointmentId?.patientId?.fullName || 'Patient'}</h5>
-                      <p className="text-[9px] text-slate-500 mt-0.5">{token.appointmentId?.patientId?.age || 32} yrs, Male</p>
+            <span className="text-[9px] font-bold text-slate-550 uppercase tracking-wider block">Queue List ({filteredQueue.length} Patients)</span>
+            {filteredQueue.length === 0 ? (
+              <div className="py-8 text-center text-xs text-slate-400 italic">No patients match filters</div>
+            ) : (
+              filteredQueue.map((token, idx) => {
+                const isLately = token.appointmentId?.status === 'late_check_in';
+                const isEmergency = token.priority === 'emergency';
+                const isVip = token.priority === 'vip';
+                const isSkipped = token.status === 'skipped';
+                const isWalkin = token.appointmentId?.appointmentType === 'walk_in';
+
+                return (
+                  <div
+                    key={token._id}
+                    className={`p-3 bg-slate-50/50 border border-slate-100 rounded-xl hover:bg-slate-50 transition ${
+                      selectedToken?._id === token._id ? 'border-indigo-500 bg-indigo-50/30' : ''
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-2.5">
+                        <span className="text-xs font-bold text-indigo-650 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded">
+                          {token.tokenNumber}
+                        </span>
+                        <div>
+                          <h5
+                            className="text-[11px] font-black text-slate-800 hover:underline cursor-pointer text-left"
+                            onClick={() => {
+                              setSelectedToken(token);
+                              setSelectedAppointment(null);
+                            }}
+                          >
+                            {token.appointmentId?.patientId?.fullName || 'Patient'}
+                          </h5>
+                          <p className="text-[9px] text-slate-500 mt-0.5 text-left">
+                            {token.appointmentId?.patientId?.age || 30} yrs, {token.appointmentId?.patientId?.gender || 'Male'}
+                          </p>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {isEmergency && <span className="px-1 py-0.5 bg-rose-100 text-rose-700 text-[8px] font-black uppercase rounded">Emergency</span>}
+                            {isVip && <span className="px-1 py-0.5 bg-indigo-100 text-indigo-700 text-[8px] font-black uppercase rounded">VIP</span>}
+                            {isSkipped && <span className="px-1 py-0.5 bg-slate-200 text-slate-700 text-[8px] font-black uppercase rounded">Skipped</span>}
+                            {isLately && <span className="px-1 py-0.5 bg-orange-100 text-orange-700 text-[8px] font-black uppercase rounded">Late</span>}
+                            <span className="px-1 py-0.5 bg-slate-100 text-slate-500 text-[8px] font-bold rounded">
+                              {token.appointmentId?.appointmentTime || '09:00'} Slot
+                            </span>
+                            <span className="px-1 py-0.5 bg-slate-100 text-slate-500 text-[8px] font-bold rounded">
+                              {isWalkin ? 'Walk-in' : 'Online'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="text-right flex flex-col items-end gap-1">
+                        <span className="text-[9px] font-bold text-slate-400">
+                          {Math.max(0, Math.floor((new Date().getTime() - new Date(token.generatedTime).getTime()) / 60000))}m wait
+                        </span>
+                        
+                        <div className="flex items-center gap-1.5 mt-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedToken(token);
+                              setSelectedAppointment(null);
+                              if (token.status !== 'in_consultation') {
+                                handleStartConsultation(token);
+                              } else {
+                                navigate(`/appointments/${token.appointmentId?._id}/consultation`);
+                              }
+                            }}
+                            className="px-2 py-1 bg-emerald-655 hover:bg-emerald-700 text-white font-black text-[8px] uppercase rounded transition"
+                          >
+                            {token.status === 'in_consultation' ? 'Resume' : 'Start'}
+                          </button>
+                          
+                          {token.status !== 'skipped' && (
+                            <button
+                              type="button"
+                              onClick={() => handleSkip(token._id)}
+                              className="px-2 py-1 bg-slate-200 hover:bg-rose-105 hover:text-rose-700 text-slate-600 font-black text-[8px] uppercase rounded transition"
+                            >
+                              Skip
+                            </button>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
-
-                  <div className="flex items-center gap-3">
-                    {isLately && (
-                      <span className="px-1.5 py-0.5 bg-orange-50 border border-orange-200 text-orange-600 text-[7px] font-black uppercase rounded">
-                        LATE
-                      </span>
-                    )}
-                    <span className="text-[10px] font-bold text-slate-500">{Math.max(0, Math.floor((new Date().getTime() - new Date(token.generatedTime).getTime()) / 60000))} mins</span>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
 
           {/* Bottom Indicators Legend & Control button */}

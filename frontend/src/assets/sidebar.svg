@@ -1,0 +1,318 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1050" height="1500" viewBox="0 0 1050 1500" preserveAspectRatio="xMidYMid slice" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Background Gradients -->
+    <linearGradient id="bgGradient" x1="0" y1="0" x2="1050" y2="1500">
+      <stop offset="0%" stop-color="#021B19"/>
+      <stop offset="45%" stop-color="#032D29"/>
+      <stop offset="100%" stop-color="#05403A"/>
+    </linearGradient>
+
+    <radialGradient id="orangeGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#F7931A" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#F7931A" stop-opacity="0"/>
+    </radialGradient>
+
+    <radialGradient id="greenGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#00B96B" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#00B96B" stop-opacity="0"/>
+    </radialGradient>
+
+    <radialGradient id="laptopBaseGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#00B96B" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#00B96B" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Blur Filters -->
+    <filter id="blurLarge" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="120"/>
+    </filter>
+    <filter id="glowFilter" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+    <filter id="shadowFilter" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.5"/>
+    </filter>
+
+    <!-- Wave/Mesh Gradients -->
+    <linearGradient id="waveGradient" x1="0" y1="0" x2="1050" y2="0">
+      <stop offset="0%" stop-color="#00B96B" stop-opacity="0.25"/>
+      <stop offset="50%" stop-color="#00B96B" stop-opacity="0.05"/>
+      <stop offset="100%" stop-color="#F7931A" stop-opacity="0.1"/>
+    </linearGradient>
+
+    <!-- Glassmorphism Card Gradient -->
+    <linearGradient id="glassGradient" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.02"/>
+    </linearGradient>
+
+    <linearGradient id="glassBorder" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.15"/>
+      <stop offset="50%" stop-color="#00B96B" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.05"/>
+    </linearGradient>
+
+    <!-- Laptop Gradients -->
+    <linearGradient id="screenFrame" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#143E3A"/>
+      <stop offset="100%" stop-color="#061D1B"/>
+    </linearGradient>
+
+    <linearGradient id="screenBezel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2D726A"/>
+      <stop offset="100%" stop-color="#0C302C"/>
+    </linearGradient>
+
+    <linearGradient id="keyboardBase" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0F3834"/>
+      <stop offset="100%" stop-color="#041211"/>
+    </linearGradient>
+  </defs>
+
+  <!-- ==================== BACKGROUND ==================== -->
+  <g id="background">
+    <!-- Deep Base Background -->
+    <rect width="1050" height="1500" fill="url(#bgGradient)"/>
+
+    <!-- Ambient Glows -->
+    <circle cx="950" cy="220" r="500" fill="url(#orangeGlow)" filter="url(#blurLarge)"/>
+    <circle cx="100" cy="1300" r="600" fill="url(#greenGlow)" filter="url(#blurLarge)"/>
+    <circle cx="525" cy="800" r="450" fill="url(#greenGlow)" filter="url(#blurLarge)" opacity="0.6"/>
+
+    <!-- Grid Overlay -->
+    <g opacity="0.03" stroke="#ffffff" stroke-width="1">
+      <!-- Horizontal lines -->
+      <path d="M0 100 H1050"/><path d="M0 200 H1050"/><path d="M0 300 H1050"/><path d="M0 400 H1050"/>
+      <path d="M0 500 H1050"/><path d="M0 600 H1050"/><path d="M0 700 H1050"/><path d="M0 800 H1050"/>
+      <path d="M0 900 H1050"/><path d="M0 1000 H1050"/><path d="M0 1100 H1050"/><path d="M0 1200 H1050"/>
+      <path d="M0 1300 H1050"/><path d="M0 1400 H1050"/>
+      <!-- Vertical lines -->
+      <path d="M100 0 V1500"/><path d="M200 0 V1500"/><path d="M300 0 V1500"/><path d="M400 0 V1500"/>
+      <path d="M500 0 V1500"/><path d="M600 0 V1500"/><path d="M700 0 V1500"/><path d="M800 0 V1500"/>
+      <path d="M900 0 V1500"/><path d="M1000 0 V1500"/>
+    </g>
+
+    <!-- Curved Accent Waves -->
+    <path d="M-100 1150 C250 950 550 1450 1150 1050" stroke="url(#waveGradient)" stroke-width="3.5" fill="none" opacity="0.7"/>
+    <path d="M-100 1210 C300 980 600 1500 1150 1120" stroke="url(#waveGradient)" stroke-width="2.5" fill="none" opacity="0.5"/>
+
+    <!-- Decorative Rings -->
+    <circle cx="900" cy="220" r="240" stroke="#00B96B" stroke-opacity="0.08" stroke-width="2.5" fill="none"/>
+    <circle cx="900" cy="220" r="320" stroke="#F7931A" stroke-opacity="0.05" stroke-width="2.5" fill="none"/>
+
+    <!-- Floating Sparkles -->
+    <g fill="#00B96B" opacity="0.35">
+      <circle cx="150" cy="250" r="4.5" />
+      <circle cx="350" cy="150" r="3" />
+      <circle cx="850" cy="180" r="4.5" />
+      <circle cx="80" cy="800" r="3" />
+      <circle cx="960" cy="850" r="5" />
+    </g>
+  </g>
+
+  <!-- ==================== TOP BRANDING (15% height, moved slightly upward) ==================== -->
+  <g id="branding" transform="translate(0, 15)">
+    <!-- PEHAL Healthcare Logo (scaled +20%) -->
+    <g transform="translate(525, 110)">
+      <!-- Outer Arcs -->
+      <path d="M-180 -36 C-180 -120 180 -120 180 -36" stroke="#00B96B" stroke-width="11" stroke-linecap="round" fill="none"/>
+      <path d="M-150 30 C-90 90 90 90 150 30" stroke="#F7931A" stroke-width="7.5" stroke-linecap="round" fill="none"/>
+      
+      <!-- Logo Text -->
+      <text x="0" y="-17" fill="#FFFFFF" font-family="'Inter', sans-serif" font-weight="900" font-size="77" text-anchor="middle" letter-spacing="12">PEHAL</text>
+      
+      <!-- Green medical cross -->
+      <path d="M-18 -26 H-8 V-36 H2 V-26 H12 V-18 H2 V-8 H-8 V-18 H-18 Z" fill="#00B96B" transform="translate(7, -3) scale(0.96)"/>
+      
+      <text x="0" y="38" fill="#00B96B" font-family="'Inter', sans-serif" font-weight="800" font-size="24" text-anchor="middle" letter-spacing="9.5">HEALTHCARE</text>
+    </g>
+
+    <!-- App Identity (scaled +15%) -->
+    <text x="525" y="305" fill="#FFFFFF" font-family="'Inter', sans-serif" font-weight="900" font-size="69" text-anchor="middle" letter-spacing="1">AI-CMS</text>
+    <text x="525" y="348" fill="#88ABA7" font-family="'Inter', sans-serif" font-weight="600" font-size="25" text-anchor="middle">Intelligent Healthcare Management System</text>
+    
+    <!-- Tagline (scaled) -->
+    <text x="525" y="405" text-anchor="middle" font-family="'Inter', sans-serif" font-size="26" font-weight="700">
+      <tspan fill="#FFFFFF">One Platform. </tspan>
+      <tspan fill="#00B96B">Complete Clinic Management.</tspan>
+    </text>
+  </g>
+
+  <!-- ==================== CENTER ILLUSTRATION (Scaled up laptop +35% & repositioned downward) ==================== -->
+  <!-- Laptop Screen: Width 911 (originally 675), Height 573 (originally 425) -->
+  <!-- Screen starts around x=70, y=560, width=911, height=573 -->
+  
+  <!-- Neon Floor Glow under Laptop -->
+  <ellipse cx="525" cy="1205" rx="550" ry="40" fill="url(#laptopBaseGlow)" filter="url(#blurLarge)" opacity="0.85"/>
+
+  <g id="laptop" filter="url(#shadowFilter)">
+    <!-- 3D Base Shadow -->
+    <ellipse cx="525" cy="1165" rx="520" ry="22" fill="#020C0A" opacity="0.6"/>
+
+    <!-- Screen Back Bezel -->
+    <rect x="70" y="560" width="911" height="573" rx="27" fill="url(#screenBezel)" stroke="#0C3430" stroke-width="3"/>
+
+    <!-- Inside Screen Display -->
+    <rect x="95" y="583" width="861" height="524" rx="14" fill="#051C1A"/>
+
+    <!-- Screen UI Mockup -->
+    <g transform="translate(95, 583)">
+      <!-- Header bar inside screen -->
+      <rect width="861" height="65" fill="#0A2C29" rx="14 14 0 0"/>
+      <circle cx="27" cy="32" r="7" fill="#E15A5A"/>
+      <circle cx="49" cy="32" r="7" fill="#E1C15A"/>
+      <circle cx="70" cy="32" r="7" fill="#5AE189"/>
+      <text x="430" y="40" fill="#00B96B" font-family="'Inter', sans-serif" font-size="20" font-weight="800" text-anchor="middle" letter-spacing="2">AI-POWERED HEALTHCARE</text>
+      
+      <!-- Grid Panel Layout on Screen -->
+      <!-- Left sidebar menu -->
+      <rect x="14" y="78" width="108" height="432" fill="#082321" rx="7"/>
+      <rect x="24" y="100" width="88" height="15" fill="#00B96B" rx="4" opacity="0.3"/>
+      <rect x="24" y="135" width="88" height="11" fill="#ffffff" rx="3" opacity="0.15"/>
+      <rect x="24" y="165" width="88" height="11" fill="#ffffff" rx="3" opacity="0.15"/>
+      <rect x="24" y="195" width="88" height="11" fill="#ffffff" rx="3" opacity="0.15"/>
+
+      <!-- Center Brain/Triage Panel -->
+      <rect x="135" y="78" width="402" height="432" fill="#061F1D" rx="11" stroke="#0B3733" stroke-width="1.5"/>
+      
+      <!-- Interactive AI Triage Ring & Brain Lines -->
+      <circle cx="336" cy="272" r="84" stroke="#00B96B" stroke-opacity="0.1" stroke-width="5" fill="none"/>
+      <circle cx="336" cy="272" r="59" stroke="#00B96B" stroke-opacity="0.2" stroke-dasharray="11 5" stroke-width="4" fill="none"/>
+      
+      <!-- Glowing Brain Icon in Center -->
+      <path d="M336 232 C318 232 304 246 304 264 C304 275 311 286 319 290 V301 C319 305 323 308 325 308 H347 C349 308 353 305 353 301 V290 C361 286 368 275 368 264 C368 246 354 232 336 232 Z" 
+            fill="#00B96B" filter="url(#glowFilter)" opacity="0.9"/>
+      <path d="M336 232 C340 243 332 254 336 264 H304 C310 275 318 271 325 290" stroke="#ffffff" stroke-width="2.7" fill="none" opacity="0.8"/>
+      
+      <!-- Right panel widgets -->
+      <!-- Small Widget 1: Patients stats -->
+      <rect x="551" y="78" width="296" height="135" fill="#082522" rx="11" stroke="#0B3C38" stroke-width="1.5"/>
+      <text x="572" y="110" fill="#88ABA7" font-family="'Inter', sans-serif" font-size="18" font-weight="700">Total Patients</text>
+      <text x="572" y="155" fill="#FFFFFF" font-family="'Inter', sans-serif" font-size="32" font-weight="800">1,284</text>
+      <text x="572" y="187" fill="#00B96B" font-family="'Inter', sans-serif" font-size="16" font-weight="700">↑ 8.4% This Week</text>
+
+      <!-- Small Widget 2: Queue Status -->
+      <rect x="551" y="226" width="296" height="135" fill="#082522" rx="11" stroke="#0B3C38" stroke-width="1.5"/>
+      <text x="572" y="258" fill="#88ABA7" font-family="'Inter', sans-serif" font-size="17" font-weight="700">Active consultations</text>
+      <text x="572" y="303" fill="#FFFFFF" font-family="'Inter', sans-serif" font-size="32" font-weight="800">12</text>
+      <!-- Mini Sparkline -->
+      <path d="M688 294 L715 276 L742 303 L769 267 L796 285" stroke="#F7931A" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+      <!-- Small Widget 3: Live updates log -->
+      <rect x="551" y="375" width="296" height="135" fill="#082522" rx="11" stroke="#0B3C38" stroke-width="1.5"/>
+      <text x="572" y="405" fill="#88ABA7" font-family="'Inter', sans-serif" font-size="16" font-weight="700">SYSTEM AUDIT LOG</text>
+      <rect x="572" y="424" width="252" height="9" fill="#00B96B" rx="4.5" opacity="0.7"/>
+      <rect x="572" y="445" width="203" height="9" fill="#ffffff" rx="4.5" opacity="0.3"/>
+      <rect x="572" y="466" width="233" height="9" fill="#F7931A" rx="4.5" opacity="0.6"/>
+    </g>
+
+    <!-- Front Lower Lid/Bezel Lip -->
+    <path d="M70 1133 L981 1133 L962 1146 H89 Z" fill="#07201D" stroke="#0C3430" stroke-width="1.5"/>
+
+    <!-- 3D Keyboard Base -->
+    <polygon points="-41 1146 1091 1146 1201 1207 -151 1207" fill="url(#keyboardBase)" stroke="#113A35" stroke-width="4"/>
+    
+    <!-- Trackpad Outline -->
+    <polygon points="435 1186 615 1186 626 1203 424 1203" fill="#0D2E2B" opacity="0.8" stroke="#1C4F4A" stroke-width="1.5"/>
+
+    <!-- Keyboard Key Area Indent -->
+    <polygon points="13 1153 1037 1153 1058 1179 92 1179" fill="#051412" stroke="#0A2C29" stroke-width="1.5"/>
+    
+    <!-- Keyboard Keys Row Lines -->
+    <polygon points="21 1158 1029 1158 1033 1163 26 1163" fill="#0C312C" opacity="0.6"/>
+    <polygon points="9 1168 1041 1168 1045 1173 5 1173" fill="#0C312C" opacity="0.6"/>
+
+    <!-- Front LED Glowing Strip -->
+    <polygon points="-134 1207 1184 1207 1176 1212 -126 1212" fill="#00B96B" filter="url(#glowFilter)" opacity="0.85"/>
+  </g>
+
+  <!-- ==================== FLOATING WIDGETS (Scaled up +30% & pushed closer to edges) ==================== -->
+  <g id="widgets">
+    <!-- 1. Appointments Today Card (Left: pushed to x=8, scaled up) -->
+    <g transform="translate(8, 510)" filter="url(#shadowFilter)">
+      <rect width="273" height="195" rx="23" fill="url(#glassGradient)" stroke="url(#glassBorder)" stroke-width="2.5"/>
+      <text x="31" y="47" fill="#88ABA7" font-family="'Inter', sans-serif" font-size="17" font-weight="700" letter-spacing="0.65">Appointments</text>
+      <text x="31" y="114" fill="#FFFFFF" font-family="'Inter', sans-serif" font-weight="900" font-size="68">24</text>
+      <text x="31" y="159" fill="#88ABA7" font-family="'Inter', sans-serif" font-size="17" font-weight="600">Today</text>
+      
+      <!-- Green Badge +12% -->
+      <rect x="156" y="130" width="91" height="34" rx="10" fill="#00B96B" fill-opacity="0.15"/>
+      <text x="201" y="152" fill="#00B96B" font-family="'Inter', sans-serif" font-weight="800" font-size="16" text-anchor="middle">↑ 12%</text>
+    </g>
+
+    <!-- 2. Patient Care Always First (Left Lower: pushed to x=10, y=860) -->
+    <g transform="translate(10, 860)" filter="url(#shadowFilter)">
+      <rect width="273" height="114" rx="21" fill="url(#glassGradient)" stroke="url(#glassBorder)" stroke-width="2.5"/>
+      
+      <!-- Heart Icon Circle -->
+      <circle cx="55" cy="57" r="29" fill="#00B96B" fill-opacity="0.15"/>
+      <path d="M55 43.5 C52.7 41.2 48.8 41.2 46.5 43.5 C44.2 45.8 44.2 49.7 46.5 52.0 L55 60.6 L63.5 52.0 C65.8 49.7 65.8 45.8 63.5 43.5 C61.2 41.2 57.3 41.2 55 43.5 Z" fill="#00B96B" filter="url(#glowFilter)"/>
+
+      <text x="101" y="49" fill="#FFFFFF" font-family="'Inter', sans-serif" font-size="18" font-weight="800">Patient Care</text>
+      <text x="101" y="75" fill="#88ABA7" font-family="'Inter', sans-serif" font-size="17" font-weight="600">Always First</text>
+    </g>
+
+    <!-- 3. Total Revenue Today (Right: pushed to x=770, y=550) -->
+    <g transform="translate(770, 550)" filter="url(#shadowFilter)">
+      <rect width="273" height="182" rx="23" fill="url(#glassGradient)" stroke="url(#glassBorder)" stroke-width="2.5"/>
+      <text x="31" y="44" fill="#88ABA7" font-family="'Inter', sans-serif" font-size="17" font-weight="700">Total Revenue</text>
+      <text x="31" y="96" fill="#FFFFFF" font-family="'Inter', sans-serif" font-weight="900" font-size="36">₹ 48,750</text>
+      <text x="31" y="130" fill="#00B96B" font-family="'Inter', sans-serif" font-size="17" font-weight="700">Today</text>
+      
+      <!-- Sparkline Graph -->
+      <path d="M31 153 Q91 135 151 156 T242 138" stroke="#00B96B" stroke-width="4" fill="none" stroke-linecap="round" filter="url(#glowFilter)"/>
+    </g>
+
+    <!-- 4. Secure & Compliant HIPAA Ready (Right Lower: pushed to x=765, y=900) -->
+    <g transform="translate(765, 900)" filter="url(#shadowFilter)">
+      <rect width="273" height="114" rx="21" fill="url(#glassGradient)" stroke="url(#glassBorder)" stroke-width="2.5"/>
+      
+      <!-- Shield Check Icon -->
+      <circle cx="55" cy="57" r="29" fill="#00B96B" fill-opacity="0.15"/>
+      <path d="M55 40 L46 43.8 V52.9 C46 58.5 49.8 63.8 55 65.8 C60.2 63.8 64 58.5 64 52.9 V43.8 L55 40 Z" fill="#00B96B" filter="url(#glowFilter)"/>
+      <path d="M51.2 52.9 L54.2 55.9 L60.2 49.9" stroke="#ffffff" stroke-width="2.3" fill="none" stroke-linecap="round"/>
+
+      <text x="101" y="49" fill="#FFFFFF" font-family="'Inter', sans-serif" font-size="18" font-weight="800">Secure &amp; Compliant</text>
+      <text x="101" y="75" fill="#88ABA7" font-family="'Inter', sans-serif" font-size="17" font-weight="600">HIPAA Ready</text>
+    </g>
+  </g>
+
+  <!-- ==================== BOTTOM SECURITY BADGES (Scaled +20% & pushed closer to bottom) ==================== -->
+  <g id="security" transform="translate(0, 1340)">
+    <line x1="80" y1="-25" x2="970" y2="-25" stroke="#0C3E3A" stroke-width="2.5"/>
+    
+    <!-- Badge 1: HIPAA Ready -->
+    <g transform="translate(150, 40)">
+      <circle cx="0" cy="0" r="34" fill="#00B96B" fill-opacity="0.08" stroke="#00B96B" stroke-opacity="0.2"/>
+      <path d="M-10 -12 H10 V12 H-10 Z" fill="none" stroke="#00B96B" stroke-width="3"/>
+      <path d="M-10 -4 H10 M-4 -12 V12" stroke="#00B96B" stroke-width="3"/>
+      <text x="0" y="68" fill="#FFFFFF" font-family="'Inter', sans-serif" font-size="17" font-weight="700" text-anchor="middle">HIPAA Ready</text>
+    </g>
+
+    <!-- Badge 2: ISO 27001 Certified -->
+    <g transform="translate(400, 40)">
+      <circle cx="0" cy="0" r="34" fill="#00B96B" fill-opacity="0.08" stroke="#00B96B" stroke-opacity="0.2"/>
+      <circle cx="0" cy="0" r="13" stroke="#00B96B" stroke-width="3" fill="none"/>
+      <path d="M-6 -6 L6 6 M6 -6 L-6 6" stroke="#00B96B" stroke-width="2.5"/>
+      <text x="0" y="68" fill="#FFFFFF" font-family="'Inter', sans-serif" font-size="17" font-weight="700" text-anchor="middle">ISO 27001 Certified</text>
+    </g>
+
+    <!-- Badge 3: End-to-End Encryption -->
+    <g transform="translate(650, 40)">
+      <circle cx="0" cy="0" r="34" fill="#00B96B" fill-opacity="0.08" stroke="#00B96B" stroke-opacity="0.2"/>
+      <rect x="-11" y="-5" width="22" height="16" rx="2" stroke="#00B96B" stroke-width="3" fill="none"/>
+      <path d="M-6 -5 V-10 C-6 -14.4 -3.1 -15.6 0 -15.6 C3.1 -15.6 6 -14.4 6 -10 V-5" stroke="#00B96B" stroke-width="3" fill="none"/>
+      <text x="0" y="68" fill="#FFFFFF" font-family="'Inter', sans-serif" font-size="17" font-weight="700" text-anchor="middle">End-to-End Encryption</text>
+    </g>
+
+    <!-- Badge 4: Privacy Protected -->
+    <g transform="translate(890, 40)">
+      <circle cx="0" cy="0" r="34" fill="#00B96B" fill-opacity="0.08" stroke="#00B96B" stroke-opacity="0.2"/>
+      <path d="M-12 -8 L0 -14 L12 -8 V0 C12 7 6 13 0 14 C-6 13 -12 7 -12 0 Z" stroke="#00B96B" stroke-width="3" fill="none"/>
+      <circle cx="0" cy="-1" r="4" fill="#00B96B"/>
+      <text x="0" y="68" fill="#FFFFFF" font-family="'Inter', sans-serif" font-size="17" font-weight="700" text-anchor="middle">Privacy Protected</text>
+    </g>
+  </g>
+</svg>

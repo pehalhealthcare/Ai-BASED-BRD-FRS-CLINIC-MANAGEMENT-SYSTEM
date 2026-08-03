@@ -414,7 +414,16 @@ const clinicApi = {
   resetPassword: (id, payload) => extractData(apiClient.post(`/clinics/${id}/reset-password`, payload)),
   deleteClinic: (id) => extractData(apiClient.delete(`/clinics/${id}`)),
   getBillingSettings: (id) => extractData(apiClient.get(`/clinics/${id}/billing-settings`)),
-  updateBillingSettings: (id, payload) => extractData(apiClient.patch(`/clinics/${id}/billing-settings`, payload))
+  updateBillingSettings: (id, payload) => extractData(apiClient.patch(`/clinics/${id}/billing-settings`, payload)),
+  saveOnboardingDraft: (payload) => extractData(apiClient.post('/clinics/onboarding/draft/save', payload)),
+  getOnboardingDraft: () => extractData(apiClient.get('/clinics/onboarding/draft')),
+  updateOnboardingDraft: (payload) => extractData(apiClient.put('/clinics/onboarding/draft/update', payload)),
+  deleteOnboardingDraft: () => extractData(apiClient.delete('/clinics/onboarding/draft')),
+  getSubscriptionModules: (id, params = {}) => extractData(apiClient.get(`/clinics/${id}/subscription/modules`, { params })),
+  getHealthcareProviders: (id) => extractData(apiClient.get(`/clinics/${id}/healthcare-providers`)),
+  getPharmacyDraft: (clinicId, params = {}) => extractData(apiClient.get(`/onboarding/pharmacy/draft/${clinicId}`, { params })),
+  savePharmacyDraft: (draftId, payload) => extractData(apiClient.put(`/onboarding/pharmacy/draft/${draftId}`, payload)),
+  createPharmacyDraft: (payload) => extractData(apiClient.post('/onboarding/pharmacy/draft', payload))
 };
 
 const subscriptionApi = {
@@ -564,6 +573,16 @@ const chatApi = {
   markAsRead: (conversationId) => extractData(apiClient.patch(`/chat/conversations/${conversationId}/read`))
 };
 
+const faqApi = {
+  getFaqs: () => extractData(apiClient.get('/faqs')),
+  createFaq: (payload) => extractData(apiClient.post('/admin/faqs', payload))
+};
+
+const validationApi = {
+  validateEmail: (params = {}) => extractData(apiClient.get('/validation/email', { params })),
+  validatePhone: (params = {}) => extractData(apiClient.get('/validation/phone', { params }))
+};
+
 export {
   apiClient,
   chatApi,
@@ -596,5 +615,7 @@ export {
   promoApi,
   healthcareCatalogApi,
   providersApi,
-  procedureApi
+  procedureApi,
+  faqApi,
+  validationApi
 };

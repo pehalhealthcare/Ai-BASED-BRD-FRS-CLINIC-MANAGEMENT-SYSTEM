@@ -1187,22 +1187,157 @@ const completeConsultation = async ({ requester, consultationId, payload, reques
   if (payload.systemicExamination !== undefined) consultation.systemicExamination = payload.systemicExamination;
   if (payload.customVitalsList !== undefined) consultation.customVitalsList = payload.customVitalsList;
 
-  consultation.status = 'completed';
+  // Save details first, keeping status as draft/in_consultation
   if (payload.isEdit) {
     consultation.editCompleted = true;
   }
-  consultation.completedAt = new Date();
   if (!consultation.startedAt) {
     consultation.startedAt = new Date();
   }
-  consultation.billingReady = true;
   consultation.updatedBy = requester._id;
+  await consultation.save();
 
+  const skippedSteps = payload.skippedSteps || [];
+  let pdfResult = null;
+
+  // Step 2: Generate PDF
+  if (!skippedSteps.includes('pdf')) {
+    try {
+      const Clinic = require('../clinics/clinic.model');
+      const Prescription = require('../prescriptions/prescription.model');
+      const clinic = await Clinic.findById(clinicId).lean();
+      const patient = consultation.patientId;
+      const doctor = consultation.doctorId;
+      const prescription = await Prescription.findOne({
+        consultationId: consultation._id,
+        clinicId
+      }).sort({ updatedAt: -1 }).lean();
+      const { generateConsultationPdf } = require('./consultationPdf.service');
+      pdfResult = await generateConsultationPdf({
+        consultation,
+        clinic,
+        patient,
+        doctor,
+        prescription
+      });
+      const { env } = require('../../config/env');
+      consultation.pdfUrl = `${env.apiPrefix}/consultations/${consultation._id}/pdf`;
+      await consultation.save();
+    } catch (pdfError) {
+      console.error('Failed to generate consultation PDF note:', pdfError);
+      return { success: false, failedStep: 'pdf', error: pdfError.message, consultationId: consultation._id };
+    }
+  }
+
+  // Step 3: Send Email
+  if (!skippedSteps.includes('email')) {
+    try {
+      const Clinic = require('../clinics/clinic.model');
+      const clinic = await Clinic.findById(clinicId).lean();
+      const patient = consultation.patientId;
+      const doctor = consultation.doctorId;
+
+      const fs = require('fs');
+      const logPath = require('path').resolve(process.cwd(), 'notification_debug.log');
+      fs.appendFileSync(logPath, `[DEBUG] completeConsultation email block start. patientEmail: ${patient?.email}\n`);
+      
+      const { createNotificationRecord, resolveTemplateAndContent } = require('../notifications/notification.service');
+      const Prescription = require('../prescriptions/prescription.model');
+      
+      const prescription = await Prescription.findOne({
+        consultationId: consultation._id,
+        clinicId,
+        status: 'finalized'
+      });
+
+      let prescriptionDetails = '';
+      if (prescription && prescription.medicines && prescription.medicines.length > 0) {
+        prescriptionDetails = '\n\nPrescription Medicines:\n' + prescription.medicines.map(m => 
+          `- ${m.medicineName}: ${m.dosage} ${m.frequency} for ${m.duration}`
+        ).join('\n');
+      }
+
+      const variables = {
+        patientName: patient?.fullName || '',
+        doctorName: doctor?.fullName || '',
+        consultationDate: new Date(consultation.createdAt).toLocaleDateString('en-IN'),
+        pdfUrl: consultation.pdfUrl || '',
+        pdfPath: pdfResult ? pdfResult.filePath : null
+      };
+
+      const resolvedEmail = await resolveTemplateAndContent({
+        clinicId,
+        type: 'consultation_completed',
+        channel: 'email',
+        variables,
+        subject: 'Consultation Completed - Actions Required',
+        body: `Hello {{patientName}},\n\nYour appointment has been completed with Dr. {{doctorName}}.\n\nThe doctor has provided your consultation suggestions and treatment details. Please go to your dashboard to pay the fees directly or visit the clinic receptionist to complete your billing and unlock full access to your EMR consultation records and prescription details.\n\nBest regards,\nAI-CMS Clinic`
+      });
+
+      await createNotificationRecord({
+        clinicId,
+        createdBy: requester._id,
+        payload: {
+          patientId: patient?._id || patient,
+          consultationId: consultation._id,
+          type: 'consultation_completed',
+          channel: 'email',
+          subject: resolvedEmail.subject,
+          body: resolvedEmail.body
+        },
+        variables,
+        patient,
+        template: resolvedEmail.template,
+        scheduledFor: null,
+        sendNow: true
+      });
+
+      if (patient?.phone) {
+        const resolvedWhatsapp = await resolveTemplateAndContent({
+          clinicId,
+          type: 'consultation_completed',
+          channel: 'whatsapp',
+          variables,
+          subject: 'Your Consultation Summary & EMR',
+          body: `Hello {{patientName}}, your consultation with Dr. {{doctorName}} has been completed. View details here: {{pdfUrl}}${prescriptionDetails}`
+        });
+
+        await createNotificationRecord({
+          clinicId,
+          createdBy: requester._id,
+          payload: {
+            patientId: patient?._id || patient,
+            consultationId: consultation._id,
+            type: 'consultation_completed',
+            channel: 'whatsapp',
+            subject: resolvedWhatsapp.subject,
+            body: resolvedWhatsapp.body
+          },
+          variables,
+          patient,
+          template: resolvedWhatsapp.template,
+          scheduledFor: null,
+          sendNow: true
+        });
+      }
+    } catch (notifyErr) {
+      const fs = require('fs');
+      const logPath = require('path').resolve(process.cwd(), 'notification_debug.log');
+      fs.appendFileSync(logPath, `[ERROR] completeConsultation notifyErr: ${notifyErr.message}\n${notifyErr.stack}\n`);
+      console.error('Failed to send consultation completed notification:', notifyErr);
+      return { success: false, failedStep: 'email', error: notifyErr.message, consultationId: consultation._id };
+    }
+  }
+
+  // Step 4: Finalize Status
+  consultation.status = 'completed';
+  consultation.completedAt = new Date();
+  consultation.billingReady = true;
   await consultation.save();
   await completeAppointmentIfPossible(consultation.appointmentId);
 
-  // Complete token if it exists
-  const Token = require('../appointments/queue.model');
+  // Complete token if it exists — use the correct token.model (NOT queue.model which doesn't exist)
+  const Token = require('../appointments/token.model');
   const activeToken = await Token.findOne({
     appointmentId: consultation.appointmentId?._id || consultation.appointmentId,
     status: 'in_consultation'
@@ -1211,6 +1346,11 @@ const completeConsultation = async ({ requester, consultationId, payload, reques
     activeToken.status = 'completed';
     activeToken.consultationCompleted = new Date();
     await activeToken.save();
+
+    // Broadcast real-time queue update so the Doctor Dashboard reflects the change immediately
+    if (global.io && activeToken.doctorId) {
+      global.io.emit('queue_update', { doctorId: String(activeToken.doctorId) });
+    }
   }
 
   // Auto-dispense/create pharmacy order for finalized prescriptions
@@ -1391,128 +1531,13 @@ const completeConsultation = async ({ requester, consultationId, payload, reques
     entityId: consultation._id,
     metadata: {
       diagnosisPrimary: consultation.diagnosis.primary,
-      billingReady: true
+      billingReady: true,
+      skippedSteps
     },
     ipAddress: req.ip,
     userAgent: req.get('user-agent'),
     status: 'SUCCESS'
   });
-
-  // Auto-generate Consultation PDF Note
-  try {
-    const Clinic = require('../clinics/clinic.model');
-    const Prescription = require('../prescriptions/prescription.model');
-    const clinic = await Clinic.findById(clinicId).lean();
-    const patient = consultation.patientId;
-    const doctor = consultation.doctorId;
-    const prescription = await Prescription.findOne({
-      consultationId: consultation._id,
-      clinicId
-    }).sort({ updatedAt: -1 }).lean();
-    const { generateConsultationPdf } = require('./consultationPdf.service');
-    const pdfResult = await generateConsultationPdf({
-      consultation,
-      clinic,
-      patient,
-      doctor,
-      prescription
-    });
-    const { env } = require('../../config/env');
-    consultation.pdfUrl = `${env.apiPrefix}/consultations/${consultation._id}/pdf`;
-    await consultation.save();
-
-    // Now, send email and WhatsApp with PDF/prescription details to patient
-    try {
-      const fs = require('fs');
-      fs.appendFileSync('d:\\Office_work\\CMS\\backend\\notification_debug.log', `[DEBUG] completeConsultation email block start. patientEmail: ${patient?.email}\n`);
-      
-      const { createNotificationRecord, resolveTemplateAndContent } = require('../notifications/notification.service');
-      const Prescription = require('../prescriptions/prescription.model');
-      
-      const prescription = await Prescription.findOne({
-        consultationId: consultation._id,
-        clinicId,
-        status: 'finalized'
-      });
-
-      let prescriptionDetails = '';
-      if (prescription && prescription.medicines && prescription.medicines.length > 0) {
-        prescriptionDetails = '\n\nPrescription Medicines:\n' + prescription.medicines.map(m => 
-          `- ${m.medicineName}: ${m.dosage} ${m.frequency} for ${m.duration}`
-        ).join('\n');
-      }
-
-      const variables = {
-        patientName: patient?.fullName || '',
-        doctorName: doctor?.fullName || '',
-        consultationDate: new Date(consultation.createdAt).toLocaleDateString('en-IN'),
-        pdfUrl: consultation.pdfUrl,
-        pdfPath: pdfResult.filePath
-      };
-
-      const resolvedEmail = await resolveTemplateAndContent({
-        clinicId,
-        type: 'consultation_completed',
-        channel: 'email',
-        variables,
-        subject: 'Consultation Completed - Actions Required',
-        body: `Hello {{patientName}},\n\nYour appointment has been completed with Dr. {{doctorName}}.\n\nThe doctor has provided your consultation suggestions and treatment details. Please go to your dashboard to pay the fees directly or visit the clinic receptionist to complete your billing and unlock full access to your EMR consultation records and prescription details.\n\nBest regards,\nAI-CMS Clinic`
-      });
-
-      await createNotificationRecord({
-        clinicId,
-        createdBy: requester._id,
-        payload: {
-          patientId: patient?._id || patient,
-          consultationId: consultation._id,
-          type: 'consultation_completed',
-          channel: 'email',
-          subject: resolvedEmail.subject,
-          body: resolvedEmail.body
-        },
-        variables,
-        patient,
-        template: resolvedEmail.template,
-        scheduledFor: null,
-        sendNow: true
-      });
-
-      if (patient?.phone) {
-        const resolvedWhatsapp = await resolveTemplateAndContent({
-          clinicId,
-          type: 'consultation_completed',
-          channel: 'whatsapp',
-          variables,
-          subject: 'Your Consultation Summary & EMR',
-          body: `Hello {{patientName}}, your consultation with Dr. {{doctorName}} has been completed. View details here: {{pdfUrl}}${prescriptionDetails}`
-        });
-
-        await createNotificationRecord({
-          clinicId,
-          createdBy: requester._id,
-          payload: {
-            patientId: patient?._id || patient,
-            consultationId: consultation._id,
-            type: 'consultation_completed',
-            channel: 'whatsapp',
-            subject: resolvedWhatsapp.subject,
-            body: resolvedWhatsapp.body
-          },
-          variables,
-          patient,
-          template: resolvedWhatsapp.template,
-          scheduledFor: null,
-          sendNow: true
-        });
-      }
-    } catch (notifyErr) {
-      const fs = require('fs');
-      fs.appendFileSync('d:\\Office_work\\CMS\\backend\\notification_debug.log', `[ERROR] completeConsultation notifyErr: ${notifyErr.message}\n${notifyErr.stack}\n`);
-      console.error('Failed to send consultation completed notification:', notifyErr);
-    }
-  } catch (pdfError) {
-    console.error('Failed to generate consultation PDF note:', pdfError);
-  }
 
   return consultationRepository.findById({
     id: consultation._id,
@@ -1599,7 +1624,8 @@ const requestReedit = async ({ requester, consultationId, requestedClinicId }) =
     
     // Log to file for verification
     const fs = require('fs');
-    fs.appendFileSync('d:/Office_work/CMS/backend/notification_debug.log', `[Re-edit Email] Code: ${code}. Sent to: ${patientObj.email}\nBody: ${emailBody}\n`);
+    const logPath = require('path').resolve(process.cwd(), 'notification_debug.log');
+    fs.appendFileSync(logPath, `[Re-edit Email] Code: ${code}. Sent to: ${patientObj.email}\nBody: ${emailBody}\n`);
 
     try {
       await notificationService.createNotificationRecord({
