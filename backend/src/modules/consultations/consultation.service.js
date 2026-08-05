@@ -1343,14 +1343,8 @@ const completeConsultation = async ({ requester, consultationId, payload, reques
     status: 'in_consultation'
   });
   if (activeToken) {
-    activeToken.status = 'completed';
-    activeToken.consultationCompleted = new Date();
-    await activeToken.save();
-
-    // Broadcast real-time queue update so the Doctor Dashboard reflects the change immediately
-    if (global.io && activeToken.doctorId) {
-      global.io.emit('queue_update', { doctorId: String(activeToken.doctorId) });
-    }
+    const queueService = require('../appointments/queue.service');
+    await queueService.completeTokenConsultation(activeToken._id);
   }
 
   // Auto-dispense/create pharmacy order for finalized prescriptions

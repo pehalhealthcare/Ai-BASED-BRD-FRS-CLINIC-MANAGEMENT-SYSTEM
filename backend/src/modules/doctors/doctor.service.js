@@ -30,6 +30,67 @@ const resolveDoctorFiles = async (doctor) => {
   return docObj;
 };
 
+/**
+ * Generates a unique token prefix for a doctor within a clinic following the priority sequence:
+ * 1. 1 Letter First Name + 1 Letter Last Name (SM)
+ * 2. 2 Letters First + 2 Letters Last (SHMI)
+ * 3. 3 Letters First + 3 Letters Last (SHYMIS)
+ * 4. Progressive letters (SHYAMM)
+ * 5. Append numeric suffixes (SHMI01, SHMI02...)
+ */
+const generateUniqueTokenPrefix = async (firstName, lastName, clinicId) => {
+  const cleanFirst = (firstName || '').replace(/[^A-Za-z]/g, '').toUpperCase();
+  const cleanLast = (lastName || '').replace(/[^A-Za-z]/g, '').toUpperCase();
+  const Doctor = require('./doctor.model');
+
+  const checkUnique = async (prefix) => {
+    const existing = await Doctor.findOne({ clinicId, tokenPrefix: prefix });
+    return !existing;
+  };
+
+  // Rule 1: 1 Letter First Name + 1 Letter Last Name
+  if (cleanFirst.length >= 1 && cleanLast.length >= 1) {
+    const p = cleanFirst.slice(0, 1) + cleanLast.slice(0, 1);
+    if (await checkUnique(p)) return p;
+  }
+
+  // Rule 2: 2 Letters First + 2 Letters Last
+  if (cleanFirst.length >= 2 && cleanLast.length >= 2) {
+    const p = cleanFirst.slice(0, 2) + cleanLast.slice(0, 2);
+    if (await checkUnique(p)) return p;
+  }
+
+  // Rule 3: 3 Letters First + 3 Letters Last
+  if (cleanFirst.length >= 3 && cleanLast.length >= 3) {
+    const p = cleanFirst.slice(0, 3) + cleanLast.slice(0, 3);
+    if (await checkUnique(p)) return p;
+  }
+
+  // Rule 4: Progressive full first name + first letter of last name, or similar variations
+  if (cleanFirst.length >= 4 && cleanLast.length >= 1) {
+    const p = cleanFirst.slice(0, 4) + cleanLast.slice(0, 1);
+    if (await checkUnique(p)) return p;
+  }
+
+  // Progressive full first name + progressive full last name
+  const fullConcat = (cleanFirst + cleanLast).slice(0, 6);
+  if (fullConcat.length >= 2 && await checkUnique(fullConcat)) {
+    return fullConcat;
+  }
+
+  // Rule 5: Append numeric suffixes
+  const base = fullConcat.length >= 4 ? fullConcat.slice(0, 4) : (fullConcat + 'DOC').slice(0, 4);
+  let counter = 1;
+  while (counter < 100) {
+    const suffix = String(counter).padStart(2, '0'); // '01', '02'...
+    const p = (base + suffix).slice(0, 10);
+    if (await checkUnique(p)) return p;
+    counter++;
+  }
+
+  return `DOC${Math.floor(Math.random() * 900) + 100}`;
+};
+
 const processAndSaveFile = async (doctor, field, newContent, filename) => {
   const currentRef = doctor[field];
 
@@ -226,6 +287,20 @@ const createDoctor = async ({ requester, payload, requestedClinicId = null, req 
   const firstName = parts[0];
   const lastName = parts.slice(1).join(' ') || '';
 
+  // Generate prefix automatically if not customized
+  let prefix = (payload.tokenPrefix || '').toUpperCase().trim();
+  let customized = false;
+  if (prefix) {
+    customized = true;
+    const Doctor = require('./doctor.model');
+    const existing = await Doctor.findOne({ clinicId, tokenPrefix: prefix });
+    if (existing) {
+      throw new AppError('The requested token prefix already exists in this clinic.', HTTP_STATUS.CONFLICT);
+    }
+  } else {
+    prefix = await generateUniqueTokenPrefix(firstName, lastName, clinicId);
+  }
+
   const doctor = await doctorRepository.createDoctor({
     title: payload.title || 'Dr.',
     firstName,
@@ -239,6 +314,9 @@ const createDoctor = async ({ requester, payload, requestedClinicId = null, req 
     approvalStatus: 'pending_profile',
     isActive: false,
     doctorCode: await generateDoctorCode(clinicId),
+    tokenPrefix: prefix,
+    tokenPrefixGenerated: prefix,
+    tokenPrefixCustomized: customized,
     createdBy: requester._id,
     updatedBy: requester._id
   });
@@ -437,6 +515,25 @@ const updateDoctor = async ({ requester, doctorId, payload, requestedClinicId = 
 
     doctor.pendingAssignment = pendingData;
     doctor.assignmentStatus = 'pending_acceptance';
+  }
+
+  // Update tokenPrefix custom value with validation if provided
+  if (otherPayload.tokenPrefix !== undefined) {
+    const newPrefix = (otherPayload.tokenPrefix || '').toUpperCase().trim();
+    if (newPrefix && newPrefix !== doctor.tokenPrefix) {
+      const Doctor = require('./doctor.model');
+      const existing = await Doctor.findOne({
+        clinicId: doctor.clinicId,
+        tokenPrefix: newPrefix,
+        _id: { $ne: doctor._id }
+      });
+      if (existing) {
+        throw new AppError('The requested token prefix already exists in this clinic.', HTTP_STATUS.CONFLICT);
+      }
+      doctor.tokenPrefix = newPrefix;
+      doctor.tokenPrefixCustomized = true;
+    }
+    delete otherPayload.tokenPrefix;
   }
 
   Object.assign(doctor, otherPayload, {
@@ -818,6 +915,7 @@ const submitMyProfile = async ({ requester, payload }) => {
 const acceptMySlot = async ({ requester }) => {
   const Doctor = require('./doctor.model');
   const User = require('../users/user.model');
+  const Staff = require('../staff/staff.model');
 
   const doctor = await Doctor.findOne({ userId: requester._id });
   if (!doctor) {
@@ -826,12 +924,25 @@ const acceptMySlot = async ({ requester }) => {
 
   doctor.hasAcceptedSlot = true;
   doctor.initialSlotAccepted = true;
+  doctor.isActive = true;
   await doctor.save();
 
   await User.updateOne(
     { _id: requester._id },
-    { $set: { hasAcceptedSlot: true, initialSlotAccepted: true } }
+    { $set: { hasAcceptedSlot: true, initialSlotAccepted: true, isActive: true } }
   );
+
+  const staff = await Staff.findOne({ userId: requester._id });
+  if (staff) {
+    staff.hasAcceptedSlot = true;
+    staff.initialSlotAccepted = true;
+    staff.isActive = true;
+    staff.invitationStatus = 'Active';
+    staff.offerStatus = 'Accepted';
+    staff.accountStatus = 'Active';
+    if (!staff.activatedAt) staff.activatedAt = new Date();
+    await staff.save();
+  }
 
   return resolveDoctorFiles(doctor);
 };

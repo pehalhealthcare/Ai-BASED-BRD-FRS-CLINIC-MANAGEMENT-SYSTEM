@@ -363,6 +363,7 @@ const getOverview = async ({ requester, query = {}, requestedClinicId = null }) 
   // Revenue Calculations
   let amountReceived = 0;
   let commissionEarned = 0;
+  let todayInvoicesCount = 0;
   if (!isFuture) {
     if (!doctorId) {
       const revenueSummary = await Invoice.aggregate([
@@ -377,13 +378,15 @@ const getOverview = async ({ requester, query = {}, requestedClinicId = null }) 
           $group: {
             _id: null,
             totalPaid: { $sum: '$paidAmount' },
-            totalCommission: { $sum: '$clinicCommission' }
+            totalCommission: { $sum: '$clinicCommission' },
+            invoiceCount: { $sum: 1 }
           }
         }
       ]);
       if (revenueSummary && revenueSummary[0]) {
         amountReceived = revenueSummary[0].totalPaid || 0;
         commissionEarned = revenueSummary[0].totalCommission || 0;
+        todayInvoicesCount = revenueSummary[0].invoiceCount || 0;
       }
     }
   } else {
@@ -504,7 +507,8 @@ const getOverview = async ({ requester, query = {}, requestedClinicId = null }) 
       pendingFollowUps: 0,
       amountReceived,
       commissionEarned,
-      paymentReceived
+      paymentReceived,
+      todayInvoicesCount
     },
     recentAppointments: appointmentsOnDate.slice(0, 5),
     chart: chartData,
@@ -592,7 +596,11 @@ const getAppointmentsAnalytics = async ({ requester, query = {}, requestedClinic
     noShow: counts.no_show || 0,
     walkInCount: await dashboardRepository.countDocuments(Appointment, {
       ...match,
-      appointmentType: 'walk_in'
+      consultationMode: 'WALK_IN'
+    }),
+    onlineCount: await dashboardRepository.countDocuments(Appointment, {
+      ...match,
+      consultationMode: 'ONLINE'
     }),
     byDay,
     byDoctor: byDoctorRaw.map((row) => {

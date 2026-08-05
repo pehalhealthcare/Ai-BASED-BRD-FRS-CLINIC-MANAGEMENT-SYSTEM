@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   Search, Calendar, Clock, CheckCircle, Info, Copy, Check, Upload,
   SlidersHorizontal, ChevronRight, X, AlertCircle, Sparkles, QrCode,
@@ -12,6 +12,9 @@ import LoadingState from '../../components/common/LoadingState';
 import ErrorState from '../../components/common/ErrorState';
 import useAuth from '../../hooks/useAuth';
 import { Html5Qrcode } from 'html5-qrcode';
+import { io } from 'socket.io-client';
+
+import { clinicApi } from '../../lib/api';
 
 export default function ReceptionistAppointmentsPage() {
   const { user, logout } = useAuth();
@@ -25,10 +28,7 @@ export default function ReceptionistAppointmentsPage() {
   // Date selection (default to today)
   const [selectedDate, setSelectedDate] = useState(() => {
     const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    const dd = String(today.getDate()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}`;
+    return today.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).split('/').reverse().join('-');
   });
 
   const [selectedAppt, setSelectedAppt] = useState(null);
@@ -42,6 +42,8 @@ export default function ReceptionistAppointmentsPage() {
   const [scanDropdownOpen, setScanDropdownOpen] = useState(false);
   const [showScanModal, setShowScanModal] = useState(false);
   const [html5QrCode, setHtml5QrCode] = useState(null);
+  const [checkingInId, setCheckingInId] = useState(null);
+  const [clinicSettings, setClinicSettings] = useState(null);
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
@@ -52,14 +54,16 @@ export default function ReceptionistAppointmentsPage() {
     setLoading(true);
     setError('');
     try {
-      const [apptsData, docsData] = await Promise.all([
-        appointmentApi.list({ limit: 100 }),
-        doctorApi.list({ limit: 50 })
+      const clinicId = user?.clinic?._id || user?.clinicId;
+      const [apptsData, docsData, settingsRes] = await Promise.all([
+        appointmentApi.list({ limit: 100, includePending: 'true' }),
+        doctorApi.list({ limit: 50 }),
+        clinicId ? clinicApi.getBillingSettings(clinicId) : Promise.resolve(null)
       ]);
    
-      
       setAppointments(apptsData?.appointments || []);
       setDoctors(docsData?.doctors || docsData?.data?.doctors || []);
+      setClinicSettings(settingsRes?.data?.billingSettings || null);
       
       // Auto-select first pending offline appointment on load if available
       const offlineAppts = (apptsData?.appointments || []).filter(
@@ -87,8 +91,74 @@ export default function ReceptionistAppointmentsPage() {
 
   useEffect(() => {
     loadData();
-    console.log(appointments);
   }, []);
+
+  // Real-time socket listener for appointment events
+  useEffect(() => {
+    const socketUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+    const socket = io(socketUrl, { transports: ['websocket', 'polling'] });
+
+    socket.on('connect', () => {
+      // Join clinic room for appointment broadcasts
+      const clinicId = user?.clinic?._id || user?.clinicId;
+      if (clinicId) socket.emit('join_clinic', clinicId);
+      // Also join personal user room
+      if (user?._id) socket.emit('join_user', user._id);
+    });
+
+    // Update a single appointment in the local state without re-fetching
+    const patchAppointment = (data) => {
+      if (!data?.appointmentId) return;
+      setAppointments(prev => prev.map(a => {
+        if (String(a._id) !== String(data.appointmentId)) return a;
+        return {
+          ...a,
+          ...(data.status && { status: data.status }),
+          ...(data.paymentStatus && { paymentStatus: data.paymentStatus }),
+          ...(data.tokenNumber && { tokenNumber: data.tokenNumber }),
+          ...(data.checkedInAt && { checkedInAt: data.checkedInAt }),
+          ...(data.remainingAmount !== undefined && { remainingAmount: data.remainingAmount }),
+          ...(data.bookedAt && { bookedAt: data.bookedAt }),
+          ...(data.receiptNumber && { receiptNumber: data.receiptNumber })
+        };
+      }));
+    };
+
+    const APPOINTMENT_EVENTS = [
+      'appointment:created',
+      'appointment:updated',
+      'appointment:cancelled',
+      'appointment:payment-processing',
+      'appointment:payment-success',
+      'appointment:payment-failed',
+      'appointment:waiver-requested',
+      'appointment:waiver-approved',
+      'appointment:waiver-rejected',
+      'appointment:checked-in',
+      'appointment:token-generated',
+      'appointment:consultation-started',
+      'appointment:consultation-completed',
+      'appointment:no-show',
+      'appointment:reservation-expired'
+    ];
+
+    APPOINTMENT_EVENTS.forEach(evt => socket.on(evt, (data) => {
+      if (evt === 'appointment:reservation-expired') {
+        // Remove expired reservation from table instantly
+        setAppointments(prev => prev.filter(a => String(a._id) !== String(data.appointmentId)));
+      } else {
+        patchAppointment(data);
+      }
+    }));
+
+    // For 'appointment:created' we do a full reload so the new row appears
+    socket.on('appointment:created', () => loadData());
+
+    return () => {
+      APPOINTMENT_EVENTS.forEach(evt => socket.off(evt));
+      socket.disconnect();
+    };
+  }, [user]);
 
   // Format date helper for stats and display
   const dateFormatted = useMemo(() => {
@@ -153,7 +223,7 @@ export default function ReceptionistAppointmentsPage() {
       if (!matchesSearch) return false;
 
       // 2. Tab Filter
-      const isOffline = a.appointmentType !== 'teleconsultation';
+      const isOffline = a.consultationMode !== 'ONLINE' && a.appointmentType !== 'teleconsultation';
       const isToday = a.appointmentDate && a.appointmentDate.split('T')[0] === selectedDate;
       const status = a.status?.toLowerCase();
 
@@ -322,25 +392,139 @@ export default function ReceptionistAppointmentsPage() {
     handleResetVerification();
   };
 
-  const getStatusStyle = (status) => {
-    const upper = status?.toUpperCase() || '';
-    if (upper === 'IN CONSULTATION') {
-      return 'border-amber-500/30 bg-amber-500/10 text-amber-400';
-    }
-    if (upper === 'CONFIRMED' || upper === 'CHECKED_IN') {
-      return 'border-[#0dd5b8]/30 bg-[#0dd5b8]/10 text-[#0dd5b8]';
-    }
-    if (upper === 'COMPLETED') {
-      return 'border-purple-500/30 bg-purple-500/10 text-purple-400';
-    }
-    if (upper === 'WAITING') {
-      return 'border-blue-500/30 bg-blue-500/10 text-blue-400';
-    }
-    if (upper.includes('CANCEL')) {
-      return 'border-red-500/30 bg-red-500/10 text-red-400';
-    }
-    return 'border-yellow-600/30 bg-yellow-600/10 text-yellow-400'; // BOOKED
+  const getStatusLabel = (status) => {
+    const labels = {
+      'payment_pending': 'Payment Pending',
+      'waiting_for_approval': 'Awaiting Approval',
+      'booked': 'Booked Successfully',
+      'confirmed': 'Confirmed',
+      'checked_in': 'Checked In',
+      'late_check_in': 'Late Check-In',
+      'called': 'Called',
+      'in_consultation': 'In Consultation',
+      'consultation_started': 'In Consultation',
+      'consultation_completed': 'Completed',
+      'completed': 'Completed',
+      'cancelled': 'Cancelled',
+      'patient_cancelled': 'Cancelled',
+      'clinic_cancelled': 'Cancelled',
+      'no_show': 'No Show',
+      'not_attended': 'Not Attended',
+      'waiting': 'Waiting'
+    };
+    return labels[status] || status?.replace(/_/g, ' ')?.replace(/\b\w/g, c => c.toUpperCase()) || 'Unknown';
   };
+
+  const getStatusStyle = (status) => {
+    if (['booked', 'confirmed'].includes(status)) return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400';
+    if (['checked_in', 'late_check_in'].includes(status)) return 'border-[#0dd5b8]/30 bg-[#0dd5b8]/10 text-[#0dd5b8]';
+    if (['in_consultation', 'consultation_started', 'called'].includes(status)) return 'border-amber-500/30 bg-amber-500/10 text-amber-400';
+    if (['completed', 'consultation_completed'].includes(status)) return 'border-purple-500/30 bg-purple-500/10 text-purple-400';
+    if (['waiting'].includes(status)) return 'border-blue-500/30 bg-blue-500/10 text-blue-400';
+    if (['payment_pending'].includes(status)) return 'border-orange-500/30 bg-orange-500/10 text-orange-400';
+    if (['waiting_for_approval'].includes(status)) return 'border-violet-500/30 bg-violet-500/10 text-violet-400';
+    if (status?.includes('cancel') || status?.includes('no_show') || status?.includes('not_attended')) return 'border-red-500/30 bg-red-500/10 text-red-400';
+    return 'border-slate-600/30 bg-slate-600/10 text-slate-400';
+  };
+
+  const getPaymentBadge = (paymentStatus, appointmentStatus) => {
+    // CRITICAL: Never display 'Paid' when appointment status is payment_pending
+    // This is the root bug fix - derive display from both fields
+    const isPendingAppt = ['payment_pending', 'waiting_for_approval', 'waiver_pending', 'draft'].includes(appointmentStatus);
+    
+    // Override: if appointment is still payment_pending, force badge to Pending
+    const effectivePayment = (isPendingAppt && paymentStatus === 'paid') ? 'pending' : paymentStatus;
+
+    const map = {
+      'paid': { label: 'Paid', cls: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
+      'fully_waived': { label: 'Fully Waived', cls: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
+      'partially_waived': { label: 'Partial Waiver', cls: 'bg-sky-500/10 text-sky-400 border-sky-500/20' },
+      'partially_paid': { label: 'Partial Pay', cls: 'bg-teal-500/10 text-teal-400 border-teal-500/20' },
+      'pending': { label: 'Pending', cls: 'bg-orange-500/10 text-orange-400 border-orange-500/20' },
+      'processing': { label: 'Processing', cls: 'bg-blue-400/10 text-blue-300 border-blue-400/20' },
+      'failed': { label: 'Failed', cls: 'bg-red-500/10 text-red-400 border-red-500/20' },
+      'refunded': { label: 'Refunded', cls: 'bg-purple-500/10 text-purple-400 border-purple-500/20' },
+      'waiver_pending': { label: 'Waiver Pending', cls: 'bg-violet-500/10 text-violet-400 border-violet-500/20' },
+      'waiver_approved': { label: 'Waiver Approved', cls: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
+      'waiver_rejected': { label: 'Waiver Rejected', cls: 'bg-red-500/10 text-red-400 border-red-500/20' },
+    };
+    const info = map[effectivePayment] || { label: effectivePayment || '—', cls: 'bg-slate-700/10 text-slate-400 border-slate-600/20' };
+    return <span className={`inline-block px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${info.cls}`}>{info.label}</span>;
+  };
+
+  // Handle Check-In action
+  const handleCheckIn = async (appt, e) => {
+    e.stopPropagation();
+    setCheckingInId(appt._id);
+    try {
+      const res = await appointmentApi.checkIn(appt._id, { method: 'Reception', isEmergency: false });
+      const updatedAppt = res?.data?.appointment || res?.appointment || res;
+      setAppointments(prev => prev.map(a => a._id === appt._id ? { ...a, ...updatedAppt, status: updatedAppt.status || 'checked_in' } : a));
+      if (selectedAppt?._id === appt._id) {
+        setSelectedAppt(prev => ({ ...prev, ...updatedAppt }));
+      }
+    } catch (err) {
+      alert(err?.response?.data?.message || 'Check-in failed. Please try again.');
+    } finally {
+      setCheckingInId(null);
+    }
+  };
+
+  // Determine check-in column state for an appointment
+  const getCheckInState = (appt) => {
+    const today = new Date();
+    // Resolve dates using Asia/Kolkata timezone to avoid rollover drifts
+    const todayStr = today.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).split('/').reverse().join('-');
+    const apptDate = appt.appointmentDate ? appt.appointmentDate.split('T')[0] : '';
+    const isToday = apptDate === todayStr;
+    const isPast = apptDate < todayStr;
+    const status = appt.status;
+
+    if (['checked_in', 'late_check_in', 'called', 'in_consultation', 'consultation_started', 'consultation_completed', 'completed'].includes(status)) {
+      const timeStr = appt.checkedInAt
+        ? new Date(appt.checkedInAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+        : '';
+      return { type: 'done', timeStr };
+    }
+    if (['payment_pending', 'waiting_for_approval', 'waiver_pending', 'draft'].includes(status)) {
+      return { type: 'payment_pending' };
+    }
+    if (!isToday && !isPast) return { type: 'future' };
+    if (isPast) return { type: 'other' }; // past date check-in disabled
+
+    if (isToday && ['booked', 'confirmed'].includes(status)) {
+      // Evaluate Early Check-In restrictions
+      if (appt.consultationMode === 'WALK_IN' || appt.appointmentType === 'walk_in') {
+        const allowEarly = clinicSettings?.allowEarlyCheckIn ?? true;
+        const restrictEarly = clinicSettings?.restrictEarlyCheckIn ?? false;
+        
+        if (!allowEarly && restrictEarly) {
+          const windowMins = clinicSettings?.earlyCheckInWindowMinutes ?? 30;
+          
+          // Compare slot startTime vs current Asia/Kolkata time
+          const [slotHours, slotMins] = (appt.startTime || "00:00").split(':').map(Number);
+          const localNowStr = new Date().toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour12: false });
+          const [currHours, currMins] = localNowStr.split(':').map(Number);
+          
+          const slotTotalMins = slotHours * 60 + slotMins;
+          const currTotalMins = currHours * 60 + currMins;
+          const diff = slotTotalMins - currTotalMins; // positive if current time is before slot time
+          
+          if (diff > windowMins) {
+            // Early check-in opens earlyCheckInWindowMinutes before slot
+            const apptTime = new Date();
+            apptTime.setHours(slotHours, slotMins, 0, 0);
+            const openTime = new Date(apptTime.getTime() - windowMins * 60 * 1000);
+            const openTimeStr = openTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+            return { type: 'restricted', openTimeStr, windowMins };
+          }
+        }
+      }
+      return { type: 'ready' };
+    }
+    return { type: 'other' };
+  };
+
 
   if (loading && appointments.length === 0) return <LoadingState label="Loading Appointments..." />;
   if (error  && appointments.length === 0) return <ErrorState title="Appointments Load Error" description={error} />;
@@ -529,14 +713,15 @@ export default function ReceptionistAppointmentsPage() {
                 </tr>
               ) : (
                 <tr className="border-b border-white/[0.06] bg-[#080f1a]/30 text-slate-500 text-[10px] font-black uppercase tracking-[0.12em]">
-                  <th className="py-4 px-5">Time</th>
-                  <th className="py-4 px-5">Patient</th>
-                  <th className="py-4 px-5">Doctor</th>
-                  <th className="py-4 px-5">Purpose</th>
-                  <th className="py-4 px-5">Status</th>
-                  <th className="py-4 px-5">Mode</th>
-                  <th className="py-4 px-5">Token</th>
-                  <th className="py-4 px-5 text-right">Action</th>
+                  <th className="py-4 px-4">Date & Time</th>
+                  <th className="py-4 px-4">Patient</th>
+                  <th className="py-4 px-4">Doctor</th>
+                  <th className="py-4 px-4">Mode</th>
+                  <th className="py-4 px-4">Payment</th>
+                  <th className="py-4 px-4">Status</th>
+                  <th className="py-4 px-4">Check-In</th>
+                  <th className="py-4 px-4">Token</th>
+                  <th className="py-4 px-4 text-right">Actions</th>
                 </tr>
               )}
             </thead>
@@ -610,76 +795,135 @@ export default function ReceptionistAppointmentsPage() {
                         isSelected ? 'bg-[#0dd5b8]/[0.02] border-l-2 border-[#0dd5b8]' : ''
                       }`}
                     >
-                      {/* Time */}
-                      <td className="py-4.5 px-5 text-white font-black text-sm">{formatTime(appt.startTime)}</td>
+                      {/* Date & Time */}
+                      <td className="py-3.5 px-4">
+                        <p className="font-black text-white text-xs">{formatTime(appt.startTime)}</p>
+                        <p className="text-[10px] text-slate-500 font-semibold mt-0.5">
+                          {appt.appointmentDate ? new Date(appt.appointmentDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '—'}
+                        </p>
+                      </td>
                       
                       {/* Patient Info */}
-                      <td className="py-4.5 px-5">
+                      <td className="py-3.5 px-4">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-full bg-[#ec4899] text-white flex items-center justify-center font-black text-xs shrink-0">
                             {patName.split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase()}
                           </div>
                           <div>
                             <p className="font-black text-white leading-tight">{patName}</p>
-                            <p className="text-[10px] text-slate-500 font-semibold mt-1">
-                              {patDetail}
-                            </p>
-                            <p className="text-[9px] text-slate-550 font-mono mt-0.5">
-                              {appt.patientId?.patientId || 'PAT-00000'}
-                            </p>
+                            <p className="text-[10px] text-slate-500 font-semibold mt-0.5">{patDetail}</p>
+                            <p className="text-[9px] text-slate-600 font-mono mt-0.5">{appt.patientId?.patientId || ''}</p>
                           </div>
                         </div>
                       </td>
 
                       {/* Doctor Info */}
-                      <td className="py-4.5 px-5">
-                        <div>
-                          <p className="font-black text-white leading-tight">Dr. {docName}</p>
-                          <p className="text-[10px] text-slate-500 font-semibold mt-1">{docDetail}</p>
-                        </div>
-                      </td>
-
-                      {/* Purpose */}
-                      <td className="py-4.5 px-5 text-slate-400 font-medium">{appt.reasonForVisit || 'General Checkup'}</td>
-
-                      {/* Status */}
-                      <td className="py-4.5 px-5">
-                        <span className={`inline-block px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider border ${getStatusStyle(statusVal)}`}>
-                          {statusVal}
-                        </span>
+                      <td className="py-3.5 px-4">
+                        <p className="font-black text-white leading-tight text-xs">Dr. {docName}</p>
+                        <p className="text-[10px] text-slate-500 font-semibold mt-0.5">{docDetail}</p>
                       </td>
 
                       {/* Mode */}
-                      <td className="py-4.5 px-5">
+                      <td className="py-3.5 px-4">
                         <div className="flex items-center gap-1.5 text-xs text-slate-300 font-bold">
-                          {isOffline ? (
-                            <>
-                              <Building size={13} className="text-[#0dd5b8]" />
-                              <span>Offline <span className="text-[10px] text-slate-500 font-semibold block">(In-Clinic)</span></span>
-                            </>
+                          {(appt.consultationMode === 'ONLINE' || !isOffline) ? (
+                            <><Video size={12} className="text-[#3b82f6]" /><span className="text-[10px]">Video</span></>
                           ) : (
-                            <>
-                              <Video size={13} className="text-[#3b82f6]" />
-                              <span>Online <span className="text-[10px] text-slate-500 font-semibold block">(Video)</span></span>
-                            </>
+                            <><Building size={12} className="text-[#0dd5b8]" /><span className="text-[10px]">In-Clinic</span></>
                           )}
                         </div>
                       </td>
 
+                      {/* Payment Status */}
+                      <td className="py-3.5 px-4">
+                        {getPaymentBadge(appt.paymentStatus, appt.status)}
+                      </td>
+
+                      {/* Appointment Status */}
+                      <td className="py-3.5 px-4">
+                        <span className={`inline-block px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${getStatusStyle(statusVal)}`}>
+                          {getStatusLabel(statusVal)}
+                        </span>
+                      </td>
+
+                      {/* Check-In Column */}
+                      <td className="py-3.5 px-4" onClick={e => e.stopPropagation()}>
+                        {(() => {
+                          const ci = getCheckInState(appt);
+                          if (ci.type === 'done') return (
+                            <div>
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                <UserCheck size={9} /> Checked In{ci.timeStr ? ` ${ci.timeStr}` : ''}
+                              </span>
+                            </div>
+                          );
+                          if (ci.type === 'payment_pending') return (
+                            <span className="inline-block px-2 py-0.5 rounded-full text-[9px] font-black bg-orange-500/10 text-orange-400 border border-orange-500/20">
+                              Awaiting Payment
+                            </span>
+                          );
+                          if (ci.type === 'future') return (
+                            <div className="flex flex-col gap-1">
+                              <span className="inline-block px-2 py-0.5 rounded-full text-[9px] font-black bg-slate-700/30 text-slate-500 border border-slate-600/20 w-fit">
+                                Not Available Yet
+                              </span>
+                              <span className="text-[8px] font-black text-slate-400">Future Date</span>
+                            </div>
+                          );
+                          if (ci.type === 'restricted') return (
+                            <div className="flex flex-col gap-1 select-none" title={`Check-In available at ${ci.openTimeStr}`}>
+                              <button
+                                disabled={true}
+                                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 text-slate-500 border border-slate-700 text-[9px] font-black cursor-not-allowed w-fit"
+                              >
+                                <UserCheck size={10} />
+                                Check In
+                              </button>
+                              <span className="text-[8px] font-semibold text-rose-400">Opens at {ci.openTimeStr}</span>
+                            </div>
+                          );
+                          if (ci.type === 'ready') {
+                            const showEarlyBadge = appt.consultationMode === 'WALK_IN' || appt.appointmentType === 'walk_in';
+                            const allowEarly = clinicSettings?.allowEarlyCheckIn ?? true;
+                            const restrictEarly = clinicSettings?.restrictEarlyCheckIn ?? false;
+                            
+                            return (
+                              <div className="flex flex-col gap-1">
+                                <button
+                                  onClick={(e) => handleCheckIn(appt, e)}
+                                  disabled={checkingInId === appt._id}
+                                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#0dd5b8]/10 hover:bg-[#0dd5b8]/20 text-[#0dd5b8] border border-[#0dd5b8]/30 text-[9px] font-black transition disabled:opacity-50 w-fit"
+                                >
+                                  <UserCheck size={10} />
+                                  {checkingInId === appt._id ? 'Checking...' : 'Check In'}
+                                </button>
+                                {showEarlyBadge && (
+                                  allowEarly && !restrictEarly ? (
+                                    <span className="inline-block text-[8px] font-bold text-emerald-400">Early Check-In Allowed</span>
+                                  ) : restrictEarly ? (
+                                    <span className="inline-block text-[8px] font-bold text-blue-400">Check-In Opens {clinicSettings?.earlyCheckInWindowMinutes ?? 30} mins Before</span>
+                                  ) : null
+                                )}
+                              </div>
+                            );
+                          }
+                          return <span className="text-slate-600 text-[10px]">—</span>;
+                        })()}
+                      </td>
+
                       {/* Token */}
-                      <td className="py-4.5 px-5 font-mono text-xs">
-                        {appt.meta?.tokenNumber ? (
-                          <div className="text-slate-300">
-                            <span className="font-black text-white">{appt.meta.tokenNumber}</span>
-                            <span className="text-[10px] text-slate-500 font-semibold block"># {appt.meta.roomNumber || 'Queue'}</span>
-                          </div>
+                      <td className="py-3.5 px-4 font-mono text-xs">
+                        {appt.tokenNumber || appt.meta?.tokenNumber ? (
+                          <span className="font-black text-white">
+                            {appt.tokenNumber || appt.meta?.tokenNumber}
+                          </span>
                         ) : (
-                          <span className="text-slate-550">—</span>
+                          <span className="text-slate-600">—</span>
                         )}
                       </td>
 
                       {/* Action */}
-                      <td className="py-4.5 px-5 text-right">
+                      <td className="py-3.5 px-4 text-right">
                         <button className="w-7 h-7 rounded-lg flex items-center justify-center bg-white/[0.02] border border-white/[0.06] hover:bg-white/[0.06] transition text-slate-400 hover:text-white ml-auto">
                           <ChevronRight size={13} />
                         </button>
@@ -950,23 +1194,53 @@ export default function ReceptionistAppointmentsPage() {
               <div>
                 <p className="text-[9px] font-bold text-slate-555 uppercase tracking-wider">Consultation Mode</p>
                 <p className="text-xs font-bold text-slate-300 mt-1 flex items-center gap-1.5">
-                  {selectedAppt.appointmentType === 'teleconsultation' ? (
+                  {(selectedAppt.consultationMode === 'ONLINE' || selectedAppt.appointmentType === 'teleconsultation') ? (
                     <>
                       <Video size={13} className="text-[#3b82f6]" />
-                      <span>Online (Video)</span>
+                      <span>Video Consultation (Online)</span>
                     </>
                   ) : (
                     <>
                       <Building size={13} className="text-[#0dd5b8]" />
-                      <span>Offline (In-Clinic)</span>
+                      <span>Walk-In Consultation (In-Clinic)</span>
                     </>
                   )}
                 </p>
               </div>
             </div>
 
-            {/* Verify/Check-In Card */}
-            {selectedAppt.status !== 'completed' && selectedAppt.status !== 'checked_in' && (
+            {/* Join meeting link for Online consultations */}
+            {(selectedAppt.consultationMode === 'ONLINE' || selectedAppt.appointmentType === 'teleconsultation') && selectedAppt.virtualMeetingLink && (
+              <div className="border border-blue-500/20 rounded-2xl bg-blue-500/[0.02] p-4.5 space-y-3">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-blue-500/15 flex items-center justify-center text-blue-400 shrink-0">
+                    <Video size={16} />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-white uppercase tracking-wider">Video Meeting Link</h4>
+                    <p className="text-[10px] text-slate-400 mt-0.5 leading-relaxed font-mono truncate select-all">{selectedAppt.virtualMeetingLink}</p>
+                  </div>
+                </div>
+                {(() => {
+                  // Display join button only if consultation time has started / joining window is active (e.g. 10 mins before or anytime today)
+                  const apptDate = new Date(selectedAppt.appointmentDate);
+                  const isToday = apptDate.toDateString() === new Date().toDateString();
+                  
+                  return (
+                    <button 
+                      onClick={() => window.open(selectedAppt.virtualMeetingLink, '_blank')}
+                      disabled={!isToday}
+                      className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-black transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      Join Secure Video Consultation
+                    </button>
+                  );
+                })()}
+              </div>
+            )}
+
+            {/* Verify/Check-In Card (Only show for Walk-In appointments) */}
+            {selectedAppt.consultationMode !== 'ONLINE' && selectedAppt.appointmentType !== 'teleconsultation' && selectedAppt.status !== 'completed' && selectedAppt.status !== 'checked_in' && (
               <div className="border border-[#0dd5b8]/20 rounded-2xl bg-[#0dd5b8]/[0.02] p-5 space-y-4">
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-lg bg-[#0dd5b8]/15 flex items-center justify-center text-[#0dd5b8] shrink-0">

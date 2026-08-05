@@ -5,7 +5,7 @@ import {
   Users, ArrowRight, Activity, Calendar, 
   FileText, Pill, FlaskConical, CreditCard,
   Plus, CheckCircle, Star, LogIn, Sparkle, CheckCircle2, ChevronRight, Check, Package, Crown, Zap, HelpCircle, Linkedin, Twitter, Facebook, Instagram, Github,
-  Laptop, Tablet, Smartphone, Eye, ArrowUpRight, CheckSquare, XCircle, Stethoscope, AlertTriangle, MessageSquare, PhoneCall, ShieldAlert, Globe
+  Laptop, Tablet, Smartphone, Eye, ArrowUpRight, CheckSquare, XCircle, Stethoscope, AlertTriangle, MessageSquare, PhoneCall, ShieldAlert, Globe, Menu, X
 } from 'lucide-react';
 import useAuth from '../hooks/useAuth';
 import { getDefaultRouteForRole } from '../constants/routes';
@@ -54,6 +54,24 @@ export default function LandingPage() {
   const [activeFaq, setActiveFaq] = useState(null);
   const [activeModuleTab, setActiveModuleTab] = useState('doctor');
   const [showHeader, setShowHeader] = useState(true);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const handleSetupClinicClick = () => {
+    if (!isAuthenticated) {
+      navigate('/clinic/register');
+      return;
+    }
+
+    if (user?.role === 'ADMIN' && user?.clinic) {
+      if (user.clinic.isOnboardingCompleted) {
+        navigate('/clinic/dashboard');
+      } else {
+        navigate('/clinic/onboarding');
+      }
+    } else {
+      navigate('/clinic/register');
+    }
+  };
 
   // Dynamic Pricing state variables
   const [plans, setPlans] = useState([]);
@@ -459,9 +477,9 @@ export default function LandingPage() {
           resetInactivityTimer();
         }}
       >
-        <header className="max-w-[1720px] mx-auto bg-white/95 backdrop-blur-xl border border-slate-200/60 px-10 h-[96px] rounded-full flex items-center justify-between shadow-lg shadow-slate-150/40 transition-all duration-200">
+        <header className="max-w-[1720px] mx-auto bg-white/95 backdrop-blur-xl border border-slate-200/60 px-6 sm:px-10 h-[96px] rounded-full flex items-center justify-between shadow-lg shadow-slate-150/40 transition-all duration-200 relative">
           {/* Logo with breathing room */}
-          <div className="flex items-center gap-2 shrink-0 w-[220px]">
+          <div className="flex items-center gap-2 shrink-0">
             <PehalLogo variant="primary" height={58} />
           </div>
 
@@ -493,29 +511,77 @@ export default function LandingPage() {
           <div className="flex items-center gap-3 shrink-0">
             <Link 
               to="/login?type=patient" 
-              className="hidden lg:flex items-center justify-center gap-2 px-6 h-[50px] rounded-full text-slate-700 hover:text-green-600 text-[15px] font-semibold transition-all duration-300 border border-slate-200 bg-white/50 hover:bg-white hover:scale-[1.02] hover:shadow-md"
+              className="hidden xl:flex items-center justify-center gap-2 px-6 h-[50px] rounded-full text-slate-700 hover:text-green-600 text-[15px] font-semibold transition-all duration-300 border border-slate-200 bg-white/50 hover:bg-white hover:scale-[1.02] hover:shadow-md"
             >
               <User size={14} className="text-slate-400" /> Patient Portal
             </Link>
             <Link 
               to="/login?type=clinic" 
-              className="hidden lg:flex items-center justify-center gap-2 px-6 h-[50px] rounded-full text-slate-700 hover:text-green-600 text-[15px] font-semibold transition-all duration-300 border border-slate-200 bg-white/50 hover:bg-white hover:scale-[1.02] hover:shadow-md"
+              className="hidden xl:flex items-center justify-center gap-2 px-6 h-[50px] rounded-full text-slate-700 hover:text-green-600 text-[15px] font-semibold transition-all duration-300 border border-slate-200 bg-white/50 hover:bg-white hover:scale-[1.02] hover:shadow-md"
             >
               <Building2 size={14} className="text-slate-400" /> Clinic Login
             </Link>
             <Link 
               to="/login?type=staff" 
-              className="hidden lg:flex items-center justify-center gap-2 px-6 h-[50px] rounded-full text-slate-700 hover:text-green-600 text-[15px] font-semibold transition-all duration-300 border border-slate-200 bg-white/50 hover:bg-white hover:scale-[1.02] hover:shadow-md"
+              className="hidden xl:flex items-center justify-center gap-2 px-6 h-[50px] rounded-full text-slate-700 hover:text-green-600 text-[15px] font-semibold transition-all duration-300 border border-slate-200 bg-white/50 hover:bg-white hover:scale-[1.02] hover:shadow-md"
             >
               <LogIn size={14} className="text-slate-400" /> Staff Login
             </Link>
-            <Link 
-              to="/set-your-clinic" 
-              className="flex items-center justify-center gap-2 px-7 h-[50px] rounded-full bg-gradient-to-r from-green-500 to-green-700 hover:opacity-95 text-white text-[15px] font-semibold shadow-md shadow-green-500/20 hover:scale-[1.02] transition-all duration-300"
+            
+            {/* Desktop & Tablet CTA Button */}
+            <button
+              onClick={handleSetupClinicClick}
+              className="hidden md:flex items-center justify-center gap-2 px-8 h-[56px] rounded-[16px] bg-gradient-to-r from-green-500 to-green-600 hover:from-green-400 hover:to-green-500 text-white text-[18px] font-bold shadow-md shadow-green-500/20 hover:shadow-lg hover:shadow-green-500/30 hover:translate-y-[-2px] active:translate-y-[0px] active:scale-[0.98] transition-all duration-250 cursor-pointer focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 shrink-0"
+              aria-label="Setup Your Clinic"
             >
               Setup Your Clinic
-            </Link>
+            </button>
+
+            {/* Mobile/Tablet Hamburger Toggle Button */}
+            <button
+              type="button"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="xl:hidden flex items-center justify-center w-12 h-12 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition"
+              aria-label="Toggle navigation menu"
+            >
+              {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+            </button>
           </div>
+
+          {/* Mobile & Tablet Dropdown Navigation Overlay */}
+          <AnimatePresence>
+            {isMobileMenuOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.2 }}
+                className="xl:hidden absolute top-[110px] left-0 right-0 bg-white/95 backdrop-blur-xl border border-slate-200/80 rounded-3xl p-6 shadow-xl flex flex-col gap-4 z-40 mx-4 sm:mx-8"
+              >
+                <a href="#features" onClick={() => setIsMobileMenuOpen(false)} className="text-slate-700 hover:text-green-600 font-semibold py-2 border-b border-slate-100">Features</a>
+                <a href="#ai-assistant" onClick={() => setIsMobileMenuOpen(false)} className="text-slate-700 hover:text-green-600 font-semibold py-2 border-b border-slate-100">AI Modules</a>
+                <a href="#special-modules" onClick={() => setIsMobileMenuOpen(false)} className="text-slate-700 hover:text-green-600 font-semibold py-2 border-b border-slate-100">Modules</a>
+                <a href="#pricing" onClick={() => setIsMobileMenuOpen(false)} className="text-slate-700 hover:text-green-600 font-semibold py-2 border-b border-slate-100">Pricing</a>
+                <a href="#security" onClick={() => setIsMobileMenuOpen(false)} className="text-slate-700 hover:text-green-600 font-semibold py-2 border-b border-slate-100">Security</a>
+                
+                <Link to="/login?type=patient" onClick={() => setIsMobileMenuOpen(false)} className="text-slate-700 hover:text-green-600 font-semibold py-2 border-b border-slate-100 flex items-center gap-2"><User size={14} /> Patient Portal</Link>
+                <Link to="/login?type=clinic" onClick={() => setIsMobileMenuOpen(false)} className="text-slate-700 hover:text-green-600 font-semibold py-2 border-b border-slate-100 flex items-center gap-2"><Building2 size={14} /> Clinic Login</Link>
+                <Link to="/login?type=staff" onClick={() => setIsMobileMenuOpen(false)} className="text-slate-700 hover:text-green-600 font-semibold py-2 border-b border-slate-100 flex items-center gap-2"><LogIn size={14} /> Staff Login</Link>
+
+                {/* Mobile-only CTA */}
+                <button
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    handleSetupClinicClick();
+                  }}
+                  className="md:hidden w-full py-4 rounded-[16px] bg-gradient-to-r from-green-500 to-green-650 hover:from-green-400 hover:to-green-550 text-white text-base font-bold shadow-md shadow-green-500/20 text-center cursor-pointer transition-all duration-200 mt-2"
+                  aria-label="Setup Your Clinic"
+                >
+                  Setup Your Clinic
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </header>
       </div>
 

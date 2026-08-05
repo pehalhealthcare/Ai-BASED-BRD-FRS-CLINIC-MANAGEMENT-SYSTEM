@@ -125,6 +125,27 @@ router.patch(
   validate(cancelAppointmentSchema),
   appointmentController.cancelAppointment
 );
+
+router.patch(
+  '/:id/resume',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR),
+  async (req, res, next) => {
+    // Look up the token matching the appointment id
+    try {
+      const Token = require('./token.model');
+      const activeToken = await Token.findOne({ appointmentId: req.params.id });
+      if (!activeToken) {
+        return res.status(404).json({ success: false, message: 'Consultation queue token not found.' });
+      }
+      req.params.tokenId = activeToken._id.toString();
+      next();
+    } catch (err) {
+      next(err);
+    }
+  },
+  queueController.revisitConsultation
+);
 router.get(
   '/queue/:doctorId',
   protect,
@@ -144,7 +165,7 @@ router.post(
 router.post(
   '/:id/checkin',
   protect,
-  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ...STAFF_ROLES),
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ...STAFF_ROLES, ROLES.DOCTOR, ROLES.PATIENT),
   validate(checkInAppointmentSchema),
   queueController.checkInPatient
 );
@@ -302,6 +323,13 @@ router.post(
   protect,
   authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RECEPTIONIST),
   discountController.collectPayment
+);
+
+router.post(
+  '/:appointmentId/start-online-consultation',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR),
+  appointmentController.startOnlineConsultation
 );
 
 module.exports = router;

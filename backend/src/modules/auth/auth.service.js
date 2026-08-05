@@ -424,6 +424,7 @@ const login = async ({ email, password, portal }, req) => {
 
   const Clinic = require('../clinics/clinic.model');
   let clinicDetails = null;
+  let staffObj = null;
 
   if (user.role === ROLES.ADMIN) {
     if (user.clinicId) {
@@ -446,9 +447,9 @@ const login = async ({ email, password, portal }, req) => {
       throw new AppError('Your clinic subscription is expired. Staff login is blocked.', HTTP_STATUS.FORBIDDEN);
     }
     const Staff = require('../staff/staff.model');
-    const staffObj = await Staff.findOne({ userId: user._id });
+    staffObj = await Staff.findOne({ userId: user._id });
     if (staffObj && staffObj.creationSource === 'CLINIC_SETUP' && staffObj.invitationStatus !== 'Active') {
-      const allowedOnboardingStatuses = ['pending_onboarding', 'onboarding_in_progress', 'pending_profile'];
+      const allowedOnboardingStatuses = ['pending_onboarding', 'onboarding_in_progress', 'pending_profile', 'approved'];
       if (!allowedOnboardingStatuses.includes(user.approvalStatus)) {
         throw new AppError('Your account is not active yet. Please complete onboarding and accept your employment offer.', HTTP_STATUS.FORBIDDEN);
       }
@@ -465,7 +466,7 @@ const login = async ({ email, password, portal }, req) => {
       'pending_approval',
       're_edit',
       'changes_requested'
-    ].includes(user.approvalStatus);
+    ].includes(user.approvalStatus) || (user.approvalStatus === 'approved' && staffObj && staffObj.invitationStatus === 'Offer Pending');
 
     if (!isOnboardingOrPending && (!user.isActive || user.deletedAt || user.approvalStatus === 'rejected')) {
       await logAuthEvent({
@@ -534,6 +535,7 @@ const getCurrentUser = async (user) => {
         approvalStatus: clinicDetails.approvalStatus,
         isOnboardingCompleted: clinicDetails.isOnboardingCompleted,
         subscription: clinicDetails.subscription,
+        trialFeatures: clinicDetails.trialFeatures || [],
         rejectionReason: clinicDetails.rejectionReason,
         rejectionComments: clinicDetails.rejectionComments,
         incorrectFields: clinicDetails.incorrectFields,

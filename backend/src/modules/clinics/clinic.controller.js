@@ -280,6 +280,13 @@ const updateClinic = asyncHandler(async (req, res) => {
       ...req.body.clinicDetails
     };
   }
+  if (req.body.billingSettings) {
+    clinic.billingSettings = {
+      ...clinic.clinicSettings,
+      ...clinic.billingSettings,
+      ...req.body.billingSettings
+    };
+  }
 
   await clinic.save();
 
@@ -1018,6 +1025,12 @@ const updateBillingSettings = asyncHandler(async (req, res) => {
   if (allowDoctorFullWaiver !== undefined)         update['billingSettings.allowDoctorFullWaiver']      = allowDoctorFullWaiver;
   if (escalateWhenLimitExceeds !== undefined)      update['billingSettings.escalateWhenLimitExceeds']   = escalateWhenLimitExceeds;
   if (slotReservationTimeoutMinutes !== undefined) update['billingSettings.slotReservationTimeoutMinutes'] = slotReservationTimeoutMinutes;
+  
+  // Parse Patient Check-In Policy fields
+  const { allowEarlyCheckIn, restrictEarlyCheckIn, earlyCheckInWindowMinutes } = req.body;
+  if (allowEarlyCheckIn !== undefined)            update['billingSettings.allowEarlyCheckIn']           = allowEarlyCheckIn;
+  if (restrictEarlyCheckIn !== undefined)         update['billingSettings.restrictEarlyCheckIn']        = restrictEarlyCheckIn;
+  if (earlyCheckInWindowMinutes !== undefined)    update['billingSettings.earlyCheckInWindowMinutes']   = earlyCheckInWindowMinutes;
 
   const updated = await Clinic.findByIdAndUpdate(
     req.params.id,
@@ -1163,13 +1176,167 @@ const saveOnboardingDraft = asyncHandler(async (req, res) => {
   return sendSuccess(res, 'Onboarding draft saved successfully', { draft });
 });
 
+const getFreshDraftData = async (clinicId, adminId) => {
+  const Provider = require('../providers/provider.model');
+  
+  const clinic = await Clinic.findById(clinicId);
+  if (!clinic) return null;
+
+  const owner = await User.findById(adminId);
+  if (!owner) return null;
+
+  const doctors = await Doctor.find({ clinicId });
+  const staffUsers = await User.find({ clinicId, role: { $in: ['RECEPTIONIST', 'PHARMACIST', 'LAB_TECHNICIAN'] } });
+  const branches = await Clinic.find({ parentClinicId: clinicId });
+  const providers = await Provider.find({ clinicId });
+
+  const scheduleDays = (clinic.clinicDetails?.timings || []).map((t, idx) => ({
+    id: String(idx + 1),
+    dayRange: t.dayRange || 'Monday - Friday',
+    shifts: [{ startTime: t.startTime || '09:00 AM', endTime: t.endTime || '05:00 PM' }],
+    closed: false
+  }));
+
+  return {
+    currentStep: 0,
+    ownerForm: {
+      name: owner.name || clinic.ownerDetails?.name || '',
+      designation: clinic.ownerDetails?.designation || 'Medical Director',
+      phone: owner.phone || clinic.ownerDetails?.phone || '',
+      email: owner.email,
+      dob: clinic.ownerDetails?.dob ? new Date(clinic.ownerDetails.dob).toISOString().split('T')[0] : '',
+      gender: clinic.ownerDetails?.gender || 'Male',
+      nationality: 'Indian',
+      preferredLanguage: 'English',
+      aadhaar: clinic.ownerDetails?.aadhaar || '',
+      pan: clinic.ownerDetails?.pan || '',
+      address: clinic.ownerDetails?.address || clinic.address?.line1 || '',
+      city: clinic.address?.city || '',
+      state: clinic.address?.state || '',
+      pincode: clinic.address?.pincode || '',
+      country: clinic.address?.country || 'India',
+      profilePhoto: clinic.ownerDetails?.profilePhoto || ''
+    },
+    clinicForm: {
+      name: clinic.name,
+      registrationNumber: clinic.clinicDetails?.registrationNumber || '',
+      establishedYear: clinic.clinicDetails?.establishedYear || '',
+      consultationMode: clinic.clinicDetails?.consultationMode || 'Hybrid',
+      languagesSpoken: Array.isArray(clinic.clinicDetails?.languagesSpoken)
+        ? clinic.clinicDetails.languagesSpoken.join(', ')
+        : clinic.clinicDetails?.languagesSpoken || 'English, Hindi',
+      addressLine1: clinic.address?.line1 || '',
+      city: clinic.address?.city || '',
+      state: clinic.address?.state || '',
+      pincode: clinic.address?.pincode || '',
+      contactNumber: clinic.phone || '',
+      shortDescription: clinic.clinicDetails?.shortDescription || '',
+      logo: clinic.clinicDetails?.logo || clinic.image || '',
+      specialties: clinic.specializations && clinic.specializations.length > 0 ? 'Specialized' : 'General Medicine',
+      latitude: clinic.address?.latitude || 12.9716,
+      longitude: clinic.address?.longitude || 77.5946
+    },
+    selectedPlanId: clinic.subscription?.planId ? clinic.subscription.planId.toString() : '',
+    doctors: doctors.map(d => ({
+      title: d.title || 'Dr.',
+      name: d.fullName || `${d.firstName} ${d.lastName}`,
+      specialty: d.specializationName || 'General Medicine',
+      email: d.email,
+      phone: d.phone,
+      _id: d._id
+    })),
+    departments: (clinic.clinicDetails?.departments || []).map(d => ({
+      name: d.name,
+      doctorsCount: 0,
+      active: d.active !== false
+    })),
+    branches: branches.map(b => ({
+      name: b.name,
+      address: b.address?.line1 || '',
+      city: b.address?.city || '',
+      state: b.address?.state || '',
+      pincode: b.address?.pincode || '',
+      contact: b.phone || '',
+      email: b.ownerDetails?.email || '',
+      manager: b.ownerDetails?.name || '',
+      active: b.isActive !== false,
+      _id: b._id
+    })),
+    staff: staffUsers.map(s => ({
+      name: s.name,
+      role: s.role,
+      email: s.email,
+      phone: s.phone,
+      active: s.isActive !== false,
+      _id: s._id
+    })),
+    createdProviders: providers,
+    aiFeatures: {
+      voiceTranscription: true,
+      consultationAssistant: true,
+      symptomChecker: true,
+      prescriptionSuggestions: true,
+      riskScoring: false,
+      labRecommendation: false,
+      appointmentIntel: false,
+      followUpReminders: false
+    },
+    videoProvider: 'Zoom',
+    videoFee: '500',
+    videoDuration: '15',
+    videoWaitingRoom: true,
+    scheduleType: 'Monday - Friday',
+    scheduleDays: scheduleDays.length > 0 ? scheduleDays : [
+      { id: '1', dayRange: 'Monday - Friday', shifts: [{ startTime: '09:00 AM', endTime: '05:00 PM' }], closed: false }
+    ]
+  };
+};
+
 const getOnboardingDraft = asyncHandler(async (req, res) => {
   const clinicId = req.user.clinicId || req.user.clinic?._id;
+  const adminId = req.user._id;
   if (!clinicId) {
     throw new AppError('Clinic ID is required to fetch onboarding draft', HTTP_STATUS.BAD_REQUEST);
   }
 
-  const draft = await ClinicOnboardingDraft.findOne({ clinicId });
+  const ClinicOnboardingDraft = require('./clinicOnboardingDraft.model');
+  let draft = await ClinicOnboardingDraft.findOne({ clinicId });
+  
+  if (!draft) {
+    logger.info(`Draft not found for clinic ${clinicId}, initializing new draft from DB`);
+    const freshDraftData = await getFreshDraftData(clinicId, adminId);
+    if (freshDraftData) {
+      draft = await ClinicOnboardingDraft.create({
+        clinicId,
+        adminId,
+        currentStep: 0,
+        draftData: freshDraftData,
+        updatedAt: new Date()
+      });
+    }
+  } else {
+    // Merge missing information into existing draft data without overwriting newer draft changes
+    const freshDraftData = await getFreshDraftData(clinicId, adminId);
+    if (freshDraftData) {
+      let changed = false;
+      for (const key of Object.keys(freshDraftData)) {
+        if (
+          draft.draftData[key] === undefined ||
+          draft.draftData[key] === null ||
+          (Array.isArray(draft.draftData[key]) && draft.draftData[key].length === 0 && freshDraftData[key].length > 0) ||
+          (typeof draft.draftData[key] === 'object' && Object.keys(draft.draftData[key]).length === 0 && Object.keys(freshDraftData[key]).length > 0)
+        ) {
+          draft.draftData[key] = freshDraftData[key];
+          changed = true;
+        }
+      }
+      if (changed) {
+        draft.markModified('draftData');
+        await draft.save();
+      }
+    }
+  }
+
   return sendSuccess(res, 'Onboarding draft retrieved successfully', { draft });
 });
 
@@ -1380,15 +1547,23 @@ const launchOnboarding = asyncHandler(async (req, res) => {
     updateProgress(id, { percent: 30, currentTask: 'Creating Branches', checklistItem: 'Departments Created' });
     if (!skipBranches && Array.isArray(branches)) {
       for (const br of branches) {
-        const newBranch = await Clinic.create([{
-          ...br,
-          name: br.name.trim(),
-          code: br.code.toUpperCase().trim(),
+        let branchObj = await Clinic.findOne({
           parentClinicId: id,
-          isActive: true,
-          approvalStatus: 'approved'
-        }], opts);
-        createdBranchIds.push(newBranch[0]._id);
+          code: br.code.toUpperCase().trim()
+        }).session(session);
+
+        if (!branchObj) {
+          const newBranch = await Clinic.create([{
+            ...br,
+            name: br.name.trim(),
+            code: br.code.toUpperCase().trim(),
+            parentClinicId: id,
+            isActive: true,
+            approvalStatus: 'approved'
+          }], opts);
+          branchObj = newBranch[0];
+        }
+        createdBranchIds.push(branchObj._id);
       }
     }
     logger.info('[Launch] Branches Created');
@@ -1423,35 +1598,45 @@ const launchOnboarding = asyncHandler(async (req, res) => {
         const firstName = parts[0];
         const lastName = parts.slice(1).join(' ') || '';
 
-        const docArr = await Doctor.create([{
-          title: doc.title || 'Dr.',
-          firstName,
-          lastName,
-          fullName,
-          clinicId: id,
-          userId: userObj._id,
-          assignedClinics: [id],
-          email,
-          phone,
-          approvalStatus: 'pending_profile',
-          isActive: false,
-          doctorCode: await generateDoctorCode(id),
-          createdBy: req.user?._id || clinic.ownerDetails?._id || clinic._id,
-          updatedBy: req.user?._id || clinic.ownerDetails?._id || clinic._id
-        }], opts);
-        createdDocIds.push(docArr[0]._id);
+        // Check if doctor already exists
+        let docObj = await Doctor.findOne({ userId: userObj._id }).session(session);
+        if (!docObj) {
+          const docArr = await Doctor.create([{
+            title: doc.title || 'Dr.',
+            firstName,
+            lastName,
+            fullName,
+            clinicId: id,
+            userId: userObj._id,
+            assignedClinics: [id],
+            email,
+            phone,
+            approvalStatus: 'pending_profile',
+            isActive: false,
+            doctorCode: await generateDoctorCode(id),
+            createdBy: req.user?._id || clinic.ownerDetails?._id || clinic._id,
+            updatedBy: req.user?._id || clinic.ownerDetails?._id || clinic._id
+          }], opts);
+          docObj = docArr[0];
+        }
+        createdDocIds.push(docObj._id);
 
-        // Queue doctor welcome email
-        const onboardingLink = `${env.frontendUrl || 'http://localhost:3000'}/login`;
-        const emailBody = `Hello ${fullName},\n\nWelcome to AICMS at ${clinic.name}! Your doctor profile has been created.\n\nLogin credentials:\nEmail: ${email}\nTemporary Password: ${phone}\nLogin URL: ${onboardingLink}\n\nSupport team: support@pehalhealth.com`;
-        const emailJob = await EmailJob.create([{
-          clinicId: id,
-          recipient: email,
-          subject: 'Welcome to AICMS - Doctor Activation',
-          body: emailBody,
-          status: 'Pending'
-        }], opts);
-        queuedEmails.push(emailJob[0]);
+        // Queue doctor welcome email if approvalStatus is pending_profile
+        if (docObj.approvalStatus === 'pending_profile') {
+          const existingJob = await EmailJob.findOne({ clinicId: id, recipient: email, status: 'Pending' }).session(session);
+          if (!existingJob) {
+            const onboardingLink = `${env.frontendUrl || 'http://localhost:3000'}/login`;
+            const emailBody = `Hello ${fullName},\n\nWelcome to AICMS at ${clinic.name}! Your doctor profile has been created.\n\nLogin credentials:\nEmail: ${email}\nTemporary Password: ${phone}\nLogin URL: ${onboardingLink}\n\nSupport team: support@pehalhealth.com`;
+            const emailJob = await EmailJob.create([{
+              clinicId: id,
+              recipient: email,
+              subject: 'Welcome to AICMS - Doctor Activation',
+              body: emailBody,
+              status: 'Pending'
+            }], opts);
+            queuedEmails.push(emailJob[0]);
+          }
+        }
       }
     }
     logger.info('[Launch] Doctors Created');
@@ -1464,54 +1649,66 @@ const launchOnboarding = asyncHandler(async (req, res) => {
         const phone = st.phone.trim();
         const hashedPassword = await bcrypt.hash(phone, 10);
 
-        const userArr = await User.create([{
-          name: st.name.trim(),
-          email,
-          phone,
-          password: hashedPassword,
-          role: st.role || 'RECEPTIONIST',
-          clinicId: id,
-          isActive: false,
-          approvalStatus: 'pending_onboarding'
-        }], opts);
-        const newUser = userArr[0];
-        createdUserIds.push(newUser._id);
+        let userObj = await User.findOne({ email }).session(session);
+        if (!userObj) {
+          const userArr = await User.create([{
+            name: st.name.trim(),
+            email,
+            phone,
+            password: hashedPassword,
+            role: st.role || 'RECEPTIONIST',
+            clinicId: id,
+            isActive: false,
+            approvalStatus: 'pending_onboarding'
+          }], opts);
+          userObj = userArr[0];
+          createdUserIds.push(userObj._id);
+        }
 
-        const newStaff = await Staff.create([{
-          userId: newUser._id,
-          fullName: st.name.trim(),
-          firstName: st.name.trim().split(' ')[0],
-          lastName: st.name.trim().split(' ').slice(1).join(' ') || '',
-          email,
-          phone,
-          role: st.role || 'RECEPTIONIST',
-          clinicId: id,
-          isActive: false,
-          approvalStatus: 'pending_onboarding',
-          staffCode: `STF-${String(newUser._id).slice(-4).toUpperCase()}`,
-          creationSource: 'CLINIC_SETUP',
-          invitationStatus: 'Draft'
-        }], opts);
-        createdStaffIds.push(newStaff[0]._id);
+        let staffObj = await Staff.findOne({ userId: userObj._id }).session(session);
+        if (!staffObj) {
+          const newStaff = await Staff.create([{
+            userId: userObj._id,
+            fullName: st.name.trim(),
+            firstName: st.name.trim().split(' ')[0],
+            lastName: st.name.trim().split(' ').slice(1).join(' ') || '',
+            email,
+            phone,
+            role: st.role || 'RECEPTIONIST',
+            clinicId: id,
+            isActive: false,
+            approvalStatus: 'pending_onboarding',
+            staffCode: `STF-${String(userObj._id).slice(-4).toUpperCase()}`,
+            creationSource: 'CLINIC_SETUP',
+            invitationStatus: 'Draft'
+          }], opts);
+          staffObj = newStaff[0];
+        }
+        createdStaffIds.push(staffObj._id);
 
-        // Queue staff welcome email
-        const onboardingLink = `${env.frontendUrl || 'http://localhost:3000'}/login`;
-        const emailBody = `Hello ${st.name},\n\nAn account has been prepared for you at ${clinic.name} as ${st.role}.\n\nLogin credentials:\nEmail: ${email}\nTemporary Password: ${phone}\nLogin URL: ${onboardingLink}\n\nSupport team: support@pehalhealth.com`;
-        const emailJob = await EmailJob.create([{
-          clinicId: id,
-          recipient: email,
-          subject: `Welcome to AICMS - Staff Activation (${st.role})`,
-          body: emailBody,
-          status: 'Pending'
-        }], opts);
-        queuedEmails.push(emailJob[0]);
+        // Queue staff welcome email if approvalStatus is pending_onboarding
+        if (staffObj.approvalStatus === 'pending_onboarding') {
+          const existingJob = await EmailJob.findOne({ clinicId: id, recipient: email, status: 'Pending' }).session(session);
+          if (!existingJob) {
+            const onboardingLink = `${env.frontendUrl || 'http://localhost:3000'}/login`;
+            const emailBody = `Hello ${st.name},\n\nAn account has been prepared for you at ${clinic.name} as ${st.role}.\n\nLogin credentials:\nEmail: ${email}\nTemporary Password: ${phone}\nLogin URL: ${onboardingLink}\n\nSupport team: support@pehalhealth.com`;
+            const emailJob = await EmailJob.create([{
+              clinicId: id,
+              recipient: email,
+              subject: `Welcome to AICMS - Staff Activation (${st.role})`,
+              body: emailBody,
+              status: 'Pending'
+            }], opts);
+            queuedEmails.push(emailJob[0]);
+          }
+        }
       }
     }
     logger.info('[Launch] Staff Created');
 
     // Configure Pharmacy / Lab
     updateProgress(id, { percent: 60, currentTask: 'Configuring Pharmacy', checklistItem: 'Staff Accounts Created' });
-    const pendingProviders = await Provider.find({ clinicId: id, status: { $in: ['Pending Activation', 'Draft'] } }).session(session);
+    const pendingProviders = await Provider.find({ clinicId: id, status: { $in: ['Pending Activation', 'Draft', 'Active'] } }).session(session);
     
     let pharmacyCount = 0;
     let laboratoryCount = 0;

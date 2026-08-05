@@ -116,6 +116,11 @@ const BillingPolicySettings = () => {
   const [suggestedPolicy, setSuggestedPolicy] = useState(null);
   const [expandedPolicy, setExpandedPolicy] = useState(null);
 
+  // Patient Check-In Policy states
+  const [allowEarlyCheckIn, setAllowEarlyCheckIn] = useState(true);
+  const [restrictEarlyCheckIn, setRestrictEarlyCheckIn] = useState(false);
+  const [earlyCheckInWindowMinutes, setEarlyCheckInWindowMinutes] = useState(30);
+
   const loadSettings = useCallback(async () => {
     if (!clinicId) return;
     setLoading(true);
@@ -134,6 +139,11 @@ const BillingPolicySettings = () => {
       setPaymentTimeout(s.paymentTimeoutMinutes ?? 15);
       setActiveDoctorCount(res?.data?.activeDoctorCount ?? null);
       setSuggestedPolicy(res?.data?.suggestedDefaultPolicy ?? null);
+      
+      // Load early check-in policy fields
+      setAllowEarlyCheckIn(s.allowEarlyCheckIn ?? true);
+      setRestrictEarlyCheckIn(s.restrictEarlyCheckIn ?? false);
+      setEarlyCheckInWindowMinutes(s.earlyCheckInWindowMinutes ?? 30);
     } catch (err) {
       setError("Failed to load billing settings.");
     } finally {
@@ -158,7 +168,10 @@ const BillingPolicySettings = () => {
         escalateWhenLimitExceeds: escalateAuto,
         slotReservationTimeoutMinutes: Number(slotTimeout),
         approvalTimeoutMinutes: Number(approvalTimeout),
-        paymentTimeoutMinutes: Number(paymentTimeout)
+        paymentTimeoutMinutes: Number(paymentTimeout),
+        allowEarlyCheckIn: allowEarlyCheckIn,
+        restrictEarlyCheckIn: restrictEarlyCheckIn,
+        earlyCheckInWindowMinutes: Number(earlyCheckInWindowMinutes)
       });
       setSuccess("Billing settings saved successfully.");
       setTimeout(() => setSuccess(""), 4000);
@@ -510,6 +523,84 @@ const BillingPolicySettings = () => {
             />
             <span className="text-xs font-bold text-slate-400">mins</span>
           </div>
+        </div>
+
+        {/* ── Patient Check-In Policy settings ── */}
+        <div className="border-t border-slate-100 pt-5 space-y-4">
+          <div>
+            <h3 className="text-sm font-black text-slate-800">Patient Check-In Policy</h3>
+            <p className="text-xs text-slate-400 mt-0.5">Configure how early walk-in patients are allowed to check-in at the clinic.</p>
+          </div>
+
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-bold text-slate-800">Allow Early Check-In</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">Allow patients to check in at any time on the appointment date, regardless of scheduled slot time.</p>
+            </div>
+            <button
+              onClick={() => {
+                setAllowEarlyCheckIn(!allowEarlyCheckIn);
+                if (!allowEarlyCheckIn) {
+                  setRestrictEarlyCheckIn(false);
+                }
+              }}
+              className={`w-10 h-6 rounded-full transition relative shrink-0 ${allowEarlyCheckIn ? 'bg-teal-600' : 'bg-slate-200'}`}
+            >
+              <span className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-all ${allowEarlyCheckIn ? 'translate-x-4' : 'translate-x-0'}`} />
+            </button>
+          </div>
+
+          {!allowEarlyCheckIn && (
+            <div className="bg-slate-50/50 border border-slate-200/60 rounded-2xl p-4 space-y-4 animate-fadeIn">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-xs font-bold text-slate-800">Restrict Early Check-In Window</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Restrict check-in to a specific number of minutes before the scheduled time slot.</p>
+                </div>
+                <button
+                  onClick={() => setRestrictEarlyCheckIn(!restrictEarlyCheckIn)}
+                  className={`w-10 h-6 rounded-full transition relative shrink-0 ${restrictEarlyCheckIn ? 'bg-teal-600' : 'bg-slate-200'}`}
+                >
+                  <span className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-all ${restrictEarlyCheckIn ? 'translate-x-4' : 'translate-x-0'}`} />
+                </button>
+              </div>
+
+              {restrictEarlyCheckIn && (
+                <div className="flex items-center gap-3 animate-fadeIn">
+                  <span className="text-xs font-bold text-slate-550">Allow patient check-in only before:</span>
+                  <select
+                    value={[15, 30, 45, 60, 90, 120].includes(earlyCheckInWindowMinutes) ? earlyCheckInWindowMinutes : "custom"}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val !== "custom") {
+                        setEarlyCheckInWindowMinutes(Number(val));
+                      }
+                    }}
+                    className="py-1.5 px-3 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none bg-white"
+                  >
+                    <option value="15">15 Minutes</option>
+                    <option value="30">30 Minutes</option>
+                    <option value="45">45 Minutes</option>
+                    <option value="60">60 Minutes</option>
+                    <option value="90">90 Minutes</option>
+                    <option value="120">2 Hours</option>
+                    <option value="custom">Custom Minutes</option>
+                  </select>
+
+                  {(![15, 30, 45, 60, 90, 120].includes(earlyCheckInWindowMinutes) || earlyCheckInWindowMinutes === "custom") && (
+                    <input
+                      type="number"
+                      min="1"
+                      value={earlyCheckInWindowMinutes}
+                      onChange={(e) => setEarlyCheckInWindowMinutes(Math.max(1, Number(e.target.value)))}
+                      className="w-16 py-1 px-2 border border-slate-200 rounded-xl text-xs text-center font-bold text-slate-700 focus:outline-none"
+                    />
+                  )}
+                  <span className="text-xs font-bold text-slate-400">minutes</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {activePolicy && (

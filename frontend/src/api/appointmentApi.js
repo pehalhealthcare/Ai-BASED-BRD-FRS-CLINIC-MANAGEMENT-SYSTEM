@@ -9,7 +9,10 @@ export const appointmentApi = {
   updateStatus: async (id, payload) => unwrapResponse(await axiosClient.patch(`/appointments/${id}/status`, payload)),
   getQueueStatus: async (doctorId) => unwrapResponse(await axiosClient.get(`/appointments/queue/${doctorId}`)),
   verifyPayment: async (id, payload) => unwrapResponse(await axiosClient.post(`/appointments/${id}/verify-payment`, payload)),
-  scanCheckin: async (payload) => unwrapResponse(await axiosClient.post('/appointments/scan-checkin', payload))
+  scanCheckin: async (payload) => unwrapResponse(await axiosClient.post('/appointments/scan-checkin', payload)),
+  checkIn: async (id, payload = {}) => unwrapResponse(await axiosClient.post(`/appointments/${id}/checkin`, payload)),
+  resumeConsultation: async (id) => unwrapResponse(await axiosClient.patch(`/appointments/${id}/resume`)),
+  startOnlineConsultation: async (id) => unwrapResponse(await axiosClient.post(`/appointments/${id}/start-online-consultation`))
 };
 
 export default appointmentApi;

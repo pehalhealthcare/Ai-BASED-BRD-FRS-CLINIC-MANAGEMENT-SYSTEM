@@ -69,6 +69,20 @@ const SettingsAdminPage = () => {
   const [labApproval, setLabApproval] = useState(false);
   const [dataEncryption, setDataEncryption] = useState(true);
 
+  // Missed Appointment & No-Show Policies
+  const [allowRescheduleMissed, setAllowRescheduleMissed] = useState(true);
+  const [maxRescheduleWindowDays, setMaxRescheduleWindowDays] = useState(7);
+  const [maxAllowedReschedules, setMaxAllowedReschedules] = useState(2);
+  const [autoMarkNoShow, setAutoMarkNoShow] = useState(true);
+  const [noShowGracePeriod, setNoShowGracePeriod] = useState('Clinic Closing Time');
+  const [refundPolicy, setRefundPolicy] = useState('no_refund');
+  const [refundPercentage, setRefundPercentage] = useState(70);
+  const [refundWalletAllowed, setRefundWalletAllowed] = useState(true);
+  const [refundOriginalAllowed, setRefundOriginalAllowed] = useState(true);
+  const [refundManualApprovalRequired, setRefundManualApprovalRequired] = useState(true);
+  const [enablePatientReschedule, setEnablePatientReschedule] = useState(true);
+  const [enableReceptionistReschedule, setEnableReceptionistReschedule] = useState(true);
+
   useEffect(() => {
     const fetchProfile = async () => {
       if (!user?.clinicId) {
@@ -89,6 +103,20 @@ const SettingsAdminPage = () => {
           if (clinic.address.state) setState(clinic.address.state);
           if (clinic.address.pincode) setPincode(clinic.address.pincode);
         }
+
+        const settings = clinic.billingSettings || {};
+        if (settings.allowRescheduleMissed !== undefined) setAllowRescheduleMissed(settings.allowRescheduleMissed);
+        if (settings.maxRescheduleWindowDays !== undefined) setMaxRescheduleWindowDays(settings.maxRescheduleWindowDays);
+        if (settings.maxAllowedReschedules !== undefined) setMaxAllowedReschedules(settings.maxAllowedReschedules);
+        if (settings.autoMarkNoShow !== undefined) setAutoMarkNoShow(settings.autoMarkNoShow);
+        if (settings.noShowGracePeriod !== undefined) setNoShowGracePeriod(settings.noShowGracePeriod);
+        if (settings.refundPolicy !== undefined) setRefundPolicy(settings.refundPolicy);
+        if (settings.refundPercentage !== undefined) setRefundPercentage(settings.refundPercentage);
+        if (settings.refundWalletAllowed !== undefined) setRefundWalletAllowed(settings.refundWalletAllowed);
+        if (settings.refundOriginalAllowed !== undefined) setRefundOriginalAllowed(settings.refundOriginalAllowed);
+        if (settings.refundManualApprovalRequired !== undefined) setRefundManualApprovalRequired(settings.refundManualApprovalRequired);
+        if (settings.enablePatientReschedule !== undefined) setEnablePatientReschedule(settings.enablePatientReschedule);
+        if (settings.enableReceptionistReschedule !== undefined) setEnableReceptionistReschedule(settings.enableReceptionistReschedule);
       } catch (err) {
         console.error('Error fetching clinic details:', err);
       } finally {
@@ -432,6 +460,211 @@ const SettingsAdminPage = () => {
                   </div>
                 );
               })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'General Settings' && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-6">
+            <div>
+              <h3 className="text-sm font-bold text-slate-800">No Show & Reschedule Policy</h3>
+              <p className="text-[11px] text-slate-400 mt-1">Configure parameters for patient self-rescheduling, grace periods, auto-cancellation, and refunds.</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 border-t border-slate-100 pt-5">
+              
+              {/* Left Column: Reschedule Policies */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-3 rounded-xl border border-slate-100 bg-slate-50/50">
+                  <div className="space-y-0.5">
+                    <p className="text-xs font-bold text-slate-700">Allow Rescheduling Missed Appointments</p>
+                    <p className="text-[10px] text-slate-400">Allow patients/staff to reschedule unattended consultations.</p>
+                  </div>
+                  <button 
+                    onClick={() => setAllowRescheduleMissed(!allowRescheduleMissed)}
+                    className={`px-3 py-1 rounded-full text-[10px] font-extrabold border ${allowRescheduleMissed ? 'bg-emerald-50 border-emerald-250 text-emerald-700' : 'bg-slate-100 border-slate-200 text-slate-500'}`}
+                  >
+                    {allowRescheduleMissed ? 'Enabled' : 'Disabled'}
+                  </button>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Maximum Reschedule Window</label>
+                  <select 
+                    value={maxRescheduleWindowDays} 
+                    onChange={e => setMaxRescheduleWindowDays(Number(e.target.value))}
+                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 focus:border-blue-500 outline-none text-slate-700 bg-white"
+                  >
+                    <option value={1}>1 Day</option>
+                    <option value={3}>3 Days</option>
+                    <option value={7}>7 Days</option>
+                    <option value={15}>15 Days</option>
+                    <option value={30}>30 Days</option>
+                    <option value={0}>Custom / Unlimited</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Maximum Allowed Reschedules</label>
+                  <select 
+                    value={maxAllowedReschedules} 
+                    onChange={e => setMaxAllowedReschedules(Number(e.target.value))}
+                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 focus:border-blue-500 outline-none text-slate-700 bg-white"
+                  >
+                    <option value={1}>1</option>
+                    <option value={2}>2</option>
+                    <option value={3}>3</option>
+                    <option value={0}>Unlimited</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center justify-between p-3 rounded-xl border border-slate-100 bg-slate-50/50">
+                  <div className="space-y-0.5">
+                    <p className="text-xs font-bold text-slate-700">Patient Self-Reschedule</p>
+                    <p className="text-[10px] text-slate-400">Allow patients to reschedule via Patient Portal.</p>
+                  </div>
+                  <button 
+                    onClick={() => setEnablePatientReschedule(!enablePatientReschedule)}
+                    className={`px-3 py-1 rounded-full text-[10px] font-extrabold border ${enablePatientReschedule ? 'bg-emerald-50 border-emerald-255 text-emerald-700' : 'bg-slate-100 border-slate-200 text-slate-500'}`}
+                  >
+                    {enablePatientReschedule ? 'ON' : 'OFF'}
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between p-3 rounded-xl border border-slate-100 bg-slate-50/50">
+                  <div className="space-y-0.5">
+                    <p className="text-xs font-bold text-slate-700">Receptionist Reschedule</p>
+                    <p className="text-[10px] text-slate-400">Allow receptionists to reschedule bookings.</p>
+                  </div>
+                  <button 
+                    onClick={() => setEnableReceptionistReschedule(!enableReceptionistReschedule)}
+                    className={`px-3 py-1 rounded-full text-[10px] font-extrabold border ${enableReceptionistReschedule ? 'bg-emerald-50 border-emerald-255 text-emerald-700' : 'bg-slate-100 border-slate-200 text-slate-500'}`}
+                  >
+                    {enableReceptionistReschedule ? 'ON' : 'OFF'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Right Column: No-Show & Refund Policies */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-3 rounded-xl border border-slate-100 bg-slate-50/50">
+                  <div className="space-y-0.5">
+                    <p className="text-xs font-bold text-slate-700">Auto Mark Unattended as No Show</p>
+                    <p className="text-[10px] text-slate-400">Automatically flag un-checked-in slots as unattended.</p>
+                  </div>
+                  <button 
+                    onClick={() => setAutoMarkNoShow(!autoMarkNoShow)}
+                    className={`px-3 py-1 rounded-full text-[10px] font-extrabold border ${autoMarkNoShow ? 'bg-emerald-50 border-emerald-250 text-emerald-700' : 'bg-slate-100 border-slate-200 text-slate-500'}`}
+                  >
+                    {autoMarkNoShow ? 'Enabled' : 'Disabled'}
+                  </button>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Grace Period Before No Show</label>
+                  <select 
+                    value={noShowGracePeriod} 
+                    onChange={e => setNoShowGracePeriod(e.target.value)}
+                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 focus:border-blue-500 outline-none text-slate-700 bg-white"
+                  >
+                    <option value="15 Minutes">15 Minutes</option>
+                    <option value="30 Minutes">30 Minutes</option>
+                    <option value="1 Hour">1 Hour</option>
+                    <option value="Clinic Closing Time">Clinic Closing Time</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Refund Policy</label>
+                  <select 
+                    value={refundPolicy} 
+                    onChange={e => setRefundPolicy(e.target.value)}
+                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 focus:border-blue-500 outline-none text-slate-700 bg-white"
+                  >
+                    <option value="no_refund">No Refund</option>
+                    <option value="partial_refund">Partial Refund</option>
+                    <option value="full_refund">Full Refund</option>
+                  </select>
+                </div>
+
+                {refundPolicy === 'partial_refund' && (
+                  <div className="p-3.5 bg-slate-50 border border-slate-150 rounded-xl space-y-2">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-slate-400 font-bold uppercase">Refund Percentage</span>
+                      <span className="font-extrabold text-blue-600">{refundPercentage}%</span>
+                    </div>
+                    <input 
+                      type="range" 
+                      min="0" 
+                      max="100" 
+                      value={refundPercentage} 
+                      onChange={e => setRefundPercentage(Number(e.target.value))}
+                      className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer"
+                    />
+                    <div className="flex justify-between text-[9px] text-slate-400 font-bold">
+                      <span>Patient receives {refundPercentage}%</span>
+                      <span>Clinic retains {100 - refundPercentage}%</span>
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Allow Refund As</label>
+                  <div className="grid grid-cols-1 gap-2 text-xs font-semibold text-slate-700">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" checked={refundWalletAllowed} onChange={e => setRefundWalletAllowed(e.target.checked)} />
+                      <span>Wallet Credit</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" checked={refundOriginalAllowed} onChange={e => setRefundOriginalAllowed(e.target.checked)} />
+                      <span>Original Payment Method</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" checked={refundManualApprovalRequired} onChange={e => setRefundManualApprovalRequired(e.target.checked)} />
+                      <span>Manual Approval Required</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            <div className="border-t border-slate-100 pt-5">
+              <button
+                onClick={async () => {
+                  setSuccess('');
+                  setError('');
+                  try {
+                    if (user?.clinicId) {
+                      await clinicApi.update(user.clinicId, {
+                        billingSettings: {
+                          allowRescheduleMissed,
+                          maxRescheduleWindowDays,
+                          maxAllowedReschedules,
+                          autoMarkNoShow,
+                          noShowGracePeriod,
+                          refundPolicy,
+                          refundPercentage,
+                          refundWalletAllowed,
+                          refundOriginalAllowed,
+                          refundManualApprovalRequired,
+                          enablePatientReschedule,
+                          enableReceptionistReschedule
+                        }
+                      });
+                      setSuccess('General Settings updated successfully!');
+                      setTimeout(() => setSuccess(''), 3000);
+                    }
+                  } catch (err) {
+                    setError('Failed to save General Settings.');
+                  }
+                }}
+                className="px-5 py-2.5 rounded-xl bg-blue-600 text-xs font-bold text-white shadow-md shadow-blue-200 hover:bg-blue-700 transition cursor-pointer"
+              >
+                Save Settings
+              </button>
             </div>
           </div>
         </div>

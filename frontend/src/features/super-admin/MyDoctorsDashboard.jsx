@@ -7,7 +7,7 @@ import {
   MoreVertical, Check, Star, Users, Briefcase, DollarSign,
   TrendingUp, Award, Clock, ArrowRight, ShieldAlert, GraduationCap,
   ChevronLeft, ChevronRight, CalendarIcon, Ban, CalendarDays, CheckCircle, Building, CheckSquare, AlertTriangle, X, Trash2,
-  User, FileText, CheckCircle2, ShieldCheck, Landmark, Sparkles, MapPin, Phone, Mail, FileCheck, ArrowUpRight, History, MessageSquare, Edit, Activity, DownloadCloud, Lock, Unlock
+  User, FileText, CheckCircle2, ShieldCheck, Landmark, Sparkles, MapPin, Phone, Mail, FileCheck, ArrowUpRight, History, MessageSquare, Edit, Activity, DownloadCloud, Lock, Unlock, Tag, Ticket
 } from 'lucide-react';
 import { adminApi, clinicApi, specializationApi, userApi, leaveApi, doctorApi, appointmentApi, patientApi } from '../../lib/api';
 import useAuth from '../../hooks/useAuth';
@@ -714,6 +714,15 @@ const DoctorProfileOverviewOverlay = ({ doctor, onClose, onEdit, onToggleActive 
   const [appointments, setAppointments] = useState([]);
   const [loadingDetails, setLoadingDetails] = useState(false);
 
+  // New Doctor Token Prefix States
+  const [showPrefixDrawer, setShowPrefixDrawer] = useState(false);
+  const [currentPrefix, setCurrentPrefix] = useState(doctor.tokenPrefix || '');
+  const [editedPrefix, setEditedPrefix] = useState(doctor.tokenPrefix || '');
+  const [isRulesExpanded, setIsRulesExpanded] = useState(false);
+  const [prefixValidating, setPrefixValidating] = useState(false);
+  const [prefixValidationMsg, setPrefixValidationMsg] = useState('');
+  const [isPrefixAvailable, setIsPrefixAvailable] = useState(true);
+
   // Local admin notes with persistence
   const [adminNotes, setAdminNotes] = useState(() => {
     try {
@@ -743,6 +752,68 @@ const DoctorProfileOverviewOverlay = ({ doctor, onClose, onEdit, onToggleActive 
     };
     fetchSubData();
   }, [doctor?._id]);
+
+  // Real-time Prefix Availability Check
+  useEffect(() => {
+    if (!editedPrefix.trim()) {
+      setPrefixValidationMsg('');
+      return;
+    }
+    const cleanPrefix = editedPrefix.trim().toUpperCase();
+    if (!/^[A-Z0-9-]+$/.test(cleanPrefix)) {
+      setPrefixValidationMsg('Letters, numbers, and hyphens only');
+      setIsPrefixAvailable(false);
+      return;
+    }
+
+    const checkAvailability = async () => {
+      setPrefixValidating(true);
+      try {
+        const response = await doctorApi.list({ clinicId: doctor.clinicId?._id || doctor.clinicId });
+        const list = response.data?.doctors || [];
+        const isTaken = list.some(d => d.tokenPrefix === cleanPrefix && String(d._id) !== String(doctor._id));
+        if (isTaken) {
+          setIsPrefixAvailable(false);
+          setPrefixValidationMsg('Prefix Already Exists');
+        } else {
+          setIsPrefixAvailable(true);
+          setPrefixValidationMsg('Prefix Available');
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setPrefixValidating(false);
+      }
+    };
+
+    const delayDebounce = setTimeout(checkAvailability, 500);
+    return () => clearTimeout(delayDebounce);
+  }, [editedPrefix, doctor._id]);
+
+  const handleSavePrefix = async () => {
+    const cleanPrefix = editedPrefix.trim().toUpperCase();
+    if (!cleanPrefix) {
+      toast.error('Token prefix cannot be empty.');
+      return;
+    }
+    if (!isPrefixAvailable) {
+      toast.error('Prefix already taken or invalid.');
+      return;
+    }
+
+    try {
+      setPrefixValidating(true);
+      await doctorApi.update(doctor._id, { tokenPrefix: cleanPrefix });
+      setCurrentPrefix(cleanPrefix);
+      doctor.tokenPrefix = cleanPrefix; // update local pointer
+      setShowPrefixDrawer(false);
+      toast.success('Doctor token prefix updated successfully!');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to update token prefix.');
+    } finally {
+      setPrefixValidating(false);
+    }
+  };
 
   const saveNotes = (newNotes) => {
     setAdminNotes(newNotes);
@@ -961,6 +1032,173 @@ const DoctorProfileOverviewOverlay = ({ doctor, onClose, onEdit, onToggleActive 
                   <span className={`text-xs font-black mt-0.5 flex items-center gap-1 ${doctor.isActive ? 'text-emerald-605' : 'text-slate-500'}`}>
                     <Building size={13} /> {doctor.isActive ? 'Active' : 'Inactive'}
                   </span>
+                </div>
+              </div>
+            </div>
+
+            {/* NEW REDESIGNED PREMIUM DOCTOR TOKEN PREFIX CARD */}
+            <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md hover:border-blue-500/20 transition-all duration-300 space-y-6 relative overflow-hidden group">
+              {/* Glass subtle gradient overlay */}
+              <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/[0.01] to-emerald-500/[0.01] pointer-events-none" />
+
+              <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="p-1.5 bg-blue-50 rounded-lg text-blue-600">
+                      <Tag size={14} />
+                    </span>
+                    <h3 className="text-sm font-black text-slate-900">Doctor Token Prefix</h3>
+                    <span className="text-[10px] text-slate-400 cursor-help" title="Configures unique token identifiers">
+                      🛈
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 font-semibold leading-relaxed">
+                    Configure the prefix used for automatically generating patient queue tokens for this doctor.
+                  </p>
+                </div>
+
+                <button 
+                  onClick={() => {
+                    setEditedPrefix(currentPrefix);
+                    setPrefixValidationMsg('');
+                    setShowPrefixDrawer(true);
+                  }}
+                  className="px-4 py-2 border border-slate-200 hover:border-blue-600 text-slate-700 hover:text-blue-600 text-xs font-bold rounded-xl transition-all duration-200 flex items-center gap-2 hover:translate-y-[-1px] hover:shadow-sm"
+                >
+                  <Edit size={12} /> Edit Token Prefix
+                </button>
+              </div>
+
+              {/* Status Badge + Large Editable Value display */}
+              <div className="flex items-center gap-4 bg-slate-50/50 p-4.5 rounded-2xl border border-slate-100/80">
+                <div className="space-y-0.5">
+                  <span className="text-[9px] uppercase tracking-wider text-slate-400 font-black">🏷 Token Prefix</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-3xl font-black text-slate-900 tracking-tight">{currentPrefix || 'DOC'}</span>
+                    <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 text-[10px] font-black rounded-lg border border-emerald-200 animate-pulse">
+                      ✓ Active
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-slate-500 font-semibold mt-1">
+                    Tokens generated for this doctor will follow this format: <span className="font-bold text-slate-705 font-mono">{currentPrefix || 'DOC'}-001</span>, <span className="font-bold text-slate-705 font-mono">{currentPrefix || 'DOC'}-002</span>...
+                  </p>
+                </div>
+              </div>
+
+              {/* Live Preview Section with hover animations */}
+              <div className="space-y-3">
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                  <Ticket size={11} className="text-blue-500" /> Token Preview
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 hover:scale-[1.01] transition-transform duration-200">
+                    <span className="text-[9px] font-black text-slate-400 uppercase block mb-2">Today's Queue</span>
+                    <div className="flex gap-2">
+                      {[`${currentPrefix || 'DOC'}-001`, `${currentPrefix || 'DOC'}-002`, `${currentPrefix || 'DOC'}-003`].map((tok, i) => (
+                        <span key={i} className="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-[10px] font-black text-slate-700 font-mono shadow-sm hover:border-blue-500 transition-colors">
+                          {tok}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 hover:scale-[1.01] transition-transform duration-200">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-[9px] font-black text-slate-400 uppercase">Tomorrow</span>
+                      <span className="text-[8px] font-bold text-blue-500 uppercase tracking-wider">(daily reset)</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <span className="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-[10px] font-black text-slate-700 font-mono shadow-sm">
+                        {currentPrefix || 'DOC'}-001
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Helper Information Section */}
+              <div className="bg-blue-50/30 p-4 rounded-2xl border border-blue-50/50 space-y-1.5 text-[11px] text-slate-500 font-semibold">
+                <p className="flex items-start gap-2">
+                  <span className="text-blue-500 mt-0.5">•</span>
+                  <span>Prefix must be unique inside the clinic.</span>
+                </p>
+                <p className="flex items-start gap-2">
+                  <span className="text-blue-500 mt-0.5">•</span>
+                  <span>Generated automatically during doctor creation based on name priority logic.</span>
+                </p>
+                <p className="flex items-start gap-2">
+                  <span className="text-blue-500 mt-0.5">•</span>
+                  <span>Clinic Admin can edit it anytime; changes apply only to future tokens.</span>
+                </p>
+                <p className="flex items-start gap-2">
+                  <span className="text-blue-500 mt-0.5">•</span>
+                  <span>Existing generated tokens will never change.</span>
+                </p>
+              </div>
+
+              {/* Generation Rules Accordion */}
+              <div className="border border-slate-150 rounded-2xl overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setIsRulesExpanded(!isRulesExpanded)}
+                  className="w-full px-4 py-3 bg-slate-50 hover:bg-slate-100 flex items-center justify-between text-[11px] font-black text-slate-700 transition"
+                >
+                  <span className="flex items-center gap-1.5">
+                    <Sparkles size={11} className="text-blue-500" /> Auto-Generation Prefix Rules
+                  </span>
+                  <span>{isRulesExpanded ? '▲' : '▼'}</span>
+                </button>
+                {isRulesExpanded && (
+                  <div className="p-4 bg-white border-t border-slate-150 text-[11px] space-y-3 animate-fadeIn">
+                    <p className="text-slate-500 font-semibold">
+                      When creating a doctor, the system tries to generate the shortest unique identifier:
+                    </p>
+                    <div className="flex flex-col md:flex-row items-center justify-center gap-3 py-2 bg-slate-50 rounded-xl">
+                      <div className="text-center p-2 bg-white rounded-lg border border-slate-150 shadow-sm w-36">
+                        <p className="text-[9px] text-slate-400 uppercase font-black">Doctor Name</p>
+                        <p className="font-black text-slate-805 mt-0.5">Shyam Mishra</p>
+                      </div>
+                      <span className="text-slate-400 font-bold">➔</span>
+                      <div className="text-center p-2 bg-white rounded-lg border border-slate-150 shadow-sm w-24">
+                        <p className="text-[9px] text-slate-400 uppercase font-black">Rule 1 (Initials)</p>
+                        <p className="font-extrabold text-blue-650 mt-0.5">SM</p>
+                      </div>
+                      <span className="text-slate-400 font-bold">➔</span>
+                      <div className="text-center p-2 bg-white rounded-lg border border-slate-150 shadow-sm w-24">
+                        <p className="text-[9px] text-slate-400 uppercase font-black">Rule 2 (Double)</p>
+                        <p className="font-extrabold text-slate-700 mt-0.5">SHMI</p>
+                      </div>
+                      <span className="text-slate-400 font-bold">➔</span>
+                      <div className="text-center p-2 bg-white rounded-lg border border-slate-150 shadow-sm w-24">
+                        <p className="text-[9px] text-slate-400 uppercase font-black">Rule 3 (Full/Numeric)</p>
+                        <p className="font-extrabold text-slate-700 mt-0.5">SHMI01</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Analytics Summary Row */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 border-t border-slate-100 pt-5">
+                <div className="space-y-0.5">
+                  <span className="text-[9px] uppercase tracking-wider text-slate-400 font-black">Today's Issued</span>
+                  <p className="text-lg font-black text-slate-850">{appointments.length || 0} Tokens</p>
+                </div>
+                <div className="space-y-0.5">
+                  <span className="text-[9px] uppercase tracking-wider text-slate-400 font-black">Highest Queue</span>
+                  <p className="text-lg font-black text-blue-600 font-mono">
+                    {appointments.length > 0 ? `${currentPrefix}-${String(appointments.length).padStart(3, '0')}` : '—'}
+                  </p>
+                </div>
+                <div className="space-y-0.5">
+                  <span className="text-[9px] uppercase tracking-wider text-slate-400 font-black">Avg Patients / Day</span>
+                  <p className="text-lg font-black text-slate-850">22</p>
+                </div>
+                <div className="space-y-0.5">
+                  <span className="text-[9px] uppercase tracking-wider text-slate-400 font-black">Last Generated</span>
+                  <p className="text-lg font-black text-emerald-600 font-mono">
+                    {appointments.length > 0 ? `${currentPrefix}-${String(appointments.length).padStart(3, '0')}` : '—'}
+                  </p>
                 </div>
               </div>
             </div>
@@ -1641,6 +1879,100 @@ const DoctorProfileOverviewOverlay = ({ doctor, onClose, onEdit, onToggleActive 
         </div>
 
       </div>
+
+      {/* EDIT TOKEN PREFIX SLIDE-OUT DRAWER */}
+      {showPrefixDrawer && (
+        <div className="fixed inset-0 z-[100] flex justify-end">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity duration-300"
+            onClick={() => setShowPrefixDrawer(false)}
+          />
+
+          {/* Drawer container */}
+          <div className="relative w-full max-w-md h-full bg-white shadow-2xl flex flex-col z-10 animate-slide-in-right">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4.5 border-b border-slate-100 bg-slate-50/50">
+              <div className="flex items-center gap-2">
+                <span className="p-1 bg-blue-50 text-blue-600 rounded">
+                  <Tag size={13} />
+                </span>
+                <span className="text-xs font-black text-slate-800 uppercase tracking-wider">Edit Doctor Token Prefix</span>
+              </div>
+              <button 
+                onClick={() => setShowPrefixDrawer(false)}
+                className="p-1 hover:bg-slate-200 rounded-full text-slate-400 hover:text-slate-700 transition"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Content Form */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              <div className="space-y-2">
+                <label className="block text-xs font-black text-slate-700">Token Prefix</label>
+                <input 
+                  type="text"
+                  maxLength={10}
+                  value={editedPrefix}
+                  onChange={(e) => setEditedPrefix(e.target.value.replace(/[^A-Za-z0-9-]/g, '').toUpperCase())}
+                  placeholder="e.g. SHYAM"
+                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-extrabold outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100 uppercase"
+                />
+                <p className="text-[10px] text-slate-400 font-semibold">
+                  Only uppercase letters, numbers, and hyphens (maximum 10 characters). No spaces.
+                </p>
+              </div>
+
+              {/* Real-time Validation Message */}
+              {editedPrefix.trim() && (
+                <div className="p-3.5 rounded-xl border flex items-center gap-2 text-xs font-bold transition-all duration-200 animate-scaleIn bg-slate-50 border-slate-200">
+                  {prefixValidating ? (
+                    <span className="text-blue-500 flex items-center gap-1.5">Checking prefix availability...</span>
+                  ) : isPrefixAvailable ? (
+                    <span className="text-emerald-600 flex items-center gap-1.5">
+                      ✓ {prefixValidationMsg}
+                    </span>
+                  ) : (
+                    <span className="text-rose-500 flex items-center gap-1.5">
+                      ✖ {prefixValidationMsg}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* Dynamic Live Preview */}
+              <div className="p-4 bg-slate-50/50 rounded-2xl border border-slate-100 space-y-2.5">
+                <span className="text-[9px] uppercase tracking-wider text-slate-400 font-black block">Live Sample Preview</span>
+                <div className="flex flex-col gap-1.5 font-mono text-xs text-slate-655 font-semibold">
+                  <div>1. Patient Ticket: <span className="text-slate-900 font-black">{editedPrefix.trim().toUpperCase() || 'PREFIX'}-001</span></div>
+                  <div>2. Patient Ticket: <span className="text-slate-900 font-black">{editedPrefix.trim().toUpperCase() || 'PREFIX'}-002</span></div>
+                  <div>3. Patient Ticket: <span className="text-slate-900 font-black">{editedPrefix.trim().toUpperCase() || 'PREFIX'}-003</span></div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer Buttons */}
+            <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex gap-3">
+              <button 
+                type="button"
+                onClick={() => setShowPrefixDrawer(false)}
+                className="w-1/2 py-2.5 px-4 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-center text-xs rounded-xl transition"
+              >
+                Cancel
+              </button>
+              <button 
+                type="button"
+                onClick={handleSavePrefix}
+                disabled={prefixValidating || !editedPrefix.trim() || !isPrefixAvailable}
+                className="w-1/2 py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold text-center text-xs rounded-xl transition shadow-md shadow-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {prefixValidating ? 'Validating...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

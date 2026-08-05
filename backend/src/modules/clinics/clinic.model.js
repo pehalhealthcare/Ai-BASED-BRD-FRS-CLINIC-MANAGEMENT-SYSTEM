@@ -234,7 +234,24 @@ const clinicSchema = new mongoose.Schema(
       // Minutes an approval request is pending before being expired/rejected automatically
       approvalTimeoutMinutes: { type: Number, default: 15 },
       // Minutes a payment is pending after approval before being expired
-      paymentTimeoutMinutes: { type: Number, default: 15 }
+      paymentTimeoutMinutes: { type: Number, default: 15 },
+      // Missed & No-Show Policies
+      allowRescheduleMissed: { type: Boolean, default: true },
+      maxRescheduleWindowDays: { type: Number, default: 7 }, // 1, 3, 7, 15, 30, 0 (unlimited)
+      maxAllowedReschedules: { type: Number, default: 2 }, // Number or 0 (unlimited)
+      autoMarkNoShow: { type: Boolean, default: true },
+      noShowGracePeriod: { type: String, default: 'Clinic Closing Time' }, // '15 Mins', '30 Mins', '1 Hour', 'Clinic Closing Time'
+      refundPolicy: { type: String, enum: ['no_refund', 'partial_refund', 'full_refund'], default: 'no_refund' },
+      refundPercentage: { type: Number, default: 70, min: 0, max: 100 },
+      refundWalletAllowed: { type: Boolean, default: true },
+      refundOriginalAllowed: { type: Boolean, default: true },
+      refundManualApprovalRequired: { type: Boolean, default: true },
+      enablePatientReschedule: { type: Boolean, default: true },
+      enableReceptionistReschedule: { type: Boolean, default: true },
+      // Patient Check-In Policy settings
+      allowEarlyCheckIn: { type: Boolean, default: true },
+      restrictEarlyCheckIn: { type: Boolean, default: false },
+      earlyCheckInWindowMinutes: { type: Number, default: 30 }
     },
     prescriptionSettings: {
       allowManualFreeText: {

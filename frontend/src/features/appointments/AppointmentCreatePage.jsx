@@ -18,6 +18,7 @@ const defaultForm = {
   reasonForVisit: '',
   symptomsSummary: '',
   source: 'reception',
+  consultationMode: 'WALK_IN',
   isEarlyBooking: false,
   earlyBookingReason: 'none'
 };

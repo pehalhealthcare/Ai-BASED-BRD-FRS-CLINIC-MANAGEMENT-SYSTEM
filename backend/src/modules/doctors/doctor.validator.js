@@ -106,6 +106,10 @@ const doctorPayloadSchema = z.object({
   clinicId: objectIdSchema.optional(),
   assignedClinics: z.array(objectIdSchema).optional(),
   isActive: z.boolean().optional(),
+  tokenPrefix: z.string()
+    .trim()
+    .regex(/^[A-Z0-9-]{1,10}$/, 'Token prefix must be 1 to 10 characters and contain only uppercase letters, numbers, or hyphens.')
+    .optional(),
   bankAccount: bankAccountSchema.default({})
 });
 

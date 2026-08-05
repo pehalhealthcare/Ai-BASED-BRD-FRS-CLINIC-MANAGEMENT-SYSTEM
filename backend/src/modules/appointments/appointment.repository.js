@@ -38,11 +38,18 @@ const findDoctorAppointmentsForDate = ({
   statuses,
   excludeAppointmentId = null
 }) => {
+  // Let active reservations ('payment_pending' / 'waiting_for_approval' that haven't expired yet) also block slot booking
   const filter = {
     clinicId,
     doctorId,
     appointmentDate,
-    status: { $in: statuses }
+    $or: [
+      { status: { $in: statuses } },
+      { 
+        status: { $in: ['payment_pending', 'waiting_for_approval', 'waiver_pending'] }, 
+        reservationExpiresAt: { $gt: new Date() } 
+      }
+    ]
   };
 
   if (excludeAppointmentId) {

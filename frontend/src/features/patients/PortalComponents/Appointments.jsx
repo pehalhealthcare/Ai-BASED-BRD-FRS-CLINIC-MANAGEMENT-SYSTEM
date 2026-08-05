@@ -421,6 +421,13 @@ export default function Appointments({
                           }`}>
                           {isUnattended ? 'NOT ATTENDED' : isCancelled ? 'CANCELLED' : apt.status === 'called' ? '🔔 CALLED — GO TO DOCTOR' : (apt.status ? apt.status.replace(/_/g, ' ').toUpperCase() : 'UPCOMING')}
                         </span>
+                        <span className={`inline-block ml-2 px-2.5 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider mb-2 border ${
+                          apt.consultationMode === 'ONLINE'
+                            ? 'bg-blue-500/10 text-blue-500 border-blue-500/15'
+                            : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/15'
+                        }`}>
+                          {apt.consultationMode === 'ONLINE' ? '📹 Online Video' : '🧑⚕️ Walk-In'}
+                        </span>
                         {apt.status === 'called' && apt.meta?.otp && (
                           <div className="w-full mb-2 p-3 rounded-xl bg-violet-50 dark:bg-violet-500/10 border border-violet-200 dark:border-violet-500/20 flex items-center justify-between gap-3">
                             <div>

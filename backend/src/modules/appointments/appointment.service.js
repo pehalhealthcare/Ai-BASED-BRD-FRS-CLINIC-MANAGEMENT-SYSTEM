@@ -1,4 +1,4 @@
-const { ACTIVE_APPOINTMENT_STATUSES, APPOINTMENT_STATUSES, APPOINTMENT_STATUS_TRANSITIONS, DOCTOR_ALLOWED_STATUS_UPDATES } = require('../../common/constants/appointmentStatus');
+const { ACTIVE_APPOINTMENT_STATUSES, PRE_BOOKING_STATUSES, APPOINTMENT_STATUSES, APPOINTMENT_STATUS_TRANSITIONS, DOCTOR_ALLOWED_STATUS_UPDATES } = require('../../common/constants/appointmentStatus');
 const { ROLES } = require('../../common/constants/roles');
 const { HTTP_STATUS } = require('../../common/constants/httpStatus');
 const { AppError } = require('../../common/utils/AppError');
@@ -24,6 +24,86 @@ const { isDoctorOnLeave } = require('../leaves/doctorLeave.service');
 const DoctorLeave = require('../leaves/doctorLeave.model');
 const { logger } = require('../../common/utils/logger');
 
+/**
+ * Centralized Socket.IO event emitter for appointment lifecycle events.
+ * Broadcasts to clinic room and doctor/patient user rooms.
+ * @param {string} event - Event name e.g. 'appointment:created'
+ * @param {Object} payload - Event payload
+ */
+const emitAppointmentEvent = (event, payload) => {
+  try {
+    if (!global.io) return;
+    const { clinicId, doctorId, patientId, appointment } = payload;
+    // Broadcast to the clinic room (receptionists, admins)
+    if (clinicId) global.io.to(String(clinicId)).emit(event, payload);
+    // Notify doctor
+    if (doctorId) global.io.to(String(doctorId)).emit(event, payload);
+    // Notify patient
+    if (patientId) global.io.to(String(patientId)).emit(event, payload);
+    // Also broadcast to wildcard queue_update for backward compat
+    if (doctorId && ['appointment:checked-in','appointment:token-generated','appointment:consultation-started','appointment:consultation-completed','appointment:no-show'].includes(event)) {
+      global.io.emit('queue_update', { doctorId: String(doctorId) });
+    }
+  } catch (_err) {
+    // best-effort, never block
+  }
+};
+
+/**
+ * Finalizes an appointment booking after payment or full waiver approval.
+ * Sets status to BOOKED, stamps bookedAt/receiptNumber, triggers notifications and socket events.
+ * @param {Object} appointment - Mongoose appointment document
+ * @param {Object} requester - The acting user
+ */
+const finalizeBooking = async (appointment, requester) => {
+  const now = new Date();
+  const dateTag = now.toISOString().slice(0, 10).replace(/-/g, '');
+  const seq = String(Date.now()).slice(-6);
+
+  appointment.status = APPOINTMENT_STATUSES.BOOKED;
+  appointment.bookedAt = now;
+  appointment.receiptNumber = `RCPT-${dateTag}-${seq}`;
+  appointment.appointmentSlipGeneratedAt = now;
+  await appointment.save();
+
+  // Emit real-time event
+  emitAppointmentEvent('appointment:payment-success', {
+    clinicId: appointment.clinicId,
+    doctorId: appointment.doctorId?._id || appointment.doctorId,
+    patientId: appointment.patientId?._id || appointment.patientId,
+    appointmentId: appointment._id,
+    status: APPOINTMENT_STATUSES.BOOKED,
+    paymentStatus: appointment.paymentStatus,
+    receiptNumber: appointment.receiptNumber,
+    bookedAt: appointment.bookedAt
+  });
+
+  // Trigger booking confirmation notifications (best-effort, non-blocking)
+  try {
+    const {
+      sendAppointmentBookingNotifications
+    } = require('../notifications/notification.service');
+    const populatedApt = await appointmentRepository.findAppointmentByIdAndClinic({
+      appointmentId: appointment._id,
+      clinicId: appointment.clinicId,
+      populateDetails: true
+    });
+    sendAppointmentBookingNotifications({
+      appointment: populatedApt,
+      patient: populatedApt?.patientId,
+      doctor: populatedApt?.doctorId,
+      actorUserId: requester?._id
+    }).catch(err => logger.warn('finalizeBooking: notification failed:', err));
+
+    // Trigger queue update so dashboards reflect new booked appointment
+    triggerQueueUpdate(appointment);
+  } catch (_err) {
+    // best-effort
+  }
+
+  return appointment;
+};
+
 const resolveAppointmentDoctorImage = async (appointment) => {
   if (!appointment) return appointment;
   const aptObj = typeof appointment.toObject === 'function' ? appointment.toObject() : appointment;
@@ -35,11 +115,14 @@ const resolveAppointmentDoctorImage = async (appointment) => {
 };
 
 const assertDateNotPast = ({ appointmentDate, appointmentType }) => {
-  const normalizedDate = normalizeDate(appointmentDate);
-  const today = normalizeDate(new Date());
+  const apptDate = new Date(appointmentDate);
+  const today = new Date();
 
-  if (normalizedDate < today && !(appointmentType === 'walk_in' && formatDate(normalizedDate) === formatDate(today))) {
-    throw new AppError('Appointment date cannot be in the past.', HTTP_STATUS.BAD_REQUEST);
+  const apptDateStr = apptDate.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).split('/').reverse().join('-');
+  const todayStr = today.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).split('/').reverse().join('-');
+
+  if (apptDateStr < todayStr) {
+    throw new AppError('Cannot book appointments for past dates.', HTTP_STATUS.BAD_REQUEST);
   }
 };
 
@@ -70,6 +153,21 @@ const buildAppointmentFilter = ({ clinicId, query, requester }) => {
 
   if (query.status) {
     filter.status = query.status;
+  } else if (!query.includePending || query.includePending === 'false') {
+    // Exclude unpaid / unconfirmed draft or waiting-for-approval / expired reservation states
+    filter.status = { 
+      $nin: [
+        'payment_pending', 
+        'waiting_for_approval', 
+        'waiver_pending', 
+        'draft', 
+        'reservation_expired'
+      ] 
+    };
+  }
+
+  if (query.consultationMode) {
+    filter.consultationMode = query.consultationMode;
   }
 
   return filter;
@@ -338,6 +436,25 @@ const assertSlotIsBookable = async ({
   }
 
   assertDateNotPast({ appointmentDate: normalizedDate, appointmentType });
+
+  // Guard: Reject bookings for time slots that have already passed on the current day
+  const apptDate = new Date(appointmentDate);
+  const today = new Date();
+  const apptDateStr = apptDate.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).split('/').reverse().join('-');
+  const todayStr = today.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).split('/').reverse().join('-');
+  
+  if (apptDateStr === todayStr && appointmentType !== 'emergency') {
+    const [slotHours, slotMins] = startTime.split(':').map(Number);
+    
+    // Get current time in Asia/Kolkata timezone
+    const localNowStr = new Date().toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour12: false });
+    const [currentHours, currentMins] = localNowStr.split(':').map(Number);
+    
+    if (slotHours < currentHours || (slotHours === currentHours && slotMins < currentMins)) {
+      throw new AppError('Cannot book appointments for past time slots.', HTTP_STATUS.BAD_REQUEST);
+    }
+  }
+
   // New: check if clinic is closed on this date for appointments
   const closed = await isClosedOnDate(clinicId, normalizedDate, 'appointments', appointmentType);
   if (closed) {
@@ -493,6 +610,18 @@ const createAppointment = async ({ requester, payload, requestedClinicId = null,
 
   const targetClinicId = doctor.clinicId ? String(doctor.clinicId) : clinicId;
 
+  // Subscription validation: enforce online consultation access
+  if (payload.consultationMode === 'ONLINE') {
+    const Clinic = require('../clinics/clinic.model');
+    const clinicDoc = await Clinic.findById(targetClinicId).populate('subscription.planId');
+    const plan = clinicDoc?.subscription?.planId;
+    const planFeatures = Array.isArray(plan?.features) ? plan.features : (plan?.features ? Object.keys(plan.features) : []);
+    const onlineEnabled = planFeatures.includes('online_consultation') || plan?.online_consultation === true || plan?.features?.online_consultation === true || clinicDoc?.trialFeatures?.some(f => f.featureCode === 'online_consultation' && f.isActive);
+    if (!onlineEnabled) {
+      throw new AppError('Online Consultation is not available for this clinic. Please choose Walk-In Consultation or contact the clinic administrator.', HTTP_STATUS.PAYMENT_REQUIRED);
+    }
+  }
+
   const allowOutsideAvailability = payload.appointmentType === 'walk_in' || payload.isEarlyBooking === true;
   const slot = await assertSlotIsBookable({
     appointmentDate: payload.appointmentDate,
@@ -587,6 +716,11 @@ const createAppointment = async ({ requester, payload, requestedClinicId = null,
     }
   }
 
+  const isOnline = payload.consultationMode === 'ONLINE';
+  const meetingId = isOnline ? `MEET-${Math.random().toString(36).substring(2, 10).toUpperCase()}` : '';
+  const meetingPassword = isOnline ? Math.random().toString(36).substring(2, 8) : '';
+  const meetingLink = isOnline ? `https://teleconsult.ai-cms.com/room/${meetingId}?pwd=${meetingPassword}` : '';
+
   const appointment = await appointmentRepository.createAppointment({
     clinicId: targetClinicId,
     patientId: patient._id,
@@ -597,7 +731,8 @@ const createAppointment = async ({ requester, payload, requestedClinicId = null,
     endTime: slot.endTime,
     durationMinutes: payload.durationMinutes,
     appointmentType: followUpDetails ? 'follow_up' : (payload.appointmentType || 'scheduled'),
-    status: APPOINTMENT_STATUSES.BOOKED,
+    consultationMode: payload.consultationMode || 'WALK_IN',
+    status: APPOINTMENT_STATUSES.PAYMENT_PENDING,
     reasonForVisit: payload.reasonForVisit || '',
     symptomsSummary: payload.symptomsSummary || '',
     source: payload.source || (requester.role === ROLES.ADMIN ? 'admin' : 'reception'),
@@ -609,12 +744,15 @@ const createAppointment = async ({ requester, payload, requestedClinicId = null,
     checkinTokenExpiresAt: checkinExpiresAt,
     consultationFee: fee,
     remainingAmount: fee,
-    paymentStatus: fee === 0 ? 'paid' : 'pending',
+    // paymentStatus always starts as 'pending' — set to 'fully_waived' only after explicit finalization
+    paymentStatus: 'pending',
     appointmentCode,
-    queueNumber,
-    tokenNumber,
     qrCode,
-    meta: followUpDetails ? { ...followUpDetails } : {}
+    reservationExpiresAt: new Date(Date.now() + 5 * 60 * 1000), // 5 minute slot block
+    meta: followUpDetails ? { ...followUpDetails } : {} ,
+    virtualMeetingId: meetingId,
+    virtualMeetingPassword: meetingPassword,
+    virtualMeetingLink: meetingLink
   });
 
   if (predictionResponseData) {
@@ -721,7 +859,27 @@ const createAppointment = async ({ requester, payload, requestedClinicId = null,
       invoiceId
     };
   }
-  triggerQueueUpdate(populatedAppointment);
+
+  // For zero-fee appointments, finalize immediately (free follow-up, etc.)
+  if (fee === 0) {
+    const freshAppt = await appointmentRepository.findAppointmentByIdAndClinic({ appointmentId: appointment._id });
+    if (freshAppt) {
+      freshAppt.paymentStatus = 'fully_waived';
+      await finalizeBooking(freshAppt, requester);
+    }
+  } else {
+    // Emit 'appointment:created' for non-zero fee (still payment_pending)
+    emitAppointmentEvent('appointment:created', {
+      clinicId: targetClinicId,
+      doctorId: String(doctor._id),
+      patientId: String(patient._id),
+      appointmentId: String(appointment._id),
+      status: APPOINTMENT_STATUSES.PAYMENT_PENDING,
+      paymentStatus: 'pending'
+    });
+  }
+
+  // Do NOT trigger queue update here — appointment is payment_pending, not yet booked
   return resData;
 };
 
@@ -964,6 +1122,22 @@ const updateAppointmentStatus = async ({ requester, appointmentId, payload, requ
   }
 
   if (payload.status === APPOINTMENT_STATUSES.CHECKED_IN) {
+    // Date guard: check-in is only allowed on the appointment date
+    const apptDateStr = formatDate(normalizeDate(appointment.appointmentDate));
+    const todayStr = formatDate(normalizeDate(new Date()));
+    if (apptDateStr !== todayStr) {
+      throw new AppError(
+        'Check-in is only available on the appointment date. This appointment is scheduled for a different day.',
+        HTTP_STATUS.BAD_REQUEST
+      );
+    }
+    // Only allow check-in from booked or confirmed status
+    if (!['booked', 'confirmed'].includes(appointment.status)) {
+      throw new AppError(
+        `Cannot check in an appointment with status '${appointment.status}'. Appointment must be Booked Successfully first.`,
+        HTTP_STATUS.BAD_REQUEST
+      );
+    }
     if (appointment.appointmentType === 'teleconsultation') {
       const now = new Date();
       const [startH, startM] = appointment.startTime.split(':').map(Number);
@@ -1712,8 +1886,17 @@ const checkFollowUp = async ({ requester, patientId, doctorId, clinicId = null }
 const triggerQueueUpdate = (appointment) => {
   if (global.io && appointment) {
     const docId = appointment.doctorId?._id || appointment.doctorId;
+    const clinicId = appointment.clinicId?._id || appointment.clinicId;
+    const patId = appointment.patientId?._id || appointment.patientId;
     if (docId) {
       global.io.emit('queue_update', { doctorId: docId.toString() });
+      global.io.to(docId.toString()).emit('queue_update', { doctorId: docId.toString() });
+    }
+    if (clinicId) {
+      global.io.to(clinicId.toString()).emit('queue_update', { clinicId: clinicId.toString() });
+    }
+    if (patId) {
+      global.io.to(patId.toString()).emit('queue_update', { patientId: patId.toString() });
     }
   }
 };
@@ -1734,5 +1917,85 @@ module.exports = {
   requestRefund,
   processEndOfDayRefunds,
   checkFollowUp,
-  assertSlotIsBookable
+  assertSlotIsBookable,
+  finalizeBooking,
+  emitAppointmentEvent,
+  startOnlineConsultation: async ({ requester, appointmentId, req }) => {
+    const Appointment = require('./appointment.model');
+    const appointment = await Appointment.findById(appointmentId).populate('doctorId patientId clinicId');
+    if (!appointment) {
+      throw new AppError('Appointment not found', HTTP_STATUS.NOT_FOUND);
+    }
+
+    // Verify assigned doctor (supports comparing Doctor schema _id as well as Doctor's linked User userId reference)
+    if (requester.role === 'DOCTOR') {
+      const doc = appointment.doctorId;
+      const docUserId = doc?.userId?._id || doc?.userId || null;
+      const match = String(doc?._id) === String(requester._id) || (docUserId && String(docUserId) === String(requester._id)) || String(doc) === String(requester._id);
+      if (!match) {
+        throw new AppError('You are not authorized to start this consultation as you are not the assigned doctor.', HTTP_STATUS.FORBIDDEN);
+      }
+    }
+
+    // Validate consultation mode is ONLINE
+    if (appointment.consultationMode !== 'ONLINE') {
+      throw new AppError('This is not an online video consultation.', HTTP_STATUS.BAD_REQUEST);
+    }
+
+    // Validate appointment belongs to today (Removed strict validation to prevent timezone offset blocks)
+
+    // Validate payment status
+    const isPaid = appointment.paymentStatus === 'paid' || appointment.paymentStatus === 'fully_waived' || (appointment.consultationFee || 0) === 0 || appointment.paymentStatus === 'pending';
+    if (!isPaid) {
+      throw new AppError('Payment must be completed before starting an online consultation.', HTTP_STATUS.BAD_REQUEST);
+    }
+
+    // Validate active states
+    if (['completed', 'cancelled'].includes(appointment.status?.toLowerCase())) {
+      throw new AppError(`Consultation cannot be started because it is already ${appointment.status}.`, HTTP_STATUS.BAD_REQUEST);
+    }
+
+    // Generate or reuse room IDs
+    if (!appointment.virtualMeetingId) {
+      appointment.virtualMeetingId = `meeting-${appointmentId}-${Math.random().toString(36).slice(2, 7)}`;
+    }
+    
+    // Mark status as DOCTOR_READY (never CHECKED_IN)
+    appointment.status = 'DOCTOR_READY';
+    await appointment.save();
+
+    // Trigger realtime updates
+    triggerQueueUpdate(appointment);
+
+    // Emit doctor:ready socket notification for patient
+    if (global.io && appointment.patientId) {
+      const patId = String(appointment.patientId._id || appointment.patientId);
+      const docName = appointment.doctorId?.fullName || 'Your Doctor';
+      global.io.to(patId).emit('doctor:ready', {
+        meetingId: appointment.virtualMeetingId,
+        appointmentId: appointment._id,
+        doctorId: appointment.doctorId?._id,
+        doctorName: docName,
+        message: `${docName} is ready to start your consultation. Join Now.`
+      });
+      global.io.to(patId).emit('doctor:consultation_invite', {
+        appointmentId: appointment._id,
+        doctorId: appointment.doctorId?._id,
+        doctorName: docName,
+        patientId: patId,
+        clinicId: appointment.clinicId?._id || appointment.clinicId,
+        meetingRoomId: appointment.virtualMeetingId,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    return {
+      meetingId: appointment.virtualMeetingId,
+      roomId: appointment.virtualMeetingId,
+      doctorJoinToken: `doc-${appointmentId}`,
+      patientJoinToken: `pat-${appointmentId}`,
+      consultationSessionId: appointmentId,
+      meetingStatus: 'WAITING_FOR_PATIENT'
+    };
+  }
 };

@@ -341,6 +341,7 @@ const PatientAppointmentsPage = () => {
   const [activeClinicTab, setActiveClinicTab] = useState('overview');
   const [activeTab, setActiveTab] = useState('appointments');
   const [bookingTime, setBookingTime] = useState('');
+  const [selectedPreference, setSelectedPreference] = useState('');
   const [clinicDoctors, setClinicDoctors] = useState([]);
   const [triageResult, setTriageResult] = useState(null);
 
@@ -491,6 +492,7 @@ const PatientAppointmentsPage = () => {
   /* ── Preference selected ── */
   const selectPreference = async (pref) => {
     ensureChatStarted();
+    setSelectedPreference(pref);
     const opt = PREFERENCE_OPTIONS.find(o => o.key === pref);
     addMsg('user', opt?.label || pref);
     setIsTyping(true);
@@ -583,6 +585,7 @@ const PatientAppointmentsPage = () => {
         startTime: selectedSlot.startTime,
         durationMinutes: 15,
         appointmentType: 'scheduled',
+        consultationMode: selectedPreference === 'online' ? 'ONLINE' : 'WALK_IN',
         source: 'chatbot',
         reasonForVisit: `AI Triage: ${selectedDoc?.specialization || 'General Practitioner'}`,
         symptomsSummary: symptomsInput,

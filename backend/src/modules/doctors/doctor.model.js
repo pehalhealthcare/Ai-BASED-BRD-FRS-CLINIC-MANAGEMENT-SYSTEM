@@ -126,6 +126,27 @@ const doctorSchema = new mongoose.Schema(
       trim: true,
       default: ''
     },
+    tokenPrefix: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      default: ''
+    },
+    tokenPrefixGenerated: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      default: ''
+    },
+    tokenPrefixCustomized: {
+      type: Boolean,
+      default: false
+    },
+    tokenSequenceStrategy: {
+      type: String,
+      enum: ['daily_clinic_doctor', 'sequential'],
+      default: 'daily_clinic_doctor'
+    },
     firstName: {
       type: String,
       required: true,
@@ -361,6 +382,10 @@ doctorSchema.pre('validate', function setFullName(next) {
 doctorSchema.index(
   { clinicId: 1, doctorCode: 1 },
   { unique: true, partialFilterExpression: { clinicId: { $exists: true, $ne: null } } }
+);
+doctorSchema.index(
+  { clinicId: 1, tokenPrefix: 1 },
+  { unique: true, partialFilterExpression: { clinicId: { $exists: true, $ne: null }, tokenPrefix: { $exists: true, $ne: '' } } }
 );
 doctorSchema.index({ clinicId: 1, specialization: 1 });
 doctorSchema.index({ clinicId: 1, phone: 1 });

@@ -14,6 +14,7 @@ const Clinic = require('../clinics/clinic.model');
 const BillingAudit = require('../billing/billingAudit.model');
 const Patient = require('../patients/patient.model');
 const Doctor = require('../doctors/doctor.model');
+const { finalizeBooking, emitAppointmentEvent } = require('./appointment.service');
 
 const DISCOUNT_TYPES = [
   'percentage', 'fixed', 'full_waiver', 'membership',
@@ -110,9 +111,9 @@ const requestDiscount = async ({ requester, appointmentId, payload }) => {
   const appointment = await Appointment.findById(appointmentId);
   if (!appointment) throw new AppError('Appointment not found.', HTTP_STATUS.NOT_FOUND);
 
-  if (!['booked', 'payment_pending'].includes(appointment.status)) {
+  if (!['payment_pending', 'booked'].includes(appointment.status)) {
     throw new AppError(
-      'Discount can only be requested for appointments in booked or payment_pending state.',
+      'Discount can only be requested for appointments in payment pending or booked state.',
       HTTP_STATUS.BAD_REQUEST
     );
   }
@@ -401,27 +402,17 @@ const decideDiscount = async ({
     appointment.waiverAmount = discountAmount;
 
     if (appointment.discountRequest.type === 'full_waiver') {
-      // Full waiver: immediately confirm without payment
-      const { assertSlotIsBookable } = require('./appointment.service');
-      const doctorDoc = await require('../doctors/doctor.model').findById(appointment.doctorId);
-      await assertSlotIsBookable({
-        appointmentDate: appointment.appointmentDate,
-        startTime: appointment.startTime,
-        durationMinutes: appointment.durationMinutes || 30,
-        appointmentType: appointment.appointmentType || 'scheduled',
-        doctor: doctorDoc,
-        clinicId: appointment.clinicId._id || appointment.clinicId,
-        excludeAppointmentId: appointment._id
-      });
-
-      appointment.status = APPOINTMENT_STATUSES.CONFIRMED;
+      // Full waiver: finalize booking immediately (no payment needed)
       appointment.paymentStatus = 'fully_waived';
       appointment.waiverType = 'full';
       appointment.waivedByAdminId = requester.role === ROLES.ADMIN ? requester._id : null;
       appointment.waivedByDoctorId = requester.role === ROLES.DOCTOR ? requester._id : null;
-      appointment.waiverLastUpdated = now;
+      appointment.waiverLastUpdated = new Date();
       appointment.amountPaid = 0;
       appointment.remainingAmount = 0;
+      await appointment.save();
+      // finalizeBooking sets status=BOOKED, bookedAt, receiptNumber, triggers notifications
+      await finalizeBooking(appointment, requester);
     } else {
       // Partial discount: move to payment_pending
       appointment.status = APPOINTMENT_STATUSES.PAYMENT_PENDING;
@@ -437,25 +428,18 @@ const decideDiscount = async ({
 
   await appointment.save();
 
-  if (decision === 'approved' && appointment.discountRequest.type === 'full_waiver' && appointment.appointmentType === 'walk_in') {
-    try {
-      const { checkInAppointment } = require('./queue.service');
-      const checkinResult = await checkInAppointment({
-        appointmentId: appointment._id,
-        method: 'Reception',
-        isEmergency: false,
-        requester: { _id: requester._id, role: requester.role }
-      });
-      if (checkinResult && checkinResult.token) {
-        appointment.tokenNumber = checkinResult.token.tokenNumber;
-        appointment.queueNumber = checkinResult.token.queuePosition;
-        appointment.status = checkinResult.appointment.status;
-        await appointment.save();
-      }
-    } catch (checkinErr) {
-      console.error('Auto check-in failed during full waiver approval:', checkinErr);
-    }
-  }
+  // Emit real-time socket event based on decision
+  const eventName = decision === 'approved' ? 'appointment:waiver-approved' : 'appointment:waiver-rejected';
+  emitAppointmentEvent(eventName, {
+    clinicId: appointment.clinicId,
+    doctorId: appointment.doctorId?._id || appointment.doctorId,
+    patientId: appointment.patientId?._id || appointment.patientId,
+    appointmentId: appointment._id,
+    decision,
+    status: appointment.status,
+    paymentStatus: appointment.paymentStatus,
+    remainingAmount: appointment.remainingAmount
+  });
 
   // Update audit record
   await BillingAudit.findOneAndUpdate(
@@ -483,7 +467,7 @@ const decideDiscount = async ({
  * Collect payment for an appointment in payment_pending state.
  * Confirms the appointment, generates queue token.
  */
-const collectPayment = async ({ requester, appointmentId, paymentMethod, transactionId = '' }) => {
+const collectPayment = async ({ requester, appointmentId, paymentMethod, transactionId = '', payload = {} }) => {
   const validPaymentMethods = ['cash', 'upi', 'card', 'net_banking', 'wallet', 'split'];
   if (!validPaymentMethods.includes(paymentMethod)) {
     throw new AppError('Invalid payment method.', HTTP_STATUS.BAD_REQUEST);
@@ -516,37 +500,59 @@ const collectPayment = async ({ requester, appointmentId, paymentMethod, transac
     excludeAppointmentId: appointment._id
   });
 
-  const amountPaid = appointment.discountRequest?.finalPayableAmount ?? appointment.consultationFee;
-  const now = new Date();
+  const mongoose = require('mongoose');
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
-  appointment.status = APPOINTMENT_STATUSES.CONFIRMED;
-  appointment.paymentStatus = 'paid';
-  appointment.amountPaid = amountPaid;
-  appointment.remainingAmount = 0;
-  appointment.paymentMethod = paymentMethod;
-  appointment.paymentDate = now;
-  appointment.slotReservedUntil = null;
+  try {
+    const amountPaid = appointment.discountRequest?.finalPayableAmount ?? appointment.consultationFee;
+    const now = new Date();
 
-  await appointment.save();
+    appointment.paymentStatus = 'paid';
+    appointment.amountPaid = amountPaid;
+    appointment.remainingAmount = 0;
+    appointment.paymentMethod = paymentMethod;
+    appointment.paymentDate = now;
+    appointment.slotReservedUntil = null;
 
-  if (appointment.appointmentType === 'walk_in') {
-    try {
-      const { checkInAppointment } = require('./queue.service');
-      const checkinResult = await checkInAppointment({
+    // finalizeBooking sets status=BOOKED, bookedAt, receiptNumber, triggers notifications and socket payment-success event
+    await finalizeBooking(appointment, requester);
+    await appointment.save({ session });
+
+    // Validate payment invariants
+    const isValidPayment = appointment.paymentStatus === 'paid' || 
+                           appointment.paymentStatus === 'fully_waived' ||
+                           (appointment.paymentStatus === 'partially_waived' && appointment.remainingAmount === 0);
+    if (!isValidPayment) {
+      throw new AppError('Payment Validation Failed: cannot check-in patient with outstanding balance.', HTTP_STATUS.BAD_REQUEST);
+    }
+
+    // If receptionist explicitly selected generateToken = true (or same-day auto-checkin is requested)
+    if (payload && payload.generateToken === true) {
+      const queueService = require('./queue.service');
+      await queueService.checkInAppointment({
         appointmentId: appointment._id,
         method: 'Reception',
-        isEmergency: false,
-        requester: { _id: requester._id, role: requester.role }
-      });
-      if (checkinResult && checkinResult.token) {
-        appointment.tokenNumber = checkinResult.token.tokenNumber;
-        appointment.queueNumber = checkinResult.token.queuePosition;
-        appointment.status = checkinResult.appointment.status;
-        await appointment.save();
+        isEmergency: appointment.appointmentType === 'emergency',
+        requester
+      }, { session });
+      // Re-load the appointment to get the updated status and token details
+      const updated = await Appointment.findById(appointment._id).session(session);
+      if (updated) {
+        appointment.status = updated.status;
+        appointment.checkedInAt = updated.checkedInAt;
+        appointment.tokenNumber = updated.tokenNumber;
+        appointment.queueNumber = updated.queueNumber;
       }
-    } catch (checkinErr) {
-      console.error('Auto check-in failed during payment collection:', checkinErr);
     }
+
+    await appointment.save({ session });
+    await session.commitTransaction();
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
   }
 
   // Update audit

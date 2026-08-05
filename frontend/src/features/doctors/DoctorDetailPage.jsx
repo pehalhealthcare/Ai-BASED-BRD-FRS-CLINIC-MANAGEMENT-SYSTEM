@@ -88,6 +88,7 @@ const DoctorDetailPage = () => {
             <DetailItem label="Email" value={doctor.email} />
             <DetailItem label="Experience" value={doctor.experienceYears !== undefined ? `${doctor.experienceYears} years` : 'Not provided'} />
             <DetailItem label="Consultation fee" value={doctor.consultationFee ? `Rs. ${doctor.consultationFee}` : 'Not provided'} />
+            <DetailItem label="Token Prefix" value={doctor.tokenPrefix} />
             <DetailItem label="Status" value={doctor.isActive ? 'Active' : 'Inactive'} />
             <DetailItem label="Gender" value={doctor.gender} />
           </dl>

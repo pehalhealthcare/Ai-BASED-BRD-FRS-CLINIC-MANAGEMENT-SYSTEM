@@ -1,13 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   X, Calendar, Clock, MapPin, Copy, Star, CheckCircle2, Shield, Video,
   Building, CheckCircle, Info, ExternalLink, Share2, CalendarPlus, Heart, Users, ShieldAlert,
-  RotateCcw, XCircle, FileText, Activity, CreditCard, Printer, CheckSquare, AlertTriangle, Bell
+  RotateCcw, XCircle, FileText, Activity, CreditCard, Printer, CheckSquare, AlertTriangle, Bell, Phone
 } from 'lucide-react';
 import { getConsultation, getAppointmentConsultation, downloadConsultationPdf } from '../../consultations/consultationApi';
 import { apiClient } from '../../../lib/api';
 import { toast } from 'react-hot-toast';
+import { io } from 'socket.io-client';
 
 const CLINIC_FACILITIES = [
   { name: 'Digital Consultation', desc: 'Secure video consultations', icon: Video },
@@ -30,19 +31,60 @@ function fmt12(time24) {
   return `${String(h12).padStart(2,'0')}:${String(m).padStart(2,'0')} ${ampm}`;
 }
 
-export default function AppointmentDetailsModal({ appointment, invoices = [], onClose, onReschedule }) {
+export default function AppointmentDetailsModal({ appointment, invoices = [], onClose, onReschedule, autoJoin = false, initialDoctorReady = false }) {
   const [copied, setCopied] = useState(false);
-  const [mode, setMode] = useState(appointment?.appointmentType === 'teleconsultation' ? 'online' : 'offline');
+  const [mode, setMode] = useState(appointment?.consultationMode === 'ONLINE' || appointment?.appointmentType === 'teleconsultation' ? 'online' : 'offline');
   const [consultationTab, setConsultationTab] = useState('summary'); // summary, prescription, medicines, labTests, documents, payment
   const [consultationData, setConsultationData] = useState(null);
   const [prescriptionData, setPrescriptionData] = useState(null);
   const [loadingConsultation, setLoadingConsultation] = useState(false);
 
+  // Patient WebRTC / Teleconsultation states
+  const [socket, setSocket] = useState(null);
+  const [callActive, setCallActive] = useState(false);
+  const [incomingCall, setIncomingCall] = useState(false);
+  const [localStream, setLocalStream] = useState(null);
+  const [remoteStream, setRemoteStream] = useState(null);
+  const [isAudioMuted, setIsAudioMuted] = useState(false);
+  const [isVideoMuted, setIsVideoMuted] = useState(false);
+  const [connectionLatency, setConnectionLatency] = useState(42);
+  const [waitingPosition, setWaitingPosition] = useState(2);
+  const [estWaitTime, setEstWaitTime] = useState(8);
+  const autoJoinTriggered = useRef(false);
+
+  const localVideoRef = useRef(null);
+  const remoteVideoRef = useRef(null);
+  const peerConnectionRef = useRef(null);
+  const socketRef = useRef(null);
+  const pendingIceCandidatesRef = useRef([]);
+  const localStreamRef = useRef(null); // Always holds current local stream (avoids stale closure)
+  // Stable callback ref to joinMeetingRoom — lets the socket `connect` closure auto-join
+  const autoJoinCallbackRef = useRef(null);
+
+  // Keep localStreamRef in sync with localStream state
+  useEffect(() => {
+    localStreamRef.current = localStream;
+    if (localStream && localVideoRef.current) {
+      localVideoRef.current.srcObject = localStream;
+      localVideoRef.current.play().catch(() => {});
+      console.log('Patient Local Stream Ready: Local video attached.');
+    }
+  }, [localStream]);
+
+  // Sync remoteStream -> remoteVideoRef whenever remote track arrives
+  useEffect(() => {
+    if (remoteStream && remoteVideoRef.current) {
+      remoteVideoRef.current.srcObject = remoteStream;
+      remoteVideoRef.current.play().catch(() => {});
+      console.log('Patient: Remote Video Attached (via effect).');
+    }
+  }, [remoteStream]);
+
   const doctor = appointment?.doctorId;
   const clinic = appointment?.clinicId;
   const patient = appointment?.patientId;
   const apptId = appointment?.appointmentId || `APT-${appointment?._id?.slice(-8).toUpperCase()}`;
-  const isCompleted = appointment?.status?.toLowerCase() === 'completed';
+  const isCompleted = String(appointment?.status || '').toLowerCase() === 'completed';
 
   const relatedInvoice = (invoices || []).find(
     (inv) =>
@@ -54,6 +96,253 @@ export default function AppointmentDetailsModal({ appointment, invoices = [], on
                  (appointment?.paymentStatus === 'partially_waived' && (appointment?.amountPaid || 0) >= (appointment?.remainingAmount || 0)) ||
                  (appointment?.consultationFee || 0) === 0 ||
                  (relatedInvoice && relatedInvoice.paymentStatus === 'paid');
+
+  // initialDoctorReady: from prop (when patient is joining after getting the invite), OR appointment status
+  const isDoctorReadyInitialState = initialDoctorReady ||
+    ['doctor_ready', 'patient_joined_waiting'].includes(appointment?.status?.toLowerCase()) ||
+    ['DOCTOR_READY', 'PATIENT_JOINED_WAITING'].includes(appointment?.status);
+  const [doctorReady, setDoctorReady] = useState(isDoctorReadyInitialState);
+
+  // Connect patient signaling socket when ONLINE consultation details render
+  useEffect(() => {
+    if (appointment?.consultationMode !== 'ONLINE') return;
+
+    const meetingId = appointment._id;
+    const socketUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+    const s = io(socketUrl, { transports: ['websocket', 'polling'] });
+    socketRef.current = s;
+    setSocket(s);
+
+    // Buffer for doctor's offer if it arrives before patient's PC is ready
+    let pendingOffer = null;
+
+    s.on('connect', () => {
+      console.log('Patient: Socket connected:', s.id);
+      if (patient?._id) s.emit('join_user', patient._id);
+      s.emit('join_meeting', meetingId);
+
+      // Auto-join: if doctor already sent invite and patient tapped "Join Now"
+      // use a tiny delay to let the meeting room join propagate, then start WebRTC
+      if (autoJoin && !autoJoinTriggered.current) {
+        autoJoinTriggered.current = true;
+        setTimeout(() => {
+          // joinMeetingRoom is defined below; call it via ref pattern
+          if (typeof autoJoinCallbackRef.current === 'function') {
+            autoJoinCallbackRef.current();
+          }
+        }, 600);
+      }
+    });
+
+    s.on('doctor_ready', () => {
+      setDoctorReady(true);
+      toast.success('Doctor is ready! You can join now.', { duration: 6000 });
+    });
+
+    s.on('incoming_call', () => {
+      setIncomingCall(true);
+      toast('📞 Doctor is calling you!', { duration: 8000 });
+    });
+
+    s.on('webrtc_signal', async (data) => {
+      const { signal } = data;
+      const pc = peerConnectionRef.current;
+      try {
+        if (signal.sdp) {
+          if (!pc) {
+            // PC not ready yet — buffer the offer so joinMeetingRoom can process it
+            console.log('Patient: Offer received but PC not ready — buffering...');
+            pendingOffer = signal.sdp;
+            return;
+          }
+          console.log('Patient: Received SDP, type:', signal.sdp.type);
+          await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+          console.log('Answer Received: Remote description set on patient side.');
+          // Flush any ICE candidates queued before remote description
+          for (const c of pendingIceCandidatesRef.current) {
+            try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch (_) {}
+          }
+          pendingIceCandidatesRef.current = [];
+          if (signal.sdp.type === 'offer') {
+            console.log('Patient: Creating answer...');
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            s.emit('webrtc_signal', { meetingId, signal: { sdp: pc.localDescription } });
+            console.log('Patient: Answer emitted to doctor.');
+          }
+        } else if (signal.candidate) {
+          if (pc && pc.remoteDescription) {
+            try { await pc.addIceCandidate(new RTCIceCandidate(signal.candidate)); } catch (_) {}
+            console.log('ICE Candidate Received: Added on patient side.');
+          } else {
+            pendingIceCandidatesRef.current.push(signal.candidate);
+            console.log('Patient: ICE candidate queued.');
+          }
+        }
+      } catch (err) {
+        console.error('Patient: WebRTC signal error:', err);
+      }
+    });
+
+    s.on('meeting_ended', () => {
+      toast('The doctor has ended the consultation.', { icon: '👋' });
+      cleanupCall();
+    });
+
+    // Expose pendingOffer via ref so joinMeetingRoom can process it
+    // We store it on the socket ref for access outside this closure
+    s._pendingOffer = { get: () => pendingOffer, clear: () => { pendingOffer = null; } };
+
+    return () => {
+      // Do NOT cleanup call here — appointment status changes trigger this cleanup
+      // and would kill the WebRTC connection mid-session.
+      s.disconnect();
+    };
+  // Only re-init socket when appointment ID or mode changes — NOT on every status update!
+  }, [appointment?._id, appointment?.consultationMode]);
+
+  const joinMeetingRoom = async () => {
+    setIncomingCall(false);
+    setCallActive(true);
+    pendingIceCandidatesRef.current = [];
+
+    const meetingId = appointment._id;
+
+    try {
+      // STEP 1: Get camera & mic first
+      console.log('Patient Local Stream Ready: Requesting camera & mic...');
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      localStreamRef.current = stream;
+      setLocalStream(stream);
+      console.log('Patient: Camera & mic granted.');
+
+      // STEP 2: Create RTCPeerConnection BEFORE notifying doctor
+      console.log('Patient: Creating RTCPeerConnection...');
+      const pc = new RTCPeerConnection({
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'stun:stun2.l.google.com:19302' }
+        ]
+      });
+      peerConnectionRef.current = pc;
+
+      stream.getTracks().forEach(track => pc.addTrack(track, stream));
+      console.log('Media Tracks Added:', stream.getTracks().map(t => t.kind));
+
+      pc.onicecandidate = (event) => {
+        if (event.candidate && socketRef.current?.connected) {
+          console.log('ICE Candidate Sent: Emitting to doctor...');
+          socketRef.current.emit('webrtc_signal', { meetingId, signal: { candidate: event.candidate } });
+        }
+      };
+
+      pc.oniceconnectionstatechange = () => {
+        const state = pc.iceConnectionState;
+        console.log(`Patient ICE State: ${state}`);
+        if (state === 'connected' || state === 'completed') {
+          toast.success('✅ Secure consultation started!');
+        } else if (state === 'failed') {
+          try { pc.restartIce(); } catch (_) {}
+        }
+      };
+
+      pc.onconnectionstatechange = () => {
+        console.log(`Patient Connection State: ${pc.connectionState}`);
+      };
+
+      pc.ontrack = (event) => {
+        console.log('Remote Track Attached: Doctor stream received!');
+        const remoteS = event.streams[0];
+        setRemoteStream(remoteS);
+        if (remoteVideoRef.current) {
+          remoteVideoRef.current.srcObject = remoteS;
+          remoteVideoRef.current.play().catch(() => {});
+        }
+        console.log('Remote Video Rendering: Doctor video is live.');
+        toast.success('🎥 Doctor video connected!');
+      };
+
+      // STEP 3: Notify doctor patient joined (doctor will send offer)
+      if (socketRef.current) {
+        socketRef.current.emit('accept_call', { meetingId, patientId: patient?._id });
+        console.log('Patient: accept_call emitted — waiting for doctor offer...');
+      }
+
+      // STEP 4: Check if doctor's offer was buffered while PC was being set up
+      const pendingOfferAccessor = socketRef.current?._pendingOffer;
+      if (pendingOfferAccessor) {
+        const bufferedOffer = pendingOfferAccessor.get();
+        if (bufferedOffer) {
+          console.log('Patient: Processing buffered doctor offer...');
+          pendingOfferAccessor.clear();
+          await pc.setRemoteDescription(new RTCSessionDescription(bufferedOffer));
+          for (const c of pendingIceCandidatesRef.current) {
+            try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch (_) {}
+          }
+          pendingIceCandidatesRef.current = [];
+          if (bufferedOffer.type === 'offer') {
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            socketRef.current.emit('webrtc_signal', { meetingId, signal: { sdp: pc.localDescription } });
+            console.log('Patient: Answer to buffered offer emitted.');
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Patient: Camera/mic access failed:', err);
+      toast.error('Unable to access camera or microphone.');
+      setCallActive(false);
+    }
+  };
+
+  // Keep autoJoinCallbackRef always pointing to the latest joinMeetingRoom
+  useEffect(() => {
+    autoJoinCallbackRef.current = joinMeetingRoom;
+  });
+
+  const declineIncomingCall = () => {
+    setIncomingCall(false);
+    if (socketRef.current) {
+      socketRef.current.emit('reject_call', { meetingId: appointment._id });
+    }
+  };
+
+  const toggleMuteVideo = () => {
+    if (localStream) {
+      localStream.getVideoTracks().forEach(track => {
+        track.enabled = !track.enabled;
+      });
+      setIsVideoMuted(prev => !prev);
+    }
+  };
+
+  const toggleMuteAudio = () => {
+    if (localStream) {
+      localStream.getAudioTracks().forEach(track => {
+        track.enabled = !track.enabled;
+      });
+      setIsAudioMuted(prev => !prev);
+    }
+  };
+
+  const cleanupCall = () => {
+    if (localStream) {
+      localStream.getTracks().forEach(t => t.stop());
+      setLocalStream(null);
+    }
+    if (remoteStream) {
+      remoteStream.getTracks().forEach(t => t.stop());
+      setRemoteStream(null);
+    }
+    if (peerConnectionRef.current) {
+      peerConnectionRef.current.close();
+      peerConnectionRef.current = null;
+    }
+    setCallActive(false);
+    setIncomingCall(false);
+  };
+
 
   useEffect(() => {
     if (isCompleted) {
@@ -1404,18 +1693,163 @@ export default function AppointmentDetailsModal({ appointment, invoices = [], on
                   </div>
                 )
               ) : (
-                <div className="flex-1 flex flex-col items-center justify-center text-center space-y-4 py-8">
-                  <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-center text-emerald-400">
-                    <Video size={28} />
-                  </div>
-                  <h5 className="text-sm font-bold text-white">Online Video Consultation</h5>
-                  <p className="text-xs text-slate-400 max-w-[240px] leading-relaxed">
-                    Your video consultation link will be activated 10 minutes prior to the scheduled appointment start time.
-                  </p>
-                  <button disabled className="px-5 py-2.5 rounded-xl text-xs font-bold bg-slate-800 text-slate-500 border border-white/[0.05] cursor-not-allowed">
-                    Join Meeting Room
-                  </button>
+                <div className="flex-1 flex flex-col justify-between text-left space-y-4">
+                  {callActive ? (
+                    <div className="space-y-4">
+                      {/* Main Video Stream Player Container */}
+                      <div className="w-full h-48 rounded-xl bg-slate-950 overflow-hidden relative border border-white/[0.08] flex items-center justify-center">
+                        {/* Remote video is ALWAYS in DOM so remoteVideoRef is available for ontrack */}
+                        <video
+                          ref={remoteVideoRef}
+                          autoPlay
+                          playsInline
+                          className={`w-full h-full object-cover ${remoteStream ? 'block' : 'hidden'}`}
+                        />
+                        {!remoteStream && (
+                          <div className="flex flex-col items-center justify-center text-slate-500 gap-2 absolute inset-0">
+                            <Video size={24} className="animate-pulse" />
+                            <p className="text-[10px]">Connecting to doctor's video stream...</p>
+                          </div>
+                        )}
+
+                        {/* Local PIP — always visible when stream is available */}
+                        {localStream && (
+                          <div className="absolute bottom-2 right-2 w-24 h-18 rounded-lg bg-slate-900 border border-white/[0.1] overflow-hidden shadow-lg">
+                            <video
+                              ref={localVideoRef}
+                              autoPlay
+                              playsInline
+                              muted
+                              className="w-full h-full object-cover"
+                            />
+                            <div className="absolute bottom-0.5 left-1 text-[7px] font-bold text-white/70">You</div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Video call controls */}
+                      <div className="flex justify-center gap-2 pt-1">
+                        <button
+                          onClick={toggleMuteAudio}
+                          className={`p-2 rounded-xl text-xs ${isAudioMuted ? 'bg-rose-500/25 border-rose-500 text-rose-400' : 'bg-slate-800 text-slate-300 border border-white/[0.05]'}`}
+                        >
+                          🎙️ {isAudioMuted ? 'Muted' : 'Mute'}
+                        </button>
+                        <button
+                          onClick={toggleMuteVideo}
+                          className={`p-2 rounded-xl text-xs ${isVideoMuted ? 'bg-rose-500/25 border-rose-500 text-rose-400' : 'bg-slate-800 text-slate-300 border border-white/[0.05]'}`}
+                        >
+                          📹 {isVideoMuted ? 'Hidden' : 'Hide'}
+                        </button>
+                        <button
+                          onClick={cleanupCall}
+                          className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-bold"
+                        >
+                          Hang Up
+                        </button>
+                      </div>
+                    </div>
+                  ) : incomingCall ? (
+                    <div className="flex flex-col items-center justify-center text-center space-y-4 py-6">
+                      <div className="w-14 h-14 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center animate-bounce">
+                        <Phone size={24} className="animate-pulse" />
+                      </div>
+                      <h5 className="text-sm font-bold text-white">Incoming Call from Doctor</h5>
+                      <p className="text-xs text-slate-400">Dr. {doctor?.fullName || 'Doctor'} is calling you.</p>
+                      
+                      <div className="flex gap-3">
+                        <button
+                          onClick={declineIncomingCall}
+                          className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded-xl text-xs font-bold border border-white/[0.05]"
+                        >
+                          Decline
+                        </button>
+                        <button
+                          onClick={joinMeetingRoom}
+                          className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition shadow-lg shadow-emerald-900/30"
+                        >
+                          Accept Call
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col justify-between h-full space-y-4 py-4 text-center items-center">
+                      <div className="w-16 h-16 rounded-full bg-slate-800/80 border border-white/[0.05] flex items-center justify-center text-slate-500 relative">
+                        <Video size={28} />
+                        {doctorReady && (
+                          <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-[#0c1524] animate-ping" />
+                        )}
+                      </div>
+                      
+                      <h5 className="text-sm font-bold text-white">Online Video Consultation</h5>
+                      
+                      {doctorReady ? (
+                        <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 text-left w-full space-y-2">
+                          <p className="text-[11px] text-emerald-400 font-bold">🟢 Doctor is Ready</p>
+                          <p className="text-[10px] text-slate-400">The doctor is waiting in the call room. Please join now.</p>
+                        </div>
+                      ) : (
+                        <div className="bg-slate-900/50 border border-white/[0.05] rounded-xl p-3 text-left w-full space-y-1.5">
+                          <p className="text-[11px] text-slate-300 font-semibold flex justify-between">
+                            <span>Waiting Room Position:</span>
+                            <span className="text-indigo-400 font-extrabold">{waitingPosition}</span>
+                          </p>
+                          <p className="text-[11px] text-slate-300 font-semibold flex justify-between">
+                            <span>Estimated Waiting Time:</span>
+                            <span className="text-slate-400 font-bold">{estWaitTime} mins</span>
+                          </p>
+                        </div>
+                      )}
+
+                      {(() => {
+                        const isDoctorInvited = doctorReady || ['DOCTOR_READY', 'PATIENT_NOTIFIED'].includes(appointment?.status);
+                        const isMeetingConnected = callActive && remoteStream;
+                        const isMeetingConnecting = callActive && !remoteStream;
+
+                        if (isMeetingConnected) {
+                          return (
+                            <button
+                              disabled
+                              className="w-full py-2.5 rounded-xl text-xs font-bold bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 cursor-not-allowed flex items-center justify-center gap-1.5"
+                            >
+                              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                              In Consultation
+                            </button>
+                          );
+                        }
+
+                        if (isMeetingConnecting) {
+                          return (
+                            <button
+                              disabled
+                              className="w-full py-2.5 rounded-xl text-xs font-bold bg-amber-500/10 border border-amber-500/20 text-amber-400 cursor-not-allowed flex items-center justify-center gap-1.5"
+                            >
+                              <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                              Connecting...
+                            </button>
+                          );
+                        }
+
+                        return (
+                          <button
+                            id="join-meeting-btn"
+                            onClick={joinMeetingRoom}
+                            disabled={!isDoctorInvited}
+                            className={`w-full py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-md ${
+                              isDoctorInvited
+                                ? 'bg-emerald-600 hover:bg-emerald-500 text-white animate-pulse shadow-emerald-500/25 ring-2 ring-emerald-400/50'
+                                : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-white/[0.05]'
+                            }`}
+                          >
+                            <Video size={13} />
+                            Join Meeting
+                          </button>
+                        );
+                      })()}
+                    </div>
+                  )}
                 </div>
+
               )
             )}
           </div>

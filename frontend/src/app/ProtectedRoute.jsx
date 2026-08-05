@@ -30,6 +30,10 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
     return <Navigate to="/clinic/onboarding" replace />;
   }
 
+  if (user?.role === 'ADMIN' && user?.clinic?.isOnboardingCompleted && location.pathname === '/clinic/onboarding') {
+    return <Navigate to="/clinic/dashboard" replace />;
+  }
+
   if ((isPendingDoctor || isPendingStaff) && location.pathname !== '/dashboard') {
     return <Navigate to="/dashboard" replace />;
   }

@@ -26,6 +26,7 @@ const defaultForm = {
   qualification: '',
   experienceYears: '',
   consultationFee: '',
+  tokenPrefix: '',
   availability: defaultAvailability
 };
 
@@ -67,6 +68,7 @@ const DoctorFormPage = () => {
           qualification: doctor?.qualification || '',
           experienceYears: doctor?.experienceYears ?? '',
           consultationFee: doctor?.consultationFee ?? '',
+          tokenPrefix: doctor?.tokenPrefix || '',
           availability: doctor?.availability?.length ? doctor.availability : defaultAvailability
         });
       } catch (requestError) {
@@ -117,6 +119,7 @@ const DoctorFormPage = () => {
       qualification: form.qualification.trim() || undefined,
       experienceYears: form.experienceYears === '' ? undefined : Number(form.experienceYears),
       consultationFee: form.consultationFee === '' ? undefined : Number(form.consultationFee),
+      tokenPrefix: form.tokenPrefix ? form.tokenPrefix.trim().toUpperCase() : undefined,
       availability: form.availability
     };
 
@@ -191,6 +194,18 @@ const DoctorFormPage = () => {
           <label className="grid gap-2 text-sm text-stone-700 dark:text-gray-100">
             Consultation fee
             <input type="number" min="0" className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 text-gray-900 dark:text-gray-100 bg-white dark:bg-stone-700" value={form.consultationFee} onChange={(event) => updateField('consultationFee', event.target.value)} />
+          </label>
+          <label className="grid gap-2 text-sm text-stone-700 dark:text-gray-100">
+            Token Prefix
+            <input 
+              type="text" 
+              maxLength={10} 
+              placeholder="e.g. SM or CARD (auto-generated if empty)"
+              className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 text-gray-900 dark:text-gray-100 bg-white dark:bg-stone-700 uppercase" 
+              value={form.tokenPrefix} 
+              onChange={(event) => updateField('tokenPrefix', event.target.value.replace(/[^A-Za-z0-9-]/g, '').toUpperCase())} 
+            />
+            <span className="text-[10px] text-stone-400">Only uppercase English letters, numbers, and hyphens (max 10 characters).</span>
           </label>
         </div>
 

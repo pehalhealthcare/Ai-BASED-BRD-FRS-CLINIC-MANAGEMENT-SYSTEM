@@ -391,7 +391,7 @@ const DoctorListPage = () => {
                     <th className="py-3 px-4">Live Status</th>
                     <th className="py-3 px-4">Current Location</th>
                     <th className="py-3 px-4">Next Slot</th>
-                    <th className="py-3 px-4 text-center">Actions</th>
+                    <th className="py-3 px-4 text-center w-36">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
@@ -812,6 +812,12 @@ const DoctorListPage = () => {
                     </span>
                   </div>
                   <div className="flex justify-between p-3">
+                    <span className="text-slate-400 font-medium">Token Prefix</span>
+                    <span className="font-extrabold text-blue-600 bg-blue-50 px-2 py-0.5 rounded uppercase">
+                      {selectedDoctor.tokenPrefix || 'Not Configured'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between p-3">
                     <span className="text-slate-400 font-medium">Phone Contact</span>
                     <span className="font-bold text-slate-800 flex items-center gap-1">
                       <Phone size={11} className="text-slate-400" />
@@ -848,9 +854,15 @@ const DoctorListPage = () => {
 
             {/* Footer actions */}
             <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex gap-3">
+              <Link 
+                to={`/doctors/${selectedDoctor._id}/edit`}
+                className="w-1/2 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-center text-xs rounded-xl transition"
+              >
+                Edit Doctor
+              </Link>
               <button 
                 onClick={() => setIsDrawerOpen(false)}
-                className="w-full py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-center text-xs rounded-xl transition"
+                className="w-1/2 py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-center text-xs rounded-xl transition"
               >
                 Close Profile
               </button>

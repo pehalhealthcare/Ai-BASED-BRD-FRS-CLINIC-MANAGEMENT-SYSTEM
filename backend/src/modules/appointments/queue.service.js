@@ -6,6 +6,7 @@ const Doctor = require('../doctors/doctor.model');
 const { APPOINTMENT_STATUSES } = require('../../common/constants/appointmentStatus');
 const { AppError } = require('../../common/utils/AppError');
 const { HTTP_STATUS } = require('../../common/constants/httpStatus');
+const { emitAppointmentEvent } = require('./appointment.service');
 
 /**
  * Helper to parse time string (HH:MM) and date into a full Date object
@@ -43,6 +44,7 @@ const autoProcessNoShows = async (doctorId) => {
 
   const query = {
     appointmentDate: { $gte: todayStart, $lte: todayEnd },
+    // Only mark as no-show for fully booked appointments, not pre-payment ones
     status: { $in: [APPOINTMENT_STATUSES.BOOKED, APPOINTMENT_STATUSES.CONFIRMED] }
   };
   if (doctorId) query.doctorId = doctorId;
@@ -64,22 +66,63 @@ const autoProcessNoShows = async (doctorId) => {
 /**
  * Check-In Patient and Generate Token
  */
-const checkInAppointment = async ({ appointmentId, method, isEmergency, requester }) => {
+const checkInAppointment = async ({ appointmentId, method, isEmergency, requester }, options = {}) => {
   await autoProcessNoShows();
 
-  const appointment = await Appointment.findById(appointmentId);
+  // Load appointment with session context if present
+  const session = options.session;
+  const query = Appointment.findById(appointmentId);
+  const appointment = session ? await query.session(session) : await query;
   if (!appointment) {
     throw new AppError('Appointment not found.', HTTP_STATUS.NOT_FOUND);
   }
 
-  if (['cancelled', 'completed', 'no_show', 'checked_in', 'late_check_in', 'called', 'in_consultation'].includes(appointment.status)) {
-    throw new AppError(`Check-in is not allowed for appointment in status: ${appointment.status}`, HTTP_STATUS.BAD_REQUEST);
+  // Date guard: check-in is only allowed on the appointment date
+  const apptDate = new Date(appointment.appointmentDate);
+  const today = new Date();
+  
+  // Format check-in dates consistently based on local date string comparisons (ignores UTC offsets)
+  const apptDateStr = apptDate.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).split('/').reverse().join('-');
+  const todayStr = today.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).split('/').reverse().join('-');
+  
+  if (apptDateStr !== todayStr) {
+    throw new AppError(
+      `Check-in is only available on the appointment date (${apptDateStr}). Today is ${todayStr}.`,
+      HTTP_STATUS.BAD_REQUEST
+    );
+  }
+
+  // Consultation mode guard: only WALK_IN consultations can be physically checked in
+  if (appointment.consultationMode === 'ONLINE') {
+    throw new AppError('Online Video Consultations do not require physical check-in or queue token generation.', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  // Status guard: only booked/confirmed appointments can be checked in
+  if (!['booked', 'confirmed', 'checked_in', 'late_check_in'].includes(appointment.status)) {
+    if (['payment_pending', 'waiting_for_approval', 'waiver_pending', 'draft'].includes(appointment.status)) {
+      throw new AppError(
+        'This appointment has not been fully booked yet. Please complete payment or wait for waiver approval before checking in.',
+        HTTP_STATUS.BAD_REQUEST
+      );
+    }
+    if (['cancelled', 'completed', 'no_show', 'called', 'in_consultation'].includes(appointment.status)) {
+      throw new AppError(`Check-in is not allowed for appointment in status: ${appointment.status}`, HTTP_STATUS.BAD_REQUEST);
+    }
   }
 
   const doctor = await Doctor.findById(appointment.doctorId);
   if (!doctor) {
     throw new AppError('Doctor not found.', HTTP_STATUS.NOT_FOUND);
   }
+
+  // Load Clinic settings to evaluate Allow Early Check-In policies
+  const Clinic = require('../clinics/clinic.model');
+  const clinicDoc = await Clinic.findById(appointment.clinicId);
+  const clinicSettings = clinicDoc?.billingSettings || {
+    allowEarlyCheckIn: true,
+    restrictEarlyCheckIn: false,
+    earlyCheckInWindowMinutes: 30
+  };
 
   const settings = doctor.queueSettings || {
     earlyCheckInMins: 30,
@@ -95,14 +138,22 @@ const checkInAppointment = async ({ appointmentId, method, isEmergency, requeste
   const diffMs = now.getTime() - apptTime.getTime();
   const diffMins = diffMs / (60 * 1000);
 
-  // Scenario 1: Patient arrives too early
-  if (diffMins < -settings.earlyCheckInMins && appointment.appointmentType !== 'emergency') {
-    const allowedTime = new Date(apptTime.getTime() - settings.earlyCheckInMins * 60 * 1000);
-    const allowedTimeStr = allowedTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-    throw new AppError(
-      `You have arrived earlier than your allowed check-in time. Please check in after ${allowedTimeStr}.`,
-      HTTP_STATUS.BAD_REQUEST
-    );
+  // Validate early check-in policy for Walk-In appointments
+  if (appointment.consultationMode === 'WALK_IN' && appointment.appointmentType !== 'emergency') {
+    const isEarlyCheckInAllowed = clinicSettings.allowEarlyCheckIn === true && clinicSettings.restrictEarlyCheckIn === false;
+    
+    if (!isEarlyCheckInAllowed) {
+      const allowedWindow = clinicSettings.earlyCheckInWindowMinutes ?? 30;
+      if (diffMins < -allowedWindow) {
+        // Calculate earliest allowed check-in time using Asia/Kolkata timezone
+        const allowedTime = new Date(apptTime.getTime() - allowedWindow * 60 * 1000);
+        const allowedTimeStr = allowedTime.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' });
+        throw new AppError(
+          `Patient can only be checked in ${allowedWindow} minutes before the scheduled appointment time. Earliest check-in: ${allowedTimeStr}`,
+          HTTP_STATUS.BAD_REQUEST
+        );
+      }
+    }
   }
 
   // Scenario 5: Patient arrives after No-Show Timeout
@@ -130,7 +181,9 @@ const checkInAppointment = async ({ appointmentId, method, isEmergency, requeste
   });
 
   const nextCount = dailyTokenCount + 1;
-  const tokenNumber = formatTokenNumber(settings.tokenFormat || 'T-000', nextCount);
+  const prefix = doctor.tokenPrefix || 'DOC';
+  const paddedCount = String(nextCount).padStart(3, '0');
+  const tokenNumber = `${prefix}-${paddedCount}`;
 
   // Position placement
   const activeTokens = await Token.find({
@@ -141,15 +194,15 @@ const checkInAppointment = async ({ appointmentId, method, isEmergency, requeste
   const queuePosition = activeTokens.length + 1;
 
   // Create CheckIn
-  const checkInRecord = await CheckIn.create({
+  const checkInRecord = await CheckIn.create([ {
     appointmentId: appointment._id,
     checkinTime: now,
     checkedInBy: requester._id,
     method: method || 'Reception'
-  });
+  } ], options);
 
   // Create Token
-  const tokenRecord = await Token.create({
+  const tokenRecord = await Token.create([ {
     appointmentId: appointment._id,
     doctorId: doctor._id,
     tokenNumber,
@@ -157,15 +210,49 @@ const checkInAppointment = async ({ appointmentId, method, isEmergency, requeste
     priority: isEmergency || appointment.appointmentType === 'emergency' ? 'emergency' : 'standard',
     status: 'waiting',
     generatedTime: now
-  });
+  } ], options);
 
-  // Update Appointment status
+  // Update Appointment status + set checkedInAt timestamp & token details
   appointment.status = checkinStatus;
-  await appointment.save();
+  appointment.checkedInAt = now;
+  appointment.meta = {
+    ...(appointment.meta || {}),
+    checkedInBy: requester._id
+  };
+  appointment.tokenNumber = tokenNumber;
+  appointment.queueNumber = queuePosition;
+  await appointment.save(options);
+
+  // Send check-in notifications
+  try {
+    const { sendCheckInNotifications } = require('../notifications/notification.service');
+    sendCheckInNotifications({
+      appointment,
+      patient: appointment.patientId,
+      doctor,
+      actorUserId: requester._id
+    }).catch(err => console.error('Check-in notification failed:', err));
+  } catch (notifErr) {
+    console.error('Failed to trigger check-in notification:', notifErr);
+  }
+
+  // Emit real-time socket events for check-in and token generation
+  const socketPayload = {
+    clinicId: appointment.clinicId,
+    doctorId: String(doctor._id),
+    patientId: String(appointment.patientId?._id || appointment.patientId),
+    appointmentId: String(appointment._id),
+    tokenNumber,
+    queuePosition,
+    checkedInAt: now,
+    status: checkinStatus
+  };
+  emitAppointmentEvent('appointment:checked-in', socketPayload);
+  emitAppointmentEvent('appointment:token-generated', { ...socketPayload, token: { tokenNumber, queuePosition } });
 
   return {
-    checkIn: checkInRecord,
-    token: tokenRecord,
+    checkIn: checkInRecord[0] || checkInRecord,
+    token: tokenRecord[0] || tokenRecord,
     appointment
   };
 };
@@ -181,43 +268,8 @@ const getSortedQueue = async (doctorId) => {
   const endOfDay = new Date();
   endOfDay.setHours(23, 59, 59, 999);
 
-  // Self-healing: Find all checked_in/late_check_in/confirmed/booked appointments for today that don't have a token, and create one
-  const todayAppointments = await Appointment.find({
-    doctorId,
-    appointmentDate: { $gte: startOfDay, $lte: endOfDay },
-    $or: [
-      { status: { $in: [APPOINTMENT_STATUSES.CHECKED_IN, APPOINTMENT_STATUSES.LATE_CHECK_IN, APPOINTMENT_STATUSES.BOOKED, APPOINTMENT_STATUSES.CONFIRMED] } },
-      { appointmentType: 'walk_in', status: APPOINTMENT_STATUSES.CONFIRMED, paymentStatus: { $in: ['paid', 'fully_waived'] } }
-    ]
-  });
-
-  for (const appt of todayAppointments) {
-    const tokenExists = await Token.findOne({ appointmentId: appt._id });
-    if (!tokenExists) {
-      const dailyTokenCount = await Token.countDocuments({
-        doctorId,
-        createdAt: { $gte: startOfDay, $lte: endOfDay }
-      });
-      const doctor = await Doctor.findById(doctorId);
-      const settings = doctor?.queueSettings || { tokenFormat: 'T-000' };
-      const nextCount = dailyTokenCount + 1;
-      const tokenNumber = appt.meta?.tokenNumber || formatTokenNumber(settings.tokenFormat || 'T-000', nextCount);
-
-      await Token.create({
-        appointmentId: appt._id,
-        doctorId,
-        tokenNumber,
-        queuePosition: nextCount,
-        priority: appt.appointmentType === 'emergency' ? 'emergency' : 'standard',
-        status: 'waiting',
-        generatedTime: new Date()
-      });
-
-      if ([APPOINTMENT_STATUSES.CONFIRMED, APPOINTMENT_STATUSES.BOOKED].includes(appt.status)) {
-        // Keep status as booked/confirmed to preserve visibility on receptionist & doctor dashboard calendars
-      }
-    }
-  }
+  // Doctor queue only shows checked-in patients (not booked/confirmed)
+  // No self-healing auto-token generation — tokens are only created at explicit check-in
 
   const tokens = await Token.find({
     doctorId,
@@ -421,7 +473,39 @@ const completeTokenConsultation = async (tokenId) => {
     }
   }
 
+  // Clear Doctor active consultation state properties
+  try {
+    const Doctor = require('../doctors/doctor.model');
+    await Doctor.updateOne(
+      { _id: token.doctorId },
+      {
+        $set: {
+          activeConsultation: null,
+          currentAppointment: null,
+          currentQueue: null
+        }
+      }
+    );
+  } catch (docErr) {
+    console.error('Failed to clear doctor active state fields:', docErr);
+  }
+
   broadcastQueueUpdate(token.doctorId);
+  
+  // Emit additional real-time socket events for complete EMR sync
+  if (global.io) {
+    const socketPayload = {
+      doctorId: String(token.doctorId),
+      tokenId: String(token._id),
+      appointmentId: token.appointmentId ? String(token.appointmentId) : null
+    };
+    global.io.emit('consultation:completed', socketPayload);
+    global.io.emit('appointment:completed', socketPayload);
+    global.io.emit('queue:completed', socketPayload);
+    global.io.emit('doctor:available', { doctorId: String(token.doctorId) });
+    global.io.emit('queue:next-ready', { doctorId: String(token.doctorId) });
+  }
+
   return token;
 };
 
@@ -447,7 +531,10 @@ const getCurrentConsultation = async (doctorId) => {
   }).populate(populateOpts);
 
   if (activeConsultation) {
-    return { activeConsultation, lastCompleted: null };
+    // Double check that the linked appointment is not completed
+    if (activeConsultation.appointmentId && activeConsultation.appointmentId.status !== 'completed') {
+      return { activeConsultation, lastCompleted: null };
+    }
   }
 
   // 2. No active consultation – find the most recently completed token today

@@ -158,7 +158,9 @@ const appointmentApi = {
   requestDiscount: (id, payload) => extractData(apiClient.post(`/appointments/${id}/request-discount`, payload)),
   decideDiscount: (id, payload) => extractData(apiClient.post(`/appointments/${id}/decide-discount`, payload)),
   collectPayment: (id, payload) => extractData(apiClient.post(`/appointments/${id}/collect-payment`, payload)),
-  getPendingApprovals: () => extractData(apiClient.get('/appointments/pending-approvals'))
+  getPendingApprovals: () => extractData(apiClient.get('/appointments/pending-approvals')),
+  resumeConsultation: (id) => extractData(apiClient.patch(`/appointments/${id}/resume`)),
+  startOnlineConsultation: (id) => extractData(apiClient.post(`/appointments/${id}/start-online-consultation`))
 };
 
 const consultationApi = {

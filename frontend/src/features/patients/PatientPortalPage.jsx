@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { io } from 'socket.io-client';
 import {
   Bot, User, ClipboardList, FileText, Globe, RefreshCcw, Send,
   Plus, X, Camera, Calendar, Stethoscope, AlertTriangle,
@@ -14,6 +15,8 @@ import {
 
 import Avatar from '../../components/ui/Avatar';
 import Badge from '../../components/ui/Badge';
+import useAuth from '../../hooks/useAuth';
+import toast from 'react-hot-toast';
 import Modal from '../../components/ui/Modal';
 import { FullPageSpinner } from '../../components/ui/Spinner';
 import { appointmentApi, billingApi, patientApi, prescriptionApi, doctorApi, clinicApi, paymentApi, providersApi, labApi, pharmacyApi } from '../../lib/api';
@@ -46,8 +49,149 @@ const TRANSLATIONS = {
 };
 
 const PatientPortalPage = () => {
+  const { user } = useAuth();
   const [profile, setProfile] = useState(null);
   const [appointments, setAppointments] = useState([]);
+  const [selectedApptDetails, setSelectedApptDetails] = useState(null);
+  const [autoJoinCall, setAutoJoinCall] = useState(false);
+
+  // Real-time call invite states
+  const socketRef = useRef(null);
+  const [activeCallInvite, setActiveCallInvite] = useState(null);
+  const [unreadInviteCount, setUnreadInviteCount] = useState(0);
+
+  const playRingtone = () => {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+      notes.forEach((freq, idx) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.15);
+        gain.gain.setValueAtTime(0, ctx.currentTime + idx * 0.15);
+        gain.gain.linearRampToValueAtTime(0.08, ctx.currentTime + idx * 0.15 + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.15 + 0.4);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(ctx.currentTime + idx * 0.15);
+        osc.stop(ctx.currentTime + idx * 0.15 + 0.45);
+      });
+    } catch (e) {
+      console.error('Failed to play synthesized chime:', e);
+    }
+  };
+
+  // Connect patient signaling socket when profile/user is ready
+  useEffect(() => {
+    const patientModelId = profile?._id;
+    const userId = user?._id;
+    if (!userId && !patientModelId) return;
+
+    const socketUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+    const s = io(socketUrl, { transports: ['websocket', 'polling'] });
+    socketRef.current = s;
+
+    s.on('connect', () => {
+      console.log('Patient Portal: Socket connected globally:', s.id);
+      if (userId) {
+        s.emit('join_user', userId);
+        s.emit('join_room', userId);
+      }
+      if (patientModelId) {
+        s.emit('join_user', patientModelId);
+        s.emit('join_room', patientModelId);
+      }
+    });
+
+    s.on('doctor:consultation_invite', (data) => {
+      console.log('Patient Portal: Received doctor consultation invite:', data);
+      setActiveCallInvite(data);
+      playRingtone();
+    });
+
+    s.on('appointment:status-updated', (data) => {
+      console.log('Patient Portal: Received appointment:status-updated:', data);
+      const updatedApt = data.appointment || data;
+      const aptId = updatedApt._id || data.appointmentId;
+      setAppointments(prev => prev.map(a => {
+        if (String(a._id) === String(aptId)) {
+          return { ...a, ...updatedApt, status: updatedApt.status || a.status };
+        }
+        return a;
+      }));
+    });
+
+    s.on('doctor:ready', (data) => {
+      console.log('Patient Portal: Received doctor:ready:', data);
+      setAppointments(prev => prev.map(a => {
+        if (String(a._id) === String(data.appointmentId)) {
+          return { ...a, status: 'DOCTOR_READY', virtualMeetingId: data.meetingId };
+        }
+        return a;
+      }));
+      // Keep activeCallInvite populated so the banner can stay active
+      setActiveCallInvite({
+        appointmentId: data.appointmentId,
+        meetingRoomId: data.meetingId,
+        doctorName: data.doctorName || 'Your Doctor',
+        timestamp: new Date().toISOString()
+      });
+      playRingtone();
+    });
+
+    s.on('incoming_call', (data) => {
+      console.log('Patient Portal: Received incoming call:', data);
+      setActiveCallInvite({
+        appointmentId: data.meetingId,
+        doctorName: data.doctorName || 'Your Doctor',
+        doctorId: data.doctorId,
+        timestamp: new Date().toISOString()
+      });
+      playRingtone();
+    });
+
+    return () => {
+      s.disconnect();
+    };
+  }, [profile?._id, user?._id]);
+
+  // Handle 20 seconds auto-dismissal of active call invite
+  useEffect(() => {
+    if (!activeCallInvite) return;
+    const timer = setTimeout(() => {
+      setUnreadInviteCount(c => c + 1);
+      setActiveCallInvite(null);
+      toast('Call invite missed. View in notification badge.', { icon: '🔕' });
+    }, 20000);
+    return () => clearTimeout(timer);
+  }, [activeCallInvite]);
+
+  const handleJoinNow = async (invite) => {
+    try {
+      // Find the appointment in local state first
+      let appt = appointments.find(a =>
+        String(a._id) === String(invite.appointmentId) ||
+        String(a.virtualMeetingId) === String(invite.meetingRoomId)
+      );
+      if (!appt && invite.appointmentId) {
+        // Fetch from backend if not found locally
+        const res = await appointmentApi.getAppointmentById(invite.appointmentId);
+        appt = res.data?.appointment || res.appointment || res;
+      }
+      if (!appt) {
+        toast.error('Could not load appointment details. Please refresh and try again.');
+        return;
+      }
+      setActiveCallInvite(null);
+      setAutoJoinCall(true);
+      setSelectedApptDetails(appt);
+    } catch (err) {
+      console.error('Join now error:', err);
+      toast.error('Failed to join call. Please open the appointment manually.');
+      setActiveCallInvite(null);
+    }
+  };
   const [prescriptions, setPrescriptions] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -164,7 +308,6 @@ const PatientPortalPage = () => {
   const [activeDeliveryTab, setActiveDeliveryTab] = useState('Recent'); // 'Recent', 'Completed'
 
   // Modal / Checkin states
-  const [selectedApptDetails, setSelectedApptDetails] = useState(null);
   const [checkinQrModalOpen, setCheckinQrModalOpen] = useState(false);
   const [selectedCheckinAppt, setSelectedCheckinAppt] = useState(null);
 
@@ -715,8 +858,45 @@ const PatientPortalPage = () => {
     </div>
   );
 
+  const readyOnlineAppt = appointments.find(a => 
+    a.status === 'DOCTOR_READY' && 
+    (a.consultationMode === 'ONLINE' || a.appointmentType === 'teleconsultation')
+  );
+
   return (
     <div className="space-y-6">
+
+      {readyOnlineAppt && (
+        <div 
+          style={{ 
+            background: 'repeating-linear-gradient(-45deg, #fef08a, #fef08a 12px, #fde047 12px, #fde047 24px)', 
+            border: '2px solid #eab308' 
+          }}
+          className="rounded-3xl p-5 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4 animate-pulse"
+        >
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-yellow-500/20 border border-yellow-500/30 flex items-center justify-center shrink-0 text-yellow-800 text-lg font-bold">
+              ⚡
+            </div>
+            <div>
+              <h3 className="text-xs font-black text-yellow-905 uppercase tracking-wider">Join Live Consultation Session</h3>
+              <p className="text-xs text-yellow-900 font-extrabold mt-1">
+                Dr. {readyOnlineAppt.doctorId?.fullName || 'Physician'} is waiting for you in the online video room.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => handleJoinNow({
+              appointmentId: readyOnlineAppt._id,
+              meetingRoomId: readyOnlineAppt.virtualMeetingId,
+              doctorName: readyOnlineAppt.doctorId?.fullName
+            })}
+            className="px-5 py-2.5 bg-slate-905 bg-slate-900 hover:bg-slate-800 text-white font-black rounded-xl text-xs shadow-md transition whitespace-nowrap"
+          >
+            Start Consultation Instantly
+          </button>
+        </div>
+      )}
 
 
       {/* ============================================================ */}
@@ -938,7 +1118,14 @@ const PatientPortalPage = () => {
             {/* Recent Notifications Widget */}
             <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-4">
               <div className="flex justify-between items-center">
-                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Notifications</h3>
+                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                  Notifications
+                  {unreadInviteCount > 0 && (
+                    <span className="bg-rose-500 text-white rounded-full px-2 py-0.5 text-[9px] font-extrabold animate-pulse">
+                      {unreadInviteCount} New Call
+                    </span>
+                  )}
+                </h3>
                 <button onClick={() => setActiveTab('notifications')} className="text-[11px] font-bold text-blue-600 hover:underline">View All</button>
               </div>
 
@@ -3076,8 +3263,13 @@ const PatientPortalPage = () => {
       {selectedApptDetails && (
         <AppointmentDetailsModal
           appointment={selectedApptDetails}
-          onClose={() => setSelectedApptDetails(null)}
+          onClose={() => {
+            setSelectedApptDetails(null);
+            setAutoJoinCall(false);
+          }}
           onDownloadSlip={() => alert('Downloading appointment slip...')}
+          autoJoin={autoJoinCall}
+          initialDoctorReady={autoJoinCall}
         />
       )}
 
@@ -3100,6 +3292,38 @@ const PatientPortalPage = () => {
           </div>
         )}
       </Modal>
+
+      {/* Floating incoming call notification */}
+      {activeCallInvite && (
+        <div className="fixed bottom-6 right-6 z-[999] w-80 bg-slate-900 border border-white/[0.08] shadow-2xl rounded-3xl p-5 text-white animate-bounce">
+          <div className="flex items-start gap-4">
+            <div className="w-10 h-10 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+              <span className="text-lg">🩺</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <h4 className="text-xs font-black text-slate-100">Dr. {activeCallInvite.doctorName || 'Shyam'} is calling you</h4>
+              <p className="text-[10px] text-slate-400 mt-0.5">Online consultation is ready.</p>
+              <div className="mt-2.5 flex items-center justify-between gap-3">
+                <button
+                  onClick={() => {
+                    setUnreadInviteCount(c => c + 1);
+                    setActiveCallInvite(null);
+                  }}
+                  className="px-3.5 py-1.5 rounded-xl border border-white/[0.05] bg-white/[0.03] hover:bg-white/5 text-[10px] font-bold text-slate-300 transition"
+                >
+                  Dismiss
+                </button>
+                <button
+                  onClick={() => handleJoinNow(activeCallInvite)}
+                  className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-[10px] font-black uppercase tracking-wider text-white transition shadow-md shadow-emerald-950/40"
+                >
+                  Join Now
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

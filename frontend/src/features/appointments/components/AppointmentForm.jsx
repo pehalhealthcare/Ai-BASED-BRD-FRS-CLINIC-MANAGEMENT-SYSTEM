@@ -75,6 +75,13 @@ const AppointmentForm = ({
             <option value="chatbot">Chatbot</option>
           </select>
         </label>
+        <label className="grid gap-2 text-sm text-stone-700">
+          Consultation Mode
+          <select value={form.consultationMode || 'WALK_IN'} onChange={(event) => updateField('consultationMode', event.target.value)} className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100">
+            <option value="WALK_IN">Walk-In Consultation</option>
+            <option value="ONLINE">Online Video Consultation</option>
+          </select>
+        </label>
         
         <div className="md:col-span-2 grid gap-4 rounded-2xl border border-amber-100 bg-amber-50/50 p-4">
           <label className="flex items-center gap-3 text-sm font-semibold text-amber-900 cursor-pointer">

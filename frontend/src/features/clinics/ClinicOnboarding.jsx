@@ -125,6 +125,7 @@ export default function ClinicOnboarding() {
   const [showAddDoctor, setShowAddDoctor] = useState(false);
   const [editingDoctorId, setEditingDoctorId] = useState(null);
   const [editingDoctorForm, setEditingDoctorForm] = useState({ title: 'Dr.', name: '', specialty: 'General Medicine', email: '', phone: '' });
+  const [expandedDoctorId, setExpandedDoctorId] = useState(null);
   const [doctorErrors, setDoctorErrors] = useState({});
   const [doctorValidating, setDoctorValidating] = useState(false);
 
@@ -967,11 +968,43 @@ export default function ClinicOnboarding() {
     return () => clearInterval(interval);
   }, [providerWizardOpen, providerForm, providerWizardStep]);
 
+  useEffect(() => {
+    if (editingDoctorId) {
+      setTimeout(() => {
+        const element = document.getElementById(`edit-doctor-form-${editingDoctorId}`);
+        if (element) {
+          element.scrollIntoView({
+            behavior: "smooth",
+            block: "center"
+          });
+        }
+      }, 100);
+    }
+  }, [editingDoctorId]);
+
+  useEffect(() => {
+    if (submitSuccess) {
+      const timer = setTimeout(() => {
+        refreshUser().then(() => {
+          navigate('/clinic/dashboard', { replace: true });
+        }).catch(() => {
+          navigate('/clinic/dashboard', { replace: true });
+        });
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [submitSuccess, navigate, refreshUser]);
+
   const handleConfirmRestore = () => {
     if (remoteDraft) {
       restoreState(remoteDraft);
       lastSavedData.current = JSON.stringify(remoteDraft);
       setLastSavedTime(new Date());
+      // Navigate to first incomplete onboarding step after restoring
+      setTimeout(() => {
+        const nextStep = getFirstIncompleteStep(remoteDraft);
+        setCurrentStep(nextStep);
+      }, 100);
     }
     setShowRestorePrompt(false);
     setHasInitializedDraft(true);
@@ -1447,20 +1480,20 @@ export default function ClinicOnboarding() {
 
     // 1. Check local duplicates within current step (exclude current editing ID)
     if (targetType === 'doctor') {
-      const emailDup = doctors.some(d => d.email.toLowerCase() === formData.email.toLowerCase() && d.id !== currentId);
+      const emailDup = doctors.some(d => d.email.toLowerCase() === formData.email.toLowerCase() && (d._id || d.id) !== currentId);
       if (emailDup) {
         errs.email = 'This email has already been used for another doctor in this clinic.';
       }
-      const phoneDup = doctors.some(d => d.phone.replace(/\D/g, '') === formData.phone.replace(/\D/g, '') && d.id !== currentId);
+      const phoneDup = doctors.some(d => d.phone.replace(/\D/g, '') === formData.phone.replace(/\D/g, '') && (d._id || d.id) !== currentId);
       if (phoneDup) {
         errs.phone = 'This phone number has already been used for another doctor in this clinic.';
       }
     } else {
-      const emailDup = staff.some(s => s.email.toLowerCase() === formData.email.toLowerCase() && s.id !== currentId);
+      const emailDup = staff.some(s => s.email.toLowerCase() === formData.email.toLowerCase() && (s._id || s.id) !== currentId);
       if (emailDup) {
         errs.email = 'This email has already been used for another staff member in this clinic.';
       }
-      const phoneDup = staff.some(s => s.phone.replace(/\D/g, '') === formData.phone.replace(/\D/g, '') && s.id !== currentId);
+      const phoneDup = staff.some(s => s.phone.replace(/\D/g, '') === formData.phone.replace(/\D/g, '') && (s._id || s.id) !== currentId);
       if (phoneDup) {
         errs.phone = 'This phone number has already been used for another staff member in this clinic.';
       }
@@ -1743,7 +1776,118 @@ export default function ClinicOnboarding() {
     setCurrentStep(prev => prev + 1);
   };
 
-  const progress = Math.round(((currentStep - 1) / (STEPS.length - 1)) * 100);
+  const handleEditDoctorClick = (d) => {
+    setEditingDoctorId(d._id || d.id);
+    setDoctorForm({
+      title: d.title || 'Dr.',
+      name: d.name,
+      specialty: d.specialty || 'General Medicine',
+      email: d.email,
+      phone: d.phone
+    });
+    setDoctorErrors({});
+    setEmailValState({ status: 'valid', message: 'Current email', accountType: '' });
+    setPhoneValState({ status: 'valid', message: 'Current phone number', accountType: '' });
+    setShowAddDoctor(true);
+  };
+
+  const checkStepCompleteWithState = React.useCallback((stepId, state = {}) => {
+    const activeOwnerForm = state.ownerForm || ownerForm;
+    const activeDoctors = state.doctors || doctors;
+    const activeDepartments = state.departments || departments;
+    const activeBranches = state.branches || branches;
+    const activeStaff = state.staff || staff;
+    const activeCreatedProviders = state.createdProviders || createdProviders;
+    const activeAiFeatures = state.aiFeatures || aiFeatures;
+    const activeVideoFee = state.videoFee !== undefined ? state.videoFee : videoFee;
+    const activeScheduleDays = state.scheduleDays || scheduleDays;
+
+    let activeLimits = limits;
+    if (state.selectedPlanId) {
+      const activePlan = plans.find(p => p._id === state.selectedPlanId);
+      const planName = (activePlan?.name || '').toLowerCase();
+      if (planName.includes('starter')) {
+        activeLimits = { maxDocs: 1, maxStaff: 2, maxBranches: 1, maxDepts: 2, ai: false, video: false, healthcare: false };
+      } else if (planName.includes('professional')) {
+        activeLimits = { maxDocs: 3, maxStaff: 5, maxBranches: 2, maxDepts: 5, ai: false, video: true, healthcare: true };
+      } else {
+        activeLimits = { maxDocs: 999, maxStaff: 999, maxBranches: 5, maxDepts: 15, ai: true, video: true, healthcare: true };
+      }
+    }
+
+    switch (stepId) {
+      case 1: // Owner Profile
+        return !!(activeOwnerForm.name && activeOwnerForm.email && activeOwnerForm.phone && activeOwnerForm.dob);
+      case 2: // Doctor Setup
+        return activeDoctors.length > 0;
+      case 3: // Department Setup
+        if (activeLimits.maxDepts === 0) return true;
+        return activeDepartments.some(d => d.active);
+      case 4: // Branch Setup
+        if (activeLimits.maxBranches === 0) return true;
+        return activeBranches.length > 0;
+      case 5: // Staff Setup
+        if (activeLimits.maxStaff === 0) return true;
+        return activeStaff.length > 0;
+      case 6: // Healthcare Setup
+        if (!activeLimits.healthcare) return true;
+        return activeCreatedProviders.length > 0;
+      case 7: // AI Modules
+        if (!activeLimits.ai) return true;
+        return Object.values(activeAiFeatures).some(Boolean);
+      case 8: // Video Consultation
+        if (!activeLimits.video) return true;
+        return !!activeVideoFee;
+      case 9: // Clinic Schedule
+        return activeScheduleDays.length > 0 && !activeScheduleDays.every(d => d.closed);
+      default:
+        return false;
+    }
+  }, [ownerForm, doctors, departments, branches, staff, createdProviders, aiFeatures, videoFee, scheduleDays, limits, plans]);
+
+  const checkStepComplete = React.useCallback((stepId) => {
+    return checkStepCompleteWithState(stepId);
+  }, [checkStepCompleteWithState]);
+
+  const getFirstIncompleteStep = React.useCallback((state = {}) => {
+    let activeLimits = limits;
+    if (state.selectedPlanId) {
+      const activePlan = plans.find(p => p._id === state.selectedPlanId);
+      const planName = (activePlan?.name || '').toLowerCase();
+      if (planName.includes('starter')) {
+        activeLimits = { maxDocs: 1, maxStaff: 2, maxBranches: 1, maxDepts: 2, ai: false, video: false, healthcare: false };
+      } else if (planName.includes('professional')) {
+        activeLimits = { maxDocs: 3, maxStaff: 5, maxBranches: 2, maxDepts: 5, ai: false, video: true, healthcare: true };
+      } else {
+        activeLimits = { maxDocs: 999, maxStaff: 999, maxBranches: 5, maxDepts: 15, ai: true, video: true, healthcare: true };
+      }
+    }
+
+    for (let i = 1; i <= 9; i++) {
+      if (i === 3 && activeLimits.maxDepts === 0) continue;
+      if (i === 4 && activeLimits.maxBranches === 0) continue;
+      if (i === 5 && activeLimits.maxStaff === 0) continue;
+      if (i === 6 && !activeLimits.healthcare) continue;
+      if (i === 7 && !activeLimits.ai) continue;
+      if (i === 8 && !activeLimits.video) continue;
+
+      if (!checkStepCompleteWithState(i, state)) {
+        return i;
+      }
+    }
+    return 10; // Review & Launch
+  }, [limits, plans, checkStepCompleteWithState]);
+
+  const progress = React.useMemo(() => {
+    let completed = 0;
+    let total = 9;
+    for (let i = 1; i <= 9; i++) {
+      if (checkStepComplete(i)) {
+        completed++;
+      }
+    }
+    return Math.round((completed / total) * 100);
+  }, [checkStepComplete]);
 
   // Step 0 Welcome View
   if (currentStep === 0) {
@@ -1757,7 +1901,7 @@ export default function ClinicOnboarding() {
             <h1 className="text-3xl font-black text-slate-900 tracking-tight text-center">Welcome to AICMS</h1>
             <p className="text-sm text-green-600 font-extrabold uppercase tracking-wider text-center">Congratulations!</p>
             <h2 className="text-lg font-bold text-slate-800 text-center">Your clinic has been approved successfully.</h2>
-            <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed text-center">
+            <p className="text-xs text-slate-450 max-w-md mx-auto leading-relaxed text-center">
               Now let's configure your clinic's internal workspace (doctors roster, department settings, staff accounts, AI tools, and schedule shifts).
             </p>
           </div>
@@ -1772,13 +1916,23 @@ export default function ClinicOnboarding() {
               <span className="text-xs font-black text-slate-800 uppercase">{activePlanObj?.name || 'Professional Plan'}</span>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setCurrentStep(1)}
-            className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl text-xs font-black shadow-lg transition duration-200 flex items-center justify-center gap-2"
-          >
-            Start Configuration <ArrowRight size={14} />
-          </button>
+          {remoteDraft ? (
+            <button
+              type="button"
+              onClick={handleConfirmRestore}
+              className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl text-xs font-black shadow-lg transition duration-200 flex items-center justify-center gap-2"
+            >
+              Continue Clinic Setup <ArrowRight size={14} />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setCurrentStep(1)}
+              className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl text-xs font-black shadow-lg transition duration-200 flex items-center justify-center gap-2"
+            >
+              Start Configuration <ArrowRight size={14} />
+            </button>
+          )}
         </div>
       </div>
     );
@@ -1788,13 +1942,14 @@ export default function ClinicOnboarding() {
   if (submitSuccess) {
     return (
       <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-6 relative overflow-hidden font-sans">
-        <div className="bg-white rounded-3xl p-8 max-w-md w-full text-center shadow-2xl border border-slate-100 space-y-6">
-          <div className="w-16 h-16 bg-green-50 text-green-600 rounded-full flex items-center justify-center mx-auto">
-            <CheckCircle className="w-10 h-10 animate-bounce" />
+        <div className="bg-white rounded-3xl p-8 max-w-md w-full text-center shadow-2xl border border-slate-100 space-y-6 animate-scaleIn">
+          <div className="w-20 h-20 bg-green-50 text-green-600 rounded-full flex items-center justify-center mx-auto border border-green-150 shadow-md">
+            <CheckCircle className="w-12 h-12 text-green-500 animate-pulse" />
           </div>
-          <div className="space-y-1.5">
-            <h2 className="text-2xl font-black text-slate-900">Onboarding Successful</h2>
-            <p className="text-xs text-slate-400">Your clinic workspace is configured and ready. Launching dashboard...</p>
+          <div className="space-y-2">
+            <h1 className="text-2xl font-black text-slate-900">🎉 Clinic Successfully Configured</h1>
+            <p className="text-sm font-bold text-slate-700">Your AI Clinic Dashboard is Ready</p>
+            <p className="text-xs text-slate-400 font-semibold animate-pulse">Redirecting...</p>
           </div>
           <div className="flex justify-center pt-2">
             <RefreshCw className="w-6 h-6 text-green-600 animate-spin" />
@@ -2065,7 +2220,7 @@ export default function ClinicOnboarding() {
               <div className="absolute top-1 bottom-1 left-[14px] w-[2px] bg-slate-100" />
               {STEPS.map((s) => {
                 const isActive = currentStep === s.id;
-                const isCompleted = currentStep > s.id;
+                const isCompleted = s.id === 10 ? false : checkStepComplete(s.id);
                 return (
                   <button
                     key={s.id}
@@ -2549,13 +2704,20 @@ export default function ClinicOnboarding() {
                       </div>
                     )}
 
-                    {/* Add Doctor Card Form */}
-                    {showAddDoctor && (
+                    {/* Add/Edit Doctor Card Form */}
+                    {showAddDoctor && !editingDoctorId && (
                       <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4 relative animate-scaleIn">
-                        <button onClick={() => setShowAddDoctor(false)} className="absolute right-4 top-4 text-slate-400 hover:text-slate-600">
+                        <button
+                          onClick={() => {
+                            setShowAddDoctor(false);
+                            setDoctorForm({ title: 'Dr.', name: '', specialty: 'General Medicine', email: '', phone: '' });
+                            setDoctorErrors({});
+                          }}
+                          className="absolute right-4 top-4 text-slate-400 hover:text-slate-600"
+                        >
                           <X size={15} />
                         </button>
-                        <h5 className="text-xs font-black text-slate-800 uppercase tracking-wider">Add Doctor details</h5>
+                        <h5 className="text-xs font-black text-slate-800 uppercase tracking-wider">Invite New Doctor</h5>
                         <div className="grid grid-cols-3 gap-4">
                           <div>
                             <label className="block text-[10.5px] font-extrabold text-slate-655 mb-1">Title</label>
@@ -2663,6 +2825,7 @@ export default function ClinicOnboarding() {
                               setDoctorValidating(false);
                               return;
                             }
+                            
                             setDoctors([...doctors, {
                               id: 'doc-' + Date.now(),
                               title: doctorForm.title || 'Dr.',
@@ -2674,6 +2837,7 @@ export default function ClinicOnboarding() {
                               status: 'Pending Clinic Launch',
                               createdDate: new Date().toLocaleDateString()
                             }]);
+
                             setDoctorForm({ title: 'Dr.', name: '', specialty: 'General Medicine', email: '', phone: '' });
                             setEmailValState({ status: 'idle', message: '', accountType: '' });
                             setPhoneValState({ status: 'idle', message: '', accountType: '' });
@@ -2692,93 +2856,154 @@ export default function ClinicOnboarding() {
                     {doctors.length > 0 && (
                       <div className="space-y-4 animate-scaleIn">
                         <div className="grid grid-cols-1 gap-4.5">
-                          {doctors.map(d => (
-                            <div key={d.id} className="border border-slate-150 p-5 rounded-2xl bg-white flex justify-between items-start shadow-sm relative">
-                              {editingDoctorId === d.id ? (
-                                <div className="w-full space-y-4">
-                                  <h6 className="text-xs font-black text-slate-800 uppercase">Edit Doctor Details</h6>
-                                  <div className="grid grid-cols-3 gap-4">
-                                    <div>
-                                      <label className="block text-[10.5px] font-extrabold text-slate-655 mb-1">Title</label>
-                                      <select
-                                        value={editingDoctorForm.title || 'Dr.'}
-                                        onChange={(e) => setEditingDoctorForm({ ...editingDoctorForm, title: e.target.value })}
-                                        className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs outline-none focus:border-green-600 font-bold"
-                                      >
-                                        <option value="Dr.">Dr.</option>
-                                        <option value="Prof.">Prof.</option>
-                                        <option value="Mr.">Mr.</option>
-                                        <option value="Mrs.">Mrs.</option>
-                                        <option value="Ms.">Ms.</option>
-                                        <option value="Miss.">Miss.</option>
-                                        <option value="">None</option>
-                                      </select>
-                                    </div>
-                                    <div className="col-span-2">
-                                      <label className="block text-[10.5px] font-extrabold text-slate-655 mb-1">Full Name</label>
-                                      <input
-                                        type="text"
-                                        className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs outline-none focus:border-green-600"
-                                        value={editingDoctorForm.name}
-                                        onChange={(e) => setEditingDoctorForm({ ...editingDoctorForm, name: e.target.value })}
-                                      />
-                                      {doctorErrors.name && <p className="text-[10px] text-rose-500 mt-1">{doctorErrors.name}</p>}
-                                    </div>
-                                  </div>
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                      <label className="block text-[10.5px] font-extrabold text-slate-655 mb-1">Email</label>
-                                      <input
-                                        type="email"
-                                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:border-green-600"
-                                        value={editingDoctorForm.email}
-                                        onChange={(e) => setEditingDoctorForm({ ...editingDoctorForm, email: e.target.value })}
-                                      />
-                                      {doctorErrors.email && <p className="text-[10px] text-rose-500 mt-1 leading-normal">{doctorErrors.email}</p>}
-                                    </div>
-                                    <div>
-                                      <label className="block text-[10.5px] font-extrabold text-slate-655 mb-1">Phone</label>
-                                      <input
-                                        type="tel"
-                                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:border-green-600"
-                                        value={editingDoctorForm.phone}
-                                        onChange={(e) => setEditingDoctorForm({ ...editingDoctorForm, phone: e.target.value })}
-                                      />
-                                      {doctorErrors.phone && <p className="text-[10px] text-rose-500 mt-1 leading-normal">{doctorErrors.phone}</p>}
-                                    </div>
-                                  </div>
-                                  <div className="flex gap-2">
+                          {doctors.map(d => {
+                            const doctorKey = d._id || d.id;
+                            const isExpanded = expandedDoctorId === doctorKey;
+                            return (
+                              <React.Fragment key={doctorKey}>
+                                {editingDoctorId === doctorKey && (
+                                  <div
+                                    id={`edit-doctor-form-${doctorKey}`}
+                                    className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4 relative animate-scaleIn my-4"
+                                  >
                                     <button
-                                      type="button"
-                                      disabled={doctorValidating}
-                                      onClick={async () => {
-                                        setDoctorValidating(true);
-                                        setDoctorErrors({});
-                                        const errs = await validateDoctorOrStaff(editingDoctorForm, true, d.id, 'doctor');
-                                        if (Object.keys(errs).length > 0) {
-                                          setDoctorErrors(errs);
-                                          setDoctorValidating(false);
-                                          return;
-                                        }
-                                        setDoctors(doctors.map(item => item.id === d.id ? { ...item, ...editingDoctorForm } : item));
+                                      onClick={() => {
                                         setEditingDoctorId(null);
-                                        setDoctorValidating(false);
+                                        setDoctorForm({ title: 'Dr.', name: '', specialty: 'General Medicine', email: '', phone: '' });
+                                        setDoctorErrors({});
                                       }}
-                                      className="px-3.5 py-2 bg-green-655 text-white rounded-xl text-[10px] font-black cursor-pointer disabled:opacity-50"
+                                      className="absolute right-4 top-4 text-slate-400 hover:text-slate-600"
                                     >
-                                      {doctorValidating ? 'Validating...' : 'Save'}
+                                      <X size={15} />
                                     </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => setEditingDoctorId(null)}
-                                      className="px-3 py-2 border border-slate-200 text-slate-655 rounded-xl text-[10px] font-black"
-                                    >
-                                      Cancel
-                                    </button>
+                                    <h5 className="text-xs font-black text-slate-800 uppercase tracking-wider">Edit Doctor</h5>
+                                    <div className="grid grid-cols-3 gap-4">
+                                      <div>
+                                        <label className="block text-[10.5px] font-extrabold text-slate-655 mb-1">Title</label>
+                                        <select
+                                          value={doctorForm.title || 'Dr.'}
+                                          onChange={(e) => setDoctorForm({ ...doctorForm, title: e.target.value })}
+                                          className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs outline-none focus:border-green-600 font-bold"
+                                        >
+                                          <option value="Dr.">Dr.</option>
+                                          <option value="Prof.">Prof.</option>
+                                          <option value="Mr.">Mr.</option>
+                                          <option value="Mrs.">Mrs.</option>
+                                          <option value="Ms.">Ms.</option>
+                                          <option value="Miss.">Miss.</option>
+                                          <option value="">None</option>
+                                        </select>
+                                      </div>
+                                      <div className="col-span-2">
+                                        <label className="block text-[10.5px] font-extrabold text-slate-655 mb-1">Full Name</label>
+                                        <input
+                                          type="text"
+                                          placeholder="e.g. Shreyas Roy"
+                                          value={doctorForm.name}
+                                          onChange={(e) => setDoctorForm({ ...doctorForm, name: e.target.value })}
+                                          className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs outline-none focus:border-green-600"
+                                        />
+                                        {doctorErrors.name && <p className="text-[10px] text-rose-500 mt-1">{doctorErrors.name}</p>}
+                                      </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                      <div>
+                                        <label className="block text-[10.5px] font-extrabold text-slate-655 mb-1">Email</label>
+                                        <input
+                                          type="email"
+                                          placeholder="shreyas@clinic.com"
+                                          value={doctorForm.email}
+                                          onChange={(e) => handleEmailChange(e.target.value)}
+                                          onBlur={(e) => checkEmailUniqueness(e.target.value)}
+                                          className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs outline-none focus:border-green-600"
+                                        />
+                                        {doctorErrors.email && <p className="text-[10px] text-rose-500 mt-1 leading-normal">{doctorErrors.email}</p>}
+                                        {emailValState.status === 'loading' && (
+                                          <div className="flex items-center gap-1 text-[10px] text-blue-500 mt-1">
+                                            <RefreshCw size={11} className="animate-spin" /> Checking email...
+                                          </div>
+                                        )}
+                                        {emailValState.status === 'valid' && (
+                                          <div className="flex items-center gap-1 text-[10px] text-emerald-600 mt-1 font-bold">
+                                            <CheckCircle size={11} className="text-emerald-500 shrink-0" /> {emailValState.message}
+                                          </div>
+                                        )}
+                                        {emailValState.status === 'invalid' && (
+                                          <div className="flex items-center gap-1 text-[10px] text-rose-500 mt-1 font-bold">
+                                            <X size={11} className="text-rose-500 shrink-0" /> {emailValState.message}
+                                          </div>
+                                        )}
+                                      </div>
+                                      <div>
+                                        <label className="block text-[10.5px] font-extrabold text-slate-655 mb-1">Phone</label>
+                                        <input
+                                          type="tel"
+                                          placeholder=""
+                                          value={doctorForm.phone}
+                                          onChange={(e) => handlePhoneChange(e.target.value)}
+                                          onBlur={(e) => checkPhoneUniqueness(e.target.value)}
+                                          className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs outline-none focus:border-green-600"
+                                        />
+                                        {doctorErrors.phone && <p className="text-[10px] text-rose-500 mt-1 leading-normal">{doctorErrors.phone}</p>}
+                                        {phoneValState.status === 'loading' && (
+                                          <div className="flex items-center gap-1 text-[10px] text-blue-500 mt-1">
+                                            <RefreshCw size={11} className="animate-spin" /> Checking phone number...
+                                          </div>
+                                        )}
+                                        {phoneValState.status === 'valid' && (
+                                          <div className="flex items-center gap-1 text-[10px] text-emerald-600 mt-1 font-bold">
+                                            <CheckCircle size={11} className="text-emerald-500 shrink-0" /> {phoneValState.message}
+                                          </div>
+                                        )}
+                                        {phoneValState.status === 'invalid' && (
+                                          <div className="flex items-center gap-1 text-[10px] text-rose-500 mt-1 font-bold">
+                                            <X size={11} className="text-rose-500 shrink-0" /> {phoneValState.message}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <div className="flex gap-2">
+                                      <button
+                                        type="button"
+                                        disabled={doctorValidating || !doctorForm.name.trim() || emailValState.status !== 'valid' || phoneValState.status !== 'valid'}
+                                        onClick={async () => {
+                                          setDoctorValidating(true);
+                                          setDoctorErrors({});
+                                          const errs = await validateDoctorOrStaff(doctorForm, true, editingDoctorId, 'doctor');
+                                          if (Object.keys(errs).length > 0) {
+                                            setDoctorErrors(errs);
+                                            setDoctorValidating(false);
+                                            return;
+                                          }
+                                          setDoctors(doctors.map(item => (item._id || item.id) === editingDoctorId ? { ...item, ...doctorForm } : item));
+                                          setDoctorForm({ title: 'Dr.', name: '', specialty: 'General Medicine', email: '', phone: '' });
+                                          setEmailValState({ status: 'idle', message: '', accountType: '' });
+                                          setPhoneValState({ status: 'idle', message: '', accountType: '' });
+                                          setEditingDoctorId(null);
+                                          setDoctorValidating(false);
+                                          triggerAutoSave();
+                                        }}
+                                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs font-black cursor-pointer shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                      >
+                                        {doctorValidating ? 'Validating...' : 'Save Changes'}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setEditingDoctorId(null);
+                                          setDoctorForm({ title: 'Dr.', name: '', specialty: 'General Medicine', email: '', phone: '' });
+                                          setDoctorErrors({});
+                                        }}
+                                        className="px-4 py-2 border border-slate-200 text-slate-655 rounded-xl text-xs font-black cursor-pointer shadow-sm hover:bg-slate-100"
+                                      >
+                                        Cancel
+                                      </button>
+                                    </div>
                                   </div>
-                                </div>
-                              ) : (
-                                <>
+                                )}
+
+                                <div className="border border-slate-150 p-5 rounded-2xl bg-white flex flex-col justify-between shadow-sm relative space-y-3">
+                                <div className="flex justify-between items-start w-full">
                                   <div className="flex gap-4">
                                     <div className="w-12 h-12 rounded-full bg-green-50 text-green-600 flex items-center justify-center font-black text-sm shrink-0 border border-green-100">
                                       {d.name.substring(0, 2).toUpperCase()}
@@ -2793,47 +3018,58 @@ export default function ClinicOnboarding() {
                                           {d.status || 'Pending Clinic Launch'}
                                         </span>
                                       </div>
-                                      <span className="text-[10px] text-slate-500 font-bold block mt-0.5">{d.email} | {d.phone}</span>
+                                      <span className="text-[10px] text-slate-400 font-extrabold uppercase block">{d.specialty || 'General Medicine'}</span>
                                     </div>
                                   </div>
-                                  <div className="relative">
-                                    <button
-                                      type="button"
-                                      onClick={() => setActiveMenuId(activeMenuId === d.id ? null : d.id)}
-                                      className="text-slate-400 hover:text-slate-655 p-1.5 rounded-full hover:bg-slate-100"
-                                    >
-                                      <X size={15} className="rotate-45" />
-                                    </button>
-                                    {activeMenuId === d.id && (
-                                      <div className="absolute right-0 top-8 bg-white border border-slate-150 rounded-2xl shadow-xl py-1.5 w-40 z-30">
-                                        <button
-                                          onClick={() => {
-                                            setEditingDoctorId(d.id);
-                                            setEditingDoctorForm({ title: d.title || 'Dr.', name: d.name, specialty: d.specialty, email: d.email, phone: d.phone });
-                                            setDoctorErrors({});
-                                            setActiveMenuId(null);
-                                          }}
-                                          className="w-full px-4 py-2 text-left text-xs font-bold text-slate-700 hover:bg-slate-50"
-                                        >
-                                          Edit Details
-                                        </button>
-                                        <button
-                                          onClick={() => {
-                                            setDoctors(doctors.filter(item => item.id !== d.id));
-                                            setActiveMenuId(null);
-                                            triggerAutoSave();
-                                          }}
-                                          className="w-full px-4 py-2 text-left text-xs font-bold text-rose-600 hover:bg-rose-50"
-                                        >
-                                          Remove Doctor
-                                        </button>
+                                  
+                                  {/* [+] / [-] Expand Icon Button */}
+                                  <button
+                                    type="button"
+                                    onClick={() => setExpandedDoctorId(isExpanded ? null : doctorKey)}
+                                    className="text-slate-500 hover:text-slate-700 p-1 px-2.5 rounded-full hover:bg-slate-100 transition font-black text-xs flex items-center justify-center border border-slate-200"
+                                  >
+                                    {isExpanded ? '[-]' : '[+]'}
+                                  </button>
+                                </div>
+
+                                {/* Expanded details & actions */}
+                                {isExpanded && (
+                                  <div className="pt-3 border-t border-slate-100 flex flex-col space-y-2.5 animate-fadeIn">
+                                    <div className="bg-slate-50 rounded-xl p-3 space-y-1 text-xs">
+                                      <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider block">View Details</span>
+                                      <div className="flex flex-col gap-1 text-slate-655 font-bold">
+                                        <div>Email: <span className="text-slate-800 font-black">{d.email}</span></div>
+                                        <div>Phone: <span className="text-slate-800 font-black">{d.phone}</span></div>
                                       </div>
-                                    )}
+                                    </div>
+                                    <div className="flex gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleEditDoctorClick(d)}
+                                        className="px-3.5 py-2 bg-green-50 hover:bg-green-100 text-green-700 rounded-xl text-[10.5px] font-black cursor-pointer transition"
+                                      >
+                                        Edit Doctor
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setDoctors(doctors.filter(item => (item._id || item.id) !== doctorKey));
+                                          if (expandedDoctorId === doctorKey) {
+                                            setExpandedDoctorId(null);
+                                          }
+                                          triggerAutoSave();
+                                        }}
+                                        className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-[10.5px] font-black cursor-pointer transition"
+                                      >
+                                        Remove Doctor
+                                      </button>
+                                    </div>
                                   </div>
-                                </>
-                              )}
-                            </div>
-                          ))}
+                                )}
+                              </div>
+                            </React.Fragment>
+                          );
+                        })}
                         </div>
 
                         {/* Success confirmation badge */}

@@ -13,7 +13,7 @@ import NoShowRiskBadge from './components/NoShowRiskBadge';
 const AppointmentListPage = () => {
   const [appointments, setAppointments] = useState([]);
   const [doctors, setDoctors] = useState([]);
-  const [filters, setFilters] = useState({ date: '', doctorId: '', status: '' });
+  const [filters, setFilters] = useState({ date: '', doctorId: '', status: '', consultationMode: '' });
   const [pagination, setPagination] = useState({ page: 1, limit: 10, totalPages: 1, total: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -29,7 +29,8 @@ const AppointmentListPage = () => {
           limit: pagination.limit,
           date: filters.date || undefined,
           doctorId: filters.doctorId || undefined,
-          status: filters.status || undefined
+          status: filters.status || undefined,
+          consultationMode: filters.consultationMode || undefined
         }),
         doctorApi.list({ limit: 100 })
       ]);
@@ -46,7 +47,7 @@ const AppointmentListPage = () => {
 
   useEffect(() => {
     loadAppointments(1);
-  }, [filters.date, filters.doctorId, filters.status]);
+  }, [filters.date, filters.doctorId, filters.status, filters.consultationMode]);
 
   if (loading) {
     return <LoadingState label="Loading appointments..." />;
@@ -73,7 +74,7 @@ const AppointmentListPage = () => {
       render: (appointment) => (
         <div>
           <p className="font-medium text-stone-900">{appointment.patientId?.fullName || 'Not provided'}</p>
-          <p className="text-xs text-stone-500">{appointment.patientId?.patientId || appointment.patientId?.phone || 'No identifier'}</p>
+          <p className="text-xs text-stone-550">{appointment.patientId?.patientId || appointment.patientId?.phone || 'No identifier'}</p>
         </div>
       )
     },
@@ -83,8 +84,23 @@ const AppointmentListPage = () => {
       render: (appointment) => (
         <div>
           <p className="font-medium text-stone-900">{appointment.doctorId?.fullName || 'Not provided'}</p>
-          <p className="text-xs text-stone-500">{appointment.doctorId?.specialization || appointment.doctorId?.doctorCode || 'No specialty'}</p>
+          <p className="text-xs text-stone-550">{appointment.doctorId?.specialization || appointment.doctorId?.doctorCode || 'No specialty'}</p>
         </div>
+      )
+    },
+    {
+      key: 'consultationMode',
+      label: 'Consultation Mode',
+      render: (appointment) => (
+        appointment.consultationMode === 'ONLINE' ? (
+          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-105 text-blue-800 border border-blue-200">
+            📹 Video Consultation
+          </span>
+        ) : (
+          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
+            🧑⚕️ Walk-In
+          </span>
+        )
       )
     },
     {
@@ -125,8 +141,9 @@ const AppointmentListPage = () => {
           </Link>
         </div>
       </div>
-      <div className="grid gap-3 rounded-3xl border border-stone-200 bg-white p-5 shadow-lg shadow-stone-200/40 md:grid-cols-3">
+      <div className="grid gap-3 rounded-3xl border border-stone-200 bg-white p-5 shadow-lg shadow-stone-200/40 md:grid-cols-4">
         <input type="date" value={filters.date} onChange={(event) => setFilters((current) => ({ ...current, date: event.target.value }))} className="rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" />
+        
         <select value={filters.doctorId} onChange={(event) => setFilters((current) => ({ ...current, doctorId: event.target.value }))} className="rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100">
           <option value="">All doctors</option>
           {doctors.map((doctor) => (
@@ -135,6 +152,7 @@ const AppointmentListPage = () => {
             </option>
           ))}
         </select>
+
         <select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))} className="rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100">
           <option value="">All statuses</option>
           {['booked', 'confirmed', 'checked_in', 'in_consultation', 'completed', 'cancelled', 'no_show', 'rescheduled'].map((status) => (
@@ -142,6 +160,12 @@ const AppointmentListPage = () => {
               {status.replaceAll('_', ' ')}
             </option>
           ))}
+        </select>
+
+        <select value={filters.consultationMode} onChange={(event) => setFilters((current) => ({ ...current, consultationMode: event.target.value }))} className="rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100">
+          <option value="">All Consultation Modes</option>
+          <option value="WALK_IN">Walk-In Consultation</option>
+          <option value="ONLINE">Online Video Consultation</option>
         </select>
       </div>
       <DataTable columns={columns} rows={appointments} emptyTitle="No appointments found" emptyDescription="Create an appointment or change the current filters." />

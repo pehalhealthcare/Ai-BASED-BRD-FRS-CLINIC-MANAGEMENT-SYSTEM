@@ -4,7 +4,7 @@ import useAuth from '../hooks/useAuth';
 import { authApi } from '../lib/api';
 import {
   Shield, Lock, Mail, Users, Eye, EyeOff, Globe, Info, AlertCircle, X,
-  Building2, Activity, Smartphone, ArrowRight
+  Building2, Activity, Smartphone, ArrowRight,CheckCircle2 
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 

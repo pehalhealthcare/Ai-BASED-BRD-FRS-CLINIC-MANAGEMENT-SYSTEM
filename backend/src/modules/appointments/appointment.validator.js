@@ -25,6 +25,7 @@ const createAppointmentSchema = z.object({
     startTime: timeStringSchema,
     durationMinutes: durationSchema.default(30),
     appointmentType: appointmentTypeSchema.default('scheduled'),
+    consultationMode: z.enum(['WALK_IN', 'ONLINE']).default('WALK_IN'),
     reasonForVisit: z.string().trim().max(500).optional(),
     symptomsSummary: z.string().trim().max(1000).optional(),
     source: z.enum(['reception', 'patient_app', 'chatbot', 'admin']).optional(),
@@ -40,6 +41,7 @@ const listAppointmentsQuerySchema = z.object({
     doctorId: objectIdSchema.optional(),
     patientId: objectIdSchema.optional(),
     status: appointmentStatusSchema.optional(),
+    consultationMode: z.enum(['WALK_IN', 'ONLINE']).optional(),
     from: dateStringSchema.optional(),
     to: dateStringSchema.optional(),
     clinicId: objectIdSchema.optional()

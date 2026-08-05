@@ -49,7 +49,8 @@ const ReceptionistDashboardPage = () => {
     completed: 10,
     upcoming: 14,
     walkIn: 3,
-    revenue: 28450,
+    revenue: 0,
+    invoiceCount: 0,
     waiting: 8,
     checkedIn: 5,
     pendingBills: 7,
@@ -76,7 +77,9 @@ const ReceptionistDashboardPage = () => {
             completed: cards.completedConsultations ?? prev.completed,
             upcoming: cards.pendingAppointments ?? prev.upcoming,
             pendingBills: cards.pendingInvoices ?? prev.pendingBills,
-            pendingReports: cards.labOrders ?? prev.pendingReports
+            pendingReports: cards.labOrders ?? prev.pendingReports,
+            revenue: cards.amountReceived ?? prev.revenue,
+            invoiceCount: cards.todayInvoicesCount ?? prev.invoiceCount
           }));
         }
 
@@ -489,7 +492,7 @@ const ReceptionistDashboardPage = () => {
             </div>
           </div>
           <div className="mt-4 pt-3 border-t border-slate-50 flex items-center justify-between">
-            <span className="text-[11px] text-slate-400 font-semibold">From 18 invoices</span>
+            <span className="text-[11px] text-slate-400 font-semibold">From {stats.invoiceCount} {stats.invoiceCount === 1 ? 'invoice' : 'invoices'}</span>
             <Link to="/billing" className="text-[11px] text-rose-600 hover:text-rose-700 font-bold flex items-center gap-0.5">
               View details
             </Link>

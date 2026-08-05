@@ -27,7 +27,7 @@ const protect = async (req, _res, next) => {
       'pending_approval',
       're_edit',
       'changes_requested'
-    ].includes(user.approvalStatus);
+    ].includes(user.approvalStatus) || (user.approvalStatus === 'approved' && user.hasAcceptedSlot === false);
 
     if (!user.isActive && !isOnboardingOrPending) {
       return next(new AppError(RESPONSE_MESSAGES.AUTHENTICATION_REQUIRED, HTTP_STATUS.UNAUTHORIZED));

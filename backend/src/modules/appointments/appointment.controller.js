@@ -150,6 +150,15 @@ const checkFollowUp = asyncHandler(async (req, res) => {
   return sendSuccess(res, 'Follow-up status checked successfully', data);
 });
 
+const startOnlineConsultation = asyncHandler(async (req, res) => {
+  const data = await appointmentService.startOnlineConsultation({
+    requester: req.user,
+    appointmentId: req.params.appointmentId,
+    req
+  });
+  return sendSuccess(res, 'Online consultation initialized successfully', data);
+});
+
 module.exports = {
   createAppointment,
   listAppointments,
@@ -165,5 +174,6 @@ module.exports = {
   applyWaiver,
   requestRefund,
   runDailyRefunds,
-  checkFollowUp
+  checkFollowUp,
+  startOnlineConsultation
 };

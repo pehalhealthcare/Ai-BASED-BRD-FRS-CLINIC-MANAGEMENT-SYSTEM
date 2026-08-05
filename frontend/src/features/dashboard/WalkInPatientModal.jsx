@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
-import { X, Calendar, Upload, Camera, Shield, FileText, CheckCircle2, User, Plus, Search, Check, Bot, Clock, CreditCard, Receipt, Tag, AlertCircle, Printer, Download, Send } from 'lucide-react';
+import { X, Calendar, Upload, Camera, Shield, FileText, CheckCircle2, User, Plus, Search, Check, Bot, Clock, CreditCard, Receipt, Tag, AlertCircle, Printer, Download, Send, ArrowLeft, Video, VideoOff, Laptop } from 'lucide-react';
 import { patientApi, doctorApi, appointmentApi, receptionistApi } from '../../lib/api';
 import { aiApi } from '../../api/aiApi';
 import useAuth from '../../hooks/useAuth';
+import { useFeatureAccess } from '../../hooks/useFeatureAccess';
+import { io } from 'socket.io-client';
 
 const STATES = [
   'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
@@ -15,12 +17,13 @@ const STATES = [
 
 const isSlotTimePassed = (dateStr, slotTimeStr) => {
   if (!dateStr || !slotTimeStr) return false;
-  const todayStr = new Date().toISOString().split('T')[0];
+  
+  // Format check-in dates consistently based on local date string comparisons (ignores UTC offsets)
+  const todayStr = new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).split('/').reverse().join('-');
   if (dateStr !== todayStr) {
     return false;
   }
 
-  const now = new Date();
   const match = slotTimeStr.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)?$/i);
   if (!match) return false;
 
@@ -38,14 +41,19 @@ const isSlotTimePassed = (dateStr, slotTimeStr) => {
     }
   }
 
-  const slotTime = new Date();
-  slotTime.setHours(hours, minutes, 0, 0);
+  // Get current time in Asia/Kolkata timezone
+  const localNowStr = new Date().toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour12: false });
+  const [currentHours, currentMins] = localNowStr.split(':').map(Number);
 
-  return now.getTime() > slotTime.getTime();
+  return hours < currentHours || (hours === currentHours && minutes < currentMins);
 };
 
 export default function WalkInPatientModal({ isOpen, onClose, onSuccess }) {
   const { user } = useAuth();
+  const { getFeatureDetail } = useFeatureAccess();
+  const onlineConsultationFeature = getFeatureDetail('online_consultation');
+  const onlineEnabled = !!onlineConsultationFeature?.enabled;
+
   const [formData, setFormData] = useState({
     fullName: '',
     gender: '',
@@ -112,8 +120,18 @@ export default function WalkInPatientModal({ isOpen, onClose, onSuccess }) {
   const [reservationTimeLeft, setReservationTimeLeft] = useState(null);
   const [discountRequestPending, setDiscountRequestPending] = useState(false);
 
+  // Today same-day booking token prompt states
+  const [showTokenPrompt, setShowTokenPrompt] = useState(false);
+  const [tokenPromptType, setTokenPromptType] = useState('now'); // 'now' or 'later'
+
+  // Consultation mode selection
+  const [consultationMode, setConsultationMode] = useState('WALK_IN');
+
   // Appointment Slots Date & Time variables
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const today = new Date();
+    return today.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).split('/').reverse().join('-');
+  });
   const [availableSlots, setAvailableSlots] = useState([]);
   const [selectedSlot, setSelectedSlot] = useState(null); // { startTime, endTime }
   const [loadingSlots, setLoadingSlots] = useState(false);
@@ -135,6 +153,18 @@ export default function WalkInPatientModal({ isOpen, onClose, onSuccess }) {
   const [slotCheckMessage, setSlotCheckMessage] = useState(null); // { status: 'available'|'taken', slot: string }
   const [showAlternativeSlots, setShowAlternativeSlots] = useState(false);
   const [alternativeSlots, setAlternativeSlots] = useState([]);
+
+  const [paymentWarningTargetStep, setPaymentWarningTargetStep] = useState(null);
+  const isReceptionist = user?.role === 'RECEPTIONIST';
+
+  const handleGoBack = (targetStep) => {
+    const isPaid = billingSuccess || finalAppointment || (createdAppointment && createdAppointment.status !== 'payment_pending');
+    if (isPaid) {
+      setPaymentWarningTargetStep(targetStep);
+    } else {
+      setActiveStep(targetStep);
+    }
+  };
 
   const loadPendingApprovals = async () => {
     try {
@@ -178,6 +208,7 @@ export default function WalkInPatientModal({ isOpen, onClose, onSuccess }) {
     setDiscountReason('');
     setPaymentMethod('cash');
     setDiscountRequestPending(false);
+    setConsultationMode('WALK_IN');
   };
 
   useEffect(() => {
@@ -187,6 +218,69 @@ export default function WalkInPatientModal({ isOpen, onClose, onSuccess }) {
       return () => clearInterval(interval);
     }
   }, [isOpen]);
+
+  // Real-time appointment listener for check-ins or status updates
+  useEffect(() => {
+    if (!isOpen || !createdAppointment?._id) return;
+    const socketUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+    const socket = io(socketUrl, { transports: ['websocket', 'polling'] });
+
+    socket.on('connect', () => {
+      const clinicId = user?.clinic?._id || user?.clinicId;
+      if (clinicId) socket.emit('join_clinic', clinicId);
+    });
+
+    const updateHandler = (data) => {
+      if (String(data.appointmentId) === String(createdAppointment._id)) {
+        setCreatedAppointment(prev => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            ...(data.status && { status: data.status }),
+            ...(data.paymentStatus && { paymentStatus: data.paymentStatus }),
+            ...(data.tokenNumber && { tokenNumber: data.tokenNumber }),
+            ...(data.queueNumber && { queueNumber: data.queueNumber }),
+            ...(data.checkedInAt && { checkedInAt: data.checkedInAt })
+          };
+        });
+      }
+    };
+
+    socket.on('appointment:checked-in', updateHandler);
+    socket.on('appointment:token-generated', updateHandler);
+    socket.on('appointment:payment-success', updateHandler);
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [isOpen, createdAppointment?._id]);
+
+  // Active countdown timer for reserved slot (Billing Step 4)
+  useEffect(() => {
+    if (!reservationExpiry || activeStep !== 4) {
+      setReservationTimeLeft(null);
+      return;
+    }
+
+    const updateTimer = () => {
+      const msLeft = new Date(reservationExpiry).getTime() - Date.now();
+      if (msLeft <= 0) {
+        setReservationTimeLeft("0:00");
+        alert("Session Expired: The slot reservation has timed out and the doctor's slot has been released.");
+        resetBookingFlow();
+        setActiveStep(2); // Go back to doctor slot selector
+      } else {
+        const totalSecs = Math.floor(msLeft / 1000);
+        const mins = Math.floor(totalSecs / 60);
+        const secs = totalSecs % 60;
+        setReservationTimeLeft(`${mins}:${secs < 10 ? '0' : ''}${secs}`);
+      }
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [reservationExpiry, activeStep]);
 
   const filteredDocs = doctorsList.filter(doc => {
     const name = (doc.fullName || doc.userId?.name || '').toLowerCase();
@@ -1288,33 +1382,42 @@ export default function WalkInPatientModal({ isOpen, onClose, onSuccess }) {
             { n: 3, label: 'Confirm' },
             { n: 4, label: 'Billing & Payment' },
             { n: 5, label: 'Confirmation Card' }
-          ].map((s, i, arr) => (
-            <div key={s.n} className="flex items-center shrink-0">
-              <div className="flex items-center gap-2 shrink-0">
-                <span className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black transition-all duration-300 ${
-                  activeStep > s.n 
-                    ? 'bg-teal-600 text-white shadow-sm shadow-teal-100 scale-105' 
-                    : activeStep === s.n 
-                      ? 'bg-teal-600 text-white ring-4 ring-teal-100 scale-105' 
-                      : 'bg-slate-100 text-slate-400 border border-slate-200'
-                }`}>
-                  {activeStep > s.n ? (
-                    <Check size={14} className="stroke-[3]" />
-                  ) : (
-                    s.n
-                  )}
-                </span>
-                <span className={`text-xs font-bold transition-colors duration-300 hidden md:block ${
-                  activeStep >= s.n ? 'text-slate-800' : 'text-slate-400'
-                }`}>{s.label}</span>
+          ].map((s, i, arr) => {
+            const isCompleted = s.n < activeStep;
+            const isClickable = isReceptionist && isCompleted;
+            return (
+              <div key={s.n} className="flex items-center shrink-0">
+                <button
+                  type="button"
+                  disabled={!isClickable}
+                  onClick={() => isClickable && handleGoBack(s.n)}
+                  className={`flex items-center gap-2 shrink-0 text-left focus:outline-none ${isClickable ? 'cursor-pointer hover:opacity-85' : 'cursor-default'}`}
+                >
+                  <span className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black transition-all duration-300 ${
+                    activeStep > s.n 
+                      ? 'bg-teal-600 text-white shadow-sm shadow-teal-100 scale-105' 
+                      : activeStep === s.n 
+                        ? 'bg-teal-600 text-white ring-4 ring-teal-100 scale-105' 
+                        : 'bg-slate-100 text-slate-400 border border-slate-200'
+                  }`}>
+                    {activeStep > s.n ? (
+                      <Check size={14} className="stroke-[3]" />
+                    ) : (
+                      s.n
+                    )}
+                  </span>
+                  <span className={`text-xs font-bold transition-colors duration-300 hidden md:block ${
+                    activeStep >= s.n ? 'text-slate-800' : 'text-slate-400'
+                  }`}>{s.label}</span>
+                </button>
+                {i < arr.length - 1 && (
+                  <div className={`w-8 md:w-16 h-0.5 mx-2 md:mx-3 shrink-0 transition-all duration-500 rounded-full ${
+                    activeStep > s.n ? 'bg-teal-500 shadow-sm' : 'bg-slate-200'
+                  }`} />
+                )}
               </div>
-              {i < arr.length - 1 && (
-                <div className={`w-8 md:w-16 h-0.5 mx-2 md:mx-3 shrink-0 transition-all duration-500 rounded-full ${
-                  activeStep > s.n ? 'bg-teal-500 shadow-sm' : 'bg-slate-200'
-                }`} />
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Main Content Area */}
@@ -2368,13 +2471,17 @@ export default function WalkInPatientModal({ isOpen, onClose, onSuccess }) {
 
               {/* Footer Buttons */}
               <div className="flex justify-between gap-3 pt-4 border-t border-slate-100 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setActiveStep(1)}
-                  className="px-6 py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-bold rounded-xl transition"
-                >
-                  Back
-                </button>
+                {isReceptionist ? (
+                  <button
+                    type="button"
+                    onClick={() => handleGoBack(1)}
+                    className="px-6 py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-bold rounded-xl transition flex items-center gap-1.5"
+                  >
+                    <ArrowLeft size={14} /> Back
+                  </button>
+                ) : (
+                  <div></div>
+                )}
                 <button
                   type="button"
                   disabled={!selectedDoctorId}
@@ -2426,7 +2533,7 @@ export default function WalkInPatientModal({ isOpen, onClose, onSuccess }) {
                         type="date"
                         value={selectedDate}
                         onChange={(e) => setSelectedDate(e.target.value)}
-                        min={new Date().toISOString().split('T')[0]}
+                        min={new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).split('/').reverse().join('-')}
                         className="w-full pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-teal-500/10 focus:border-teal-500 focus:outline-none transition"
                       />
                     </div>
@@ -2501,7 +2608,85 @@ export default function WalkInPatientModal({ isOpen, onClose, onSuccess }) {
                       className="px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-teal-500/10 focus:border-teal-500 focus:outline-none transition resize-none"
                     />
                   </div>
-                </div>
+
+                  {/* Consultation Mode Selection */}
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Consultation Mode</label>
+                    <p className="text-[10px] text-slate-400 -mt-1 leading-snug">Choose how the consultation will be conducted.</p>
+                    
+                    <div className="grid grid-cols-1 gap-3.5 mt-2">
+                      {/* Walk-In Card Option */}
+                      <div 
+                        onClick={() => setConsultationMode('WALK_IN')}
+                        className={`p-4 rounded-2xl border transition cursor-pointer flex items-center justify-between ${
+                          consultationMode === 'WALK_IN' 
+                            ? 'bg-teal-50/50 border-teal-500 shadow-sm' 
+                            : 'bg-white border-slate-200 hover:border-slate-350'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3.5">
+                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${consultationMode === 'WALK_IN' ? 'bg-teal-100 text-teal-700' : 'bg-slate-50 text-slate-550'}`}>
+                            <Laptop size={16} />
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-slate-800">🧑⚕️ Walk-In Consultation</p>
+                            <p className="text-[10px] text-slate-400 mt-0.5 leading-normal">Patient will visit the clinic physically.</p>
+                          </div>
+                        </div>
+                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${consultationMode === 'WALK_IN' ? 'border-teal-500 bg-teal-500' : 'border-slate-300'}`}>
+                          {consultationMode === 'WALK_IN' && <span className="w-1.5 h-1.5 rounded-full bg-white"></span>}
+                        </div>
+                      </div>
+
+                      {onlineEnabled ? (
+                          <div 
+                            onClick={() => setConsultationMode('ONLINE')}
+                            className={`p-4 rounded-2xl border transition cursor-pointer flex items-center justify-between ${
+                              consultationMode === 'ONLINE' 
+                                ? 'bg-teal-50/50 border-teal-500 shadow-sm' 
+                                : 'bg-white border-slate-200 hover:border-slate-350'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3.5">
+                              <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${consultationMode === 'ONLINE' ? 'bg-teal-100 text-teal-700' : 'bg-slate-50 text-slate-550'}`}>
+                                <Video size={16} />
+                              </div>
+                              <div>
+                                <p className="text-xs font-bold text-slate-800">📹 Online Video Consultation</p>
+                                <p className="text-[10px] text-slate-400 mt-0.5 leading-normal">Patient will consult the doctor through a secure video session.</p>
+                              </div>
+                            </div>
+                            <div className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${consultationMode === 'ONLINE' ? 'border-teal-500 bg-teal-500' : 'border-slate-300'}`}>
+                              {consultationMode === 'ONLINE' && <span className="w-1.5 h-1.5 rounded-full bg-white"></span>}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/50 relative overflow-hidden opacity-85">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3.5">
+                                <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center">
+                                  <VideoOff size={16} />
+                                </div>
+                                  <div>
+                                  <p className="text-xs font-bold text-slate-400 flex items-center gap-1.5">
+                                    <span>🔒 Online Video Consultation</span>
+                                  </p>
+                                  <p className="text-[10px] text-slate-400 mt-0.5 leading-normal">Upgrade your clinic plan to enable secure video consultations.</p>
+                                </div>
+                              </div>
+                              <button 
+                                type="button"
+                                onClick={() => alert('Plan upgrades are managed inside Super Admin settings.')}
+                                className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-[9px] font-black uppercase tracking-wider transition"
+                              >
+                                Upgrade Plan
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
               </div>
 
               {/* Right Column: Confirmation Summary & Booking Action */}
@@ -2539,6 +2724,12 @@ export default function WalkInPatientModal({ isOpen, onClose, onSuccess }) {
                           {reasonForVisitReg || 'Consultation'}
                         </span>
                       </div>
+                      <div className="flex justify-between items-center border-t border-slate-100/60 pt-2.5">
+                        <span className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Consultation Mode</span>
+                        <span className="text-slate-905 font-bold">
+                          {consultationMode === 'ONLINE' ? '📹 Online Video' : '🧑⚕️ Walk-In'}
+                        </span>
+                      </div>
                       {followUpInfo && (
                         <div className="flex justify-between items-center border-t border-slate-100/60 pt-2.5">
                           <span className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Consultation Fee</span>
@@ -2563,21 +2754,38 @@ export default function WalkInPatientModal({ isOpen, onClose, onSuccess }) {
                         <CheckCircle2 size={16} />
                       </div>
                       <div>
-                        <p className="text-xs font-bold text-teal-900">Walk-In Patient Check-In Benefits</p>
-                        <p className="text-[10px] text-teal-700/80 leading-relaxed mt-0.5">The patient status is automatically marked as checked-in, generating a queue token number instantly.</p>
+                        <p className="text-xs font-bold text-teal-900">
+                          {consultationMode === 'ONLINE' ? 'Teleconsultation Benefits' : 'Walk-In Patient Check-In'}
+                        </p>
+                        <p className="text-[10px] text-teal-700/80 leading-relaxed mt-0.5 font-medium">
+                          {consultationMode === 'ONLINE' 
+                            ? 'A secure meeting link is generated instantly on confirmation. Join links are shared automatically via dashboard, SMS, and email.' 
+                            : 'Patient checks in physically at the counter, placing them in the doctor\'s active queue sequence.'
+                          }
+                        </p>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 <div className="flex justify-between gap-3 pt-6 border-t border-slate-100 shrink-0 mt-6">
-                  <button
-                    type="button"
-                    onClick={() => setActiveStep(2)}
-                    className="px-5 py-2.5 border border-slate-205 hover:bg-slate-50 text-slate-600 text-xs font-bold rounded-xl transition"
-                  >
-                    Back
-                  </button>
+                  {isReceptionist ? (
+                    <button
+                      type="button"
+                      onClick={() => handleGoBack(2)}
+                      className="px-5 py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-bold rounded-xl transition flex items-center gap-1.5"
+                    >
+                      <ArrowLeft size={14} /> Back
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setActiveStep(2)}
+                      className="px-5 py-2.5 border border-slate-205 hover:bg-slate-50 text-slate-600 text-xs font-bold rounded-xl transition"
+                    >
+                      Back
+                    </button>
+                  )}
                   <button
                     type="button"
                     disabled={submitting || !selectedSlot}
@@ -2594,6 +2802,7 @@ export default function WalkInPatientModal({ isOpen, onClose, onSuccess }) {
                         startTime: selectedSlot.startTime,
                         endTime: selectedSlot.endTime,
                         appointmentType: 'walk_in',
+                        consultationMode: consultationMode,
                         reasonForVisit: finalReason,
                         status: 'payment_pending'
                       };
@@ -2601,8 +2810,8 @@ export default function WalkInPatientModal({ isOpen, onClose, onSuccess }) {
                         const response = await appointmentApi.createAppointment(payload);
                         const aptData = response.data?.appointment || response.appointment || response;
                         setCreatedAppointment(aptData);
-                        // Set reservation countdown (default 15 min)
-                        const expiry = new Date(Date.now() + 15 * 60 * 1000);
+                        // Set reservation countdown (5 min)
+                        const expiry = new Date(Date.now() + 5 * 60 * 1000);
                         setReservationExpiry(expiry);
                         setActiveStep(4);
                       } catch (err) {
@@ -2613,266 +2822,294 @@ export default function WalkInPatientModal({ isOpen, onClose, onSuccess }) {
                     }}
                     className="px-6 py-2.5 bg-teal-600 hover:bg-teal-700 disabled:bg-slate-205 disabled:text-slate-400 text-white text-xs font-bold rounded-xl shadow-md transition"
                   >
-                    {submitting ? 'Creating...' : 'Proceed to Billing â†’'}
+                    {submitting ? 'Creating...' : 'Proceed to Billing →'}
                   </button>
                 </div>
               </div>
             </div>
           )}
-
           {/* STEP 4: BILLING & PAYMENT */}
           {activeStep === 4 && createdAppointment && (
-            <div className="flex flex-col gap-6 flex-1 min-h-0">
-              <div className="grid gap-6 md:grid-cols-2 flex-1 items-stretch">
-                {/* Left: Fee & Discount Section */}
-                <div className="bg-white border border-slate-150 rounded-3xl p-6 flex flex-col gap-5 shadow-sm">
-                  <div className="flex items-center gap-2">
-                    <div className="p-2 bg-teal-50 rounded-xl text-teal-600"><CreditCard size={16} /></div>
-                    <h3 className="text-sm font-bold text-slate-800">Consultation Fee & Discount</h3>
-                  </div>
+            <div className="flex flex-col flex-1 min-h-0 bg-white border border-slate-150 rounded-3xl shadow-sm overflow-hidden">
+              <div className="flex-1 overflow-y-auto p-6">
+                <div className="grid gap-6 md:grid-cols-2 items-stretch">
+                  {/* Left: Fee & Discount Section */}
+                  <div className="flex flex-col gap-5">
+                    <div className="flex items-center gap-2">
+                      <div className="p-2 bg-teal-50 rounded-xl text-teal-650"><CreditCard size={16} /></div>
+                      <h3 className="text-sm font-bold text-slate-800">Consultation Fee & Discount</h3>
+                    </div>
 
-                  {/* Reservation Timer */}
-                  {reservationExpiry && (
-                    <div className="flex items-center gap-2.5 p-3 bg-amber-50 border border-amber-200 rounded-xl">
-                      <Clock size={14} className="text-amber-600 shrink-0" />
-                      <div>
-                        <p className="text-[10px] font-bold text-amber-800">Slot Reserved</p>
-                        <p className="text-[9px] text-amber-600 font-semibold">Complete payment within 15 minutes to confirm this slot</p>
+                    {/* Reservation Timer */}
+                    {reservationExpiry && (
+                      <div className="flex items-center gap-2.5 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                        <Clock size={14} className="text-amber-600 shrink-0" />
+                        <div>
+                          <p className="text-[10px] font-bold text-amber-800">Slot Reserved</p>
+                          <p className="text-[9px] text-amber-600 font-semibold">
+                            {reservationTimeLeft ? `Complete payment within ${reservationTimeLeft} remaining` : 'Complete payment within 5 minutes to confirm this slot'}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {/* Fee Display */}
-                  <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-slate-500 font-bold">Consultation Fee</span>
-                      <span className="text-lg font-extrabold text-slate-900">₹{createdAppointment.consultationFee || followUpInfo?.fee || 0}</span>
-                    </div>
-                    {discountType !== 'none' && discountValue && (
-                      <>
-                        <div className="flex justify-between items-center text-xs">
-                          <span className="text-slate-500 font-bold">Discount Applied</span>
-                          <span className="text-emerald-600 font-bold">- ₹{
-                            discountType === 'percentage'
-                              ? Math.round((parseFloat(discountValue) / 100) * (createdAppointment.consultationFee || 0))
-                              : discountType === 'full_waiver'
-                              ? (createdAppointment.consultationFee || 0)
-                              : parseFloat(discountValue) || 0
-                          }</span>
-                        </div>
-                        <div className="border-t border-slate-200 pt-2 flex justify-between items-center">
-                          <span className="text-xs text-slate-700 font-extrabold">Net Payable</span>
-                          <span className="text-base font-extrabold text-teal-700">₹{
-                            Math.max(0,
-                              (createdAppointment.consultationFee || 0) - (
-                                discountType === 'percentage'
-                                  ? Math.round((parseFloat(discountValue) / 100) * (createdAppointment.consultationFee || 0))
-                                  : discountType === 'full_waiver'
-                                  ? (createdAppointment.consultationFee || 0)
-                                  : parseFloat(discountValue) || 0
+                    {/* Fee Display */}
+                    <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-slate-550 font-bold">Consultation Fee</span>
+                        <span className="text-lg font-extrabold text-slate-900">₹{createdAppointment.consultationFee || followUpInfo?.fee || 0}</span>
+                      </div>
+                      {discountType !== 'none' && discountValue && (
+                        <>
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="text-slate-550 font-bold">Discount Applied</span>
+                            <span className="text-emerald-600 font-bold">- ₹{
+                              discountType === 'percentage'
+                                ? Math.round((parseFloat(discountValue) / 100) * (createdAppointment.consultationFee || 0))
+                                : discountType === 'full_waiver'
+                                ? (createdAppointment.consultationFee || 0)
+                                : parseFloat(discountValue) || 0
+                            }</span>
+                          </div>
+                          <div className="border-t border-slate-200 pt-2 flex justify-between items-center">
+                            <span className="text-xs text-slate-700 font-extrabold">Net Payable</span>
+                            <span className="text-base font-extrabold text-teal-700">₹{
+                              Math.max(0,
+                                (createdAppointment.consultationFee || 0) - (
+                                  discountType === 'percentage'
+                                    ? Math.round((parseFloat(discountValue) / 100) * (createdAppointment.consultationFee || 0))
+                                    : discountType === 'full_waiver'
+                                    ? (createdAppointment.consultationFee || 0)
+                                    : parseFloat(discountValue) || 0
+                                )
                               )
-                            )
-                          }</span>
-                        </div>
-                      </>
+                            }</span>
+                          </div>
+                        </>
+                      )}
+                    </div>
+
+                    {/* Discount Type */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Discount / Waiver Type</label>
+                      <select
+                        value={discountType}
+                        onChange={(e) => { setDiscountType(e.target.value); setDiscountValue(''); }}
+                        className="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-teal-500/10 focus:border-teal-500 focus:outline-none"
+                      >
+                        <option value="none">No Discount (Full Fee)</option>
+                        <option value="percentage">Percentage Discount (%)</option>
+                        <option value="fixed">Fixed Amount Discount (₹)</option>
+                        <option value="full_waiver">Full Fee Waiver (₹0)</option>
+                        <option value="senior_citizen">Senior Citizen Concession</option>
+                        <option value="membership">Membership / Loyalty</option>
+                        <option value="corporate">Corporate Tie-Up</option>
+                        <option value="insurance">Insurance Covered</option>
+                        <option value="employee">Employee / Staff</option>
+                        <option value="promotional">Promotional Offer</option>
+                        <option value="doctor_courtesy">Doctor Courtesy</option>
+                        <option value="admin_courtesy">Admin Courtesy</option>
+                      </select>
+                    </div>
+
+                    {discountType !== 'none' && discountType !== 'full_waiver' && (
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                          {discountType === 'percentage' ? 'Discount Percentage (%)' : 'Discount Amount (₹)'}
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          max={discountType === 'percentage' ? '100' : createdAppointment.consultationFee}
+                          value={discountValue}
+                          onChange={(e) => setDiscountValue(e.target.value)}
+                          placeholder={discountType === 'percentage' ? 'e.g. 20' : 'e.g. 200'}
+                          className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-teal-500/10 focus:border-teal-500 focus:outline-none"
+                        />
+                      </div>
+                    )}
+
+                    {discountType !== 'none' && (
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Reason for Discount / Waiver</label>
+                        <textarea
+                          value={discountReason}
+                          onChange={(e) => setDiscountReason(e.target.value)}
+                          placeholder="Briefly describe the reason for the discount or waiver..."
+                          rows={2}
+                          className="px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-teal-500/10 focus:border-teal-500 focus:outline-none resize-none"
+                        />
+                      </div>
+                    )}
+
+                    {billingError && (
+                      <div className="flex items-start gap-2 p-3 bg-rose-50 border border-rose-200 rounded-xl">
+                        <AlertCircle size={14} className="text-rose-500 shrink-0 mt-0.5" />
+                        <p className="text-[11px] text-rose-700 font-semibold">{billingError}</p>
+                      </div>
                     )}
                   </div>
 
-                  {/* Discount Type */}
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Discount / Waiver Type</label>
-                    <select
-                      value={discountType}
-                      onChange={(e) => { setDiscountType(e.target.value); setDiscountValue(''); }}
-                      className="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-teal-500/10 focus:border-teal-500 focus:outline-none"
-                    >
-                      <option value="none">No Discount (Full Fee)</option>
-                      <option value="percentage">Percentage Discount (%)</option>
-                      <option value="fixed">Fixed Amount Discount (₹)</option>
-                      <option value="full_waiver">Full Fee Waiver (₹0)</option>
-                      <option value="senior_citizen">Senior Citizen Concession</option>
-                      <option value="membership">Membership / Loyalty</option>
-                      <option value="corporate">Corporate Tie-Up</option>
-                      <option value="insurance">Insurance Covered</option>
-                      <option value="employee">Employee / Staff</option>
-                      <option value="promotional">Promotional Offer</option>
-                      <option value="doctor_courtesy">Doctor Courtesy</option>
-                      <option value="admin_courtesy">Admin Courtesy</option>
-                    </select>
-                  </div>
-
-                  {discountType !== 'none' && discountType !== 'full_waiver' && (
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                        {discountType === 'percentage' ? 'Discount Percentage (%)' : 'Discount Amount (₹)'}
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        max={discountType === 'percentage' ? '100' : createdAppointment.consultationFee}
-                        value={discountValue}
-                        onChange={(e) => setDiscountValue(e.target.value)}
-                        placeholder={discountType === 'percentage' ? 'e.g. 20' : 'e.g. 200'}
-                        className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-teal-500/10 focus:border-teal-500 focus:outline-none"
-                      />
+                  {/* Right: Payment Method */}
+                  <div className="flex flex-col gap-5">
+                    <div className="flex items-center gap-2">
+                      <div className="p-2 bg-emerald-50 rounded-xl text-emerald-600"><Receipt size={16} /></div>
+                      <h3 className="text-sm font-bold text-slate-800">Payment Collection</h3>
                     </div>
-                  )}
 
-                  {discountType !== 'none' && (
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Reason for Discount / Waiver</label>
-                      <textarea
-                        value={discountReason}
-                        onChange={(e) => setDiscountReason(e.target.value)}
-                        placeholder="Briefly describe the reason for the discount or waiver..."
-                        rows={2}
-                        className="px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-teal-500/10 focus:border-teal-500 focus:outline-none resize-none"
-                      />
+                    {/* Appointment Summary */}
+                    <div className="p-4 bg-teal-50/30 border border-teal-100/50 rounded-2xl space-y-2 text-xs">
+                      <div className="flex justify-between"><span className="text-slate-500 font-bold">Patient</span><span className="font-bold text-slate-800">{selectedPatient?.firstName} {selectedPatient?.lastName}</span></div>
+                      <div className="flex justify-between"><span className="text-slate-500 font-bold">Doctor</span><span className="font-bold text-slate-800">{doctorsList.find(d => d._id === (chosenDoctor?._id || selectedDoctorId))?.fullName || '—'}</span></div>
+                      <div className="flex justify-between"><span className="text-slate-500 font-bold">Date & Slot</span><span className="font-bold text-slate-800">{selectedDate} | {selectedSlot?.startTime}</span></div>
+                      <div className="flex justify-between"><span className="text-slate-500 font-bold">Appointment ID</span><span className="font-bold text-teal-700 font-mono text-[10px]">{createdAppointment._id?.slice(-8)?.toUpperCase()}</span></div>
                     </div>
-                  )}
 
-                  {billingError && (
-                    <div className="flex items-start gap-2 p-3 bg-rose-50 border border-rose-200 rounded-xl">
-                      <AlertCircle size={14} className="text-rose-500 shrink-0 mt-0.5" />
-                      <p className="text-[11px] text-rose-700 font-semibold">{billingError}</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Right: Payment Method & Actions */}
-                <div className="bg-white border border-slate-150 rounded-3xl p-6 flex flex-col gap-5 shadow-sm">
-                  <div className="flex items-center gap-2">
-                    <div className="p-2 bg-emerald-50 rounded-xl text-emerald-600"><Receipt size={16} /></div>
-                    <h3 className="text-sm font-bold text-slate-800">Payment Collection</h3>
-                  </div>
-
-                  {/* Appointment Summary */}
-                  <div className="p-4 bg-teal-50/30 border border-teal-100/50 rounded-2xl space-y-2 text-xs">
-                    <div className="flex justify-between"><span className="text-slate-500 font-bold">Patient</span><span className="font-bold text-slate-800">{selectedPatient?.firstName} {selectedPatient?.lastName}</span></div>
-                    <div className="flex justify-between"><span className="text-slate-500 font-bold">Doctor</span><span className="font-bold text-slate-800">{doctorsList.find(d => d._id === (chosenDoctor?._id || selectedDoctorId))?.fullName || 'â€”'}</span></div>
-                    <div className="flex justify-between"><span className="text-slate-500 font-bold">Date & Slot</span><span className="font-bold text-slate-800">{selectedDate} | {selectedSlot?.startTime}</span></div>
-                    <div className="flex justify-between"><span className="text-slate-500 font-bold">Appointment ID</span><span className="font-bold text-teal-700 font-mono text-[10px]">{createdAppointment._id?.slice(-8)?.toUpperCase()}</span></div>
-                  </div>
-
-                  {/* Payment Method */}
-                  {discountType === 'none' || (discountType !== 'full_waiver') ? (
-                    <div className="flex flex-col gap-2">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Payment Method</label>
-                      <div className="grid grid-cols-2 gap-2">
-                        {[
-                          { value: 'cash', label: '💵 Cash' },
-                          { value: 'upi', label: '📱 UPI' },
-                          { value: 'card', label: '💳 Card' },
-                          { value: 'net_banking', label: '🏦 Net Banking' }
-                        ].map((m) => (
-                          <button
-                            key={m.value}
-                            type="button"
-                            onClick={() => setPaymentMethod(m.value)}
-                            className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition ${
-                              paymentMethod === m.value
-                                ? 'bg-teal-600 border-teal-600 text-white shadow-sm'
-                                : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-teal-300'
-                            }`}
-                          >
-                            {m.label}
-                          </button>
-                        ))}
+                    {/* Payment Method */}
+                    {discountType === 'none' || (discountType !== 'full_waiver') ? (
+                      <div className="flex flex-col gap-2">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Payment Method</label>
+                        <div className="grid grid-cols-2 gap-2">
+                          {[
+                            { value: 'cash', label: '💵 Cash' },
+                            { value: 'upi', label: '📱 UPI' },
+                            { value: 'card', label: '💳 Card' },
+                            { value: 'net_banking', label: '🏦 Net Banking' }
+                          ].map((m) => (
+                            <button
+                              key={m.value}
+                              type="button"
+                              onClick={() => setPaymentMethod(m.value)}
+                              className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition ${
+                                paymentMethod === m.value
+                                  ? 'bg-teal-600 border-teal-600 text-white shadow-sm'
+                                  : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-teal-300'
+                              }`}
+                            >
+                              {m.label}
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  ) : null}
+                    ) : null}
+                  </div>
+                </div>
+              </div>
 
-                  <div className="mt-auto space-y-3">
-                    {discountType !== 'none' ? (
-                      discountRequestPending ? (
-                        <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-center">
-                          <Clock size={20} className="text-amber-500 mx-auto mb-2" />
-                          <p className="text-xs font-bold text-amber-800">Awaiting Approval</p>
-                          <p className="text-[10px] text-amber-600 mt-1">Discount request submitted. Waiting for doctor/admin approval...</p>
-                          <div className="flex gap-2 justify-center mt-3">
-                            <button
-                              type="button"
-                              onClick={async () => {
-                                setBillingSubmitting(true);
-                                setBillingError('');
-                                try {
-                                  // Refresh appointment status
-                                  const refreshed = await appointmentApi.getAppointmentById(createdAppointment._id);
-                                  const apt = refreshed?.data?.appointment || refreshed?.appointment || refreshed;
-                                  if (apt.status === 'payment_pending' && apt.discountRequest?.status === 'approved') {
-                                    setCreatedAppointment(apt);
-                                    setDiscountRequestPending(false);
-                                  } else if (apt.discountRequest?.status === 'rejected') {
-                                    setDiscountRequestPending(false);
-                                    setBillingError('Discount request was rejected. Please collect full fee or submit a new request.');
-                                  }
-                                } catch {}
-                                setBillingSubmitting(false);
-                              }}
-                              className="px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 text-[10px] font-bold rounded-lg transition"
-                            >Refresh Status</button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                resetBookingFlow();
-                                setActiveStep(1);
-                                setRegistrationType('registered');
-                              }}
-                              className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-[10px] font-bold rounded-lg transition"
-                            >Book Next Patient</button>
-                            <button
-                              type="button"
-                              onClick={onClose}
-                              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold rounded-lg transition"
-                            >Close</button>
+            {/* Sticky Footer */}
+            <div className="flex justify-between items-center gap-3 p-4 border-t border-slate-100 bg-white shrink-0">
+                {isReceptionist ? (
+                  <button
+                    type="button"
+                    onClick={() => handleGoBack(3)}
+                    className="px-6 py-3 border border-slate-200 hover:bg-slate-55 hover:border-slate-300 text-slate-600 text-xs font-bold rounded-xl transition flex items-center gap-1.5"
+                  >
+                    <ArrowLeft size={14} /> Back
+                  </button>
+                ) : (
+                  <div></div>
+                )}
+
+                <div className="flex-1 max-w-md flex justify-end">
+                  {discountType !== 'none' ? (
+                    discountRequestPending ? (
+                      <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-center flex items-center justify-between gap-3 w-full">
+                        <div className="flex items-center gap-2 text-left">
+                          <Clock size={16} className="text-amber-500 shrink-0" />
+                          <div>
+                            <p className="text-[10px] font-bold text-amber-800">Awaiting Approval</p>
+                            <p className="text-[9px] text-amber-600">Waiting for approval...</p>
                           </div>
                         </div>
-                      ) : (
-                        <button
-                          type="button"
-                          disabled={billingSubmitting}
-                          onClick={async () => {
-                            if (!discountReason.trim()) { setBillingError('Please provide a reason for the discount.'); return; }
-                            setBillingSubmitting(true);
-                            setBillingError('');
-                            try {
-                              await appointmentApi.requestDiscount(createdAppointment._id, {
-                                discountType,
-                                discountValue: parseFloat(discountValue) || 0,
-                                reason: discountReason
-                              });
-                              // Reset booking flow so receptionist can book other patients
+                        <div className="flex gap-1.5">
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              setBillingSubmitting(true);
+                              setBillingError('');
+                              try {
+                                const refreshed = await appointmentApi.getAppointmentById(createdAppointment._id);
+                                const apt = refreshed?.data?.appointment || refreshed?.appointment || refreshed;
+                                if (apt.status === 'payment_pending' && apt.discountRequest?.status === 'approved') {
+                                  setCreatedAppointment(apt);
+                                  setDiscountRequestPending(false);
+                                } else if (apt.discountRequest?.status === 'rejected') {
+                                  setDiscountRequestPending(false);
+                                  setBillingError('Discount request was rejected. Please collect full fee or submit a new request.');
+                                }
+                              } catch {}
+                              setBillingSubmitting(false);
+                            }}
+                            className="px-2.5 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 text-[9px] font-bold rounded-lg transition"
+                          >Refresh</button>
+                          <button
+                            type="button"
+                            onClick={() => {
                               resetBookingFlow();
                               setActiveStep(1);
-                              setRegistrationType('waiting_approval');
-                              await loadPendingApprovals();
-                            } catch (err) {
-                              setBillingError(err.response?.data?.message || 'Failed to submit discount request.');
-                            } finally {
-                              setBillingSubmitting(false);
-                            }
-                          }}
-                          className="w-full py-2.5 bg-amber-500 hover:bg-amber-600 disabled:bg-slate-200 text-white text-xs font-bold rounded-xl shadow-md transition"
-                        >
-                          <Tag size={12} className="inline mr-1" />
-                          {billingSubmitting ? 'Submitting...' : 'Submit Discount Request for Approval'}
-                        </button>
-                      )
-                    ) : null}
-
-                    {!discountRequestPending && (
+                              setRegistrationType('registered');
+                            }}
+                            className="px-2.5 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-[9px] font-bold rounded-lg transition"
+                          >Book Next</button>
+                        </div>
+                      </div>
+                    ) : (
                       <button
                         type="button"
                         disabled={billingSubmitting}
                         onClick={async () => {
+                          if (!discountReason.trim()) { setBillingError('Please provide a reason for the discount.'); return; }
+                          setBillingSubmitting(true);
+                          setBillingError('');
+                          try {
+                            await appointmentApi.requestDiscount(createdAppointment._id, {
+                              discountType,
+                              discountValue: parseFloat(discountValue) || 0,
+                              reason: discountReason
+                            });
+                            resetBookingFlow();
+                            setActiveStep(1);
+                            setRegistrationType('waiting_approval');
+                            await loadPendingApprovals();
+                          } catch (err) {
+                            setBillingError(err.response?.data?.message || 'Failed to submit discount request.');
+                          } finally {
+                            setBillingSubmitting(false);
+                          }
+                        }}
+                        className="w-full py-3 bg-amber-500 hover:bg-amber-600 disabled:bg-slate-200 text-white text-xs font-bold rounded-xl shadow-md transition"
+                      >
+                        <Tag size={12} className="inline mr-1" />
+                        {billingSubmitting ? 'Submitting...' : 'Submit Discount Request for Approval'}
+                      </button>
+                    )
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={billingSubmitting}
+                      onClick={async () => {
+                        const isToday = selectedDate === new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).split('/').reverse().join('-');
+                        const isOnline = createdAppointment?.consultationMode === 'ONLINE' || createdAppointment?.appointmentType === 'teleconsultation';
+                        if (isToday && !isOnline) {
+                          setShowTokenPrompt(true);
+                        } else {
+                          // Future appointment date: execute standard payment confirm without prompt
                           setBillingSubmitting(true);
                           setBillingError('');
                           try {
                             const res = await appointmentApi.collectPayment(createdAppointment._id, {
-                              paymentMethod
+                              paymentMethod,
+                              generateToken: false
                             });
                             const apt = res?.data?.appointment || res?.appointment || createdAppointment;
-                            setFinalAppointment({ ...apt, ...createdAppointment });
+                            const consultFee = createdAppointment.consultationFee || 0;
+                            const discountAmt = (discountType !== 'none' && discountValue)
+                              ? (discountType === 'full_waiver' ? consultFee
+                                : discountType === 'percentage' ? Math.round((parseFloat(discountValue) / 100) * consultFee)
+                                : parseFloat(discountValue) || 0)
+                              : 0;
+                            const amountPaid = Math.max(0, consultFee - discountAmt);
+                            setFinalAppointment({ ...createdAppointment, ...apt, amountPaid, status: 'booked' });
                             setBillingSuccess(true);
                             setActiveStep(5);
                           } catch (err) {
@@ -2880,14 +3117,24 @@ export default function WalkInPatientModal({ isOpen, onClose, onSuccess }) {
                           } finally {
                             setBillingSubmitting(false);
                           }
-                        }}
-                        className="w-full py-3 bg-teal-600 hover:bg-teal-700 disabled:bg-slate-200 text-white text-sm font-extrabold rounded-xl shadow-md transition"
-                      >
-                        <CreditCard size={14} className="inline mr-1.5" />
-                        {billingSubmitting ? 'Processing...' : `Collect Payment ${discountType === 'none' ? `₹${createdAppointment.consultationFee || 0}` : ''} & Confirm`}
-                      </button>
-                    )}
-                  </div>
+                        }
+                      }}
+                      className="w-full py-3 bg-teal-600 hover:bg-teal-700 disabled:bg-slate-200 text-white text-sm font-extrabold rounded-xl shadow-md transition"
+                    >
+                      <CreditCard size={14} className="inline mr-1.5" />
+                      {billingSubmitting ? 'Processing...' : `Collect Payment ₹${
+                        (() => {
+                          const consultFee = createdAppointment.consultationFee || 0;
+                          const discountAmt = (discountType !== 'none' && discountValue)
+                            ? (discountType === 'full_waiver' ? consultFee
+                              : discountType === 'percentage' ? Math.round((parseFloat(discountValue) / 100) * consultFee)
+                              : parseFloat(discountValue) || 0)
+                            : 0;
+                          return Math.max(0, consultFee - discountAmt);
+                        })()
+                      } & Confirm`}
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -2902,10 +3149,13 @@ export default function WalkInPatientModal({ isOpen, onClose, onSuccess }) {
                   <CheckCircle2 size={24} className="text-white" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-extrabold text-emerald-900">Payment Confirmed! Appointment Booked.</h3>
+                  <h3 className="text-sm font-extrabold text-emerald-900">Appointment Booked Successfully!</h3>
                   <p className="text-[11px] text-emerald-700 mt-1 font-semibold">
-                    {selectedPatient?.firstName} {selectedPatient?.lastName} has been successfully registered for consultation.
-                    Token number assigned â€” patient may join the waiting queue.
+                    {selectedPatient?.firstName || selectedPatient?.fullName} has been registered for consultation.
+                    {selectedDate === new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).split('/').reverse().join('-')
+                      ? ' Patient can be checked in now to receive a token number.'
+                      : ` Scheduled for ${new Date(selectedDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}. Token will be assigned at check-in.`
+                    }
                   </p>
                 </div>
               </div>
@@ -2920,10 +3170,38 @@ export default function WalkInPatientModal({ isOpen, onClose, onSuccess }) {
                     <p className="text-teal-200 text-[10px] font-medium mt-0.5">Care. Connect. Cure.</p>
                   </div>
                   <div className="text-right">
-                    <div className="bg-white/20 rounded-2xl px-5 py-3 text-center">
-                      <p className="text-teal-100 text-[9px] font-bold uppercase">Token No.</p>
-                      <p className="text-white text-3xl font-black">{(finalAppointment || createdAppointment)?.tokenNumber || (finalAppointment || createdAppointment)?.queueToken || 'A-001'}</p>
-                    </div>
+                    {(() => {
+                      const apt = finalAppointment || createdAppointment;
+                      const isOnlineConsult = apt?.consultationMode === 'ONLINE' || consultationMode === 'ONLINE';
+                      
+                      if (isOnlineConsult) {
+                        return (
+                          <div className="bg-white/20 rounded-2xl px-5 py-3 text-center border border-white/20">
+                            <p className="text-teal-100 text-[9px] font-bold uppercase">Meeting Status</p>
+                            <p className="text-white text-xs font-semibold mt-1">Video Consultation Scheduled</p>
+                          </div>
+                        );
+                      }
+
+                      // Walk-In scenario
+                      const hasToken = apt?.tokenNumber;
+                      if (hasToken) {
+                        return (
+                          <div className="bg-white/20 rounded-2xl px-5 py-3 text-center">
+                            <p className="text-teal-100 text-[9px] font-bold uppercase">Token</p>
+                            <p className="text-white text-base font-black tracking-wide">{apt.tokenNumber}</p>
+                            <p className="text-teal-200 text-[8px] font-bold mt-0.5">✓ Checked-In</p>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="bg-white/10 rounded-2xl px-5 py-3 text-center border border-white/20">
+                          <p className="text-teal-100 text-[9px] font-bold uppercase">Token</p>
+                          <p className="text-white/70 text-xs font-semibold mt-1">Pending Check-In</p>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
 
@@ -2937,9 +3215,9 @@ export default function WalkInPatientModal({ isOpen, onClose, onSuccess }) {
                     </div>
                     {[
                       ['Patient Name', `${selectedPatient?.firstName || ''} ${selectedPatient?.lastName || ''}`.trim()],
-                      ['Patient ID', selectedPatient?.patientId || 'â€”'],
-                      ['Age / Gender', `${selectedPatient?.age || 'â€”'} Y / ${selectedPatient?.gender || 'â€”'}`],
-                      ['Phone', selectedPatient?.phone || 'â€”'],
+                      ['Patient ID', selectedPatient?.patientId || '—'],
+                      ['Age / Gender', `${selectedPatient?.age || '—'} Y / ${selectedPatient?.gender || '—'}`],
+                      ['Phone', selectedPatient?.phone || '—'],
                       ['Reason', reasonForVisitReg || 'Consultation']
                     ].map(([label, value]) => (
                       <div key={label} className="flex justify-between items-start">
@@ -2947,6 +3225,31 @@ export default function WalkInPatientModal({ isOpen, onClose, onSuccess }) {
                         <span className="text-xs font-bold text-slate-800 text-right max-w-[55%] leading-relaxed">{value}</span>
                       </div>
                     ))}
+
+                    {/* Online Consultation Card details block */}
+                    {(() => {
+                      const apt = finalAppointment || createdAppointment;
+                      const isOnlineConsult = apt?.consultationMode === 'ONLINE' || consultationMode === 'ONLINE';
+                      if (isOnlineConsult) {
+                        return (
+                          <div className="mt-4 p-4.5 bg-blue-50/50 border border-blue-100 rounded-2xl space-y-3">
+                            <div>
+                              <p className="text-[9px] text-blue-400 font-bold uppercase tracking-wide">Meeting Status</p>
+                              <p className="text-xs font-extrabold text-blue-900 mt-1 leading-snug">
+                                Meeting Link will be available 15 minutes before the scheduled consultation.
+                              </p>
+                            </div>
+                            <div className="flex justify-between items-center pt-2.5 border-t border-blue-100/50">
+                              <span className="text-[9px] text-blue-400 font-bold uppercase tracking-wide">Meeting ID</span>
+                              <span className="text-xs font-mono font-bold text-blue-900 uppercase">
+                                {apt?.virtualMeetingId || 'AUTO GENERATED'}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
                   </div>
 
                   {/* Appointment & Billing Info */}
@@ -2958,29 +3261,84 @@ export default function WalkInPatientModal({ isOpen, onClose, onSuccess }) {
                     {((() => {
                       const activeDoc = doctorsList.find(d => d._id === (chosenDoctor?._id || selectedDoctorId));
                       const apt = finalAppointment || createdAppointment;
+                      const isOnlineConsult = apt?.consultationMode === 'ONLINE' || consultationMode === 'ONLINE';
+                      
+                      // Resolve dynamic appointment status label text
+                      let dynamicStatus = 'Booked Successfully';
+                      const isTodayStr = selectedDate === new Date().toISOString().split('T')[0];
+                      if (isOnlineConsult) {
+                        dynamicStatus = 'Scheduled';
+                      } else if (apt?.tokenNumber || apt?.status === 'checked_in') {
+                        dynamicStatus = 'Checked-In';
+                      }
+
                       const rows = [
                         ['Doctor', activeDoc?.fullName || '—'],
                         ['Specialization', activeDoc?.specialization || '—'],
                         ['Date', selectedDate],
                         ['Time Slot', selectedSlot?.startTime || '—'],
+                        [
+                          'Consultation Mode',
+                          isOnlineConsult ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black bg-blue-50 text-blue-600 border border-blue-100">
+                              📹 Online Video Consultation
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black bg-emerald-50 text-emerald-600 border border-emerald-100">
+                              🧑⚕️ Walk-In Consultation
+                            </span>
+                          )
+                        ],
+                        [
+                          'Appointment Status',
+                          <span className="text-teal-700 font-extrabold">{dynamicStatus}</span>
+                        ],
                         ['Payment Method', (paymentMethod || '').replace('_', ' ').toUpperCase() || '—'],
                         ['Consultation Fee', `₹${apt?.consultationFee || 0}`],
                         ['Final Paid', `₹${apt?.amountPaid ?? apt?.consultationFee ?? 0}`]
                       ];
                       if (discountType !== 'none') {
-                        rows.splice(6, 0, ['Discount', discountType === 'full_waiver' ? 'Full Waiver (₹0)' : `${discountType} – ₹${discountValue}`]);
+                        rows.splice(8, 0, ['Discount', discountType === 'full_waiver' ? 'Full Waiver (₹0)' : `${discountType} – ₹${discountValue}`]);
                       }
                       return rows;
                     })()).map(([label, value]) => (
                       <div key={label} className="flex justify-between items-start">
                         <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide shrink-0">{label}</span>
-                        <span className="text-xs font-bold text-slate-800 text-right max-w-[55%] leading-relaxed">{value}</span>
+                        <div className="text-xs font-bold text-slate-800 text-right max-w-[65%] leading-relaxed">{value}</div>
                       </div>
                     ))}
-                    <div className="mt-3 p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex justify-between items-center">
-                      <span className="text-xs font-extrabold text-emerald-900">Status</span>
-                      <span className="bg-emerald-600 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wide">Confirmed ✓</span>
-                    </div>
+
+                    {/* Queue Information Block - ONLY show if checked in */}
+                    {(() => {
+                      const apt = finalAppointment || createdAppointment;
+                      const isOnlineConsult = apt?.consultationMode === 'ONLINE' || consultationMode === 'ONLINE';
+                      const hasToken = apt?.tokenNumber;
+                      if (!isOnlineConsult && hasToken) {
+                        return (
+                          <div className="p-3 bg-teal-50 border border-teal-200 rounded-xl flex items-center justify-between mt-2.5">
+                            <div>
+                              <p className="text-[10px] font-extrabold text-teal-900">Checked-In Queue Position</p>
+                              <p className="text-[9px] text-teal-600 font-semibold mt-0.5">
+                                Queue Position: <span className="font-extrabold">{apt?.queueNumber || 1}</span> | Checked In At: <span className="font-extrabold">{apt?.checkedInAt ? new Date(apt.checkedInAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
+                              </p>
+                            </div>
+                            <Check size={16} className="text-teal-600 shrink-0" />
+                          </div>
+                        );
+                      }
+
+                      // Pending Check-In Scenario B message
+                      if (!isOnlineConsult && !hasToken) {
+                        return (
+                          <div className="mt-2.5 p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
+                            <p className="text-[10px] text-slate-500 font-bold leading-normal">
+                              Token will be generated when the patient checks in at the clinic.
+                            </p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
                   </div>
                 </div>
 
@@ -2991,13 +3349,68 @@ export default function WalkInPatientModal({ isOpen, onClose, onSuccess }) {
                     <p className="mt-0.5">Generated: {new Date().toLocaleString('en-IN')}</p>
                   </div>
                   <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => generatePatientCardPdf(selectedPatient, finalAppointment || createdAppointment)}
-                      className="flex items-center gap-1.5 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl transition"
-                    >
-                      <Printer size={13} /> Print Card
-                    </button>
+                    {isReceptionist && (
+                      <button
+                        type="button"
+                        onClick={() => handleGoBack(4)}
+                        className="flex items-center gap-1.5 px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-bold rounded-xl transition mr-auto"
+                      >
+                        <ArrowLeft size={13} /> Back
+                      </button>
+                    )}
+
+                    {/* Walk-In Slips */}
+                    {!(finalAppointment?.consultationMode === 'ONLINE' || createdAppointment?.consultationMode === 'ONLINE' || consultationMode === 'ONLINE') ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => generatePatientCardPdf(selectedPatient, finalAppointment || createdAppointment)}
+                          className="flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition"
+                        >
+                          <Download size={13} /> Download Appointment Slip
+                        </button>
+                        {(finalAppointment || createdAppointment)?.tokenNumber && (
+                          <button
+                            type="button"
+                            onClick={() => alert('Downloading token slip...')}
+                            className="flex items-center gap-1.5 px-4 py-2 bg-teal-50 border border-teal-200 text-teal-700 text-xs font-bold rounded-xl transition"
+                          >
+                            <Download size={13} /> Download Token Slip
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => generatePatientCardPdf(selectedPatient, finalAppointment || createdAppointment)}
+                          className="flex items-center gap-1.5 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl transition"
+                        >
+                          <Printer size={13} /> Print Slip
+                        </button>
+                      </>
+                    ) : (
+                      /* Online Slips */
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => generatePatientCardPdf(selectedPatient, finalAppointment || createdAppointment)}
+                          className="flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition"
+                        >
+                          <Download size={13} /> Download Appointment Slip
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const apt = finalAppointment || createdAppointment;
+                            const msg = `Appointment Details:\nDoctor: Dr. ${doctorsList.find(d => d._id === (chosenDoctor?._id || selectedDoctorId))?.fullName || 'General'}\nDate: ${selectedDate} | Time Slot: ${selectedSlot?.startTime || '—'}\nZoom Link: ${apt?.virtualMeetingLink || 'https://teleconsult.ai-cms.com/room/'}`;
+                            navigator.clipboard.writeText(msg);
+                            alert('Meeting details copied to clipboard!');
+                          }}
+                          className="flex items-center gap-1.5 px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold rounded-xl transition"
+                        >
+                          <Send size={13} /> Share Meeting Details
+                        </button>
+                      </>
+                    )}
+
                     <button
                       type="button"
                       onClick={() => {
@@ -3150,6 +3563,138 @@ export default function WalkInPatientModal({ isOpen, onClose, onSuccess }) {
                     </div>
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+          {/* Payment Warning Confirmation Dialog */}
+          {/* Today's Same-day Token Generation Prompt Dialog */}
+          {showTokenPrompt && (
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-[9999] animate-fadeIn">
+              <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-6 shadow-xl border border-slate-100">
+                <div className="flex items-center gap-2.5 text-teal-650 font-extrabold text-base border-b border-slate-100 pb-3">
+                  <Clock size={20} />
+                  <span>Generate Queue Token?</span>
+                </div>
+
+                <div className="space-y-4">
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    This appointment is booked for <strong>TODAY</strong>. Do you want to check-in the patient and generate a queue token immediately?
+                  </p>
+
+                  <div className="space-y-3">
+                    <label className="flex items-center gap-3 p-3 rounded-2xl border border-slate-100 hover:bg-slate-50/50 cursor-pointer transition">
+                      <input 
+                        type="radio" 
+                        name="tokenPromptType" 
+                        value="now" 
+                        checked={tokenPromptType === 'now'} 
+                        onChange={() => setTokenPromptType('now')}
+                        className="text-teal-650 focus:ring-teal-500"
+                      />
+                      <div>
+                        <p className="text-xs font-bold text-slate-800">Generate Now (Auto Check-In)</p>
+                        <p className="text-[10px] text-slate-400">Mark patient as Checked-In and place in doctor's queue.</p>
+                      </div>
+                    </label>
+
+                    <label className="flex items-center gap-3 p-3 rounded-2xl border border-slate-100 hover:bg-slate-50/50 cursor-pointer transition">
+                      <input 
+                        type="radio" 
+                        name="tokenPromptType" 
+                        value="later" 
+                        checked={tokenPromptType === 'later'} 
+                        onChange={() => setTokenPromptType('later')}
+                        className="text-teal-650 focus:ring-teal-500"
+                      />
+                      <div>
+                        <p className="text-xs font-bold text-slate-800">Generate Later</p>
+                        <p className="text-[10px] text-slate-400">Confirm payment, but do not check-in until patient arrives.</p>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowTokenPrompt(false)}
+                    className="flex-1 py-2.5 border border-slate-205 hover:bg-slate-55 text-slate-500 rounded-xl text-xs font-bold transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={billingSubmitting}
+                    onClick={async () => {
+                      setBillingSubmitting(true);
+                      setBillingError('');
+                      setShowTokenPrompt(false);
+                      try {
+                        const res = await appointmentApi.collectPayment(createdAppointment._id, {
+                          paymentMethod,
+                          generateToken: tokenPromptType === 'now'
+                        });
+                        const apt = res?.data?.appointment || res?.appointment || createdAppointment;
+                        const consultFee = createdAppointment.consultationFee || 0;
+                        const discountAmt = (discountType !== 'none' && discountValue)
+                          ? (discountType === 'full_waiver' ? consultFee
+                            : discountType === 'percentage' ? Math.round((parseFloat(discountValue) / 100) * consultFee)
+                            : parseFloat(discountValue) || 0)
+                          : 0;
+                        const amountPaid = Math.max(0, consultFee - discountAmt);
+                        setFinalAppointment({ ...createdAppointment, ...apt, amountPaid });
+                        setBillingSuccess(true);
+                        setActiveStep(5);
+                      } catch (err) {
+                        setBillingError(err.response?.data?.message || 'Payment collection failed.');
+                      } finally {
+                        setBillingSubmitting(false);
+                      }
+                    }}
+                    className="flex-1 py-2.5 bg-teal-605 hover:bg-teal-700 text-white rounded-xl text-xs font-bold transition"
+                  >
+                    {billingSubmitting ? 'Processing...' : 'Confirm'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+          {paymentWarningTargetStep !== null && (
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-[9999] animate-fadeIn">
+              <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-6 shadow-xl border border-slate-100">
+                <div className="flex items-center gap-2.5 text-amber-600 font-extrabold text-base border-b border-slate-100 pb-3">
+                  <AlertCircle size={20} />
+                  <span>Confirm Navigation</span>
+                </div>
+                
+                <div className="space-y-2">
+                  <p className="text-xs font-bold text-slate-800">
+                    Payment has already been collected.
+                  </p>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    Going back may require updating payment details.
+                  </p>
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentWarningTargetStep(null)}
+                    className="flex-1 py-2.5 border border-slate-205 hover:bg-slate-50 text-slate-600 rounded-xl text-xs font-bold transition"
+                  >
+                    Stay Here
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveStep(paymentWarningTargetStep);
+                      setPaymentWarningTargetStep(null);
+                    }}
+                    className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition"
+                  >
+                    Go Back
+                  </button>
+                </div>
               </div>
             </div>
           )}

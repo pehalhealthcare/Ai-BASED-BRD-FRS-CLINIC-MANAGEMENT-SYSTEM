@@ -5,9 +5,10 @@ import {
   Search, ArrowLeft, MoreHorizontal, ArrowRight, Activity, CheckCircle, CheckCircle2,
   XCircle, User, Sparkles, AlertCircle, ShoppingBag, Plus, BookOpen, Mic, Pause,
   Play, Square, Upload, Shield, AlertTriangle, Info, Trash2, Edit2, Settings, Lock,
-  HelpCircle, Check, X, RefreshCw, Heart, FileDown, PlusCircle
+  HelpCircle, Check, X, RefreshCw, Heart, FileDown, PlusCircle, Video
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { io } from 'socket.io-client';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUserDoctor, faUser } from '@fortawesome/free-solid-svg-icons';
 
@@ -552,12 +553,73 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
   const [reeditCodeInput, setReeditCodeInput] = useState('');
   const [verifyingReedit, setVerifyingReedit] = useState(false);
 
+  // Video Consultation & WebRTC States
+  const [localStream, setLocalStream] = useState(null);
+  const [remoteStream, setRemoteStream] = useState(null);
+  const [callRinging, setCallRinging] = useState(false);
+  const [callActive, setCallActive] = useState(false);
+  const [isVideoMuted, setIsVideoMuted] = useState(false);
+  const [isAudioMuted, setIsAudioMuted] = useState(false);
+  const [screenSharingActive, setScreenSharingActive] = useState(false);
+  const [isMeetingFullscreen, setIsMeetingFullscreen] = useState(false);
+  const [isVideoMinimized, setIsVideoMinimized] = useState(false);
+  const [connectionQuality, setConnectionQuality] = useState('Excellent'); // Excellent, Good, Poor
+  const [networkLatency, setNetworkLatency] = useState(45); // ms
+  const [meetingDuration, setMeetingDuration] = useState(0);
+  const [doctorCameraCorner, setDoctorCameraCorner] = useState('bottom-right'); // top-left, top-right, bottom-left, bottom-right
+  const [callStatus, setCallStatus] = useState('idle'); // idle, calling, active, finished, no_show
+  const [isAiListening, setIsAiListening] = useState(false);
+  const [aiListeningStatus, setAiListeningStatus] = useState('Listening...'); // Understanding conversation..., Summarizing...
+  const [participantsCount, setParticipantsCount] = useState(1);
+  const [showMeetSettings, setShowMeetSettings] = useState(false);
+  const [showMeetChat, setShowMeetChat] = useState(false);
+  const [meetMessages, setMeetMessages] = useState([]);
+  const [meetInputMessage, setMeetInputMessage] = useState('');
+
+  // Video Consultation Refs
+  const localVideoRef = useRef(null);
+  const remoteVideoRef = useRef(null);
+  const peerConnectionRef = useRef(null);
+  const socketRef = useRef(null);
+  const meetingTimerRef = useRef(null);
+  const screenShareTrackRef = useRef(null);
+  const pendingIceCandidatesRef = useRef([]);
+  const localStreamRef = useRef(null); // Always holds current local stream (avoids stale closure in socket handlers)
+  const appointmentRef = useRef(null); // Mutable ref to latest appointment — avoids stale closures in socket handlers
+  const doctorStartSharingVideoRef = useRef(null);
+
+  // Keep localStreamRef in sync with localStream state
+  useEffect(() => {
+    localStreamRef.current = localStream;
+    if (localStream && localVideoRef.current) {
+      localVideoRef.current.srcObject = localStream;
+      localVideoRef.current.play().catch(() => {});
+      console.log('Doctor Local Stream Ready: Local video attached.');
+    }
+  }, [localStream]);
+
+  // Keep appointmentRef in sync with appointment state
+  useEffect(() => {
+    appointmentRef.current = appointment;
+  }, [appointment]);
+
+  // Sync remoteStream -> remoteVideoRef whenever remote track arrives
+  useEffect(() => {
+    if (remoteStream && remoteVideoRef.current) {
+      remoteVideoRef.current.srcObject = remoteStream;
+      remoteVideoRef.current.play().catch(() => {});
+      console.log('Remote Video Rendering: Remote stream attached via effect.');
+    }
+  }, [remoteStream]);
+
   // AI Voice Consultation states (Ambient Autofill)
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [recordingLanguage, setRecordingLanguage] = useState('en-US');
   const [voiceUploading, setVoiceUploading] = useState(false);
+  const [selectedAmbientAudioFile, setSelectedAmbientAudioFile] = useState(null);
+  const [ambientTranscriptReady, setAmbientTranscriptReady] = useState(false);
 
   // Field-level Speech-to-Text states (Dedicated Voice Dictation)
   const [isDictating, setIsDictating] = useState(false);
@@ -575,6 +637,8 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
   const chunksRef = useRef([]);
   const recognitionRef = useRef(null);
   const timerRef = useRef(null);
+  const ambientFileInputRef = useRef(null);
+  const ambientRecordedBlobRef = useRef(null);
 
   // Field-level dictation refs
   const dictationRecognitionRef = useRef(null);
@@ -599,6 +663,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
   const clinicalSummaryFeature = getFeatureDetail('clinical_summary');
   const labRecommendationsFeature = getFeatureDetail('lab_recommendations');
   const voiceToTextFeature = getFeatureDetail('voice_to_text');
+  const onlineConsultationFeature = getFeatureDetail('online_consultation');
 
   const [globalLabTests, setGlobalLabTests] = useState([]);
   const [isSearchingLabs, setIsSearchingLabs] = useState(false);
@@ -838,6 +903,414 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
     if (appointmentId) { loadAppointmentWorkflow(); return; }
     setLoading(false);
   }, [appointmentId, consultationId]);
+  // Component unmount cleanup — stop all media and close peer connection
+  useEffect(() => {
+    return () => {
+      cleanupMeetingStreams();
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+    };
+  }, []); // Empty array = only runs on unmount
+
+  // ── Telemedicine / WebRTC Signaling Lifecycle ──
+  useEffect(() => {
+    if (!appointment || appointment.consultationMode !== 'ONLINE') return;
+
+    const meetingId = appointment._id;
+    const socketUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+    const socket = io(socketUrl, { transports: ['websocket', 'polling'] });
+    socketRef.current = socket;
+
+    // ── Inline helpers (use refs only — never stale state) ──
+
+    const captureLocalMedia = async () => {
+      if (localStreamRef.current) return localStreamRef.current;
+      try {
+        console.log('Doctor Local Stream Ready: Requesting camera & mic...');
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        localStreamRef.current = stream;
+        setLocalStream(stream);
+        console.log('Doctor: Camera & mic granted.');
+        return stream;
+      } catch (err) {
+        console.error('Doctor: Camera/mic access failed:', err);
+        toast.error('Cannot access camera or microphone. Check browser permissions.');
+        return null;
+      }
+    };
+
+    const buildPeerConnectionAndOffer = async () => {
+      const stream = localStreamRef.current; // Do NOT call captureLocalMedia automatically!
+
+      // Close any existing peer connection
+      if (peerConnectionRef.current) {
+        peerConnectionRef.current.close();
+        peerConnectionRef.current = null;
+      }
+      pendingIceCandidatesRef.current = [];
+
+      console.log('Doctor Offer Created: Building RTCPeerConnection...');
+      const pc = new RTCPeerConnection({
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'stun:stun2.l.google.com:19302' }
+        ]
+      });
+      peerConnectionRef.current = pc;
+
+      // Add local tracks to the peer connection if stream exists
+      if (stream) {
+        stream.getTracks().forEach(track => pc.addTrack(track, stream));
+        console.log('Media Tracks Added:', stream.getTracks().map(t => t.kind));
+      } else {
+        console.log('Doctor: No local stream yet. Creating receive-only transceivers.');
+        try {
+          pc.addTransceiver('video', { direction: 'recvonly' });
+          pc.addTransceiver('audio', { direction: 'recvonly' });
+        } catch (e) {
+          console.warn('Doctor: failed to add receive-only transceivers:', e);
+        }
+      }
+
+      pc.onicecandidate = (event) => {
+        if (event.candidate && socketRef.current?.connected) {
+          console.log('ICE Candidate Sent: Emitting to patient...');
+          socketRef.current.emit('webrtc_signal', { meetingId, signal: { candidate: event.candidate } });
+        }
+      };
+
+      pc.oniceconnectionstatechange = () => {
+        const state = pc.iceConnectionState;
+        console.log(`Connection State Changed: ICE = ${state}`);
+        if (state === 'connected' || state === 'completed') {
+          setCallStatus('connected');
+          toast.success('✅ Video connection established.');
+        } else if (state === 'disconnected') {
+          setCallStatus('reconnecting');
+          try { pc.restartIce(); } catch (_) {}
+        } else if (state === 'failed') {
+          setCallStatus('failed');
+          toast.error('Video connection failed — retrying...');
+          try { pc.restartIce(); } catch (_) {}
+        }
+      };
+
+      pc.onconnectionstatechange = () => {
+        console.log(`Peer Connected: Connection state = ${pc.connectionState}`);
+      };
+
+      pc.ontrack = (event) => {
+        console.log('Remote Track Attached: Patient stream received!');
+        const remoteS = event.streams[0];
+        setRemoteStream(remoteS);
+        if (remoteVideoRef.current) {
+          remoteVideoRef.current.srcObject = remoteS;
+          remoteVideoRef.current.play().catch(() => {});
+        }
+        console.log('Remote Video Rendering: Patient video is live.');
+        toast.success('🎥 Patient camera connected!');
+      };
+
+      try {
+        console.log('Doctor Offer Created: Generating offer...');
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        socketRef.current.emit('webrtc_signal', { meetingId, signal: { sdp: pc.localDescription } });
+        console.log('Doctor: Offer emitted to patient.');
+      } catch (err) {
+        console.error('Doctor: Failed to create/send offer:', err);
+      }
+    };
+
+    // ── Socket Event Handlers ──
+
+    socket.on('connect', async () => {
+      console.log('Doctor: Socket connected:', socket.id);
+      socket.emit('join_user', user?._id);
+      socket.emit('join_meeting', meetingId);
+      // Wait for doctor to manually click "Share Video" before capturing camera/mic
+    });
+
+    socket.on('patient_joined', async (data) => {
+      console.log('Doctor: ✅ patient_joined received!', data);
+      toast.success('👤 Patient joined the meeting!');
+      setTimeout(() => toast('🔒 Establishing secure connection...'), 600);
+      setCallStatus('connecting');
+      setCallActive(true);
+      setParticipantsCount(2);
+      // Build peer connection and send offer — everything uses refs, no stale closures
+      await buildPeerConnectionAndOffer();
+    });
+
+    socket.on('call_rejected', () => {
+      toast.error('Patient declined the call.');
+      setCallStatus('no_show');
+    });
+
+    socket.on('webrtc_signal', async (data) => {
+      const { signal } = data;
+      const pc = peerConnectionRef.current;
+      try {
+        if (signal.sdp) {
+          if (!pc) {
+            console.warn('Doctor: Received SDP but no peer connection yet — ignoring.');
+            return;
+          }
+          console.log('Doctor: Received SDP, type:', signal.sdp.type);
+          await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+          console.log('Answer Received: Remote description set on doctor side.');
+          // Flush any ICE candidates that arrived before remote description
+          for (const c of pendingIceCandidatesRef.current) {
+            try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch (_) {}
+          }
+          pendingIceCandidatesRef.current = [];
+          if (signal.sdp.type === 'offer') {
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            socket.emit('webrtc_signal', { meetingId, signal: { sdp: pc.localDescription } });
+          }
+        } else if (signal.candidate) {
+          if (pc && pc.remoteDescription) {
+            try { await pc.addIceCandidate(new RTCIceCandidate(signal.candidate)); } catch (_) {}
+            console.log('ICE Candidate Received: Added.');
+          } else {
+            pendingIceCandidatesRef.current.push(signal.candidate);
+            console.log('Doctor: ICE candidate queued (no remote desc yet).');
+          }
+        }
+      } catch (err) {
+        console.error('Doctor: WebRTC signal error:', err);
+      }
+    });
+
+    socket.on('meeting_ended', () => {
+      toast('Patient has left the meeting.', { icon: '👋' });
+      setCallStatus('finished');
+      setCallActive(false);
+      cleanupMeetingStreams();
+    });
+
+    socket.on('disconnect', (reason) => {
+      console.log('Doctor: Socket disconnected:', reason);
+    });
+
+    return () => {
+      // Do NOT cleanup streams here — appointment status changes re-run this effect
+      // and would kill the WebRTC connection mid-session.
+      // Streams are cleaned up only when the component unmounts (handled separately).
+      socket.disconnect();
+    };
+  // Only re-init socket when appointment ID or mode changes — NOT on every status update!
+  }, [appointment?._id, appointment?.consultationMode]);
+
+  // startLocalPreview exposed for manual trigger from UI buttons
+  const startLocalPreview = async () => {
+    if (localStreamRef.current) return localStreamRef.current;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      localStreamRef.current = stream;
+      setLocalStream(stream);
+      return stream;
+    } catch (err) {
+      toast.error('Unable to access camera or microphone.');
+      return null;
+    }
+  };
+
+  const doctorStartSharingVideo = async () => {
+    toast.loading('Starting video share...');
+    const stream = await startLocalPreview();
+    toast.dismiss();
+    if (!stream) return;
+
+    const pc = peerConnectionRef.current;
+    if (pc) {
+      console.log('Doctor: Adding tracks to active peer connection and setting transceivers to sendrecv...');
+      
+      // Explicitly set all transceivers to sendrecv
+      pc.getTransceivers().forEach(transceiver => {
+        transceiver.direction = 'sendrecv';
+      });
+
+      // Add tracks
+      stream.getTracks().forEach(track => {
+        const senders = pc.getSenders();
+        const existingSender = senders.find(s => s.track && s.track.kind === track.kind);
+        if (existingSender) {
+          existingSender.replaceTrack(track);
+        } else {
+          // Try to find a transceiver without a track of this kind and replace it, or add it
+          const transceiver = pc.getTransceivers().find(t => t.sender && !t.sender.track && t.receiver.track?.kind === track.kind);
+          if (transceiver) {
+            transceiver.sender.replaceTrack(track);
+            transceiver.direction = 'sendrecv';
+          } else {
+            pc.addTrack(track, stream);
+          }
+        }
+      });
+
+      // Renegotiate - create a new offer
+      try {
+        console.log('Doctor: Renegotiating and generating new offer...');
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        if (socketRef.current) {
+          socketRef.current.emit('webrtc_signal', { meetingId: appointment._id, signal: { sdp: pc.localDescription } });
+        }
+        toast.success('Your video is now being shared!');
+      } catch (err) {
+        console.error('Doctor: Renegotiation failed:', err);
+      }
+    } else {
+      console.log('Doctor: Previewing local camera. Waiting for patient to join.');
+      toast.success('Camera preview started. Your video will be shared when the patient joins.');
+    }
+  };
+
+  useEffect(() => {
+    doctorStartSharingVideoRef.current = doctorStartSharingVideo;
+  });
+
+  // Legacy wrappers — kept for UI button compatibility
+  const createPeerConnectionAndOffer = async () => { /* handled inline in useEffect */ };
+  const initiateWebrtcConnection = async (startOffer = false) => { /* handled inline in useEffect */ };
+
+  const startMeetingTimer = () => {
+    if (meetingTimerRef.current) clearInterval(meetingTimerRef.current);
+    meetingTimerRef.current = setInterval(() => {
+      setMeetingDuration(prev => prev + 1);
+    }, 1000);
+  };
+
+  const cleanupMeetingStreams = () => {
+    if (meetingTimerRef.current) {
+      clearInterval(meetingTimerRef.current);
+      meetingTimerRef.current = null;
+    }
+    // Use refs to get current streams (state may be stale in closure)
+    const ls = localStreamRef.current;
+    if (ls) {
+      ls.getTracks().forEach(t => t.stop());
+      localStreamRef.current = null;
+      setLocalStream(null);
+    }
+    if (peerConnectionRef.current) {
+      peerConnectionRef.current.close();
+      peerConnectionRef.current = null;
+    }
+    setRemoteStream(null);
+    setCallActive(false);
+    setCallStatus('idle');
+    setMeetingDuration(0);
+    setIsAiListening(false);
+  };
+
+  // Telemedicine meeting control actions
+  const triggerReadyStatus = () => {
+    if (socketRef.current && appointment) {
+      socketRef.current.emit('doctor_ready', {
+        meetingId: appointment._id,
+        doctorId: doctor?._id,
+        doctorName: doctorName
+      });
+      toast.success('Patient notified that you are ready.');
+    }
+  };
+
+  const handleCallPatient = () => {
+    if (socketRef.current && appointment) {
+      setCallStatus('calling');
+      socketRef.current.emit('call_patient', {
+        meetingId: appointment._id,
+        patientId: patient?._id || patient,
+        doctorId: doctor?._id,
+        doctorName: doctorName
+      });
+      toast.success(`Calling ${patientName}...`);
+    }
+  };
+
+  const toggleMuteVideo = () => {
+    if (localStream) {
+      localStream.getVideoTracks().forEach(track => {
+        track.enabled = !track.enabled;
+      });
+      setIsVideoMuted(prev => !prev);
+    }
+  };
+
+  const toggleMuteAudio = () => {
+    if (localStream) {
+      localStream.getAudioTracks().forEach(track => {
+        track.enabled = !track.enabled;
+      });
+      setIsAudioMuted(prev => !prev);
+    }
+  };
+
+  const toggleScreenShare = async () => {
+    if (!screenSharingActive) {
+      try {
+        const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+        const track = stream.getVideoTracks()[0];
+        screenShareTrackRef.current = track;
+
+        if (peerConnectionRef.current) {
+          const senders = peerConnectionRef.current.getSenders();
+          const videoSender = senders.find(s => s.track && s.track.kind === 'video');
+          if (videoSender) {
+            videoSender.replaceTrack(track);
+          }
+        }
+        track.onended = () => stopScreenSharing();
+        setScreenSharingActive(true);
+      } catch (err) {
+        console.error('Screen sharing failed:', err);
+      }
+    } else {
+      stopScreenSharing();
+    }
+  };
+
+  const stopScreenSharing = () => {
+    if (screenShareTrackRef.current) {
+      screenShareTrackRef.current.stop();
+      screenShareTrackRef.current = null;
+    }
+    if (localStream && peerConnectionRef.current) {
+      const originalVideoTrack = localStream.getVideoTracks()[0];
+      const senders = peerConnectionRef.current.getSenders();
+      const videoSender = senders.find(s => s.track && s.track.kind === 'video');
+      if (videoSender && originalVideoTrack) {
+        videoSender.replaceTrack(originalVideoTrack);
+      }
+    }
+    setScreenSharingActive(false);
+  };
+
+  const toggleAiListening = () => {
+    setIsAiListening(prev => {
+      const next = !prev;
+      if (next) {
+        setAiListeningStatus('Listening...');
+        // simulate transcription status updates
+        setTimeout(() => setAiListeningStatus('Understanding conversation...'), 3000);
+        setTimeout(() => setAiListeningStatus('Suggesting diagnoses...'), 7000);
+      }
+      return next;
+    });
+  };
+
+  const formatMeetingTime = (secs) => {
+    const mm = Math.floor(secs / 60).toString().padStart(2, '0');
+    const ss = (secs % 60).toString().padStart(2, '0');
+    return `${mm}:${ss}`;
+  };
+
 
   const needsCheckIn = appointment && !consultation?._id && !['checked_in', 'late_check_in', 'called', 'in_consultation', 'completed'].includes(appointment.status);
 
@@ -1164,27 +1637,14 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
   };
 
   const handleResumeConsultation = async () => {
-    // Determine the token ID to resume
-    let resolvedTokenId = appointment?.meta?.tokenId || appointment?.tokenId || (consultation && (consultation.tokenId || consultation.meta?.tokenId));
-    
-    if (!resolvedTokenId && appointment?._id) {
-      try {
-        const queueRes = await appointmentApi.getDoctorQueue(user?.doctorId || doctor?._id);
-        const sortedQueue = queueRes.data?.queue || queueRes.queue || [];
-        const match = sortedQueue.find(t => String(t.appointmentId?._id || t.appointmentId) === String(appointment._id));
-        if (match) resolvedTokenId = match._id;
-      } catch (e) {
-        console.error(e);
-      }
-    }
-
-    if (!resolvedTokenId) {
-      toast.error('Token ID not found. Unable to resume consultation.');
+    const apptId = appointment?._id || appointmentId;
+    if (!apptId) {
+      toast.error('Appointment ID not found. Unable to resume consultation.');
       return;
     }
 
     try {
-      await appointmentApi.revisitConsultation(resolvedTokenId);
+      await appointmentApi.resumeConsultation(apptId);
       toast.success('Consultation reopened for editing.');
       setShowProgressModal(false);
       
@@ -1297,7 +1757,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
   };
 
   // Speech Recognition Implementation (Toolbar & Inline inputs)
-  const startVoiceDictation = (fieldPath = null) => {
+  const startVoiceDictation = async (fieldPath = null) => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
       toast.error('Your browser does not support Speech Recognition.');
@@ -1390,6 +1850,21 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
 
       rec.start();
       recognitionRef.current = rec;
+
+      // Also start MediaRecorder in parallel for Whisper upload
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const mr = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+        chunksRef.current = [];
+        mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+        mr.onstop = () => {
+          ambientRecordedBlobRef.current = new Blob(chunksRef.current, { type: 'audio/webm' });
+          stream.getTracks().forEach(t => t.stop());
+          setAmbientTranscriptReady(false); // reset so user can re-upload
+        };
+        mr.start();
+        mediaRecorderRef.current = mr;
+      } catch (_) { /* Mic permission may already be granted; ignore silent errors */ }
     } catch (e) {
       console.error(e);
       toast.error('Failed to initialize speech recognition.');
@@ -1401,6 +1876,11 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
       recognitionRef.current.stop();
       recognitionRef.current = null;
     }
+    // Stop MediaRecorder and let onstop capture the blob
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+    mediaRecorderRef.current = null;
     setIsRecording(false);
     setIsPaused(false);
     if (timerRef.current) {
@@ -1426,7 +1906,63 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
     }
   };
 
-  // Dedicated Field-level STT functions
+  // Whisper upload — sends ambient audio (recorded blob or uploaded file) to backend
+  const handleWhisperUpload = async (fileOverride = null) => {
+    if (!consultation?._id) {
+      toast.error('Please save the consultation first before transcribing.');
+      return;
+    }
+    const audioFile = fileOverride || selectedAmbientAudioFile || (ambientRecordedBlobRef.current
+      ? new File([ambientRecordedBlobRef.current], 'ambient_recording.webm', { type: 'audio/webm' })
+      : null);
+    if (!audioFile) {
+      toast.error('No audio file selected. Please record or upload audio first.');
+      return;
+    }
+    try {
+      setVoiceUploading(true);
+      const formData = new FormData();
+      formData.append('audio', audioFile);
+      formData.append('language', recordingLanguage === 'hi-IN' ? 'hi' : 'en');
+      const result = await uploadConsultationVoiceNote(consultation._id, formData);
+      if (result?.consultation) {
+        const c = result.consultation;
+        // Update transcript text
+        if (c.transcript_text) {
+          setForm(prev => ({ ...prev, transcript_text: c.transcript_text }));
+        }
+        // Merge AI SOAP note draft
+        if (c.ai_soap_note) {
+          const soap = c.ai_soap_note;
+          setForm(prev => ({ ...prev, ai_soap_note: { ...prev.ai_soap_note, ...soap } }));
+          // Auto-fill chief complaint from subjective if empty
+          if (soap.subjective && !form.chiefComplaint?.trim()) {
+            setForm(prev => ({ ...prev, chiefComplaint: soap.subjective.substring(0, 200) }));
+          }
+          // Auto-fill clinical notes from subjective + objective
+          const autoNotes = [soap.subjective, soap.objective].filter(Boolean).join('\n\n');
+          if (autoNotes) {
+            setForm(prev => ({ ...prev, clinicalNotes: autoNotes }));
+          }
+          // Auto-fill diagnosis from assessment
+          if (soap.assessment && !form.diagnosis?.primary?.trim()) {
+            setForm(prev => ({ ...prev, diagnosis: { ...prev.diagnosis, primary: soap.assessment.substring(0, 200) } }));
+          }
+          // Auto-fill treatment plan from plan
+          if (soap.plan) setTreatmentPlanText(soap.plan);
+        }
+        setIsDirty(true);
+        setAmbientTranscriptReady(true);
+        toast.success('✅ Whisper transcription complete! Form fields auto-filled.');
+      }
+    } catch (err) {
+      console.error('Whisper upload error:', err);
+      toast.error('Transcription failed. Please try again or check AI service.');
+    } finally {
+      setVoiceUploading(false);
+    }
+  };
+
   const startFieldDictation = (fieldPath) => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
@@ -1781,6 +2317,271 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
         </div>
       </div>
 
+
+
+      {/* ─── Telemedicine Video Consultation Workspace ─── */}
+      {appointment?.consultationMode === 'ONLINE' && (() => {
+        // Enforce visibility rules (include doctor_ready, ready to start, and patient_joined_waiting)
+        const isEligibleStatus = ['called', 'in_consultation', 'waiting', 'checked_in', 'ready', 'doctor_ready', 'patient_joined_waiting', 'booked', 'confirmed'].includes(appointment?.status?.toLowerCase());
+        const hasOnlineSubscription = onlineConsultationFeature.enabled;
+
+        if (!hasOnlineSubscription) {
+          return (
+            <div className="mx-6 mt-4">
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
+                <div className="space-y-3 max-w-xl text-left">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 bg-rose-500/10 border border-rose-500/25 rounded-full text-xs font-black text-rose-400 uppercase tracking-widest">
+                    <span>🔒 Locked</span> Premium Feature
+                  </div>
+                  <h2 className="text-lg font-black text-white">Online Video Consultation</h2>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    Your clinic subscription does not include secure video consultation. Upgrade your subscription to unlock:
+                  </p>
+                  <ul className="grid grid-cols-2 gap-2.5 text-[11px] text-slate-300 font-bold">
+                    <li className="flex items-center gap-1.5">⚡ HD Video Consultation</li>
+                    <li className="flex items-center gap-1.5">🎙️ AI Ambient Listening</li>
+                    <li className="flex items-center gap-1.5">📝 Live Whisper Dictation</li>
+                    <li className="flex items-center gap-1.5">🤖 AI Consultation Summary</li>
+                    <li className="flex items-center gap-1.5">⏺️ Recording</li>
+                    <li className="flex items-center gap-1.5">🚪 Virtual Waiting Room</li>
+                  </ul>
+                </div>
+                <button
+                  onClick={() => alert('Plan upgrades are managed inside Super Admin settings.')}
+                  className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-black uppercase tracking-wider transition shadow-lg shadow-indigo-900/30"
+                >
+                  Premium Upgrade
+                </button>
+              </div>
+            </div>
+          );
+        }
+
+        if (isEligibleStatus) {
+          return (
+            <div className="mx-6 mt-4 grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4">
+              {/* Telemedicine Video Workspace Box */}
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 flex flex-col relative min-h-[380px] shadow-lg">
+                {/* Meeting Stats Header */}
+                <div className="absolute top-4 left-4 z-20 flex items-center gap-2">
+                  <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider flex items-center gap-1 ${
+                    connectionQuality === 'Excellent' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'
+                  }`}>
+                    🟢 {connectionQuality} Connection
+                  </span>
+                  <span className="bg-slate-850 border border-slate-700/50 text-white px-2.5 py-1 rounded-full text-[10px] font-mono font-bold">
+                    {formatMeetingTime(meetingDuration)}
+                  </span>
+                  <span className="bg-rose-500/20 text-rose-400 border border-rose-500/25 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider flex items-center gap-1">
+                    🔴 REC
+                  </span>
+                </div>
+
+                <div className="absolute top-4 right-4 z-20">
+                  <button
+                    onClick={() => setIsMeetingFullscreen(prev => !prev)}
+                    className="p-2 bg-slate-850 hover:bg-slate-750 text-slate-300 rounded-xl transition border border-slate-700/50"
+                  >
+                    {isMeetingFullscreen ? 'Collapse' : 'Expand View'}
+                  </button>
+                </div>
+
+                {/* Patient Main Video Display Frame */}
+                <div className="flex-1 rounded-2xl bg-slate-950 overflow-hidden relative flex items-center justify-center border border-slate-800/40">
+                  {/* Remote video is ALWAYS rendered so remoteVideoRef is available for ontrack */}
+                  <video
+                    ref={remoteVideoRef}
+                    autoPlay
+                    playsInline
+                    className={`w-full h-full object-cover ${remoteStream ? 'block' : 'hidden'}`}
+                  />
+                  {/* Placeholder shown only when no remote stream yet */}
+                  {!remoteStream && (
+                    <div className="flex flex-col items-center justify-center text-center space-y-4 px-4 py-8 absolute inset-0">
+                      <div className={`w-16 h-16 rounded-full border flex items-center justify-center ${
+                        callStatus === 'connected' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' :
+                        callStatus === 'connecting' ? 'bg-amber-500/10 border-amber-500/20 text-amber-400' :
+                        'bg-indigo-500/10 border-indigo-500/20 text-indigo-400'
+                      }`}>
+                        <Video size={28} className={callStatus === 'connecting' ? 'animate-pulse' : ''} />
+                      </div>
+                      <h4 className="text-sm font-black text-white">Video Consultation Room</h4>
+                      <div className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                        callStatus === 'connected' ? 'bg-emerald-500/15 text-emerald-400' :
+                        callStatus === 'connecting' ? 'bg-amber-500/15 text-amber-400' :
+                        callStatus === 'calling' ? 'bg-blue-500/15 text-blue-400' :
+                        callStatus === 'reconnecting' ? 'bg-orange-500/15 text-orange-400' :
+                        callStatus === 'failed' ? 'bg-rose-500/15 text-rose-400' :
+                        'bg-slate-700/50 text-slate-400'
+                      }`}>
+                        {callStatus === 'calling' && '📞 Ringing patient...'}
+                        {callStatus === 'connecting' && '🔒 Patient joined — negotiating...'}
+                        {callStatus === 'connected' && '✅ Patient Connected'}
+                        {callStatus === 'reconnecting' && '🔄 Reconnecting...'}
+                        {callStatus === 'failed' && '❌ Connection Failed — Retrying...'}
+                        {callStatus === 'finished' && '👋 Consultation Ended'}
+                        {callStatus === 'no_show' && '❌ Patient did not join'}
+                        {(callStatus === 'idle' || !callStatus) && (localStream ? '📷 Camera ready — waiting for patient' : '⏳ Initializing camera...')}
+                      </div>
+                      
+                      {(callStatus === 'idle' || callStatus === 'calling' || !callStatus) && (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={triggerReadyStatus}
+                            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-bold transition"
+                          >
+                            Notify Ready
+                          </button>
+                          <button
+                            onClick={handleCallPatient}
+                            className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-black uppercase tracking-wider transition shadow-md shadow-indigo-900/30"
+                          >
+                            {callStatus === 'calling' ? 'Calling...' : 'Call Patient'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Remote Video Overlay Indicator */}
+                  {callActive && (
+                    <div className="absolute bottom-4 left-4 bg-slate-950/65 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/[0.05] text-[10px] font-bold text-white z-20">
+                      {patientName} (Patient)
+                    </div>
+                  )}
+
+                  {/* Doctor Local Camera Preview / Share Video Button Overlay */}
+                  {!localStream && (
+                    <div className="absolute top-16 right-4 z-40 bg-slate-900/90 border border-slate-700/60 p-3.5 rounded-2xl flex flex-col items-center justify-center gap-2 shadow-xl animate-pulse">
+                      <p className="text-[9px] text-slate-300 font-extrabold uppercase tracking-wider">Your Video is Off</p>
+                      <button
+                        onClick={doctorStartSharingVideo}
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black uppercase tracking-wider rounded-xl shadow-md transition flex items-center gap-1.5"
+                      >
+                        📹 Share My Video
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Doctor Local Camera PiP — always visible when stream is active, even while waiting for patient */}
+                  {localStream && (
+                    <div className={`absolute z-30 w-36 h-28 rounded-2xl border border-white/[0.15] bg-slate-950 overflow-hidden shadow-2xl ${
+                      doctorCameraCorner === 'bottom-right' ? 'bottom-4 right-4' :
+                      doctorCameraCorner === 'top-right' ? 'top-16 right-4' :
+                      doctorCameraCorner === 'top-left' ? 'top-16 left-4' : 'bottom-4 left-4'
+                    }`}>
+                      <video
+                        ref={localVideoRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute bottom-1.5 left-1.5 bg-slate-950/70 backdrop-blur-sm px-1.5 py-0.5 rounded-lg text-[8px] font-bold text-white">
+                        You (Doctor)
+                      </div>
+                      <button
+                        onClick={() => {
+                          const corners = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
+                          const nextIdx = (corners.indexOf(doctorCameraCorner) + 1) % corners.length;
+                          setDoctorCameraCorner(corners[nextIdx]);
+                        }}
+                        className="absolute top-1 right-1 p-0.5 bg-slate-900/80 rounded text-[9px] text-white hover:bg-slate-800"
+                      >
+                        🔄
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Healthcare Meeting Controls Bottom Toolbar */}
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                  <button
+                    onClick={toggleMuteAudio}
+                    className={`p-2.5 rounded-xl transition ${isAudioMuted ? 'bg-rose-650 text-white' : 'bg-slate-800 hover:bg-slate-750 text-slate-200'}`}
+                    title={isAudioMuted ? 'Unmute Mic' : 'Mute Mic'}
+                  >
+                    🎙️
+                  </button>
+                  <button
+                    onClick={toggleMuteVideo}
+                    className={`p-2.5 rounded-xl transition ${isVideoMuted ? 'bg-rose-650 text-white' : 'bg-slate-800 hover:bg-slate-750 text-slate-200'}`}
+                    title={isVideoMuted ? 'Show Video' : 'Hide Video'}
+                  >
+                    📹
+                  </button>
+                  <button
+                    onClick={toggleScreenShare}
+                    className={`p-2.5 rounded-xl transition ${screenSharingActive ? 'bg-teal-600 text-white' : 'bg-slate-800 hover:bg-slate-750 text-slate-200'}`}
+                    title="Share Screen"
+                  >
+                    🖥️
+                  </button>
+                  <button
+                    onClick={toggleAiListening}
+                    className={`p-2.5 rounded-xl transition ${isAiListening ? 'bg-indigo-600 text-white' : 'bg-slate-800 hover:bg-slate-750 text-slate-200'}`}
+                    title="Ambient AI Helper"
+                  >
+                    🤖
+                  </button>
+                  <button
+                    onClick={cleanupMeetingStreams}
+                    className="p-2.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl transition font-bold text-xs"
+                    title="End Call Only"
+                  >
+                    Disconnect
+                  </button>
+                </div>
+              </div>
+
+              {/* Side Ambient Listening Waveform Card Panel */}
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-lg flex flex-col justify-between text-left text-white">
+                <div>
+                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-450 mb-4">AI Clinical Assistant</h4>
+                  
+                  {isAiListening ? (
+                    <div className="space-y-4">
+                      {/* Animated Circular Pulse Waveform Indicator */}
+                      <div className="flex flex-col items-center py-4">
+                        <div className="relative w-24 h-24 rounded-full bg-indigo-500/10 border border-indigo-500/25 flex items-center justify-center animate-pulse">
+                          <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-indigo-500 to-cyan-400 flex items-center justify-center opacity-85 shadow-lg shadow-indigo-500/40">
+                            <span className="text-2xl">⚡</span>
+                          </div>
+                        </div>
+                        <p className="text-xs font-bold text-indigo-400 mt-4 animate-bounce">{aiListeningStatus}</p>
+                      </div>
+
+                      <div className="space-y-2 text-xs text-slate-350">
+                        <p>👂 Ambient Listening Active</p>
+                        <p className="text-[10px] text-slate-450">AI is analyzing conversation details in real time to populate EMR clinical notes automatically.</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex-1 flex flex-col items-center justify-center text-center space-y-3.5 py-8">
+                      <div className="w-12 h-12 rounded-xl bg-slate-800/80 border border-slate-700/50 flex items-center justify-center text-slate-500">
+                        🤖
+                      </div>
+                      <p className="text-xs text-slate-400">AI Ambient listening is currently inactive.</p>
+                      <button
+                        onClick={toggleAiListening}
+                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-550 text-white rounded-xl text-xs font-bold transition"
+                      >
+                        Activate AI Assistant
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="text-[10px] text-slate-500 border-t border-slate-800 pt-3">
+                  Ambient listening complies with HIPAA secure privacy policies. Raw records are not stored.
+                </div>
+              </div>
+            </div>
+          );
+        }
+        return null;
+      })()}
+
       {/* ─── Premium AI Voice-to-Text persistent bar ─── */}
       <div className="px-6 pt-4 shrink-0">
         {!voiceToTextFeature.enabled ? (
@@ -1850,9 +2651,55 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                   </button>
                 )}
 
-                <button className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl text-xs font-bold transition flex items-center gap-1.5">
-                  <Upload size={13} /> Upload Audio
+                {/* Hidden file input for Whisper upload */}
+                <input
+                  ref={ambientFileInputRef}
+                  type="file"
+                  accept="audio/*,.webm,.mp3,.wav,.m4a,.ogg"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) {
+                      setSelectedAmbientAudioFile(f);
+                      setAmbientTranscriptReady(false);
+                      ambientRecordedBlobRef.current = null;
+                    }
+                  }}
+                />
+
+                <button
+                  onClick={() => ambientFileInputRef.current?.click()}
+                  className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl text-xs font-bold transition flex items-center gap-1.5"
+                  title="Upload audio file for Whisper transcription"
+                >
+                  <Upload size={13} />
+                  {selectedAmbientAudioFile ? (
+                    <span className="max-w-[100px] truncate text-indigo-600">{selectedAmbientAudioFile.name}</span>
+                  ) : 'Upload Audio'}
                 </button>
+
+                {/* Transcribe with Whisper button — appears when audio is ready */}
+                {(selectedAmbientAudioFile || ambientRecordedBlobRef.current) && !isRecording && (
+                  <button
+                    onClick={() => handleWhisperUpload()}
+                    disabled={voiceUploading}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                      voiceUploading
+                        ? 'bg-violet-100 text-violet-500 cursor-not-allowed'
+                        : 'bg-violet-600 hover:bg-violet-500 text-white shadow-sm shadow-violet-900/20'
+                    }`}
+                    title="Send audio to Whisper AI for transcription and auto-fill"
+                  >
+                    {voiceUploading ? (
+                      <>
+                        <svg className="animate-spin w-3 h-3" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                        Transcribing...
+                      </>
+                    ) : (
+                      <><span>🤖</span> Transcribe (Whisper)</>
+                    )}
+                  </button>
+                )}
 
                 <select
                   value={recordingLanguage}
@@ -1876,11 +2723,18 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                   <span className="text-xs font-bold text-slate-600">Auto fill on</span>
                   <input type="checkbox" defaultChecked className="rounded border-slate-205 text-indigo-655 focus:ring-indigo-505" />
                 </div>
+
               </div>
             </div>
 
             <p className="text-[10px] text-slate-455 font-semibold flex items-center justify-between mt-1">
-              <span>✨ AI is transcribing your speech and filling the relevant fields automatically. You can edit anytime.</span>
+              {ambientTranscriptReady ? (
+                <span className="text-emerald-600 font-bold flex items-center gap-1">
+                  ✅ Whisper transcription complete! Fields auto-filled from AI. Review and edit as needed.
+                </span>
+              ) : (
+                <span>✨ Record live or upload an audio file, then click <strong>Transcribe (Whisper)</strong> to auto-fill all fields.</span>
+              )}
               <a href="#" className="text-indigo-650 hover:underline">Learn more</a>
             </p>
           </div>

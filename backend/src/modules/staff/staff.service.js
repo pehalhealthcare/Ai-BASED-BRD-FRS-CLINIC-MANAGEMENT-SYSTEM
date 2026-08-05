@@ -230,11 +230,16 @@ const acceptMySlot = async ({ requester }) => {
 
   staff.hasAcceptedSlot = true;
   staff.initialSlotAccepted = true;
+  staff.isActive = true;
+  staff.invitationStatus = 'Active';
+  staff.offerStatus = 'Accepted';
+  staff.accountStatus = 'Active';
+  if (!staff.activatedAt) staff.activatedAt = new Date();
   await staff.save();
 
   await User.updateOne(
     { _id: requester._id },
-    { $set: { hasAcceptedSlot: true, initialSlotAccepted: true } }
+    { $set: { hasAcceptedSlot: true, initialSlotAccepted: true, isActive: true } }
   );
 
   // Sync with Receptionist collection if user is RECEPTIONIST
@@ -242,7 +247,7 @@ const acceptMySlot = async ({ requester }) => {
     const Receptionist = require('../receptionists/receptionist.model');
     await Receptionist.updateOne(
       { userId: requester._id },
-      { $set: { hasAcceptedSlot: true, initialSlotAccepted: true } }
+      { $set: { hasAcceptedSlot: true, initialSlotAccepted: true, isActive: true } }
     );
   }
 

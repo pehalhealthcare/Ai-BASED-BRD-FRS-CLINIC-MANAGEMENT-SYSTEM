@@ -44,7 +44,8 @@ const collectPayment = asyncHandler(async (req, res) => {
     requester: req.user,
     appointmentId: req.params.id,
     paymentMethod,
-    transactionId
+    transactionId,
+    payload: req.body
   });
   return sendSuccess(res, 'Payment collected. Appointment confirmed.', { appointment });
 });

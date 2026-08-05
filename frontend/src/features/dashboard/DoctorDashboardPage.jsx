@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { Link, useNavigate } from 'react-router-dom';
 import {
@@ -65,6 +65,10 @@ const DoctorDashboardPage = () => {
   // Selected patient/token for Center consultation panel
   const [selectedToken, setSelectedToken] = useState(null);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const selectedAppointmentRef = useRef(null);
+  useEffect(() => {
+    selectedAppointmentRef.current = selectedAppointment;
+  }, [selectedAppointment]);
   const [activeConsultation, setActiveConsultation] = useState(null);
 
   // Active status tab for Today's Appointments (Left Column)
@@ -200,11 +204,6 @@ const DoctorDashboardPage = () => {
     const socketUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
     const socket = io(socketUrl);
 
-    socket.on('connect', () => {
-      console.log('Connected to socket in Doctor console:', socket.id);
-      socket.emit('join_user', user?._id);
-    });
-
     const triggerRefresh = () => {
       appointmentApi.getDoctorQueue(profile._id)
         .then(res => {
@@ -227,12 +226,30 @@ const DoctorDashboardPage = () => {
         .then(res => {
           const activeToken = res.data?.activeConsultation || res.activeConsultation || null;
           setActiveConsultation(activeToken);
-          if (activeToken && selectedToken?._id === activeToken._id) {
-            setSelectedToken(activeToken);
+          if (activeToken) {
+            if (selectedToken?._id === activeToken._id) {
+              setSelectedToken(activeToken);
+            }
+          } else {
+            // If active consultation is cleared in backend, clear it locally
+            if (selectedToken?.status === 'in_consultation') {
+              setSelectedToken(null);
+            }
           }
         })
         .catch(() => null);
     };
+
+    // Subscriptions to real-time events for current Clinic & Doctor
+    const clinicId = user?.clinic?._id || user?.clinicId;
+
+    socket.on('connect', () => {
+      console.log('Connected to socket in Doctor console:', socket.id);
+      socket.emit('join_user', user?._id);
+      if (clinicId) {
+        socket.emit('join_clinic', clinicId);
+      }
+    });
 
     socket.on('queue_update', (data) => {
       if (String(data.doctorId) === String(profile._id)) {
@@ -241,13 +258,50 @@ const DoctorDashboardPage = () => {
       }
     });
 
+    // Real-time appointment listener for instant synchronization
+    const handleAppointmentEvent = (data) => {
+      // Validate that the event is for the current doctor
+      const targetDocId = data.doctorId || data.appointment?.doctorId || (data.appointment?.doctorId?._id ? data.appointment.doctorId._id : null);
+      if (String(targetDocId) !== String(profile._id)) return;
+
+      console.log('Received appointment real-time socket event:', data);
+      
+      // Re-fetch current data to keep sections updated in real time
+      loadData(false);
+      triggerRefresh();
+
+      if (data.appointment && selectedAppointmentRef.current && String(data.appointment._id) === String(selectedAppointmentRef.current._id)) {
+        setSelectedAppointment(data.appointment);
+        if (['PATIENT_JOINED_WAITING', 'PATIENT_JOINED'].includes(data.appointment.status)) {
+          toast.success('Patient has joined the meeting. Ready to begin consultation.', { duration: 6000 });
+        }
+      }
+    };
+
+    socket.on('appointment:created', handleAppointmentEvent);
+    socket.on('appointment:checked-in', handleAppointmentEvent);
+    socket.on('appointment:token-generated', handleAppointmentEvent);
+    socket.on('appointment:cancelled', handleAppointmentEvent);
+    socket.on('appointment:rescheduled', handleAppointmentEvent);
+    socket.on('appointment:status-updated', handleAppointmentEvent);
+    socket.on('appointment:payment-success', handleAppointmentEvent);
+    socket.on('consultation:started', handleAppointmentEvent);
+    socket.on('consultation:completed', handleAppointmentEvent);
+
+    socket.on('patient:joinedMeeting', (data) => {
+      console.log('Real-time: patient:joinedMeeting received!', data);
+      toast.success('Patient has joined the meeting. Ready to begin consultation.', { duration: 6000 });
+      loadData(false);
+      triggerRefresh();
+    });
+
     const interval = setInterval(triggerRefresh, 10000);
 
     return () => {
       socket.disconnect();
       clearInterval(interval);
     };
-  }, [profile?._id, selectedToken, user?._id]);
+  }, [profile?._id, selectedToken, user?._id, selectedDateStr]);
 
   // Live timer for active consultation
   useEffect(() => {
@@ -280,8 +334,25 @@ const DoctorDashboardPage = () => {
         return;
       }
 
-      await appointmentApi.callNext(profile._id);
+      const res = await appointmentApi.callNext(profile._id);
       toast.success('Next patient called.');
+      
+      // Notify patient over socket if it is an ONLINE consultation
+      const calledTokenSocket = res.data?.token || res.token;
+      const apt = calledTokenSocket?.appointmentId;
+      if (apt && apt.consultationMode === 'ONLINE') {
+        const socketUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+        const socket = io(socketUrl);
+        socket.emit('join_meeting', apt._id);
+        socket.emit('call_patient', {
+          meetingId: apt._id,
+          patientId: apt.patientId?._id || apt.patientId,
+          doctorId: profile._id,
+          doctorName: profile.fullName || 'Doctor'
+        });
+        setTimeout(() => socket.disconnect(), 1500);
+      }
+
       // Re-fetch queue and auto-select the called token
       const queueRes = await appointmentApi.getDoctorQueue(profile._id);
       const sortedQueue = queueRes.data?.queue || queueRes.queue || [];
@@ -298,11 +369,25 @@ const DoctorDashboardPage = () => {
 
   // Handle Start Consultation
   const handleStartConsultation = async (token) => {
+    if (!token || !token._id) {
+      toast.error('Unable to start consultation. Missing token information.');
+      return;
+    }
     if (activeConsultation && activeConsultation._id !== token._id) {
       toast.error('Consultation Already In Progress. Please resume or end the current consultation first.', { duration: 5000 });
       return;
     }
     try {
+      const appt = token.appointmentId;
+      if (appt && appt.consultationMode === 'ONLINE') {
+        toast.loading('Starting online consultation...');
+        await appointmentApi.startOnlineConsultation(appt._id || appt);
+        toast.dismiss();
+        toast.success('Online video consultation initialized. Patient has been notified.');
+        navigate(`/appointments/${appt._id || appt}/consultation`);
+        return;
+      }
+
       toast.loading('Starting consultation...');
       const res = await appointmentApi.startTokenConsultation(token._id);
       const updatedToken = res.token || res.data?.token || token;
@@ -311,6 +396,10 @@ const DoctorDashboardPage = () => {
       toast.dismiss();
       toast.success('Consultation started successfully.');
       const apptId = updatedToken.appointmentId?._id || updatedToken.appointmentId;
+      if (!apptId) {
+        toast.error('Cannot retrieve appointment ID to start consultation.');
+        return;
+      }
       navigate(`/appointments/${apptId}/consultation`);
     } catch (err) {
       toast.dismiss();
@@ -329,7 +418,7 @@ const DoctorDashboardPage = () => {
     const isToday = todayStr === apptDateStr;
     const isPaid = ['paid', 'fully_waived'].includes(selectedAppointment.paymentStatus) || selectedAppointment.consultationFee === 0;
     const notRescheduled = !selectedAppointment.rescheduledFrom;
-    const statusEligible = ['booked', 'confirmed'].includes(selectedAppointment.status);
+    const statusEligible = ['booked', 'confirmed', 'DOCTOR_READY', 'PATIENT_JOINED_WAITING'].includes(selectedAppointment.status);
     return isToday && isPaid && notRescheduled && statusEligible;
   }, [selectedAppointment]);
 
@@ -339,11 +428,22 @@ const DoctorDashboardPage = () => {
       return;
     }
     try {
-      toast.loading('Initializing direct consultation...');
+      toast.loading('Initializing consultation...');
+
+      if (appointment.consultationMode === 'ONLINE') {
+        const res = await appointmentApi.startOnlineConsultation(appointment._id);
+        toast.dismiss();
+        toast.success('Online consultation initialized — notifying patient now. Opening consultation room...', { duration: 4000 });
+        loadData(false);
+        // Navigate to the full consultation page where the WebRTC video call UI is available
+        navigate(`/appointments/${appointment._id}/consultation`);
+        return;
+      }
+
       let token = queue.find(t => t.appointmentId?._id === appointment._id);
       
       if (!token) {
-        const checkinRes = await appointmentApi.checkInPatient(appointment._id, { method: 'Doctor' });
+        const checkinRes = await appointmentApi.checkInPatient(appointment._id, { method: 'Reception' });
         token = checkinRes.data?.token || checkinRes.token;
       }
       
@@ -368,7 +468,8 @@ const DoctorDashboardPage = () => {
       navigate(`/appointments/${appointment._id}/consultation`);
     } catch (err) {
       toast.dismiss();
-      toast.error(err.response?.data?.message || 'Failed to start consultation directly.');
+      console.error('Start direct error details:', err);
+      toast.error(err.response?.data?.message || err.message || 'Failed to start consultation directly.');
     }
   };
 
@@ -483,7 +584,12 @@ const DoctorDashboardPage = () => {
   // Left panel grouped list filter
   const filteredAppointments = useMemo(() => {
     if (activeTab === 'Upcoming') {
-      return appointments.filter(a => a.status === 'booked' || a.status === 'confirmed');
+      // Show all scheduled (booked/confirmed) appointments — excludes payment_pending
+      return appointments.filter(a => ['booked', 'confirmed'].includes(a.status));
+    }
+    if (activeTab === 'Pending Payment') {
+      // Appointments that exist but have not completed payment/waiver yet
+      return appointments.filter(a => ['payment_pending', 'waiting_for_approval', 'waiver_pending', 'draft'].includes(a.status));
     }
     if (activeTab === 'Checked-In') {
       return appointments.filter(a => ['checked_in', 'late_check_in', 'called', 'in_consultation'].includes(a.status));
@@ -778,8 +884,20 @@ const DoctorDashboardPage = () => {
                       </div>
                       <div>
                         <h4 className="text-xs font-bold text-slate-800 truncate max-w-[120px]">{appt.patientId?.fullName || 'Patient'}</h4>
-                        <p className="text-[9px] text-slate-500 mt-0.5">
-                          {appt.patientId?.age || 25} yrs, {appt.patientId?.gender || 'Male'} <span className="mx-1">•</span> {appt.source === 'reception' ? 'Walk-In' : 'Online Booking'}
+                        <p className="text-[9px] text-slate-500 mt-0.5 flex items-center gap-1.5 flex-wrap">
+                          <span>{appt.patientId?.age || 25} yrs, {appt.patientId?.gender || 'Male'}</span>
+                          <span className="text-slate-300">•</span>
+                          {appt.consultationMode === 'ONLINE' ? (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[8px] font-black">
+                              <span className="w-1 h-1 rounded-full bg-blue-400 animate-pulse" />
+                              📹 Online Consultation
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[8px] font-black">
+                              <span className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse" />
+                              🟢 Walk-In
+                            </span>
+                          )}
                         </p>
                       </div>
                     </div>
@@ -1050,8 +1168,8 @@ const DoctorDashboardPage = () => {
                     <strong className="text-slate-800 font-bold capitalize">{selectedAppointment.appointmentType || 'scheduled'}</strong>
                   </div>
                   <div>
-                    <span className="text-slate-500 font-bold block">Source</span>
-                    <strong className="text-slate-800 font-bold capitalize">{selectedAppointment.source === 'reception' ? 'Walk-In' : 'Online'}</strong>
+                    <span className="text-slate-500 font-bold block">Consultation Mode</span>
+                    <strong className="text-slate-800 font-bold">{selectedAppointment.consultationMode === 'ONLINE' ? '📹 Online Video' : '🧑⚕️ Walk-In'}</strong>
                   </div>
                   <div>
                     <span className="text-slate-500 font-bold block">Duration</span>
@@ -1146,9 +1264,18 @@ const DoctorDashboardPage = () => {
                 </button>
 
                 <button
-                  onClick={() => {
-                    const apptId = selectedToken.appointmentId?._id || selectedToken.appointmentId;
-                    navigate(`/appointments/${apptId}/consultation`);
+                  onClick={async () => {
+                    const apptId = selectedToken?.appointmentId?._id || selectedToken?.appointmentId;
+                    if (!apptId || String(apptId).startsWith('DOC-') || String(apptId).startsWith('SM-')) {
+                      toast.error('Invalid appointment ID. Cannot resume consultation.');
+                      return;
+                    }
+                    try {
+                      await appointmentApi.resumeConsultation(apptId);
+                      navigate(`/appointments/${apptId}/consultation`);
+                    } catch (err) {
+                      toast.error(err.response?.data?.message || 'Failed to resume consultation.');
+                    }
                   }}
                   className="flex-1 py-3 bg-[#00A884] hover:bg-[#009675] text-xs font-bold text-white rounded-2xl transition shadow-sm"
                 >
@@ -1205,12 +1332,71 @@ const DoctorDashboardPage = () => {
           {!selectedToken && canStartDirectly && (
             <div className="space-y-3.5 pt-4 border-t border-slate-150 mt-4">
               <div className="flex gap-3">
-                <button
-                  onClick={() => handleStartDirectly(selectedAppointment)}
-                  className="flex-1 py-3 bg-[#00A884] hover:bg-[#009675] text-xs font-bold text-white rounded-2xl transition shadow-sm flex items-center justify-center gap-1.5"
-                >
-                  Start Consultation Directly
-                </button>
+                {selectedAppointment.consultationMode === 'ONLINE' ? (
+                  <div className="flex flex-col w-full">
+                    {/* Badge showing status to Doctor */}
+                    {['PATIENT_JOINED_WAITING', 'PATIENT_JOINED'].includes(selectedAppointment.status) && (
+                      <div className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 rounded-xl text-[10px] font-black uppercase tracking-wider animate-pulse mb-2">
+                        <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-ping" />
+                        🟢 Patient Ready
+                      </div>
+                    )}
+                    {selectedAppointment.status === 'DOCTOR_READY' && (
+                      <button
+                        onClick={() => navigate(`/appointments/${selectedAppointment._id}/consultation`)}
+                        className="flex-1 py-3 bg-teal-650 hover:bg-teal-700 text-xs font-bold text-white rounded-2xl transition shadow-md flex items-center justify-center gap-1.5 animate-pulse"
+                      >
+                        <Play size={13} /> Join Consultation
+                      </button>
+                    )}
+                    {['PATIENT_JOINED_WAITING', 'PATIENT_JOINED'].includes(selectedAppointment.status) && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            await appointmentApi.updateAppointmentStatus(selectedAppointment._id, { status: 'DOCTOR_JOINED' });
+                            navigate(`/appointments/${selectedAppointment._id}/consultation`);
+                          } catch (err) {
+                            navigate(`/appointments/${selectedAppointment._id}/consultation`);
+                          }
+                        }}
+                        className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-xs font-bold text-white rounded-2xl transition shadow-md flex items-center justify-center gap-1.5 animate-pulse"
+                      >
+                        <Play size={13} /> Join Meeting
+                      </button>
+                    )}
+                    {['DOCTOR_JOINED', 'VIDEO_CONNECTED'].includes(selectedAppointment.status) && (
+                      <button
+                        onClick={() => navigate(`/appointments/${selectedAppointment._id}/consultation`)}
+                        className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-xs font-bold text-white rounded-2xl transition shadow-sm flex items-center justify-center gap-1.5"
+                      >
+                        <Play size={13} /> Open Consultation
+                      </button>
+                    )}
+                    {selectedAppointment.status === 'CONSULTATION_IN_PROGRESS' && (
+                      <button
+                        onClick={() => navigate(`/appointments/${selectedAppointment._id}/consultation`)}
+                        className="flex-1 py-3 bg-rose-600 hover:bg-rose-700 text-xs font-bold text-white rounded-2xl transition shadow-sm flex items-center justify-center gap-1.5"
+                      >
+                        Complete Consultation
+                      </button>
+                    )}
+                    {!['DOCTOR_READY', 'PATIENT_JOINED_WAITING', 'PATIENT_JOINED', 'DOCTOR_JOINED', 'VIDEO_CONNECTED', 'CONSULTATION_IN_PROGRESS'].includes(selectedAppointment.status) && (
+                      <button
+                        onClick={() => handleStartDirectly(selectedAppointment)}
+                        className="flex-1 py-3 bg-[#00A884] hover:bg-[#009675] text-xs font-bold text-white rounded-2xl transition shadow-sm flex items-center justify-center gap-1.5"
+                      >
+                        Start Consultation Directly
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => handleStartDirectly(selectedAppointment)}
+                    className="flex-1 py-3 bg-[#00A884] hover:bg-[#009675] text-xs font-bold text-white rounded-2xl transition shadow-sm flex items-center justify-center gap-1.5"
+                  >
+                    Start Consultation Directly
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -1362,12 +1548,17 @@ const DoctorDashboardPage = () => {
                           <button
                             type="button"
                             onClick={() => {
+                              const apptId = token.appointmentId?._id || token.appointmentId;
+                              if (!apptId || String(apptId).startsWith('DOC-') || String(apptId).startsWith('SM-')) {
+                                toast.error('Invalid appointment details. Cannot proceed.');
+                                return;
+                              }
                               setSelectedToken(token);
                               setSelectedAppointment(null);
                               if (token.status !== 'in_consultation') {
                                 handleStartConsultation(token);
                               } else {
-                                navigate(`/appointments/${token.appointmentId?._id}/consultation`);
+                                navigate(`/appointments/${apptId}/consultation`);
                               }
                             }}
                             className="px-2 py-1 bg-emerald-655 hover:bg-emerald-700 text-white font-black text-[8px] uppercase rounded transition"

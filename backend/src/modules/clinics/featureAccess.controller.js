@@ -45,11 +45,15 @@ const AI_FEATURES = {
   multi_branch: {
     name: 'Multi Branch',
     description: 'Manage multiple clinic branches.'
+  },
+  online_consultation: {
+    name: 'Online Video Consultation',
+    description: 'Conduct secure telemedicine and video consultation sessions.'
   }
 };
 
 const getFeatureAccess = asyncHandler(async (req, res) => {
-  const clinicId = req.user.clinicId;
+  const clinicId = req.headers['x-clinic-id'] || req.user.clinicId;
   if (!clinicId) {
     throw new AppError('Clinic context not found.', HTTP_STATUS.BAD_REQUEST);
   }

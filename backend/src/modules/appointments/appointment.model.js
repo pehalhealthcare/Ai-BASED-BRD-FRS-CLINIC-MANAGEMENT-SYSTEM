@@ -108,10 +108,15 @@ const appointmentSchema = new mongoose.Schema(
       enum: ['scheduled', 'walk_in', 'follow_up', 'teleconsultation', 'emergency'],
       default: 'scheduled'
     },
+    consultationMode: {
+      type: String,
+      enum: ['WALK_IN', 'ONLINE'],
+      default: 'WALK_IN'
+    },
     status: {
       type: String,
       enum: Object.values(APPOINTMENT_STATUSES),
-      default: APPOINTMENT_STATUSES.BOOKED
+      default: APPOINTMENT_STATUSES.PAYMENT_PENDING
     },
     discountRequest: {
       type: {
@@ -154,6 +159,10 @@ const appointmentSchema = new mongoose.Schema(
       finalPayableAmount: { type: Number, default: 0 }
     },
     slotReservedUntil: {
+      type: Date,
+      default: null
+    },
+    reservationExpiresAt: {
       type: Date,
       default: null
     },
@@ -210,8 +219,8 @@ const appointmentSchema = new mongoose.Schema(
       default: null
     },
     tokenNumber: {
-      type: Number,
-      default: null
+      type: String,
+      default: ''
     },
     qrCode: {
       type: String,
@@ -233,7 +242,11 @@ const appointmentSchema = new mongoose.Schema(
     },
     paymentStatus: {
       type: String,
-      enum: ['pending', 'paid', 'fully_waived', 'partially_waived'],
+      enum: [
+        'pending', 'processing', 'paid', 'failed', 'refunded',
+        'partially_paid', 'fully_waived', 'partially_waived',
+        'waiver_pending', 'waiver_approved', 'waiver_rejected'
+      ],
       default: 'pending'
     },
     consultationFee: {
@@ -322,6 +335,35 @@ const appointmentSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Appointment',
       default: null
+    },
+    checkedInAt: {
+      type: Date,
+      default: null
+    },
+    bookedAt: {
+      type: Date,
+      default: null
+    },
+    receiptNumber: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    appointmentSlipGeneratedAt: {
+      type: Date,
+      default: null
+    },
+    virtualMeetingLink: {
+      type: String,
+      default: ''
+    },
+    virtualMeetingId: {
+      type: String,
+      default: ''
+    },
+    virtualMeetingPassword: {
+      type: String,
+      default: ''
     }
   },
   {
@@ -334,6 +376,7 @@ appointmentSchema.index({ doctorId: 1, appointmentDate: 1, startTime: 1 });
 appointmentSchema.index({ patientId: 1, appointmentDate: 1 });
 appointmentSchema.index({ status: 1 });
 appointmentSchema.index({ clinicId: 1 });
+appointmentSchema.index({ status: 1, reservationExpiresAt: 1 });
 
 const Appointment = mongoose.models.Appointment || mongoose.model('Appointment', appointmentSchema);
 

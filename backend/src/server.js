@@ -114,10 +114,117 @@ const startOnlinePaymentTimeoutChecker = () => {
         apt.checkin_token_uuid = '';
         await apt.save();
       }
+
+      // Automatically mark un-checked-in appointments as NOT_ATTENDED
+      const ClinicModel = require('./modules/clinics/clinic.model');
+      const clinics = await ClinicModel.find({});
+      const todayStart = new Date();
+      todayStart.setHours(0,0,0,0);
+      const todayEnd = new Date();
+      todayEnd.setHours(23,59,59,999);
+
+      for (const clinic of clinics) {
+        const settings = clinic.billingSettings || {};
+        if (settings.autoMarkNoShow !== false) {
+          // Unattended booked appointments for today
+          const activeBooked = await Appointment.find({
+            clinicId: clinic._id,
+            appointmentDate: { $gte: todayStart, $lte: todayEnd },
+            status: { $in: [APPOINTMENT_STATUSES.BOOKED, APPOINTMENT_STATUSES.CONFIRMED] }
+          });
+          const nowTime = new Date();
+          for (const apt of activeBooked) {
+            let thresholdPassed = false;
+            const [sh, sm] = apt.startTime.split(':').map(Number);
+            const apptStart = new Date(apt.appointmentDate);
+            apptStart.setHours(sh, sm, 0, 0);
+
+            if (settings.noShowGracePeriod === '15 Minutes') {
+              thresholdPassed = nowTime > new Date(apptStart.getTime() + 15 * 60 * 1000);
+            } else if (settings.noShowGracePeriod === '30 Minutes') {
+              thresholdPassed = nowTime > new Date(apptStart.getTime() + 30 * 60 * 1000);
+            } else if (settings.noShowGracePeriod === '1 Hour') {
+              thresholdPassed = nowTime > new Date(apptStart.getTime() + 60 * 60 * 1000);
+            } else {
+              // Default to Clinic Closing Time (e.g. 8:00 PM or end of day)
+              const closingTime = new Date();
+              closingTime.setHours(22, 0, 0, 0); // e.g. 10:00 PM local time
+              thresholdPassed = nowTime > closingTime;
+            }
+
+            if (thresholdPassed) {
+              console.log(`[Auto No-Show] Marking Appointment ${apt._id} as not_attended due to inactivity`);
+              apt.status = APPOINTMENT_STATUSES.NOT_ATTENDED;
+              await apt.save();
+
+              // Emit update event
+              emitAppointmentEvent('appointment:no-show', {
+                clinicId: apt.clinicId,
+                doctorId: String(apt.doctorId),
+                patientId: String(apt.patientId),
+                appointmentId: String(apt._id),
+                status: APPOINTMENT_STATUSES.NOT_ATTENDED
+              });
+              
+              // Trigger notification for no show
+              try {
+                const { sendNoShowNotifications } = require('./modules/notifications/notification.service');
+                sendNoShowNotifications({ appointment: apt }).catch(() => null);
+              } catch (_) {}
+            }
+          }
+        }
+      }
     } catch (err) {
       console.error('[Timeout Checker] Error in online payment timeout background checker:', err);
-    }},60000) // Check every 60 seconds
-    
+    }
+  }, 60000); // Check every 60 seconds
+};
+
+const startReservationExpiryJob = () => {
+  setInterval(async () => {
+    try {
+      const mongoose = require('mongoose');
+      if (mongoose.connection.readyState !== 1) return;
+
+      const Appointment = require('./modules/appointments/appointment.model');
+      const { emitAppointmentEvent } = require('./modules/appointments/appointment.service');
+
+      const expiredAppts = await Appointment.find({
+        status: { $in: ['payment_pending', 'waiting_for_approval', 'waiver_pending', 'draft'] },
+        reservationExpiresAt: { $lt: new Date() }
+      });
+
+      for (const apt of expiredAppts) {
+        console.log(`[Reservation Expiry] Expiring slot lock for Appointment: ${apt._id}, Doctor: ${apt.doctorId}`);
+        
+        apt.status = 'reservation_expired';
+        apt.reservationExpiresAt = null;
+        await apt.save();
+
+        // Broadcast to clients
+        emitAppointmentEvent('appointment:reservation-expired', {
+          clinicId: apt.clinicId,
+          doctorId: String(apt.doctorId),
+          patientId: String(apt.patientId),
+          appointmentId: String(apt._id),
+          status: 'reservation_expired'
+        });
+
+        // Broadcast slot released specifically for doctor scheduling screen updates
+        if (global.io) {
+          global.io.to(String(apt.clinicId)).emit('doctor:slot-released', {
+            doctorId: String(apt.doctorId),
+            appointmentDate: apt.appointmentDate,
+            startTime: apt.startTime,
+            endTime: apt.endTime
+          });
+        }
+      }
+    } catch (err) {
+      console.error('[Reservation Expiry] Error in background job:', err);
+    }
+  }, 10000); // Check every 10 seconds for snappy responsive updates
 };
 
 const startInsuranceCoverageResetJob = () => {
@@ -178,6 +285,7 @@ const startServer = async () => {
     logger.info(`Swagger docs available at http://localhost:${env.port}/api-docs`);
     startOnlinePaymentTimeoutChecker();
     startInsuranceCoverageResetJob();
+    startReservationExpiryJob();
     const { startSubscriptionMonitor } = require('./modules/subscriptions/subscriptionMonitor');
     startSubscriptionMonitor();
     const { startOnboardingDraftCleanupJob } = require('./modules/providers/onboardingCleanup');
@@ -205,6 +313,12 @@ const startServer = async () => {
       logger.info(`Socket ${socket.id} joined user room: ${userId}`);
     });
 
+    // Join clinic room (for receptionists, admins — broadcasts appointment events)
+    socket.on('join_clinic', (clinicId) => {
+      socket.join(String(clinicId));
+      logger.info(`Socket ${socket.id} joined clinic room: ${clinicId}`);
+    });
+
     // Join conversation room
     socket.on('join_conversation', (conversationId) => {
       socket.join(conversationId);
@@ -230,6 +344,108 @@ const startServer = async () => {
     // Handle typing indicator
     socket.on('typing', (data) => {
       socket.to(data.conversationId).emit('typing', data);
+    });
+
+    // ── Telemedicine / WebRTC Signaling ──
+    socket.on('join_meeting', (meetingId) => {
+      socket.join(meetingId);
+      logger.info(`Socket ${socket.id} joined meeting room: ${meetingId}`);
+      // Notify other participants in the room
+      socket.to(meetingId).emit('participant_joined', { socketId: socket.id });
+    });
+
+    // Relay all WebRTC signals (offer, answer, ICE candidates) to the rest of the meeting room
+    socket.on('webrtc_signal', (data) => {
+      socket.to(data.meetingId).emit('webrtc_signal', {
+        senderId: socket.id,
+        signal: data.signal
+      });
+    });
+
+    // Doctor notifies they are ready — relay to everyone in meeting room AND patient's personal room
+    socket.on('doctor_ready', (data) => {
+      if (data.meetingId) {
+        socket.to(data.meetingId).emit('doctor_ready', data);
+        logger.info(`Doctor ready signal broadcast to meeting room: ${data.meetingId}`);
+      }
+    });
+
+    // Doctor calls patient directly via their user room
+    socket.on('call_patient', (data) => {
+      if (data.patientId) {
+        socket.to(String(data.patientId)).emit('incoming_call', {
+          meetingId: data.meetingId,
+          doctorId: data.doctorId,
+          doctorName: data.doctorName
+        });
+        // Also emit to meeting room (patient may already be there)
+        if (data.meetingId) {
+          socket.to(data.meetingId).emit('incoming_call', {
+            meetingId: data.meetingId,
+            doctorId: data.doctorId,
+            doctorName: data.doctorName
+          });
+        }
+      }
+    });
+
+    // Patient accepts call — notify everyone in meeting room AND update appointment status
+    socket.on('accept_call', async (data) => {
+      if (data.meetingId) {
+        // Emit patient_joined to everyone else in the meeting room (i.e., the doctor)
+        socket.to(data.meetingId).emit('patient_joined', {
+          meetingId: data.meetingId,
+          patientId: data.patientId
+        });
+        logger.info(`Patient joined meeting ${data.meetingId} — notified doctor`);
+
+        // Dynamic State Machine Transition: update appointment status to PATIENT_JOINED_WAITING
+        try {
+          const Appointment = require('./modules/appointments/appointment.model');
+          const appt = await Appointment.findById(data.meetingId);
+          if (appt && ['DOCTOR_READY', 'BOOKED', 'CONFIRMED', 'CALLED'].includes(appt.status?.toUpperCase())) {
+            appt.status = 'PATIENT_JOINED_WAITING';
+            await appt.save();
+            const { emitAppointmentEvent } = require('./modules/appointments/appointment.service');
+            emitAppointmentEvent('appointment:status-updated', {
+              clinicId: appt.clinicId,
+              doctorId: appt.doctorId,
+              patientId: appt.patientId,
+              appointment: appt
+            });
+          }
+        } catch (err) {
+          logger.error('Failed to update status on accept_call:', err);
+        }
+      }
+    });
+
+    // Also handle patient_joined_consultation as an alias for accept_call
+    socket.on('patient_joined_consultation', (data) => {
+      if (data.meetingId) {
+        socket.to(data.meetingId).emit('patient_joined', data);
+      }
+    });
+
+    socket.on('reject_call', (data) => {
+      if (data.meetingId) {
+        socket.to(data.meetingId).emit('call_rejected', { meetingId: data.meetingId });
+      }
+    });
+
+    socket.on('end_call', (data) => {
+      if (data.meetingId) {
+        socket.to(data.meetingId).emit('meeting_ended', { meetingId: data.meetingId });
+      }
+    });
+
+    // Camera / mic state relay
+    socket.on('camera_state_changed', (data) => {
+      if (data.meetingId) socket.to(data.meetingId).emit('camera_state_changed', data);
+    });
+
+    socket.on('mic_state_changed', (data) => {
+      if (data.meetingId) socket.to(data.meetingId).emit('mic_state_changed', data);
     });
 
     socket.on('disconnect', () => {
