@@ -251,6 +251,16 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
       ];
     }
 
+    if (normRole === 'SUPER_ADMIN') {
+      return [
+        { label: 'Clinics', path: '/super-admin/clinics', iconKey: 'Clinics' },
+        { label: 'Plans', path: '/super-admin/plans', iconKey: 'Plans' },
+        { label: 'Promo Codes', path: '/super-admin/promo-codes', iconKey: 'Promo Codes' },
+        { label: 'Global Lab Catalog', path: '/super-admin/healthcare-catalog/labs', iconKey: 'Global Lab Catalog' },
+        { label: 'Global Medicine Catalog', path: '/super-admin/healthcare-catalog/medicines', iconKey: 'Global Medicine Catalog' }
+      ];
+    }
+
     return [
       { label: 'Dashboard', path: '/clinic/dashboard', iconKey: 'Dashboard' },
       { label: 'Appointments', path: '/appointments', iconKey: 'Appointments' },
