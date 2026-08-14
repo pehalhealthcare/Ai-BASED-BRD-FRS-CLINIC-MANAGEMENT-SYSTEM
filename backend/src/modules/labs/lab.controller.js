@@ -245,6 +245,50 @@ const listCustomLabRequests = asyncHandler(async (req, res) => {
   return sendSuccess(res, 'Custom laboratory requests retrieved', { requests: data });
 });
 
+const listEquipment = asyncHandler(async (req, res) => {
+  const data = await labService.listEquipment({
+    requester: req.user,
+    query: req.query,
+    requestedClinicId: req.query.clinicId
+  });
+  return sendSuccess(res, 'Equipment list retrieved successfully', data);
+});
+
+const createEquipment = asyncHandler(async (req, res) => {
+  const data = await labService.createEquipment({
+    requester: req.user,
+    payload: req.body,
+    requestedClinicId: req.query.clinicId
+  });
+  return sendSuccess(res, 'Equipment registered successfully', data, 201);
+});
+
+const listQcCalibrations = asyncHandler(async (req, res) => {
+  const data = await labService.listQcCalibrations({
+    requester: req.user,
+    query: req.query,
+    requestedClinicId: req.query.clinicId
+  });
+  return sendSuccess(res, 'QC and Calibrations retrieved successfully', data);
+});
+
+const createQcCalibration = asyncHandler(async (req, res) => {
+  const data = await labService.createQcCalibration({
+    requester: req.user,
+    payload: req.body,
+    requestedClinicId: req.query.clinicId
+  });
+  return sendSuccess(res, 'QC or Calibration log created successfully', data, 201);
+});
+
+const getLabAlerts = asyncHandler(async (req, res) => {
+  const data = await labService.getLabAlerts({
+    requester: req.user,
+    requestedClinicId: req.query.clinicId
+  });
+  return sendSuccess(res, 'Critical laboratory alerts retrieved', data);
+});
+
 module.exports = {
   createLabTest,
   updateLabTest,
@@ -269,5 +313,11 @@ module.exports = {
   getLabInventoryDashboard,
   searchAllLabs,
   createCustomLabRequest,
-  listCustomLabRequests
+  listCustomLabRequests,
+  listEquipment,
+  createEquipment,
+  listQcCalibrations,
+  createQcCalibration,
+  getLabAlerts
 };
+

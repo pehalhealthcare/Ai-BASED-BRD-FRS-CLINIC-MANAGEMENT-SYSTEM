@@ -1,277 +1,318 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { Menu, Bell, Settings, BarChart2, User, Calendar, Search, MessageSquare, LogOut, ChevronDown, Sparkles, Shield } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import io from 'socket.io-client';
+import { 
+  Menu, Bell, Settings, BarChart2, User, Calendar, Search, 
+  MessageSquare, LogOut, ChevronDown, Sparkles, Shield, AlertCircle,
+  HelpCircle, Eye, ShieldAlert, CheckCircle, Info, RefreshCw, X
+} from 'lucide-react';
 import Avatar from '../ui/Avatar';
 import { ROLES } from '../../constants/roles';
-import { patientApi, apiClient } from '../../lib/api';
+import { patientApi, apiClient, notificationApi } from '../../lib/api';
+import pehalLogo from '../../assets/pehal_logo.svg';
 
-const Topbar = ({ title, currentUser, onToggleSidebar, onLogout }) => {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const dropdownRef = useRef(null);
+const Topbar = ({ title, currentUser, sidebarOpen, onToggleSidebar, onLogout }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
 
-  const [patientClinics, setPatientClinics] = useState([]);
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const [notificationDropdownOpen, setNotificationDropdownOpen] = useState(false);
+  const [branchDropdownOpen, setBranchDropdownOpen] = useState(false);
+  const [searchFocused, setSearchFocused] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const profileRef = useRef(null);
+  const notificationRef = useRef(null);
+  const branchRef = useRef(null);
+
   const isPatient = currentUser?.role === ROLES.PATIENT;
+  const clinicId = currentUser?.clinicId || currentUser?.clinic?._id;
 
+  // Fetch Notification Logs from TanStack Query
+  const { data: notificationsData } = useQuery({
+    queryKey: ['dashboard', 'notification-logs', clinicId],
+    queryFn: () => notificationApi.listLogs({ limit: 10 }),
+    enabled: !!clinicId && !isPatient,
+    staleTime: 30000
+  });
+
+  const rawLogs = notificationsData?.items || notificationsData?.data?.items || [];
+  const unreadCount = useMemo(() => {
+    return rawLogs.filter(log => log.status === 'pending' || log.status === 'dispatched').length;
+  }, [rawLogs]);
+
+  // Real-time updates via Socket.IO
+  useEffect(() => {
+    if (!clinicId || isPatient) return;
+
+    const token = localStorage.getItem('ai_cms_access_token') || localStorage.getItem('token');
+    const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5001';
+    const socket = io(socketUrl, {
+      transports: ['websocket', 'polling'],
+      auth: { token }
+    });
+
+    socket.on('connect', () => {
+      socket.emit('join_clinic', clinicId);
+    });
+
+    const triggerNotificationsRefresh = () => {
+      queryClient.invalidateQueries({ queryKey: ['dashboard', 'notification-logs', clinicId] });
+    };
+
+    socket.on('appointment:booked', triggerNotificationsRefresh);
+    socket.on('appointment:checked_in', triggerNotificationsRefresh);
+    socket.on('appointment:cancelled', triggerNotificationsRefresh);
+    socket.on('appointment:rescheduled', triggerNotificationsRefresh);
+    socket.on('appointment:completed', triggerNotificationsRefresh);
+    socket.on('staff:online', triggerNotificationsRefresh);
+    socket.on('staff:offline', triggerNotificationsRefresh);
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [clinicId, isPatient, queryClient]);
+
+  // Click outside handling for dropdowns
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setMenuOpen(false);
+      if (profileRef.current && !profileRef.current.contains(event.target)) {
+        setProfileDropdownOpen(false);
+      }
+      if (notificationRef.current && !notificationRef.current.contains(event.target)) {
+        setNotificationDropdownOpen(false);
+      }
+      if (branchRef.current && !branchRef.current.contains(event.target)) {
+        setBranchDropdownOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const [higherPlanExists, setHigherPlanExists] = useState(false);
-
-  useEffect(() => {
-    if (currentUser?.role === ROLES.ADMIN) {
-      apiClient.get('/subscriptions/plans')
-        .then(res => {
-          const plans = res.data?.plans || res.plans || [];
-          const currentPlanCode = currentUser?.clinic?.subscription?.planId?.code || 'STARTER';
-          
-          const PLAN_RANKS = {
-            'STARTER': 1,
-            'PROFESSIONAL': 2,
-            'PREMIUM': 3,
-            'ENTERPRISE': 4
-          };
-          
-          const currentRank = PLAN_RANKS[currentPlanCode] || 1;
-          const hasHigher = plans.some(p => {
-            const rank = PLAN_RANKS[p.code] || 1;
-            return rank > currentRank;
-          });
-          
-          setHigherPlanExists(hasHigher);
-        })
-        .catch(() => {
-          const currentPlanCode = currentUser?.clinic?.subscription?.planId?.code || 'STARTER';
-          setHigherPlanExists(currentPlanCode !== 'ENTERPRISE');
-        });
-    } else {
-      setHigherPlanExists(false);
-    }
+  const clinicName = currentUser?.clinic?.name || 'Ram\'s Dental Clinic';
+  const ownerName = currentUser?.name || 'King';
+  const roleLabel = useMemo(() => {
+    if (currentUser?.role === ROLES.PATIENT) return 'Patient';
+    if (currentUser?.role === ROLES.ADMIN) return 'Clinic Owner';
+    if (currentUser?.role === ROLES.DOCTOR) return currentUser?.specialization?.name || 'Doctor';
+    if (currentUser?.role === ROLES.RECEPTIONIST) return 'Receptionist';
+    if (currentUser?.role === ROLES.LAB_TECHNICIAN) return 'Lab Technician';
+    if (currentUser?.role === ROLES.PHARMACIST) return 'Pharmacist';
+    return 'Staff';
   }, [currentUser]);
 
-  useEffect(() => {
-    if (isPatient) {
-      patientApi.getMyClinics()
-        .then(res => {
-          setPatientClinics(res.data?.clinics || res.clinics || []);
-        })
-        .catch(() => {});
+  // Dynamic Settings navigation target based on role permissions
+  const settingsLink = useMemo(() => {
+    if (currentUser?.role === ROLES.ADMIN) return { label: 'Clinic Settings', path: '/clinic/settings' };
+    if (currentUser?.role === ROLES.DOCTOR) return { label: 'Doctor Availability', path: `/doctors/${currentUser?._id}/availability` };
+    if (currentUser?.role === ROLES.PATIENT) return { label: 'My Profile', path: '/portal?tab=profile' };
+    return null;
+  }, [currentUser]);
+
+  // Format today's date
+  const todayStr = useMemo(() => {
+    const d = new Date();
+    const dayName = d.toLocaleDateString('en-US', { weekday: 'long' });
+    const formatted = d.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' });
+    return { dayName, formatted };
+  }, []);
+
+  const handleLogoutClick = () => {
+    if (window.confirm('Are you sure you want to logout from the AI Clinic Management System?')) {
+      onLogout();
     }
-  }, [isPatient]);
+  };
 
-  const currentParams = new URLSearchParams(location.search);
-  const selectedClinicId = currentParams.get('clinicId') || (patientClinics.length > 0 ? patientClinics[0]._id : '');
-  const activeTab = currentParams.get('tab') || 'dashboard';
-
-  const clinicName = currentUser?.clinic?.name || 'Sunrise Clinic';
-  const activeClinicObj = patientClinics.find(c => String(c._id) === String(selectedClinicId));
+  const getNotificationIcon = (title = '') => {
+    const lower = title.toLowerCase();
+    if (lower.includes('book') || lower.includes('appointment')) return <CheckCircle className="w-4 h-4 text-emerald-500" />;
+    if (lower.includes('cancel')) return <ShieldAlert className="w-4 h-4 text-rose-500" />;
+    if (lower.includes('check') || lower.includes('online')) return <RefreshCw className="w-4 h-4 text-blue-500" />;
+    return <Info className="w-4 h-4 text-slate-400" />;
+  };
 
   return (
-    <header className="
-      sticky top-0 z-30 flex items-center justify-between
-      px-6 py-3 h-16
-      bg-white border-b border-slate-100
-      backdrop-blur-xl
-    ">
-      {/* Left — Burger menu + Clinic Selector */}
-      <div className="flex items-center gap-4">
+    <header className="sticky top-0 z-30 flex items-center justify-between px-4 h-16 bg-white border-b border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.02)] backdrop-blur-xl transition-all duration-300">
+      
+      {/* 1. Left Section: Sidebar Toggle & Dynamic Branding */}
+      <div className="flex items-center justify-between w-full xl:w-auto xl:justify-start gap-4 shrink-0">
         <button
           type="button"
           onClick={onToggleSidebar}
           aria-label="Toggle sidebar"
-          className="p-2 rounded-xl text-slate-500 hover:bg-slate-55 hover:text-slate-900 transition"
+          className="p-1.5 border-2 border-black rounded-none text-slate-900 hover:bg-slate-50 transition duration-200 active:scale-95 shrink-0"
         >
-          <Menu size={20} />
+          <Menu size={18} />
         </button>
 
-        {/* Patient Clinic Selector Dropdown */}
-        {isPatient && patientClinics.length > 0 && (
-          <div className="flex items-center gap-2 pl-4 border-l border-slate-200">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider hidden md:inline">Current Clinic</span>
-            <select
-              value={selectedClinicId}
-              onChange={(e) => {
-                const newClinicId = e.target.value;
-                localStorage.setItem('patientActiveClinicId', newClinicId);
-                window.dispatchEvent(new CustomEvent('patient:clinic-changed', { detail: newClinicId }));
-                navigate(`/portal?tab=${activeTab}&clinicId=${newClinicId}`);
-              }}
-              className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-black text-slate-700 outline-none focus:border-blue-500 transition cursor-pointer"
-            >
-              {patientClinics.map((c) => (
-                <option key={c._id} value={c._id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+        {/* Branding block */}
+        <div className="flex items-center justify-center flex-1 xl:flex-none gap-2.5">
+          <img src={pehalLogo} alt="Pehal" className="h-8 object-contain shrink-0" />
+          <div className="leading-none shrink-0 text-left">
+            <p className="text-[14px] font-black text-slate-955 tracking-tight">AICMS</p>
+            <p className="text-[8px] font-black text-slate-455 uppercase tracking-widest mt-0.5">AI Clinic Management</p>
           </div>
-        )}
-
-        {/* Clinic Selector Pill (for Admins / Staff) */}
-        {!isPatient && (
-          <div className="hidden sm:flex items-center gap-2 bg-slate-50 border border-slate-100 rounded-xl px-3 py-1.5 shadow-sm">
-            <span className="text-[10px] text-slate-400">🏥</span>
-            <span className="text-xs font-bold text-slate-800">{clinicName}</span>
-            <ChevronDown size={12} className="text-slate-400" />
-            <span className="bg-emerald-100 text-emerald-600 text-[9px] font-extrabold px-1.5 py-0.5 rounded-full ml-1">
-              Active
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* Middle — Universal/Scoped Search Input */}
-      <div className="hidden md:flex items-center gap-4 flex-1 max-w-md mx-8">
-        <div className="relative w-full">
-          <input
-            type="text"
-            placeholder={isPatient 
-              ? `Search in ${activeClinicObj?.name || 'Clinic'} (Doctors, Appointments, Reports...)`
-              : "Search patients, appointments, invoices..."
-            }
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-blue-600 transition shadow-sm"
-          />
-          <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
         </div>
-      </div>
 
-      {/* Right — Actions */}
-      <div className="flex items-center gap-3">
-         {/* Upgrade Plan Action Button */}
-        {currentUser?.role === ROLES.ADMIN && higherPlanExists && (
-          <button
-            onClick={() => navigate('/admin/subscription')}
-            className="hidden lg:flex items-center gap-1.5 px-4 py-2 bg-white hover:bg-slate-50 border border-purple-200 hover:border-purple-300 text-purple-600 text-xs font-bold rounded-xl transition shadow-sm cursor-pointer"
-          >
-            <Sparkles size={13} className="text-purple-600" />
-            <span>Upgrade Plan</span>
-          </button>
-        )}
+        {/* Empty placeholder to keep branding centered on mobile */}
+        <div className="w-8 xl:hidden"></div>
 
-        {/* Chat / Messages */}
-        <button
-          onClick={() => isPatient ? navigate('/portal?tab=support') : navigate('/chatbot')}
-          aria-label="Messages"
-          className="p-2 rounded-xl text-slate-400 hover:text-slate-655 hover:bg-slate-50 transition relative"
-        >
-          <MessageSquare size={18} />
-        </button>
+        {/* Vertical divider visible only when branding is present */}
+        <div className={`h-6 w-px bg-slate-200/60 transition-all duration-500 xl:block hidden ${!sidebarOpen ? 'opacity-100 mx-0.5 lg:mx-1' : 'opacity-0 w-0'}`} />
 
-        {/* Notification Bell with Badge */}
-        <button
-          onClick={() => isPatient ? navigate('/portal?tab=notifications') : navigate('/notifications/logs')}
-          aria-label="Notifications"
-          className="p-2 rounded-xl text-slate-400 hover:text-slate-655 hover:bg-slate-50 transition relative cursor-pointer"
-        >
-          <Bell size={18} />
-          <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-rose-500 text-[9px] font-black text-white flex items-center justify-center border border-white">
-            3
-          </span>
-        </button>
-
-        {/* User profile dropdown trigger */}
-        {currentUser && (
-          <div className="relative" ref={dropdownRef}>
+        {/* Clinic Info pill card - hidden on mobile/tablet */}
+        {!isPatient && (
+          <div className="relative hidden xl:block" ref={branchRef}>
             <button
-              onClick={() => setMenuOpen(!menuOpen)}
-              className="flex items-center gap-2.5 pl-3 border-l border-slate-100 focus:outline-none cursor-pointer group text-left"
+              onClick={() => setBranchDropdownOpen(!branchDropdownOpen)}
+              className="flex items-center gap-2 lg:gap-2.5 bg-slate-55 bg-slate-50 hover:bg-slate-100/80 border border-slate-150 rounded-full px-2.5 lg:px-3.5 py-1.5 shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition duration-200 cursor-pointer active:scale-98 group"
             >
-              <Avatar name={currentUser.name} src={currentUser.profileImage} size="sm" />
-              <div className="hidden md:block">
-                <p className="text-xs font-bold text-slate-800 group-hover:text-blue-600 transition-colors leading-tight">
-                  {currentUser.name || 'Patient'}
-                </p>
-                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-0.5 font-mono">
-                  {isPatient ? `ID: ${currentUser.patientId || 'PT123456'}` : (currentUser.role || '').replaceAll('_', ' ')}
-                </p>
+              <span className="text-xs">🏥</span>
+              <div className="text-left leading-none">
+                <span className="text-[10px] lg:text-[11px] font-black text-slate-800 tracking-tight group-hover:text-blue-600 transition-colors">{clinicName}</span>
+                <span className="block text-[8px] text-slate-400 font-bold mt-0.5">Indirapuram Branch</span>
               </div>
+              <ChevronDown size={11} className="text-slate-400 group-hover:text-slate-600 transition-colors" />
+              <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-600 text-[8px] font-black px-1.5 lg:px-2 py-0.5 rounded-full border border-emerald-100/50">
+                <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
+                Active
+              </span>
             </button>
 
-            {menuOpen && (
-              <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-white border border-slate-200 shadow-xl p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-250">
-                <div className="px-3 py-2 border-b border-slate-50 mb-1">
-                  <p className="text-xs font-bold text-slate-900">{currentUser.name}</p>
-                  <p className="text-[10px] text-slate-400 truncate">{currentUser.email}</p>
-                </div>
-                
-                {isPatient && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMenuOpen(false);
-                        navigate('/portal?tab=profile');
-                      }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-xl transition text-left cursor-pointer"
-                    >
-                      <User size={15} className="text-slate-400" />
-                      My Profile
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMenuOpen(false);
-                        navigate('/portal?tab=security');
-                      }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-xl transition text-left cursor-pointer"
-                    >
-                      <Shield size={15} className="text-slate-400" />
-                      Security Settings
-                    </button>
-                  </>
-                )}
-
-                {currentUser.role === ROLES.ADMIN && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMenuOpen(false);
-                        navigate('/admin/clinics-dashboard');
-                      }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-xl transition text-left cursor-pointer"
-                    >
-                      <BarChart2 size={15} className="text-slate-400" />
-                      View Analytics
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMenuOpen(false);
-                        navigate('/admin/organization-settings');
-                      }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-xl transition text-left cursor-pointer"
-                    >
-                      <Settings size={15} className="text-slate-400" />
-                      Organization Settings
-                    </button>
-                  </>
-                )}
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onLogout();
-                  }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-xl transition text-left mt-1 cursor-pointer"
-                >
-                  <LogOut size={15} />
-                  Logout
+            {branchDropdownOpen && (
+              <div className="absolute left-0 mt-2 w-52 rounded-2xl bg-white border border-slate-200 shadow-xl p-2 z-50 animate-in fade-in slide-in-from-top-1 duration-200">
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider px-3 py-1 border-b border-slate-50">Select Branch</p>
+                <button onClick={() => setBranchDropdownOpen(false)} className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-blue-600 bg-blue-50/50 rounded-xl mt-1 text-left">
+                  <span>Indirapuram Branch</span>
+                  <span className="text-[8px] bg-blue-100 px-1.5 py-0.5 rounded-full font-bold">Active</span>
                 </button>
               </div>
             )}
           </div>
         )}
       </div>
+
+      {/* 2. Middle Section: Search Bar - hidden on smaller responsive viewports */}
+      <div className="hidden lg:flex items-center gap-4 flex-1 max-w-lg mx-8 relative">
+        <div className="relative w-full">
+          <input
+            id="global-search-input"
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
+            placeholder="Search patients, appointments, invoices, staff, doctors..."
+            className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-10 pr-12 py-2 text-xs text-slate-850 placeholder:text-slate-400/90 focus:outline-none focus:bg-white focus:border-blue-600 focus:shadow-[0_0_0_3px_rgba(37,99,235,0.08)] transition duration-200"
+          />
+          <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          <div className="absolute right-3.5 top-1/2 -translate-y-1/2 bg-slate-200/60 border border-slate-300/40 rounded px-1.5 py-0.5 text-[8px] font-black text-slate-500 uppercase tracking-widest pointer-events-none select-none">
+            Ctrl + K
+          </div>
+        </div>
+      </div>
+
+      {/* 3. Right Section: Date, Actions, Profile Dropdown */}
+      <div className="hidden xl:flex items-center gap-2 lg:gap-3 shrink-0">
+        
+        {/* Today's Date card - hidden on mobile/tablet */}
+        <div className="flex items-center gap-2.5 bg-slate-50 border border-slate-150 rounded-full px-3.5 py-1.5 shadow-[0_1px_2px_rgba(0,0,0,0.01)] hover:bg-slate-100/80 transition duration-200 select-none">
+          <Calendar size={13} className="text-slate-500" />
+          <div className="text-left leading-none">
+            <span className="text-[10px] font-black text-slate-805 tracking-tight">{todayStr.formatted}</span>
+            <span className="block text-[8px] text-slate-400 font-bold mt-0.5">{todayStr.dayName}</span>
+          </div>
+        </div>
+
+        {/* Chat / Messages Button - hidden on mobile/tablet */}
+        <button
+          onClick={() => isPatient ? navigate('/portal?tab=support') : navigate('/chat')}
+          aria-label="Clinic Chat"
+          title="Clinic Chat"
+          className="p-2 lg:p-2.5 rounded-full text-slate-500 bg-slate-50 hover:bg-blue-50 hover:text-blue-600 border border-slate-150 transition duration-200 active:scale-95 hover:shadow-[0_0_10px_rgba(37,99,235,0.05)] cursor-pointer"
+        >
+          <MessageSquare size={14} />
+        </button>
+
+        {/* Notification Bell Dropdown - hidden on mobile/tablet */}
+        <div className="relative" ref={notificationRef}>
+          <button
+            onClick={() => setNotificationDropdownOpen(!notificationDropdownOpen)}
+            aria-label="Notifications"
+            className="p-2 lg:p-2.5 rounded-full text-slate-500 bg-slate-50 hover:bg-emerald-50 hover:text-emerald-600 border border-slate-150 transition duration-200 active:scale-95 hover:shadow-[0_0_10px_rgba(16,185,129,0.05)] cursor-pointer relative"
+          >
+            <Bell size={14} />
+            {unreadCount > 0 && (
+              <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-white animate-pulse" />
+            )}
+          </button>
+
+          {notificationDropdownOpen && (
+            <div className="absolute right-0 mt-2 w-80 rounded-2xl bg-white border border-slate-200 shadow-xl p-3 z-50 animate-in fade-in slide-in-from-top-1 duration-200">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-50">
+                <span className="text-xs font-black text-slate-800">Notifications</span>
+                <span className="text-[10px] font-bold text-slate-400">{unreadCount} Unread</span>
+              </div>
+              <div className="max-h-64 overflow-y-auto divide-y divide-slate-50 mt-2">
+                {rawLogs.length === 0 ? (
+                  <p className="text-[10px] text-slate-400 font-bold text-center py-6">No recent notifications</p>
+                ) : (
+                  rawLogs.map(log => (
+                    <div key={log._id} className="py-2.5 flex items-start gap-3 hover:bg-slate-50 rounded-lg px-2 transition">
+                      <div className="mt-0.5">{getNotificationIcon(log.title)}</div>
+                      <div>
+                        <p className="text-[11px] font-black text-slate-800 leading-tight">{log.title}</p>
+                        <p className="text-[9px] text-slate-400 font-bold mt-0.5 leading-tight">{log.message}</p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Profile Avatar Dropdown - hidden on mobile/tablet */}
+        <div className="relative" ref={profileRef}>
+          <button
+            onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+            className="flex items-center gap-2 bg-slate-50 border border-slate-150 rounded-full pl-2 pr-3 py-1 hover:bg-slate-100/60 transition duration-200 cursor-pointer active:scale-98 group"
+          >
+            <Avatar src={currentUser?.avatar} name={ownerName} size="w-8 h-8 rounded-full border border-slate-200 shadow-xs shrink-0" />
+            <div className="text-left leading-none">
+              <p className="text-[10px] lg:text-[11px] font-black text-slate-850 tracking-tight group-hover:text-blue-600 transition-colors">{ownerName}!</p>
+              <span className="block text-[8px] text-slate-450 font-bold mt-0.5">{roleLabel}</span>
+            </div>
+            <ChevronDown size={11} className="text-slate-450 group-hover:text-slate-600 transition-colors" />
+          </button>
+
+          {profileDropdownOpen && (
+            <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-white border border-slate-200 shadow-xl p-2.5 z-50 animate-in fade-in slide-in-from-top-1 duration-200">
+              <div className="px-3.5 py-2.5 border-b border-slate-50 leading-none">
+                <p className="text-xs font-black text-slate-900">{ownerName}</p>
+                <span className="text-[9px] text-slate-400 font-bold block mt-1">{currentUser?.email || 'user@peheal.com'}</span>
+              </div>
+              <div className="mt-1.5 space-y-0.5">
+                {settingsLink && (
+                  <Link to={settingsLink.path} onClick={() => setProfileDropdownOpen(false)} className="flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 rounded-xl transition">
+                    <Settings size={14} className="text-slate-400" />
+                    <span>{settingsLink.label}</span>
+                  </Link>
+                )}
+                <button onClick={handleLogoutClick} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-rose-500 hover:bg-rose-50 rounded-xl transition text-left">
+                  <LogOut size={14} className="text-rose-455" />
+                  <span>Sign Out</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+      </div>
+
     </header>
   );
 };

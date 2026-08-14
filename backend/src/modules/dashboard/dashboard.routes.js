@@ -40,7 +40,7 @@ router.get(
 router.get(
   '/labs',
   protect,
-  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR),
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR, ROLES.LAB_TECHNICIAN, ROLES.LAB_OPERATOR),
   validate(dashboardRangeQuerySchema),
   dashboardController.getLabsAnalytics
 );
@@ -85,6 +85,38 @@ router.get(
   protect,
   authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),
   dashboardController.getSuperAdminOverview
+);
+
+router.get(
+  '/doctor-status',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RECEPTIONIST),
+  validate(dashboardRangeQuerySchema),
+  dashboardController.getDoctorStatus
+);
+
+router.get(
+  '/branch-overview',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RECEPTIONIST),
+  validate(dashboardRangeQuerySchema),
+  dashboardController.getBranchOverview
+);
+
+router.get(
+  '/staff-overview',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),
+  validate(dashboardRangeQuerySchema),
+  dashboardController.getStaffOverview
+);
+
+router.get(
+  '/checked-in-queue',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR),
+  validate(dashboardRangeQuerySchema),
+  dashboardController.getCheckedInQueue
 );
 
 module.exports = router;

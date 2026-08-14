@@ -17,9 +17,9 @@ class ChatController {
       const { _id: userId, role, clinicId } = req.user;
       const { doctorId, receptionistId } = req.body;
 
-      // Determine sender / receiver
+      // Determine sender / receiver (Treat ADMIN as RECEPTIONIST / staff side)
       const docId = role === 'DOCTOR' ? userId : doctorId;
-      const recepId = role === 'RECEPTIONIST' ? userId : receptionistId;
+      const recepId = (role === 'RECEPTIONIST' || role === 'ADMIN') ? userId : receptionistId;
 
       if (!docId || !recepId) {
         return sendError(res, 'Both doctorId and receptionistId are required', 400);
@@ -44,7 +44,8 @@ class ChatController {
 
   async sendMessage(req, res) {
     try {
-      const { _id: senderId, role: senderRole } = req.user;
+      const { _id: senderId, role: rawRole } = req.user;
+      const senderRole = rawRole === 'ADMIN' ? 'RECEPTIONIST' : rawRole;
       const { conversationId, receiverId, message, messageType, attachmentUrl } = req.body;
 
       if (!conversationId || !receiverId || !message) {
@@ -61,8 +62,6 @@ class ChatController {
         attachmentUrl
       });
 
-      // If WebSocket broadcast is needed, it can also be handled at socket server level.
-      // But we will also send the message back in the HTTP response.
       return sendSuccess(res, 'Message sent successfully', { message: msg });
     } catch (error) {
       return sendError(res, error.message || 'Error sending message');

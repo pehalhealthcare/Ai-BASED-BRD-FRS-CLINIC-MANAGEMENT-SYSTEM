@@ -33,15 +33,40 @@ const { logger } = require('../../common/utils/logger');
 const emitAppointmentEvent = (event, payload) => {
   try {
     if (!global.io) return;
-    const { clinicId, doctorId, patientId, appointment } = payload;
+    let { clinicId, doctorId, patientId } = payload;
+
+    // Resolve Mongoose populated documents/objects to string IDs
+    if (clinicId && typeof clinicId === 'object') clinicId = clinicId._id;
+    if (doctorId && typeof doctorId === 'object') doctorId = doctorId._id;
+    if (patientId && typeof patientId === 'object') patientId = patientId._id;
+    
+    // Normalize event format from colon to dot or vice versa
+    const colonEvent = event.replace(/\./g, ':');
+    const dotEvent = event.replace(/:/g, '.');
+
+    const allEvents = [event, colonEvent, dotEvent];
+    if (event === 'appointment:created' || event === 'appointment.created' || event === 'appointment:payment-success' || event === 'appointment.payment-success') {
+      allEvents.push('appointment:booked', 'appointment.created', 'appointment:created', 'appointment:payment-success', 'appointment.payment-success');
+    }
+
+    const uniqueEvents = Array.from(new Set(allEvents));
+
+    const emitToRoom = (roomId) => {
+      uniqueEvents.forEach(evt => {
+        global.io.to(String(roomId)).emit(evt, payload);
+      });
+    };
+
     // Broadcast to the clinic room (receptionists, admins)
-    if (clinicId) global.io.to(String(clinicId)).emit(event, payload);
+    if (clinicId) emitToRoom(clinicId);
     // Notify doctor
-    if (doctorId) global.io.to(String(doctorId)).emit(event, payload);
+    if (doctorId) emitToRoom(doctorId);
     // Notify patient
-    if (patientId) global.io.to(String(patientId)).emit(event, payload);
+    if (patientId) emitToRoom(patientId);
+
     // Also broadcast to wildcard queue_update for backward compat
-    if (doctorId && ['appointment:checked-in','appointment:token-generated','appointment:consultation-started','appointment:consultation-completed','appointment:no-show'].includes(event)) {
+    const eventString = String(event);
+    if (doctorId && (['appointment:checked-in','appointment:token-generated','appointment:consultation-started','appointment:consultation-completed','appointment:no-show'].includes(eventString) || eventString.includes('checked_in') || eventString.includes('checked-in'))) {
       global.io.emit('queue_update', { doctorId: String(doctorId) });
     }
   } catch (_err) {
@@ -1888,6 +1913,19 @@ const triggerQueueUpdate = (appointment) => {
     const docId = appointment.doctorId?._id || appointment.doctorId;
     const clinicId = appointment.clinicId?._id || appointment.clinicId;
     const patId = appointment.patientId?._id || appointment.patientId;
+    
+    // Status mappings
+    const status = (appointment.status || '').toLowerCase();
+    
+    // Construct event payloads
+    const payload = {
+      appointmentId: appointment._id?.toString(),
+      clinicId: clinicId?.toString(),
+      doctorId: docId?.toString(),
+      patientId: patId?.toString(),
+      status: appointment.status
+    };
+
     if (docId) {
       global.io.emit('queue_update', { doctorId: docId.toString() });
       global.io.to(docId.toString()).emit('queue_update', { doctorId: docId.toString() });
@@ -1897,6 +1935,39 @@ const triggerQueueUpdate = (appointment) => {
     }
     if (patId) {
       global.io.to(patId.toString()).emit('queue_update', { patientId: patId.toString() });
+    }
+
+    // Emit specific status events to clinic, doctor, and patient rooms
+    const targets = [];
+    if (clinicId) targets.push(global.io.to(clinicId.toString()));
+    if (docId) targets.push(global.io.to(docId.toString()));
+    if (patId) targets.push(global.io.to(patId.toString()));
+
+    const broadcastEvent = (evtName) => {
+      targets.forEach(target => {
+        target.emit(evtName, payload);
+      });
+    };
+
+    broadcastEvent('appointment.updated');
+    broadcastEvent('appointment:updated');
+
+    if (status === 'booked' || status === 'confirmed') {
+      broadcastEvent('appointment:booked');
+      broadcastEvent('appointment.created');
+      broadcastEvent('appointment:created');
+    } else if (status === 'checked_in' || status === 'checked-in') {
+      broadcastEvent('appointment:checked_in');
+      broadcastEvent('appointment.checked_in');
+    } else if (status === 'cancelled' || status === 'patient_cancelled' || status === 'clinic_cancelled') {
+      broadcastEvent('appointment:cancelled');
+      broadcastEvent('appointment.cancelled');
+    } else if (status === 'rescheduled') {
+      broadcastEvent('appointment:rescheduled');
+      broadcastEvent('appointment.rescheduled');
+    } else if (status === 'completed') {
+      broadcastEvent('appointment:completed');
+      broadcastEvent('appointment.completed');
     }
   }
 };

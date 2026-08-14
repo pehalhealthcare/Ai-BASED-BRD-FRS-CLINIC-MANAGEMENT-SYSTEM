@@ -280,6 +280,20 @@ const startServer = async () => {
     logger.warn('Continuing startup without an active MongoDB connection because NODE_ENV is not production.');
   }
 
+  const net = require('net');
+  const checkPort = (port) => new Promise((resolve) => {
+    const tester = net.createServer()
+      .once('error', () => resolve(false))
+      .once('listening', () => tester.once('close', () => resolve(true)).close())
+      .listen(port);
+  });
+
+  const isPortAvailable = await checkPort(env.port);
+  if (!isPortAvailable) {
+    logger.error(`Port ${env.port} already in use. Please stop the previous backend instance.`);
+    process.exit(1);
+  }
+
   server = app.listen(env.port, () => {
     logger.info(`${env.appName} running at http://localhost:${env.port}`);
     logger.info(`Swagger docs available at http://localhost:${env.port}/api-docs`);
@@ -304,8 +318,57 @@ const startServer = async () => {
   });
   global.io = io;
 
-  io.on('connection', (socket) => {
+  const { verifyAccessToken } = require('./modules/auth/token.service');
+  const User = require('./modules/users/user.model');
+
+  io.use(async (socket, next) => {
+    try {
+      const token = socket.handshake.auth?.token || socket.handshake.headers?.token;
+      if (!token) {
+        return next(new Error('Authentication error: Token missing'));
+      }
+      const payload = verifyAccessToken(token);
+      const user = await User.findById(payload.sub).lean();
+      if (!user || !user.isActive || user.deletedAt) {
+        return next(new Error('Authentication error: Invalid user'));
+      }
+      socket.user = user;
+      next();
+    } catch (err) {
+      next(new Error('Authentication error: ' + err.message));
+    }
+  });
+
+  io.on('connection', async (socket) => {
     logger.info(`Socket client connected: ${socket.id}`);
+
+    // Real-time Staff Presence Tracking
+    const socketUserId = socket.user?._id;
+    if (socketUserId) {
+      try {
+        const u = await User.findById(socketUserId);
+        if (u) {
+          u.socketIds.push(socket.id);
+          u.activeSocketCount = u.socketIds.length;
+          u.isOnline = true;
+          u.lastSeen = new Date();
+          await u.save();
+
+          if (u.clinicId) {
+            socket.join(`clinic:${u.clinicId}`);
+            // Broadcast staff online event to the clinic admin dashboard
+            io.to(`clinic:${u.clinicId}`).emit('staff:online', {
+              staffId: u._id,
+              clinicId: u.clinicId,
+              status: 'ONLINE',
+              lastSeen: u.lastSeen
+            });
+          }
+        }
+      } catch (err) {
+        logger.error('Failed to handle staff connect presence:', err);
+      }
+    }
 
     // Join user room
     socket.on('join_user', (userId) => {
@@ -448,8 +511,44 @@ const startServer = async () => {
       if (data.meetingId) socket.to(data.meetingId).emit('mic_state_changed', data);
     });
 
-    socket.on('disconnect', () => {
+    socket.on('disconnect', async () => {
       logger.info(`Socket client disconnected: ${socket.id}`);
+
+      if (socketUserId) {
+        try {
+          const u = await User.findById(socketUserId);
+          if (u) {
+            u.socketIds = u.socketIds.filter(id => id !== socket.id);
+            u.activeSocketCount = u.socketIds.length;
+            await u.save();
+
+            // Wait 1-second grace period before marking offline
+            setTimeout(async () => {
+              try {
+                const checkUser = await User.findById(socketUserId);
+                if (checkUser && checkUser.socketIds.length === 0) {
+                  checkUser.isOnline = false;
+                  checkUser.lastSeen = new Date();
+                  await checkUser.save();
+
+                  if (checkUser.clinicId) {
+                    io.to(`clinic:${checkUser.clinicId}`).emit('staff:offline', {
+                      staffId: checkUser._id,
+                      clinicId: checkUser.clinicId,
+                      status: 'OFFLINE',
+                      lastSeen: checkUser.lastSeen
+                    });
+                  }
+                }
+              } catch (err) {
+                logger.error('Failed to handle offline state after grace period:', err);
+              }
+            }, 1000);
+          }
+        } catch (err) {
+          logger.error('Failed to handle socket disconnect presence:', err);
+        }
+      }
     });
   });
 };

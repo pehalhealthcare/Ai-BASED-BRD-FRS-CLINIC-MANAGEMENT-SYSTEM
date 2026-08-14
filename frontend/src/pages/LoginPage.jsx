@@ -54,7 +54,7 @@ const LoginPage = () => {
       const userRole = authData?.user?.role;
       const clinic = authData?.user?.clinic;
 
-      if (userRole === 'SUPER_ADMIN') { navigate('/dashboard', { replace: true }); return; }
+      if (userRole === 'SUPER_ADMIN') { navigate('/super-admin/clinics', { replace: true }); return; }
 
       if (activeTab === 'patient' && userRole !== 'PATIENT') {
         setError('This account is not registered as a Patient. Please sign in using the correct portal.');

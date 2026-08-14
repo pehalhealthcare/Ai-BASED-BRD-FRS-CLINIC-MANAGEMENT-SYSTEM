@@ -86,6 +86,16 @@ notificationRouter.post(
   notificationController.dispatchPendingNotifications
 );
 
+const userNotificationController = require('./userNotification.controller');
+
+notificationRouter.get('/', protect, userNotificationController.listUserNotifications);
+notificationRouter.get('/unread-count', protect, userNotificationController.getUnreadCount);
+notificationRouter.patch('/:id/read', protect, userNotificationController.markAsRead);
+notificationRouter.patch('/:id/archive', protect, userNotificationController.archiveNotification);
+notificationRouter.delete('/:id', protect, userNotificationController.deleteNotification);
+notificationRouter.delete('/', protect, userNotificationController.clearAllNotifications);
+
+
 followUpRouter.get(
   '/',
   protect,

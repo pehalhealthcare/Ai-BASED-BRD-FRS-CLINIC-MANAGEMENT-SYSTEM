@@ -1,5 +1,6 @@
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useState,useEffect } from 'react';
+import io from 'socket.io-client';
 
 import { ROUTES } from '../../constants/routes';
 import { ROLES, STAFF_ROLES } from '../../constants/roles';
@@ -11,6 +12,8 @@ import BottomFloatingNavBar from './BottomFloatingNavBar';
 import WalkInPatientModal from '../../features/dashboard/WalkInPatientModal';
 import axios from 'axios';
 import { AlertCircle } from 'lucide-react';
+import { LoadingProvider } from '../../context/LoadingContext';
+import GlobalLoader from '../common/GlobalLoader';
 
 const pageTitles = {
   [ROUTES.dashboard]: 'Dashboard',
@@ -38,19 +41,46 @@ const DashboardLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    const saved = localStorage.getItem('sidebarOpen');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
   const [walkInModalOpen, setWalkInModalOpen] = useState(false);
   const [subInfo, setSubInfo] = useState(null);
 
   useEffect(() => {
     if (user?.role === ROLES.ADMIN) {
       axios.get('/api/v1/subscriptions/current', {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        headers: { Authorization: `Bearer ${localStorage.getItem('ai_cms_access_token') || localStorage.getItem('token')}` }
       })
       .then(res => setSubInfo(res.data?.data))
       .catch(err => console.error('Subscription check failed:', err));
     }
   }, [user]);
+
+  // General socket connection lifecycle for real-time presence tracking
+  useEffect(() => {
+    if (!user?._id) return;
+    const token = localStorage.getItem('ai_cms_access_token') || localStorage.getItem('token');
+    if (!token) return;
+
+    const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5001';
+    const socket = io(socketUrl, {
+      transports: ['websocket', 'polling'],
+      auth: { token }
+    });
+
+    socket.on('connect', () => {
+      const clinicId = user.clinicId || user.clinic?._id;
+      if (clinicId) {
+        socket.emit('join_clinic', clinicId);
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [user?._id]);
 
 
   const activeTitle =
@@ -127,99 +157,96 @@ const DashboardLayout = () => {
 
 
   return (
-    <div className="min-h-screen bg-[var(--bg-base)] text-[var(--text-primary)] lg:flex">
-      {/* Sidebar */}
-      <Sidebar
-        user={user}
-        role={user?.role}
-        open={sidebarOpen}
-        onNavigate={() => {}}
-        onLogout={handleLogout}
-        onAddWalkIn={() => setWalkInModalOpen(true)}
-      />
-
-      {/* Mobile Overlay */}
-      {sidebarOpen && (
-        <button
-          type="button"
-          aria-label="Close sidebar overlay"
-          className="fixed inset-0 z-30 bg-black/50 lg:hidden backdrop-blur-sm"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* Main content */}
-      <div className="relative flex min-h-screen flex-1 flex-col overflow-hidden">
-        {show24hWarning && (
-          <div className="bg-rose-650 bg-rose-600 text-white p-4 text-xs font-bold flex items-center justify-between gap-4 flex-wrap">
-            <span>
-              ⚠️ <strong>Your subscription will expire within the next 24 hours.</strong> Please renew your subscription to avoid interruption of clinic services.
-            </span>
-            <div className="flex gap-2 shrink-0">
-              <button 
-                onClick={async () => {
-                  try {
-                    const res = await axios.post('/api/v1/subscriptions/renew', {}, {
-                      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-                    });
-                    if (res.data?.success) {
-                      window.location.reload();
-                    }
-                  } catch {
-                    alert('Renewal failed.');
-                  }
-                }}
-                className="bg-white text-rose-700 px-3 py-1 rounded-lg text-[10px] font-black uppercase cursor-pointer"
-              >
-                Renew Now
-              </button>
-              <button 
-                onClick={async () => {
-                  try {
-                    await axios.post('/api/v1/subscriptions/auto-recharge', {
-                      autoRecharge: true,
-                      paymentMethod: { last4: '4242', brand: 'Visa', token: 'TOK_AUTO_RECHARGE_CONFIRMED' }
-                    }, {
-                      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-                    });
-                    window.location.reload();
-                  } catch {
-                    alert('Auto recharge activation failed.');
-                  }
-                }}
-                className="bg-rose-700 hover:bg-rose-800 text-white border border-rose-500 px-3 py-1 rounded-lg text-[10px] font-black uppercase cursor-pointer"
-              >
-                Enable Auto Recharge
-              </button>
-              <button 
-                onClick={() => navigate('/settings')}
-                className="bg-rose-900 text-white px-3 py-1 rounded-lg text-[10px] font-black uppercase cursor-pointer"
-              >
-                View Details
-              </button>
-            </div>
-          </div>
-        )}
-        <Topbar
-          title={activeTitle}
-          currentUser={user}
-          onToggleSidebar={() => setSidebarOpen((s) => !s)}
+    <LoadingProvider>
+      <div className="min-h-screen bg-[var(--bg-base)] text-[var(--text-primary)] flex">
+        <Sidebar
+          user={user}
+          role={user?.role}
+          open={sidebarOpen}
+          onNavigate={(state) => setSidebarOpen(state)}
           onLogout={handleLogout}
+          onAddWalkIn={() => setWalkInModalOpen(true)}
         />
-        <main className="flex-1 p-4 md:p-6 overflow-x-auto animate-fade-in">
-          <Outlet />
-        </main>
-        {user?.role === ROLES.PATIENT && <FloatingChatbot />}
-        <BottomFloatingNavBar />
+
+        {/* Main content */}
+        <div className="relative flex min-h-screen flex-1 flex-col overflow-hidden w-full max-w-full pl-[72px] sm:pl-[80px] xl:pl-0">
+          {show24hWarning && (
+            <div className="bg-rose-650 bg-rose-600 text-white p-4 text-xs font-bold flex items-center justify-between gap-4 flex-wrap">
+              <span>
+                ⚠️ <strong>Your subscription will expire within the next 24 hours.</strong> Please renew your subscription to avoid interruption of clinic services.
+              </span>
+              <div className="flex gap-2 shrink-0">
+                <button 
+                  onClick={async () => {
+                    try {
+                      const res = await axios.post('/api/v1/subscriptions/renew', {}, {
+                        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+                      });
+                      if (res.data?.success) {
+                        window.location.reload();
+                      }
+                    } catch {
+                      alert('Renewal failed.');
+                    }
+                  }}
+                  className="bg-white text-rose-700 px-3 py-1 rounded-lg text-[10px] font-black uppercase cursor-pointer"
+                >
+                  Renew Now
+                </button>
+                <button 
+                  onClick={async () => {
+                    try {
+                      await axios.post('/api/v1/subscriptions/auto-recharge', {
+                        autoRecharge: true,
+                        paymentMethod: { last4: '4242', brand: 'Visa', token: 'TOK_AUTO_RECHARGE_CONFIRMED' }
+                      }, {
+                        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+                      });
+                      window.location.reload();
+                    } catch {
+                      alert('Auto recharge activation failed.');
+                    }
+                  }}
+                  className="bg-rose-700 hover:bg-rose-800 text-white border border-rose-500 px-3 py-1 rounded-lg text-[10px] font-black uppercase cursor-pointer"
+                >
+                  Enable Auto Recharge
+                </button>
+                <button 
+                  onClick={() => navigate('/settings')}
+                  className="bg-rose-900 text-white px-3 py-1 rounded-lg text-[10px] font-black uppercase cursor-pointer"
+                >
+                  View Details
+                </button>
+              </div>
+            </div>
+          )}
+          <Topbar
+            title={activeTitle}
+            currentUser={user}
+            sidebarOpen={sidebarOpen}
+            onToggleSidebar={() => setSidebarOpen((s) => {
+              const next = !s;
+              localStorage.setItem('sidebarOpen', JSON.stringify(next));
+              return next;
+            })}
+            onLogout={handleLogout}
+          />
+          <main className="flex-1 p-4 md:p-6 overflow-x-auto animate-fade-in">
+            <Outlet />
+          </main>
+          {user?.role === ROLES.PATIENT && <FloatingChatbot />}
+          <BottomFloatingNavBar />
+        </div>
+        <WalkInPatientModal
+          isOpen={walkInModalOpen}
+          onClose={() => setWalkInModalOpen(false)}
+          onSuccess={() => {
+            window.location.reload();
+          }}
+        />
       </div>
-      <WalkInPatientModal
-        isOpen={walkInModalOpen}
-        onClose={() => setWalkInModalOpen(false)}
-        onSuccess={() => {
-          window.location.reload();
-        }}
-      />
-    </div>
+      <GlobalLoader />
+    </LoadingProvider>
   );
 };
 

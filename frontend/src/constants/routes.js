@@ -183,7 +183,7 @@ export const getDefaultRouteForRole = (role) => {
   }
 
   if (role === ROLES.ADMIN) {
-    return ROUTES.dashboard;
+    return '/clinic/dashboard';
   }
 
   if (role === ROLES.PATIENT) {

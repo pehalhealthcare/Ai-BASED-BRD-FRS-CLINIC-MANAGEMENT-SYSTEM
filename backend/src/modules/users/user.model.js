@@ -124,6 +124,22 @@ const userSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Provider',
       default: null
+    },
+    isOnline: {
+      type: Boolean,
+      default: false
+    },
+    lastSeen: {
+      type: Date,
+      default: null
+    },
+    activeSocketCount: {
+      type: Number,
+      default: 0
+    },
+    socketIds: {
+      type: [String],
+      default: []
     }
   },
   {

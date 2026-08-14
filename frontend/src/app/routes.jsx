@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 
 import DashboardLayout from '../components/layout/DashboardLayout';
+import AdminDashboardPage from '../features/dashboard/admin/AdminDashboardPage';
 import { ROLES } from '../constants/roles';
 import UsersAdminPage from '../features/admin/UsersAdminPage';
 import OrganizationSettingsPage from '../features/admin/OrganizationSettingsPage';
@@ -372,9 +373,12 @@ export const router = createBrowserRouter([
         element: protect(<ProviderWorkspacePage type="pharmacy" />, [ROLES.PHARMACIST, ROLES.PHARMACY_OPERATOR, ROLES.ADMIN])
       },
       {
+        path: 'clinic/dashboard',
+        element: protect(<AdminDashboardPage />, [ROLES.ADMIN])
+      },
+      {
         path: 'dashboard',
         element: protect(<DashboardPage />, [
-          ROLES.ADMIN,
           ROLES.SUPER_ADMIN,
           ROLES.RECEPTIONIST,
           ROLES.DOCTOR,
@@ -601,7 +605,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'chat',
-        element: protect(<ChatPage />, [ROLES.RECEPTIONIST, ROLES.DOCTOR])
+        element: protect(<ChatPage />, [ROLES.RECEPTIONIST, ROLES.DOCTOR, ROLES.ADMIN])
       },
       {
         path: 'doctors/new',

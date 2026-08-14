@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import dotenv from "dotenv";
 
-dotenv.config();
+dotenv.config({ path: '../.env' });
 
 const mongoUri = process.env.MONGO_URI_ATLAS;
 
@@ -24,9 +24,9 @@ const collections = await mongoose.connection.db.listCollections().toArray();
 for (const col of collections) {
   const collectionName = col.name;
 
-  if (collectionName === "appointments") {
+  if (collectionName === "token" || collectionName === "tokens") {
     const result = await mongoose.connection.db.collection(collectionName).deleteMany({});
-    console.log(result);
+    console.log(`Cleared ${collectionName}:`, result);
 
   }
 }

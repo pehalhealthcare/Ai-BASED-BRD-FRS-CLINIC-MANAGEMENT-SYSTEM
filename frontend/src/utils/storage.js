@@ -10,10 +10,12 @@ export const getStoredToken = () => localStorage.getItem(TOKEN_KEY);
 
 export const setStoredToken = (token) => {
   localStorage.setItem(TOKEN_KEY, token);
+  localStorage.setItem('token', token);
 };
 
 export const clearStoredToken = () => {
   localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem('token');
 };
 
 export const getStoredUser = () => {

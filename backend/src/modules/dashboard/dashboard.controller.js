@@ -107,6 +107,42 @@ const getSuperAdminOverview = asyncHandler(async (req, res) => {
   return sendSuccess(res, 'Super Admin Dashboard overview fetched successfully', data);
 });
 
+const getDoctorStatus = asyncHandler(async (req, res) => {
+  const data = await dashboardService.getDoctorStatus({
+    requester: req.user,
+    query: req.query,
+    requestedClinicId: req.query.clinicId
+  });
+  return sendSuccess(res, 'Doctor status fetched successfully', data);
+});
+
+const getBranchOverview = asyncHandler(async (req, res) => {
+  const data = await dashboardService.getBranchOverview({
+    requester: req.user,
+    query: req.query,
+    requestedClinicId: req.query.clinicId
+  });
+  return sendSuccess(res, 'Branch overview fetched successfully', data);
+});
+
+const getStaffOverview = asyncHandler(async (req, res) => {
+  const data = await dashboardService.getStaffOverview({
+    requester: req.user,
+    query: req.query,
+    requestedClinicId: req.query.clinicId
+  });
+  return sendSuccess(res, 'Staff overview fetched successfully', data);
+});
+
+const getCheckedInQueue = asyncHandler(async (req, res) => {
+  const data = await dashboardService.getCheckedInQueue({
+    requester: req.user,
+    query: req.query,
+    requestedClinicId: req.query.clinicId
+  });
+  return sendSuccess(res, 'Checked-in queue fetched successfully', data);
+});
+
 module.exports = {
   getOverview,
   getAppointmentsAnalytics,
@@ -118,5 +154,9 @@ module.exports = {
   getDoctorWorkload,
   getNoShowAnalytics,
   getActivityFeed,
-  getSuperAdminOverview
+  getSuperAdminOverview,
+  getDoctorStatus,
+  getBranchOverview,
+  getStaffOverview,
+  getCheckedInQueue
 };

@@ -16,6 +16,9 @@ const LabConsumable = require('./labConsumable.model');
 const LabConsumableBatch = require('./labConsumableBatch.model');
 const LabStockLedger = require('./labStockLedger.model');
 const Supplier = require('../pharmacy/supplier.model');
+const LabEquipment = require('./labEquipment.model');
+const LabQcCalibration = require('./labQcCalibration.model');
+const LabReport = require('./labReport.model');
 
 const ORDER_STATUS_TRANSITIONS = {
   ordered: ['sample_collected', 'cancelled'],
@@ -1640,6 +1643,117 @@ const listCustomLabRequests = async ({ requester }) => {
   return list;
 };
 
+const listEquipment = async ({ requester, query, requestedClinicId }) => {
+  const clinicId = resolveClinicContext({
+    user: requester,
+    requestedClinicId
+  });
+
+  return LabEquipment.find({ clinicId });
+};
+
+
+const createEquipment = async ({ requester, payload, requestedClinicId }) => {
+  const clinicId = resolveClinicContext({
+    user: requester,
+    requestedClinicId
+  });
+  return LabEquipment.create({
+    ...payload,
+    clinicId
+  });
+};
+
+const listQcCalibrations = async ({ requester, query, requestedClinicId }) => {
+  const clinicId = resolveClinicContext({
+    user: requester,
+    requestedClinicId
+  });
+  return LabQcCalibration.find({ clinicId }).populate('equipmentId').sort({ createdAt: -1 });
+};
+
+const createQcCalibration = async ({ requester, payload, requestedClinicId }) => {
+  const clinicId = resolveClinicContext({
+    user: requester,
+    requestedClinicId
+  });
+  return LabQcCalibration.create({
+    ...payload,
+    clinicId,
+    performedBy: requester._id
+  });
+};
+
+const getLabAlerts = async ({ requester, requestedClinicId }) => {
+  const clinicId = resolveClinicContext({
+    user: requester,
+    requestedClinicId
+  });
+
+  const alerts = [];
+
+  const abnormalReportsCount = await LabReport.countDocuments({
+    clinicId,
+    status: { $ne: 'finalized' },
+    $or: [
+      { 'resultEntries.isAbnormal': true },
+      { 'resultEntries.abnormalFlag': 'critical' }
+    ]
+  });
+
+  if (abnormalReportsCount > 0) {
+    alerts.push({
+      id: 'alert_critical_results',
+      msg: `${abnormalReportsCount} Critical test results pending review`,
+      desc: `Across pending work orders`,
+      time: 'Just now',
+      priority: 'Emergency',
+      type: 'critical_results'
+    });
+  }
+
+  const lowStockConsumables = await LabConsumable.find({
+    clinicId,
+    $expr: { $lte: ['$stock', '$reorderLevel'] }
+  });
+
+  for (const item of lowStockConsumables) {
+    alerts.push({
+      id: `alert_low_stock_${item._id}`,
+      msg: `Reagent Low Stock Alert`,
+      desc: `${item.name} (${item.stock} left, reorder level ${item.reorderLevel})`,
+      time: '10 min ago',
+      priority: 'Urgent',
+      type: 'low_stock',
+      entityId: item._id
+    });
+  }
+
+  const maintenanceDueEquipments = await LabEquipment.find({
+    clinicId,
+    $or: [
+      { status: 'Maintenance' },
+      { status: 'Calibration Due' },
+      { calibrationStatus: 'Due' },
+      { nextMaintenance: { $lte: new Date() } }
+    ]
+  });
+
+  for (const eq of maintenanceDueEquipments) {
+    alerts.push({
+      id: `alert_maintenance_${eq._id}`,
+      msg: `Equipment Maintenance/Calibration Due`,
+      desc: `${eq.name} (${eq.status})`,
+      time: '1 hour ago',
+      priority: 'Routine',
+      type: 'equipment_maintenance',
+      entityId: eq._id
+    });
+  }
+
+  return alerts;
+};
+
 module.exports = {
   createLabConsumable,
   listLabConsumables,
@@ -1663,5 +1777,11 @@ module.exports = {
   getPatientLabHistory,
   searchAllLabs,
   createCustomLabRequest,
-  listCustomLabRequests
+  listCustomLabRequests,
+  listEquipment,
+  createEquipment,
+  listQcCalibrations,
+  createQcCalibration,
+  getLabAlerts
 };
+

@@ -406,8 +406,7 @@ const DoctorListPage = () => {
                       <tr 
                         key={doctor._id}
                         onClick={() => {
-                          setSelectedDoctor(doctor);
-                          setIsDrawerOpen(true);
+                          navigate(`/doctors/${doctor._id}`);
                         }}
                         className="group hover:bg-blue-50/20 cursor-pointer border-l-2 border-l-transparent hover:border-l-blue-500 transition-all duration-150"
                       >
@@ -486,8 +485,7 @@ const DoctorListPage = () => {
                           <div className="flex items-center justify-center gap-1">
                             <button 
                               onClick={() => {
-                                setSelectedDoctor(doctor);
-                                setIsDrawerOpen(true);
+                                navigate(`/doctors/${doctor._id}`);
                               }}
                               className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-blue-600 transition"
                               title="View Profile"

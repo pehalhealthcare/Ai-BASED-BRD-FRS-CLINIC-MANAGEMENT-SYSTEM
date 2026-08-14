@@ -3,7 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { ROLES, STAFF_ROLES } from '../../constants/roles';
 import { ROUTES } from '../../constants/routes';
 import useAuth from '../../hooks/useAuth';
-import DashboardPage from './DashboardPage';
+import AdminDashboardPage from './admin/AdminDashboardPage';
 import DashboardPharmacyPage from './DashboardPharmacyPage';
 import DoctorDashboardPage from './DoctorDashboardPage';
 import ReceptionistOnboarding from '../receptionists/ReceptionistOnboarding';
@@ -152,7 +152,7 @@ const RoleDashboardPage = () => {
   }
 
   if ([ROLES.ADMIN, ROLES.SUPER_ADMIN].includes(user?.role)) {
-    return <DashboardPage />;
+    return <AdminDashboardPage />;
   }
 
   // Fallback screen for roles whose dashboard is not designed yet

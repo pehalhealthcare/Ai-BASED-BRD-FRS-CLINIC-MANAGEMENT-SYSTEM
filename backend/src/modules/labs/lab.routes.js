@@ -189,4 +189,40 @@ router.get(
   labController.listLabStockLedgers
 );
 
+// Equipment routes
+router.get(
+  '/equipment',
+  protect,
+  labController.listEquipment
+);
+
+router.post(
+  '/equipment',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.LAB_TECHNICIAN),
+  labController.createEquipment
+);
+
+// QC & Calibration routes
+router.get(
+  '/qc-calibrations',
+  protect,
+  labController.listQcCalibrations
+);
+
+router.post(
+  '/qc-calibrations',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.LAB_TECHNICIAN),
+  labController.createQcCalibration
+);
+
+// Alerts route
+router.get(
+  '/dashboard/alerts',
+  protect,
+  labController.getLabAlerts
+);
+
 module.exports = router;
+

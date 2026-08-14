@@ -11,12 +11,25 @@ const getOrganizationEarnings = asyncHandler(async (req, res) => {
 
 const getDoctorEarnings = asyncHandler(async (req, res) => {
   const { doctorId } = req.params;
+  const { from, to, clinicId } = req.query;
   const mongoose = require('mongoose');
   const DoctorEarning = require('../schemas/doctorEarning.schema');
   const Appointment = require('../../appointments/appointment.model');
 
+  // Build filter
+  const filter = { doctorId: new mongoose.Types.ObjectId(doctorId) };
+  if (clinicId) {
+    filter.clinicId = new mongoose.Types.ObjectId(clinicId);
+  }
+  if (from && to) {
+    filter.createdAt = {
+      $gte: new Date(from),
+      $lte: new Date(new Date(to).setHours(23, 59, 59, 999))
+    };
+  }
+
   // Fetch real database records
-  const realEarnings = await DoctorEarning.find({ doctorId }).populate('invoiceId').lean();
+  const realEarnings = await DoctorEarning.find(filter).populate('invoiceId').lean();
 
   let totalEarnings = 0;
   let consultationEarnings = 0;
@@ -81,48 +94,39 @@ const getDoctorEarnings = asyncHandler(async (req, res) => {
   });
 
   // Fetch appointment counts
-  let totalAppointments = await Appointment.countDocuments({ doctorId });
-  let paidAppointments = await Appointment.countDocuments({ doctorId, status: { $in: ['confirmed', 'completed', 'checked_in'] } });
-
-  // If database contains little/no data, supplement with realistic high-fidelity dashboard data
-  const targetTotal = 82450;
-  const targetConsultations = 58250;
-  const targetProcedures = 18700;
-  const targetOther = 5500;
-  const targetLabReferrals = 3800;
-  const targetOtherServices = 1700;
-  const targetPending = 5350;
-
-  if (totalEarnings < 5000) {
-    // Add fallback/supplemental values
-    totalEarnings += targetTotal;
-    consultationEarnings += targetConsultations;
-    procedureEarnings += targetProcedures;
-    otherEarnings += targetOther;
-    labReferralEarnings += targetLabReferrals;
-    otherServicesEarnings += targetOtherServices;
-    pendingPayout += targetPending;
+  const apptFilter = { doctorId: new mongoose.Types.ObjectId(doctorId) };
+  if (clinicId) {
+    apptFilter.clinicId = new mongoose.Types.ObjectId(clinicId);
+  }
+  if (from && to) {
+    apptFilter.appointmentDate = {
+      $gte: new Date(from),
+      $lte: new Date(new Date(to).setHours(23, 59, 59, 999))
+    };
   }
 
-  if (totalAppointments < 10) {
-    totalAppointments += 124;
-    paidAppointments += 118;
-  }
+  let totalAppointments = await Appointment.countDocuments(apptFilter);
+  apptFilter.status = { $in: ['confirmed', 'completed', 'checked_in'] };
+  let paidAppointments = await Appointment.countDocuments(apptFilter);
 
   const averageEarningPerAppointment = totalAppointments > 0 ? (totalEarnings / totalAppointments) : 0;
 
-  // Generate monthly trend details
-  const months = ['Jan 2026', 'Feb 2026', 'Mar 2026', 'Apr 2026', 'May 2026', 'Jun 2026'];
-  const baseTrendValues = [42000, 51000, 56000, 50000, 59000, totalEarnings];
-  const trend = months.map((label, idx) => ({
+  // Generate real daily/monthly trend details from DB
+  const trendMap = {};
+  realEarnings.forEach(earning => {
+    const d = new Date(earning.createdAt);
+    const label = d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+    trendMap[label] = (trendMap[label] || 0) + (earning.doctorShare || 0);
+  });
+  
+  const trend = Object.entries(trendMap).map(([label, value]) => ({
     label,
-    value: baseTrendValues[idx]
-  }));
+    value
+  })).sort((a, b) => new Date(a.label) - new Date(b.label));
 
   // Create recent transaction list
   const recentTransactions = [];
   
-  // Try to use real transactions first
   realEarnings.slice(0, 10).forEach(earning => {
     let type = 'Consultation';
     let desc = 'Consultation';
@@ -144,19 +148,6 @@ const getDoctorEarnings = asyncHandler(async (req, res) => {
     });
   });
 
-  // Pad to 5 transactions if less
-  const defaultTransactions = [
-    { date: '26 Jun 2026', description: 'Consultation with Rajesh Kumar', type: 'Consultation', amount: 500, status: 'Paid' },
-    { date: '26 Jun 2026', description: 'Follow-up Consultation', type: 'Consultation', amount: 400, status: 'Paid' },
-    { date: '25 Jun 2026', description: 'Health Check-up Package', type: 'Procedure', amount: 1200, status: 'Paid' },
-    { date: '24 Jun 2026', description: 'Lab Referral Commission', type: 'Lab Referral', amount: 250, status: 'Paid' },
-    { date: '24 Jun 2026', description: 'Consultation with Anjali Verma', type: 'Consultation', amount: 500, status: 'Paid' }
-  ];
-
-  while (recentTransactions.length < 5) {
-    recentTransactions.push(defaultTransactions[recentTransactions.length]);
-  }
-
   // Calculate percentages
   const pctConsultations = totalEarnings > 0 ? ((consultationEarnings / totalEarnings) * 100).toFixed(1) : '0';
   const pctProcedures = totalEarnings > 0 ? ((procedureEarnings / totalEarnings) * 100).toFixed(1) : '0';
@@ -173,7 +164,7 @@ const getDoctorEarnings = asyncHandler(async (req, res) => {
   return sendSuccess(res, 'Doctor earnings insights retrieved', {
     summary: {
       totalEarnings,
-      totalEarningsChange: '+18.6% from last month',
+      totalEarningsChange: '+0.0% from last month',
       consultationEarnings,
       procedureEarnings,
       otherEarnings,
@@ -181,13 +172,38 @@ const getDoctorEarnings = asyncHandler(async (req, res) => {
       paidAppointments,
       averageEarningPerAppointment,
       pendingPayout,
-      nextPayoutDate: '05 Jul 2026',
-      growthMessage: "You're doing great! Your earnings are 18.6% higher than last month."
+      nextPayoutDate: '05 Aug 2026',
+      growthMessage: "You're doing great! Keep up the excellent work."
     },
     trend,
     breakdown,
     recentTransactions
   });
+});
+
+const requestPayout = asyncHandler(async (req, res) => {
+  const { doctorId } = req.params;
+  const DoctorEarning = require('../schemas/doctorEarning.schema');
+  const { AppError } = require('../../../common/utils/AppError');
+  const { HTTP_STATUS } = require('../../../common/constants/httpStatus');
+
+  // Find all earnings that are PENDING or READY_FOR_PAYOUT
+  const earnings = await DoctorEarning.find({
+    doctorId,
+    status: { $in: ['PENDING', 'READY_FOR_PAYOUT'] }
+  });
+
+  if (earnings.length === 0) {
+    throw new AppError('No eligible payout balance found.', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  // Mark pending earnings as READY_FOR_PAYOUT to request admin
+  await DoctorEarning.updateMany(
+    { doctorId, status: 'PENDING' },
+    { $set: { status: 'READY_FOR_PAYOUT' } }
+  );
+
+  return sendSuccess(res, 'Payout request submitted successfully.');
 });
 
 const getDoctorPayouts = asyncHandler(async (req, res) => {
@@ -252,6 +268,7 @@ const getOrgFinancialSettings = asyncHandler(async (req, res) => {
 module.exports = {
   getOrganizationEarnings,
   getDoctorEarnings,
+  requestPayout,
   getDoctorPayouts,
   markPaid,
   generate,

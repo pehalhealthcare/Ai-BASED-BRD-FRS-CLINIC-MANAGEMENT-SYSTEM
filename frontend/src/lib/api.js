@@ -250,8 +250,9 @@ const paymentApi = {
 
 const settlementsApi = {
   getOrganizationEarnings: () => extractData(apiClient.get('/settlements/organization')),
-  getDoctorEarnings: (doctorId) => extractData(apiClient.get(`/doctor/${doctorId}/earnings`)),
+  getDoctorEarnings: (doctorId, params = {}) => extractData(apiClient.get(`/doctor/${doctorId}/earnings`, { params: sanitizeParams(params) })),
   getDoctorPayouts: (doctorId) => extractData(apiClient.get(`/doctor/${doctorId}/payouts`)),
+  requestPayout: (doctorId, payload = {}) => extractData(apiClient.post(`/doctor/${doctorId}/payout-request`, payload)),
   updateDoctorPayoutSettings: (doctorId, payload) => extractData(apiClient.put(`/doctor/${doctorId}/payment-settings`, payload)),
   getDoctorPayoutSettings: (doctorId) => extractData(apiClient.get(`/doctor/${doctorId}/payment-settings`)),
   updateOrgFinancialSettings: (organizationId, payload) => extractData(apiClient.put(`/organization/${organizationId}/financial-settings`, payload)),
@@ -285,7 +286,12 @@ const labApi = {
   updateConsumable: (id, payload) => extractData(apiClient.put(`/labs/consumables/${id}`, payload)),
   addConsumableBatch: (id, payload) => extractData(apiClient.post(`/labs/consumables/${id}/batches`, payload)),
   adjustConsumableStock: (payload) => extractData(apiClient.post('/labs/consumables/adjust', payload)),
-  listConsumableLedgers: (params = {}) => extractData(apiClient.get('/labs/consumables/ledger', { params }))
+  listConsumableLedgers: (params = {}) => extractData(apiClient.get('/labs/consumables/ledger', { params })),
+  listEquipment: (params = {}) => extractData(apiClient.get('/labs/equipment', { params })),
+  createEquipment: (payload) => extractData(apiClient.post('/labs/equipment', payload)),
+  listQcCalibrations: (params = {}) => extractData(apiClient.get('/labs/qc-calibrations', { params })),
+  createQcCalibration: (payload) => extractData(apiClient.post('/labs/qc-calibrations', payload)),
+  getLabAlerts: (params = {}) => extractData(apiClient.get('/labs/dashboard/alerts', { params }))
 };
 
 const pharmacyApi = {
@@ -335,7 +341,13 @@ const notificationApi = {
   listLogs: (params = {}) => extractData(apiClient.get('/notifications/logs', { params })),
   getLog: (id) => extractData(apiClient.get(`/notifications/logs/${id}`)),
   cancelLog: (id, payload = {}) => extractData(apiClient.patch(`/notifications/logs/${id}/cancel`, payload)),
-  dispatchPending: (payload = {}) => extractData(apiClient.post('/notifications/dispatch-pending', payload))
+  dispatchPending: (payload = {}) => extractData(apiClient.post('/notifications/dispatch-pending', payload)),
+  listUserNotifications: (params = {}) => extractData(apiClient.get('/notifications', { params })),
+  getUnreadCount: () => extractData(apiClient.get('/notifications/unread-count')),
+  markAsRead: (id) => extractData(apiClient.patch(`/notifications/${id}/read`)),
+  archive: (id) => extractData(apiClient.patch(`/notifications/${id}/archive`)),
+  delete: (id) => extractData(apiClient.delete(`/notifications/${id}`)),
+  clearAll: () => extractData(apiClient.delete('/notifications'))
 };
 
 const followUpApi = {
@@ -355,7 +367,11 @@ const dashboardApi = {
   getDoctorWorkload: (params = {}) => extractData(apiClient.get('/dashboard/doctor-workload', { params: sanitizeParams(params) })),
   getNoShow: (params = {}) => extractData(apiClient.get('/dashboard/no-show', { params: sanitizeParams(params) })),
   getActivityFeed: (params = {}) => extractData(apiClient.get('/dashboard/activity-feed', { params: sanitizeParams(params) })),
-  getSuperAdminOverview: () => extractData(apiClient.get('/dashboard/super-admin/overview'))
+  getSuperAdminOverview: () => extractData(apiClient.get('/dashboard/super-admin/overview')),
+  getDoctorStatus: (params = {}) => extractData(apiClient.get('/dashboard/doctor-status', { params: sanitizeParams(params) })),
+  getBranchOverview: (params = {}) => extractData(apiClient.get('/dashboard/branch-overview', { params: sanitizeParams(params) })),
+  getStaffOverview: (params = {}) => extractData(apiClient.get('/dashboard/staff-overview', { params: sanitizeParams(params) })),
+  getCheckedInQueue: (params = {}) => extractData(apiClient.get('/dashboard/checked-in-queue', { params: sanitizeParams(params) }))
 };
 
 const adminApi = {
@@ -501,6 +517,13 @@ const leaveApi = {
   getBalances: (params = {}) => extractData(apiClient.get('/leaves/balances', { params }))
 };
 
+const holidayApi = {
+  list: (params = {}) => extractData(apiClient.get('/holidays', { params })),
+  create: (payload) => extractData(apiClient.post('/holidays', payload)),
+  update: (id, payload) => extractData(apiClient.put(`/holidays/${id}`, payload)),
+  delete: (id) => extractData(apiClient.delete(`/holidays/${id}`))
+};
+
 const healthcareCatalogApi = {
   getCategories: (params = {}) => extractData(apiClient.get('/healthcare-catalog/categories', { params })),
   createCategory: (payload) => extractData(apiClient.post('/healthcare-catalog/categories', payload)),
@@ -611,6 +634,7 @@ export {
   specializationApi,
   organizationApi,
   leaveApi,
+  holidayApi,
   paymentApi,
   settlementsApi,
   subscriptionApi,

@@ -8,7 +8,7 @@ class ChatService {
    */
   async getConversations(clinicId, userId, userRole) {
     const query = { clinicId };
-    if (userRole === 'RECEPTIONIST') {
+    if (userRole === 'RECEPTIONIST' || userRole === 'ADMIN') {
       query.receptionistId = userId;
     } else if (userRole === 'DOCTOR') {
       query.doctorId = userId;
@@ -94,17 +94,15 @@ class ChatService {
     const conversation = await Conversation.findById(conversationId);
     if (!conversation) return null;
 
-    if (userRole === 'RECEPTIONIST') {
-      conversation.unreadCount.receptionist = 0;
-    } else if (userRole === 'DOCTOR') {
-      conversation.unreadCount.doctor = 0;
-    }
+    const roleKey = (userRole === 'RECEPTIONIST' || userRole === 'ADMIN') ? 'receptionist' : 'doctor';
+    conversation.unreadCount[roleKey] = 0;
 
     await conversation.save();
 
     // Update message read status
+    const targetSenderRole = roleKey === 'receptionist' ? 'DOCTOR' : 'RECEPTIONIST';
     await Message.updateMany(
-      { conversationId, senderRole: userRole === 'RECEPTIONIST' ? 'DOCTOR' : 'RECEPTIONIST', isRead: false },
+      { conversationId, senderRole: targetSenderRole, isRead: false },
       { $set: { isRead: true, readAt: new Date() } }
     );
 

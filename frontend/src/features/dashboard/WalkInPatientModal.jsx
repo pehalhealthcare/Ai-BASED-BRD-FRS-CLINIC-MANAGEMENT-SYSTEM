@@ -222,7 +222,7 @@ export default function WalkInPatientModal({ isOpen, onClose, onSuccess }) {
   // Real-time appointment listener for check-ins or status updates
   useEffect(() => {
     if (!isOpen || !createdAppointment?._id) return;
-    const socketUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+    const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5001';
     const socket = io(socketUrl, { transports: ['websocket', 'polling'] });
 
     socket.on('connect', () => {

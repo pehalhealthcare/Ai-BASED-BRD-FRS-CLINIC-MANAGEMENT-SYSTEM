@@ -14,8 +14,8 @@ const resolveClinicContext = ({ user, requestedClinicId = null }) => {
   const userClinicId = normalizeClinicId(user?.clinicId);
   const requested = normalizeClinicId(requestedClinicId);
 
-  // If user is staff or doctor, restrict access to their assigned clinicId ONLY
-  if (user && (STAFF_ROLES.includes(user.role) || user.role === ROLES.DOCTOR)) {
+  // If user is staff, doctor, or an admin/clinic_admin that is assigned to a specific clinic, restrict access to their assigned clinicId ONLY
+  if (user && (STAFF_ROLES.includes(user.role) || user.role === ROLES.DOCTOR || (user.role === ROLES.ADMIN || user.role === 'CLINIC_ADMIN') && userClinicId)) {
     if (!userClinicId) {
       throw new AppError('Clinic context is required for this operation.', HTTP_STATUS.FORBIDDEN);
     }

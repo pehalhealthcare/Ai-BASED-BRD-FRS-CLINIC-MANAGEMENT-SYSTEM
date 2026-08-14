@@ -60,6 +60,13 @@ router.get(
   settlementsController.getDoctorPayouts
 );
 
+router.post(
+  '/doctor/:doctorId/payout-request',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR),
+  settlementsController.requestPayout
+);
+
 router.put(
   '/doctor/:doctorId/payment-settings',
   protect,

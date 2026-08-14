@@ -2,7 +2,7 @@ import axios from 'axios';
 
 import { clearAuthStorage, getStoredToken } from '../utils/storage';
 
-const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1';
+const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api/v1';
 const aiBaseURL =
   import.meta.env.VITE_AI_BASE_URL ||
   import.meta.env.VITE_AI_SERVICE_URL ||
