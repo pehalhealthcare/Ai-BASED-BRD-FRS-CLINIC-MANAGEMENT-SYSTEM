@@ -59,6 +59,12 @@ const labConsumableSchema = new mongoose.Schema(
       default: 0,
       min: 0
     },
+    laboratoryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Provider',
+      default: null,
+      index: true
+    },
     isActive: {
       type: Boolean,
       default: true
@@ -75,7 +81,7 @@ const labConsumableSchema = new mongoose.Schema(
   }
 );
 
-labConsumableSchema.index({ clinicId: 1, name: 1 }, { unique: true });
+labConsumableSchema.index({ clinicId: 1, laboratoryId: 1, name: 1 }, { unique: true });
 
 const LabConsumable = mongoose.models.LabConsumable || mongoose.model('LabConsumable', labConsumableSchema);
 module.exports = LabConsumable;

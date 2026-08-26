@@ -479,8 +479,18 @@ export default function LandingPage() {
       >
         <header className="max-w-[1720px] mx-auto bg-white/95 backdrop-blur-xl border border-slate-200/60 px-6 sm:px-10 h-[96px] rounded-full flex items-center justify-between shadow-lg shadow-slate-150/40 transition-all duration-200 relative">
           {/* Logo with breathing room */}
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-3 shrink-0 select-none">
             <PehalLogo variant="primary" height={58} />
+            <div className="h-8 w-[1.5px] bg-slate-200 mx-1 hidden sm:block" />
+            <div className="flex flex-col justify-center leading-none">
+              <span className="text-[20px] font-black tracking-tight text-slate-900 flex items-center gap-1.5">
+                AICMS
+                <span className="text-[8px] font-extrabold uppercase tracking-widest bg-emerald-500/10 text-emerald-700 px-1.5 py-0.5 rounded-md hidden sm:inline">PRO</span>
+              </span>
+              <span className="text-[9.5px] font-bold text-slate-400 mt-1 uppercase tracking-[0.08em] hidden md:block">
+                AI Clinic Management System
+              </span>
+            </div>
           </div>
 
           {/* Navigation Links - Luxurious Spacing */}
@@ -3525,11 +3535,17 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
             {/* Col 1 */}
             <div className="space-y-6">
-              <div className="flex items-center gap-2 text-white">
-                <PehalLogo variant="dark" height={42} />
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-2 text-white">
+                  <PehalLogo variant="dark" height={42} />
+                </div>
+                <div className="flex flex-col leading-none mt-1">
+                  <span className="text-base font-black text-white tracking-tight">AICMS</span>
+                  <span className="text-[10px] font-bold text-slate-500 mt-1 uppercase tracking-[0.06em]">AI Clinic Management System</span>
+                </div>
               </div>
               <p className="text-xs text-slate-500 leading-relaxed font-bold">
-                AI-CMS – Intelligent Healthcare Management System. A complete, unified, AI-powered platform to manage your clinic operations, staff scheduling, electronic records, and billing with zero friction.
+                AICMS is an AI-powered clinic management platform by Pehal Healthcare Technologies Private Limited, built to simplify clinic operations, patient management, staff workflows, electronic records, billing, and intelligent healthcare workflows.
               </p>
               
               {/* Circular Social Icons */}
@@ -3582,9 +3598,13 @@ export default function LandingPage() {
 
           {/* Bottom copyright details row */}
           <div className="flex flex-col sm:flex-row justify-between items-center gap-6 text-[11px] text-slate-500 border-t border-slate-850 pt-10 font-bold">
-            <div className="flex items-center gap-2">
-              <span>&copy; 2026 PEHAL Healthcare. All rights reserved.</span>
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping shrink-0" />
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+              <div className="flex items-center gap-2">
+                <span>&copy; 2026 Pehal Healthcare Technologies Private Limited. All rights reserved.</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping shrink-0" />
+              </div>
+              <span className="hidden sm:inline text-slate-800">|</span>
+              <span className="text-slate-400 font-extrabold tracking-wide">AICMS™ by Pehal Healthcare</span>
             </div>
             
             <div className="flex items-center gap-8">

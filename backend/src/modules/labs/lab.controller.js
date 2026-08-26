@@ -216,6 +216,7 @@ const listLabStockLedgers = asyncHandler(async (req, res) => {
 const getLabInventoryDashboard = asyncHandler(async (req, res) => {
   const stats = await labService.getLabInventoryDashboard({
     requester: req.user,
+    query: req.query,
     requestedClinicId: req.query.clinicId
   });
   return sendSuccess(res, 'Laboratory inventory dashboard statistics retrieved', stats);
@@ -284,12 +285,33 @@ const createQcCalibration = asyncHandler(async (req, res) => {
 const getLabAlerts = asyncHandler(async (req, res) => {
   const data = await labService.getLabAlerts({
     requester: req.user,
+    query: req.query,
     requestedClinicId: req.query.clinicId
   });
   return sendSuccess(res, 'Critical laboratory alerts retrieved', data);
 });
 
+const listAvailableGlobalTests = asyncHandler(async (req, res) => {
+  const data = await labService.listAvailableGlobalTests({
+    requester: req.user,
+    query: req.query,
+    requestedClinicId: req.query.clinicId
+  });
+  return sendSuccess(res, 'Available global lab tests retrieved successfully', data);
+});
+
+const bulkActivateGlobalTests = asyncHandler(async (req, res) => {
+  const activated = await labService.bulkActivateGlobalTests({
+    requester: req.user,
+    payload: req.body,
+    requestedClinicId: req.query.clinicId
+  });
+  return sendSuccess(res, 'Bulk activation of lab tests completed successfully', { activated });
+});
+
 module.exports = {
+  listAvailableGlobalTests,
+  bulkActivateGlobalTests,
   createLabTest,
   updateLabTest,
   listLabTests,

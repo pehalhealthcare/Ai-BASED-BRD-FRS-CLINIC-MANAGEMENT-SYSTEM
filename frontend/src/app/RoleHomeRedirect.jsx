@@ -9,7 +9,7 @@ const RoleHomeRedirect = () => {
     return <Navigate to="/clinic/onboarding" replace />;
   }
 
-  return <Navigate to={getDefaultRouteForRole(user?.role)} replace />;
+  return <Navigate to={getDefaultRouteForRole(user?.role, user)} replace />;
 };
 
 export default RoleHomeRedirect;

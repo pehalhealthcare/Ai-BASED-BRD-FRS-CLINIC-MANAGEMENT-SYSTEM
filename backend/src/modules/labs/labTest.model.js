@@ -27,6 +27,56 @@ const labTestSchema = new mongoose.Schema(
       required: true,
       index: true
     },
+    laboratoryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Provider',
+      required: true,
+      index: true
+    },
+    parameterOverrides: [
+      {
+        parameterId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'GlobalParameter',
+          required: true
+        },
+        isAvailable: {
+          type: Boolean,
+          default: true
+        }
+      }
+    ],
+    localParameters: [
+      {
+        name: { type: String, required: true, trim: true },
+        shortName: { type: String, trim: true, default: '' },
+        resultType: { type: String, enum: ['NUMERIC', 'TEXT', 'QUALITATIVE', 'BOOLEAN', 'ENUM', 'PERCENTAGE', 'RATIO'], default: 'NUMERIC' },
+        unit: { type: String, trim: true, default: '' },
+        decimalPrecision: { type: Number, default: 1 },
+        description: { type: String, trim: true, default: '' },
+        referenceRanges: [
+          {
+            gender: { type: String, enum: ['MALE', 'FEMALE', 'OTHER', 'ALL'], default: 'ALL' },
+            ageFrom: { type: Number, default: null },
+            ageTo: { type: Number, default: null },
+            ageUnit: { type: String, enum: ['DAYS', 'MONTHS', 'YEARS', ''], default: '' },
+            lowerOperator: { type: String, enum: ['>=', '>', '<', '<=', 'Between'], default: 'Between' },
+            upperOperator: { type: String, enum: ['>=', '>', '<', '<=', 'Between'], default: 'Between' },
+            lowerValue: { type: Number, default: null },
+            upperValue: { type: Number, default: null }
+          }
+        ],
+        allowedValues: [
+          {
+            value: { type: String, required: true },
+            isAbnormal: { type: Boolean, default: false }
+          }
+        ]
+      }
+    ],
+    doctorPrescriptionRequired: { type: Boolean, default: false },
+    importantInstructions: { type: String, trim: true, default: '' },
+    collectionLocations: { type: [String], default: ['Laboratory'] },
     labTestMasterId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'LabTestMaster',
@@ -90,6 +140,16 @@ const labTestSchema = new mongoose.Schema(
       type: Number,
       default: 0
     },
+    processingMode: {
+      type: String,
+      enum: ['IN_HOUSE', 'OUTSOURCED'],
+      default: 'IN_HOUSE'
+    },
+    outsourcedLabName: {
+      type: String,
+      trim: true,
+      default: ''
+    },
     availableDays: {
       type: [String],
       default: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
@@ -115,11 +175,11 @@ const labTestSchema = new mongoose.Schema(
   }
 );
 
-labTestSchema.index({ clinicId: 1, code: 1 }, { unique: true });
-labTestSchema.index({ clinicId: 1, labTestMasterId: 1 }, { unique: true, sparse: true });
-labTestSchema.index({ clinicId: 1, globalLabTestId: 1 }, { unique: true, sparse: true });
-labTestSchema.index({ clinicId: 1, name: 1 });
-labTestSchema.index({ clinicId: 1, category: 1 });
+labTestSchema.index({ clinicId: 1, laboratoryId: 1, code: 1 }, { unique: true });
+labTestSchema.index({ clinicId: 1, laboratoryId: 1, labTestMasterId: 1 }, { unique: true, sparse: true });
+labTestSchema.index({ clinicId: 1, laboratoryId: 1, globalLabTestId: 1 }, { unique: true, sparse: true });
+labTestSchema.index({ clinicId: 1, laboratoryId: 1, name: 1 });
+labTestSchema.index({ clinicId: 1, laboratoryId: 1, category: 1 });
 labTestSchema.index({
   code: 'text',
   name: 'text',

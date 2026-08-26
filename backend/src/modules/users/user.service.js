@@ -209,6 +209,26 @@ const createStaffByAdmin = async ({ name, email, phone, password, role, requeste
     throw new AppError('A user with this email address already exists', HTTP_STATUS.CONFLICT);
   }
 
+  const clinic = await Clinic.findById(clinicId).populate('subscription.planId');
+  if (clinic) {
+    let maxStaff = 2;
+    if (clinic.customLimits && clinic.customLimits.maxStaff !== null) {
+      maxStaff = clinic.customLimits.maxStaff;
+    } else if (clinic.subscription && clinic.subscription.planId) {
+      maxStaff = clinic.subscription.planId.limits?.maxStaff ?? 2;
+    }
+
+    const currentStaffCount = await User.countDocuments({
+      clinicId,
+      role: { $in: STAFF_ROLES },
+      deletedAt: null
+    });
+
+    if (currentStaffCount >= maxStaff) {
+      throw new AppError('Staff Limit Reached: Your clinic plan limit is ' + maxStaff + '. Current active staff: ' + currentStaffCount + '/' + maxStaff + '. Upgrade your clinic plan to add more staff.', HTTP_STATUS.BAD_REQUEST);
+    }
+  }
+
   const hashedPassword = await bcrypt.hash(password, 10);
   const user = await User.create({
     name,
@@ -266,8 +286,8 @@ const createStaffByAdmin = async ({ name, email, phone, password, role, requeste
   }
 
   // Send email invitation
-  const clinic = await Clinic.findById(clinicId);
-  const clinicName = clinic ? clinic.name : 'AICMS Clinic';
+  const dbClinic = clinic || await Clinic.findById(clinicId);
+  const clinicName = dbClinic ? dbClinic.name : 'AICMS Clinic';
   const subject = `Welcome to ${clinicName} - Staff Account Created`;
   
   const secureLoginLink = `${env.frontendUrl || 'http://localhost:3000'}/login?type=staff`;

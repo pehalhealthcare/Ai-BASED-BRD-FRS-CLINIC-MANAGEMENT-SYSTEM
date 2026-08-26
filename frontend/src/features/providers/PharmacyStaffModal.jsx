@@ -99,8 +99,10 @@ export default function PharmacyStaffModal({ providerId, onClose }) {
     try {
       const res = await userApi.list({ limit: 100 });
       const list = res?.data?.users ?? res?.users ?? [];
-      // Filter down to only pharmacy-friendly roles that don't belong to this provider
-      const allowedRoles = ['PHARMACIST', 'Pharmacy Store Operator', 'PHARMACY_OPERATOR', 'ACCOUNTANT'];
+      // Filter down to only pharmacy/lab-friendly roles that don't belong to this provider
+      const allowedRoles = provider?.providerType === 'Laboratory'
+        ? ['LAB_TECHNICIAN', 'Laboratory Operator', 'PATHOLOGIST', 'ACCOUNTANT']
+        : ['PHARMACIST', 'Pharmacy Store Operator', 'PHARMACY_OPERATOR', 'ACCOUNTANT'];
       const filtered = list.filter(u => 
         allowedRoles.includes(u.role) && 
         String(u.providerId) !== String(providerId)
@@ -109,7 +111,16 @@ export default function PharmacyStaffModal({ providerId, onClose }) {
     } catch {
       toast.error('Failed to load clinic employee list');
     }
-  }, [providerId]);
+  }, [providerId, provider]);
+
+  useEffect(() => {
+    if (provider) {
+      setNewStaffForm(prev => ({
+        ...prev,
+        role: provider.providerType === 'Laboratory' ? 'LAB_TECHNICIAN' : 'PHARMACIST'
+      }));
+    }
+  }, [provider]);
 
   useEffect(() => {
     loadProvider();
@@ -168,7 +179,7 @@ export default function PharmacyStaffModal({ providerId, onClose }) {
     if (!selectedStaffMember) return;
     try {
       await userApi.updateProvider(selectedStaffMember._id, { providerId: null });
-      toast.success('Staff member removed from pharmacy');
+      toast.success('Staff member removed from provider');
       setActiveSubModal(null);
       setSelectedStaffMember(null);
       loadStaffData();
@@ -279,8 +290,18 @@ export default function PharmacyStaffModal({ providerId, onClose }) {
               className="bg-white border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold text-slate-650 focus:outline-none focus:border-blue-500"
             >
               <option value="">All Roles</option>
-              <option value="PHARMACIST">Pharmacist</option>
-              <option value="Pharmacy Store Operator">Store Operator / Assistant</option>
+              {provider?.providerType === 'Laboratory' ? (
+                <>
+                  <option value="LAB_TECHNICIAN">Lab Technician</option>
+                  <option value="Laboratory Operator">Laboratory Operator</option>
+                  <option value="PATHOLOGIST">Pathologist</option>
+                </>
+              ) : (
+                <>
+                  <option value="PHARMACIST">Pharmacist</option>
+                  <option value="Pharmacy Store Operator">Store Operator / Assistant</option>
+                </>
+              )}
             </select>
 
             <select
@@ -411,7 +432,7 @@ export default function PharmacyStaffModal({ providerId, onClose }) {
                               </button>
                               <button
                                 onClick={() => {
-                                  if (confirm(`Are you sure you want to remove ${member.name} from this pharmacy?`)) {
+                                  if (confirm(`Are you sure you want to remove ${member.name} from this provider?`)) {
                                     handleRemoveStaff();
                                   }
                                   setMoreMenuId(null);
@@ -561,7 +582,7 @@ export default function PharmacyStaffModal({ providerId, onClose }) {
             </button>
 
             <h3 className="text-base font-black text-slate-900 mb-1">Create New Staff User</h3>
-            <p className="text-[11px] text-slate-400 font-bold mb-4">Register a new operator profile linked to this pharmacy</p>
+            <p className="text-[11px] text-slate-400 font-bold mb-4">Register a new operator profile linked to this provider</p>
 
             <form onSubmit={handleCreateStaff} className="space-y-4 text-xs">
               <div>
@@ -608,8 +629,18 @@ export default function PharmacyStaffModal({ providerId, onClose }) {
                     onChange={e => setNewStaffForm({ ...newStaffForm, role: e.target.value })}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 font-bold focus:outline-none focus:border-blue-500"
                   >
-                    <option value="PHARMACIST">Pharmacist</option>
-                    <option value="Pharmacy Store Operator">Pharmacy Store Operator</option>
+                    {provider?.providerType === 'Laboratory' ? (
+                      <>
+                        <option value="LAB_TECHNICIAN">Lab Technician</option>
+                        <option value="Laboratory Operator">Laboratory Operator</option>
+                        <option value="PATHOLOGIST">Pathologist</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="PHARMACIST">Pharmacist</option>
+                        <option value="Pharmacy Store Operator">Pharmacy Store Operator</option>
+                      </>
+                    )}
                   </select>
                 </div>
                 <div>
@@ -654,7 +685,7 @@ export default function PharmacyStaffModal({ providerId, onClose }) {
               <div>
                 <h3 className="text-base font-black text-slate-800">{selectedStaffMember.name}</h3>
                 <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">
-                  {selectedStaffMember.role === 'PHARMACIST' ? 'Pharmacist' : 'Pharmacy Operator'}
+                  {selectedStaffMember.role}
                 </p>
               </div>
             </div>

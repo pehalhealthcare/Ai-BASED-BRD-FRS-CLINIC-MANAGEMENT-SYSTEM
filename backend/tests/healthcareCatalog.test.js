@@ -100,7 +100,8 @@ describe('Healthcare Catalog API Suite', () => {
         sampleVolume: '2 ml',
         sampleContainer: 'SST Gold Top',
         normalReportingTime: '12 Hours',
-        isActive: true
+        isActive: true,
+        collectionInstructions: 'Keep sample refrigerated'
       };
 
       const res = await request(app)
@@ -112,6 +113,8 @@ describe('Healthcare Catalog API Suite', () => {
       expect(res.body.data.globalId).toBeDefined();
       expect(res.body.data.globalId).toMatch(/^LAB-\d{6}$/);
       expect(res.body.data.name).toBe('Thyroid Stimulating Hormone');
+      expect(res.body.data.investigationType).toBe('ATOMIC_TEST');
+      expect(res.body.data.collectionInstructions).toBe('Keep sample refrigerated');
     });
 
     it('prevents creating duplicate tests with exact same name', async () => {

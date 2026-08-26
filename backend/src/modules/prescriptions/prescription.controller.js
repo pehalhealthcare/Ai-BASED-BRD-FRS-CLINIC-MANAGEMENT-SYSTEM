@@ -115,6 +115,27 @@ const getPrescriptionsByPhone = asyncHandler(async (req, res) => {
   return sendSuccess(res, 'Prescriptions retrieved by phone successfully', data);
 });
 
+const prescriptionLabService = require('./prescriptionLab.service');
+
+const discoverLabTests = asyncHandler(async (req, res) => {
+  const data = await prescriptionLabService.discoverLabTestsForDoctor({
+    clinicId: req.query.clinicId,
+    search: req.query.search,
+    category: req.query.category,
+    department: req.query.department
+  });
+  return sendSuccess(res, 'Lab tests discovered successfully', data);
+});
+
+const getSmartSuggestions = asyncHandler(async (req, res) => {
+  const testIds = req.query.testIds ? req.query.testIds.split(',') : [];
+  const data = await prescriptionLabService.getSmartSuggestions({
+    clinicId: req.query.clinicId,
+    testIds
+  });
+  return sendSuccess(res, 'Smart suggestions retrieved successfully', data);
+});
+
 module.exports = {
   createPrescription,
   getPrescriptionById,
@@ -125,5 +146,7 @@ module.exports = {
   finalizePrescription,
   cancelPrescription,
   downloadPrescriptionPdf,
-  downloadMedicines
+  downloadMedicines,
+  discoverLabTests,
+  getSmartSuggestions
 };

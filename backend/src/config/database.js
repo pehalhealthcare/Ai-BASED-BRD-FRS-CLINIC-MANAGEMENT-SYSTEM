@@ -93,6 +93,10 @@ const connectDB = async () => {
     lastConnectionError = null;
     logger.info('MongoDB connection established successfully.');
 
+    // Seed master catalog units and conditions asynchronously
+    const { seedUnitsAndConditions } = require('../modules/healthcare-catalog/seedGlobalMasters');
+    seedUnitsAndConditions().catch(err => logger.error('Async seeding failed:', err.message));
+
     return { mode, uri };
   } catch (error) {
     const safeMessage = getConnectionFailureMessage(mode);

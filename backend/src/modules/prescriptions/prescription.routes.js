@@ -24,6 +24,20 @@ router.post(
   validate(createPrescriptionSchema),
   prescriptionController.createPrescription
 );
+
+router.get(
+  '/labs/discover',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR),
+  prescriptionController.discoverLabTests
+);
+
+router.get(
+  '/labs/smart-suggestions',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR, ROLES.PATIENT),
+  prescriptionController.getSmartSuggestions
+);
 router.get(
   '/patient/:patientId',
   protect,

@@ -149,7 +149,7 @@ const buildDoctorFilter = ({ clinicIds, search, specialization, isActive, approv
     ]
   };
 
-  if (approvalStatus) {
+  if (approvalStatus && approvalStatus !== 'all') {
     filter.approvalStatus = approvalStatus;
   }
 
@@ -411,7 +411,7 @@ const listDoctors = async ({ requester, query }) => {
     search: query.search,
     specialization: query.specialization,
     isActive: query.isActive,
-    approvalStatus: query.approvalStatus || 'approved'
+    approvalStatus: query.approvalStatus || (requester.role === ROLES.ADMIN || requester.role === ROLES.SUPER_ADMIN ? 'all' : 'approved')
   });
   const { doctors, total } = await doctorRepository.listDoctors({ filter, page, limit });
 

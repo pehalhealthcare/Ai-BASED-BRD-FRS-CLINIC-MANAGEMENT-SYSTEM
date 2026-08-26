@@ -50,17 +50,31 @@ router.get(
   labController.listLabTestMasters
 );
 
+router.get(
+  '/tests/available-global',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.LAB_TECHNICIAN, ROLES.LAB_OPERATOR),
+  labController.listAvailableGlobalTests
+);
+
+router.post(
+  '/tests/bulk-activate',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.LAB_TECHNICIAN, ROLES.LAB_OPERATOR),
+  labController.bulkActivateGlobalTests
+);
+
 router.post(
   '/tests',
   protect,
-  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.LAB_TECHNICIAN, ROLES.LAB_OPERATOR),
   validate(createLabTestSchema),
   labController.createLabTest
 );
 router.patch(
   '/tests/:id',
   protect,
-  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.LAB_TECHNICIAN),
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.LAB_TECHNICIAN, ROLES.LAB_OPERATOR),
   validate(updateLabTestSchema),
   labController.updateLabTest
 );

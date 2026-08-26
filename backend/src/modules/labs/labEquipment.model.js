@@ -13,6 +13,12 @@ const labEquipmentSchema = new mongoose.Schema(
       required: true,
       trim: true
     },
+    laboratoryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Provider',
+      default: null,
+      index: true
+    },
     model: {
       type: String,
       required: true,

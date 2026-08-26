@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Calendar, Users, UserCog, UserCheck, LayoutGrid,
   Building2, Activity, CreditCard, Receipt, BarChart3, Package,
   Settings, ChevronDown, ChevronRight, ChevronLeft, X, Menu, Lock, User,
-  ClipboardList, FlaskConical, Pill, FileText, Stethoscope
+  ClipboardList, FlaskConical, Pill, FileText, Stethoscope, ShieldAlert
 } from 'lucide-react';
 import { clinicApi, patientApi, providersApi } from '../../lib/api';
 import pehalLogo from '../../assets/pehal_logo.svg';
@@ -74,6 +74,10 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
   const isPatient = role === 'PATIENT';
   const currentTab = new URLSearchParams(location.search).get('tab') || 'dashboard';
 
+  const labIdMatch = location.pathname.match(/^\/laboratory\/([^/]+)/);
+  const currentLaboratoryId = labIdMatch ? labIdMatch[1] : '';
+  const activeLaboratoryId = currentLaboratoryId || user?.providerId || '';
+
   // State hooks for Patient context
   const [patientClinics, setPatientClinics] = useState([]);
   const [selectedClinicId, setSelectedClinicId] = useState(() => localStorage.getItem('patientActiveClinicId') || '');
@@ -85,7 +89,8 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
   const [expandedMenus, setExpandedMenus] = useState({
     inventory: false,
     suppliers: false,
-    reports: false
+    reports: false,
+    globalLabCatalog: false
   });
 
   const toggleSubMenu = (menuKey) => {
@@ -228,14 +233,18 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
     }
 
     if (normRole === 'LABORATORY OPERATOR' || role === 'LAB_TECHNICIAN') {
+      const base = activeLaboratoryId ? `/laboratory/${activeLaboratoryId}` : '/provider-workspace/laboratory';
       return [
-        { label: 'Dashboard', path: '/provider-workspace/laboratory?tab=dashboard', iconKey: 'Dashboard' },
-        { label: 'Lab Orders', path: '/provider-workspace/laboratory?tab=orders', iconKey: 'Laboratory' },
-        { label: 'Diagnostic Catalogue', path: '/provider-workspace/laboratory?tab=catalogue', iconKey: 'Departments' },
-        { label: 'Lab Inventory', path: '/provider-workspace/laboratory?tab=inventory', iconKey: 'Pharmacy' },
-        { label: 'QC & Calibration', path: '/provider-workspace/laboratory?tab=qc', iconKey: 'Procedures' },
-        { label: 'Reports & Analytics', path: '/provider-workspace/laboratory?tab=reports', iconKey: 'Reports' },
-        { label: 'Settings', path: '/provider-workspace/laboratory?tab=settings', iconKey: 'Settings' }
+        { label: 'Dashboard', path: `${base}/dashboard`, iconKey: 'Dashboard' },
+        { label: 'Lab Orders', path: `${base}/orders`, iconKey: 'Laboratory' },
+        { label: 'Test Catalogue', path: `${base}/catalogue`, iconKey: 'Departments' },
+        { label: 'Patients', path: `${base}/patients`, iconKey: 'Patients' },
+        { label: 'Reports', path: `${base}/reports`, iconKey: 'Reports' },
+        { label: 'Lab Inventory', path: `${base}/inventory`, iconKey: 'Pharmacy' },
+        { label: 'QC & Calibration', path: `${base}/qc`, iconKey: 'Procedures' },
+        { label: 'Reports & Analytics', path: `${base}/analytics`, iconKey: 'Reports' },
+        { label: 'Staff', path: `${base}/staff`, iconKey: 'Staff' },
+        { label: 'Settings', path: `${base}/settings`, iconKey: 'Settings' }
       ];
     }
 
@@ -256,7 +265,20 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
         { label: 'Clinics', path: '/super-admin/clinics', iconKey: 'Clinics' },
         { label: 'Plans', path: '/super-admin/plans', iconKey: 'Plans' },
         { label: 'Promo Codes', path: '/super-admin/promo-codes', iconKey: 'Promo Codes' },
-        { label: 'Global Lab Catalog', path: '/super-admin/healthcare-catalog/labs', iconKey: 'Global Lab Catalog' },
+        { 
+          label: 'Global Lab Catalogue', 
+          path: '/super-admin/healthcare-catalog/labs', 
+          iconKey: 'Global Lab Catalog',
+          menuKey: 'globalLabCatalog',
+          subItems: [
+            { label: 'Investigations', path: '/super-admin/healthcare-catalog/labs' },
+            { label: 'Parameters (Analytes)', path: '/super-admin/healthcare-catalog/parameters' },
+            { label: 'Panels & Profiles', path: '/super-admin/healthcare-catalog/panels-profiles' },
+            { label: 'Units', path: '/super-admin/healthcare-catalog/units' },
+            { label: 'Conditions', path: '/super-admin/healthcare-catalog/conditions' },
+            { label: 'Catalogue Updates', path: '/super-admin/healthcare-catalog/updates' }
+          ]
+        },
         { label: 'Global Medicine Catalog', path: '/super-admin/healthcare-catalog/medicines', iconKey: 'Global Medicine Catalog' }
       ];
     }
@@ -276,7 +298,7 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
       { label: 'Inventory', path: '/pharmacy/medicines', iconKey: 'Inventory' },
       { label: 'Settings', path: '/admin/settings', iconKey: 'Settings' }
     ];
-  }, [role]);
+  }, [role, activeLaboratoryId]);
 
   const handleClinicSelect = (clinicId) => {
     localStorage.setItem('patientActiveClinicId', clinicId);
@@ -291,6 +313,9 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
     const normRole = (role || '').toUpperCase();
     if (normRole === 'PATIENT' || normRole === 'PHARMACY STORE OPERATOR' || normRole === 'LABORATORY OPERATOR' || normRole === 'PHARMACIST' || normRole === 'LAB_TECHNICIAN') {
       const itemUrl = new URL(path, window.location.origin);
+      if (itemUrl.pathname.startsWith('/laboratory/')) {
+        return location.pathname === itemUrl.pathname;
+      }
       const isPathMatch = location.pathname === itemUrl.pathname;
       const itemTab = itemUrl.searchParams.get('tab');
       const currentTab = new URLSearchParams(location.search).get('tab') || 'dashboard';
@@ -345,6 +370,14 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
         subtitle: 'Pharmacy Store',
         name: user?.name || 'Pharmacist',
         icon: <Package size={20} className="text-emerald-500" />
+      };
+    }
+    if (normRole === 'SUPER_ADMIN') {
+      return {
+        title: 'System Role',
+        subtitle: 'Full Platform Access',
+        name: user?.name || 'Super Admin',
+        icon: <ShieldAlert size={20} className="text-blue-600" />
       };
     }
     return {
@@ -745,6 +778,22 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
                               </button>
                               <div className={`pl-9 space-y-1.5 overflow-hidden transition-all duration-300 ${isExpanded ? 'max-h-40 opacity-100 mt-1' : 'max-h-0 opacity-0 pointer-events-none'}`}>
                                 {item.subItems.map((sub, sIdx) => {
+                                  if (sub.disabled) {
+                                    return (
+                                      <div
+                                        key={sIdx}
+                                        className="flex items-center justify-between py-1.5 text-xs font-bold px-3 text-slate-300 cursor-not-allowed select-none"
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          <span className="w-1.5 h-1.5 rounded-full bg-slate-200" />
+                                          <span>{sub.label}</span>
+                                        </div>
+                                        {sub.comingSoon && (
+                                          <span className="text-[8px] font-black bg-slate-100 text-slate-400 px-1 py-0.5 rounded uppercase">Soon</span>
+                                        )}
+                                      </div>
+                                    );
+                                  }
                                   const subActive = isItemActive(sub.path);
                                   return (
                                     <NavLink
@@ -847,7 +896,7 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
             )}
           </div>
 
-          {open && !isPatient && (
+          {open && !isPatient && normRole !== 'SUPER_ADMIN' && (
             <div className="bg-slate-50 border border-slate-100 rounded-2xl p-3 flex items-center justify-between shadow-sm hover:bg-slate-100/60 transition duration-150 cursor-pointer">
               <div className="min-w-0">
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Current Clinic</p>

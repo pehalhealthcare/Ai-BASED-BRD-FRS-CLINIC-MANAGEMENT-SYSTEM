@@ -30,30 +30,52 @@ const processQueue = async () => {
     const jobs = await EmailJob.find({ status: 'Pending', attempts: { $lt: 3 } }).limit(5);
     if (jobs.length === 0) return;
 
-    const transporter = nodemailer.createTransport({
-      host: env.emailHost,
-      port: env.emailPort || 587,
-      secure: !!env.emailSecure,
-      auth: {
-        user: env.emailUser,
-        pass: env.emailPass
-      }
-    });
+    const hasSmtp = env.emailHost && env.emailUser && env.emailPass;
+    const isMock = env.enableMockNotifications === 'true' || 
+                   env.enableMockNotifications === true ||
+                   !hasSmtp || 
+                   env.emailUser.includes('your_smtp_username') || 
+                   env.emailPass.includes('your_smtp_password');
+
+    let transporter;
+    if (!isMock) {
+      transporter = nodemailer.createTransport({
+        host: env.emailHost,
+        port: env.emailPort || 587,
+        secure: !!env.emailSecure,
+        auth: {
+          user: env.emailUser,
+          pass: env.emailPass
+        }
+      });
+    }
 
     for (const job of jobs) {
       job.attempts += 1;
       try {
-        await transporter.sendMail({
-          from: env.emailFrom || `"PEHAL Healthcare" <noreply@pehalhealth.com>`,
-          to: job.recipient,
-          subject: job.subject,
-          text: job.body,
-          html: job.body.replace(/\n/g, '<br>')
-        });
+        if (isMock) {
+          logger.warn(`[EmailQueue] Mock notifications enabled or SMTP configuration missing. Fallback to console log for recipient: ${job.recipient}`);
+          console.info(`\n========================================`);
+          console.info(`[EMAIL QUEUE MOCK]`);
+          console.info(`To: ${job.recipient}`);
+          console.info(`Subject: ${job.subject}`);
+          console.info(`Body:\n${job.body}`);
+          console.info(`========================================\n`);
+          job.status = 'Sent';
+          job.errorLog = '';
+        } else {
+          await transporter.sendMail({
+            from: env.emailFrom || `"PEHAL Healthcare" <noreply@pehalhealth.com>`,
+            to: job.recipient,
+            subject: job.subject,
+            text: job.body,
+            html: job.body.replace(/\n/g, '<br>')
+          });
 
-        job.status = 'Sent';
-        job.errorLog = '';
-        logger.info(`[EmailQueue] Successfully sent email to ${job.recipient} (Job ID: ${job._id})`);
+          job.status = 'Sent';
+          job.errorLog = '';
+          logger.info(`[EmailQueue] Successfully sent email to ${job.recipient} (Job ID: ${job._id})`);
+        }
       } catch (sendErr) {
         logger.error(`[EmailQueue] Failed to send email to ${job.recipient} (Attempt ${job.attempts}):`, sendErr);
         job.errorLog = sendErr.message || String(sendErr);

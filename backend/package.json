@@ -13,6 +13,8 @@
     "seed:admin": "node src/seed/seedAdmin.js",
     "seed:insurance": "node src/modules/insurance/seed/insurance.seed.js",
     "seed:pharmacy-labs": "node src/seed/seedPharmacyAndLabs.js",
+    "seed:india-lab": "node src/seed/seedIndiaLabMaster.js",
+    "seed:inv-params": "node src/seed/seedInvestigationParameters.js",
     "check:env": "node src/scripts/checkEnv.js",
     "lint": "echo \"Linting will be configured in a later phase\""
   },

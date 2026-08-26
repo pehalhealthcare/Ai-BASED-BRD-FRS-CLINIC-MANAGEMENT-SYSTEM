@@ -1720,8 +1720,20 @@ const launchOnboarding = asyncHandler(async (req, res) => {
       if (provider.providerType === 'Pharmacy') pharmacyCount++;
       if (provider.providerType === 'Laboratory') laboratoryCount++;
 
-      const providerUser = await User.findOne({ assignedProviderId: provider._id }).session(session);
-      const providerStaff = await Staff.findOne({ assignedProviderId: provider._id }).session(session);
+      let providerUser = await User.findOne({ assignedProviderId: provider._id }).session(session);
+      let providerStaff = await Staff.findOne({ assignedProviderId: provider._id }).session(session);
+
+      if (!providerUser) {
+        const { createOperatorStaff } = require('../providers/providerOperatorHelper');
+        try {
+          // Create operator staff with deferInvitation = true (invitation will be sent below)
+          const newStaff = await createOperatorStaff(id, provider, req.user?._id || clinic.ownerDetails?._id || id, true);
+          providerStaff = await Staff.findById(newStaff._id).session(session);
+          providerUser = await User.findById(providerStaff.userId).session(session);
+        } catch (createErr) {
+          console.error(`Failed to create operator staff for draft provider ${provider.name}:`, createErr);
+        }
+      }
 
       if (providerUser) {
         providerUser.isActive = true;

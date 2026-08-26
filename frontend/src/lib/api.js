@@ -265,6 +265,8 @@ const settlementsApi = {
 const labApi = {
   createTest: (payload) => extractData(apiClient.post('/labs/tests', payload)),
   listTests: (params = {}) => extractData(apiClient.get('/labs/tests', { params })),
+  listAvailableGlobalTests: (params = {}) => extractData(apiClient.get('/labs/tests/available-global', { params })),
+  bulkActivateGlobalTests: (payload) => extractData(apiClient.post('/labs/tests/bulk-activate', payload)),
   createOrder: (payload) => extractData(apiClient.post('/labs/orders', payload)),
   listOrders: (params = {}) => extractData(apiClient.get('/labs/orders', { params })),
   getOrder: (id) => extractData(apiClient.get(`/labs/orders/${id}`)),
@@ -539,12 +541,36 @@ const healthcareCatalogApi = {
   previewImport: (payload) => extractData(apiClient.post('/healthcare-catalog/import/preview', payload)),
   confirmImport: (payload) => extractData(apiClient.post('/healthcare-catalog/import/confirm', payload)),
   classifyMedicine: (id, payload) => extractData(apiClient.put(`/healthcare-catalog/medicines/${id}/classify`, payload)),
+  
+  // Parameters APIs
+  getParameters: (params = {}) => extractData(apiClient.get('/healthcare-catalog/parameters', { params })),
+  createParameter: (payload) => extractData(apiClient.post('/healthcare-catalog/parameters', payload)),
+  updateParameter: (id, payload) => extractData(apiClient.put(`/healthcare-catalog/parameters/${id}`, payload)),
+  
+  // Units & Conditions APIs
+  getUnits: () => extractData(apiClient.get('/healthcare-catalog/global-lab/units')),
+  createUnit: (payload) => extractData(apiClient.post('/healthcare-catalog/global-lab/units', payload)),
+  getConditions: () => extractData(apiClient.get('/healthcare-catalog/global-lab/conditions')),
+  createCondition: (payload) => extractData(apiClient.post('/healthcare-catalog/global-lab/conditions', payload)),
+  
+  // Mappings APIs
+  getLabTestParameters: (id) => extractData(apiClient.get(`/healthcare-catalog/labs/${id}/parameters`)),
+  mapParameterToLabTest: (id, payload) => extractData(apiClient.post(`/healthcare-catalog/labs/${id}/parameters`, payload)),
+  unmapParameterFromLabTest: (id, parameterId) => extractData(apiClient.delete(`/healthcare-catalog/labs/${id}/parameters/${parameterId}`)),
+  reorderLabTestParameters: (id, payload) => extractData(apiClient.put(`/healthcare-catalog/labs/${id}/parameters/reorder`, payload)),
+  getLabTestComposition: (id) => extractData(apiClient.get(`/healthcare-catalog/labs/${id}/composition`)),
+
   // Read-only search endpoints accessible to Clinic Admins for importing from Global Catalog
   searchLabTests: (params = {}) => extractData(apiClient.get('/healthcare-catalog/search/labs', { params })),
   searchMedicines: (params = {}) => extractData(apiClient.get('/healthcare-catalog/search/medicines', { params })),
   searchCategories: (params = {}) => extractData(apiClient.get('/healthcare-catalog/search/categories', { params })),
   createMedicineDraft: (payload) => extractData(apiClient.post('/healthcare-catalog/search/medicines/draft', payload)),
-  createLabTestDraft: (payload) => extractData(apiClient.post('/healthcare-catalog/search/labs/draft', payload))
+  createLabTestDraft: (payload) => extractData(apiClient.post('/healthcare-catalog/search/labs/draft', payload)),
+
+  // Catalogue updates
+  getCatalogueUpdates: () => extractData(apiClient.get('/healthcare-catalog/catalogue-updates')),
+  importCatalogueUpdate: (payload) => extractData(apiClient.post('/healthcare-catalog/catalogue-updates', payload)),
+  applyCatalogueUpdate: (id, payload) => extractData(apiClient.post(`/healthcare-catalog/catalogue-updates/${id}/apply`, payload))
 };
 
 const providersApi = {

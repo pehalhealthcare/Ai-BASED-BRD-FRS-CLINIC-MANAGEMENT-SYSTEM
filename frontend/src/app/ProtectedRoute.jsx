@@ -39,7 +39,7 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   }
 
   if (allowedRoles.length && !canAccessRole(user?.role, allowedRoles)) {
-    const fallbackPath = getDefaultRouteForRole(user?.role);
+    const fallbackPath = getDefaultRouteForRole(user?.role, user);
     return (
       <div className="p-6">
         <ErrorState

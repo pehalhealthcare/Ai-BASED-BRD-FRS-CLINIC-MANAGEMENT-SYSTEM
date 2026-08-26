@@ -48,8 +48,17 @@ const reviewBillingAnomaly = asyncHandler(async (req, res) => {
 });
 
 const listPendingDoctors = asyncHandler(async (req, res) => {
-  const orgFilter = req.user?.organizationId ? { organizationId: req.user.organizationId } : {};
-  const pendingUsers = await User.find({ role: 'DOCTOR', approvalStatus: { $in: ['pending_profile', 'pending_approval', 're_edit'] }, ...orgFilter }).lean();
+  const clinicIds = [req.user.clinicId];
+  const Clinic = require('../clinics/clinic.model');
+  const branches = await Clinic.find({ parentClinicId: req.user.clinicId }).select('_id');
+  branches.forEach(b => clinicIds.push(b._id));
+  const clinicFilter = { clinicId: { $in: clinicIds } };
+
+  const pendingUsers = await User.find({
+    role: 'DOCTOR',
+    approvalStatus: { $in: ['pending_profile', 'pending_approval', 're_edit', 'pending_onboarding'] },
+    ...clinicFilter
+  }).lean();
   const userIds = pendingUsers.map((u) => u._id);
   const doctorProfiles = await Doctor.find({ userId: { $in: userIds } }).lean();
 
@@ -288,7 +297,7 @@ const getMyDoctorsDashboard = asyncHandler(async (req, res) => {
   const approvedDoctors = await Doctor.find({ approvalStatus: 'approved', ...clinicFilter }).populate('clinicId', 'name code').lean();
 
   // 2. Fetch pending/re-edit doctors
-  const pendingUsers = await User.find({ role: 'DOCTOR', approvalStatus: { $in: ['pending_profile', 'pending_approval', 're_edit'] }, ...clinicFilter }).lean();
+  const pendingUsers = await User.find({ role: 'DOCTOR', approvalStatus: { $in: ['pending_profile', 'pending_approval', 're_edit', 'pending_onboarding'] }, ...clinicFilter }).lean();
   const userIds = pendingUsers.map((u) => u._id);
   const doctorProfiles = await Doctor.find({ userId: { $in: userIds } }).lean();
   const resolvedPendingProfiles = await Promise.all(

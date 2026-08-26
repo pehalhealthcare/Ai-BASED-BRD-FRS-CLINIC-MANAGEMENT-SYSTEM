@@ -1,948 +1,635 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
-  Plus, Search, ArrowLeft, Calendar, FileText, CheckCircle2,
-  ChevronLeft, ChevronRight, AlertTriangle, AlertCircle,
-  Building2, Package, Layers, Info, Check, HelpCircle,
-  Activity, Star, Sparkles, Filter, Shield, Eye, X,
-  MoreVertical, Edit2, Ban, RefreshCw, BarChart2, CheckCircle,
-  Link, Layout, EyeOff, Trash2, ArrowUpRight, Square, CheckSquare
+  Search, Info, Check, Filter, X, Edit2, ShieldAlert,
+  Sparkles, Layers, CheckCircle2, AlertCircle, RefreshCw
 } from 'lucide-react';
-import useAuth from '../../hooks/useAuth';
-import { createLabTest, listLabTests, updateLabTest } from './labApi';
-import { healthcareCatalogApi } from '../../lib/api';
+import { labApi } from '../../lib/api';
 import { toast } from 'react-hot-toast';
 
 const LabTestCatalogPage = () => {
-  const { user } = useAuth();
-  const [labTests, setLabTests] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('ATOMIC_TEST'); // ATOMIC_TEST, PANEL, PROFILE
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [hasMore, setHasMore] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
-  
-  // Dialog / Modal states
-  const [isImportOpen, setIsImportOpen] = useState(false);
-  const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [selectedTest, setSelectedTest] = useState(null);
+  const [categories, setCategories] = useState([]);
 
-  // Global search & bulk states
-  const [globalSearch, setGlobalSearch] = useState('');
-  const [globalResults, setGlobalResults] = useState([]);
-  const [searchingGlobal, setSearchingGlobal] = useState(false);
-  const [selectedGlobalItems, setSelectedGlobalItems] = useState([]);
-
-  // Draft Creation states
-  const [isDraftOpen, setIsDraftOpen] = useState(false);
-  const [categoriesList, setCategoriesList] = useState([]);
-  const [draftForm, setDraftForm] = useState({
-    name: '',
-    shortName: '',
-    department: 'Pathology',
-    category: '',
-    sampleType: 'Blood',
-    normalReportingTime: '24 Hours'
+  // Stats
+  const [stats, setStats] = useState({
+    total: 0,
+    active: 0,
+    panels: 0,
+    profiles: 0
   });
 
-  // Import wizard states
-  const [wizardStep, setWizardStep] = useState(1);
-  const [selectedGlobalTest, setSelectedGlobalTest] = useState(null);
-  const [clinicConfig, setClinicConfig] = useState({
-    code: '',
+  // Drawer / Selection
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
+
+  // Drawer fields
+  const [drawerForm, setDrawerForm] = useState({
     price: '',
-    testPrice: '',
     turnaroundTime: '24 Hours',
-    homeCollectionAvailable: false,
-    sampleCollectionFee: 0,
-    availableDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+    processingMode: 'IN_HOUSE',
+    outsourcedLabName: '',
     isActive: true
   });
 
-  // Edit Clinic Config states
-  const [isEditConfigOpen, setIsEditConfigOpen] = useState(false);
-  const [editConfigForm, setEditConfigForm] = useState({
-    code: '',
-    price: '',
-    testPrice: '',
-    turnaroundTime: '24 Hours',
-    homeCollectionAvailable: false,
-    sampleCollectionFee: 0,
-    availableDays: [],
-    isActive: true
-  });
+  // Sentinel ref for infinite scroll
+  const observerRef = useRef(null);
 
+  // Load categories and metrics on mount
   useEffect(() => {
-    loadLocalTests();
-  }, [searchQuery, selectedCategory]);
-
-  useEffect(() => {
-    healthcareCatalogApi.searchCategories({ type: 'LabTest' })
-      .then(res => {
-        setCategoriesList(res.data?.items || res.data || res.items || res || []);
-      })
-      .catch((err) => {
-        console.error('Failed to load catalog categories', err);
-      });
+    loadCategories();
+    loadMetrics();
   }, []);
 
-  const handleSaveDraft = async (e) => {
-    e.preventDefault();
-    if (!draftForm.name || !draftForm.department || !draftForm.category || !draftForm.sampleType || !draftForm.normalReportingTime) {
-      return toast.error('Required fields: Name, Department, Category, Sample Type, Normal Reporting Time');
+  // Reload lists when search, category, tab, or page changes
+  useEffect(() => {
+    loadInitial();
+  }, [activeTab, searchQuery, selectedCategory, pageSize]);
+
+  // Infinite Scroll Observer
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loading) {
+          loadMore();
+        }
+      },
+      { threshold: 1.0 }
+    );
+
+    if (observerRef.current) {
+      observer.observe(observerRef.current);
     }
 
+    return () => observer.disconnect();
+  }, [hasMore, loading, page]);
+
+  const loadCategories = async () => {
     try {
-      await healthcareCatalogApi.createLabTestDraft(draftForm);
-      toast.success('Lab test draft submitted successfully for Super Admin verification!');
-      setIsDraftOpen(false);
-      setGlobalSearch('');
-      setGlobalResults([]);
+      const res = await labApi.listTests({ limit: 1 }); // Or categories fetch
+      // fallback categories list
+      setCategories(['Hematology', 'Biochemistry', 'Microbiology', 'Pathology', 'Immunology', 'Serology']);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to submit lab test draft');
+      console.error(err);
     }
   };
 
-  const loadLocalTests = async () => {
+  const loadMetrics = async () => {
     try {
-      setLoading(true);
-      const res = await listLabTests({
+      const res = await labApi.listTests({ limit: 1 });
+      const activeCount = res.pagination?.total || 0;
+      setStats(prev => ({
+        ...prev,
+        active: activeCount,
+        total: activeCount
+      }));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const loadInitial = async () => {
+    setLoading(true);
+    setPage(1);
+    try {
+      const res = await labApi.listAvailableGlobalTests({
+        page: 1,
+        limit: pageSize,
         search: searchQuery,
         category: selectedCategory,
-        limit: 100
+        investigationType: activeTab
       });
-      setLabTests(res.data?.labTests || res.labTests || []);
+      const data = res.data?.items || res.items || [];
+      setItems(data);
+      setHasMore(data.length >= pageSize);
     } catch (err) {
-      toast.error('Failed to load clinic lab catalog');
+      toast.error('Failed to load catalog items');
     } finally {
       setLoading(false);
     }
   };
 
-  // Search Global Laboratory Tests Catalog
-  useEffect(() => {
-    const delayDebounceFn = setTimeout(() => {
-      if (globalSearch.trim().length >= 2) {
-        loadGlobalCatalog();
-      } else {
-        setGlobalResults([]);
-      }
-    }, 300);
-
-    return () => clearTimeout(delayDebounceFn);
-  }, [globalSearch]);
-
-  const loadGlobalCatalog = async () => {
+  const loadMore = async () => {
+    if (loading || !hasMore) return;
+    setLoading(true);
+    const nextPage = page + 1;
     try {
-      setSearchingGlobal(true);
-      // Use /search/labs which is accessible to clinic admins (read-only)
-      const res = await healthcareCatalogApi.searchLabTests({ search: globalSearch, limit: 15 });
-      // API returns { success, data: { total, items } } — items are under res.data
-      setGlobalResults(res.data?.items || res.items || []);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setSearchingGlobal(false);
-    }
-  };
-
-  // Import single test wizard
-  const handleStartImportWizard = (test) => {
-    setSelectedGlobalTest(test);
-    setClinicConfig({
-      code: test.globalId || '',
-      price: '',
-      testPrice: '',
-      turnaroundTime: test.normalReportingTime || '24 Hours',
-      homeCollectionAvailable: false,
-      sampleCollectionFee: 0,
-      availableDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
-      isActive: true
-    });
-    setWizardStep(2);
-  };
-
-  const handleSaveImport = async () => {
-    if (!clinicConfig.code || !clinicConfig.testPrice) {
-      return toast.error('Test Code and Price are required');
-    }
-
-    const payload = {
-      globalLabTestId: selectedGlobalTest._id,
-      code: clinicConfig.code,
-      price: Number(clinicConfig.testPrice || 0),
-      testPrice: Number(clinicConfig.testPrice || 0),
-      turnaroundTime: clinicConfig.turnaroundTime,
-      homeCollectionAvailable: clinicConfig.homeCollectionAvailable,
-      sampleCollectionFee: Number(clinicConfig.sampleCollectionFee || 0),
-      availableDays: clinicConfig.availableDays,
-      isActive: clinicConfig.isActive
-    };
-
-    try {
-      await createLabTest(payload);
-      toast.success(`${selectedGlobalTest.name} imported successfully`);
-      setIsImportOpen(false);
-      setSelectedGlobalTest(null);
-      setWizardStep(1);
-      loadLocalTests();
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to import lab test');
-    }
-  };
-
-  // Bulk Import
-  const handleToggleGlobalSelect = (id) => {
-    if (selectedGlobalItems.includes(id)) {
-      setSelectedGlobalItems(selectedGlobalItems.filter(item => item !== id));
-    } else {
-      setSelectedGlobalItems([...selectedGlobalItems, id]);
-    }
-  };
-
-  const handleImportSelectedBulk = async () => {
-    if (selectedGlobalItems.length === 0) return;
-    try {
-      let importedCount = 0;
-      for (const id of selectedGlobalItems) {
-        const item = globalResults.find(r => r._id === id);
-        if (!item) continue;
-
-        const payload = {
-          globalLabTestId: item._id,
-          code: item.globalId,
-          price: 500, // standard default
-          testPrice: 500,
-          turnaroundTime: item.normalReportingTime || '24 Hours',
-          homeCollectionAvailable: false,
-          availableDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
-          isActive: true
-        };
-        try {
-          await createLabTest(payload);
-          importedCount++;
-        } catch (err) {
-          console.error('Bulk item already exists:', item.name);
-        }
-      }
-      toast.success(`Imported ${importedCount} lab tests successfully`);
-      setSelectedGlobalItems([]);
-      setIsImportOpen(false);
-      loadLocalTests();
-    } catch (err) {
-      toast.error('Bulk import completed with errors');
-    }
-  };
-
-  // Edit Configuration
-  const handleOpenEditConfig = () => {
-    setEditConfigForm({
-      code: selectedTest.code,
-      price: selectedTest.price || selectedTest.testPrice,
-      testPrice: selectedTest.testPrice || selectedTest.price,
-      turnaroundTime: selectedTest.turnaroundTime,
-      homeCollectionAvailable: selectedTest.homeCollectionAvailable,
-      sampleCollectionFee: selectedTest.sampleCollectionFee,
-      availableDays: selectedTest.availableDays || [],
-      isActive: selectedTest.isActive
-    });
-    setIsEditConfigOpen(true);
-  };
-
-  const handleSaveConfig = async (e) => {
-    e.preventDefault();
-    try {
-      await updateLabTest(selectedTest._id, {
-        code: editConfigForm.code,
-        price: Number(editConfigForm.testPrice),
-        testPrice: Number(editConfigForm.testPrice),
-        turnaroundTime: editConfigForm.turnaroundTime,
-        homeCollectionAvailable: editConfigForm.homeCollectionAvailable,
-        sampleCollectionFee: Number(editConfigForm.sampleCollectionFee),
-        availableDays: editConfigForm.availableDays,
-        isActive: editConfigForm.isActive
+      const res = await labApi.listAvailableGlobalTests({
+        page: nextPage,
+        limit: pageSize,
+        search: searchQuery,
+        category: selectedCategory,
+        investigationType: activeTab
       });
-      toast.success('Lab test setup updated');
-      setIsEditConfigOpen(false);
-      
-      // Reload details
-      const updated = await listLabTests({ search: selectedTest.name });
-      const found = (updated.data?.labTests || updated.labTests || []).find(t => t._id === selectedTest._id);
-      if (found) setSelectedTest(found);
-      loadLocalTests();
+      const data = res.data?.items || res.items || [];
+      if (data.length > 0) {
+        setItems(prev => [...prev, ...data]);
+        setPage(nextPage);
+        setHasMore(data.length >= pageSize);
+      } else {
+        setHasMore(false);
+      }
     } catch (err) {
-      toast.error('Failed to update lab test setup');
+      toast.error('Failed to load more catalogue items');
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const handleOpenDrawer = (item) => {
+    setSelectedItem(item);
+    if (item.isActivated && item.localSettings) {
+      setDrawerForm({
+        price: item.localSettings.price || '',
+        turnaroundTime: item.localSettings.turnaroundTime || '24 Hours',
+        processingMode: item.localSettings.processingMode || 'IN_HOUSE',
+        outsourcedLabName: item.localSettings.outsourcedLabName || '',
+        isActive: item.localSettings.isActive
+      });
+    } else {
+      setDrawerForm({
+        price: '',
+        turnaroundTime: item.normalReportingTime || '24 Hours',
+        processingMode: 'IN_HOUSE',
+        outsourcedLabName: '',
+        isActive: true
+      });
+    }
+    setDrawerOpen(true);
+  };
+
+  const handleSaveSettings = async (e) => {
+    e.preventDefault();
+    if (!drawerForm.price) {
+      return toast.error('Please enter a valid pricing value');
+    }
+
+    try {
+      if (selectedItem.isActivated && selectedItem.localSettings?._id) {
+        // Update configuration
+        await labApi.updateTest(selectedItem.localSettings._id, {
+          price: Number(drawerForm.price),
+          testPrice: Number(drawerForm.price),
+          turnaroundTime: drawerForm.turnaroundTime,
+          processingMode: drawerForm.processingMode,
+          outsourcedLabName: drawerForm.outsourcedLabName,
+          isActive: drawerForm.isActive
+        });
+        toast.success(`${selectedItem.name} local configuration saved successfully`);
+      } else {
+        // Activate single
+        await labApi.bulkActivateGlobalTests({
+          globalTestIds: [selectedItem._id]
+        });
+        // Find newly activated test and update its overrides
+        const localList = await labApi.listTests({ limit: 100 });
+        const found = (localList.data?.labTests || localList.labTests || []).find(t => String(t.globalLabTestId?._id || t.globalLabTestId) === String(selectedItem._id));
+        if (found) {
+          await labApi.updateTest(found._id, {
+            price: Number(drawerForm.price),
+            testPrice: Number(drawerForm.price),
+            turnaroundTime: drawerForm.turnaroundTime,
+            processingMode: drawerForm.processingMode,
+            outsourcedLabName: drawerForm.outsourcedLabName,
+            isActive: drawerForm.isActive
+          });
+        }
+        toast.success(`${selectedItem.name} activated and configured successfully`);
+      }
+
+      setDrawerOpen(false);
+      loadInitial();
+      loadMetrics();
+    } catch (err) {
+      toast.error('Failed to configure local settings');
+    }
+  };
+
+  // Bulk activation handler
+  const handleBulkActivate = async () => {
+    if (selectedIds.length === 0) return;
+    try {
+      await labApi.bulkActivateGlobalTests({
+        globalTestIds: selectedIds
+      });
+      toast.success(`Successfully activated ${selectedIds.length} tests`);
+      setSelectedIds([]);
+      loadInitial();
+      loadMetrics();
+    } catch (err) {
+      toast.error('Bulk activation failed');
+    }
+  };
+
+  const handleToggleSelect = (id) => {
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
   };
 
   return (
-    <div className="min-h-screen bg-white text-stone-800 font-sans pb-20">
-      {/* Top Banner */}
-      <div className="bg-gradient-to-r from-stone-50 via-white to-stone-100/50 border-b border-stone-200 p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] bg-emerald-550/10 text-emerald-600 px-2 py-0.5 rounded font-black tracking-wider uppercase">
-              Clinic Workspace
-            </span>
-            <span className="text-stone-500 text-xs">Laboratory Catalog</span>
-          </div>
-          <h1 className="text-2xl font-black mt-1 text-stone-900 flex items-center gap-2">
-            Local Lab Catalog <Layers className="w-5 h-5 text-emerald-600" />
-          </h1>
-        </div>
+    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans pb-24 relative overflow-hidden">
+      {/* Background Orbs */}
+      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-900/10 rounded-full blur-[120px]" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-indigo-900/10 rounded-full blur-[120px]" />
 
-        <div className="flex gap-2">
-          <button
-            onClick={() => setIsImportOpen(true)}
-            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition flex items-center gap-2 shadow-lg shadow-emerald-600/20"
-          >
-            <Plus className="w-4 h-4" /> Import Test From Global Catalog
-          </button>
-        </div>
-      </div>
-
-      {/* Toolbar */}
-      <div className="p-6 flex flex-col md:flex-row justify-between items-center gap-4 border-b border-stone-200">
-        <div className="flex gap-2 w-full md:max-w-md">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-2.5 w-4 h-4 text-stone-400" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search local lab tests..."
-              className="w-full pl-10 pr-4 py-2 rounded-xl bg-white border border-stone-200 text-xs focus:outline-none focus:border-emerald-500 text-stone-800"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Local Tests Table */}
-      <div className="p-6">
-        {loading ? (
-          <div className="py-20 text-center text-stone-500 flex flex-col items-center justify-center">
-            <RefreshCw className="w-8 h-8 animate-spin text-emerald-650 mb-2" />
-            <span>Syncing laboratory catalogs...</span>
-          </div>
-        ) : labTests.length === 0 ? (
-          <div className="border border-dashed border-stone-200 rounded-3xl p-16 text-center max-w-xl mx-auto space-y-4">
-            <Layers className="w-12 h-12 mx-auto text-stone-300" />
-            <h3 className="text-lg font-black text-stone-700">No Laboratory Tests Imported</h3>
-            <p className="text-stone-500 text-xs leading-relaxed">
-              Import laboratory tests from the Global Healthcare Catalog to start booking tests and recording lab analysis reports.
+      {/* Header section */}
+      <div className="border-b border-slate-800/80 bg-slate-900/50 backdrop-blur-md p-6">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] bg-indigo-500/10 text-indigo-400 px-2 py-0.5 rounded font-black tracking-wider uppercase">
+                Laboratory Workspace
+              </span>
+              <span className="text-slate-400 text-xs">Clinic Master Catalogue Settings</span>
+            </div>
+            <h1 className="text-2xl font-black mt-1 text-white flex items-center gap-2">
+              Laboratory Test Configuration <Layers className="w-5 h-5 text-indigo-500" />
+            </h1>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Configure the investigations, panels and profiles available at this laboratory.
             </p>
-            <button
-              onClick={() => setIsImportOpen(true)}
-              className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition"
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={loadInitial}
+              className="p-2.5 bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl transition"
             >
-              Import Laboratory Tests
+              <RefreshCw className="w-4 h-4" />
             </button>
           </div>
-        ) : (
-          <div className="bg-white border border-stone-200 rounded-3xl overflow-hidden shadow-sm">
-            <table className="w-full text-left text-xs border-collapse">
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto p-6 space-y-6">
+        {/* Navigation Tabs */}
+        <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
+          <div className="flex gap-2">
+            {[
+              { id: 'ATOMIC_TEST', label: 'Investigations' },
+              { id: 'PANEL', label: 'Panels' },
+              { id: 'PROFILE', label: 'Profiles' }
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  setSelectedIds([]);
+                }}
+                className={`px-5 py-2.5 text-xs font-bold rounded-xl transition-all ${
+                  activeTab === tab.id 
+                    ? 'bg-indigo-650 text-white shadow-lg shadow-indigo-600/20' 
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/50'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <select
+              value={pageSize}
+              onChange={(e) => setPageSize(Number(e.target.value))}
+              className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-350 focus:outline-none focus:ring-1 focus:ring-indigo-600"
+            >
+              <option value={20}>20 per page</option>
+              <option value={50}>50 per page</option>
+              <option value={100}>100 per page</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Search & Filter bar */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-900/40 border border-slate-800/80 p-4 rounded-2xl backdrop-blur-sm">
+          <div className="relative">
+            <Search className="absolute left-3 top-3 w-4 h-4 text-slate-500" />
+            <input
+              type="text"
+              placeholder="Search by name, shortname or code..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-slate-950 border border-slate-800/80 rounded-xl py-2 pl-9 pr-4 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-600 focus:border-indigo-600 transition-all"
+            />
+          </div>
+
+          <div className="relative">
+            <Filter className="absolute left-3 top-3 w-4 h-4 text-slate-500" />
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="w-full bg-slate-950 border border-slate-800/80 rounded-xl py-2 pl-9 pr-4 text-xs text-slate-350 focus:outline-none focus:ring-1 focus:ring-indigo-600 focus:border-indigo-600 transition-all appearance-none"
+            >
+              <option value="">All Categories</option>
+              {categories.map((c, idx) => (
+                <option key={idx} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-center justify-end">
+            <span className="text-[10px] text-slate-400 font-bold bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800/80">
+              Showing {items.length} items
+            </span>
+          </div>
+        </div>
+
+        {/* Configurations Table */}
+        <div className="bg-slate-900/30 border border-slate-800/80 rounded-3xl overflow-hidden backdrop-blur-sm shadow-xl">
+          <div className="overflow-x-auto max-h-[600px] custom-scrollbar">
+            <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-stone-200 bg-stone-50 text-stone-500 uppercase tracking-wider font-bold">
-                  <th className="py-4 px-5">Test Details</th>
-                  <th className="py-4 px-5">Category</th>
-                  <th className="py-4 px-5">Specimen</th>
-                  <th className="py-4 px-5">turnaround</th>
-                  <th className="py-4 px-5">Price</th>
-                  <th className="py-4 px-5 text-right">Actions</th>
+                <tr className="bg-slate-950/80 border-b border-slate-800 text-[10px] font-black text-slate-400 uppercase tracking-wider sticky top-0 backdrop-blur-md">
+                  <th className="p-4 w-12 text-center">
+                    <input 
+                      type="checkbox"
+                      checked={items.length > 0 && selectedIds.length === items.filter(i => !i.isActivated).length}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedIds(items.filter(i => !i.isActivated).map(i => i._id));
+                        } else {
+                          setSelectedIds([]);
+                        }
+                      }}
+                      className="rounded border-slate-800 text-indigo-650 focus:ring-indigo-500 bg-slate-950" 
+                    />
+                  </th>
+                  <th className="p-4">Test Code</th>
+                  <th className="p-4">Investigation Name</th>
+                  <th className="p-4">Department</th>
+                  <th className="p-4">Type</th>
+                  <th className="p-4">Processing Mode</th>
+                  <th className="p-4">Status</th>
+                  <th className="p-4">Local Price</th>
+                  <th className="p-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-stone-100 text-stone-750">
-                {labTests.map(test => (
-                  <tr 
-                    key={test._id} 
-                    onClick={() => {
-                      setSelectedTest(test);
-                      setIsDetailOpen(true);
-                    }}
-                    className="hover:bg-stone-50/60 transition cursor-pointer"
-                  >
-                    <td className="py-4 px-5">
-                      <span className="text-[10px] text-stone-400 font-bold block">{test.code}</span>
-                      <span className="font-black text-stone-800 text-sm">{test.name}</span>
-                    </td>
-                    <td className="py-4 px-5">
-                      <span className="px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-600 font-bold text-[10px]">
-                        {test.category || 'General'}
-                      </span>
-                    </td>
-                    <td className="py-4 px-5 text-stone-600">{test.specimenType || 'N/A'}</td>
-                    <td className="py-4 px-5 text-stone-600">{test.turnaroundTime || '24 Hours'}</td>
-                    <td className="py-4 px-5 font-black text-emerald-600">₹{test.price || test.testPrice}</td>
-                    <td className="py-4 px-5 text-right">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedTest(test);
-                          setIsDetailOpen(true);
-                        }}
-                        className="p-1.5 hover:bg-stone-105 rounded-lg text-stone-400 hover:text-stone-650 transition"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
+              <tbody className="divide-y divide-slate-800/50 text-xs">
+                {items.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="p-12 text-center text-slate-500">
+                      {loading ? 'Searching master catalog...' : 'No available global catalogue items matching criteria.'}
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  items.map((item, idx) => (
+                    <tr 
+                      key={item._id} 
+                      className={`hover:bg-slate-800/30 transition-all ${
+                        item.isActivated ? 'bg-slate-900/20' : 'bg-transparent'
+                      }`}
+                    >
+                      <td className="p-4 text-center">
+                        <input
+                          type="checkbox"
+                          disabled={item.isActivated}
+                          checked={selectedIds.includes(item._id)}
+                          onChange={() => handleToggleSelect(item._id)}
+                          className="rounded border-slate-800 text-indigo-650 focus:ring-indigo-500 bg-slate-950 disabled:opacity-30"
+                        />
+                      </td>
+                      <td className="p-4 font-mono font-bold text-slate-350">{item.globalId}</td>
+                      <td className="p-4 font-bold text-slate-100">{item.name}</td>
+                      <td className="p-4 text-slate-450">{item.department}</td>
+                      <td className="p-4 text-slate-450">{item.investigationType}</td>
+                      <td className="p-4">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
+                          item.localSettings?.processingMode === 'OUTSOURCED'
+                            ? 'bg-amber-500/10 text-amber-450 border border-amber-500/20'
+                            : item.isActivated 
+                            ? 'bg-blue-500/10 text-blue-450 border border-blue-500/20'
+                            : 'text-slate-500 bg-slate-900/50'
+                        }`}>
+                          {item.localSettings?.processingMode || (item.isActivated ? 'IN_HOUSE' : '--')}
+                        </span>
+                      </td>
+                      <td className="p-4">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
+                          item.isActivated 
+                            ? 'bg-emerald-500/10 text-emerald-450 border border-emerald-500/20'
+                            : 'bg-slate-850 text-slate-400 border border-slate-800/50'
+                        }`}>
+                          {item.isActivated ? 'Activated' : 'Not Configured'}
+                        </span>
+                      </td>
+                      <td className="p-4 font-bold text-slate-200">
+                        {item.localSettings?.price ? `₹${item.localSettings.price}` : '--'}
+                      </td>
+                      <td className="p-4 text-right">
+                        <button
+                          onClick={() => handleOpenDrawer(item)}
+                          className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-indigo-400 hover:text-white rounded-lg transition-all font-bold flex items-center gap-1.5 ml-auto"
+                        >
+                          <Edit2 className="w-3 h-3" />
+                          {item.isActivated ? 'Configure' : 'Activate'}
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+                {/* Sentinel Loader element for Infinite scrolling */}
+                {hasMore && (
+                  <tr ref={observerRef}>
+                    <td colSpan={9} className="p-4 text-center text-slate-500 animate-pulse text-[11px]">
+                      Loading more diagnostic items...
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
-        )}
+        </div>
       </div>
 
-      {/* FULLSCREEN IMPORT MODAL */}
-      {isImportOpen && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white border border-stone-200 rounded-3xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="px-6 py-5 border-b border-stone-200 flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-black text-stone-900 flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-emerald-600" /> Import From Global Catalog
-                </h3>
-                <span className="text-xs text-stone-500">Search and map master tests to local laboratory</span>
-              </div>
-              <button 
-                type="button"
-                onClick={() => {
-                  setIsImportOpen(false);
-                  setSelectedGlobalTest(null);
-                  setWizardStep(1);
-                }}
-                className="p-2 hover:bg-stone-100 rounded-xl text-stone-400"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      {/* Floating Bulk Activation Bar */}
+      {selectedIds.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-slate-900/90 border border-slate-700/80 px-6 py-4 rounded-2xl shadow-2xl backdrop-blur-lg flex items-center gap-6 z-40 animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <span className="text-xs font-bold text-slate-300">
+            Selected <strong className="text-indigo-400">{selectedIds.length}</strong> catalog items for activation
+          </span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setSelectedIds([])}
+              className="px-4 py-2 hover:bg-slate-800 text-xs font-bold text-slate-400 rounded-xl transition"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleBulkActivate}
+              className="px-4 py-2 bg-indigo-650 hover:bg-indigo-700 text-xs font-black text-white rounded-xl transition shadow-lg shadow-indigo-600/30"
+            >
+              Activate Selected
+            </button>
+          </div>
+        </div>
+      )}
 
-            {/* Step 1: Catalog Search List */}
-            {wizardStep === 1 && (
-              <div className="p-6 flex flex-col overflow-y-auto flex-1 space-y-4">
-                <div className="relative">
-                  <Search className="absolute left-3.5 top-3 w-5 h-5 text-stone-400" />
+      {/* Right sliding Drawer for settings override configuration */}
+      {drawerOpen && selectedItem && (
+        <>
+          {/* Overlay backdrop */}
+          <div 
+            onClick={() => setDrawerOpen(false)}
+            className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 transition-all duration-300"
+          />
+
+          <div className="fixed top-0 right-0 h-full w-[420px] bg-slate-900 border-l border-slate-800 shadow-2xl z-50 p-6 flex flex-col justify-between overflow-y-auto animate-in slide-in-from-right duration-350">
+            <div>
+              <div className="flex justify-between items-start border-b border-slate-800 pb-4">
+                <div>
+                  <h2 className="text-base font-black text-white">Configure Local Test Settings</h2>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Customize local price, TAT, and availability parameters.</p>
+                </div>
+                <button 
+                  onClick={() => setDrawerOpen(false)}
+                  className="p-1.5 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg transition"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Item info header card */}
+              <div className="bg-slate-950/80 p-4 rounded-xl border border-slate-800 my-4 space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-[10px] text-slate-500 font-bold uppercase">Test Reference</span>
+                  <span className="text-[10px] bg-indigo-500/10 text-indigo-400 px-2 py-0.5 rounded font-mono uppercase">{selectedItem.globalId}</span>
+                </div>
+                <h3 className="text-sm font-black text-slate-100">{selectedItem.name}</h3>
+                <div className="text-[11px] text-slate-400 flex gap-2">
+                  <span>{selectedItem.category}</span>
+                  <span>•</span>
+                  <span>{selectedItem.sampleType}</span>
+                </div>
+              </div>
+
+              {/* Main settings form */}
+              <form onSubmit={handleSaveSettings} className="space-y-4">
+                <div>
+                  <label className="block text-[11px] text-slate-400 font-bold uppercase mb-1.5">Local Selling Price (₹)</label>
+                  <input
+                    type="number"
+                    required
+                    placeholder="Enter local test price e.g. 350"
+                    value={drawerForm.price}
+                    onChange={(e) => setDrawerForm(prev => ({ ...prev, price: e.target.value }))}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-1 focus:ring-indigo-650"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] text-slate-400 font-bold uppercase mb-1.5">Turnaround Time (TAT)</label>
                   <input
                     type="text"
-                    value={globalSearch}
-                    onChange={(e) => setGlobalSearch(e.target.value)}
-                    placeholder="Search global lab tests by Name, Code or Department..."
-                    className="w-full pl-11 pr-4 py-3 rounded-2xl bg-white border border-stone-200 text-sm text-stone-850 focus:outline-none focus:border-emerald-500"
+                    required
+                    placeholder="e.g. 12 Hours, 24 Hours, Same Day"
+                    value={drawerForm.turnaroundTime}
+                    onChange={(e) => setDrawerForm(prev => ({ ...prev, turnaroundTime: e.target.value }))}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-1 focus:ring-indigo-650"
                   />
-                </div>
-
-                {searchingGlobal && (
-                  <div className="py-10 text-center text-stone-500 flex justify-center items-center gap-2">
-                    <RefreshCw className="w-5 h-5 animate-spin text-emerald-600" />
-                    <span>Searching catalog repository...</span>
-                  </div>
-                )}
-
-                {globalResults.length > 0 ? (
-                  <div className="border border-stone-200 rounded-2xl overflow-hidden bg-stone-50/20 divide-y divide-stone-200 overflow-y-auto flex-1 max-h-80">
-                    {globalResults.map(item => {
-                      const isSelected = selectedGlobalItems.includes(item._id);
-                      return (
-                        <div key={item._id} className="p-4 flex items-center justify-between hover:bg-stone-50 transition">
-                          <div className="flex items-center gap-3">
-                            <button onClick={() => handleToggleGlobalSelect(item._id)}>
-                              {isSelected ? (
-                                <CheckCircle className="w-5 h-5 text-emerald-600" />
-                              ) : (
-                                <Square className="w-5 h-5 text-stone-300" />
-                              )}
-                            </button>
-                            <div>
-                              <span className="text-[10px] text-stone-400 font-bold block">{item.globalId} • {item.department}</span>
-                              <span className="font-black text-stone-800 text-sm">{item.name}</span>
-                              <span className="text-[10px] text-stone-500 block mt-0.5">
-                                Sample: {item.sampleType} • TAT: {item.normalReportingTime}
-                              </span>
-                            </div>
-                          </div>
-                          <button
-                            onClick={() => handleStartImportWizard(item)}
-                            className="px-3.5 py-1.5 bg-emerald-50 text-emerald-600 border border-emerald-500/20 hover:bg-emerald-600 hover:text-white rounded-lg text-xs font-bold transition flex items-center gap-1"
-                          >
-                            Configure <ChevronRight className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  !searchingGlobal && globalSearch.trim().length >= 2 && (
-                    <div className="py-10 text-center text-stone-400 text-xs space-y-3">
-                      <p>No matching records found in global catalog.</p>
+                  {/* Preset Pills */}
+                  <div className="flex gap-2 mt-2">
+                    {['4 Hours', '12 Hours', '24 Hours', '48 Hours'].map(time => (
                       <button
-                        onClick={() => {
-                          setDraftForm({
-                            name: globalSearch,
-                            shortName: '',
-                            department: 'Pathology',
-                            category: categoriesList[0]?._id || '',
-                            sampleType: 'Blood',
-                            normalReportingTime: '24 Hours'
-                          });
-                          setIsDraftOpen(true);
-                        }}
-                        className="px-4 py-2 bg-emerald-650 hover:bg-emerald-750 text-white rounded-xl font-bold transition shadow-md shadow-emerald-600/10"
+                        key={time}
+                        type="button"
+                        onClick={() => setDrawerForm(prev => ({ ...prev, turnaroundTime: time }))}
+                        className={`px-3 py-1 rounded-lg text-[10px] font-bold transition ${
+                          drawerForm.turnaroundTime === time
+                            ? 'bg-indigo-650 text-white'
+                            : 'bg-slate-950 text-slate-400 hover:text-slate-200'
+                        }`}
                       >
-                        ➕ Submit New Test Draft
+                        {time}
                       </button>
-                    </div>
-                  )
-                )}
-
-                {/* Bulk actions footer */}
-                {selectedGlobalItems.length > 0 && (
-                  <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex justify-between items-center text-xs">
-                    <span className="font-bold text-stone-600">{selectedGlobalItems.length} global tests selected</span>
-                    <button 
-                      onClick={handleImportSelectedBulk}
-                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition"
-                    >
-                      Import Selected
-                    </button>
+                    ))}
                   </div>
-                )}
-              </div>
-            )}
-
-            {/* Wizard Config Step */}
-            {wizardStep === 2 && selectedGlobalTest && (
-              <div className="flex-1 overflow-y-auto p-6 space-y-6 text-xs text-stone-700">
-                {/* Global Read-Only Display */}
-                <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl space-y-2">
-                  <div className="flex justify-between items-start">
-                    <span className="text-[9px] bg-emerald-500/10 text-emerald-600 px-2 py-0.5 rounded font-black tracking-wider uppercase">
-                      Global Catalog Standard
-                    </span>
-                    <span className="font-mono text-stone-400">{selectedGlobalTest.globalId}</span>
-                  </div>
-                  <h4 className="text-base font-black text-stone-800">{selectedGlobalTest.name}</h4>
-                  <p className="text-stone-600">
-                    Category: <strong>{selectedGlobalTest.category?.name || 'N/A'}</strong> • Methodology: <strong>{selectedGlobalTest.methodology}</strong> • Specimen: <strong>{selectedGlobalTest.sampleType}</strong> • Standard TAT: <strong>{selectedGlobalTest.normalReportingTime}</strong>
-                  </p>
                 </div>
 
-                {/* Step 3: Clinic Configuration Form */}
-                <div className="space-y-4">
-                  <h4 className="text-sm font-black text-emerald-600 uppercase tracking-wider">Dispensary Settings</h4>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-stone-500 font-bold uppercase text-[10px]">Test Code</label>
-                      <input 
-                        type="text" 
-                        value={clinicConfig.code} 
-                        onChange={(e) => setClinicConfig({ ...clinicConfig, code: e.target.value })}
-                        className="w-full px-3 py-2 bg-white border border-stone-200 rounded-xl text-stone-800 focus:outline-none"
+                <div>
+                  <label className="block text-[11px] text-slate-400 font-bold uppercase mb-2">Performing Processing Mode</label>
+                  <div className="flex gap-4">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="processingMode"
+                        value="IN_HOUSE"
+                        checked={drawerForm.processingMode === 'IN_HOUSE'}
+                        onChange={(e) => setDrawerForm(prev => ({ ...prev, processingMode: e.target.value }))}
+                        className="text-indigo-650 focus:ring-indigo-500 border-slate-800 bg-slate-950"
                       />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-stone-500 font-bold uppercase text-[10px]">Selling Price</label>
-                      <input 
-                        type="number" 
-                        value={clinicConfig.testPrice} 
-                        onChange={(e) => setClinicConfig({ ...clinicConfig, testPrice: e.target.value })}
-                        placeholder="₹"
-                        className="w-full px-3 py-2 bg-white border border-stone-200 rounded-xl text-stone-800 focus:outline-none"
-                      />
-                    </div>
-                  </div>
+                      <span className="text-xs text-slate-200 font-bold">In-House</span>
+                    </label>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-stone-500 font-bold uppercase text-[10px]">Processing TAT Override</label>
-                      <input 
-                        type="text" 
-                        value={clinicConfig.turnaroundTime} 
-                        onChange={(e) => setClinicConfig({ ...clinicConfig, turnaroundTime: e.target.value })}
-                        placeholder="e.g. 12 Hours"
-                        className="w-full px-3 py-2 bg-white border border-stone-200 rounded-xl text-stone-800 focus:outline-none"
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="processingMode"
+                        value="OUTSOURCED"
+                        checked={drawerForm.processingMode === 'OUTSOURCED'}
+                        onChange={(e) => setDrawerForm(prev => ({ ...prev, processingMode: e.target.value }))}
+                        className="text-indigo-650 focus:ring-indigo-500 border-slate-800 bg-slate-950"
                       />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-stone-500 font-bold uppercase text-[10px]">Sample Collection Fee</label>
-                      <input 
-                        type="number" 
-                        value={clinicConfig.sampleCollectionFee} 
-                        onChange={(e) => setClinicConfig({ ...clinicConfig, sampleCollectionFee: Number(e.target.value) })}
-                        placeholder="₹"
-                        className="w-full px-3 py-2 bg-white border border-stone-200 rounded-xl text-stone-800 focus:outline-none"
-                      />
-                    </div>
+                      <span className="text-xs text-slate-200 font-bold">Outsourced</span>
+                    </label>
                   </div>
+                </div>
 
-                  <div className="flex items-center gap-2 pt-2">
-                    <input 
-                      type="checkbox" 
-                      id="home_col"
-                      checked={clinicConfig.homeCollectionAvailable} 
-                      onChange={(e) => setClinicConfig({ ...clinicConfig, homeCollectionAvailable: e.target.checked })}
-                      className="w-4 h-4 text-emerald-600 bg-white border-stone-200 rounded"
+                {drawerForm.processingMode === 'OUTSOURCED' && (
+                  <div>
+                    <label className="block text-[11px] text-slate-400 font-bold uppercase mb-1.5">Laboratory Partner Name</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Apex Reference Labs"
+                      value={drawerForm.outsourcedLabName}
+                      onChange={(e) => setDrawerForm(prev => ({ ...prev, outsourcedLabName: e.target.value }))}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-1 focus:ring-indigo-650"
                     />
-                    <label htmlFor="home_col" className="text-stone-600 font-bold">Home collection sample logistics available</label>
                   </div>
-                </div>
-              </div>
-            )}
+                )}
 
-            <div className="px-6 py-4 border-t border-stone-200 flex justify-end gap-2 bg-stone-50">
-              {wizardStep === 1 ? (
-                <button
-                  type="button"
-                  onClick={() => setIsImportOpen(false)}
-                  className="px-4 py-2 border border-stone-300 bg-white rounded-xl text-xs font-bold hover:bg-stone-50 text-stone-500"
-                >
-                  Cancel
-                </button>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => setWizardStep(1)}
-                    className="px-4 py-2 border border-stone-300 bg-white rounded-xl text-xs font-bold hover:bg-stone-50 text-stone-500"
-                  >
-                    Back to Search
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleSaveImport}
-                    className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5"
-                  >
-                    Save & Map to Catalog
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* NEW DRAFT TEST CREATION DIALOG */}
-      {isDraftOpen && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white border border-stone-200 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col">
-            <div className="px-6 py-5 border-b border-stone-200 flex items-center justify-between">
-              <h3 className="text-lg font-black text-stone-900 flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-emerald-600" /> Create New Test Draft
-              </h3>
-              <button 
-                type="button" 
-                onClick={() => setIsDraftOpen(false)} 
-                className="p-2 hover:bg-stone-100 rounded-xl text-stone-400 transition"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveDraft} className="p-6 space-y-4 text-xs text-stone-700">
-              <div className="space-y-1">
-                <label className="text-stone-500 font-bold uppercase text-[10px]">Test Name *</label>
-                <input 
-                  type="text" 
-                  value={draftForm.name} 
-                  onChange={(e) => setDraftForm({ ...draftForm, name: e.target.value })}
-                  required
-                  placeholder="e.g. Complete Blood Count (CBC)"
-                  className="w-full px-3 py-2 bg-white border border-stone-200 rounded-xl text-stone-800 focus:outline-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-stone-500 font-bold uppercase text-[10px]">Short Name</label>
-                  <input 
-                    type="text" 
-                    value={draftForm.shortName} 
-                    onChange={(e) => setDraftForm({ ...draftForm, shortName: e.target.value })}
-                    placeholder="e.g. CBC"
-                    className="w-full px-3 py-2 bg-white border border-stone-200 rounded-xl text-stone-800 focus:outline-none"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-stone-500 font-bold uppercase text-[10px]">Department *</label>
-                  <select
-                    value={draftForm.department}
-                    onChange={(e) => setDraftForm({ ...draftForm, department: e.target.value })}
-                    required
-                    className="w-full px-3 py-2 bg-white border border-stone-200 rounded-xl text-stone-800 focus:outline-none"
-                  >
-                    <option value="Pathology">Pathology</option>
-                    <option value="Biochemistry">Biochemistry</option>
-                    <option value="Microbiology">Microbiology</option>
-                    <option value="Hematology">Hematology</option>
-                    <option value="Immunology">Immunology</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-stone-500 font-bold uppercase text-[10px]">Sample Type *</label>
-                  <input 
-                    type="text" 
-                    value={draftForm.sampleType} 
-                    onChange={(e) => setDraftForm({ ...draftForm, sampleType: e.target.value })}
-                    required
-                    placeholder="e.g. Blood, Urine"
-                    className="w-full px-3 py-2 bg-white border border-stone-200 rounded-xl text-stone-800 focus:outline-none"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-stone-500 font-bold uppercase text-[10px]">Normal Reporting Time *</label>
-                  <input 
-                    type="text" 
-                    value={draftForm.normalReportingTime} 
-                    onChange={(e) => setDraftForm({ ...draftForm, normalReportingTime: e.target.value })}
-                    required
-                    placeholder="e.g. 24 Hours, 2 Days"
-                    className="w-full px-3 py-2 bg-white border border-stone-200 rounded-xl text-stone-800 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-stone-500 font-bold uppercase text-[10px]">Category *</label>
-                <select
-                  value={draftForm.category}
-                  onChange={(e) => setDraftForm({ ...draftForm, category: e.target.value })}
-                  required
-                  className="w-full px-3 py-2 bg-white border border-stone-200 rounded-xl text-stone-800 focus:outline-none"
-                >
-                  <option value="">Select Category</option>
-                  {categoriesList.map(cat => (
-                    <option key={cat._id} value={cat._id}>{cat.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="px-6 py-4 border-t border-stone-200 flex justify-end gap-2 bg-stone-50 -mx-6 -mb-6 mt-6">
-                <button
-                  type="button"
-                  onClick={() => setIsDraftOpen(false)}
-                  className="px-4 py-2 border border-stone-300 bg-white rounded-xl text-xs font-bold hover:bg-stone-50 text-stone-500"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5"
-                >
-                  Submit Draft
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* 3-PANEL DETAIL VIEW INSPECTOR */}
-      {isDetailOpen && selectedTest && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white border border-stone-200 rounded-3xl w-full max-w-5xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
-            <div className="px-6 py-5 border-b border-stone-200 flex items-center justify-between">
-              <h3 className="text-lg font-black text-stone-900 flex items-center gap-2">
-                <Layout className="w-5 h-5 text-indigo-600" /> Lab Test Specification Inspector
-              </h3>
-              <button 
-                type="button" 
-                onClick={() => setIsDetailOpen(false)} 
-                className="p-2 hover:bg-stone-100 rounded-xl text-stone-400 transition"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* The 3 Panels Layout Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-stone-200 overflow-y-auto flex-1 text-xs text-stone-700">
-              
-              {/* PANEL 1: Global Information (Read-Only) */}
-              <div className="p-6 space-y-5">
-                <div className="flex justify-between items-center">
-                  <h4 className="text-xs font-black text-blue-650 uppercase tracking-wider">Global Profile</h4>
-                  <span className="px-2 py-0.5 bg-blue-500/10 text-blue-600 border border-blue-500/20 rounded text-[9px] font-black uppercase">
-                    Global Catalog
-                  </span>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <span className="text-[10px] text-stone-450 font-bold block uppercase tracking-wider">Test name</span>
-                    <span className="text-sm font-black text-stone-800">{selectedTest.name}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-stone-450 font-bold block uppercase tracking-wider">Specimen sample</span>
-                    <span className="text-stone-600 block font-semibold">{selectedTest.specimenType || 'N/A'}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-stone-450 font-bold block uppercase tracking-wider">Category</span>
-                    <span className="text-stone-600 block">{selectedTest.category || 'General'}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-stone-450 font-bold block uppercase tracking-wider">Reference Normal Range</span>
-                    <span className="text-stone-600 block font-mono">
-                      {selectedTest.normalRange?.text || `${selectedTest.normalRange?.min || ''} - ${selectedTest.normalRange?.max || ''} ${selectedTest.unit || ''}`}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* PANEL 2: Clinic Configuration */}
-              <div className="p-6 space-y-5">
-                <div className="flex justify-between items-center">
-                  <h4 className="text-xs font-black text-emerald-600 uppercase tracking-wider">Laboratory Setup</h4>
-                  <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 rounded text-[9px] font-black uppercase">
-                    Clinic Settings
-                  </span>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                <div className="pt-2">
+                  <label className="flex items-center gap-2.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={drawerForm.isActive}
+                      onChange={(e) => setDrawerForm(prev => ({ ...prev, isActive: e.target.checked }))}
+                      className="rounded border-slate-800 text-indigo-650 focus:ring-indigo-500 bg-slate-950"
+                    />
                     <div>
-                      <span className="text-[10px] text-stone-450 font-bold block uppercase tracking-wider">Local Code</span>
-                      <span className="text-stone-600 block font-mono">{selectedTest.code}</span>
+                      <span className="text-xs text-slate-100 font-bold block">Available for Patient Booking</span>
+                      <span className="text-[10px] text-slate-500 block">Uncheck to temporarily hide from local patient catalogs.</span>
                     </div>
-                    <div>
-                      <span className="text-[10px] text-stone-450 font-bold block uppercase tracking-wider">Selling Price</span>
-                      <span className="text-stone-800 block font-black">₹{selectedTest.price || selectedTest.testPrice}</span>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <span className="text-[10px] text-stone-450 font-bold block uppercase tracking-wider">Turnaround Time</span>
-                      <span className="text-stone-600 block">{selectedTest.turnaroundTime}</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-stone-450 font-bold block uppercase tracking-wider">Collection logistics</span>
-                      <span className="text-stone-600 block">{selectedTest.homeCollectionAvailable ? 'Home collection' : 'In-clinic only'}</span>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={handleOpenEditConfig}
-                    className="w-full py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-300 rounded-xl font-bold flex items-center justify-center gap-1.5 mt-4"
-                  >
-                    <Edit2 className="w-4 h-4 text-emerald-600" /> Edit Lab Setup
-                  </button>
+                  </label>
                 </div>
-              </div>
-
-              {/* PANEL 3: Turnaround Days list */}
-              <div className="p-6 space-y-5">
-                <div className="flex justify-between items-center">
-                  <h4 className="text-xs font-black text-amber-600 uppercase tracking-wider">Operational schedule</h4>
-                  <span className="px-2 py-0.5 bg-amber-500/10 text-amber-600 border border-amber-500/20 rounded text-[9px] font-black uppercase">
-                    Operations
-                  </span>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <span className="text-[10px] font-black text-stone-450 uppercase tracking-wider block">Available testing days</span>
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {(selectedTest.availableDays || []).map(day => (
-                        <span key={day} className="px-2 py-1 bg-stone-50 border border-stone-200 text-[10px] rounded-lg text-stone-700">
-                          {day}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
+              </form>
             </div>
 
-            <div className="px-6 py-4 border-t border-stone-200 flex justify-end bg-stone-50">
-              <button
-                onClick={() => setIsDetailOpen(false)}
-                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition"
-              >
-                Dismiss Inspector
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* EDIT CONFIG DIALOG */}
-      {isEditConfigOpen && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <form onSubmit={handleSaveConfig} className="bg-white border border-stone-200 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col">
-            <div className="px-6 py-5 border-b border-stone-200 flex items-center justify-between">
-              <h3 className="text-sm font-black text-stone-900">Modify Clinic Laboratory Config</h3>
-              <button type="button" onClick={() => setIsEditConfigOpen(false)} className="p-2 hover:bg-stone-100 rounded-xl text-stone-400">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-4 text-xs text-stone-700">
-              <div className="space-y-1">
-                <label className="text-stone-500 font-bold uppercase text-[10px]">Test Code</label>
-                <input 
-                  type="text" 
-                  value={editConfigForm.code} 
-                  onChange={(e) => setEditConfigForm({ ...editConfigForm, code: e.target.value })}
-                  className="w-full px-3 py-2 bg-white border border-stone-200 rounded-xl text-stone-800"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-stone-500 font-bold uppercase text-[10px]">Price (INR)</label>
-                <input 
-                  type="number" 
-                  value={editConfigForm.testPrice} 
-                  onChange={(e) => setEditConfigForm({ ...editConfigForm, testPrice: e.target.value })}
-                  className="w-full px-3 py-2 bg-white border border-stone-200 rounded-xl text-stone-800"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-stone-500 font-bold uppercase text-[10px]">Processing Turnaround Time</label>
-                <input 
-                  type="text" 
-                  value={editConfigForm.turnaroundTime} 
-                  onChange={(e) => setEditConfigForm({ ...editConfigForm, turnaroundTime: e.target.value })}
-                  className="w-full px-3 py-2 bg-white border border-stone-200 rounded-xl text-stone-850"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-stone-500 font-bold uppercase text-[10px]">Home sample collection logistics fee</label>
-                <input 
-                  type="number" 
-                  value={editConfigForm.sampleCollectionFee} 
-                  onChange={(e) => setEditConfigForm({ ...editConfigForm, sampleCollectionFee: Number(e.target.value) })}
-                  className="w-full px-3 py-2 bg-white border border-stone-200 rounded-xl text-stone-800"
-                />
-              </div>
-
-              <div className="flex items-center gap-2 pt-2">
-                <input 
-                  type="checkbox" 
-                  id="edit_home_col"
-                  checked={editConfigForm.homeCollectionAvailable} 
-                  onChange={(e) => setEditConfigForm({ ...editConfigForm, homeCollectionAvailable: e.target.checked })}
-                  className="w-4 h-4 text-emerald-600 bg-white border-stone-200 rounded"
-                />
-                <label htmlFor="edit_home_col" className="text-stone-600 font-bold">Home collection sample logistics available</label>
-              </div>
-            </div>
-
-            <div className="px-6 py-4 border-t border-stone-200 flex justify-end gap-2 bg-stone-50">
+            <div className="flex gap-3 pt-6 border-t border-slate-800 mt-6">
               <button
                 type="button"
-                onClick={() => setIsEditConfigOpen(false)}
-                className="px-4 py-2 border border-stone-300 bg-white rounded-xl text-xs font-bold text-stone-500"
+                onClick={() => setDrawerOpen(false)}
+                className="w-1/2 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-350 text-xs font-bold rounded-xl transition"
               >
                 Cancel
               </button>
               <button
-                type="submit"
-                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition"
+                onClick={handleSaveSettings}
+                className="w-1/2 py-2.5 bg-indigo-650 hover:bg-indigo-700 text-white text-xs font-black rounded-xl transition shadow-lg shadow-indigo-650/20"
               >
-                Apply Changes
+                Save Changes
               </button>
             </div>
-          </form>
-        </div>
+          </div>
+        </>
       )}
     </div>
   );

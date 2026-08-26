@@ -25,14 +25,23 @@ const populateLabReport = (query) =>
 
 const createLabTest = (data) => LabTest.create(data);
 
-const findLabTestById = ({ id, clinicId }) => LabTest.findOne({ _id: id, clinicId }).populate('globalLabTestId');
+const findLabTestById = ({ id, clinicId }) => LabTest.findOne({ _id: id, clinicId }).populate({
+  path: 'globalLabTestId',
+  populate: { path: 'parameters' }
+});
 
-const updateLabTest = ({ id, clinicId, data }) => LabTest.findOneAndUpdate({ _id: id, clinicId }, data, { new: true, runValidators: true }).populate('globalLabTestId');
+const updateLabTest = ({ id, clinicId, data }) => LabTest.findOneAndUpdate({ _id: id, clinicId }, data, { new: true, runValidators: true }).populate({
+  path: 'globalLabTestId',
+  populate: { path: 'parameters' }
+});
 
 const listLabTests = async ({ filter, page = 1, limit = 10, sort = { name: 1 } }) => {
   const skip = (page - 1) * limit;
   const [labTests, total] = await Promise.all([
-    LabTest.find(filter).sort(sort).skip(skip).limit(limit).populate('globalLabTestId').lean(),
+    LabTest.find(filter).sort(sort).skip(skip).limit(limit).populate({
+      path: 'globalLabTestId',
+      populate: { path: 'parameters' }
+    }).lean(),
     LabTest.countDocuments(filter)
   ]);
 

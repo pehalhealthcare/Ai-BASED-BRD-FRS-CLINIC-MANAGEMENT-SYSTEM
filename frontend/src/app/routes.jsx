@@ -154,7 +154,12 @@ import SuperAdminClinics from '../features/super-admin/SuperAdminClinics';
 import SuperAdminPlans from '../features/super-admin/SuperAdminPlans';
 import SuperAdminPromoCodes from '../features/super-admin/SuperAdminPromoCodes';
 import GlobalLabTestsPage from '../features/healthcare-catalog/GlobalLabTestsPage';
+import GlobalParametersPage from '../features/healthcare-catalog/GlobalParametersPage';
+import GlobalPanelsProfilesPage from '../features/healthcare-catalog/GlobalPanelsProfilesPage';
 import GlobalMedicinePage from '../features/healthcare-catalog/GlobalMedicinePage';
+import UnitsPage from '../features/healthcare-catalog/UnitsPage';
+import ConditionsPage from '../features/healthcare-catalog/ConditionsPage';
+import CatalogueUpdatesPage from '../features/healthcare-catalog/CatalogueUpdatesPage';
 import ClinicStatusDashboard from '../features/clinics/ClinicStatusDashboard';
 import ClinicCorrectionsPortal from '../features/clinics/ClinicCorrectionsPortal';
 import ClinicSuspendedExpired from '../features/clinics/ClinicSuspendedExpired';
@@ -281,6 +286,26 @@ export const router = createBrowserRouter([
         element: protect(<GlobalLabTestsPage />, [ROLES.SUPER_ADMIN])
       },
       {
+        path: 'super-admin/healthcare-catalog/parameters',
+        element: protect(<GlobalParametersPage />, [ROLES.SUPER_ADMIN])
+      },
+      {
+        path: 'super-admin/healthcare-catalog/panels-profiles',
+        element: protect(<GlobalPanelsProfilesPage />, [ROLES.SUPER_ADMIN])
+      },
+      {
+        path: 'super-admin/healthcare-catalog/units',
+        element: protect(<UnitsPage />, [ROLES.SUPER_ADMIN])
+      },
+      {
+        path: 'super-admin/healthcare-catalog/conditions',
+        element: protect(<ConditionsPage />, [ROLES.SUPER_ADMIN])
+      },
+      {
+        path: 'super-admin/healthcare-catalog/updates',
+        element: protect(<CatalogueUpdatesPage />, [ROLES.SUPER_ADMIN])
+      },
+      {
         path: 'super-admin/healthcare-catalog/medicines',
         element: protect(<GlobalMedicinePage />, [ROLES.SUPER_ADMIN])
       },
@@ -357,6 +382,22 @@ export const router = createBrowserRouter([
         element: protect(<SettingsAdminPage />, [ROLES.ADMIN])
       },
       {
+        path: 'laboratory/:laboratoryId/:tab',
+        element: protect(<ProviderWorkspacePage type="laboratory" />, [
+          ROLES.ADMIN,
+          ROLES.LAB_OPERATOR,
+          ROLES.LAB_TECHNICIAN
+        ])
+      },
+      {
+        path: 'laboratory/:laboratoryId',
+        element: protect(<Navigate to="dashboard" replace />, [
+          ROLES.ADMIN,
+          ROLES.LAB_OPERATOR,
+          ROLES.LAB_TECHNICIAN
+        ])
+      },
+      {
         path: 'provider-workspace/:type',
         element: protect(<ProviderWorkspacePage />, [
           ROLES.ADMIN,
@@ -397,7 +438,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'dashboard/appointments',
-        element: protect(<DashboardAppointmentsPage />, [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR])
+        element: protect(<DashboardAppointmentsPage />, [ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR])
       },
       {
         path: 'dashboard/revenue',
@@ -413,7 +454,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'dashboard/pharmacy',
-        element: protect(<DashboardPharmacyPage />, [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.PHARMACIST])
+        element: protect(<DashboardPharmacyPage />, [ROLES.ADMIN, ROLES.SUPER_ADMIN])
       },
       {
         path: 'dashboard/billing-fraud',
@@ -465,19 +506,19 @@ export const router = createBrowserRouter([
       },
       {
         path: 'appointments',
-        element: protect(<AppointmentCalendarPage />, [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR, ROLES.PATIENT])
+        element: protect(<AppointmentCalendarPage />, [ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR, ROLES.PATIENT])
       },
       {
         path: 'appointments/new',
-        element: protect(<AppointmentCreatePage />, [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.RECEPTIONIST])
+        element: protect(<AppointmentCreatePage />, [ROLES.ADMIN, ROLES.RECEPTIONIST])
       },
       {
         path: 'appointments/:id',
-        element: protect(<AppointmentDetailsPage />, [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR, ROLES.PATIENT])
+        element: protect(<AppointmentDetailsPage />, [ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR, ROLES.PATIENT])
       },
       {
         path: 'appointments/:appointmentId/consultation',
-        element: protect(<ConsultationPage />, [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.DOCTOR, ROLES.PATIENT])
+        element: protect(<ConsultationPage />, [ROLES.ADMIN, ROLES.DOCTOR, ROLES.PATIENT])
       },
       {
         path: 'consultations',

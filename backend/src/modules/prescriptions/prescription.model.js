@@ -130,9 +130,35 @@ const labRecommendationSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: ''
+    },
+    availabilitySnapshot: {
+      type: String,
+      enum: ['AVAILABLE', 'UNAVAILABLE', 'ALTERNATIVE_AVAILABLE'],
+      default: 'AVAILABLE'
+    },
+    priceSnapshot: {
+      type: Number,
+      default: 0
+    },
+    tatSnapshot: {
+      type: String,
+      default: ''
+    },
+    manualTest: {
+      type: Boolean,
+      default: false
+    },
+    isBooked: {
+      type: Boolean,
+      default: false
+    },
+    labOrderId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'LabOrder',
+      default: null
     }
   },
-  { _id: false }
+  { _id: true }
 );
 
 const procedureRecommendationSchema = new mongoose.Schema(

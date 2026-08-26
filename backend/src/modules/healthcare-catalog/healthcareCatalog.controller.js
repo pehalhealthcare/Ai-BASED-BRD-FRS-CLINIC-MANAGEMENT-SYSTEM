@@ -26,18 +26,24 @@ const getLabTests = asyncHandler(async (req, res) => {
 });
 
 const createLabTest = asyncHandler(async (req, res) => {
-  const { name, shortName, alternateNames, department, category, sampleType, sampleVolume, sampleContainer, methodology, clinicalDescription, patientPreparation, referenceRange, normalReportingTime, internalCode, loincCode } = req.body;
+  const { name, shortName, alternateNames, department, category, sampleType, sampleVolume, sampleContainer, methodology, clinicalDescription, patientPreparation, referenceRange, normalReportingTime, internalCode, loincCode, investigationType = 'ATOMIC_TEST', collectionInstructions } = req.body;
 
   if (!name || !department || !category || !sampleType || !normalReportingTime) {
     throw new AppError('Required fields: Name, Department, Category, Sample Type, Normal Reporting Time', HTTP_STATUS.BAD_REQUEST);
   }
 
-  const existing = await healthcareCatalogService.checkLabTestDuplicate(name, alternateNames, shortName);
-  if (existing && existing.type === 'EXACT') {
-    throw new AppError('A test with this name, short name or synonym already exists', HTTP_STATUS.CONFLICT);
+  const validTypes = ['ATOMIC_TEST', 'PANEL', 'PROFILE', 'PACKAGE'];
+  if (!validTypes.includes(investigationType)) {
+    throw new AppError('Invalid investigation type', HTTP_STATUS.BAD_REQUEST);
   }
 
-  const result = await healthcareCatalogService.createLabTest(req.body, req.user._id);
+  const existing = await healthcareCatalogService.checkLabTestDuplicate(name, alternateNames, shortName, investigationType);
+  if (existing && existing.type === 'EXACT') {
+    const entityLabel = investigationType === 'PANEL' ? 'panel' : (investigationType === 'PROFILE' ? 'profile' : 'test');
+    throw new AppError(`A ${entityLabel} with this name, short name or synonym already exists.`, HTTP_STATUS.CONFLICT);
+  }
+
+  const result = await healthcareCatalogService.createLabTest({ ...req.body, investigationType }, req.user._id);
   return sendSuccess(res, 'Global laboratory test created successfully', result, HTTP_STATUS.CREATED);
 });
 
@@ -148,7 +154,132 @@ const deleteGenericMedicine = asyncHandler(async (req, res) => {
   return sendSuccess(res, 'Global generic medicine deleted successfully', result);
 });
 
+// Global Parameters Handlers
+const getParameters = asyncHandler(async (req, res) => {
+  const result = await healthcareCatalogService.getParameters(req.query);
+  return sendSuccess(res, 'Global parameters retrieved successfully', result);
+});
+
+const createParameter = asyncHandler(async (req, res) => {
+  const { name, resultType } = req.body;
+  if (!name || !resultType) {
+    throw new AppError('Name and Result Type are required', HTTP_STATUS.BAD_REQUEST);
+  }
+  const result = await healthcareCatalogService.createParameter(req.body, req.user._id);
+  return sendSuccess(res, 'Global parameter created successfully', result, HTTP_STATUS.CREATED);
+});
+
+const updateParameter = asyncHandler(async (req, res) => {
+  const result = await healthcareCatalogService.updateParameter(req.params.id, req.body, req.user._id);
+  return sendSuccess(res, 'Global parameter updated successfully', result);
+});
+
+// Mappings Handlers
+const getParametersForInvestigation = asyncHandler(async (req, res) => {
+  const result = await healthcareCatalogService.getParametersForInvestigation(req.params.investigationId);
+  return sendSuccess(res, 'Parameters for investigation retrieved successfully', result);
+});
+
+const mapParameterToInvestigation = asyncHandler(async (req, res) => {
+  const { parameterId } = req.body;
+  if (!parameterId) {
+    throw new AppError('Parameter ID is required', HTTP_STATUS.BAD_REQUEST);
+  }
+  const payload = {
+    ...req.body,
+    investigationId: req.params.investigationId
+  };
+  const result = await healthcareCatalogService.mapParameterToInvestigation(payload, req.user._id);
+  return sendSuccess(res, 'Parameter mapped to investigation successfully', result);
+});
+
+const unmapParameterFromInvestigation = asyncHandler(async (req, res) => {
+  const result = await healthcareCatalogService.unmapParameterFromInvestigation(req.params.investigationId, req.params.parameterId, req.user._id);
+  return sendSuccess(res, 'Parameter unmapped from investigation successfully', result);
+});
+
+const reorderInvestigationParameters = asyncHandler(async (req, res) => {
+  const { orderArray } = req.body;
+  if (!orderArray || !Array.isArray(orderArray)) {
+    throw new AppError('orderArray is required and must be an array', HTTP_STATUS.BAD_REQUEST);
+  }
+  const result = await healthcareCatalogService.reorderInvestigationParameters(req.params.investigationId, orderArray, req.user._id);
+  return sendSuccess(res, 'Investigation parameters reordered successfully', result);
+});
+
+const resolveInvestigationComposition = asyncHandler(async (req, res) => {
+  const result = await healthcareCatalogService.resolveInvestigationComposition(req.params.investigationId);
+  return sendSuccess(res, 'Investigation composition resolved successfully', result);
+});
+
+const getUnits = asyncHandler(async (req, res) => {
+  const result = await healthcareCatalogService.getUnits();
+  return sendSuccess(res, 'Global laboratory units retrieved successfully', result);
+});
+
+const createUnit = asyncHandler(async (req, res) => {
+  const result = await healthcareCatalogService.createUnit(req.body);
+  return sendSuccess(res, 'Global laboratory unit created successfully', result, HTTP_STATUS.CREATED);
+});
+
+const getConditions = asyncHandler(async (req, res) => {
+  const result = await healthcareCatalogService.getConditions();
+  return sendSuccess(res, 'Reference range conditions retrieved successfully', result);
+});
+
+const createCondition = asyncHandler(async (req, res) => {
+  const result = await healthcareCatalogService.createCondition(req.body);
+  return sendSuccess(res, 'Reference range condition created successfully', result, HTTP_STATUS.CREATED);
+});
+
+const getCatalogueUpdates = asyncHandler(async (req, res) => {
+  const result = await healthcareCatalogService.getCatalogueUpdates();
+  return sendSuccess(res, 'Catalogue updates retrieved successfully', result);
+});
+
+const importCatalogueUpdate = asyncHandler(async (req, res) => {
+  const result = await healthcareCatalogService.importCatalogueUpdate(req.body, req.user._id);
+  return sendSuccess(res, 'Catalogue update imported successfully', result, HTTP_STATUS.CREATED);
+});
+
+const applyCatalogueUpdate = asyncHandler(async (req, res) => {
+  const { approvedChangeIds = [] } = req.body;
+  const result = await healthcareCatalogService.applyCatalogueUpdate(req.params.id, approvedChangeIds, req.user._id);
+  return sendSuccess(res, 'Catalogue update applied successfully', result);
+});
+
+const getParameterClinicalRules = asyncHandler(async (req, res) => {
+  const parameter = await healthcareCatalogService.getParameterById(req.params.id);
+  if (!parameter) {
+    throw new AppError('Global parameter not found', HTTP_STATUS.NOT_FOUND);
+  }
+  return sendSuccess(res, 'Parameter clinical rules retrieved successfully', {
+    resultType: parameter.resultType,
+    unit: parameter.defaultUnitId,
+    decimalPrecision: parameter.decimalPrecision,
+    technicalMin: parameter.technicalMin,
+    technicalMax: parameter.technicalMax,
+    criticalLow: parameter.criticalLow,
+    criticalHigh: parameter.criticalHigh,
+    referenceRanges: parameter.referenceRanges,
+    allowedValues: parameter.allowedValues
+  });
+});
+
+const validateParameterResult = asyncHandler(async (req, res) => {
+  const { value, patientContext = {}, specimenContext = {} } = req.body;
+  const parameter = await healthcareCatalogService.getParameterById(req.params.id);
+  if (!parameter) {
+    throw new AppError('Global parameter not found', HTTP_STATUS.NOT_FOUND);
+  }
+  const { classifyResult } = require('./resultValidation.service');
+  const result = classifyResult(parameter, value, patientContext, specimenContext);
+  return sendSuccess(res, 'Result validated and classified successfully', result);
+});
+
 module.exports = {
+  getParameterClinicalRules,
+  validateParameterResult,
   getCategories,
   createCategory,
   getLabTests,
@@ -164,5 +295,20 @@ module.exports = {
   confirmImport,
   classifyMedicine,
   createMedicineDraft,
-  createLabTestDraft
+  createLabTestDraft,
+  getParameters,
+  createParameter,
+  updateParameter,
+  getParametersForInvestigation,
+  mapParameterToInvestigation,
+  unmapParameterFromInvestigation,
+  reorderInvestigationParameters,
+  resolveInvestigationComposition,
+  getUnits,
+  createUnit,
+  getConditions,
+  createCondition,
+  getCatalogueUpdates,
+  importCatalogueUpdate,
+  applyCatalogueUpdate
 };

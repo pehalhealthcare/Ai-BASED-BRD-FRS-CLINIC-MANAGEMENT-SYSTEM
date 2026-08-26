@@ -22,7 +22,9 @@ class ExcelLabParser extends BaseParser {
       methodology: -1,
       reportingTime: -1,
       mrp: -1,
-      bTob: -1
+      bTob: -1,
+      investigationType: -1,
+      collectionInstructions: -1
     };
 
     let currentCategoryName = 'General';
@@ -44,6 +46,8 @@ class ExcelLabParser extends BaseParser {
           colIndices.reportingTime = rowStrings.indexOf('REPORTING TIME');
           colIndices.mrp = rowStrings.indexOf('MRP');
           colIndices.bTob = rowStrings.indexOf('B TO B');
+          colIndices.investigationType = rowStrings.findIndex(s => s.includes('INVESTIGATION TYPE') || s === 'TYPE');
+          colIndices.collectionInstructions = rowStrings.findIndex(s => s.includes('COLLECTION INSTRUCTIONS') || s === 'INSTRUCTIONS');
         }
         continue;
       }
@@ -75,10 +79,12 @@ class ExcelLabParser extends BaseParser {
         methodology: row[colIndices.methodology] ? row[colIndices.methodology].toString().trim() : '',
         clinicalDescription: '',
         patientPreparation: '',
+        collectionInstructions: colIndices.collectionInstructions !== -1 && row[colIndices.collectionInstructions] ? row[colIndices.collectionInstructions].toString().trim() : '',
         referenceRange: '',
         normalReportingTime: row[colIndices.reportingTime] ? row[colIndices.reportingTime].toString().trim() : 'Same Day',
         internalCode: '',
         loincCode: '',
+        investigationType: colIndices.investigationType !== -1 && row[colIndices.investigationType] ? row[colIndices.investigationType].toString().trim().toUpperCase() : 'ATOMIC_TEST',
         isActive: true
       });
     }

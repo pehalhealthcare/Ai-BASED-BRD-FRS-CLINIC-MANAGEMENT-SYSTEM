@@ -177,7 +177,7 @@ export const NAV_ITEMS = [
   { label: 'Pharmacy Store', path: ROUTES.pharmacyMedicines, roles: [ROLES.PATIENT] }
 ];
 
-export const getDefaultRouteForRole = (role) => {
+export const getDefaultRouteForRole = (role, user) => {
   if (role === ROLES.SUPER_ADMIN) {
     return ROUTES.superAdminClinics;
   }
@@ -190,12 +190,13 @@ export const getDefaultRouteForRole = (role) => {
     return ROUTES.portal;
   }
 
-  if (role === ROLES.PHARMACY_OPERATOR) {
-    return '/provider-workspace/pharmacy';
+  if (role === ROLES.PHARMACY_OPERATOR || role === ROLES.PHARMACIST) {
+    return '/provider-workspace/pharmacy?tab=dashboard';
   }
 
-  if (role === ROLES.LAB_OPERATOR) {
-    return '/provider-workspace/laboratory';
+  if (role === ROLES.LAB_OPERATOR || role === ROLES.LAB_TECHNICIAN) {
+    const labId = user?.providerId || '6a6068dba5481b1685aa3eaf';
+    return `/laboratory/${labId}/dashboard`;
   }
 
   if (role === ROLES.IMAGING_OPERATOR) {
@@ -212,14 +213,6 @@ export const getDefaultRouteForRole = (role) => {
 
   if (role === ROLES.HOME_CARE_OPERATOR) {
     return '/provider-workspace/home-care';
-  }
-
-  if (role === ROLES.LAB_TECHNICIAN) {
-    return ROUTES.labOrders;
-  }
-
-  if (role === ROLES.PHARMACIST) {
-    return ROUTES.dashboardPharmacy;
   }
 
   if (role === ROLES.RECEPTIONIST) {

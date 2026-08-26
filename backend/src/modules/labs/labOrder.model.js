@@ -78,7 +78,7 @@ const labOrderSchema = new mongoose.Schema(
     consultationId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Consultation',
-      required: true,
+      required: false,
       index: true
     },
     patientId: {
@@ -90,7 +90,13 @@ const labOrderSchema = new mongoose.Schema(
     doctorId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Doctor',
-      required: true,
+      required: false,
+      index: true
+    },
+    laboratoryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Provider',
+      default: null,
       index: true
     },
     appointmentId: {
@@ -121,6 +127,34 @@ const labOrderSchema = new mongoose.Schema(
       type: String,
       enum: ORDER_STATUSES,
       default: 'ordered'
+    },
+    collectionMethod: {
+      type: String,
+      enum: ['AT_LAB', 'HOME_COLLECTION'],
+      default: 'AT_LAB'
+    },
+    price: {
+      type: Number,
+      default: 0
+    },
+    patientType: {
+      type: String,
+      enum: ['REGISTERED', 'WALK_IN'],
+      default: 'REGISTERED'
+    },
+    prescriptionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Prescription',
+      default: null
+    },
+    source: {
+      type: String,
+      enum: ['DOCTOR_BOOKED', 'PATIENT_BOOKED', 'PRESCRIPTION', 'WALK_IN', 'LAB_CREATED', 'EXTERNAL_REFERRAL'],
+      default: 'LAB_CREATED'
+    },
+    documents: {
+      type: [String],
+      default: []
     },
     orderedAt: {
       type: Date,

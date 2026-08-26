@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const { ROLES } = require('../../common/constants/roles');
 const { HTTP_STATUS } = require('../../common/constants/httpStatus');
 const { AppError } = require('../../common/utils/AppError');
@@ -10,6 +11,8 @@ const consultationRepository = require('../consultations/consultation.repository
 const doctorRepository = require('../doctors/doctor.repository');
 const patientRepository = require('../patients/patient.repository');
 const labRepository = require('./lab.repository');
+const GlobalLabTest = require('../healthcare-catalog/globalLabTest.model');
+const InvestigationParameter = require('../healthcare-catalog/investigationParameter.model');
 const LabTestMaster = require('./labTestMaster.model');
 const LabTest = require('./labTest.model');
 const LabConsumable = require('./labConsumable.model');
@@ -19,6 +22,18 @@ const Supplier = require('../pharmacy/supplier.model');
 const LabEquipment = require('./labEquipment.model');
 const LabQcCalibration = require('./labQcCalibration.model');
 const LabReport = require('./labReport.model');
+const Provider = require('../providers/provider.model');
+
+const verifyLaboratoryAccess = async (laboratoryId, clinicId) => {
+  if (!laboratoryId) {
+    throw new AppError('laboratoryId is required for this operational context.', HTTP_STATUS.BAD_REQUEST);
+  }
+  const provider = await Provider.findOne({ _id: laboratoryId, clinicId, providerType: 'Laboratory' });
+  if (!provider) {
+    throw new AppError('Access Denied. Selected Laboratory Provider does not belong to this clinic or does not exist.', HTTP_STATUS.FORBIDDEN);
+  }
+  return provider;
+};
 
 const ORDER_STATUS_TRANSITIONS = {
   ordered: ['sample_collected', 'cancelled'],
@@ -422,6 +437,9 @@ const createLabTest = async ({ requester, payload, requestedClinicId = null, req
     requestedClinicId: requestedClinicId || payload.clinicId
   });
 
+  const laboratoryId = payload.laboratoryId;
+  await verifyLaboratoryAccess(laboratoryId, clinicId);
+
   const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
   let globalTest = null;
@@ -453,16 +471,18 @@ const createLabTest = async ({ requester, payload, requestedClinicId = null, req
     }
   }
 
-  // Prevent double import of same global lab test in the same clinic
+  // Prevent double import of same global lab test in the same laboratory catalog
   if (globalTest) {
-    const existing = await LabTest.findOne({ clinicId, globalLabTestId: globalTest._id });
+    const existing = await LabTest.findOne({ clinicId, laboratoryId, globalLabTestId: globalTest._id });
     if (existing) {
-      throw new AppError('This lab test has already been imported into your clinic catalog', HTTP_STATUS.CONFLICT);
+      throw new AppError('This lab test has already been imported into this laboratory catalog', HTTP_STATUS.CONFLICT);
     }
   }
 
   const labTest = await labRepository.createLabTest({
     clinicId,
+    laboratoryId,
+    parameterOverrides: payload.parameterOverrides || [],
     labTestMasterId: master ? master._id : undefined,
     globalLabTestId: globalTest ? globalTest._id : undefined,
     code: payload.code?.trim?.().toUpperCase() || (globalTest ? globalTest.globalId : (master.name.slice(0, 3).toUpperCase() + '-' + Math.floor(100 + Math.random() * 900))),
@@ -506,7 +526,8 @@ const updateLabTest = async ({ requester, labTestId, payload, requestedClinicId 
     requestedClinicId: requestedClinicId || payload.clinicId
   });
 
-  const labTest = await labRepository.findLabTestById({ id: labTestId, clinicId });
+  const laboratoryId = payload.laboratoryId;
+  const labTest = await labRepository.findLabTestById({ id: labTestId, clinicId, laboratoryId });
   if (!labTest) {
     throw new AppError('Lab test not found.', HTTP_STATUS.NOT_FOUND);
   }
@@ -518,13 +539,24 @@ const updateLabTest = async ({ requester, labTestId, payload, requestedClinicId 
   if (payload.specimenType) updates.specimenType = payload.specimenType.trim();
   if (typeof payload.unit !== 'undefined') updates.unit = payload.unit.trim();
   if (payload.normalRange) updates.normalRange = normalizeNormalRange(payload.normalRange);
-  if (typeof payload.price !== 'undefined') updates.price = payload.price;
+  if (payload.parameterOverrides) updates.parameterOverrides = payload.parameterOverrides;
+  if (typeof payload.price !== 'undefined') {
+    updates.price = payload.price;
+    updates.testPrice = payload.price; // Keep testPrice synchronized with price for backward compatibility
+  }
+  if (typeof payload.testPrice !== 'undefined') updates.testPrice = payload.testPrice;
+  if (payload.turnaroundTime) updates.turnaroundTime = payload.turnaroundTime;
+  if (typeof payload.homeCollectionAvailable === 'boolean') updates.homeCollectionAvailable = payload.homeCollectionAvailable;
+  if (typeof payload.sampleCollectionFee === 'number') updates.sampleCollectionFee = payload.sampleCollectionFee;
+  if (payload.processingMode) updates.processingMode = payload.processingMode;
+  if (typeof payload.outsourcedLabName !== 'undefined') updates.outsourcedLabName = payload.outsourcedLabName.trim();
   if (typeof payload.isActive === 'boolean') updates.isActive = payload.isActive;
   updates.updatedBy = requester._id;
 
   const updatedLabTest = await labRepository.updateLabTest({
     id: labTestId,
     clinicId,
+    laboratoryId,
     data: updates
   });
 
@@ -554,15 +586,14 @@ const listLabTests = async ({ requester, query = {}, requestedClinicId = null })
   const { page, limit } = getPagination(query);
   const filter = { clinicId };
 
-  if (query.providerId) {
-    const User = require('../users/user.model');
-    const mongoose = require('mongoose');
-    const operatorUsers = await User.find({ providerId: query.providerId }).select('_id');
-    const operatorUserIds = operatorUsers.map(u => u._id);
-    if (operatorUserIds.length > 0) {
-      filter.createdBy = { $in: operatorUserIds };
-    } else {
-      filter.createdBy = new mongoose.Types.ObjectId(); // Dummy non-matching ID
+  if (query.laboratoryId) {
+    filter.laboratoryId = query.laboratoryId;
+  } else if (query.providerId) {
+    filter.laboratoryId = query.providerId;
+  } else {
+    // If it's a provider operator, they might have their providerId assigned to user
+    if (requester.providerId) {
+      filter.laboratoryId = requester.providerId;
     }
   }
 
@@ -585,10 +616,229 @@ const listLabTests = async ({ requester, query = {}, requestedClinicId = null })
     limit
   });
 
+  const globalTestIds = labTests.map(t => t.globalLabTestId?._id).filter(Boolean);
+  if (globalTestIds.length > 0) {
+    const mappings = await InvestigationParameter.find({ investigationId: { $in: globalTestIds } })
+      .populate('parameterId')
+      .sort({ displayOrder: 1 })
+      .lean();
+
+    const paramsMap = new Map();
+    for (const m of mappings) {
+      const invId = String(m.investigationId);
+      if (!paramsMap.has(invId)) {
+        paramsMap.set(invId, []);
+      }
+      if (m.parameterId) {
+        paramsMap.get(invId).push({
+          ...m.parameterId,
+          displayName: m.displayNameOverride || m.parameterId.name
+        });
+      }
+    }
+
+    for (const t of labTests) {
+      if (t.globalLabTestId) {
+        const invId = String(t.globalLabTestId._id);
+        t.globalLabTestId.parameters = paramsMap.get(invId) || [];
+      }
+    }
+  }
+
   return {
     labTests,
     pagination: buildPaginationMeta({ page, limit, total })
   };
+};
+
+const listAvailableGlobalTests = async ({ requester, query = {}, requestedClinicId = null }) => {
+  const clinicId = resolveClinicContext({
+    user: requester,
+    requestedClinicId: requestedClinicId || query.clinicId
+  });
+  const { page = 1, limit = 20, search, category, department, investigationType, laboratoryId } = query;
+  const skip = (page - 1) * limit;
+
+  await verifyLaboratoryAccess(laboratoryId, clinicId);
+
+  const GlobalLabTest = require('../healthcare-catalog/globalLabTest.model');
+
+  const filter = { isActive: true };
+  if (category) filter.category = category;
+  if (department) filter.department = department;
+  if (investigationType) {
+    if (investigationType.includes(',')) {
+      filter.investigationType = { $in: investigationType.split(',').map(s => s.trim()) };
+    } else {
+      filter.investigationType = investigationType;
+    }
+  }
+  if (search) {
+    const pattern = new RegExp(escapeRegex(search.trim()), 'i');
+    filter.$or = [
+      { name: pattern },
+      { shortName: pattern },
+      { globalId: pattern }
+    ];
+  }
+
+  const [globals, total] = await Promise.all([
+    GlobalLabTest.find(filter).populate('category').sort({ name: 1 }).skip(skip).limit(Number(limit)).lean(),
+    GlobalLabTest.countDocuments(filter)
+  ]);
+
+  const globalIds = globals.map(g => g._id);
+  const mappings = await InvestigationParameter.find({ investigationId: { $in: globalIds } })
+    .populate('parameterId')
+    .sort({ displayOrder: 1 })
+    .lean();
+
+  const paramsMap = new Map();
+  for (const m of mappings) {
+    const invId = String(m.investigationId);
+    if (!paramsMap.has(invId)) {
+      paramsMap.set(invId, []);
+    }
+    if (m.parameterId) {
+      paramsMap.get(invId).push({
+        ...m.parameterId,
+        displayName: m.displayNameOverride || m.parameterId.name
+      });
+    }
+  }
+
+  // Join with local LabTest settings for this laboratory
+  const localTests = await LabTest.find({
+    clinicId,
+    laboratoryId,
+    globalLabTestId: { $in: globalIds }
+  }).lean();
+
+  const localMap = new Map(localTests.map(t => [String(t.globalLabTestId), t]));
+
+  const items = globals.map(g => {
+    const local = localMap.get(String(g._id));
+    const params = paramsMap.get(String(g._id)) || [];
+    return {
+      globalId: g.globalId,
+      _id: g._id,
+      name: g.name,
+      shortName: g.shortName,
+      department: g.department,
+      category: g.category?.name || '',
+      sampleType: g.sampleType,
+      normalReportingTime: g.normalReportingTime,
+      investigationType: g.investigationType,
+      isActivated: !!local,
+      parameters: params,
+      parameterCount: params.length,
+      localSettings: local ? {
+        _id: local._id,
+        price: local.price,
+        testPrice: local.testPrice,
+        turnaroundTime: local.turnaroundTime,
+        homeCollectionAvailable: local.homeCollectionAvailable,
+        sampleCollectionFee: local.sampleCollectionFee,
+        processingMode: local.processingMode || 'IN_HOUSE',
+        outsourcedLabName: local.outsourcedLabName || '',
+        isActive: local.isActive
+      } : null
+    };
+  });
+
+  return {
+    items,
+    pagination: buildPaginationMeta({ page, limit, total })
+  };
+};
+
+const bulkActivateGlobalTests = async ({ requester, payload, requestedClinicId = null }) => {
+  const clinicId = resolveClinicContext({
+    user: requester,
+    requestedClinicId: requestedClinicId || payload.clinicId
+  });
+
+  const { globalTestIds, configs, laboratoryId } = payload;
+  
+  const hasConfigs = Array.isArray(configs) && configs.length > 0;
+  const hasIds = Array.isArray(globalTestIds) && globalTestIds.length > 0;
+
+  if (!hasConfigs && !hasIds) {
+    throw new AppError('globalTestIds or configs array is required.', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  await verifyLaboratoryAccess(laboratoryId, clinicId);
+
+  const GlobalLabTest = require('../healthcare-catalog/globalLabTest.model');
+
+  const executeBulkActivate = async (session) => {
+    const targetIds = hasConfigs ? configs.map(c => c.globalLabTestId) : globalTestIds;
+    
+    const globals = session
+      ? await GlobalLabTest.find({ _id: { $in: targetIds }, isActive: true }).populate('category').session(session)
+      : await GlobalLabTest.find({ _id: { $in: targetIds }, isActive: true }).populate('category');
+
+    const configMap = new Map(hasConfigs ? configs.map(c => [String(c.globalLabTestId), c]) : []);
+
+    const activatedTests = [];
+    for (const g of globals) {
+      // Check if already active in this laboratory
+      const exists = session
+        ? await LabTest.findOne({ clinicId, laboratoryId, globalLabTestId: g._id }).session(session)
+        : await LabTest.findOne({ clinicId, laboratoryId, globalLabTestId: g._id });
+      if (exists) continue;
+
+      const userConfig = configMap.get(String(g._id)) || {};
+      const priceVal = userConfig.price !== undefined ? userConfig.price : 300;
+
+      const [newLabTest] = await LabTest.create([{
+        clinicId,
+        laboratoryId,
+        globalLabTestId: g._id,
+        code: userConfig.code || g.globalId,
+        name: userConfig.name || g.name,
+        category: g.category?.name || '',
+        specimenType: g.sampleType,
+        unit: '',
+        price: priceVal,
+        testPrice: priceVal,
+        turnaroundTime: userConfig.turnaroundTime || g.normalReportingTime || '24 Hours',
+        homeCollectionAvailable: !!userConfig.homeCollectionAvailable,
+        doctorPrescriptionRequired: !!userConfig.doctorPrescriptionRequired,
+        importantInstructions: userConfig.importantInstructions || '',
+        collectionLocations: userConfig.collectionLocations || ['Laboratory'],
+        parameterOverrides: userConfig.parameterOverrides || [],
+        localParameters: userConfig.localParameters || [],
+        processingMode: 'IN_HOUSE',
+        outsourcedLabName: '',
+        isActive: true,
+        createdBy: requester._id,
+        updatedBy: requester._id
+      }], session ? { session } : {});
+
+      activatedTests.push(newLabTest);
+    }
+    return activatedTests;
+  };
+
+  let dbSession;
+  try {
+    dbSession = await mongoose.startSession();
+    dbSession.startTransaction();
+    const result = await executeBulkActivate(dbSession);
+    await dbSession.commitTransaction();
+    dbSession.endSession();
+    return result;
+  } catch (error) {
+    try {
+      await dbSession.abortTransaction();
+      dbSession.endSession();
+    } catch (_err) {}
+    if (error.message?.includes('replica set') || error.errmsg?.includes('replica set') || error.code === 20) {
+      return executeBulkActivate(null);
+    }
+    throw error;
+  }
 };
 
 const createLabOrder = async ({ requester, payload, requestedClinicId = null, req }) => {
@@ -618,6 +868,28 @@ const createLabOrder = async ({ requester, payload, requestedClinicId = null, re
     });
   } else if (requester.role === ROLES.PATIENT) {
     patient = await patientRepository.findPatientByUserId({ userId: requester._id });
+  } else if (payload.patientType === 'WALK_IN' && payload.nonRegisteredPatientDetails) {
+    const details = payload.nonRegisteredPatientDetails;
+    const names = String(details.fullName || '').trim().split(' ');
+    const firstName = names[0] || 'Walk-In';
+    const lastName = names.slice(1).join(' ') || 'Patient';
+    
+    const patientService = require('../patients/patient.service');
+    patient = await patientService.createPatient({
+      requester,
+      payload: {
+        firstName,
+        lastName,
+        phone: details.phone,
+        email: details.email || `${details.phone}@walkin-pehal.com`,
+        gender: details.gender || 'male',
+        dateOfBirth: details.age ? new Date(new Date().setFullYear(new Date().getFullYear() - Number(details.age))) : new Date(),
+        address: details.address || '',
+        clinicId
+      },
+      requestedClinicId: clinicId,
+      req
+    });
   }
 
   if (!patient) {
@@ -690,7 +962,9 @@ const createLabOrder = async ({ requester, payload, requestedClinicId = null, re
 
   const labOrder = await labRepository.createLabOrder({
     clinicId,
+    laboratoryId: payload.laboratoryId || null,
     consultationId: consultation ? consultation._id : null,
+    prescriptionId: payload.prescriptionId || null,
     patientId: patient._id,
     doctorId: doctor ? doctor._id : null,
     appointmentId: appointmentId || null,
@@ -698,11 +972,31 @@ const createLabOrder = async ({ requester, payload, requestedClinicId = null, re
     tests,
     priority: payload.priority || 'routine',
     notes: payload.notes?.trim?.() || '',
+    collectionMethod: payload.collectionMethod || 'AT_LAB',
+    price: payload.price || 0,
+    patientType: payload.patientType || 'REGISTERED',
+    source: payload.source || 'LAB_CREATED',
+    documents: payload.documents || [],
     status: 'ordered',
     orderedAt: new Date(),
     createdBy: requester._id,
     updatedBy: requester._id
   });
+
+  if (payload.prescriptionId) {
+    const Prescription = require('../prescriptions/prescription.model');
+    const prescription = await Prescription.findById(payload.prescriptionId);
+    if (prescription) {
+      const orderedGlobalIds = catalogTests.map(ct => String(ct.globalLabTestId));
+      prescription.labs.forEach(l => {
+        if (orderedGlobalIds.includes(String(l.globalLabTestId))) {
+          l.isBooked = true;
+          l.labOrderId = labOrder._id;
+        }
+      });
+      await prescription.save();
+    }
+  }
 
   if (consultation) {
     await consultationRepository.updateConsultation({
@@ -748,6 +1042,10 @@ const listLabOrders = async ({ requester, query = {}, requestedClinicId = null }
   });
   const { page, limit } = getPagination(query);
   const filter = { clinicId };
+
+  if (query.laboratoryId) {
+    filter.laboratoryId = query.laboratoryId;
+  }
 
   if (query.patientId) {
     filter.patientId = query.patientId;
@@ -1245,13 +1543,18 @@ const getPatientLabHistory = async ({ requester, patientId, query = {}, requeste
 
 const createLabConsumable = async ({ requester, payload, requestedClinicId = null }) => {
   const clinicId = resolveClinicContext({ user: requester, requestedClinicId });
-  const existing = await LabConsumable.findOne({ clinicId, name: new RegExp(`^${payload.name.trim()}$`, 'i') });
+  const laboratoryId = payload.laboratoryId || query?.laboratoryId || requester.providerId;
+  if (laboratoryId) {
+    await verifyLaboratoryAccess(laboratoryId, clinicId);
+  }
+  const existing = await LabConsumable.findOne({ clinicId, laboratoryId, name: new RegExp(`^${payload.name.trim()}$`, 'i') });
   if (existing) {
     throw new AppError('A consumable with this name already exists.', HTTP_STATUS.CONFLICT);
   }
   return LabConsumable.create({
     ...payload,
     clinicId,
+    laboratoryId,
     createdBy: requester._id
   });
 };
@@ -1259,6 +1562,10 @@ const createLabConsumable = async ({ requester, payload, requestedClinicId = nul
 const listLabConsumables = async ({ requester, query = {}, requestedClinicId = null }) => {
   const clinicId = resolveClinicContext({ user: requester, requestedClinicId });
   const filter = { clinicId };
+  const laboratoryId = query.laboratoryId || requester.providerId;
+  if (laboratoryId) {
+    filter.laboratoryId = laboratoryId;
+  }
   if (query.category) filter.category = query.category;
   if (query.search) {
     filter.name = new RegExp(query.search, 'i');
@@ -1280,7 +1587,9 @@ const listLabConsumables = async ({ requester, query = {}, requestedClinicId = n
 
 const updateLabConsumable = async ({ requester, consumableId, payload, requestedClinicId = null }) => {
   const clinicId = resolveClinicContext({ user: requester, requestedClinicId });
-  const consumable = await LabConsumable.findOne({ _id: consumableId, clinicId });
+  const filter = { _id: consumableId, clinicId };
+  if (payload.laboratoryId) filter.laboratoryId = payload.laboratoryId;
+  const consumable = await LabConsumable.findOne(filter);
   if (!consumable) {
     throw new AppError('Consumable not found.', HTTP_STATUS.NOT_FOUND);
   }
@@ -1408,12 +1717,15 @@ const listLabStockLedgers = async ({ requester, query = {}, requestedClinicId = 
     .sort({ createdAt: -1 });
 };
 
-// ─── LAB INVENTORY DASHBOARD STATISTICS ───────────────────────────────────────
-
-const getLabInventoryDashboard = async ({ requester, requestedClinicId = null }) => {
+const getLabInventoryDashboard = async ({ requester, query = {}, requestedClinicId = null }) => {
   const clinicId = resolveClinicContext({ user: requester, requestedClinicId });
+  const laboratoryId = query?.laboratoryId || requester.providerId;
+  const filter = { clinicId, isActive: true };
+  if (laboratoryId) {
+    filter.laboratoryId = laboratoryId;
+  }
   
-  const consumables = await LabConsumable.find({ clinicId, isActive: true });
+  const consumables = await LabConsumable.find(filter);
   
   let totalConsumables = consumables.length;
   let totalValue = 0;
@@ -1643,15 +1955,19 @@ const listCustomLabRequests = async ({ requester }) => {
   return list;
 };
 
-const listEquipment = async ({ requester, query, requestedClinicId }) => {
+const listEquipment = async ({ requester, query = {}, requestedClinicId }) => {
   const clinicId = resolveClinicContext({
     user: requester,
     requestedClinicId
   });
+  const filter = { clinicId };
+  const laboratoryId = query.laboratoryId || requester.providerId;
+  if (laboratoryId) {
+    filter.laboratoryId = laboratoryId;
+  }
 
-  return LabEquipment.find({ clinicId });
+  return LabEquipment.find(filter);
 };
-
 
 const createEquipment = async ({ requester, payload, requestedClinicId }) => {
   const clinicId = resolveClinicContext({
@@ -1660,16 +1976,25 @@ const createEquipment = async ({ requester, payload, requestedClinicId }) => {
   });
   return LabEquipment.create({
     ...payload,
-    clinicId
+    clinicId,
+    laboratoryId: payload.laboratoryId || null
   });
 };
 
-const listQcCalibrations = async ({ requester, query, requestedClinicId }) => {
+const listQcCalibrations = async ({ requester, query = {}, requestedClinicId }) => {
   const clinicId = resolveClinicContext({
     user: requester,
     requestedClinicId
   });
-  return LabQcCalibration.find({ clinicId }).populate('equipmentId').sort({ createdAt: -1 });
+  const filter = { clinicId };
+  const laboratoryId = query.laboratoryId || requester.providerId;
+  
+  // Scoping check
+  if (laboratoryId) {
+    const equipmentIds = await LabEquipment.find({ clinicId, laboratoryId }).select('_id');
+    filter.equipmentId = { $in: equipmentIds.map(e => e._id) };
+  }
+  return LabQcCalibration.find(filter).populate('equipmentId').sort({ createdAt: -1 });
 };
 
 const createQcCalibration = async ({ requester, payload, requestedClinicId }) => {
@@ -1684,22 +2009,32 @@ const createQcCalibration = async ({ requester, payload, requestedClinicId }) =>
   });
 };
 
-const getLabAlerts = async ({ requester, requestedClinicId }) => {
+const getLabAlerts = async ({ requester, query = {}, requestedClinicId }) => {
   const clinicId = resolveClinicContext({
     user: requester,
     requestedClinicId
   });
+  const laboratoryId = query.laboratoryId || requester.providerId;
 
   const alerts = [];
 
-  const abnormalReportsCount = await LabReport.countDocuments({
+  const reportFilter = {
     clinicId,
     status: { $ne: 'finalized' },
     $or: [
       { 'resultEntries.isAbnormal': true },
       { 'resultEntries.abnormalFlag': 'critical' }
     ]
-  });
+  };
+
+  if (laboratoryId) {
+    // get order ids matching laboratoryId
+    const LabOrderModule = require('./labOrder.model');
+    const matchingOrders = await LabOrderModule.LabOrder.find({ clinicId, laboratoryId }).select('_id');
+    reportFilter.labOrderId = { $in: matchingOrders.map(o => o._id) };
+  }
+
+  const abnormalReportsCount = await LabReport.countDocuments(reportFilter);
 
   if (abnormalReportsCount > 0) {
     alerts.push({
@@ -1712,10 +2047,15 @@ const getLabAlerts = async ({ requester, requestedClinicId }) => {
     });
   }
 
-  const lowStockConsumables = await LabConsumable.find({
+  const consumableFilter = {
     clinicId,
     $expr: { $lte: ['$stock', '$reorderLevel'] }
-  });
+  };
+  if (laboratoryId) {
+    consumableFilter.laboratoryId = laboratoryId;
+  }
+
+  const lowStockConsumables = await LabConsumable.find(consumableFilter);
 
   for (const item of lowStockConsumables) {
     alerts.push({
@@ -1729,7 +2069,7 @@ const getLabAlerts = async ({ requester, requestedClinicId }) => {
     });
   }
 
-  const maintenanceDueEquipments = await LabEquipment.find({
+  const equipmentFilter = {
     clinicId,
     $or: [
       { status: 'Maintenance' },
@@ -1737,7 +2077,12 @@ const getLabAlerts = async ({ requester, requestedClinicId }) => {
       { calibrationStatus: 'Due' },
       { nextMaintenance: { $lte: new Date() } }
     ]
-  });
+  };
+  if (laboratoryId) {
+    equipmentFilter.laboratoryId = laboratoryId;
+  }
+
+  const maintenanceDueEquipments = await LabEquipment.find(equipmentFilter);
 
   for (const eq of maintenanceDueEquipments) {
     alerts.push({
@@ -1782,6 +2127,8 @@ module.exports = {
   createEquipment,
   listQcCalibrations,
   createQcCalibration,
-  getLabAlerts
+  getLabAlerts,
+  listAvailableGlobalTests,
+  bulkActivateGlobalTests
 };
 

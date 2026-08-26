@@ -94,8 +94,11 @@ const Topbar = ({ title, currentUser, sidebarOpen, onToggleSidebar, onLogout }) 
 
   const clinicName = currentUser?.clinic?.name || 'Ram\'s Dental Clinic';
   const ownerName = currentUser?.name || 'King';
+  const isSuperAdmin = currentUser?.role === ROLES.SUPER_ADMIN;
+
   const roleLabel = useMemo(() => {
     if (currentUser?.role === ROLES.PATIENT) return 'Patient';
+    if (currentUser?.role === ROLES.SUPER_ADMIN) return 'Super Administrator';
     if (currentUser?.role === ROLES.ADMIN) return 'Clinic Owner';
     if (currentUser?.role === ROLES.DOCTOR) return currentUser?.specialization?.name || 'Doctor';
     if (currentUser?.role === ROLES.RECEPTIONIST) return 'Receptionist';
@@ -163,8 +166,8 @@ const Topbar = ({ title, currentUser, sidebarOpen, onToggleSidebar, onLogout }) 
         {/* Vertical divider visible only when branding is present */}
         <div className={`h-6 w-px bg-slate-200/60 transition-all duration-500 xl:block hidden ${!sidebarOpen ? 'opacity-100 mx-0.5 lg:mx-1' : 'opacity-0 w-0'}`} />
 
-        {/* Clinic Info pill card - hidden on mobile/tablet */}
-        {!isPatient && (
+        {/* Clinic Info pill card — hidden for Super Admin and on mobile/tablet */}
+        {!isPatient && !isSuperAdmin && (
           <div className="relative hidden xl:block" ref={branchRef}>
             <button
               onClick={() => setBranchDropdownOpen(!branchDropdownOpen)}
@@ -195,95 +198,109 @@ const Topbar = ({ title, currentUser, sidebarOpen, onToggleSidebar, onLogout }) 
         )}
       </div>
 
-      {/* 2. Middle Section: Search Bar - hidden on smaller responsive viewports */}
-      <div className="hidden lg:flex items-center gap-4 flex-1 max-w-lg mx-8 relative">
-        <div className="relative w-full">
-          <input
-            id="global-search-input"
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onFocus={() => setSearchFocused(true)}
-            onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
-            placeholder="Search patients, appointments, invoices, staff, doctors..."
-            className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-10 pr-12 py-2 text-xs text-slate-850 placeholder:text-slate-400/90 focus:outline-none focus:bg-white focus:border-blue-600 focus:shadow-[0_0_0_3px_rgba(37,99,235,0.08)] transition duration-200"
-          />
-          <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-          <div className="absolute right-3.5 top-1/2 -translate-y-1/2 bg-slate-200/60 border border-slate-300/40 rounded px-1.5 py-0.5 text-[8px] font-black text-slate-500 uppercase tracking-widest pointer-events-none select-none">
-            Ctrl + K
+      {/* 2. Middle Section: Search Bar — hidden for Super Admin and smaller viewports */}
+      {!isSuperAdmin && (
+        <div className="hidden lg:flex items-center gap-4 flex-1 max-w-lg mx-8 relative">
+          <div className="relative w-full">
+            <input
+              id="global-search-input"
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
+              placeholder="Search patients, appointments, invoices, staff, doctors..."
+              className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-10 pr-12 py-2 text-xs text-slate-850 placeholder:text-slate-400/90 focus:outline-none focus:bg-white focus:border-blue-600 focus:shadow-[0_0_0_3px_rgba(37,99,235,0.08)] transition duration-200"
+            />
+            <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <div className="absolute right-3.5 top-1/2 -translate-y-1/2 bg-slate-200/60 border border-slate-300/40 rounded px-1.5 py-0.5 text-[8px] font-black text-slate-500 uppercase tracking-widest pointer-events-none select-none">
+              Ctrl + K
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* 3. Right Section: Date, Actions, Profile Dropdown */}
       <div className="hidden xl:flex items-center gap-2 lg:gap-3 shrink-0">
         
-        {/* Today's Date card - hidden on mobile/tablet */}
-        <div className="flex items-center gap-2.5 bg-slate-50 border border-slate-150 rounded-full px-3.5 py-1.5 shadow-[0_1px_2px_rgba(0,0,0,0.01)] hover:bg-slate-100/80 transition duration-200 select-none">
-          <Calendar size={13} className="text-slate-500" />
-          <div className="text-left leading-none">
-            <span className="text-[10px] font-black text-slate-805 tracking-tight">{todayStr.formatted}</span>
-            <span className="block text-[8px] text-slate-400 font-bold mt-0.5">{todayStr.dayName}</span>
-          </div>
-        </div>
-
-        {/* Chat / Messages Button - hidden on mobile/tablet */}
-        <button
-          onClick={() => isPatient ? navigate('/portal?tab=support') : navigate('/chat')}
-          aria-label="Clinic Chat"
-          title="Clinic Chat"
-          className="p-2 lg:p-2.5 rounded-full text-slate-500 bg-slate-50 hover:bg-blue-50 hover:text-blue-600 border border-slate-150 transition duration-200 active:scale-95 hover:shadow-[0_0_10px_rgba(37,99,235,0.05)] cursor-pointer"
-        >
-          <MessageSquare size={14} />
-        </button>
-
-        {/* Notification Bell Dropdown - hidden on mobile/tablet */}
-        <div className="relative" ref={notificationRef}>
-          <button
-            onClick={() => setNotificationDropdownOpen(!notificationDropdownOpen)}
-            aria-label="Notifications"
-            className="p-2 lg:p-2.5 rounded-full text-slate-500 bg-slate-50 hover:bg-emerald-50 hover:text-emerald-600 border border-slate-150 transition duration-200 active:scale-95 hover:shadow-[0_0_10px_rgba(16,185,129,0.05)] cursor-pointer relative"
-          >
-            <Bell size={14} />
-            {unreadCount > 0 && (
-              <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-white animate-pulse" />
-            )}
-          </button>
-
-          {notificationDropdownOpen && (
-            <div className="absolute right-0 mt-2 w-80 rounded-2xl bg-white border border-slate-200 shadow-xl p-3 z-50 animate-in fade-in slide-in-from-top-1 duration-200">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-50">
-                <span className="text-xs font-black text-slate-800">Notifications</span>
-                <span className="text-[10px] font-bold text-slate-400">{unreadCount} Unread</span>
-              </div>
-              <div className="max-h-64 overflow-y-auto divide-y divide-slate-50 mt-2">
-                {rawLogs.length === 0 ? (
-                  <p className="text-[10px] text-slate-400 font-bold text-center py-6">No recent notifications</p>
-                ) : (
-                  rawLogs.map(log => (
-                    <div key={log._id} className="py-2.5 flex items-start gap-3 hover:bg-slate-50 rounded-lg px-2 transition">
-                      <div className="mt-0.5">{getNotificationIcon(log.title)}</div>
-                      <div>
-                        <p className="text-[11px] font-black text-slate-800 leading-tight">{log.title}</p>
-                        <p className="text-[9px] text-slate-400 font-bold mt-0.5 leading-tight">{log.message}</p>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
+        {/* Today's Date card — hidden for Super Admin and on mobile/tablet */}
+        {!isSuperAdmin && (
+          <div className="flex items-center gap-2.5 bg-slate-50 border border-slate-150 rounded-full px-3.5 py-1.5 shadow-[0_1px_2px_rgba(0,0,0,0.01)] hover:bg-slate-100/80 transition duration-200 select-none">
+            <Calendar size={13} className="text-slate-500" />
+            <div className="text-left leading-none">
+              <span className="text-[10px] font-black text-slate-805 tracking-tight">{todayStr.formatted}</span>
+              <span className="block text-[8px] text-slate-400 font-bold mt-0.5">{todayStr.dayName}</span>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
-        {/* Profile Avatar Dropdown - hidden on mobile/tablet */}
+        {/* Chat / Messages Button — hidden for Super Admin and on mobile/tablet */}
+        {!isSuperAdmin && (
+          <button
+            onClick={() => isPatient ? navigate('/portal?tab=support') : navigate('/chat')}
+            aria-label="Clinic Chat"
+            title="Clinic Chat"
+            className="p-2 lg:p-2.5 rounded-full text-slate-500 bg-slate-50 hover:bg-blue-50 hover:text-blue-600 border border-slate-150 transition duration-200 active:scale-95 hover:shadow-[0_0_10px_rgba(37,99,235,0.05)] cursor-pointer"
+          >
+            <MessageSquare size={14} />
+          </button>
+        )}
+
+        {/* Notification Bell Dropdown — hidden for Super Admin and on mobile/tablet */}
+        {!isSuperAdmin && (
+          <div className="relative" ref={notificationRef}>
+            <button
+              onClick={() => setNotificationDropdownOpen(!notificationDropdownOpen)}
+              aria-label="Notifications"
+              className="p-2 lg:p-2.5 rounded-full text-slate-500 bg-slate-50 hover:bg-emerald-50 hover:text-emerald-600 border border-slate-150 transition duration-200 active:scale-95 hover:shadow-[0_0_10px_rgba(16,185,129,0.05)] cursor-pointer relative"
+            >
+              <Bell size={14} />
+              {unreadCount > 0 && (
+                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-white animate-pulse" />
+              )}
+            </button>
+
+            {notificationDropdownOpen && (
+              <div className="absolute right-0 mt-2 w-80 rounded-2xl bg-white border border-slate-200 shadow-xl p-3 z-50 animate-in fade-in slide-in-from-top-1 duration-200">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-50">
+                  <span className="text-xs font-black text-slate-800">Notifications</span>
+                  <span className="text-[10px] font-bold text-slate-400">{unreadCount} Unread</span>
+                </div>
+                <div className="max-h-64 overflow-y-auto divide-y divide-slate-50 mt-2">
+                  {rawLogs.length === 0 ? (
+                    <p className="text-[10px] text-slate-400 font-bold text-center py-6">No recent notifications</p>
+                  ) : (
+                    rawLogs.map(log => (
+                      <div key={log._id} className="py-2.5 flex items-start gap-3 hover:bg-slate-50 rounded-lg px-2 transition">
+                        <div className="mt-0.5">{getNotificationIcon(log.title)}</div>
+                        <div>
+                          <p className="text-[11px] font-black text-slate-800 leading-tight">{log.title}</p>
+                          <p className="text-[9px] text-slate-400 font-bold mt-0.5 leading-tight">{log.message}</p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Profile Avatar Dropdown — Super Admin variant shows shield icon and correct role */}
         <div className="relative" ref={profileRef}>
           <button
             onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
             className="flex items-center gap-2 bg-slate-50 border border-slate-150 rounded-full pl-2 pr-3 py-1 hover:bg-slate-100/60 transition duration-200 cursor-pointer active:scale-98 group"
           >
-            <Avatar src={currentUser?.avatar} name={ownerName} size="w-8 h-8 rounded-full border border-slate-200 shadow-xs shrink-0" />
+            {isSuperAdmin ? (
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center shrink-0 shadow-sm">
+                <Shield size={14} className="text-white" />
+              </div>
+            ) : (
+              <Avatar src={currentUser?.avatar} name={ownerName} size="w-8 h-8 rounded-full border border-slate-200 shadow-xs shrink-0" />
+            )}
             <div className="text-left leading-none">
-              <p className="text-[10px] lg:text-[11px] font-black text-slate-850 tracking-tight group-hover:text-blue-600 transition-colors">{ownerName}!</p>
+              <p className="text-[10px] lg:text-[11px] font-black text-slate-850 tracking-tight group-hover:text-blue-600 transition-colors">{isSuperAdmin ? 'Super Admin' : `${ownerName}!`}</p>
               <span className="block text-[8px] text-slate-450 font-bold mt-0.5">{roleLabel}</span>
             </div>
             <ChevronDown size={11} className="text-slate-450 group-hover:text-slate-600 transition-colors" />

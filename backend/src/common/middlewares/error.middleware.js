@@ -53,14 +53,27 @@ const errorMiddleware = (error, _req, res, _next) => {
   }
 
   if (error && error.code === 11000) {
-    const duplicateFields = Object.keys(error.keyValue || {});
+    const rawKeys = Object.keys(error.keyValue || {});
+    // Filter out clinic context IDs or other internal keys if multiple keys exist in a compound index
+    const duplicateFields = rawKeys.filter(key => key !== 'clinicId' && key !== 'organizationId');
+    
+    // If we filtered out everything, default back to rawKeys
+    const fieldsToReport = duplicateFields.length > 0 ? duplicateFields : rawKeys;
+    
+    const details = fieldsToReport.map((field) => {
+      const val = error.keyValue[field];
+      const fieldName = field.charAt(0).toUpperCase() + field.slice(1);
+      return `${fieldName} "${val}" already exists.`;
+    });
+    
+    const friendlyMessage = details.join(' ');
 
     return sendError(
       res,
-      RESPONSE_MESSAGES.DUPLICATE_RESOURCE,
-      duplicateFields.map((field) => ({
+      friendlyMessage,
+      fieldsToReport.map((field) => ({
         field,
-        message: `${field} already exists.`
+        message: `${field.charAt(0).toUpperCase() + field.slice(1)} already exists.`
       })),
       HTTP_STATUS.CONFLICT,
       includeStack(error)

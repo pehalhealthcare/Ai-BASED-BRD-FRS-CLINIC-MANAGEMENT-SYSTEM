@@ -1,10 +1,9 @@
 import { Navigate } from 'react-router-dom';
 
 import { ROLES, STAFF_ROLES } from '../../constants/roles';
-import { ROUTES } from '../../constants/routes';
+import { ROUTES, getDefaultRouteForRole } from '../../constants/routes';
 import useAuth from '../../hooks/useAuth';
 import AdminDashboardPage from './admin/AdminDashboardPage';
-import DashboardPharmacyPage from './DashboardPharmacyPage';
 import DoctorDashboardPage from './DoctorDashboardPage';
 import ReceptionistOnboarding from '../receptionists/ReceptionistOnboarding';
 import ReceptionistDashboardPage from './ReceptionistDashboardPage';
@@ -139,9 +138,6 @@ const RoleDashboardPage = () => {
     }
   }
 
-  if (user?.role === ROLES.PHARMACIST) {
-    return <DashboardPharmacyPage />;
-  }
 
   if (user?.role === ROLES.DOCTOR) {
     return <DoctorDashboardPage />;
@@ -155,42 +151,8 @@ const RoleDashboardPage = () => {
     return <AdminDashboardPage />;
   }
 
-  // Fallback screen for roles whose dashboard is not designed yet
-  return (
-    <div className="min-h-screen bg-slate-900 flex flex-col justify-between text-white">
-      <header className="bg-slate-950 border-b border-stone-850 py-4 px-6 md:px-8 flex justify-between items-center shadow-sm">
-        <div className="flex items-center gap-2.5">
-          <div className="w-10 h-10 bg-indigo-500/10 text-indigo-500 rounded-2xl flex items-center justify-center border border-indigo-500/20 shadow-md">
-            <span className="font-black text-xs">{user?.role?.slice(0, 2) || 'ST'}</span>
-          </div>
-          <div>
-            <h1 className="text-sm font-black text-white leading-none">{user?.role || 'Staff'} Dashboard</h1>
-            <span className="text-[10px] text-stone-400 mt-1 block">Account: {user?.name}</span>
-          </div>
-        </div>
-        <button 
-          onClick={logout} 
-          className="px-4 py-2 border border-stone-800 bg-stone-900/50 hover:bg-stone-900 rounded-xl text-xs font-bold text-stone-300 flex items-center gap-1.5 transition cursor-pointer"
-        >
-          <LogOut className="w-4 h-4" /> Logout
-        </button>
-      </header>
-      <main className="flex-1 max-w-md w-full mx-auto p-6 flex flex-col justify-center">
-        <div className="bg-slate-950 rounded-3xl p-8 border border-stone-850 shadow-2xl text-center space-y-4">
-          <div className="w-16 h-16 bg-indigo-500/10 text-indigo-500 rounded-full border border-indigo-500/20 flex items-center justify-center mx-auto">
-            <Settings className="w-8 h-8 animate-spin" />
-          </div>
-          <h2 className="text-lg font-black text-white">Dashboard Under Development</h2>
-          <p className="text-xs text-stone-400 leading-relaxed">
-            Hello <strong>{user?.name}</strong>, the dashboard for the role of <strong>{user?.role}</strong> is currently not designed.
-          </p>
-          <p className="text-[10px] text-stone-500">
-            Please contact your administrator or system developer for more information.
-          </p>
-        </div>
-      </main>
-    </div>
-  );
+  // Fallback redirect for roles whose dashboard is not designed/rendered directly here
+  return <Navigate to={getDefaultRouteForRole(user?.role, user)} replace />;
 };
 
 export default RoleDashboardPage;

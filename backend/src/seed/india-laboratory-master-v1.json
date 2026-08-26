@@ -1,0 +1,480 @@
+{
+  "version": "2026.01-india",
+  "source": "ICMR NEDL 2025 + curated routine Indian laboratory catalogue",
+  "units": [
+    { "symbol": "g/dL", "name": "Grams per deciliter", "category": "Hematology", "description": "Standard unit for Hemoglobin" },
+    { "symbol": "mg/dL", "name": "Milligrams per deciliter", "category": "Biochemistry", "description": "Standard biochem unit" },
+    { "symbol": "mmol/L", "name": "Millimoles per liter", "category": "Biochemistry", "description": "Electrolytes and sugars" },
+    { "symbol": "µmol/L", "name": "Micromoles per liter", "category": "Biochemistry", "description": "Creatinine and metabolites" },
+    { "symbol": "U/L", "name": "Units per liter", "category": "Enzymology", "description": "Enzyme activity" },
+    { "symbol": "IU/L", "name": "International units per liter", "category": "Enzymology", "description": "Hormones and enzymes" },
+    { "symbol": "ng/mL", "name": "Nanograms per milliliter", "category": "Endocrinology", "description": "Hormones/tumor markers" },
+    { "symbol": "pg/mL", "name": "Picograms per milliliter", "category": "Endocrinology", "description": "Hormones" },
+    { "symbol": "mg/L", "name": "Milligrams per liter", "category": "Proteins", "description": "CRP and proteins" },
+    { "symbol": "%", "name": "Percentage", "category": "General", "description": "Percentage fraction" },
+    { "symbol": "cells/µL", "name": "Cells per microliter", "category": "Hematology", "description": "Cell counts" },
+    { "symbol": "million/µL", "name": "Million per microliter", "category": "Hematology", "description": "RBC count" },
+    { "symbol": "thousand/µL", "name": "Thousand per microliter", "category": "Hematology", "description": "Platelet count" },
+    { "symbol": "fL", "name": "Femtoliters", "category": "Hematology", "description": "MCV" },
+    { "symbol": "pg", "name": "Picograms", "category": "Hematology", "description": "MCH" },
+    { "symbol": "mm/hr", "name": "Millimeters per hour", "category": "Hematology", "description": "ESR unit" },
+    { "symbol": "sec", "name": "Seconds", "category": "Coagulation", "description": "PT/APTT time" },
+    { "symbol": "ratio", "name": "Ratio", "category": "General", "description": "General ratios" },
+    { "symbol": "No Unit", "name": "No Unit", "category": "General", "description": "Qualitative results" }
+  ],
+  "conditions": [
+    { "name": "None", "type": "GENERAL", "description": "Default reference condition" },
+    { "name": "Fasting", "type": "METABOLIC", "description": "Patient fasting for 8-12 hours" },
+    { "name": "Postprandial", "type": "METABOLIC", "description": "2 hours after a meal" },
+    { "name": "Pregnancy", "type": "GESTATIONAL", "description": "Pregnancy reference state" }
+  ],
+  "categories": [
+    { "name": "Haematology", "type": "LAB", "description": "Blood cell and coagulation studies" },
+    { "name": "Clinical Biochemistry", "type": "LAB", "description": "Chemical substances in blood/body fluids" },
+    { "name": "Clinical Pathology", "type": "LAB", "description": "Urine and stool analysis" },
+    { "name": "Microbiology", "type": "LAB", "description": "Culture and microscopic examination" },
+    { "name": "Serology", "type": "LAB", "description": "Antibody-antigen reactions" }
+  ],
+  "departments": [
+    "Haematology",
+    "Clinical Biochemistry",
+    "Clinical Pathology",
+    "Microbiology",
+    "Serology"
+  ],
+  "sampleTypes": [
+    "EDTA Whole Blood",
+    "Serum",
+    "Capillary Blood",
+    "Urine",
+    "Stool",
+    "Sputum",
+    "Pus",
+    "CSF"
+  ],
+  "parameters": [
+    {
+      "seedKey": "PAR_HAEMOGLOBIN",
+      "name": "Haemoglobin",
+      "shortName": "Hb",
+      "alternateNames": ["Hemoglobin"],
+      "resultType": "NUMERIC",
+      "defaultUnit": "g/dL",
+      "decimalPrecision": 1,
+      "referenceRanges": [
+        { "gender": "MALE", "ageFrom": 18, "ageTo": 65, "ageUnit": "Years", "condition": "None", "fromValue": 13, "toValue": 17 },
+        { "gender": "FEMALE", "ageFrom": 18, "ageTo": 65, "ageUnit": "Years", "condition": "None", "fromValue": 12, "toValue": 15 }
+      ]
+    },
+    {
+      "seedKey": "PAR_RBC_COUNT",
+      "name": "RBC Count",
+      "shortName": "RBC",
+      "alternateNames": ["Red Blood Cell Count"],
+      "resultType": "NUMERIC",
+      "defaultUnit": "million/µL",
+      "decimalPrecision": 2,
+      "referenceRanges": [
+        { "gender": "MALE", "ageFrom": 18, "ageTo": 65, "ageUnit": "Years", "condition": "None", "fromValue": 4.5, "toValue": 5.9 },
+        { "gender": "FEMALE", "ageFrom": 18, "ageTo": 65, "ageUnit": "Years", "condition": "None", "fromValue": 4.0, "toValue": 5.2 }
+      ]
+    },
+    {
+      "seedKey": "PAR_WBC_COUNT",
+      "name": "Total Leukocyte Count",
+      "shortName": "TLC",
+      "alternateNames": ["WBC Count", "Total WBC"],
+      "resultType": "NUMERIC",
+      "defaultUnit": "cells/µL",
+      "decimalPrecision": 0,
+      "referenceRanges": [
+        { "gender": "BOTH", "ageFrom": 18, "ageTo": 65, "ageUnit": "Years", "condition": "None", "fromValue": 4000, "toValue": 11000 }
+      ]
+    },
+    {
+      "seedKey": "PAR_PLATELET_COUNT",
+      "name": "Platelet Count",
+      "shortName": "PLT",
+      "alternateNames": ["Thrombocyte Count"],
+      "resultType": "NUMERIC",
+      "defaultUnit": "thousand/µL",
+      "decimalPrecision": 0,
+      "referenceRanges": [
+        { "gender": "BOTH", "ageFrom": 18, "ageTo": 65, "ageUnit": "Years", "condition": "None", "fromValue": 150, "toValue": 450 }
+      ]
+    },
+    {
+      "seedKey": "PAR_ESR",
+      "name": "Erythrocyte Sedimentation Rate",
+      "shortName": "ESR",
+      "alternateNames": ["ESR Westergren"],
+      "resultType": "NUMERIC",
+      "defaultUnit": "mm/hr",
+      "decimalPrecision": 0,
+      "referenceRanges": [
+        { "gender": "MALE", "ageFrom": 18, "ageTo": 65, "ageUnit": "Years", "condition": "None", "fromValue": 0, "toValue": 15 },
+        { "gender": "FEMALE", "ageFrom": 18, "ageTo": 65, "ageUnit": "Years", "condition": "None", "fromValue": 0, "toValue": 20 }
+      ]
+    },
+    {
+      "seedKey": "PAR_GLUCOSE_FASTING",
+      "name": "Fasting Plasma Glucose",
+      "shortName": "FBS",
+      "alternateNames": ["Fasting Blood Sugar"],
+      "resultType": "NUMERIC",
+      "defaultUnit": "mg/dL",
+      "decimalPrecision": 0,
+      "referenceRanges": [
+        { "gender": "BOTH", "ageFrom": 18, "ageTo": 120, "ageUnit": "Years", "condition": "Fasting", "fromValue": 70, "toValue": 99 }
+      ]
+    },
+    {
+      "seedKey": "PAR_GLUCOSE_PP",
+      "name": "Post Prandial Glucose",
+      "shortName": "PPBS",
+      "alternateNames": ["Post Prandial Blood Sugar", "2-hr PPBS"],
+      "resultType": "NUMERIC",
+      "defaultUnit": "mg/dL",
+      "decimalPrecision": 0,
+      "referenceRanges": [
+        { "gender": "BOTH", "ageFrom": 18, "ageTo": 120, "ageUnit": "Years", "condition": "Postprandial", "fromValue": 70, "toValue": 140 }
+      ]
+    },
+    {
+      "seedKey": "PAR_HBA1C",
+      "name": "Glycated Haemoglobin",
+      "shortName": "HbA1c",
+      "alternateNames": ["Glycohemoglobin"],
+      "resultType": "NUMERIC",
+      "defaultUnit": "%",
+      "decimalPrecision": 1,
+      "referenceRanges": [
+        { "gender": "BOTH", "ageFrom": 18, "ageTo": 120, "ageUnit": "Years", "condition": "None", "fromValue": 4.0, "toValue": 5.6 }
+      ]
+    },
+    {
+      "seedKey": "PAR_SERUM_CREATININE",
+      "name": "Serum Creatinine",
+      "shortName": "SCr",
+      "alternateNames": ["Creatinine"],
+      "resultType": "NUMERIC",
+      "defaultUnit": "mg/dL",
+      "decimalPrecision": 2,
+      "referenceRanges": [
+        { "gender": "MALE", "ageFrom": 18, "ageTo": 120, "ageUnit": "Years", "condition": "None", "fromValue": 0.7, "toValue": 1.3 },
+        { "gender": "FEMALE", "ageFrom": 18, "ageTo": 120, "ageUnit": "Years", "condition": "None", "fromValue": 0.6, "toValue": 1.1 }
+      ]
+    },
+    {
+      "seedKey": "PAR_BLOOD_UREA",
+      "name": "Blood Urea",
+      "shortName": "Urea",
+      "alternateNames": ["Serum Urea"],
+      "resultType": "NUMERIC",
+      "defaultUnit": "mg/dL",
+      "decimalPrecision": 0,
+      "referenceRanges": [
+        { "gender": "BOTH", "ageFrom": 18, "ageTo": 120, "ageUnit": "Years", "condition": "None", "fromValue": 15, "toValue": 40 }
+      ]
+    },
+    {
+      "seedKey": "PAR_TSH",
+      "name": "Thyroid Stimulating Hormone",
+      "shortName": "TSH",
+      "alternateNames": ["Thyrotropin"],
+      "resultType": "NUMERIC",
+      "defaultUnit": "µIU/mL",
+      "decimalPrecision": 2,
+      "referenceRanges": [
+        { "gender": "BOTH", "ageFrom": 18, "ageTo": 120, "ageUnit": "Years", "condition": "None", "fromValue": 0.45, "toValue": 4.5 }
+      ]
+    },
+    {
+      "seedKey": "PAR_CHOLESTEROL",
+      "name": "Total Cholesterol",
+      "shortName": "CHOL",
+      "alternateNames": ["Cholesterol Total"],
+      "resultType": "NUMERIC",
+      "defaultUnit": "mg/dL",
+      "decimalPrecision": 0,
+      "referenceRanges": [
+        { "gender": "BOTH", "ageFrom": 18, "ageTo": 120, "ageUnit": "Years", "condition": "None", "fromValue": 100, "toValue": 199 }
+      ]
+    },
+    {
+      "seedKey": "PAR_TRIGLYCERIDES",
+      "name": "Triglycerides",
+      "shortName": "TRIG",
+      "alternateNames": ["TG"],
+      "resultType": "NUMERIC",
+      "defaultUnit": "mg/dL",
+      "decimalPrecision": 0,
+      "referenceRanges": [
+        { "gender": "BOTH", "ageFrom": 18, "ageTo": 120, "ageUnit": "Years", "condition": "None", "fromValue": 50, "toValue": 149 }
+      ]
+    },
+    {
+      "seedKey": "PAR_HDL",
+      "name": "HDL Cholesterol",
+      "shortName": "HDL",
+      "alternateNames": ["High Density Lipoprotein"],
+      "resultType": "NUMERIC",
+      "defaultUnit": "mg/dL",
+      "decimalPrecision": 0,
+      "referenceRanges": [
+        { "gender": "BOTH", "ageFrom": 18, "ageTo": 120, "ageUnit": "Years", "condition": "None", "fromValue": 40, "toValue": 60 }
+      ]
+    },
+    {
+      "seedKey": "PAR_LDL",
+      "name": "LDL Cholesterol",
+      "shortName": "LDL",
+      "alternateNames": ["Low Density Lipoprotein"],
+      "resultType": "NUMERIC",
+      "defaultUnit": "mg/dL",
+      "decimalPrecision": 0,
+      "referenceRanges": [
+        { "gender": "BOTH", "ageFrom": 18, "ageTo": 120, "ageUnit": "Years", "condition": "None", "fromValue": 50, "toValue": 99 }
+      ]
+    },
+    {
+      "seedKey": "PAR_HBSAG",
+      "name": "HBsAg Screening",
+      "shortName": "HBsAg",
+      "alternateNames": ["Hepatitis B Surface Antigen"],
+      "resultType": "QUALITATIVE",
+      "defaultUnit": "No Unit",
+      "allowedValues": ["Non-Reactive", "Reactive"],
+      "referenceRanges": []
+    }
+  ],
+  "investigations": [
+    {
+      "seedKey": "INV_CBC",
+      "name": "Complete Blood Count",
+      "shortName": "CBC",
+      "alternateNames": ["Hemogram", "CBC Count"],
+      "investigationType": "ATOMIC_TEST",
+      "department": "Haematology",
+      "categoryName": "Haematology",
+      "sampleType": "EDTA Whole Blood",
+      "sampleVolume": "2 ml",
+      "sampleContainer": "Lavender Top (EDTA)",
+      "methodology": "Automated Cell Counter",
+      "normalReportingTime": "Same Day",
+      "sourceType": "ICMR_NEDL_2025",
+      "sourceVersion": "2nd Edition",
+      "sourceYear": 2025,
+      "parameters": [
+        { "seedKey": "PAR_HAEMOGLOBIN", "isRequired": true },
+        { "seedKey": "PAR_RBC_COUNT", "isRequired": true },
+        { "seedKey": "PAR_WBC_COUNT", "isRequired": true },
+        { "seedKey": "PAR_PLATELET_COUNT", "isRequired": true }
+      ]
+    },
+    {
+      "seedKey": "INV_ESR",
+      "name": "Erythrocyte Sedimentation Rate",
+      "shortName": "ESR",
+      "alternateNames": ["ESR Westergren"],
+      "investigationType": "ATOMIC_TEST",
+      "department": "Haematology",
+      "categoryName": "Haematology",
+      "sampleType": "EDTA Whole Blood",
+      "sampleVolume": "1.5 ml",
+      "sampleContainer": "Black Top (Sodium Citrate) or EDTA",
+      "methodology": "Westergren Method",
+      "normalReportingTime": "Same Day",
+      "sourceType": "ICMR_NEDL_2025",
+      "sourceVersion": "2nd Edition",
+      "sourceYear": 2025,
+      "parameters": [
+        { "seedKey": "PAR_ESR", "isRequired": true }
+      ]
+    },
+    {
+      "seedKey": "INV_GLUCOSE_FASTING",
+      "name": "Fasting Blood Glucose",
+      "shortName": "Fasting Glucose",
+      "alternateNames": ["Fasting Blood Sugar"],
+      "investigationType": "ATOMIC_TEST",
+      "department": "Clinical Biochemistry",
+      "categoryName": "Clinical Biochemistry",
+      "sampleType": "Serum",
+      "sampleVolume": "2 ml",
+      "sampleContainer": "Grey Top (Fluoride)",
+      "methodology": "GOD-POD Method",
+      "normalReportingTime": "Same Day",
+      "sourceType": "ICMR_NEDL_2025",
+      "sourceVersion": "2nd Edition",
+      "sourceYear": 2025,
+      "parameters": [
+        { "seedKey": "PAR_GLUCOSE_FASTING", "isRequired": true }
+      ]
+    },
+    {
+      "seedKey": "INV_HBA1C",
+      "name": "Glycated Haemoglobin",
+      "shortName": "HbA1c",
+      "alternateNames": ["HbA1c Test"],
+      "investigationType": "ATOMIC_TEST",
+      "department": "Clinical Biochemistry",
+      "categoryName": "Clinical Biochemistry",
+      "sampleType": "EDTA Whole Blood",
+      "sampleVolume": "2 ml",
+      "sampleContainer": "Lavender Top (EDTA)",
+      "methodology": "HPLC",
+      "normalReportingTime": "Same Day",
+      "sourceType": "ICMR_NEDL_2025",
+      "sourceVersion": "2nd Edition",
+      "sourceYear": 2025,
+      "parameters": [
+        { "seedKey": "PAR_HBA1C", "isRequired": true }
+      ]
+    },
+    {
+      "seedKey": "INV_CREATININE",
+      "name": "Serum Creatinine",
+      "shortName": "Creatinine",
+      "alternateNames": ["Serum Creatinine Test"],
+      "investigationType": "ATOMIC_TEST",
+      "department": "Clinical Biochemistry",
+      "categoryName": "Clinical Biochemistry",
+      "sampleType": "Serum",
+      "sampleVolume": "2 ml",
+      "sampleContainer": "Red Top (Plain)",
+      "methodology": "Jaffe Method",
+      "normalReportingTime": "Same Day",
+      "sourceType": "ICMR_NEDL_2025",
+      "sourceVersion": "2nd Edition",
+      "sourceYear": 2025,
+      "parameters": [
+        { "seedKey": "PAR_SERUM_CREATININE", "isRequired": true }
+      ]
+    },
+    {
+      "seedKey": "INV_UREA",
+      "name": "Blood Urea",
+      "shortName": "Urea",
+      "alternateNames": ["Serum Urea Test"],
+      "investigationType": "ATOMIC_TEST",
+      "department": "Clinical Biochemistry",
+      "categoryName": "Clinical Biochemistry",
+      "sampleType": "Serum",
+      "sampleVolume": "2 ml",
+      "sampleContainer": "Red Top (Plain)",
+      "methodology": "GLDH Method",
+      "normalReportingTime": "Same Day",
+      "sourceType": "ICMR_NEDL_2025",
+      "sourceVersion": "2nd Edition",
+      "sourceYear": 2025,
+      "parameters": [
+        { "seedKey": "PAR_BLOOD_UREA", "isRequired": true }
+      ]
+    },
+    {
+      "seedKey": "INV_TSH",
+      "name": "Thyroid Stimulating Hormone",
+      "shortName": "TSH",
+      "alternateNames": ["TSH Ultra"],
+      "investigationType": "ATOMIC_TEST",
+      "department": "Clinical Biochemistry",
+      "categoryName": "Clinical Biochemistry",
+      "sampleType": "Serum",
+      "sampleVolume": "2 ml",
+      "sampleContainer": "Yellow Top (SST)",
+      "methodology": "CLIA",
+      "normalReportingTime": "Same Day",
+      "sourceType": "ICMR_NEDL_2025",
+      "sourceVersion": "2nd Edition",
+      "sourceYear": 2025,
+      "parameters": [
+        { "seedKey": "PAR_TSH", "isRequired": true }
+      ]
+    },
+    {
+      "seedKey": "INV_HBSAG",
+      "name": "HBsAg Screening",
+      "shortName": "HBsAg",
+      "alternateNames": ["Hepatitis B Surface Antigen"],
+      "investigationType": "ATOMIC_TEST",
+      "department": "Serology",
+      "categoryName": "Serology",
+      "sampleType": "Serum",
+      "sampleVolume": "2 ml",
+      "sampleContainer": "Red Top (Plain)",
+      "methodology": "Rapid Card Test / ELISA",
+      "normalReportingTime": "Same Day",
+      "sourceType": "ICMR_NEDL_2025",
+      "sourceVersion": "2nd Edition",
+      "sourceYear": 2025,
+      "parameters": [
+        { "seedKey": "PAR_HBSAG", "isRequired": true }
+      ]
+    }
+  ],
+  "panels": [
+    {
+      "seedKey": "PAN_HAEMATOLOGY",
+      "name": "Haematology Panel",
+      "shortName": "Haem Panel",
+      "department": "Haematology",
+      "categoryName": "Haematology",
+      "sampleType": "EDTA Whole Blood",
+      "sampleVolume": "3 ml",
+      "normalReportingTime": "Same Day",
+      "sourceType": "CURATED_MARKET_CATALOGUE",
+      "investigations": [
+        { "seedKey": "INV_CBC", "isRequired": true },
+        { "seedKey": "INV_ESR", "isRequired": true }
+      ]
+    },
+    {
+      "seedKey": "PAN_DIABETES",
+      "name": "Diabetes Panel",
+      "shortName": "Diab Panel",
+      "department": "Clinical Biochemistry",
+      "categoryName": "Clinical Biochemistry",
+      "sampleType": "EDTA Whole Blood & Plasma",
+      "sampleVolume": "4 ml",
+      "normalReportingTime": "Same Day",
+      "sourceType": "CURATED_MARKET_CATALOGUE",
+      "investigations": [
+        { "seedKey": "INV_GLUCOSE_FASTING", "isRequired": true },
+        { "seedKey": "INV_HBA1C", "isRequired": true }
+      ]
+    },
+    {
+      "seedKey": "PAN_RENAL",
+      "name": "Renal Function Panel",
+      "shortName": "Renal Panel",
+      "department": "Clinical Biochemistry",
+      "categoryName": "Clinical Biochemistry",
+      "sampleType": "Serum",
+      "sampleVolume": "2 ml",
+      "normalReportingTime": "Same Day",
+      "sourceType": "CURATED_MARKET_CATALOGUE",
+      "investigations": [
+        { "seedKey": "INV_CREATININE", "isRequired": true },
+        { "seedKey": "INV_UREA", "isRequired": true }
+      ]
+    }
+  ],
+  "profiles": [
+    {
+      "seedKey": "PRO_DIABETES_COMPREHENSIVE",
+      "name": "Diabetes Health Profile",
+      "shortName": "Diab Profile",
+      "department": "Clinical Biochemistry",
+      "categoryName": "Clinical Biochemistry",
+      "sampleType": "EDTA Whole Blood & Plasma",
+      "sampleVolume": "5 ml",
+      "normalReportingTime": "Same Day",
+      "sourceType": "CURATED_MARKET_CATALOGUE",
+      "composition": [
+        { "type": "PANEL", "seedKey": "PAN_DIABETES", "isRequired": true },
+        { "type": "INVESTIGATION", "seedKey": "INV_CREATININE", "isRequired": true }
+      ]
+    }
+  ]
+}

@@ -88,6 +88,13 @@ const DoctorListPage = () => {
         if (docAppts.some(a => a.status?.toLowerCase() === 'in_consultation')) {
           liveStatus = 'In Consultation';
         }
+        if (doc.approvalStatus === 'pending_profile' || doc.approvalStatus === 'pending_onboarding') {
+          liveStatus = 'Pending Onboarding';
+        } else if (doc.approvalStatus === 'pending_approval') {
+          liveStatus = 'Pending Review';
+        } else if (doc.approvalStatus === 're_edit') {
+          liveStatus = 'Re-edit Requested';
+        }
         
         let activity = liveStatus === 'In Consultation' ? 'Consulting Patient' : 'Available';
         let currentClinic = doc.clinicId?.name || 'Main Clinic';
@@ -135,12 +142,12 @@ const DoctorListPage = () => {
 
   // Top stats computation
   const stats = useMemo(() => {
-    const totalCount = doctors.length || 12;
-    const available = doctors.filter(d => ['Available', 'Online Consultation'].includes(d.liveStatus)).length || 12;
-    const busy = doctors.filter(d => d.liveStatus === 'In Consultation').length || 5;
-    const online = doctors.filter(d => d.liveStatus === 'Online Consultation').length || 3;
-    const offline = doctors.filter(d => d.liveStatus === 'Offline').length || 7;
-    const onLeave = doctors.filter(d => d.liveStatus === 'On Leave').length || 2;
+    const totalCount = doctors.length;
+    const available = doctors.filter(d => ['Available', 'Online Consultation'].includes(d.liveStatus)).length;
+    const busy = doctors.filter(d => d.liveStatus === 'In Consultation').length;
+    const online = doctors.filter(d => d.liveStatus === 'Online Consultation').length;
+    const offline = doctors.filter(d => d.liveStatus === 'Offline').length;
+    const onLeave = doctors.filter(d => d.liveStatus === 'On Leave').length;
 
     return { totalCount, available, busy, online, offline, onLeave };
   }, [doctors]);
@@ -218,6 +225,27 @@ const DoctorListPage = () => {
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-100">
             <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
             On Leave
+          </span>
+        );
+      case 'Pending Onboarding':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-100">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+            Pending Onboarding
+          </span>
+        );
+      case 'Pending Review':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-750 border border-blue-100">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
+            Awaiting Review
+          </span>
+        );
+      case 'Re-edit Requested':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-100">
+            <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
+            Re-edit Requested
           </span>
         );
       default:
@@ -406,7 +434,11 @@ const DoctorListPage = () => {
                       <tr 
                         key={doctor._id}
                         onClick={() => {
-                          navigate(`/doctors/${doctor._id}`);
+                          if (['pending_profile', 'pending_approval', 're_edit', 'pending_onboarding'].includes(doctor.approvalStatus)) {
+                            navigate(`/admin/doctors/${doctor.userId || doctor._id}/review`);
+                          } else {
+                            navigate(`/doctors/${doctor._id}`);
+                          }
                         }}
                         className="group hover:bg-blue-50/20 cursor-pointer border-l-2 border-l-transparent hover:border-l-blue-500 transition-all duration-150"
                       >
@@ -484,8 +516,13 @@ const DoctorListPage = () => {
                         <td className="py-4 px-4 text-center" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center justify-center gap-1">
                             <button 
-                              onClick={() => {
-                                navigate(`/doctors/${doctor._id}`);
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (['pending_profile', 'pending_approval', 're_edit', 'pending_onboarding'].includes(doctor.approvalStatus)) {
+                                  navigate(`/admin/doctors/${doctor.userId || doctor._id}/review`);
+                                } else {
+                                  navigate(`/doctors/${doctor._id}`);
+                                }
                               }}
                               className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-blue-600 transition"
                               title="View Profile"
