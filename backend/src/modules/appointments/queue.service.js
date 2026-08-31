@@ -225,13 +225,15 @@ const checkInAppointment = async ({ appointmentId, method, isEmergency, requeste
 
   // Send check-in notifications
   try {
-    const { sendCheckInNotifications } = require('../notifications/notification.service');
-    sendCheckInNotifications({
-      appointment,
-      patient: appointment.patientId,
-      doctor,
-      actorUserId: requester._id
-    }).catch(err => console.error('Check-in notification failed:', err));
+    const notifService = require('../notifications/notification.service');
+    if (typeof notifService.sendCheckInNotifications === 'function') {
+      notifService.sendCheckInNotifications({
+        appointment,
+        patient: appointment.patientId,
+        doctor,
+        actorUserId: requester._id
+      }).catch(err => console.error('Check-in notification failed:', err));
+    }
   } catch (notifErr) {
     console.error('Failed to trigger check-in notification:', notifErr);
   }

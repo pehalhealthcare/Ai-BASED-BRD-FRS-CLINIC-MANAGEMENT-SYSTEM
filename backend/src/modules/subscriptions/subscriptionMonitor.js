@@ -34,12 +34,12 @@ const monitorSubscriptions = async () => {
         await createNotificationRecord({
           clinicId: clinic._id,
           payload: {
-            type: 'CRITICAL',
-            channel: 'IN_APP',
+            type: 'custom',
+            channel: 'in_app',
             subject: 'Subscription Expired',
             body: 'Your subscription has expired. Access to premium features has been locked.'
           }
-        });
+        }).catch(() => null);
         console.log(`[Subscription Monitor] Clinic ${clinic.name} subscription expired.`);
         continue;
       }
@@ -89,12 +89,12 @@ const monitorSubscriptions = async () => {
             await createNotificationRecord({
               clinicId: clinic._id,
               payload: {
-                type: 'SUCCESS',
-                channel: 'IN_APP',
+                type: 'custom',
+                channel: 'in_app',
                 subject: 'Subscription Auto-Renewed',
                 body: `Your subscription has been successfully renewed. Next renewal date: ${newExpiry.toLocaleDateString()}.`
               }
-            });
+            }).catch(() => null);
           } catch (autoErr) {
             console.error(`[Subscription Monitor] Auto-recharge failed for ${clinic.name}:`, autoErr.message);
             
@@ -111,24 +111,24 @@ const monitorSubscriptions = async () => {
             await createNotificationRecord({
               clinicId: clinic._id,
               payload: {
-                type: 'CRITICAL',
-                channel: 'IN_APP',
+                type: 'custom',
+                channel: 'in_app',
                 subject: 'Auto-Renewal Failed',
                 body: 'Automatic renewal could not be completed because your payment was unsuccessful. Please renew manually.'
               }
-            });
+            }).catch(() => null);
           }
         } else {
           // Just notify 24h before
           await createNotificationRecord({
             clinicId: clinic._id,
             payload: {
-              type: 'WARNING',
-              channel: 'IN_APP',
+              type: 'custom',
+              channel: 'in_app',
               subject: 'Subscription Expiry Warning',
               body: 'Your subscription will expire within the next 24 hours. Please renew your subscription to avoid interruption.'
             }
-          });
+          }).catch(() => null);
         }
       }
 
@@ -137,12 +137,12 @@ const monitorSubscriptions = async () => {
         await createNotificationRecord({
           clinicId: clinic._id,
           payload: {
-            type: 'WARNING',
-            channel: 'IN_APP',
+            type: 'custom',
+            channel: 'in_app',
             subject: 'Subscription Expiring in 3 Days',
             body: 'Your subscription expires in 3 days. Renew now to prevent service lockouts.'
           }
-        });
+        }).catch(() => null);
         // Mock Email & SMS
         console.log(`[SMS/EMAIL SIMULATION] Sent 3-day warning to clinic ${clinic.name}`);
       }
@@ -152,12 +152,12 @@ const monitorSubscriptions = async () => {
         await createNotificationRecord({
           clinicId: clinic._id,
           payload: {
-            type: 'WARNING',
-            channel: 'IN_APP',
+            type: 'custom',
+            channel: 'in_app',
             subject: 'Subscription Expiring in 7 Days',
             body: 'Your subscription expires in 7 days. Renew now to avoid service interruption.'
           }
-        });
+        }).catch(() => null);
       }
     }
   } catch (err) {

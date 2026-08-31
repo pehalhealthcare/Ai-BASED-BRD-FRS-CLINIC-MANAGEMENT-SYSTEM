@@ -164,7 +164,7 @@ const updateMyPatientSchema = z.object({
 const listPatientQuerySchema = z.object({
   query: z.object({
     page: z.coerce.number().int().positive().default(1),
-    limit: z.coerce.number().int().positive().max(100).default(10),
+    limit: z.coerce.number().int().positive().max(1000).default(10),
     search: z.string().trim().optional(),
     gender: genderSchema.optional(),
     isActive: booleanQuerySchema,

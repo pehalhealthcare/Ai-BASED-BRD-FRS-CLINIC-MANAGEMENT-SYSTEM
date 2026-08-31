@@ -10,11 +10,17 @@ const router = Router();
 
 // ─── Clinic Subscription Management (Clinic Admin only) ──────────────────────
 router.get('/current', protect, authorize(ROLES.ADMIN), subAdminController.getCurrentSubscription);
+router.get('/renewal-details', protect, authorize(ROLES.ADMIN), subAdminController.getRenewalDetails);
+router.post('/create-renewal-order', protect, authorize(ROLES.ADMIN), subAdminController.createRenewalOrder);
+router.post('/verify-renewal-payment', protect, authorize(ROLES.ADMIN), subAdminController.verifyRenewalPayment);
+router.get('/latest-invoice', protect, authorize(ROLES.ADMIN), subAdminController.getLatestInvoice);
+router.get('/invoice/:invoiceId', protect, authorize(ROLES.ADMIN), subAdminController.getInvoiceDetails);
 router.post('/upgrade/preview', protect, authorize(ROLES.ADMIN), subAdminController.previewUpgrade);
 router.post('/upgrade', protect, authorize(ROLES.ADMIN), subAdminController.upgradeSubscription);
 router.post('/auto-recharge', protect, authorize(ROLES.ADMIN), subAdminController.toggleAutoRecharge);
 router.get('/billing-history', protect, authorize(ROLES.ADMIN), subAdminController.getBillingHistory);
 router.post('/renew', protect, authorize(ROLES.ADMIN), subAdminController.renewSubscription);
+router.post('/webhook', subAdminController.handleRenewalWebhook);
 
 // ─── Subscription Plans ───────────────────────────────────────────────────────
 // Public

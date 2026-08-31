@@ -452,7 +452,14 @@ const subscriptionApi = {
   createPlan: (payload) => extractData(apiClient.post('/subscriptions/plans', payload)),
   updatePlan: (id, payload) => extractData(apiClient.put(`/subscriptions/plans/${id}`, payload)),
   duplicatePlan: (id) => extractData(apiClient.post(`/subscriptions/plans/${id}/duplicate`)),
-  archivePlan: (id) => extractData(apiClient.post(`/subscriptions/plans/${id}/archive`))
+  archivePlan: (id) => extractData(apiClient.post(`/subscriptions/plans/${id}/archive`)),
+  getCurrentSubscription: () => extractData(apiClient.get('/subscriptions/current')),
+  getRenewalDetails: () => extractData(apiClient.get('/subscriptions/renewal-details')),
+  createRenewalOrder: (payload) => extractData(apiClient.post('/subscriptions/create-renewal-order', payload)),
+  verifyRenewalPayment: (payload) => extractData(apiClient.post('/subscriptions/verify-renewal-payment', payload)),
+  getLatestInvoice: () => extractData(apiClient.get('/subscriptions/latest-invoice')),
+  getInvoiceDetails: (invoiceId) => extractData(apiClient.get(`/subscriptions/invoice/${invoiceId}`)),
+  renewSubscription: () => extractData(apiClient.post('/subscriptions/renew'))
 };
 
 const promoApi = {

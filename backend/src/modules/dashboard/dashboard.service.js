@@ -1571,13 +1571,26 @@ const getBranchOverview = async ({ requester, query = {}, requestedClinicId = nu
   const targetTo = endOfUtcDay(selectedDate);
 
   const Doctor = require('../doctors/doctor.model');
-  const Branch = require('../clinics/branch.model').default || require('../clinics/branch.model');
+  const Clinic = require('../clinics/clinic.model');
 
   let branches = [];
   try {
-    branches = await Branch.find({ clinicId, isActive: { $ne: false } }).lean();
+    const branchClinics = await Clinic.find({
+      $or: [{ parentClinicId: clinicId }, { _id: clinicId }],
+      isActive: { $ne: false }
+    }).lean();
+    if (branchClinics && branchClinics.length > 0) {
+      branches = branchClinics;
+    } else {
+      const distinctBranches = await Doctor.distinct('branch', { clinicId, isActive: true });
+      branches = distinctBranches.filter(Boolean).map((name, idx) => ({
+        _id: `branch_${idx}`,
+        name,
+        clinicId
+      }));
+    }
   } catch {
-    const distinctBranches = await Doctor.distinct('branch', { clinicId, isActive: true });
+    const distinctBranches = await Doctor.distinct('branch', { clinicId, isActive: true }).catch(() => []);
     branches = distinctBranches.filter(Boolean).map((name, idx) => ({
       _id: `branch_${idx}`,
       name,

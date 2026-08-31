@@ -58,7 +58,7 @@ export default function LandingPage() {
 
   const handleSetupClinicClick = () => {
     if (!isAuthenticated) {
-      navigate('/clinic/register');
+      navigate('/register-clinic');
       return;
     }
 
@@ -69,7 +69,7 @@ export default function LandingPage() {
         navigate('/clinic/onboarding');
       }
     } else {
-      navigate('/clinic/register');
+      navigate('/register-clinic');
     }
   };
 
@@ -624,7 +624,7 @@ export default function LandingPage() {
             {/* Enterprise size CTA buttons */}
             <div className="flex flex-wrap items-center gap-4 pt-2">
               <Link 
-                to="/set-your-clinic" 
+                to="/register-clinic" 
                 className="flex items-center justify-center gap-2 h-[60px] min-w-[200px] px-8 rounded-[16px] bg-gradient-to-r from-green-500 to-green-700 text-white text-base font-bold shadow-lg shadow-green-500/25 hover:opacity-95 transition-all duration-300 hover:scale-[1.02] group"
               >
                 Start Free Trial 

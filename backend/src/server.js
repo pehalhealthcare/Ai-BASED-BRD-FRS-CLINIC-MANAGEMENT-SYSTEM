@@ -516,35 +516,35 @@ const startServer = async () => {
 
       if (socketUserId) {
         try {
-          const u = await User.findById(socketUserId);
-          if (u) {
-            u.socketIds = u.socketIds.filter(id => id !== socket.id);
-            u.activeSocketCount = u.socketIds.length;
-            await u.save();
+          await User.updateOne(
+            { _id: socketUserId },
+            { $pull: { socketIds: socket.id } }
+          );
 
-            // Wait 1-second grace period before marking offline
-            setTimeout(async () => {
-              try {
-                const checkUser = await User.findById(socketUserId);
-                if (checkUser && checkUser.socketIds.length === 0) {
-                  checkUser.isOnline = false;
-                  checkUser.lastSeen = new Date();
-                  await checkUser.save();
+          // Wait 1-second grace period before marking offline
+          setTimeout(async () => {
+            try {
+              const checkUser = await User.findById(socketUserId).lean();
+              if (checkUser && (!checkUser.socketIds || checkUser.socketIds.length === 0)) {
+                const now = new Date();
+                await User.updateOne(
+                  { _id: socketUserId },
+                  { $set: { isOnline: false, lastSeen: now } }
+                );
 
-                  if (checkUser.clinicId) {
-                    io.to(`clinic:${checkUser.clinicId}`).emit('staff:offline', {
-                      staffId: checkUser._id,
-                      clinicId: checkUser.clinicId,
-                      status: 'OFFLINE',
-                      lastSeen: checkUser.lastSeen
-                    });
-                  }
+                if (checkUser.clinicId) {
+                  io.to(`clinic:${checkUser.clinicId}`).emit('staff:offline', {
+                    staffId: checkUser._id,
+                    clinicId: checkUser.clinicId,
+                    status: 'OFFLINE',
+                    lastSeen: now
+                  });
                 }
-              } catch (err) {
-                logger.error('Failed to handle offline state after grace period:', err);
               }
-            }, 1000);
-          }
+            } catch (err) {
+              logger.error('Failed to handle offline state after grace period:', err);
+            }
+          }, 1000);
         } catch (err) {
           logger.error('Failed to handle socket disconnect presence:', err);
         }

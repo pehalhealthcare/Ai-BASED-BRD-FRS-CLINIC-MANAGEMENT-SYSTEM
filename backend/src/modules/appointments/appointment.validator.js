@@ -14,7 +14,7 @@ const appointmentStatusSchema = z.enum(Object.values(APPOINTMENT_STATUSES));
 
 const paginationQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
-  limit: z.coerce.number().int().positive().max(100).default(10)
+  limit: z.coerce.number().int().positive().max(1000).default(10)
 });
 
 const createAppointmentSchema = z.object({

@@ -29,6 +29,27 @@ const subscriptionBillingSchema = new mongoose.Schema(
       type: Number,
       required: true
     },
+    subtotal: {
+      type: Number,
+      default: 0
+    },
+    gstRate: {
+      type: Number,
+      default: 18
+    },
+    gstAmount: {
+      type: Number,
+      default: 0
+    },
+    planName: {
+      type: String,
+      default: ''
+    },
+    billingCycle: {
+      type: String,
+      enum: ['monthly', 'yearly'],
+      default: 'monthly'
+    },
     creditApplied: {
       type: Number,
       default: 0
@@ -39,10 +60,18 @@ const subscriptionBillingSchema = new mongoose.Schema(
     },
     paymentStatus: {
       type: String,
-      enum: ['success', 'failed'],
+      enum: ['success', 'failed', 'pending'],
       default: 'success'
     },
     transactionId: {
+      type: String,
+      default: ''
+    },
+    gatewayOrderId: {
+      type: String,
+      default: ''
+    },
+    idempotencyKey: {
       type: String,
       default: ''
     }

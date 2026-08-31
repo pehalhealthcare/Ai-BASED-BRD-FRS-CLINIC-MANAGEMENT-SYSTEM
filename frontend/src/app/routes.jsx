@@ -223,6 +223,10 @@ export const router = createBrowserRouter([
     element: protect(<ClinicSuspendedExpired mode="expired" />, [ROLES.ADMIN])
   },
   {
+    path: '/clinic/renewal',
+    element: protect(<ClinicSuspendedExpired mode="expired" />, [ROLES.ADMIN])
+  },
+  {
     path: '/clinic/onboarding',
     element: protect(<ClinicOnboarding />, [ROLES.ADMIN])
   },

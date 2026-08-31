@@ -34,6 +34,19 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
     return <Navigate to="/clinic/dashboard" replace />;
   }
 
+  // Clinic Subscription Expiration Guard
+  const isSubscriptionExpired = user?.role === 'ADMIN' && user?.clinic && (
+    user.clinic.subscription?.status === 'Expired'
+  );
+
+  if (isSubscriptionExpired && !['/clinic/expired', '/clinic/renewal', '/clinic/status'].includes(location.pathname)) {
+    return <Navigate to="/clinic/expired" replace />;
+  }
+
+  if (user?.role === 'ADMIN' && user?.clinic?.subscription?.status === 'Active' && location.pathname === '/clinic/expired') {
+    return <Navigate to="/clinic/dashboard" replace />;
+  }
+
   if ((isPendingDoctor || isPendingStaff) && location.pathname !== '/dashboard') {
     return <Navigate to="/dashboard" replace />;
   }

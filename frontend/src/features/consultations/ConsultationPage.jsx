@@ -15,6 +15,7 @@ import { faUserDoctor, faUser } from '@fortawesome/free-solid-svg-icons';
 import ErrorState from '../../components/common/ErrorState';
 import LoadingState from '../../components/common/LoadingState';
 import { appointmentApi, prescriptionApi, billingApi, pharmacyApi, labApi } from '../../lib/api';
+import { aiApi } from '../../api/aiApi';
 import { useFeatureAccess } from '../../hooks/useFeatureAccess';
 import PremiumFeaturePlaceholder from '../../components/PremiumFeaturePlaceholder';
 
@@ -664,6 +665,122 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
   const labRecommendationsFeature = getFeatureDetail('lab_recommendations');
   const voiceToTextFeature = getFeatureDetail('voice_to_text');
   const onlineConsultationFeature = getFeatureDetail('online_consultation');
+
+  // ─── Dynamic AI Clinical Assistant State ───────────────────────────────────
+  const [aiResults, setAiResults] = useState({});     // keyed by workspaceTab
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState('');
+  const [aiRiskData, setAiRiskData] = useState({ score: null, level: null }); // from latest call
+
+  /**
+   * Calls the appropriate AI endpoint for the currently active section tab.
+   * Collects relevant form data and stores the LLM response in aiResults[tab].
+   */
+  const handleGetAiSuggestions = async (tab) => {
+    if (!assistantFeature.enabled) {
+      toast.error('AI Clinical Assistant is not included in your current plan.');
+      return;
+    }
+    setAiLoading(true);
+    setAiError('');
+    const symptoms = [
+      form.chiefComplaint,
+      ...(form.symptoms || []).map(s => s.name).filter(Boolean)
+    ].filter(Boolean).join(', ') || 'general consultation';
+
+    const vitalsPayload = {
+      temperature: form.vitals?.temperature,
+      bloodPressure: form.vitals?.bloodPressure,
+      pulse: form.vitals?.pulse,
+      respiratoryRate: form.vitals?.respiratoryRate,
+      oxygenSaturation: form.vitals?.oxygenSaturation,
+      weight: form.vitals?.weight,
+      height: form.vitals?.height,
+    };
+
+    const knownConditions = [
+      ...(patient?.chronicConditions || []),
+      ...pastMedicalHistory.filter(h => !h.startsWith('No '))
+    ];
+    const currentMeds = medicines
+      .map(m => m.medicineName || m.genericName)
+      .filter(Boolean);
+    const allergyList = (patient?.allergies || []).map(a => typeof a === 'string' ? a : (a.name || ''));
+
+    try {
+      let result = null;
+
+      if (tab === 'History' || tab === 'Examination') {
+        const symptomText = tab === 'History'
+          ? [form.chiefComplaint, form.clinicalNotes].filter(Boolean).join('. ')
+          : [form.chiefComplaint, ...systemicExamination.map(e => `${e.sys}: ${e.status} — ${e.note}`)].join('. ');
+        result = await aiApi.symptomCheck({
+          // Only allowed fields per backend symptomCheckSchema:
+          symptoms: symptomText || 'general consultation',
+          age: patient?.age,
+          gender: patient?.gender,
+          duration: (form.symptoms || [])[0]?.duration || null,
+          known_conditions: knownConditions.length > 0 ? knownConditions : undefined,
+        });
+      } else if (tab === 'Diagnosis') {
+        const chiefText = [form.chiefComplaint, form.diagnosis?.primary, form.clinicalNotes]
+          .filter(Boolean).join('. ') || symptoms;
+        result = await aiApi.diagnosisAssist({
+          // diagnosisAssist maps: chiefComplaint (required), vitals, history, age, gender, known_conditions
+          chiefComplaint: chiefText.length >= 3 ? chiefText : 'General consultation',
+          history: form.clinicalNotes || form.chiefComplaint || '',
+          vitals: vitalsPayload,
+          age: patient?.age,
+          gender: patient?.gender,
+          known_conditions: knownConditions,
+          doctor_notes: treatmentPlanText || null,
+        });
+      } else if (tab === 'Laboratory') {
+        result = await aiApi.labTestRecommendations({
+          // Only allowed: symptoms(string), diagnosis(string), age, patient_id, consultation_id
+          symptoms,
+          primaryDiagnosis: form.diagnosis?.primary || form.chiefComplaint || '',
+          age: patient?.age,
+          patientId: patient?._id || patient?.id,
+        });
+      } else {
+        // Prescription, Procedures, Advice, Follow-up — use consultationAssist (direct to AI service)
+        const context = tab === 'Prescription'
+          ? `Prescriptions needed for: ${form.diagnosis?.primary || form.chiefComplaint}. Current medicines: ${currentMeds.join(', ') || 'none'}.`
+          : tab === 'Procedures'
+          ? `Procedures for: ${form.diagnosis?.primary || form.chiefComplaint}. Current procedures: ${procedures.map(p => p.name || p.procedureName).filter(Boolean).join(', ') || 'none'}.`
+          : tab === 'Advice'
+          ? `Patient advice for: ${form.diagnosis?.primary || form.chiefComplaint}. Age: ${patient?.age}, Gender: ${patient?.gender}.`
+          : `Follow-up plan for: ${form.diagnosis?.primary || form.chiefComplaint}. Treatment: ${treatmentPlanText}.`;
+        result = await aiApi.consultationAssist({
+          symptoms: context.length >= 3 ? context : symptoms,
+          age: patient?.age,
+          gender: patient?.gender,
+          known_conditions: knownConditions.length > 0 ? knownConditions : undefined,
+          patient_id: patient?._id || patient?.id,
+        });
+      }
+
+      if (result) {
+        setAiResults(prev => ({ ...prev, [tab]: result }));
+        // Update risk data from latest AI call
+        const riskLevel = result.risk_level || result.riskLevel;
+        const confidence = result.confidence;
+        if (riskLevel || confidence != null) {
+          const score = confidence != null ? Math.round(confidence * 100) : aiRiskData.score;
+          setAiRiskData({ score, level: riskLevel || aiRiskData.level });
+        }
+        toast.success('AI suggestions generated!');
+      }
+    } catch (err) {
+      const msg = err?.message || 'AI service unavailable. Please try again.';
+      setAiError(msg);
+      toast.error(msg);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+  // ───────────────────────────────────────────────────────────────────────────
 
   const [globalLabTests, setGlobalLabTests] = useState([]);
   const [isSearchingLabs, setIsSearchingLabs] = useState(false);
@@ -5819,136 +5936,263 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                 description="Suggests diagnoses, risk scorings, and recommends treatments."
                 onRequested={() => handleRequestAccess('consultation_assistant')}
               />
-            ) : workspaceTab === 'Laboratory' ? (
-              <>
-                <div className="flex border-b border-slate-150 gap-4 text-xs font-bold shrink-0 pb-1.5">
-                  <button className="text-indigo-650 border-b-2 border-indigo-650 pb-1">Suggestions</button>
-                  <button className="text-slate-400 pb-1">Summary</button>
-                </div>
-                <div className="space-y-4 text-xs">
-                  <div className="space-y-2">
-                    <span className="text-[10px] text-slate-455 font-black uppercase tracking-wider block">AI Suggested Tests</span>
-                    <ul className="list-disc pl-4 space-y-1.5 text-slate-600 font-medium">
-                      <li>CBC</li>
-                      <li>CRP</li>
-                      <li>Dengue NS1</li>
-                      <li>Urine Routine</li>
-                    </ul>
-                  </div>
-                  <button className="w-full py-2 bg-slate-50 border border-slate-200 text-slate-605 font-bold hover:bg-slate-100 rounded-xl transition text-center text-[10px] uppercase">
-                    View All Suggestions
+            ) : (() => {
+              /* ─── Dynamic AI Suggestions Renderer ─── */
+              const tabResult = aiResults[workspaceTab] || null;
+              const isThisLoading = aiLoading;
+
+              /* ─── Helper: section label by tab ─── */
+              const sectionLabel = {
+                History: 'Smart Suggestions',
+                Examination: 'Clinical Insights',
+                Diagnosis: 'Diagnosis Suggestions',
+                Prescription: 'Prescription Tips',
+                Laboratory: 'AI Suggested Tests',
+                Procedures: 'Procedure Recommendations',
+                Advice: 'Personalized Advice',
+                'Follow-up': 'Follow-up Plan',
+              }[workspaceTab] || 'AI Suggestions';
+
+              /* ─── Extract meaningful items from LLM response ─── */
+              let suggestions = [];
+              let extraItems = [];
+
+              if (tabResult) {
+                if (workspaceTab === 'Diagnosis') {
+                  // Handle both response formats:
+                  // 1. AI service GPT format: { output: { top_3_diagnosis_suggestions: [...] } }
+                  // 2. Backend rule-based format: array of { condition, confidence, reasoning, redFlags, recommendedTests }
+                  const diagSuggs = tabResult.output?.top_3_diagnosis_suggestions
+                    || tabResult.top_3_diagnosis_suggestions || [];
+                  const ruleBasedSuggs = Array.isArray(tabResult) ? tabResult
+                    : Array.isArray(tabResult.suggestions) ? tabResult.suggestions : [];
+
+                  if (diagSuggs.length > 0) {
+                    // GPT output
+                    suggestions = diagSuggs.map((d, i) => ({
+                      text: d.diagnosis || d.condition || `Suggestion ${i + 1}`,
+                      badge: i === 0 ? 'Most Likely' : d.likelihood || null,
+                      sub: (d.supporting_evidence || []).join('; ') || d.reasoning || '',
+                    }));
+                    extraItems = tabResult.output?.recommended_next_questions
+                      || tabResult.recommended_next_questions || [];
+                  } else if (ruleBasedSuggs.length > 0) {
+                    // Rule-based output
+                    suggestions = ruleBasedSuggs.map((d, i) => ({
+                      text: d.condition || d.diagnosis || `Suggestion ${i + 1}`,
+                      badge: i === 0 ? 'Most Likely'
+                        : d.confidence != null ? `${Math.round(d.confidence * 100)}%` : null,
+                      sub: d.reasoning || '',
+                    }));
+                    extraItems = ruleBasedSuggs.flatMap(d => d.recommendedTests || []).slice(0, 5);
+                  }
+                  // Red flags from rule-based also — merge in
+                  const rbRedFlags = ruleBasedSuggs.flatMap(d => d.redFlags || []);
+                  if (rbRedFlags.length > 0 && !tabResult.output?.red_flags) {
+                    tabResult._mergedRedFlags = rbRedFlags;
+                  }
+                } else if (workspaceTab === 'History' || workspaceTab === 'Examination') {
+                  // symptom-check response shape
+                  const conds = tabResult.output?.top_3_possible_conditions
+                    || tabResult.possibleConditions
+                    || tabResult.possible_conditions || [];
+                  suggestions = conds.map((c) => ({
+                    text: c.condition || c.name || c,
+                    badge: c.likelihood || null,
+                    sub: c.reason || '',
+                  }));
+                  extraItems = tabResult.output?.home_care_general_advice
+                    || tabResult.homeCareAdvice || [];
+                } else if (workspaceTab === 'Laboratory') {
+                  // lab-test-recommendations response shape
+                  const labRecs = tabResult.recommendedTests
+                    || tabResult.suggested_tests
+                    || tabResult.output?.recommended_tests || [];
+                  suggestions = (Array.isArray(labRecs) ? labRecs : []).map(t => ({
+                    text: typeof t === 'string' ? t : (t.name || t.test || JSON.stringify(t)),
+                    badge: null, sub: '',
+                  }));
+                } else {
+                  // consultationAssist (Prescription / Procedures / Advice / Follow-up)
+                  const advice = tabResult.output?.home_care_general_advice
+                    || tabResult.homeCareAdvice || [];
+                  suggestions = advice.map(a => ({ text: a, badge: null, sub: '' }));
+                  extraItems = tabResult.output?.follow_up_questions
+                    || tabResult.followUpQuestions || [];
+                }
+              }
+
+              const redFlags = tabResult?.output?.red_flags || tabResult?.redFlags || tabResult?._mergedRedFlags || [];
+
+              return (
+                <div className="space-y-3 text-xs">
+                  {/* Loading state */}
+                  {isThisLoading && (
+                    <div className="flex items-center gap-2 py-3 justify-center">
+                      <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                      <span className="text-slate-500 text-[11px]">AI is analyzing…</span>
+                    </div>
+                  )}
+
+                  {/* Error state */}
+                  {!isThisLoading && aiError && (
+                    <div className="bg-rose-50 border border-rose-100 rounded-xl px-3 py-2 text-rose-700 text-[11px]">
+                      {aiError}
+                    </div>
+                  )}
+
+                  {/* Suggestions list */}
+                  {!isThisLoading && suggestions.length > 0 && (
+                    <div className="space-y-2">
+                      <span className="text-[10px] text-slate-455 font-black uppercase tracking-wider block">{sectionLabel}</span>
+                      {workspaceTab === 'Diagnosis' ? (
+                        <ol className="list-decimal pl-4 space-y-2 text-slate-600 font-medium">
+                          {suggestions.map((s, i) => (
+                            <li key={i} className="space-y-0.5">
+                              <div className="flex justify-between items-center gap-1">
+                                <span>{s.text}</span>
+                                {s.badge && (
+                                  <span className={`text-[8px] font-black px-1.5 py-0.5 rounded shrink-0 ${i === 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}`}>
+                                    {s.badge}
+                                  </span>
+                                )}
+                              </div>
+                              {s.sub && <p className="text-slate-400 text-[10px] leading-relaxed">{s.sub}</p>}
+                            </li>
+                          ))}
+                        </ol>
+                      ) : (
+                        <ul className="list-disc pl-4 space-y-1.5 text-slate-600 font-medium">
+                          {suggestions.slice(0, 6).map((s, i) => (
+                            <li key={i} className="space-y-0.5">
+                              <div className="flex justify-between items-center gap-1">
+                                <span>{s.text}</span>
+                                {s.badge && (
+                                  <span className="text-[8px] font-black px-1 py-0.5 rounded bg-slate-100 text-slate-600 shrink-0">{s.badge}</span>
+                                )}
+                              </div>
+                              {s.sub && <p className="text-slate-400 text-[10px]">{s.sub}</p>}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Follow-up questions / home care extras */}
+                  {!isThisLoading && extraItems.length > 0 && (
+                    <div className="space-y-1.5 pt-1 border-t border-slate-100">
+                      <span className="text-[10px] text-slate-455 font-black uppercase tracking-wider block">
+                        {workspaceTab === 'Diagnosis' ? 'Next Questions' : 'Additional Tips'}
+                      </span>
+                      <ul className="list-disc pl-4 space-y-1 text-slate-500 text-[11px]">
+                        {extraItems.slice(0, 4).map((q, i) => <li key={i}>{q}</li>)}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Red Flags */}
+                  {!isThisLoading && redFlags.length > 0 && (
+                    <div className="bg-rose-50 border border-rose-100 rounded-xl px-3 py-2 space-y-1">
+                      <span className="text-[10px] font-black uppercase text-rose-700 tracking-wider block">⚠ Red Flags</span>
+                      <ul className="list-disc pl-3 space-y-0.5 text-rose-700 text-[11px]">
+                        {redFlags.slice(0, 3).map((f, i) => <li key={i}>{typeof f === 'string' ? f : f.flag || JSON.stringify(f)}</li>)}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Empty state */}
+                  {!isThisLoading && suggestions.length === 0 && !aiError && (
+                    <div className="text-center py-3">
+                      <p className="text-slate-400 text-[11px]">
+                        Fill in the {workspaceTab} details above, then click the button below to get AI suggestions.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Apply button for Advice / Follow-up */}
+                  {!isThisLoading && suggestions.length > 0 && (workspaceTab === 'Advice' || workspaceTab === 'Follow-up') && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const lines = suggestions.map(s => `• ${s.text}`).join('\n');
+                        if (workspaceTab === 'Advice') {
+                          setDietAdviceText(prev => prev ? `${prev}\n${lines}` : lines);
+                          toast.success('AI advice applied to Diet Advice!');
+                        } else {
+                          setFollowUpInstructions(prev => prev ? `${prev}\n${lines}` : lines);
+                          toast.success('AI suggestions applied to Follow-up Instructions!');
+                        }
+                        setIsDirty(true);
+                      }}
+                      className="w-full py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-xl transition text-center text-[10px] uppercase"
+                    >
+                      Apply Suggestions
+                    </button>
+                  )}
+
+                  {/* Get AI Suggestions Button */}
+                  <button
+                    type="button"
+                    disabled={isThisLoading}
+                    onClick={() => handleGetAiSuggestions(workspaceTab)}
+                    className="w-full py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-bold rounded-xl transition text-center text-[11px] uppercase tracking-wide shadow-sm disabled:opacity-50 flex items-center justify-center gap-1.5"
+                  >
+                    {isThisLoading ? (
+                      <>
+                        <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Analyzing…
+                      </>
+                    ) : (
+                      <>✨ {suggestions.length > 0 ? 'Refresh' : 'Get'} AI Suggestions</>
+                    )}
                   </button>
+
+                  {/* Disclaimer */}
+                  <p className="text-[9px] text-slate-400 text-center leading-relaxed">
+                    AI suggestions are assistive only. Doctor approval is mandatory.
+                  </p>
                 </div>
-              </>
-            ) : workspaceTab === 'Diagnosis' ? (
-              <div className="space-y-4 text-xs">
-                <div className="space-y-2">
-                  <span className="text-[10px] text-slate-455 font-black uppercase tracking-wider block">Diagnosis Suggestions</span>
-                  <ol className="list-decimal pl-4 space-y-1.5 text-slate-600 font-medium">
-                    <li className="flex justify-between items-center">
-                      <span>Acute Viral Fever</span>
-                      <span className="bg-emerald-100 text-emerald-800 text-[8px] font-black px-1 rounded">Most Likely</span>
-                    </li>
-                    <li>Dengue Fever</li>
-                    <li>Influenza</li>
-                  </ol>
-                </div>
-                <button className="w-full py-2 bg-slate-50 border border-slate-200 text-slate-600 font-bold hover:bg-slate-100 rounded-xl transition text-center text-[10px] uppercase">
-                  View More Suggestions
-                </button>
-              </div>
-            ) : workspaceTab === 'History' ? (
-              <div className="space-y-4 text-xs">
-                <div className="space-y-2">
-                  <span className="text-[10px] text-slate-455 font-black uppercase tracking-wider block">Smart Suggestions</span>
-                  <ul className="list-disc pl-4 space-y-1.5 text-slate-600 font-medium">
-                    <li>Consider CBC, Dengue NS1 if fever persists.</li>
-                    <li>Hydration and rest advised.</li>
-                    <li>Paracetamol for fever and body ache.</li>
-                  </ul>
-                </div>
-                <button className="w-full py-2 bg-slate-50 border border-slate-200 text-slate-600 font-bold hover:bg-slate-100 rounded-xl transition text-center text-[10px] uppercase">
-                  View More Suggestions
-                </button>
-              </div>
-            ) : workspaceTab === 'Examination' ? (
-              <div className="space-y-4 text-xs">
-                <div className="space-y-2">
-                  <span className="text-[10px] text-slate-455 font-black uppercase tracking-wider block">Clinical Insights</span>
-                  <ul className="list-disc pl-4 space-y-1.5 text-slate-600 font-medium">
-                    <li>Vitals are within normal range.</li>
-                    <li>No immediate risk identified.</li>
-                    <li>Patient has history of Asthma.</li>
-                    <li>Consider avoiding triggers.</li>
-                  </ul>
-                </div>
-                <button className="w-full py-2 bg-slate-50 border border-slate-200 text-slate-600 font-bold hover:bg-slate-100 rounded-xl transition text-center text-[10px] uppercase">
-                  More Insights
-                </button>
-              </div>
-            ) : workspaceTab === 'Procedures' ? (
-              <div className="space-y-4 text-xs">
-                <div className="space-y-2">
-                  <span className="text-[10px] text-slate-455 font-black uppercase tracking-wider block">Relevant Suggestions</span>
-                  <ul className="list-disc pl-4 space-y-1.5 text-slate-600 font-medium">
-                    <li>Nebulization may help with bronchospasm.</li>
-                    <li>Consider ECG to rule out arrhythmia.</li>
-                    <li>Adequate hydration advised.</li>
-                  </ul>
-                </div>
-                <button className="w-full py-2 bg-slate-50 border border-slate-200 text-slate-600 font-bold hover:bg-slate-100 rounded-xl transition text-center text-[10px] uppercase">
-                  View More Suggestions
-                </button>
-              </div>
-            ) : workspaceTab === 'Advice' ? (
-              <div className="space-y-4 text-xs">
-                <div className="space-y-2">
-                  <span className="text-[10px] text-slate-455 font-black uppercase tracking-wider block">Personalized Advice Suggestions</span>
-                  <ul className="list-disc pl-4 space-y-1.5 text-slate-600 font-medium">
-                    <li>Ensure adequate hydration.</li>
-                    <li>Recommend rest for faster recovery.</li>
-                    <li>Monitor fever and report if &gt; 102°F.</li>
-                  </ul>
-                </div>
-                <button
-                  onClick={() => {
-                    setDietAdviceText(prev => prev + `\n• Ensure adequate hydration.\n• Rest for faster recovery.\n• Monitor fever.`);
-                    setIsDirty(true);
-                    toast.success('Suggestions applied to Diet Advice!');
-                  }}
-                  className="w-full py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-707 font-bold rounded-xl transition text-center text-[10px] uppercase"
-                >
-                  Apply Suggestions
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-4 text-xs">
-                <div className="space-y-2">
-                  <span className="text-[10px] text-slate-455 font-black uppercase tracking-wider block">Follow-up Suggestions</span>
-                  <ul className="list-disc pl-4 space-y-1.5 text-slate-600 font-medium">
-                    <li>Review in 1 week to assess symptom relief.</li>
-                    <li>Check BP and lipid profile in next visit.</li>
-                    <li>Re-evaluate medication dosage if needed.</li>
-                  </ul>
-                </div>
-                <button className="w-full py-2 bg-slate-50 border border-slate-200 text-slate-600 font-bold hover:bg-slate-100 rounded-xl transition text-center text-[10px] uppercase">
-                  Apply Suggestions
-                </button>
-              </div>
-            )}
+              );
+            })()}
 
             {/* AI Risk Score */}
             <div className="border-t border-slate-100 pt-3.5 space-y-2">
               <div className="flex justify-between items-center text-[10px] font-black uppercase text-slate-455 tracking-wider">
                 <span>Risk Score (AI)</span>
-                <span>Score: 62/100</span>
+                <span>
+                  {aiRiskData.score != null ? `Score: ${aiRiskData.score}/100` : 'Score: —'}
+                </span>
               </div>
               <div className="flex items-center gap-3">
-                <span className="px-3.5 py-1 bg-amber-50 border border-amber-250 text-amber-705 text-[10px] font-black uppercase rounded-lg">
-                  Moderate Risk
-                </span>
+                {aiRiskData.level ? (
+                  <span className={`px-3.5 py-1 text-[10px] font-black uppercase rounded-lg border ${
+                    aiRiskData.level === 'high' || aiRiskData.level === 'critical'
+                      ? 'bg-rose-50 border-rose-200 text-rose-700'
+                      : aiRiskData.level === 'medium'
+                      ? 'bg-amber-50 border-amber-200 text-amber-700'
+                      : 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                  }`}>
+                    {aiRiskData.level === 'high' ? 'High Risk'
+                      : aiRiskData.level === 'critical' ? 'Critical'
+                      : aiRiskData.level === 'medium' ? 'Moderate Risk'
+                      : 'Low Risk'}
+                  </span>
+                ) : (
+                  <span className="px-3.5 py-1 bg-slate-50 border border-slate-200 text-slate-400 text-[10px] font-black uppercase rounded-lg">
+                    Not Assessed
+                  </span>
+                )}
                 <div className="h-2 flex-1 bg-slate-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-amber-500 rounded-full" style={{ width: '62%' }} />
+                  <div
+                    className={`h-full rounded-full transition-all duration-700 ${
+                      aiRiskData.level === 'high' || aiRiskData.level === 'critical' ? 'bg-rose-500'
+                      : aiRiskData.level === 'medium' ? 'bg-amber-500'
+                      : aiRiskData.score != null ? 'bg-emerald-500'
+                      : 'bg-slate-300'
+                    }`}
+                    style={{ width: aiRiskData.score != null ? `${aiRiskData.score}%` : '0%' }}
+                  />
                 </div>
               </div>
             </div>
