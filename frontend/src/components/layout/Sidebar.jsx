@@ -82,6 +82,10 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
   const [patientClinics, setPatientClinics] = useState([]);
   const [selectedClinicId, setSelectedClinicId] = useState(() => localStorage.getItem('patientActiveClinicId') || '');
   const [patientProfile, setPatientProfile] = useState(null);
+  const [patientLaboratories, setPatientLaboratories] = useState([]);
+  const [patientPharmacies, setPatientPharmacies] = useState([]);
+  const [activeLabDetails, setActiveLabDetails] = useState(null);
+  const [activePharmacyDetails, setActivePharmacyDetails] = useState(null);
   const [labExpanded, setLabExpanded] = useState(false);
   const [pharmacyExpanded, setPharmacyExpanded] = useState(false);
 
@@ -146,6 +150,26 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
     }
   }, [isPatient, selectedClinicId]);
 
+  // Fetch attached laboratories and pharmacies for patient's selected clinic
+  useEffect(() => {
+    if (isPatient && selectedClinicId) {
+      providersApi.getProviders({ clinicId: selectedClinicId, providerType: 'Laboratory', limit: 100 })
+        .then(res => {
+          setPatientLaboratories(res.data?.items || res.items || []);
+        })
+        .catch(() => setPatientLaboratories([]));
+
+      providersApi.getProviders({ clinicId: selectedClinicId, providerType: 'Pharmacy', limit: 100 })
+        .then(res => {
+          setPatientPharmacies(res.data?.items || res.items || []);
+        })
+        .catch(() => setPatientPharmacies([]));
+    } else {
+      setPatientLaboratories([]);
+      setPatientPharmacies([]);
+    }
+  }, [isPatient, selectedClinicId]);
+
   // Sync selected clinic from URL search params
   useEffect(() => {
     const currentParams = new URLSearchParams(location.search);
@@ -155,6 +179,65 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
       localStorage.setItem('patientActiveClinicId', urlClinicId);
     }
   }, [location.search]);
+
+  // Derive URL query params
+  const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
+  const selectedLabId = searchParams.get('labId') || '';
+  const selectedPharmacyId = searchParams.get('pharmacyId') || '';
+
+  // Track dynamic active laboratory record
+  useEffect(() => {
+    if (!selectedLabId) {
+      setActiveLabDetails(null);
+      return;
+    }
+    const found = patientLaboratories.find(l => String(l._id) === String(selectedLabId));
+    if (found) {
+      setActiveLabDetails(found);
+    } else {
+      providersApi.getProvider(selectedLabId)
+        .then(res => {
+          setActiveLabDetails(res.data?.provider || res.provider || res);
+        })
+        .catch(() => {});
+    }
+  }, [selectedLabId, patientLaboratories]);
+
+  // Track dynamic active pharmacy record
+  useEffect(() => {
+    if (!selectedPharmacyId) {
+      setActivePharmacyDetails(null);
+      return;
+    }
+    const found = patientPharmacies.find(p => String(p._id) === String(selectedPharmacyId));
+    if (found) {
+      setActivePharmacyDetails(found);
+    } else {
+      providersApi.getProvider(selectedPharmacyId)
+        .then(res => {
+          setActivePharmacyDetails(res.data?.provider || res.provider || res);
+        })
+        .catch(() => {});
+    }
+  }, [selectedPharmacyId, patientPharmacies]);
+
+  // Determine current Patient Context
+  const patientContext = useMemo(() => {
+    if (!selectedClinicId) return 'CLINIC_SELECTION';
+    if (selectedLabId || ['lab-tests', 'lab-prescriptions', 'lab-bookings', 'lab-orders', 'lab-reports'].includes(currentTab)) {
+      return 'LABORATORY_CONTEXT';
+    }
+    if (currentTab === 'book-lab' || location.pathname === '/labs/tests') {
+      return 'LABORATORY_SELECTION_CONTEXT';
+    }
+    if (selectedPharmacyId || ['pharmacy-medicines', 'pharmacy-prescriptions', 'pharmacy-orders-workspace', 'pharmacy-cart'].includes(currentTab)) {
+      return 'PHARMACY_CONTEXT';
+    }
+    if (currentTab === 'buy-medicine' || location.pathname === '/pharmacy/medicines') {
+      return 'PHARMACY_SELECTION_CONTEXT';
+    }
+    return 'CLINIC_CONTEXT';
+  }, [selectedClinicId, selectedLabId, selectedPharmacyId, currentTab, location.pathname]);
 
   const selectedClinic = useMemo(() => {
     return patientClinics.find(c => String(c._id) === String(selectedClinicId)) || null;
@@ -388,20 +471,15 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
     };
   }, [role, user, planName]);
 
-  // Patient Sidebar content
+  // Patient Sidebar content with dynamic context awareness
   const renderPatientSidebarContent = (isMobileOrOverlay = false) => {
-    return (
-      <div className="flex-1 flex flex-col min-h-0 relative overflow-hidden">
-        {/* STATE 1: MY CLINICS SELECTOR */}
-        <div 
-          className={`flex-1 flex flex-col min-h-0 absolute inset-0 transition-all duration-300 ${
-            selectedClinicId ? 'translate-x-[-100%] opacity-0 pointer-events-none' : 'translate-x-0 opacity-100'
-          }`}
-        >
+    // 1. My Clinics List Context
+    if (patientContext === 'CLINIC_SELECTION') {
+      return (
+        <div className="flex-1 flex flex-col min-h-0 relative overflow-hidden">
           <div className="px-5 pt-4 pb-2 shrink-0">
             <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">My Clinics</h4>
           </div>
-          
           <nav className="flex-1 overflow-y-auto px-4 py-2 space-y-3 [scrollbar-width:none]">
             {patientClinics.map((clinic) => {
               const theme = getClinicTheme(clinic.name);
@@ -416,7 +494,7 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
                   style={{ borderColor: isSelected ? theme.primary : undefined }}
                 >
                   <div className="flex items-start gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-slate-55 bg-slate-50 flex items-center justify-center shrink-0 text-base font-extrabold">
+                    <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center shrink-0 text-base font-extrabold">
                       🏥
                     </div>
                     <div className="min-w-0">
@@ -430,219 +508,552 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
             })}
           </nav>
         </div>
+      );
+    }
 
-        {/* STATE 2: CLINIC SPECIFIC NAVIGATION */}
-        <div 
-          className={`flex-1 flex flex-col min-h-0 absolute inset-0 transition-all duration-300 ${
-            selectedClinicId ? 'translate-x-0 opacity-100' : 'translate-x-[100%] opacity-0 pointer-events-none'
-          }`}
-        >
-          {/* Back Button */}
+    // 2. Laboratory Selection Context (Browsing Laboratories)
+    if (patientContext === 'LABORATORY_SELECTION_CONTEXT') {
+      return (
+        <div className="flex-1 flex flex-col min-h-0 relative overflow-hidden">
           <div className="px-4 pt-3 pb-1 shrink-0">
             <button
-              onClick={() => {
-                setSelectedClinicId('');
-                localStorage.removeItem('patientActiveClinicId');
-              }}
+              onClick={() => navigate(`/portal?tab=dashboard&clinicId=${selectedClinicId}`)}
               className="w-full flex items-center gap-1.5 px-3 py-2 text-xs font-extrabold text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-xl transition duration-150"
             >
               <ChevronLeft size={14} />
-              <span>Back to My Clinics</span>
+              <span>Back to Clinic</span>
             </button>
           </div>
 
+          <div className="px-4 py-3 shrink-0 border-b border-slate-100 bg-blue-50/40">
+            <p className="text-[8px] text-blue-600 font-extrabold uppercase tracking-widest">Diagnostic Service</p>
+            <div className="mt-1 flex items-center gap-2">
+              <span className="text-sm">🧪</span>
+              <p className="text-xs font-black text-slate-800 uppercase tracking-wide">LABORATORY</p>
+            </div>
+          </div>
+
+          <nav className="flex-1 overflow-y-auto px-4 py-3 space-y-1.5 [scrollbar-width:none]">
+            <NavLink
+              to={`/portal?tab=book-lab&clinicId=${selectedClinicId}`}
+              onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
+              className={`flex items-center gap-3 px-3.5 h-[46px] rounded-2xl text-[13px] font-bold transition duration-150 ${
+                currentTab === 'book-lab'
+                  ? 'bg-gradient-to-r from-blue-50/80 to-blue-50/20 text-slate-900 border-l-4 border-blue-500 shadow-sm'
+                  : 'text-slate-500 hover:bg-slate-50 hover:text-blue-600'
+              }`}
+            >
+              <FlaskConical size={18} className={currentTab === 'book-lab' ? 'text-blue-600' : 'text-slate-400'} />
+              <span>Book Lab Test</span>
+            </NavLink>
+
+            <NavLink
+              to={`/portal?tab=labs&clinicId=${selectedClinicId}`}
+              onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
+              className={`flex items-center gap-3 px-3.5 h-[46px] rounded-2xl text-[13px] font-bold transition duration-150 ${
+                currentTab === 'labs'
+                  ? 'bg-gradient-to-r from-blue-50/80 to-blue-50/20 text-slate-900 border-l-4 border-blue-500 shadow-sm'
+                  : 'text-slate-500 hover:bg-slate-50 hover:text-blue-600'
+              }`}
+            >
+              <FileText size={18} className={currentTab === 'labs' ? 'text-blue-600' : 'text-slate-400'} />
+              <span>View Lab Reports</span>
+            </NavLink>
+          </nav>
+
           {selectedClinic && (
-            <div className="px-4 py-3 shrink-0 border-b border-slate-100 space-y-3 bg-slate-50/50">
-              <div>
-                <p className="text-[8px] text-slate-400 font-extrabold uppercase tracking-widest">Current Clinic</p>
-                <div 
-                  onClick={() => {
-                    setSelectedClinicId('');
-                    localStorage.removeItem('patientActiveClinicId');
-                  }}
-                  className="mt-1.5 p-3 rounded-xl bg-white border border-slate-200 flex items-center justify-between gap-2.5 shadow-sm hover:shadow-md transition cursor-pointer"
-                  style={{ borderLeft: `3.5px solid ${activeTheme.primary}` }}
-                >
+            <div className="p-4 border-t border-slate-100 bg-slate-50/50 shrink-0">
+              <p className="text-[8px] text-slate-400 font-extrabold uppercase tracking-widest mb-1.5">Back to Clinic</p>
+              <button
+                onClick={() => navigate(`/portal?tab=dashboard&clinicId=${selectedClinicId}`)}
+                className="w-full p-2.5 rounded-xl bg-white border border-slate-200 flex items-center justify-between gap-2 shadow-sm hover:bg-slate-100/70 transition"
+              >
+                <div className="flex items-center gap-2 min-w-0">
                   <span className="text-sm shrink-0">🏥</span>
-                  <span className="text-xs font-black text-slate-800 truncate flex-1">{selectedClinic.name}</span>
-                  <ChevronDown size={12} className="text-slate-400 shrink-0" />
+                  <span className="text-xs font-black text-slate-800 truncate">{selectedClinic.name}</span>
                 </div>
+                <ChevronLeft size={13} className="text-slate-400 rotate-180 shrink-0" />
+              </button>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // 3. Selected Laboratory Context
+    if (patientContext === 'LABORATORY_CONTEXT') {
+      const activeLabName = activeLabDetails?.name || (selectedLabId ? 'Laboratory' : 'Selected Laboratory');
+      return (
+        <div className="flex-1 flex flex-col min-h-0 relative overflow-hidden">
+          <div className="px-4 pt-3 pb-1 shrink-0">
+            <button
+              onClick={() => navigate(`/portal?tab=book-lab&clinicId=${selectedClinicId}`)}
+              className="w-full flex items-center gap-1.5 px-3 py-2 text-xs font-extrabold text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-xl transition duration-150"
+            >
+              <ChevronLeft size={14} />
+              <span>Back to Laboratories</span>
+            </button>
+          </div>
+
+          <div className="px-4 py-3 shrink-0 border-b border-slate-100 bg-blue-50/40 space-y-1">
+            <p className="text-[8px] text-blue-600 font-extrabold uppercase tracking-widest">LABORATORY</p>
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-blue-100/60 border border-blue-200 flex items-center justify-center text-sm shrink-0">
+                🧪
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-black text-slate-900 truncate leading-snug" title={activeLabName}>
+                  {activeLabName}
+                </p>
+                <p className="text-[9px] text-slate-400 font-bold truncate mt-0.5">
+                  {activeLabDetails?.address?.city || selectedClinic?.name || 'Attached Laboratory'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <nav className="flex-1 overflow-y-auto px-4 py-3 space-y-1.5 [scrollbar-width:none]">
+            <NavLink
+              to={`/portal?tab=lab-tests&labId=${selectedLabId}&clinicId=${selectedClinicId}`}
+              onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
+              className={`flex items-center gap-3 px-3.5 h-[46px] rounded-2xl text-[13px] font-bold transition duration-150 ${
+                currentTab === 'lab-tests'
+                  ? 'bg-gradient-to-r from-blue-50/80 to-blue-50/20 text-slate-900 border-l-4 border-blue-500 shadow-sm'
+                  : 'text-slate-500 hover:bg-slate-50 hover:text-blue-600'
+              }`}
+            >
+              <FlaskConical size={18} className={currentTab === 'lab-tests' ? 'text-blue-600' : 'text-slate-400'} />
+              <span>Browse Tests</span>
+            </NavLink>
+
+            <NavLink
+              to={`/portal?tab=lab-prescriptions&labId=${selectedLabId}&clinicId=${selectedClinicId}`}
+              onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
+              className={`flex items-center gap-3 px-3.5 h-[46px] rounded-2xl text-[13px] font-bold transition duration-150 ${
+                currentTab === 'lab-prescriptions'
+                  ? 'bg-gradient-to-r from-blue-50/80 to-blue-50/20 text-slate-900 border-l-4 border-blue-500 shadow-sm'
+                  : 'text-slate-500 hover:bg-slate-50 hover:text-blue-600'
+              }`}
+            >
+              <ClipboardList size={18} className={currentTab === 'lab-prescriptions' ? 'text-blue-600' : 'text-slate-400'} />
+              <span>Tests From Prescription</span>
+            </NavLink>
+
+            <NavLink
+              to={`/portal?tab=lab-bookings&labId=${selectedLabId}&clinicId=${selectedClinicId}`}
+              onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
+              className={`flex items-center gap-3 px-3.5 h-[46px] rounded-2xl text-[13px] font-bold transition duration-150 ${
+                ['lab-bookings', 'lab-orders'].includes(currentTab)
+                  ? 'bg-gradient-to-r from-blue-50/80 to-blue-50/20 text-slate-900 border-l-4 border-blue-500 shadow-sm'
+                  : 'text-slate-500 hover:bg-slate-50 hover:text-blue-600'
+              }`}
+            >
+              <Activity size={18} className={['lab-bookings', 'lab-orders'].includes(currentTab) ? 'text-blue-600' : 'text-slate-400'} />
+              <span>My Lab Orders</span>
+            </NavLink>
+
+            <NavLink
+              to={`/portal?tab=lab-reports&labId=${selectedLabId}&clinicId=${selectedClinicId}`}
+              onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
+              className={`flex items-center gap-3 px-3.5 h-[46px] rounded-2xl text-[13px] font-bold transition duration-150 ${
+                currentTab === 'lab-reports'
+                  ? 'bg-gradient-to-r from-blue-50/80 to-blue-50/20 text-slate-900 border-l-4 border-blue-500 shadow-sm'
+                  : 'text-slate-500 hover:bg-slate-50 hover:text-blue-600'
+              }`}
+            >
+              <FileText size={18} className={currentTab === 'lab-reports' ? 'text-blue-600' : 'text-slate-400'} />
+              <span>Lab Reports</span>
+            </NavLink>
+          </nav>
+
+          {selectedClinic && (
+            <div className="p-4 border-t border-slate-100 bg-slate-50/50 shrink-0">
+              <p className="text-[8px] text-slate-400 font-extrabold uppercase tracking-widest mb-1.5">Back to Clinic</p>
+              <button
+                onClick={() => navigate(`/portal?tab=dashboard&clinicId=${selectedClinicId}`)}
+                className="w-full p-2.5 rounded-xl bg-white border border-slate-200 flex items-center justify-between gap-2 shadow-sm hover:bg-slate-100/70 transition"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-sm shrink-0">🏥</span>
+                  <span className="text-xs font-black text-slate-800 truncate">{selectedClinic.name}</span>
+                </div>
+                <ChevronLeft size={13} className="text-slate-400 rotate-180 shrink-0" />
+              </button>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // 4. Pharmacy Selection Context (Browsing Pharmacies)
+    if (patientContext === 'PHARMACY_SELECTION_CONTEXT') {
+      return (
+        <div className="flex-1 flex flex-col min-h-0 relative overflow-hidden">
+          <div className="px-4 pt-3 pb-1 shrink-0">
+            <button
+              onClick={() => navigate(`/portal?tab=dashboard&clinicId=${selectedClinicId}`)}
+              className="w-full flex items-center gap-1.5 px-3 py-2 text-xs font-extrabold text-teal-600 hover:text-teal-700 hover:bg-teal-50 rounded-xl transition duration-150"
+            >
+              <ChevronLeft size={14} />
+              <span>Back to Clinic</span>
+            </button>
+          </div>
+
+          <div className="px-4 py-3 shrink-0 border-b border-slate-100 bg-teal-50/40">
+            <p className="text-[8px] text-teal-600 font-extrabold uppercase tracking-widest">Pharmacy Service</p>
+            <div className="mt-1 flex items-center gap-2">
+              <span className="text-sm">💊</span>
+              <p className="text-xs font-black text-slate-800 uppercase tracking-wide">PHARMACY</p>
+            </div>
+          </div>
+
+          <nav className="flex-1 overflow-y-auto px-4 py-3 space-y-1.5 [scrollbar-width:none]">
+            <NavLink
+              to={`/portal?tab=buy-medicine&clinicId=${selectedClinicId}`}
+              onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
+              className={`flex items-center gap-3 px-3.5 h-[46px] rounded-2xl text-[13px] font-bold transition duration-150 ${
+                currentTab === 'buy-medicine'
+                  ? 'bg-gradient-to-r from-teal-50/80 to-teal-50/20 text-slate-900 border-l-4 border-teal-500 shadow-sm'
+                  : 'text-slate-500 hover:bg-slate-50 hover:text-teal-600'
+              }`}
+            >
+              <Pill size={18} className={currentTab === 'buy-medicine' ? 'text-teal-600' : 'text-slate-400'} />
+              <span>Buy Medicine</span>
+            </NavLink>
+
+            <NavLink
+              to={`/portal?tab=pharmacy-orders&clinicId=${selectedClinicId}`}
+              onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
+              className={`flex items-center gap-3 px-3.5 h-[46px] rounded-2xl text-[13px] font-bold transition duration-150 ${
+                currentTab === 'pharmacy-orders'
+                  ? 'bg-gradient-to-r from-teal-50/80 to-teal-50/20 text-slate-900 border-l-4 border-teal-500 shadow-sm'
+                  : 'text-slate-500 hover:bg-slate-50 hover:text-teal-600'
+              }`}
+            >
+              <Package size={18} className={currentTab === 'pharmacy-orders' ? 'text-teal-600' : 'text-slate-400'} />
+              <span>My Orders</span>
+            </NavLink>
+          </nav>
+
+          {selectedClinic && (
+            <div className="p-4 border-t border-slate-100 bg-slate-50/50 shrink-0">
+              <p className="text-[8px] text-slate-400 font-extrabold uppercase tracking-widest mb-1.5">Back to Clinic</p>
+              <button
+                onClick={() => navigate(`/portal?tab=dashboard&clinicId=${selectedClinicId}`)}
+                className="w-full p-2.5 rounded-xl bg-white border border-slate-200 flex items-center justify-between gap-2 shadow-sm hover:bg-slate-100/70 transition"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-sm shrink-0">🏥</span>
+                  <span className="text-xs font-black text-slate-800 truncate">{selectedClinic.name}</span>
+                </div>
+                <ChevronLeft size={13} className="text-slate-400 rotate-180 shrink-0" />
+              </button>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // 5. Selected Pharmacy Context
+    if (patientContext === 'PHARMACY_CONTEXT') {
+      const activePharmacyName = activePharmacyDetails?.name || (selectedPharmacyId ? 'Pharmacy' : 'Selected Pharmacy');
+      return (
+        <div className="flex-1 flex flex-col min-h-0 relative overflow-hidden">
+          <div className="px-4 pt-3 pb-1 shrink-0">
+            <button
+              onClick={() => navigate(`/portal?tab=buy-medicine&clinicId=${selectedClinicId}`)}
+              className="w-full flex items-center gap-1.5 px-3 py-2 text-xs font-extrabold text-teal-600 hover:text-teal-700 hover:bg-teal-50 rounded-xl transition duration-150"
+            >
+              <ChevronLeft size={14} />
+              <span>Back to Pharmacies</span>
+            </button>
+          </div>
+
+          <div className="px-4 py-3 shrink-0 border-b border-slate-100 bg-teal-50/40 space-y-1">
+            <p className="text-[8px] text-teal-600 font-extrabold uppercase tracking-widest">PHARMACY</p>
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-teal-100/60 border border-teal-200 flex items-center justify-center text-sm shrink-0">
+                💊
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-black text-slate-900 truncate leading-snug" title={activePharmacyName}>
+                  {activePharmacyName}
+                </p>
+                <p className="text-[9px] text-slate-400 font-bold truncate mt-0.5">
+                  {activePharmacyDetails?.address?.city || selectedClinic?.name || 'Attached Pharmacy'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <nav className="flex-1 overflow-y-auto px-4 py-3 space-y-1.5 [scrollbar-width:none]">
+            <NavLink
+              to={`/portal?tab=pharmacy-medicines&pharmacyId=${selectedPharmacyId}&clinicId=${selectedClinicId}`}
+              onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
+              className={`flex items-center gap-3 px-3.5 h-[46px] rounded-2xl text-[13px] font-bold transition duration-150 ${
+                currentTab === 'pharmacy-medicines'
+                  ? 'bg-gradient-to-r from-teal-50/80 to-teal-50/20 text-slate-900 border-l-4 border-teal-500 shadow-sm'
+                  : 'text-slate-500 hover:bg-slate-50 hover:text-teal-600'
+              }`}
+            >
+              <Pill size={18} className={currentTab === 'pharmacy-medicines' ? 'text-teal-600' : 'text-slate-400'} />
+              <span>Browse Medicines</span>
+            </NavLink>
+
+            <NavLink
+              to={`/portal?tab=pharmacy-prescriptions&pharmacyId=${selectedPharmacyId}&clinicId=${selectedClinicId}`}
+              onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
+              className={`flex items-center gap-3 px-3.5 h-[46px] rounded-2xl text-[13px] font-bold transition duration-150 ${
+                currentTab === 'pharmacy-prescriptions'
+                  ? 'bg-gradient-to-r from-teal-50/80 to-teal-50/20 text-slate-900 border-l-4 border-teal-500 shadow-sm'
+                  : 'text-slate-500 hover:bg-slate-50 hover:text-teal-600'
+              }`}
+            >
+              <ClipboardList size={18} className={currentTab === 'pharmacy-prescriptions' ? 'text-teal-600' : 'text-slate-400'} />
+              <span>Prescriptions</span>
+            </NavLink>
+
+            <NavLink
+              to={`/portal?tab=pharmacy-orders-workspace&pharmacyId=${selectedPharmacyId}&clinicId=${selectedClinicId}`}
+              onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
+              className={`flex items-center gap-3 px-3.5 h-[46px] rounded-2xl text-[13px] font-bold transition duration-150 ${
+                ['pharmacy-orders', 'pharmacy-orders-workspace'].includes(currentTab)
+                  ? 'bg-gradient-to-r from-teal-50/80 to-teal-50/20 text-slate-900 border-l-4 border-teal-500 shadow-sm'
+                  : 'text-slate-500 hover:bg-slate-50 hover:text-teal-600'
+              }`}
+            >
+              <Package size={18} className={['pharmacy-orders', 'pharmacy-orders-workspace'].includes(currentTab) ? 'text-teal-600' : 'text-slate-400'} />
+              <span>My Medicine Orders</span>
+            </NavLink>
+          </nav>
+
+          {selectedClinic && (
+            <div className="p-4 border-t border-slate-100 bg-slate-50/50 shrink-0">
+              <p className="text-[8px] text-slate-400 font-extrabold uppercase tracking-widest mb-1.5">Back to Clinic</p>
+              <button
+                onClick={() => navigate(`/portal?tab=dashboard&clinicId=${selectedClinicId}`)}
+                className="w-full p-2.5 rounded-xl bg-white border border-slate-200 flex items-center justify-between gap-2 shadow-sm hover:bg-slate-100/70 transition"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-sm shrink-0">🏥</span>
+                  <span className="text-xs font-black text-slate-800 truncate">{selectedClinic.name}</span>
+                </div>
+                <ChevronLeft size={13} className="text-slate-400 rotate-180 shrink-0" />
+              </button>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // 6. Normal Clinic Context
+    return (
+      <div className="flex-1 flex flex-col min-h-0 relative overflow-hidden">
+        {/* Back Button to My Clinics */}
+        <div className="px-4 pt-3 pb-1 shrink-0">
+          <button
+            onClick={() => {
+              setSelectedClinicId('');
+              localStorage.removeItem('patientActiveClinicId');
+            }}
+            className="w-full flex items-center gap-1.5 px-3 py-2 text-xs font-extrabold text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-xl transition duration-150"
+          >
+            <ChevronLeft size={14} />
+            <span>Back to My Clinics</span>
+          </button>
+        </div>
+
+        {selectedClinic && (
+          <div className="px-4 py-3 shrink-0 border-b border-slate-100 space-y-3 bg-slate-50/50">
+            <div>
+              <p className="text-[8px] text-slate-400 font-extrabold uppercase tracking-widest">Current Clinic</p>
+              <div 
+                onClick={() => {
+                  setSelectedClinicId('');
+                  localStorage.removeItem('patientActiveClinicId');
+                }}
+                className="mt-1.5 p-3 rounded-xl bg-white border border-slate-200 flex items-center justify-between gap-2.5 shadow-sm hover:shadow-md transition cursor-pointer"
+                style={{ borderLeft: `3.5px solid ${activeTheme.primary}` }}
+              >
+                <span className="text-sm shrink-0">🏥</span>
+                <span className="text-xs font-black text-slate-800 truncate flex-1">{selectedClinic.name}</span>
+                <ChevronDown size={12} className="text-slate-400 shrink-0" />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Scrollable Navigation */}
+        <nav className="flex-1 overflow-y-auto px-4 py-3 space-y-1.5 [scrollbar-width:none]">
+          <NavLink
+            to={`/portal?tab=dashboard&clinicId=${selectedClinicId}`}
+            onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
+            className={`flex items-center gap-3 px-3.5 h-[46px] rounded-2xl text-[13px] font-bold transition duration-150 ${
+              currentTab === 'dashboard' ? 'bg-gradient-to-r from-emerald-50/70 to-emerald-50/20 text-slate-800 border-l-4 border-emerald-500 shadow-[0_1px_2px_rgba(16,185,129,0.05)]' : 'text-slate-500 hover:bg-slate-50 hover:text-emerald-600'
+            }`}
+          >
+            <LayoutDashboard size={20} className={currentTab === 'dashboard' ? 'text-emerald-500' : 'text-slate-400'} />
+            <span>Dashboard</span>
+          </NavLink>
+
+          <NavLink
+            to={`/portal?tab=my-clinic&clinicId=${selectedClinicId}`}
+            onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
+            className={`flex items-center gap-3 px-3.5 h-[46px] rounded-2xl text-[13px] font-bold transition duration-150 ${
+              currentTab === 'my-clinic' ? 'bg-gradient-to-r from-emerald-50/70 to-emerald-50/20 text-slate-800 border-l-4 border-emerald-500 shadow-[0_1px_2px_rgba(16,185,129,0.05)]' : 'text-slate-500 hover:bg-slate-50 hover:text-emerald-600'
+            }`}
+          >
+            <Building2 size={20} className={currentTab === 'my-clinic' ? 'text-emerald-500' : 'text-slate-400'} />
+            <span>My Clinic</span>
+          </NavLink>
+
+          <NavLink
+            to={`/portal?tab=appointments&clinicId=${selectedClinicId}`}
+            onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
+            className={`flex items-center gap-3 px-3.5 h-[46px] rounded-2xl text-[13px] font-bold transition duration-150 ${
+              currentTab === 'appointments' ? 'bg-gradient-to-r from-emerald-50/70 to-emerald-50/20 text-slate-800 border-l-4 border-emerald-500 shadow-[0_1px_2px_rgba(16,185,129,0.05)]' : 'text-slate-500 hover:bg-slate-50 hover:text-emerald-600'
+            }`}
+          >
+            <Calendar size={20} className={currentTab === 'appointments' ? 'text-emerald-500' : 'text-slate-400'} />
+            <span>Appointments</span>
+          </NavLink>
+
+          <NavLink
+            to={`/portal?tab=history&clinicId=${selectedClinicId}`}
+            onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
+            className={`flex items-center gap-3 px-3.5 h-[46px] rounded-2xl text-[13px] font-bold transition duration-150 ${
+              currentTab === 'history' ? 'bg-gradient-to-r from-emerald-50/70 to-emerald-50/20 text-slate-800 border-l-4 border-emerald-500 shadow-[0_1px_2px_rgba(16,185,129,0.05)]' : 'text-slate-500 hover:bg-slate-50 hover:text-emerald-600'
+            }`}
+          >
+            <Stethoscope size={20} className={currentTab === 'history' ? 'text-emerald-500' : 'text-slate-400'} />
+            <span>Consultation History</span>
+          </NavLink>
+
+          <NavLink
+            to={`/portal?tab=prescriptions&clinicId=${selectedClinicId}`}
+            onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
+            className={`flex items-center gap-3 px-3.5 h-[46px] rounded-2xl text-[13px] font-bold transition duration-150 ${
+              currentTab === 'prescriptions' ? 'bg-gradient-to-r from-emerald-50/70 to-emerald-50/20 text-slate-800 border-l-4 border-emerald-500 shadow-[0_1px_2px_rgba(16,185,129,0.05)]' : 'text-slate-500 hover:bg-slate-50 hover:text-emerald-600'
+            }`}
+          >
+            <ClipboardList size={20} className={currentTab === 'prescriptions' ? 'text-emerald-500' : 'text-slate-400'} />
+            <span>Prescriptions</span>
+          </NavLink>
+
+          {/* Laboratory Accordion */}
+          {isClinicFeatureActive(selectedClinic, 'labs') && (
+            <div className="space-y-1">
+              <button
+                onClick={() => setLabExpanded(!labExpanded)}
+                className="w-full flex items-center justify-between px-3.5 h-[46px] rounded-2xl text-[13px] font-bold text-slate-500 hover:bg-slate-50 hover:text-emerald-600 transition duration-150"
+              >
+                <div className="flex items-center gap-3">
+                  <FlaskConical size={20} className="text-slate-400" />
+                  <span>Laboratory</span>
+                </div>
+                <ChevronDown size={14} className={`text-slate-400 transition-transform duration-200 ${labExpanded ? 'rotate-180' : ''}`} />
+              </button>
+              <div className={`pl-9 space-y-1.5 overflow-hidden transition-all duration-300 ${labExpanded ? 'max-h-32 opacity-100 mt-1' : 'max-h-0 opacity-0 pointer-events-none'}`}>
+                <NavLink
+                  to={`/portal?tab=book-lab&clinicId=${selectedClinicId}`}
+                  onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
+                  className={`flex items-center gap-2 py-1.5 text-xs font-bold ${currentTab === 'book-lab' ? 'text-emerald-600' : 'text-slate-400 hover:text-slate-650'}`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${currentTab === 'book-lab' ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                  <span>Book Lab Test</span>
+                </NavLink>
+                <NavLink
+                  to={`/portal?tab=labs&clinicId=${selectedClinicId}`}
+                  onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
+                  className={`flex items-center gap-2 py-1.5 text-xs font-bold ${currentTab === 'labs' ? 'text-emerald-600' : 'text-slate-400 hover:text-slate-650'}`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${currentTab === 'labs' ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                  <span>View Lab Reports</span>
+                </NavLink>
               </div>
             </div>
           )}
 
-          {/* Scrollable Navigation */}
-          <nav className="flex-1 overflow-y-auto px-4 py-3 space-y-1.5 [scrollbar-width:none]">
-            <NavLink
-              to={`/portal?tab=dashboard&clinicId=${selectedClinicId}`}
-              onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
-              className={`flex items-center gap-3 px-3.5 h-[46px] rounded-2xl text-[13px] font-bold transition duration-150 ${
-                currentTab === 'dashboard' ? 'bg-gradient-to-r from-emerald-50/70 to-emerald-50/20 text-slate-800 border-l-4 border-emerald-500 shadow-[0_1px_2px_rgba(16,185,129,0.05)]' : 'text-slate-500 hover:bg-slate-50 hover:text-emerald-600'
-              }`}
-            >
-              <LayoutDashboard size={20} className={currentTab === 'dashboard' ? 'text-emerald-500' : 'text-slate-400'} />
-              <span>Dashboard</span>
-            </NavLink>
-
-            <NavLink
-              to={`/portal?tab=my-clinic&clinicId=${selectedClinicId}`}
-              onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
-              className={`flex items-center gap-3 px-3.5 h-[46px] rounded-2xl text-[13px] font-bold transition duration-150 ${
-                currentTab === 'my-clinic' ? 'bg-gradient-to-r from-emerald-50/70 to-emerald-50/20 text-slate-800 border-l-4 border-emerald-500 shadow-[0_1px_2px_rgba(16,185,129,0.05)]' : 'text-slate-500 hover:bg-slate-50 hover:text-emerald-600'
-              }`}
-            >
-              <Building2 size={20} className={currentTab === 'my-clinic' ? 'text-emerald-500' : 'text-slate-400'} />
-              <span>My Clinic</span>
-            </NavLink>
-
-            <NavLink
-              to={`/portal?tab=appointments&clinicId=${selectedClinicId}`}
-              onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
-              className={`flex items-center gap-3 px-3.5 h-[46px] rounded-2xl text-[13px] font-bold transition duration-150 ${
-                currentTab === 'appointments' ? 'bg-gradient-to-r from-emerald-50/70 to-emerald-50/20 text-slate-800 border-l-4 border-emerald-500 shadow-[0_1px_2px_rgba(16,185,129,0.05)]' : 'text-slate-500 hover:bg-slate-50 hover:text-emerald-600'
-              }`}
-            >
-              <Calendar size={20} className={currentTab === 'appointments' ? 'text-emerald-500' : 'text-slate-400'} />
-              <span>Appointments</span>
-            </NavLink>
-
-            <NavLink
-              to={`/portal?tab=history&clinicId=${selectedClinicId}`}
-              onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
-              className={`flex items-center gap-3 px-3.5 h-[46px] rounded-2xl text-[13px] font-bold transition duration-150 ${
-                currentTab === 'history' ? 'bg-gradient-to-r from-emerald-50/70 to-emerald-50/20 text-slate-800 border-l-4 border-emerald-500 shadow-[0_1px_2px_rgba(16,185,129,0.05)]' : 'text-slate-500 hover:bg-slate-50 hover:text-emerald-600'
-              }`}
-            >
-              <Stethoscope size={20} className={currentTab === 'history' ? 'text-emerald-500' : 'text-slate-400'} />
-              <span>Consultation History</span>
-            </NavLink>
-
-            <NavLink
-              to={`/portal?tab=prescriptions&clinicId=${selectedClinicId}`}
-              onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
-              className={`flex items-center gap-3 px-3.5 h-[46px] rounded-2xl text-[13px] font-bold transition duration-150 ${
-                currentTab === 'prescriptions' ? 'bg-gradient-to-r from-emerald-50/70 to-emerald-50/20 text-slate-800 border-l-4 border-emerald-500 shadow-[0_1px_2px_rgba(16,185,129,0.05)]' : 'text-slate-500 hover:bg-slate-50 hover:text-emerald-600'
-              }`}
-            >
-              <ClipboardList size={20} className={currentTab === 'prescriptions' ? 'text-emerald-500' : 'text-slate-400'} />
-              <span>Prescriptions</span>
-            </NavLink>
-
-            {/* Laboratory Accordion */}
-            {isClinicFeatureActive(selectedClinic, 'labs') && (
-              <div className="space-y-1">
-                <button
-                  onClick={() => setLabExpanded(!labExpanded)}
-                  className="w-full flex items-center justify-between px-3.5 h-[46px] rounded-2xl text-[13px] font-bold text-slate-500 hover:bg-slate-50 hover:text-emerald-600 transition duration-150"
-                >
-                  <div className="flex items-center gap-3">
-                    <FlaskConical size={20} className="text-slate-400" />
-                    <span>Laboratory</span>
-                  </div>
-                  <ChevronDown size={14} className={`text-slate-400 transition-transform duration-200 ${labExpanded ? 'rotate-180' : ''}`} />
-                </button>
-                <div className={`pl-9 space-y-1.5 overflow-hidden transition-all duration-300 ${labExpanded ? 'max-h-32 opacity-100 mt-1' : 'max-h-0 opacity-0 pointer-events-none'}`}>
-                  <NavLink
-                    to={`/portal?tab=book-lab&clinicId=${selectedClinicId}`}
-                    onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
-                    className={`flex items-center gap-2 py-1.5 text-xs font-bold ${currentTab === 'book-lab' ? 'text-emerald-600' : 'text-slate-400 hover:text-slate-650'}`}
-                  >
-                    <span className={`w-1.5 h-1.5 rounded-full ${currentTab === 'book-lab' ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-                    <span>Book Lab Test</span>
-                  </NavLink>
-                  <NavLink
-                    to={`/portal?tab=labs&clinicId=${selectedClinicId}`}
-                    onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
-                    className={`flex items-center gap-2 py-1.5 text-xs font-bold ${currentTab === 'labs' ? 'text-emerald-600' : 'text-slate-400 hover:text-slate-650'}`}
-                  >
-                    <span className={`w-1.5 h-1.5 rounded-full ${currentTab === 'labs' ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-                    <span>View Lab Reports</span>
-                  </NavLink>
+          {/* Pharmacy Accordion */}
+          {isClinicFeatureActive(selectedClinic, 'pharmacy') && (
+            <div className="space-y-1">
+              <button
+                onClick={() => setPharmacyExpanded(!pharmacyExpanded)}
+                className="w-full flex items-center justify-between px-3.5 h-[46px] rounded-2xl text-[13px] font-bold text-slate-500 hover:bg-slate-50 hover:text-emerald-600 transition duration-150"
+              >
+                <div className="flex items-center gap-3">
+                  <Pill size={20} className="text-slate-400" />
+                  <span>Pharmacy</span>
                 </div>
-              </div>
-            )}
-
-            {/* Pharmacy Accordion */}
-            {isClinicFeatureActive(selectedClinic, 'pharmacy') && (
-              <div className="space-y-1">
-                <button
-                  onClick={() => setPharmacyExpanded(!pharmacyExpanded)}
-                  className="w-full flex items-center justify-between px-3.5 h-[46px] rounded-2xl text-[13px] font-bold text-slate-500 hover:bg-slate-50 hover:text-emerald-600 transition duration-150"
+                <ChevronDown size={14} className={`text-slate-400 transition-transform duration-200 ${pharmacyExpanded ? 'rotate-180' : ''}`} />
+              </button>
+              <div className={`pl-9 space-y-1.5 overflow-hidden transition-all duration-300 ${pharmacyExpanded ? 'max-h-32 opacity-100 mt-1' : 'max-h-0 opacity-0 pointer-events-none'}`}>
+                <NavLink
+                  to={`/portal?tab=buy-medicine&clinicId=${selectedClinicId}`}
+                  onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
+                  className={`flex items-center gap-2 py-1.5 text-xs font-bold ${currentTab === 'buy-medicine' ? 'text-emerald-600' : 'text-slate-400 hover:text-slate-655'}`}
                 >
-                  <div className="flex items-center gap-3">
-                    <Pill size={20} className="text-slate-400" />
-                    <span>Pharmacy</span>
-                  </div>
-                  <ChevronDown size={14} className={`text-slate-400 transition-transform duration-200 ${pharmacyExpanded ? 'rotate-180' : ''}`} />
-                </button>
-                <div className={`pl-9 space-y-1.5 overflow-hidden transition-all duration-300 ${pharmacyExpanded ? 'max-h-32 opacity-100 mt-1' : 'max-h-0 opacity-0 pointer-events-none'}`}>
-                  <NavLink
-                    to={`/portal?tab=buy-medicine&clinicId=${selectedClinicId}`}
-                    onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
-                    className={`flex items-center gap-2 py-1.5 text-xs font-bold ${currentTab === 'buy-medicine' ? 'text-emerald-600' : 'text-slate-400 hover:text-slate-655'}`}
-                  >
-                    <span className={`w-1.5 h-1.5 rounded-full ${currentTab === 'buy-medicine' ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-                    <span>Buy Medicine</span>
-                  </NavLink>
-                  <NavLink
-                    to={`/portal?tab=pharmacy-orders&clinicId=${selectedClinicId}`}
-                    onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
-                    className={`flex items-center gap-2 py-1.5 text-xs font-bold ${currentTab === 'pharmacy-orders' ? 'text-emerald-600' : 'text-slate-400 hover:text-slate-655'}`}
-                  >
-                    <span className={`w-1.5 h-1.5 rounded-full ${currentTab === 'pharmacy-orders' ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-                    <span>My Orders</span>
-                  </NavLink>
-                </div>
-              </div>
-            )}
-
-            <NavLink
-              to={`/portal?tab=documents&clinicId=${selectedClinicId}`}
-              onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
-              className={`flex items-center gap-3 px-3.5 h-[46px] rounded-2xl text-[13px] font-bold transition duration-150 ${
-                currentTab === 'documents' ? 'bg-gradient-to-r from-emerald-50/70 to-emerald-50/20 text-slate-805 border-l-4 border-emerald-500 shadow-[0_1px_2px_rgba(16,185,129,0.05)]' : 'text-slate-500 hover:bg-slate-50 hover:text-emerald-600'
-              }`}
-            >
-              <FileText size={20} className={currentTab === 'documents' ? 'text-emerald-500' : 'text-slate-400'} />
-              <span>Medical Documents</span>
-            </NavLink>
-
-            <NavLink
-              to={`/portal?tab=billing&clinicId=${selectedClinicId}`}
-              onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
-              className={`flex items-center gap-3 px-3.5 h-[46px] rounded-2xl text-[13px] font-bold transition duration-150 ${
-                currentTab === 'billing' ? 'bg-gradient-to-r from-emerald-50/70 to-emerald-50/20 text-slate-805 border-l-4 border-emerald-500 shadow-[0_1px_2px_rgba(16,185,129,0.05)]' : 'text-slate-500 hover:bg-slate-50 hover:text-emerald-600'
-              }`}
-            >
-              <CreditCard size={20} className={currentTab === 'billing' ? 'text-emerald-500' : 'text-slate-400'} />
-              <span>Bills & Payments</span>
-            </NavLink>
-
-            {/* Quick Switch Clinics Deck */}
-            <div className="mt-6 pt-4 border-t border-slate-100">
-              <p className="px-4 text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">My Clinics</p>
-              <div className="space-y-1">
-                {patientClinics.map((clinic) => {
-                  const isCurrent = String(clinic._id) === String(selectedClinicId);
-                  return (
-                    <button
-                      key={clinic._id}
-                      onClick={() => handleClinicSelect(clinic._id)}
-                      className={`w-full flex items-center justify-between px-4 py-2 rounded-xl text-xs transition duration-150 ${
-                        isCurrent 
-                          ? 'bg-slate-50 font-extrabold text-blue-600' 
-                          : 'font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                      }`}
-                    >
-                      <span className="truncate flex-1 text-left">{clinic.name}</span>
-                      {isCurrent && <span className="w-1.5 h-1.5 rounded-full bg-blue-600 shrink-0 ml-2" />}
-                    </button>
-                  );
-                })}
+                  <span className={`w-1.5 h-1.5 rounded-full ${currentTab === 'buy-medicine' ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                  <span>Buy Medicine</span>
+                </NavLink>
+                <NavLink
+                  to={`/portal?tab=pharmacy-orders&clinicId=${selectedClinicId}`}
+                  onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
+                  className={`flex items-center gap-2 py-1.5 text-xs font-bold ${currentTab === 'pharmacy-orders' ? 'text-emerald-600' : 'text-slate-400 hover:text-slate-655'}`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${currentTab === 'pharmacy-orders' ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                  <span>My Orders</span>
+                </NavLink>
               </div>
             </div>
-          </nav>
-        </div>
+          )}
+
+          <NavLink
+            to={`/portal?tab=documents&clinicId=${selectedClinicId}`}
+            onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
+            className={`flex items-center gap-3 px-3.5 h-[46px] rounded-2xl text-[13px] font-bold transition duration-150 ${
+              currentTab === 'documents' ? 'bg-gradient-to-r from-emerald-50/70 to-emerald-50/20 text-slate-805 border-l-4 border-emerald-500 shadow-[0_1px_2px_rgba(16,185,129,0.05)]' : 'text-slate-500 hover:bg-slate-50 hover:text-emerald-600'
+            }`}
+          >
+            <FileText size={20} className={currentTab === 'documents' ? 'text-emerald-500' : 'text-slate-400'} />
+            <span>Medical Documents</span>
+          </NavLink>
+
+          <NavLink
+            to={`/portal?tab=billing&clinicId=${selectedClinicId}`}
+            onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
+            className={`flex items-center gap-3 px-3.5 h-[46px] rounded-2xl text-[13px] font-bold transition duration-150 ${
+              currentTab === 'billing' ? 'bg-gradient-to-r from-emerald-50/70 to-emerald-50/20 text-slate-805 border-l-4 border-emerald-500 shadow-[0_1px_2px_rgba(16,185,129,0.05)]' : 'text-slate-500 hover:bg-slate-50 hover:text-emerald-600'
+            }`}
+          >
+            <CreditCard size={20} className={currentTab === 'billing' ? 'text-emerald-500' : 'text-slate-400'} />
+            <span>Bills & Payments</span>
+          </NavLink>
+
+          {/* Quick Switch Clinics Deck */}
+          <div className="mt-6 pt-4 border-t border-slate-100">
+            <p className="px-4 text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">My Clinics</p>
+            <div className="space-y-1">
+              {patientClinics.map((clinic) => {
+                const isCurrent = String(clinic._id) === String(selectedClinicId);
+                return (
+                  <button
+                    key={clinic._id}
+                    onClick={() => handleClinicSelect(clinic._id)}
+                    className={`w-full flex items-center justify-between px-4 py-2 rounded-xl text-xs transition duration-150 ${
+                      isCurrent 
+                        ? 'bg-slate-50 font-extrabold text-blue-600' 
+                        : 'font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                    }`}
+                  >
+                    <span className="truncate flex-1 text-left">{clinic.name}</span>
+                    {isCurrent && <span className="w-1.5 h-1.5 rounded-full bg-blue-600 shrink-0 ml-2" />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </nav>
       </div>
     );
   };
@@ -665,10 +1076,22 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
           {isPatient ? (
             <div className="relative group flex items-center justify-center">
               <button
-                onClick={() => { setSelectedClinicId(''); localStorage.removeItem('patientActiveClinicId'); onNavigate && onNavigate(true); }}
-                className="w-12 h-12 rounded-2xl flex items-center justify-center transition-all bg-emerald-50 text-emerald-600 border-l-4 border-emerald-500"
+                onClick={() => onNavigate && onNavigate(true)}
+                className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${
+                  patientContext.includes('LABORATORY')
+                    ? 'bg-blue-50 text-blue-600 border-l-4 border-blue-500'
+                    : patientContext.includes('PHARMACY')
+                    ? 'bg-teal-50 text-teal-600 border-l-4 border-teal-500'
+                    : 'bg-emerald-50 text-emerald-600 border-l-4 border-emerald-500'
+                }`}
               >
-                <Building2 size={20} />
+                {patientContext.includes('LABORATORY') ? (
+                  <FlaskConical size={20} />
+                ) : patientContext.includes('PHARMACY') ? (
+                  <Pill size={20} />
+                ) : (
+                  <Building2 size={20} />
+                )}
               </button>
             </div>
           ) : (
@@ -914,10 +1337,22 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center gap-4">
               <button
-                onClick={() => { setSelectedClinicId(''); localStorage.removeItem('patientActiveClinicId'); onNavigate && onNavigate(true); }}
-                className="w-12 h-12 rounded-2xl flex items-center justify-center transition-all bg-emerald-50 text-emerald-600 border-l-4 border-emerald-500 shadow-sm"
+                onClick={() => onNavigate && onNavigate(true)}
+                className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${
+                  patientContext.includes('LABORATORY')
+                    ? 'bg-blue-50 text-blue-600 border-l-4 border-blue-500 shadow-sm'
+                    : patientContext.includes('PHARMACY')
+                    ? 'bg-teal-50 text-teal-600 border-l-4 border-teal-500 shadow-sm'
+                    : 'bg-emerald-50 text-emerald-600 border-l-4 border-emerald-500 shadow-sm'
+                }`}
               >
-                <Building2 size={20} />
+                {patientContext.includes('LABORATORY') ? (
+                  <FlaskConical size={20} />
+                ) : patientContext.includes('PHARMACY') ? (
+                  <Pill size={20} />
+                ) : (
+                  <Building2 size={20} />
+                )}
               </button>
             </div>
           )

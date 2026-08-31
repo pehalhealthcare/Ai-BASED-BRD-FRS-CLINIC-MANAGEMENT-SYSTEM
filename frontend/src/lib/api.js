@@ -293,7 +293,9 @@ const labApi = {
   createEquipment: (payload) => extractData(apiClient.post('/labs/equipment', payload)),
   listQcCalibrations: (params = {}) => extractData(apiClient.get('/labs/qc-calibrations', { params })),
   createQcCalibration: (payload) => extractData(apiClient.post('/labs/qc-calibrations', payload)),
-  getLabAlerts: (params = {}) => extractData(apiClient.get('/labs/dashboard/alerts', { params }))
+  getLabAlerts: (params = {}) => extractData(apiClient.get('/labs/dashboard/alerts', { params })),
+  lookupPrescription: (params = {}) => extractData(apiClient.get('/labs/lookup-prescription', { params })),
+  getSmartPackages: (params = {}) => extractData(apiClient.get('/labs/smart-packages', { params }))
 };
 
 const pharmacyApi = {

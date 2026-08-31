@@ -21,7 +21,9 @@ const {
   createLabConsumableSchema,
   updateLabConsumableSchema,
   addConsumableBatchSchema,
-  adjustConsumableStockSchema
+  adjustConsumableStockSchema,
+  lookupPrescriptionQuerySchema,
+  smartPackagesQuerySchema
 } = require('./lab.validator');
 
 const router = Router();
@@ -30,6 +32,22 @@ router.get(
   '/search',
   protect,
   labController.searchAllLabs
+);
+
+router.get(
+  '/lookup-prescription',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR, ROLES.LAB_TECHNICIAN, ROLES.LAB_OPERATOR, ROLES.RECEPTIONIST),
+  validate(lookupPrescriptionQuerySchema),
+  labController.lookupPrescriptionForLab
+);
+
+router.get(
+  '/smart-packages',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR, ROLES.PATIENT, ROLES.LAB_TECHNICIAN, ROLES.LAB_OPERATOR),
+  validate(smartPackagesQuerySchema),
+  labController.getSmartPackageSuggestions
 );
 
 router.post(
@@ -88,21 +106,21 @@ router.get(
 router.post(
   '/orders',
   protect,
-  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR, ROLES.PATIENT),
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR, ROLES.PATIENT, ROLES.LAB_TECHNICIAN, ROLES.LAB_OPERATOR),
   validate(createLabOrderSchema),
   labController.createLabOrder
 );
 router.get(
   '/orders',
   protect,
-  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR, ROLES.RECEPTIONIST, ROLES.LAB_TECHNICIAN),
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR, ROLES.RECEPTIONIST, ROLES.LAB_TECHNICIAN, ROLES.LAB_OPERATOR, ROLES.PATIENT),
   validate(listLabOrderQuerySchema),
   labController.listLabOrders
 );
 router.get(
   '/orders/:id',
   protect,
-  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR, ROLES.RECEPTIONIST, ROLES.LAB_TECHNICIAN),
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR, ROLES.RECEPTIONIST, ROLES.LAB_TECHNICIAN, ROLES.LAB_OPERATOR, ROLES.PATIENT),
   validate(labOrderIdParamSchema),
   labController.getLabOrderById
 );

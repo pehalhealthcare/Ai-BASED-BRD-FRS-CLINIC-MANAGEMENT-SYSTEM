@@ -1,6 +1,18 @@
 const mongoose = require('mongoose');
 
-const ORDER_STATUSES = ['ordered', 'sample_collected', 'processing', 'completed', 'cancelled'];
+const ORDER_STATUSES = [
+  'ordered',
+  'confirmed',
+  'scheduled',
+  'sample_collection_pending',
+  'sample_collected',
+  'processing',
+  'in_processing',
+  'in_analysis',
+  'completed',
+  'report_ready',
+  'cancelled'
+];
 
 const normalRangeSchema = new mongoose.Schema(
   {
@@ -26,6 +38,11 @@ const orderedTestSchema = new mongoose.Schema(
     labTestId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'LabTest',
+      default: null
+    },
+    globalLabTestId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'GlobalLabTest',
       default: null
     },
     code: {
@@ -54,6 +71,20 @@ const orderedTestSchema = new mongoose.Schema(
       trim: true,
       default: ''
     },
+    price: {
+      type: Number,
+      default: 0
+    },
+    turnaroundTime: {
+      type: String,
+      trim: true,
+      default: '24 Hours'
+    },
+    patientPreparation: {
+      type: String,
+      trim: true,
+      default: 'No special preparation'
+    },
     normalRange: {
       type: normalRangeSchema,
       default: () => ({})
@@ -65,6 +96,31 @@ const orderedTestSchema = new mongoose.Schema(
     }
   },
   { _id: true }
+);
+
+const orderDocumentSchema = new mongoose.Schema(
+  {
+    documentType: {
+      type: String,
+      enum: ['Doctor Prescription', 'Previous Report', 'Referral Document', 'Identity Document', 'Other'],
+      default: 'Doctor Prescription'
+    },
+    name: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    url: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    uploadedAt: {
+      type: Date,
+      default: Date.now
+    }
+  },
+  { _id: false }
 );
 
 const labOrderSchema = new mongoose.Schema(
@@ -84,7 +140,7 @@ const labOrderSchema = new mongoose.Schema(
     patientId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Patient',
-      required: true,
+      required: false,
       index: true
     },
     doctorId: {
@@ -115,7 +171,7 @@ const labOrderSchema = new mongoose.Schema(
     },
     priority: {
       type: String,
-      enum: ['routine', 'urgent'],
+      enum: ['routine', 'urgent', 'stat'],
       default: 'routine'
     },
     notes: {
@@ -133,6 +189,12 @@ const labOrderSchema = new mongoose.Schema(
       enum: ['AT_LAB', 'HOME_COLLECTION'],
       default: 'AT_LAB'
     },
+    collectionAddress: {
+      line1: { type: String, trim: true, default: '' },
+      city: { type: String, trim: true, default: '' },
+      state: { type: String, trim: true, default: '' },
+      pincode: { type: String, trim: true, default: '' }
+    },
     price: {
       type: Number,
       default: 0
@@ -141,6 +203,14 @@ const labOrderSchema = new mongoose.Schema(
       type: String,
       enum: ['REGISTERED', 'WALK_IN'],
       default: 'REGISTERED'
+    },
+    guestPatient: {
+      fullName: { type: String, trim: true, default: '' },
+      phone: { type: String, trim: true, default: '' },
+      email: { type: String, trim: true, default: '' },
+      age: { type: Number, default: null },
+      gender: { type: String, enum: ['Male', 'Female', 'Other', 'male', 'female', 'other', ''], default: '' },
+      address: { type: String, trim: true, default: '' }
     },
     prescriptionId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -153,7 +223,7 @@ const labOrderSchema = new mongoose.Schema(
       default: 'LAB_CREATED'
     },
     documents: {
-      type: [String],
+      type: [mongoose.Schema.Types.Mixed],
       default: []
     },
     orderedAt: {

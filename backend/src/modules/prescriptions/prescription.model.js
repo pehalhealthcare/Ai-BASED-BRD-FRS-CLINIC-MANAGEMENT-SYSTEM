@@ -126,6 +126,45 @@ const labRecommendationSchema = new mongoose.Schema(
       ref: 'GlobalLabTest',
       default: null
     },
+    investigationId: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    localInventoryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'LabTest',
+      default: null
+    },
+    laboratoryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Provider',
+      default: null
+    },
+    clinicId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Clinic',
+      default: null
+    },
+    category: {
+      type: String,
+      trim: true,
+      default: 'General'
+    },
+    provider: {
+      type: String,
+      trim: true,
+      default: 'Clinic Laboratory'
+    },
+    price: {
+      type: Number,
+      default: 0
+    },
+    turnaroundTime: {
+      type: String,
+      trim: true,
+      default: '24 Hours'
+    },
     code: {
       type: String,
       trim: true,
@@ -225,20 +264,37 @@ const prescriptionSchema = new mongoose.Schema(
     doctorId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Doctor',
-      required: true,
-      index: true
+      required: function() { return this.sourceType !== 'PATIENT_UPLOADED'; },
+      index: true,
+      default: null
     },
     consultationId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Consultation',
-      required: true,
-      index: true
+      required: function() { return this.sourceType !== 'PATIENT_UPLOADED'; },
+      index: true,
+      default: null
     },
     appointmentId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Appointment',
       default: null,
       index: true
+    },
+    sourceType: {
+      type: String,
+      enum: ['DOCTOR_PRESCRIPTION', 'PATIENT_UPLOADED'],
+      default: 'DOCTOR_PRESCRIPTION',
+      index: true
+    },
+    uploadedFileName: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    uploadedAt: {
+      type: Date,
+      default: null
     },
     prescriptionNumber: {
       type: String,

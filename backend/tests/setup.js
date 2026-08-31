@@ -28,15 +28,13 @@ beforeAll(async () => {
 });
 
 afterEach(async () => {
-  if (mongoose.connection.readyState === 0) {
+  const currentMongoose = require('mongoose');
+  if (currentMongoose.connection.readyState === 0) {
     return;
   }
 
-  const collections = mongoose.connection.collections;
-
-  for (const collection of Object.values(collections)) {
-    await collection.deleteMany({});
-  }
+  const collections = currentMongoose.connection.collections;
+  await Promise.all(Object.values(collections).map((collection) => collection.deleteMany({})));
 });
 
 afterAll(async () => {

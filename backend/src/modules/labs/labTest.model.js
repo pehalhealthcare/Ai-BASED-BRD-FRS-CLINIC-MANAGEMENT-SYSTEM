@@ -176,8 +176,14 @@ const labTestSchema = new mongoose.Schema(
 );
 
 labTestSchema.index({ clinicId: 1, laboratoryId: 1, code: 1 }, { unique: true });
-labTestSchema.index({ clinicId: 1, laboratoryId: 1, labTestMasterId: 1 }, { unique: true, sparse: true });
-labTestSchema.index({ clinicId: 1, laboratoryId: 1, globalLabTestId: 1 }, { unique: true, sparse: true });
+labTestSchema.index(
+  { clinicId: 1, laboratoryId: 1, labTestMasterId: 1 },
+  { unique: true, partialFilterExpression: { labTestMasterId: { $type: 'objectId' } } }
+);
+labTestSchema.index(
+  { clinicId: 1, laboratoryId: 1, globalLabTestId: 1 },
+  { unique: true, partialFilterExpression: { globalLabTestId: { $type: 'objectId' } } }
+);
 labTestSchema.index({ clinicId: 1, laboratoryId: 1, name: 1 });
 labTestSchema.index({ clinicId: 1, laboratoryId: 1, category: 1 });
 labTestSchema.index({

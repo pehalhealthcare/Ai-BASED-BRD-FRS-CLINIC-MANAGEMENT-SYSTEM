@@ -41,27 +41,27 @@ router.get(
 router.get(
   '/patient/:patientId',
   protect,
-  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR, ROLES.RECEPTIONIST, ROLES.PHARMACIST, ROLES.PATIENT),
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR, ROLES.RECEPTIONIST, ROLES.PHARMACIST, ROLES.LAB_TECHNICIAN, ROLES.LAB_OPERATOR, ROLES.PATIENT),
   validate(patientPrescriptionQuerySchema),
   prescriptionController.getPrescriptionsByPatient
 );
 router.get(
   '/by-phone/:phone',
   protect,
-  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR, ROLES.RECEPTIONIST, ROLES.PHARMACIST),
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR, ROLES.RECEPTIONIST, ROLES.PHARMACIST, ROLES.LAB_TECHNICIAN, ROLES.LAB_OPERATOR),
   prescriptionController.getPrescriptionsByPhone
 );
 router.get(
   '/consultation/:consultationId',
   protect,
-  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR, ROLES.RECEPTIONIST, ROLES.PHARMACIST, ROLES.PATIENT),
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR, ROLES.RECEPTIONIST, ROLES.PHARMACIST, ROLES.LAB_TECHNICIAN, ROLES.LAB_OPERATOR, ROLES.PATIENT),
   validate(consultationIdParamSchema),
   prescriptionController.getPrescriptionsByConsultation
 );
 router.get(
   '/:id/download',
   protect,
-  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR, ROLES.RECEPTIONIST, ROLES.PHARMACIST, ROLES.PATIENT),
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR, ROLES.RECEPTIONIST, ROLES.PHARMACIST, ROLES.LAB_TECHNICIAN, ROLES.LAB_OPERATOR, ROLES.PATIENT),
   validate(prescriptionIdParamSchema),
   prescriptionController.downloadPrescriptionPdf
 );
@@ -89,7 +89,7 @@ router.post(
 router.get(
   '/:id',
   protect,
-  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR, ROLES.RECEPTIONIST, ROLES.PHARMACIST, ROLES.PATIENT),
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR, ROLES.RECEPTIONIST, ROLES.PHARMACIST, ROLES.LAB_TECHNICIAN, ROLES.LAB_OPERATOR, ROLES.PATIENT),
   validate(prescriptionIdParamSchema),
   prescriptionController.getPrescriptionById
 );

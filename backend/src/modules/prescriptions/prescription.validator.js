@@ -37,14 +37,24 @@ const aiAssistSchema = z
   .partial()
   .optional();
 
-const labItemSchema = z.object({
-  testName: z.string().trim().min(1, 'testName is required'),
-  priority: z.enum(['routine', 'urgent', 'stat']).optional(),
-  sampleRequired: z.string().trim().optional(),
-  reason: z.string().trim().optional(),
-  globalLabTestId: objectIdSchema.nullish(),
-  code: z.string().trim().optional()
-});
+const labItemSchema = z
+  .object({
+    testName: z.string().trim().min(1, 'testName is required'),
+    priority: z.enum(['routine', 'urgent', 'stat']).optional(),
+    sampleRequired: z.string().trim().optional(),
+    reason: z.string().trim().optional(),
+    globalLabTestId: objectIdSchema.nullish(),
+    investigationId: z.string().nullish(),
+    localInventoryId: objectIdSchema.nullish(),
+    laboratoryId: objectIdSchema.nullish(),
+    code: z.string().trim().optional(),
+    category: z.string().trim().optional(),
+    provider: z.string().trim().optional(),
+    price: z.coerce.number().min(0).nullish(),
+    turnaroundTime: z.string().trim().optional(),
+    availabilitySnapshot: z.string().trim().optional()
+  })
+  .passthrough();
 
 const procedureItemSchema = z.object({
   name: z.string().trim().min(1, 'name is required'),

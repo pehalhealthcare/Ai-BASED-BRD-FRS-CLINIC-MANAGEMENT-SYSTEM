@@ -31,6 +31,7 @@ import Notifications from './PortalComponents/Notifications';
 import Records from './PortalComponents/Records';
 import BillingInsurance from './PortalComponents/BillingInsurance';
 import { SectionLabel } from './PortalComponents/SharedComponents';
+import TestsFromPrescriptionView from './TestsFromPrescriptionView';
 
 // ============================================================
 // Translations & Helpers
@@ -1528,16 +1529,169 @@ const PatientPortalPage = () => {
       )}
 
       {/* ============================================================ */}
-      {/* ── STATE: Lab Workspace - Packages, Bookings, Reports ── */}
+      {/* ── STATE: Lab Workspace - Tests From Prescription ── */}
       {/* ============================================================ */}
-      {['lab-packages', 'lab-bookings', 'lab-reports'].includes(activeTab) && selectedLabId && (
+      {activeTab === 'lab-prescriptions' && selectedLabId && (
+        <TestsFromPrescriptionView
+          selectedClinic={clinics.find(c => String(c._id) === String(selectedClinicId)) || { _id: selectedClinicId, name: activeClinic?.name || 'Clinic' }}
+          selectedLab={activeLab || { _id: selectedLabId, name: 'Radha Krishna Laboratory' }}
+          patient={profile || user}
+          prescriptions={filteredPrescriptions}
+          onNavigate={(targetTab) => {
+            const currentParams = new URLSearchParams(location.search);
+            if (targetTab === 'book-lab') {
+              currentParams.delete('labId');
+            }
+            currentParams.set('tab', targetTab);
+            setSearchParams(currentParams);
+          }}
+          onOrderPlaced={() => {
+            const patientId = profile?._id || user?._id;
+            if (patientId) {
+              prescriptionApi.getPatientPrescriptions(patientId)
+                .then(rxRes => {
+                  const rxList = rxRes?.data?.prescriptions || rxRes?.prescriptions || [];
+                  setPrescriptions(rxList);
+                })
+                .catch(() => {});
+            }
+          }}
+        />
+      )}
+
+      {/* ============================================================ */}
+      {/* ── STATE: Lab Workspace - My Lab Bookings / Orders ── */}
+      {/* ============================================================ */}
+      {['lab-bookings', 'lab-orders'].includes(activeTab) && selectedLabId && (
+        <div className="space-y-6 animate-fade-in">
+          <button
+            onClick={() => {
+              const currentParams = new URLSearchParams(location.search);
+              currentParams.delete('labId');
+              currentParams.set('tab', 'book-lab');
+              setSearchParams(currentParams);
+            }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 font-extrabold text-xs transition duration-150"
+          >
+            <ChevronLeft size={14} className="text-slate-405" />
+            <span>Back to Laboratories</span>
+          </button>
+
+          <div className="bg-slate-50 p-6 rounded-3xl border border-slate-150 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest block mb-1">
+                Order Tracking • {activeLab?.name}
+              </span>
+              <h2 className="text-xl font-black text-slate-900">My Lab Orders</h2>
+              <p className="text-xs text-slate-500 mt-1">
+                Track status of diagnostic tests, sample collection, and reports from {activeLab?.name}.
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[
+                { id: 'ORD-LAB-1082', test: 'Complete Blood Count (CBC) + Lipid Profile', date: 'Today, 10:30 AM', status: 'Processing', collection: 'Home Collection', token: 'SMP-8821' },
+                { id: 'ORD-LAB-1049', test: 'HbA1c & Fasting Blood Sugar', date: '28 Aug 2026', status: 'Completed', collection: 'At Laboratory', token: 'SMP-7419' }
+              ].map((ord) => (
+                <div key={ord.id} className="p-4 rounded-2xl border border-slate-150 bg-slate-50/50 space-y-3">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="text-[10px] font-black text-blue-600 uppercase tracking-wider">{ord.id}</p>
+                      <h4 className="text-xs font-black text-slate-800 mt-0.5">{ord.test}</h4>
+                      <p className="text-[10px] text-slate-400 mt-0.5">Token: {ord.token} • {ord.collection}</p>
+                    </div>
+                    <span className={`px-2 py-0.5 rounded-lg text-[9px] font-bold uppercase tracking-wider ${
+                      ord.status === 'Completed' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                    }`}>
+                      {ord.status}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between border-t border-slate-200/60 pt-2 text-[10px] text-slate-500">
+                    <span>{ord.date}</span>
+                    <button
+                      onClick={() => toast.success(`Viewing order details for ${ord.id}`)}
+                      className="text-blue-600 hover:text-blue-700 font-extrabold"
+                    >
+                      View Details
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================ */}
+      {/* ── STATE: Lab Workspace - Lab Reports ── */}
+      {/* ============================================================ */}
+      {activeTab === 'lab-reports' && selectedLabId && (
+        <div className="space-y-6 animate-fade-in">
+          <button
+            onClick={() => {
+              const currentParams = new URLSearchParams(location.search);
+              currentParams.delete('labId');
+              currentParams.set('tab', 'book-lab');
+              setSearchParams(currentParams);
+            }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 font-extrabold text-xs transition duration-150"
+          >
+            <ChevronLeft size={14} className="text-slate-405" />
+            <span>Back to Laboratories</span>
+          </button>
+
+          <div className="bg-slate-50 p-6 rounded-3xl border border-slate-150 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest block mb-1">
+                Diagnostic Reports • {activeLab?.name}
+              </span>
+              <h2 className="text-xl font-black text-slate-900">Lab Reports</h2>
+              <p className="text-xs text-slate-500 mt-1">
+                View and download verified laboratory test reports from {activeLab?.name}.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {[
+              { name: 'HbA1c & Fasting Blood Sugar', doctor: 'Dr. Rahul Verma', status: 'Ready', date: '28 Aug 2026', ref: 'REP-7419' },
+              { name: 'Thyroid Profile Total (T3, T4, TSH)', doctor: 'Dr. Neha Sharma', status: 'Ready', date: '15 Aug 2026', ref: 'REP-6520' }
+            ].map((lab, i) => (
+              <div key={i} className="bg-white border border-slate-200 rounded-3xl p-5 flex items-center justify-between gap-4 shadow-sm hover:shadow transition">
+                <div>
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{lab.ref}</span>
+                  <h3 className="text-xs font-black text-slate-900 mt-0.5">{lab.name}</h3>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Doctor: {lab.doctor} • {lab.date}</p>
+                  <div className="mt-2">
+                    <span className="px-2 py-0.5 rounded-lg text-[9px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+                      {lab.status}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => alert(`Downloading Lab Report PDF: ${lab.ref}`)}
+                  className="w-10 h-10 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200 flex items-center justify-center text-blue-600 transition shrink-0"
+                  title="Download Report"
+                >
+                  <FileText size={16} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Fallback for other lab tabs */}
+      {['lab-packages'].includes(activeTab) && selectedLabId && (
         <div className="space-y-6 animate-fade-in">
           <div className="bg-slate-50 p-6 rounded-3xl border border-slate-150">
             <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest block mb-1">{activeTab.replace('lab-', '').toUpperCase()} • {activeLab?.name}</span>
             <h2 className="text-xl font-black text-slate-900">{activeLab?.name}</h2>
           </div>
           <div className="bg-white border border-slate-200 rounded-3xl p-12 text-center">
-            <p className="text-xs text-slate-450 italic">No items listed in {activeTab.replace('lab-', '')} at this moment.</p>
+            <p className="text-xs text-slate-450 italic">No packages listed at this moment.</p>
           </div>
         </div>
       )}
@@ -2451,7 +2605,133 @@ const PatientPortalPage = () => {
         </div>
       )}
 
-      {['pharmacy-categories', 'pharmacy-offers', 'pharmacy-prescriptions', 'pharmacy-addresses', 'pharmacy-payments'].includes(activeTab) && selectedPharmacyId && (
+      {/* ============================================================ */}
+      {/* ── STATE: Pharmacy Workspace - Prescriptions ── */}
+      {/* ============================================================ */}
+      {activeTab === 'pharmacy-prescriptions' && selectedPharmacyId && (
+        <div className="space-y-6 animate-fade-in pb-16">
+          <button
+            onClick={() => {
+              const currentParams = new URLSearchParams(location.search);
+              currentParams.delete('pharmacyId');
+              currentParams.set('tab', 'buy-medicine');
+              setSearchParams(currentParams);
+            }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 font-extrabold text-xs transition duration-150"
+          >
+            <ChevronLeft size={14} className="text-slate-405" />
+            <span>Back to Pharmacies</span>
+          </button>
+
+          <div className="bg-slate-50 p-6 rounded-3xl border border-slate-150 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <span className="text-[10px] font-black text-teal-600 uppercase tracking-widest block mb-1">
+                Doctor Prescriptions • {activePharmacy?.name}
+              </span>
+              <h2 className="text-xl font-black text-slate-900">Prescriptions</h2>
+              <p className="text-xs text-slate-500 mt-1">
+                View your prescribed medicines and find them in {activePharmacy?.name}.
+              </p>
+            </div>
+          </div>
+
+          <div className="p-4 bg-teal-50/70 border border-teal-200/80 rounded-2xl flex items-start gap-3 text-xs text-teal-900">
+            <span className="text-base shrink-0 mt-0.5">ℹ️</span>
+            <div>
+              <p className="font-extrabold text-teal-950">Clinical Prescription Details</p>
+              <p className="text-teal-800/90 text-[11px] mt-0.5 leading-relaxed">
+                Your medicines are prescribed by your attending doctor. You can check availability and purchase them at <strong>{activePharmacy?.name}</strong>.
+              </p>
+            </div>
+          </div>
+
+          {(() => {
+            const rxWithMeds = filteredPrescriptions.filter(p => (p.medicines && p.medicines.length > 0) || (p.items && p.items.length > 0));
+            if (rxWithMeds.length === 0) {
+              return (
+                <div className="bg-white border border-slate-200 rounded-3xl p-12 text-center space-y-3">
+                  <div className="w-14 h-14 rounded-2xl bg-teal-50 flex items-center justify-center text-2xl mx-auto text-teal-600">
+                    💊
+                  </div>
+                  <h4 className="text-sm font-black text-slate-800">No Prescribed Medicines Found</h4>
+                  <p className="text-xs text-slate-400 max-w-md mx-auto">
+                    No active medicine prescriptions found for this clinic. You can browse the complete medicine catalog.
+                  </p>
+                  <button
+                    onClick={() => {
+                      const currentParams = new URLSearchParams(location.search);
+                      currentParams.set('tab', 'pharmacy-medicines');
+                      setSearchParams(currentParams);
+                    }}
+                    className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl text-xs transition shadow-sm inline-flex items-center gap-2"
+                  >
+                    <span>Browse All Medicines</span>
+                  </button>
+                </div>
+              );
+            }
+
+            return (
+              <div className="space-y-6">
+                {rxWithMeds.map((rx) => {
+                  const medsList = rx.medicines || rx.items || [];
+                  return (
+                    <div key={rx._id} className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
+                      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 border-b border-slate-100 pb-3">
+                        <div>
+                          <p className="text-xs font-black text-slate-900">
+                            Prescribed by Dr. {rx.doctorId?.fullName || rx.doctorName || 'Attending Physician'}
+                          </p>
+                          <p className="text-[10px] text-slate-400 mt-0.5">
+                            Date: {rx.createdAt ? new Date(rx.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Recent'}
+                          </p>
+                        </div>
+                        {rx.notes && (
+                          <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg">
+                            Note: {rx.notes}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {medsList.map((med, mIdx) => (
+                          <div key={mIdx} className="p-4 rounded-2xl border border-slate-150 bg-slate-50/50 flex flex-col justify-between gap-3">
+                            <div>
+                              <h4 className="text-xs font-black text-slate-800">{med.name || med.medicineName}</h4>
+                              <p className="text-[10px] text-slate-500 mt-1">
+                                {[med.dosage && `Dosage: ${med.dosage}`, med.frequency && `Freq: ${med.frequency}`, med.duration && `Duration: ${med.duration}`].filter(Boolean).join(' • ')}
+                              </p>
+                            </div>
+
+                            <div className="flex items-center justify-between border-t border-slate-200/60 pt-2.5">
+                              <span className="text-[10px] font-black text-teal-700">
+                                Qty: {med.quantity || 1}
+                              </span>
+                              <button
+                                onClick={() => {
+                                  const currentParams = new URLSearchParams(location.search);
+                                  currentParams.set('tab', 'pharmacy-medicines');
+                                  setSearchParams(currentParams);
+                                  toast.info(`Search for "${med.name || med.medicineName}" in store catalog`);
+                                }}
+                                className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl text-[10px] transition shadow-sm"
+                              >
+                                Find in Store
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
+      {['pharmacy-categories', 'pharmacy-offers', 'pharmacy-addresses', 'pharmacy-payments'].includes(activeTab) && selectedPharmacyId && (
         <div className="space-y-6 animate-fade-in pb-16">
           <div className="bg-slate-50 p-6 rounded-3xl border border-slate-150">
             <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest block mb-1">{activeTab.replace('pharmacy-', '').toUpperCase()} • {activePharmacy?.name}</span>

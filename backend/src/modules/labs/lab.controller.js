@@ -309,6 +309,22 @@ const bulkActivateGlobalTests = asyncHandler(async (req, res) => {
   return sendSuccess(res, 'Bulk activation of lab tests completed successfully', { activated });
 });
 
+const lookupPrescriptionForLab = asyncHandler(async (req, res) => {
+  const data = await labService.lookupPrescriptionForLab({
+    requester: req.user,
+    query: req.query
+  });
+  return sendSuccess(res, 'Prescription and patient lookup completed successfully', data);
+});
+
+const getSmartPackageSuggestions = asyncHandler(async (req, res) => {
+  const suggestions = await labService.getSmartPackageSuggestions({
+    requester: req.user,
+    query: req.query
+  });
+  return sendSuccess(res, 'Smart package suggestions retrieved successfully', { suggestions });
+});
+
 module.exports = {
   listAvailableGlobalTests,
   bulkActivateGlobalTests,
@@ -340,6 +356,8 @@ module.exports = {
   createEquipment,
   listQcCalibrations,
   createQcCalibration,
-  getLabAlerts
+  getLabAlerts,
+  lookupPrescriptionForLab,
+  getSmartPackageSuggestions
 };
 

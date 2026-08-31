@@ -710,3 +710,25 @@ AI health:
 - Fewer than `300` billing records should return `model_status: insufficient_data` from the training endpoint instead of pretending an IsolationForest model is ready
 - If the billing anomaly model file is missing or dependencies are unavailable, the service must continue using rule-based fallback scoring
 - Review workflow is Admin and Super Admin only, and the result is an assistive review signal rather than a final fraud determination
+
+## VS Code Quick Start Keyboard Shortcut
+
+To start the frontend, backend, and AI service concurrently in separate terminals with a single keystroke (`Ctrl + Alt + S`), follow these steps:
+
+1. **Configure VS Code Keybindings**:
+   - Open the Command Palette in VS Code (`Ctrl + Shift + P`).
+   - Select **Preferences: Open Keyboard Shortcuts (JSON)**.
+   - Paste the following entry inside the brackets `[ ... ]` of your custom keybindings:
+     ```json
+     {
+       "key": "ctrl+alt+s",
+       "command": "workbench.action.tasks.runTask",
+       "args": "Start All Servers"
+     }
+     ```
+   - Save and close the keybindings file.
+
+2. **Run the Servers**:
+   - Simply press `Ctrl + Alt + S` anywhere in VS Code.
+   - Select the `Start All Servers` task (if prompted).
+   - This runs the pre-configured tasks in [`.vscode/tasks.json`](file:///c:/Users/Lenovo/Desktop/Program/Ai-BASED-BRD-FRS-CLINIC-MANAGEMENT-SYSTEM/.vscode/tasks.json) to start all services (frontend, backend, and AI server) in parallel, complete with active logs in their respective terminal windows.

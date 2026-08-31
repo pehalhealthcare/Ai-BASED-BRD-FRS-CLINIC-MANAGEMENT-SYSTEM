@@ -105,22 +105,23 @@ const listLabTestQuerySchema = z.object({
 const labOrderTestSchema = z
   .object({
     labTestId: objectIdSchema.optional(),
-    code: z.string().trim().max(30).optional(),
-    name: z.string().trim().max(200).optional()
+    globalLabTestId: objectIdSchema.optional(),
+    code: z.string().trim().max(50).optional(),
+    name: z.string().trim().max(200).optional(),
+    category: z.string().trim().optional(),
+    specimenType: z.string().trim().optional(),
+    unit: z.string().trim().optional(),
+    price: z.number().optional(),
+    turnaroundTime: z.string().trim().optional(),
+    patientPreparation: z.string().trim().optional(),
+    priority: z.enum(['routine', 'urgent', 'stat']).optional()
   })
+  .passthrough()
   .superRefine((value, ctx) => {
-    if (!value.labTestId && !value.code) {
+    if (!value.labTestId && !value.globalLabTestId && !value.code && !value.name) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: 'code is required when labTestId is not provided',
-        path: ['code']
-      });
-    }
-
-    if (!value.labTestId && !value.name) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'name is required when labTestId is not provided',
+        message: 'A test identifier (labTestId, globalLabTestId, code, or name) is required',
         path: ['name']
       });
     }
@@ -133,24 +134,53 @@ const createLabOrderSchema = z.object({
     doctorId: objectIdSchema.optional(),
     appointmentId: objectIdSchema.optional(),
     laboratoryId: objectIdSchema.optional(),
-    priority: z.enum(['routine', 'urgent']).optional(),
+    priority: z.enum(['routine', 'urgent', 'stat']).optional(),
     notes: optionalTrimmedString(2000),
     tests: z.array(labOrderTestSchema).min(1, 'At least one lab test is required'),
     clinicId: objectIdSchema.optional(),
     collectionMethod: z.enum(['AT_LAB', 'HOME_COLLECTION']).optional(),
+    collectionAddress: z
+      .object({
+        line1: z.string().optional(),
+        city: z.string().optional(),
+        state: z.string().optional(),
+        pincode: z.string().optional()
+      })
+      .optional(),
     price: z.number().optional(),
     patientType: z.enum(['REGISTERED', 'WALK_IN']).optional(),
     prescriptionId: objectIdSchema.optional(),
     source: z.enum(['DOCTOR_BOOKED', 'PATIENT_BOOKED', 'PRESCRIPTION', 'WALK_IN', 'LAB_CREATED', 'EXTERNAL_REFERRAL']).optional(),
-    documents: z.array(z.string()).optional(),
+    documents: z.array(z.any()).optional(),
     nonRegisteredPatientDetails: z.object({
       fullName: z.string(),
       phone: z.string(),
       email: z.string().optional(),
-      age: z.string().optional(),
+      age: z.union([z.string(), z.number()]).optional(),
       gender: z.string().optional(),
       address: z.string().optional()
     }).optional()
+  })
+});
+
+const lookupPrescriptionQuerySchema = z.object({
+  query: z.object({
+    phone: z.string().trim().optional(),
+    email: z.string().trim().optional(),
+    patientId: z.string().trim().optional(),
+    patientNumber: z.string().trim().optional(),
+    prescriptionNumber: z.string().trim().optional(),
+    consultationId: z.string().trim().optional(),
+    scanCode: z.string().trim().optional(),
+    clinicId: objectIdSchema.optional()
+  })
+});
+
+const smartPackagesQuerySchema = z.object({
+  query: z.object({
+    clinicId: objectIdSchema.optional(),
+    testIds: z.string().optional(),
+    prescriptionId: objectIdSchema.optional()
   })
 });
 
@@ -372,5 +402,7 @@ module.exports = {
   createLabConsumableSchema,
   updateLabConsumableSchema,
   addConsumableBatchSchema,
-  adjustConsumableStockSchema
+  adjustConsumableStockSchema,
+  lookupPrescriptionQuerySchema,
+  smartPackagesQuerySchema
 };

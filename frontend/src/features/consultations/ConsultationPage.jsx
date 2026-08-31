@@ -783,38 +783,44 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
   // ───────────────────────────────────────────────────────────────────────────
 
   const [globalLabTests, setGlobalLabTests] = useState([]);
+  const [attachedLaboratories, setAttachedLaboratories] = useState([]);
   const [isSearchingLabs, setIsSearchingLabs] = useState(false);
+  const [labsLoadedClinicId, setLabsLoadedClinicId] = useState(null);
 
+  const activeClinicId =
+    consultation?.clinicId?._id ||
+    consultation?.clinicId ||
+    appointment?.clinicId?._id ||
+    appointment?.clinicId ||
+    user?.clinicId ||
+    (typeof user?.activeClinic === 'string' ? user.activeClinic : user?.activeClinic?._id) ||
+    searchParams.get('clinicId');
+
+  // Load initial clinic-scoped merged laboratory catalog
   useEffect(() => {
-    const delayDebounce = setTimeout(async () => {
+    let isMounted = true;
+    const fetchTests = async () => {
+      if (!activeClinicId || labsLoadedClinicId === String(activeClinicId)) return;
       setIsSearchingLabs(true);
       try {
-        const res = await labApi.searchAllLabs({ search: labSearchQuery });
+        const res = await labApi.searchAllLabs({ clinicId: activeClinicId });
+        if (!isMounted) return;
         const results = res?.data?.results || res?.results || [];
+        const attached = res?.data?.attachedLaboratories || res?.attachedLaboratories || [];
         setGlobalLabTests(results);
+        setAttachedLaboratories(attached);
+        setLabsLoadedClinicId(String(activeClinicId));
       } catch (err) {
-        console.error('Failed to search lab tests:', err);
+        console.error('Failed to load initial lab tests for clinic:', err);
       } finally {
-        setIsSearchingLabs(false);
-      }
-    }, 300);
-
-    return () => clearTimeout(delayDebounce);
-  }, [labSearchQuery]);
-
-  // Load initial laboratory catalog
-  useEffect(() => {
-    const fetchTests = async () => {
-      try {
-        const res = await labApi.searchAllLabs({ search: '' });
-        const results = res?.data?.results || res?.results || [];
-        setGlobalLabTests(results);
-      } catch (err) {
-        console.error('Failed to load initial lab tests:', err);
+        if (isMounted) setIsSearchingLabs(false);
       }
     };
     fetchTests();
-  }, []);
+    return () => {
+      isMounted = false;
+    };
+  }, [activeClinicId, labsLoadedClinicId]);
 
   // Fetch initial consultation & patient details
   const applyConsultationToState = (responseData) => {
@@ -2279,6 +2285,10 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
         rec.start();
       } catch (e) {
         console.error('Failed to run Speech Recognition:', e);
+        setIsDictating(false);
+        setDictatingField(null);
+        dictationIsActiveRef.current = false;
+        toast.error('Failed to start Speech Recognition. If you are accessing via IP address, browsers block microphone usage on non-localhost HTTP connections. Please use http://localhost:5173 or HTTPS.');
       }
     };
 
@@ -2348,15 +2358,176 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
     return null;
   };
 
-  // Lab Category & search filters
-  const filteredLabTests = useMemo(() => {
-    return availableLabTests.filter(t => {
-      const matchQuery = !labSearchQuery || t.name?.toLowerCase().includes(labSearchQuery.toLowerCase());
-      const matchCategory = selectedLabCategory === 'All Categories' || t.category === selectedLabCategory;
-      const matchProvider = selectedLabProvider === 'All Providers' || t.provider === selectedLabProvider;
-      return matchQuery && matchCategory && matchProvider;
+  // Dynamic categories derived from merged laboratory investigations
+  const availableLabCategories = useMemo(() => {
+    const cats = new Set(['All Categories']);
+    globalLabTests.forEach((t) => {
+      if (t.category) cats.add(t.category);
     });
-  }, [availableLabTests, labSearchQuery, selectedLabCategory, selectedLabProvider]);
+    return Array.from(cats);
+  }, [globalLabTests]);
+
+  // Dynamic providers derived from attached laboratories of the current clinic
+  const availableLabProviders = useMemo(() => {
+    const provs = ['All Providers'];
+    attachedLaboratories.forEach((l) => {
+      if (l.name && !provs.includes(l.name)) provs.push(l.name);
+    });
+    return provs;
+  }, [attachedLaboratories]);
+
+  // Merged investigation filtering & provider availability resolution
+  const filteredLabTests = useMemo(() => {
+    let list = globalLabTests;
+
+    // 1. Provider filter
+    if (selectedLabProvider && selectedLabProvider !== 'All Providers') {
+      list = list.map((item) => {
+        const match = item.providers?.find(
+          (p) =>
+            p.providerName === selectedLabProvider ||
+            String(p.laboratoryId) === String(selectedLabProvider)
+        );
+        if (match && match.isAvailable) {
+          return {
+            ...item,
+            availability: 'AVAILABLE',
+            provider: match.providerName || selectedLabProvider,
+            price: match.price,
+            tat: match.reportingTime || item.tat,
+            reportingTime: match.reportingTime || item.reportingTime
+          };
+        }
+        return {
+          ...item,
+          availability: 'UNAVAILABLE',
+          provider: selectedLabProvider,
+          price: null
+        };
+      });
+    }
+
+    // 2. Category filter
+    if (selectedLabCategory && selectedLabCategory !== 'All Categories') {
+      list = list.filter((t) => t.category?.toLowerCase() === selectedLabCategory.toLowerCase());
+    }
+
+    // 3. Search query
+    if (labSearchQuery?.trim()) {
+      const q = labSearchQuery.trim().toLowerCase();
+      list = list.filter(
+        (t) =>
+          t.name?.toLowerCase().includes(q) ||
+          t.shortName?.toLowerCase().includes(q) ||
+          t.code?.toLowerCase().includes(q) ||
+          t.globalId?.toLowerCase().includes(q) ||
+          t.category?.toLowerCase().includes(q)
+      );
+    }
+
+    // 4. Sub-filter pills (Recommended, Frequently Ordered, Recent, Packages, Favorites)
+    if (labSubFilter === 'Packages') {
+      list = list.filter((t) => t.investigationType === 'PACKAGE' || t.investigationType === 'PROFILE');
+    }
+
+    return list;
+  }, [globalLabTests, selectedLabProvider, selectedLabCategory, labSearchQuery, labSubFilter]);
+
+  // Recommended for patient tests linked to actual merged availability
+  const recommendedForPatientTests = useMemo(() => {
+    const defaultList = [
+      { name: 'CBC', full: 'Complete Blood Count' },
+      { name: 'ESR', full: 'Erythrocyte Sedimentation Rate' },
+      { name: 'CRP', full: 'C-Reactive Protein' },
+      { name: 'LFT', full: 'Liver Function Test' },
+      { name: 'RFT', full: 'Renal Function Test' },
+      { name: 'Dengue NS1', full: 'Dengue Antigen Test' }
+    ];
+
+    return defaultList.map((item) => {
+      const matched = globalLabTests.find(
+        (t) =>
+          (t.shortName && t.shortName.toLowerCase() === item.name.toLowerCase()) ||
+          (t.code && t.code.toLowerCase() === item.name.toLowerCase()) ||
+          (t.name && t.name.toLowerCase().includes(item.full.toLowerCase())) ||
+          (t.name && t.name.toLowerCase().includes(item.name.toLowerCase()))
+      );
+
+      const isAvail = matched ? matched.availability === 'AVAILABLE' : false;
+      return {
+        name: item.name,
+        full: item.full,
+        matchedInvestigation: matched || null,
+        isAvailable: isAvail,
+        sampleType: matched?.sampleType || 'Blood',
+        price: matched?.price ?? null,
+        tat: matched?.reportingTime || matched?.tat || '24 Hours',
+        provider: matched?.provider || (isAvail ? 'Clinic Laboratory' : 'Global Catalogue')
+      };
+    });
+  }, [globalLabTests]);
+
+  // Add / Toggle Laboratory Test into Selected Tests
+  const handleAddLabTest = (test) => {
+    if (!test) return;
+    const testIdentifier = test.investigationId || test._id;
+    const testName = test.name || test.testName;
+    const testNameLower = testName.toLowerCase();
+
+    const isAdded = labs.some(
+      (l) =>
+        (l.investigationId && String(l.investigationId) === String(testIdentifier)) ||
+        l.testName?.toLowerCase() === testNameLower
+    );
+    if (isAdded) return;
+
+    const newLab = {
+      investigationId: testIdentifier,
+      globalInvestigationId: test.globalInvestigationId || null,
+      localInventoryId: test.localInventoryIds?.[0] || null,
+      laboratoryId: test.laboratoryIds?.[0] || null,
+      clinicId: activeClinicId || null,
+      testName: testName,
+      code: test.code || test.shortName || '',
+      category: test.category || 'General',
+      sampleRequired: test.sampleType || test.sampleRequired || 'Blood',
+      priority: (labPriority || 'routine').toLowerCase(),
+      reason: '',
+      price: typeof test.price === 'number' ? test.price : 0,
+      turnaroundTime: test.reportingTime || test.tat || '24 Hours',
+      provider: test.provider || (test.availabilitySource === 'GLOBAL' ? 'Global Catalogue' : 'Clinic Laboratory'),
+      availabilitySnapshot: test.availability || 'AVAILABLE'
+    };
+
+    setLabs((prev) => [...prev, newLab]);
+    setIsDirty(true);
+  };
+
+  const handleToggleLabTest = (test) => {
+    if (!test) return;
+    const testIdentifier = test.investigationId || test._id;
+    const testName = test.name || test.testName;
+    const testNameLower = testName.toLowerCase();
+
+    const isAdded = labs.some(
+      (l) =>
+        (l.investigationId && String(l.investigationId) === String(testIdentifier)) ||
+        l.testName?.toLowerCase() === testNameLower
+    );
+
+    if (isAdded) {
+      setLabs((prev) =>
+        prev.filter(
+          (l) =>
+            !(l.investigationId && String(l.investigationId) === String(testIdentifier)) &&
+            l.testName?.toLowerCase() !== testNameLower
+        )
+      );
+      setIsDirty(true);
+    } else {
+      handleAddLabTest(test);
+    }
+  };
 
   // Request Access handlers for premium AI modules
   const handleRequestAccess = (featureCode) => {
@@ -4513,23 +4684,18 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                     onChange={(e) => setSelectedLabCategory(e.target.value)}
                     className="px-3 py-2 text-xs border border-slate-200 rounded-xl bg-white focus:outline-none focus:border-indigo-400 text-slate-600 transition"
                   >
-                    <option>All Categories</option>
-                    <option>Hematology</option>
-                    <option>Biochemistry</option>
-                    <option>Microbiology</option>
-                    <option>Immunology</option>
-                    <option>Endocrinology</option>
-                    <option>Urine &amp; Stool</option>
-                    <option>Radiology</option>
+                    {availableLabCategories.map((cat) => (
+                      <option key={cat}>{cat}</option>
+                    ))}
                   </select>
                   <select
                     value={selectedLabProvider}
                     onChange={(e) => setSelectedLabProvider(e.target.value)}
                     className="px-3 py-2 text-xs border border-slate-200 rounded-xl bg-white focus:outline-none focus:border-indigo-400 text-slate-600 transition"
                   >
-                    <option>All Providers</option>
-                    <option>In-house Lab</option>
-                    <option>External Center</option>
+                    {availableLabProviders.map((prov) => (
+                      <option key={prov}>{prov}</option>
+                    ))}
                   </select>
                 </div>
 
@@ -4566,17 +4732,16 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                           {labRecommendationsFeature.enabled && (
                             <button
                               onClick={() => {
-                                const recoTests = [
-                                  { testName: 'CBC', sampleRequired: 'Blood' },
-                                  { testName: 'LFT', sampleRequired: 'Blood' },
-                                  { testName: 'CRP', sampleRequired: 'Blood' },
-                                ];
-                                const merged = [...labs];
-                                recoTests.forEach(r => {
-                                  if (!merged.some(l => l.testName === r.testName)) merged.push({ ...r, priority: 'routine', reason: '' });
+                                recommendedForPatientTests.forEach((r) => {
+                                  if (r.matchedInvestigation) {
+                                    handleAddLabTest(r.matchedInvestigation);
+                                  } else {
+                                    handleAddLabTest({
+                                      name: r.name,
+                                      sampleType: r.sampleType || 'Blood'
+                                    });
+                                  }
                                 });
-                                setLabs(merged);
-                                setIsDirty(true);
                               }}
                               className="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition"
                             >
@@ -4593,34 +4758,53 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                           />
                         ) : (
                           <div className="grid grid-cols-3 gap-2">
-                            {[
-                              { name: 'CBC', full: 'Complete Blood Count' },
-                              { name: 'ESR', full: 'Erythrocyte Sedimentation Rate' },
-                              { name: 'CRP', full: 'C-Reactive Protein' },
-                              { name: 'LFT', full: 'Liver Function Test' },
-                              { name: 'RFT', full: 'Renal Function Test' },
-                              { name: 'Dengue NS1', full: 'Dengue Antigen Test' },
-                            ].map((test) => {
-                              const isChecked = labs.some(l => l.testName === test.name);
+                            {recommendedForPatientTests.map((test) => {
+                              const isChecked = labs.some(
+                                (l) =>
+                                  (test.matchedInvestigation?.investigationId &&
+                                    String(l.investigationId) === String(test.matchedInvestigation.investigationId)) ||
+                                  l.testName?.toLowerCase() === test.name.toLowerCase() ||
+                                  l.testName?.toLowerCase() === test.full.toLowerCase()
+                              );
                               return (
-                                <label key={test.name} className={`flex items-start gap-2 p-3 border rounded-xl cursor-pointer transition ${isChecked ? 'bg-indigo-50 border-indigo-200' : 'bg-white border-slate-200 hover:bg-slate-50'
-                                  }`}>
+                                <label
+                                  key={test.name}
+                                  className={`flex items-start gap-2 p-3 border rounded-xl cursor-pointer transition ${isChecked
+                                      ? 'bg-indigo-50 border-indigo-200'
+                                      : 'bg-white border-slate-200 hover:bg-slate-50'
+                                    }`}
+                                >
                                   <input
                                     type="checkbox"
                                     checked={isChecked}
-                                    onChange={(e) => {
-                                      if (e.target.checked) {
-                                        setLabs([...labs, { testName: test.name, priority: 'routine', sampleRequired: 'Blood', reason: '' }]);
+                                    onChange={() => {
+                                      if (test.matchedInvestigation) {
+                                        handleToggleLabTest(test.matchedInvestigation);
                                       } else {
-                                        setLabs(labs.filter(l => l.testName !== test.name));
+                                        handleToggleLabTest({
+                                          name: test.name,
+                                          sampleType: test.sampleType || 'Blood'
+                                        });
                                       }
-                                      setIsDirty(true);
                                     }}
                                     className="mt-0.5 rounded border-slate-300 accent-indigo-600 shrink-0"
                                   />
-                                  <div className="text-[10px] leading-tight">
-                                    <strong className="text-slate-800 block text-xs">{test.name}</strong>
-                                    <span className="text-slate-400">{test.full}</span>
+                                  <div className="text-[10px] leading-tight flex-1">
+                                    <div className="flex items-center justify-between">
+                                      <strong className="text-slate-800 block text-xs">{test.name}</strong>
+                                      <span
+                                        className={`text-[8px] px-1 py-0.2 rounded font-bold uppercase ${test.isAvailable
+                                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                            : 'bg-rose-100 text-rose-800 border border-rose-200'
+                                          }`}
+                                      >
+                                        {test.isAvailable ? 'AVAILABLE' : 'UNAVAILABLE'}
+                                      </span>
+                                    </div>
+                                    <span className="text-slate-400 block mt-0.5">{test.full}</span>
+                                    {test.price !== null && (
+                                      <span className="text-[9px] font-bold text-slate-700 block mt-1">₹{test.price}</span>
+                                    )}
                                   </div>
                                 </label>
                               );
@@ -4645,7 +4829,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100 text-slate-700">
-                            {globalLabTests.length === 0 ? (
+                            {filteredLabTests.length === 0 ? (
                               <tr>
                                 <td colSpan={5} className="py-8 px-4 text-center">
                                   <p className="text-slate-500 font-medium mb-3 text-[11px]">No matching laboratory test found.</p>
@@ -4655,8 +4839,10 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                                         try {
                                           await labApi.createCustomRequest({ testName: labSearchQuery, isGlobalRequest: false });
                                           toast.success(`Custom test request for "${labSearchQuery}" submitted to Clinic Admin!`);
-                                          const res = await labApi.searchAllLabs({ search: labSearchQuery });
-                                          setGlobalLabTests(res?.data?.results || res?.results || []);
+                                          if (activeClinicId) {
+                                            const res = await labApi.searchAllLabs({ clinicId: activeClinicId });
+                                            setGlobalLabTests(res?.data?.results || res?.results || []);
+                                          }
                                         } catch (err) {
                                           toast.error('Failed to submit request');
                                         }
@@ -4670,8 +4856,10 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                                         try {
                                           await labApi.createCustomRequest({ testName: labSearchQuery, isGlobalRequest: true });
                                           toast.success(`Global catalogue request for "${labSearchQuery}" submitted to Super Admin!`);
-                                          const res = await labApi.searchAllLabs({ search: labSearchQuery });
-                                          setGlobalLabTests(res?.data?.results || res?.results || []);
+                                          if (activeClinicId) {
+                                            const res = await labApi.searchAllLabs({ clinicId: activeClinicId });
+                                            setGlobalLabTests(res?.data?.results || res?.results || []);
+                                          }
                                         } catch (err) {
                                           toast.error('Failed to submit request');
                                         }
@@ -4691,66 +4879,64 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                               </tr>
                             ) : (
                               (() => {
-                                const getProviderBadge = (provider) => {
-                                  const p = (provider || '').toLowerCase();
-                                  if (p.includes('clinic')) return 'bg-emerald-50 text-emerald-600 border border-emerald-200';
-                                  if (p.includes('thyrocare')) return 'bg-blue-50 text-blue-600 border border-blue-200';
-                                  if (p.includes('lal')) return 'bg-amber-50 text-amber-600 border border-amber-250';
-                                  if (p.includes('metropolis')) return 'bg-purple-50 text-purple-600 border border-purple-200';
-                                  if (p.includes('global') || p.includes('no laboratory')) return 'bg-slate-50 text-slate-500 border border-slate-200';
-                                  return 'bg-rose-50 text-rose-600 border border-rose-200';
+                                const getProviderBadge = (source, provider) => {
+                                  const s = (source || '').toUpperCase();
+                                  if (s === 'CLINIC LABORATORY' || s.includes('CLINIC')) {
+                                    return 'bg-emerald-50 text-emerald-700 border border-emerald-200';
+                                  }
+                                  if (s === 'LOCAL LABORATORY') {
+                                    return 'bg-teal-50 text-teal-700 border border-teal-200';
+                                  }
+                                  if (s === 'GLOBAL' || s.includes('GLOBAL')) {
+                                    return 'bg-slate-100 text-slate-600 border border-slate-200';
+                                  }
+                                  return 'bg-indigo-50 text-indigo-700 border border-indigo-200';
                                 };
 
                                 const getAvailabilityBadge = (avail) => {
-                                  const a = (avail || '').toLowerCase();
-                                  if (a.includes('available') && !a.includes('limited') && !a.includes('un')) {
-                                    return 'bg-emerald-100 text-emerald-800';
+                                  const a = (avail || '').toUpperCase();
+                                  if (a === 'AVAILABLE' || (a.includes('AVAILABLE') && !a.includes('UN'))) {
+                                    return 'bg-emerald-100 text-emerald-800 border border-emerald-200';
                                   }
-                                  if (a.includes('limited')) {
-                                    return 'bg-amber-100 text-amber-800';
-                                  }
-                                  if (a.includes('global')) {
-                                    return 'bg-slate-150 text-slate-700';
-                                  }
-                                  return 'bg-red-100 text-red-800';
+                                  return 'bg-rose-100 text-rose-800 border border-rose-200';
                                 };
 
-                                const displayTests = showMoreTests ? globalLabTests : globalLabTests.slice(0, 6);
+                                const displayTests = showMoreTests ? filteredLabTests : filteredLabTests.slice(0, 8);
                                 return displayTests.map((test) => {
-                                  const isAdded = labs.some(l => l.testName === test.name);
+                                  const testIdentifier = test.investigationId || test._id;
+                                  const testNameLower = (test.name || '').toLowerCase();
+                                  const isAdded = labs.some(
+                                    (l) =>
+                                      (l.investigationId && String(l.investigationId) === String(testIdentifier)) ||
+                                      l.testName?.toLowerCase() === testNameLower
+                                  );
+
+                                  const sourceLabel =
+                                    test.availabilitySource ||
+                                    (test.isLocal ? 'CLINIC LABORATORY' : 'GLOBAL');
+                                  const availLabel = test.availability || 'UNAVAILABLE';
+
                                   return (
-                                    <tr key={test._id} className="hover:bg-slate-50/50 transition">
+                                    <tr key={test.investigationId || test._id} className="hover:bg-slate-50/50 transition">
                                       <td className="py-2.5 px-4">
                                         <div className="flex items-start gap-2">
                                           <input
                                             type="checkbox"
                                             checked={isAdded}
-                                            onChange={(e) => {
-                                              const isGlobalWithoutLab = test.source === 'Global Diagnostic Master' || test.provider === 'No Laboratory Assigned';
-                                              if (isGlobalWithoutLab && e.target.checked) {
-                                                setPromptGlobalTest(test);
-                                                return;
-                                              }
-                                              if (e.target.checked) {
-                                                setLabs([...labs, { testName: test.name, priority: 'routine', sampleRequired: test.sampleType, reason: '', provider: test.provider }]);
-                                              } else {
-                                                setLabs(labs.filter(l => l.testName !== test.name));
-                                              }
-                                              setIsDirty(true);
-                                            }}
-                                            className="mt-1 rounded border-slate-350 accent-indigo-600 shrink-0"
+                                            onChange={() => handleToggleLabTest(test)}
+                                            className="mt-1 rounded border-slate-350 accent-indigo-600 shrink-0 cursor-pointer"
                                           />
                                           <div className="min-w-0">
                                             <span className="font-semibold text-slate-800 text-[11px] block">{test.name}</span>
                                             <span className="text-[9px] text-slate-400 block mt-0.5">
-                                              Category: {test.category} | Prep: {test.preparation || 'No Fasting'}
+                                              Category: {test.category || 'General'} | Prep: {test.patientPreparation || test.preparation || 'No Fasting'}
                                             </span>
                                             <div className="flex gap-1.5 mt-1">
-                                              <span className={`text-[8px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ${getProviderBadge(test.provider)}`}>
-                                                {test.provider}
+                                              <span className={`text-[8px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ${getProviderBadge(test.availabilitySource, test.provider)}`}>
+                                                {sourceLabel}
                                               </span>
                                               <span className={`text-[8px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ${getAvailabilityBadge(test.availability)}`}>
-                                                {test.availability}
+                                                {availLabel}
                                               </span>
                                             </div>
                                           </div>
@@ -4758,26 +4944,16 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                                       </td>
                                       <td className="py-2.5 px-4">
                                         <span className="inline-flex items-center gap-1 text-[10px] text-slate-500">
-                                          <span className="text-red-500">🩸</span> {test.sampleType}
+                                          <span className="text-red-500">🩸</span> {test.sampleType || 'Blood'}
                                         </span>
                                       </td>
-                                      <td className="py-2.5 px-4 text-[10px] text-slate-500">{test.tat}</td>
-                                      <td className="py-2.5 px-4 text-[11px] font-bold text-slate-800">{test.price ? `₹${test.price}` : '—'}</td>
+                                      <td className="py-2.5 px-4 text-[10px] text-slate-500">{test.reportingTime || test.tat || '24 Hours'}</td>
+                                      <td className="py-2.5 px-4 text-[11px] font-bold text-slate-800">
+                                        {typeof test.price === 'number' ? `₹${test.price}` : '—'}
+                                      </td>
                                       <td className="py-2.5 px-4 text-center">
                                         <button
-                                          onClick={() => {
-                                            const isGlobalWithoutLab = test.source === 'Global Diagnostic Master' || test.provider === 'No Laboratory Assigned';
-                                            if (isGlobalWithoutLab && !isAdded) {
-                                              setPromptGlobalTest(test);
-                                              return;
-                                            }
-                                            if (!isAdded) {
-                                              setLabs([...labs, { testName: test.name, priority: 'routine', sampleRequired: test.sampleType, reason: '', provider: test.provider }]);
-                                            } else {
-                                              setLabs(labs.filter(l => l.testName !== test.name));
-                                            }
-                                            setIsDirty(true);
-                                          }}
+                                          onClick={() => handleToggleLabTest(test)}
                                           className={`px-3.5 py-1.5 rounded-lg text-[10px] font-bold transition ${isAdded
                                               ? 'bg-teal-50 text-teal-700 border border-teal-200'
                                               : 'bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 text-slate-600 border border-slate-200'
@@ -4897,7 +5073,15 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                         <button
                           onClick={() => {
                             const testName = prompt('Enter manual test name:');
-                            if (testName) { setLabs([...labs, { testName, priority: 'routine', sampleRequired: 'Blood', reason: '' }]); setIsDirty(true); }
+                            if (testName && testName.trim()) {
+                              handleAddLabTest({
+                                name: testName.trim(),
+                                sampleType: 'Blood',
+                                provider: 'Clinic Laboratory',
+                                availability: 'AVAILABLE',
+                                availabilitySource: 'LOCAL LABORATORY'
+                              });
+                            }
                           }}
                           className="w-full py-2 border border-dashed border-slate-300 hover:border-indigo-400 hover:bg-indigo-50/30 text-slate-500 hover:text-indigo-600 text-[10px] font-bold rounded-xl transition flex items-center justify-center gap-1"
                         >
@@ -5009,9 +5193,22 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                                 <button
                                   key={t}
                                   onClick={() => {
-                                    if (!labs.some(l => l.testName === t)) {
-                                      setLabs([...labs, { testName: t, priority: 'routine', sampleRequired: 'Blood', reason: '' }]);
-                                      setIsDirty(true);
+                                    const matched = globalLabTests.find(
+                                      (gt) =>
+                                        (gt.shortName && gt.shortName.toLowerCase() === t.toLowerCase()) ||
+                                        (gt.code && gt.code.toLowerCase() === t.toLowerCase()) ||
+                                        (gt.name && gt.name.toLowerCase().includes(t.toLowerCase()))
+                                    );
+                                    if (matched) {
+                                      handleAddLabTest(matched);
+                                    } else {
+                                      handleAddLabTest({
+                                        name: t,
+                                        sampleType: 'Blood',
+                                        provider: 'Clinic Laboratory',
+                                        availability: 'AVAILABLE',
+                                        availabilitySource: 'LOCAL LABORATORY'
+                                      });
                                     }
                                   }}
                                   className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 text-indigo-600 rounded-lg text-[10px] font-bold transition"
@@ -5023,12 +5220,25 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                           </div>
                           <button
                             onClick={() => {
-                              ['ESR', 'LFT', 'RFT', 'D-Dimer'].forEach(t => {
-                                if (!labs.some(l => l.testName === t)) {
-                                  setLabs(prev => [...prev, { testName: t, priority: 'routine', sampleRequired: 'Blood', reason: '' }]);
+                              ['ESR', 'LFT', 'RFT', 'D-Dimer'].forEach((t) => {
+                                const matched = globalLabTests.find(
+                                  (gt) =>
+                                    (gt.shortName && gt.shortName.toLowerCase() === t.toLowerCase()) ||
+                                    (gt.code && gt.code.toLowerCase() === t.toLowerCase()) ||
+                                    (gt.name && gt.name.toLowerCase().includes(t.toLowerCase()))
+                                );
+                                if (matched) {
+                                  handleAddLabTest(matched);
+                                } else {
+                                  handleAddLabTest({
+                                    name: t,
+                                    sampleType: 'Blood',
+                                    provider: 'Clinic Laboratory',
+                                    availability: 'AVAILABLE',
+                                    availabilitySource: 'LOCAL LABORATORY'
+                                  });
                                 }
                               });
-                              setIsDirty(true);
                               toast.success('Recommended tests added!');
                             }}
                             className="w-full py-2 bg-slate-50 hover:bg-indigo-50 border border-slate-200 text-slate-605 hover:text-indigo-600 font-bold rounded-xl transition text-center text-[10px] uppercase"
@@ -6754,10 +6964,9 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
               </button>
               <button
                 onClick={() => {
-                  setLabs([...labs, { testName: promptGlobalTest.name, priority: 'routine', sampleRequired: promptGlobalTest.sampleType || 'Blood', reason: '', provider: 'External Laboratory' }]);
+                  handleAddLabTest(promptGlobalTest);
                   setPromptGlobalTest(null);
-                  setIsDirty(true);
-                  toast.success('Added global test (External Laboratory)');
+                  toast.success('Added global investigation');
                 }}
                 className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl text-xs transition"
               >

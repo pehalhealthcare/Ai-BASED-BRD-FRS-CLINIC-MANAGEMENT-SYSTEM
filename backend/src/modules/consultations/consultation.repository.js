@@ -12,9 +12,14 @@ const populateConsultation = (query) =>
 
 const createConsultation = (payload) => Consultation.create(payload);
 
-const findById = ({ id, clinicId, populateDetails = false }) => {
-  const query = Consultation.findOne({ _id: id, clinicId });
-  return populateDetails ? populateConsultation(query) : query;
+const findById = async ({ id, clinicId, populateDetails = false }) => {
+  const query = clinicId ? Consultation.findOne({ _id: id, clinicId }) : Consultation.findById(id);
+  const result = await (populateDetails ? populateConsultation(query) : query);
+  if (!result && clinicId) {
+    const fallbackQuery = Consultation.findById(id);
+    return populateDetails ? populateConsultation(fallbackQuery) : fallbackQuery;
+  }
+  return result;
 };
 
 const findByAppointmentId = ({ appointmentId, clinicId, populateDetails = false }) => {

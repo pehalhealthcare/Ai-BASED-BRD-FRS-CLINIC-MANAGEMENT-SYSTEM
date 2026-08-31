@@ -1,544 +1,991 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import {
   FlaskConical, Search, Clock, Droplet, ClipboardList, CheckCircle,
   AlertCircle, Calendar, X, ChevronRight, Activity, Bell, FileText,
-  Filter, ArrowRight, ShieldAlert, BadgeInfo
+  Filter, ArrowRight, ShieldAlert, BadgeInfo, Sparkles, Building2,
+  Home, Check, HelpCircle, RefreshCw, ShoppingCart, Tag
 } from 'lucide-react';
-import { labApi, patientApi } from '../../lib/api';
+import { labApi, patientApi, prescriptionApi, clinicApi } from '../../lib/api';
 import useAuth from '../../hooks/useAuth';
 import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
 import { FullPageSpinner } from '../../components/ui/Spinner';
+import toast from 'react-hot-toast';
 
 export default function LabTestsPage() {
   const { user } = useAuth();
-  const [labTests, setLabTests] = useState([]);
-  const [orders, setOrders] = useState([]);
-  const [patient, setPatient] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  
+  // Navigation Modes: 'prescription' | 'catalog' | 'history'
+  const [activeMode, setActiveMode] = useState('prescription');
+  
+  // Clinic & Lab context
+  const [clinics, setClinics] = useState([]);
+  const [selectedClinicId, setSelectedClinicId] = useState('');
+  const [attachedLaboratories, setAttachedLaboratories] = useState([]);
+  const [selectedLaboratoryId, setSelectedLaboratoryId] = useState('');
+  
+  // Data
+  const [patient, setPatient] = useState(null);
+  const [prescriptions, setPrescriptions] = useState([]);
+  const [selectedPrescription, setSelectedPrescription] = useState(null);
+  const [catalogTests, setCatalogTests] = useState([]);
+  const [myOrders, setMyOrders] = useState([]);
+  
+  // Selection state
+  const [selectedTests, setSelectedTests] = useState([]);
+  const [collectionMethod, setCollectionMethod] = useState('AT_LAB');
+  const [collectionAddress, setCollectionAddress] = useState({
+    line1: '',
+    city: '',
+    state: '',
+    pincode: ''
+  });
+  const [priority, setPriority] = useState('routine');
+  const [orderNotes, setOrderNotes] = useState('');
+  
+  // Search & Filter for catalog
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const [activeSubTab, setActiveSubTab] = useState('available'); // 'available' or 'packages'
-  const [sidebarTab, setSidebarTab] = useState('upcoming'); // 'upcoming' or 'completed'
+  
+  // Smart Package Suggestions
+  const [smartPackages, setSmartPackages] = useState([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [appliedPackage, setAppliedPackage] = useState(null);
+  
+  // Booking modal / Confirmation modal
+  const [isBooking, setIsBooking] = useState(false);
+  const [bookingSuccessModal, setBookingSuccessModal] = useState(null);
+  const [priceGuardWarning, setPriceGuardWarning] = useState(null);
 
-  // Booking modal state
-  const [bookingModalOpen, setBookingModalOpen] = useState(false);
-  const [selectedTest, setSelectedTest] = useState(null);
-  const [bookingDate, setBookingDate] = useState(() => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    return tomorrow.toISOString().split('T')[0];
-  });
-  const [bookingTime, setBookingTime] = useState('09:00');
-  const [bookingNotes, setBookingNotes] = useState('');
-  const [bookingStatus, setBookingStatus] = useState('');
-  const [bookingSuccess, setBookingSuccess] = useState(false);
-
+  // 1. Initial Load: Patient profile, clinics, orders
   useEffect(() => {
-    const fetchLabData = async () => {
+    let isMounted = true;
+    const initData = async () => {
       try {
         setLoading(true);
-        // 1. Fetch available tests catalog
-        const testsRes = await labApi.listTests({ limit: 50, isActive: true });
-        setLabTests(testsRes.data?.labTests || testsRes.labTests || []);
-
-        // 2. Fetch patient details & patient booked orders
         const meRes = await patientApi.me().catch(() => null);
         const pt = meRes?.data?.patient || meRes?.patient;
+        if (!isMounted) return;
+        
         if (pt) {
           setPatient(pt);
+          if (pt.address) {
+            setCollectionAddress({
+              line1: pt.address.line1 || pt.address || '',
+              city: pt.address.city || '',
+              state: pt.address.state || '',
+              pincode: pt.address.pincode || ''
+            });
+          }
+          
+          // Fetch prescriptions for this patient
+          const rxRes = await prescriptionApi.getPatientPrescriptions(pt._id).catch(() => ({ data: { prescriptions: [] } }));
+          const rxList = rxRes?.data?.prescriptions || rxRes?.prescriptions || [];
+          const rxWithLabs = rxList.filter(p => p.labs && p.labs.length > 0);
+          setPrescriptions(rxWithLabs);
+          
+          if (rxWithLabs.length > 0) {
+            setSelectedPrescription(rxWithLabs[0]);
+            // Auto-select tests from the latest prescription
+            const autoSelected = rxWithLabs[0].labs.map(l => ({
+              id: l._id || l.investigationId,
+              name: l.testName,
+              code: l.code || 'TEST',
+              category: l.category || 'General',
+              specimenType: l.sampleRequired || 'Blood',
+              price: l.priceSnapshot || l.price || 350,
+              turnaroundTime: l.tatSnapshot || l.turnaroundTime || '24 Hours',
+              patientPreparation: l.instructions || 'No Fasting Required',
+              globalLabTestId: l.globalLabTestId || null,
+              labTestId: l.localInventoryId || null,
+              isFromPrescription: true,
+              isBooked: l.isBooked
+            }));
+            setSelectedTests(autoSelected);
+            if (rxWithLabs[0].clinicId?._id || rxWithLabs[0].clinicId) {
+              setSelectedClinicId(String(rxWithLabs[0].clinicId?._id || rxWithLabs[0].clinicId));
+            }
+          } else {
+            setActiveMode('catalog');
+          }
+
+          // Fetch orders
           const ordersRes = await patientApi.labs(pt._id).catch(() => ({ data: { labOrders: [] } }));
-          const fetchedOrders = ordersRes.data?.labOrders || ordersRes.labOrders || ordersRes.data?.orders || ordersRes.orders || [];
-          setOrders(fetchedOrders);
+          setMyOrders(ordersRes?.data?.labOrders || ordersRes?.labOrders || []);
+        }
+
+        // Fetch Clinics
+        const clinicRes = await clinicApi.list().catch(() => ({ data: { clinics: [] } }));
+        const clinicList = clinicRes?.data?.clinics || clinicRes?.clinics || [];
+        setClinics(clinicList);
+        if (clinicList.length > 0 && !selectedClinicId) {
+          setSelectedClinicId(String(clinicList[0]._id));
         }
       } catch (err) {
-        setError(err.response?.data?.message || 'Failed to fetch lab test catalog.');
+        console.error('Error loading patient lab data:', err);
+        setError('Failed to load laboratory catalog and prescription records.');
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
-    fetchLabData();
+    initData();
+    return () => { isMounted = false; };
   }, []);
 
-  const handleBookTest = async (e) => {
-    e.preventDefault();
-    if (!selectedTest) return;
+  // 2. Load merged lab catalog and attached laboratories whenever clinic changes
+  useEffect(() => {
+    let isMounted = true;
+    const fetchClinicLabs = async () => {
+      if (!selectedClinicId) return;
+      try {
+        const res = await labApi.searchAllLabs({ clinicId: selectedClinicId });
+        if (!isMounted) return;
+        const results = res?.data?.results || res?.results || [];
+        const attached = res?.data?.attachedLaboratories || res?.attachedLaboratories || [];
+        setCatalogTests(results);
+        setAttachedLaboratories(attached);
+        if (attached.length > 0 && !selectedLaboratoryId) {
+          setSelectedLaboratoryId(String(attached[0]._id));
+        }
+      } catch (err) {
+        console.error('Failed to load clinic labs:', err);
+      }
+    };
+    fetchClinicLabs();
+    return () => { isMounted = false; };
+  }, [selectedClinicId]);
+
+  // 3. Load Smart Package Suggestions whenever selected tests change
+  useEffect(() => {
+    let isMounted = true;
+    const fetchSmartSuggestions = async () => {
+      if (selectedTests.length === 0 || !selectedClinicId) {
+        setSmartPackages([]);
+        return;
+      }
+      try {
+        setLoadingSuggestions(true);
+        const testIds = selectedTests.map(t => t.globalLabTestId || t.code || t.name).join(',');
+        const res = await labApi.getSmartPackages({
+          clinicId: selectedClinicId,
+          testIds,
+          ...(selectedPrescription?._id ? { prescriptionId: selectedPrescription._id } : {})
+        });
+        if (!isMounted) return;
+        const suggestions = res?.data?.suggestions || res?.suggestions || [];
+        setSmartPackages(suggestions);
+      } catch (err) {
+        console.error('Smart suggestion error:', err);
+      } finally {
+        if (isMounted) setLoadingSuggestions(false);
+      }
+    };
+    fetchSmartSuggestions();
+    return () => { isMounted = false; };
+  }, [selectedTests, selectedClinicId, selectedPrescription]);
+
+  // Calculate pricing & totals
+  const subtotalPrice = useMemo(() => {
+    if (appliedPackage) {
+      return appliedPackage.packagePrice;
+    }
+    return selectedTests.reduce((sum, t) => sum + (Number(t.price) || 0), 0);
+  }, [selectedTests, appliedPackage]);
+
+  const homeCollectionFee = collectionMethod === 'HOME_COLLECTION' ? 150 : 0;
+  const grandTotal = subtotalPrice + homeCollectionFee;
+
+  // Toggle individual test in prescription or catalog
+  const handleToggleTest = (test) => {
+    setAppliedPackage(null); // Reset custom package override
+    setSelectedTests(prev => {
+      const exists = prev.some(t => t.name.toLowerCase() === test.name.toLowerCase());
+      if (exists) {
+        return prev.filter(t => t.name.toLowerCase() !== test.name.toLowerCase());
+      } else {
+        const itemPrice = typeof test.price === 'number' ? test.price : 350;
+        return [
+          ...prev,
+          {
+            id: test.investigationId || test._id,
+            name: test.name,
+            code: test.code || 'TEST',
+            category: test.category || 'General',
+            specimenType: test.sampleType || test.specimenType || 'Blood',
+            price: itemPrice,
+            turnaroundTime: test.reportingTime || test.tat || '24 Hours',
+            patientPreparation: test.patientPreparation || 'No Fasting Required',
+            globalLabTestId: test.globalInvestigationId || test.globalLabTestId || null,
+            labTestId: test.localInventoryIds?.[0] || test._id || null,
+            isFromPrescription: false
+          }
+        ];
+      }
+    });
+  };
+
+  // Switch to Smart Package
+  const handleApplySmartPackage = (pkg) => {
+    setAppliedPackage(pkg);
+    toast.success(`Switched to ${pkg.packageName}! You save ₹${pkg.savings}.`);
+  };
+
+  // Select prescription
+  const handleSelectPrescription = (rx) => {
+    setSelectedPrescription(rx);
+    setAppliedPackage(null);
+    if (rx.clinicId?._id || rx.clinicId) {
+      setSelectedClinicId(String(rx.clinicId?._id || rx.clinicId));
+    }
+    const rxTests = rx.labs.map(l => ({
+      id: l._id || l.investigationId,
+      name: l.testName,
+      code: l.code || 'TEST',
+      category: l.category || 'General',
+      specimenType: l.sampleRequired || 'Blood',
+      price: l.priceSnapshot || l.price || 350,
+      turnaroundTime: l.tatSnapshot || l.turnaroundTime || '24 Hours',
+      patientPreparation: l.instructions || 'No Fasting Required',
+      globalLabTestId: l.globalLabTestId || null,
+      labTestId: l.localInventoryId || null,
+      isFromPrescription: true,
+      isBooked: l.isBooked
+    }));
+    setSelectedTests(rxTests);
+  };
+
+  // Book Order Handler
+  const handleConfirmOrder = async () => {
+    if (selectedTests.length === 0) {
+      toast.error('Please select at least one laboratory test.');
+      return;
+    }
+
+    if (collectionMethod === 'HOME_COLLECTION' && !collectionAddress.line1) {
+      toast.error('Please provide your home collection address.');
+      return;
+    }
 
     try {
-      setBookingStatus('booking');
-      
+      setIsBooking(true);
       const payload = {
+        clinicId: selectedClinicId,
         patientId: patient?._id,
-        tests: [{ labTestId: selectedTest._id }],
-        notes: bookingNotes,
-        priority: 'routine',
-        clinicId: selectedTest.clinicId
+        prescriptionId: activeMode === 'prescription' && selectedPrescription ? selectedPrescription._id : null,
+        laboratoryId: selectedLaboratoryId || null,
+        collectionMethod,
+        collectionAddress: collectionMethod === 'HOME_COLLECTION' ? collectionAddress : undefined,
+        priority,
+        price: grandTotal,
+        source: 'PATIENT_BOOKED',
+        notes: orderNotes,
+        tests: selectedTests.map(t => ({
+          name: t.name,
+          code: t.code,
+          category: t.category,
+          specimenType: t.specimenType,
+          price: t.price,
+          turnaroundTime: t.turnaroundTime,
+          patientPreparation: t.patientPreparation,
+          globalLabTestId: t.globalLabTestId,
+          labTestId: t.labTestId
+        }))
       };
-      
-      await labApi.createOrder(payload);
-      
-      setBookingStatus('success');
-      setBookingSuccess(true);
-      
-      // Reload orders after successful creation
+
+      const res = await labApi.createOrder(payload);
+      const order = res?.data?.labOrder || res?.labOrder || res?.data;
+
+      setBookingSuccessModal(order);
+      toast.success(`Lab Order #${order.orderNumber || 'CONFIRMED'} placed successfully!`);
+
+      // Refresh orders
       if (patient?._id) {
         const ordersRes = await patientApi.labs(patient._id).catch(() => ({ data: { labOrders: [] } }));
-        const fetchedOrders = ordersRes.data?.labOrders || ordersRes.labOrders || ordersRes.data?.orders || ordersRes.orders || [];
-        setOrders(fetchedOrders);
+        setMyOrders(ordersRes?.data?.labOrders || ordersRes?.labOrders || []);
       }
-
-      setTimeout(() => {
-        setBookingSuccess(false);
-        setBookingModalOpen(false);
-        setSelectedTest(null);
-        setBookingNotes('');
-        setBookingStatus('');
-      }, 2500);
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to confirm booking. Please try again.');
-      setBookingStatus('');
+      console.error('Order creation error:', err);
+      const errorMsg = err?.response?.data?.message || err?.message || 'Failed to place laboratory order.';
+      if (err?.response?.status === 409) {
+        setPriceGuardWarning(errorMsg);
+      } else {
+        toast.error(errorMsg);
+      }
+    } finally {
+      setIsBooking(false);
     }
   };
 
-  const categories = ['All', ...new Set(labTests.map(t => t.category).filter(Boolean))];
+  // Filtered catalog tests
+  const filteredCatalog = useMemo(() => {
+    return catalogTests.filter(t => {
+      const matchQuery = !searchQuery ||
+        t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (t.code && t.code.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (t.category && t.category.toLowerCase().includes(searchQuery.toLowerCase()));
+      const matchCat = selectedCategory === 'All' || t.category === selectedCategory;
+      return matchQuery && matchCat;
+    });
+  }, [catalogTests, searchQuery, selectedCategory]);
 
-  const filteredTests = labTests.filter(test => {
-    const matchesSearch = test.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          test.code.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'All' || test.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
+  const categories = useMemo(() => {
+    return ['All', ...new Set(catalogTests.map(t => t.category).filter(Boolean))];
+  }, [catalogTests]);
 
-  // Split orders into upcoming vs completed
-  const upcomingOrders = orders.filter(o => o.status?.toLowerCase() !== 'completed' && o.status?.toLowerCase() !== 'cancelled');
-  const completedOrders = orders.filter(o => o.status?.toLowerCase() === 'completed');
-
-  if (loading) return <FullPageSpinner message="Retrieving the Lab Diagnostics catalog..." />;
+  if (loading) return <FullPageSpinner message="Loading Laboratory Ordering Portal..." />;
 
   return (
-    <div className="w-full space-y-6 p-4 md:p-6 animate-fade-in">
+    <div className="w-full space-y-6 p-4 md:p-8 animate-fade-in text-slate-800 dark:text-slate-100 max-w-7xl mx-auto">
       
-      {/* ERROR DISPLAY */}
-      {error && (
-        <div className="flex items-center gap-3 p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm">
-          <AlertCircle size={18} />
-          {error}
+      {/* HEADER HERO */}
+      <div className="relative overflow-hidden rounded-3xl p-6 md:p-8 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-slate-800 shadow-2xl text-white">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0 shadow-inner">
+              <FlaskConical size={32} className="animate-pulse" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  Patient Laboratory Portal
+                </span>
+                <span className="text-xs text-slate-400">• High Precision Diagnostics</span>
+              </div>
+              <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight mt-1 text-white">
+                Book Diagnostic Laboratory Tests
+              </h1>
+              <p className="text-xs md:text-sm text-slate-400 mt-1 max-w-xl">
+                Order tests directly from your doctor's prescription, browse individual tests, or select money-saving smart packages.
+              </p>
+            </div>
+          </div>
+
+          {/* Clinic Selector */}
+          <div className="bg-white/5 backdrop-blur-md p-3.5 rounded-2xl border border-white/10 flex flex-col gap-1 min-w-[240px]">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+              <Building2 size={12} className="text-emerald-400" /> Selected Clinic Context
+            </span>
+            <select
+              value={selectedClinicId}
+              onChange={(e) => setSelectedClinicId(e.target.value)}
+              className="w-full bg-slate-900/90 text-xs font-semibold text-white px-3 py-2 rounded-xl border border-white/10 focus:outline-none focus:border-emerald-500"
+            >
+              {clinics.map(c => (
+                <option key={c._id} value={c._id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
         </div>
-      )}
+      </div>
 
-      {/* TWO COLUMN PORTAL LAYOUT */}
-      <div className="flex flex-col lg:flex-row gap-6 w-full items-start">
+      {/* 3-WAY TOP NAVIGATION */}
+      <div className="flex flex-wrap items-center gap-3 bg-white dark:bg-slate-900 p-2 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+        <button
+          onClick={() => setActiveMode('prescription')}
+          className={`flex items-center gap-2 px-5 py-3 rounded-xl text-xs font-bold transition-all ${
+            activeMode === 'prescription'
+              ? 'bg-emerald-600 text-white shadow-md'
+              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+          }`}
+        >
+          <ClipboardList size={16} />
+          Option 1: Use Prescription ({prescriptions.length})
+        </button>
+
+        <button
+          onClick={() => setActiveMode('catalog')}
+          className={`flex items-center gap-2 px-5 py-3 rounded-xl text-xs font-bold transition-all ${
+            activeMode === 'catalog'
+              ? 'bg-emerald-600 text-white shadow-md'
+              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+          }`}
+        >
+          <Search size={16} />
+          Option 2: Browse Individual Tests
+        </button>
+
+        <button
+          onClick={() => setActiveMode('history')}
+          className={`flex items-center gap-2 px-5 py-3 rounded-xl text-xs font-bold transition-all ${
+            activeMode === 'history'
+              ? 'bg-emerald-600 text-white shadow-md'
+              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+          }`}
+        >
+          <Clock size={16} />
+          Option 3: My Orders &amp; History ({myOrders.length})
+        </button>
+      </div>
+
+      {/* MAIN TWO-COLUMN WORKSPACE */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         
-        {/* LEFT COLUMN: Main Catalog Search & Book (2/3 width) */}
-        <div className="flex-1 min-w-0 space-y-6 w-full lg:w-2/3">
-          
-          {/* Header Panel */}
-          <div className="relative overflow-hidden rounded-2xl p-6 bg-[#060d18] dark:bg-navy-900 border border-white/[0.06] flex flex-col md:flex-row md:items-center justify-between gap-6">
-            {/* Background glow */}
-            <div className="absolute inset-0 pointer-events-none overflow-hidden">
-              <div className="absolute -top-20 -right-20 w-72 h-72 rounded-full bg-aura-500/10 blur-3xl" />
-              <div className="absolute -bottom-16 -left-10 w-64 h-64 rounded-full bg-indigo-600/10 blur-3xl" />
-            </div>
+        {/* LEFT COLUMN: Test Selection & Discovery (2 Cols) */}
+        <div className="lg:col-span-2 space-y-6">
 
-            <div className="relative flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center shrink-0">
-                <FlaskConical size={26} className="text-indigo-400 animate-pulse" />
+          {/* SMART PACKAGE SUGGESTION BANNER */}
+          {smartPackages.length > 0 && activeMode !== 'history' && (
+            <div className="relative overflow-hidden rounded-3xl p-5 bg-gradient-to-r from-indigo-900/40 via-purple-900/30 to-slate-900 border border-indigo-500/30 shadow-lg backdrop-blur-md">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px] font-black uppercase tracking-wider flex items-center gap-1">
+                      <Sparkles size={11} /> Suggested Option
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-black uppercase">
+                      You Save ₹{smartPackages[0].savings}
+                    </span>
+                  </div>
+                  <h3 className="text-base font-extrabold text-white">
+                    {smartPackages[0].packageName}
+                  </h3>
+                  <p className="text-xs text-slate-300">
+                    Individual Tests: <span className="line-through text-slate-400">₹{smartPackages[0].individualTotal}</span> vs. Package Price: <strong className="text-emerald-400 text-sm">₹{smartPackages[0].packagePrice}</strong>
+                  </p>
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {smartPackages[0].coveredTests.map(ct => (
+                      <span key={ct} className="text-[10px] px-2 py-0.5 rounded-md bg-white/10 text-white">
+                        ✓ {ct}
+                      </span>
+                    ))}
+                    {smartPackages[0].extraInvestigations.map(ex => (
+                      <span key={ex} className="text-[10px] px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold">
+                        + EXTRA: {ex}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => handleApplySmartPackage(smartPackages[0])}
+                  className={`px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition shrink-0 flex items-center gap-1.5 shadow-md ${
+                    appliedPackage?.packageId === smartPackages[0].packageId
+                      ? 'bg-emerald-500 text-white'
+                      : 'bg-indigo-500 hover:bg-indigo-600 text-white'
+                  }`}
+                >
+                  {appliedPackage?.packageId === smartPackages[0].packageId ? (
+                    <>
+                      <Check size={14} /> Package Applied
+                    </>
+                  ) : (
+                    <>
+                      Switch to Package &amp; Save
+                    </>
+                  )}
+                </button>
               </div>
-              <div>
-                <h1 className="text-xl md:text-2xl font-extrabold text-white">Book a Lab Test</h1>
-                <p className="text-xs text-slate-400 mt-1 max-w-md">
-                  Choose from a wide range of lab tests and packages. Fast reports, accurate results.
-                </p>
-              </div>
             </div>
-          </div>
+          )}
 
-          {/* Sub-tab Navigation */}
-          <div className="flex border-b border-slate-200 dark:border-white/[0.06] gap-4">
-            <button
-              onClick={() => setActiveSubTab('available')}
-              className={`pb-3 text-sm font-bold border-b-2 transition-all duration-150 ${
-                activeSubTab === 'available'
-                  ? 'border-aura-500 text-aura-600 dark:text-aura-400'
-                  : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
-              }`}
-            >
-              Available Tests
-            </button>
-            <button
-              onClick={() => setActiveSubTab('packages')}
-              className={`pb-3 text-sm font-bold border-b-2 transition-all duration-150 ${
-                activeSubTab === 'packages'
-                  ? 'border-aura-500 text-aura-600 dark:text-aura-400'
-                  : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
-              }`}
-            >
-              Health Packages
-            </button>
-          </div>
+          {/* MODE 1: USE PRESCRIPTION */}
+          {activeMode === 'prescription' && (
+            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 space-y-6 shadow-sm">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+                <div>
+                  <h2 className="text-base font-extrabold text-slate-900 dark:text-white">
+                    Tests from Doctor's Prescription
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    Recommended investigations from Dr. {selectedPrescription?.doctorId?.fullName || 'Consultation Doctor'}
+                  </p>
+                </div>
+                {prescriptions.length > 1 && (
+                  <select
+                    value={selectedPrescription?._id || ''}
+                    onChange={(e) => {
+                      const found = prescriptions.find(p => p._id === e.target.value);
+                      if (found) handleSelectPrescription(found);
+                    }}
+                    className="text-xs px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-semibold"
+                  >
+                    {prescriptions.map((rx, i) => (
+                      <option key={rx._id} value={rx._id}>
+                        Rx #{rx.prescriptionNumber || i + 1} ({new Date(rx.createdAt).toLocaleDateString('en-IN')})
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
 
-          {activeSubTab === 'available' ? (
-            <>
-              {/* Filters & Control bar */}
-              <div className="flex flex-col sm:flex-row items-center gap-3 bg-white dark:bg-navy-800 p-4 rounded-2xl border border-slate-200 dark:border-white/[0.08]">
-                <div className="relative w-full sm:flex-1">
+              {selectedPrescription?.labs?.length > 0 ? (
+                <div className="space-y-3">
+                  {selectedPrescription.labs.map((test, idx) => {
+                    const isChecked = selectedTests.some(t => t.name.toLowerCase() === test.testName.toLowerCase());
+                    return (
+                      <div
+                        key={idx}
+                        onClick={() => handleToggleTest({
+                          name: test.testName,
+                          code: test.code,
+                          category: test.category,
+                          sampleType: test.sampleRequired,
+                          price: test.priceSnapshot || test.price || 350,
+                          reportingTime: test.tatSnapshot || test.turnaroundTime || '24 Hours',
+                          patientPreparation: test.instructions || 'No Fasting Required',
+                          globalInvestigationId: test.globalLabTestId,
+                          localInventoryIds: test.localInventoryId ? [test.localInventoryId] : []
+                        })}
+                        className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-4 ${
+                          isChecked
+                            ? 'bg-emerald-50/60 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-700/60'
+                            : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 opacity-60 hover:opacity-100'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {}} // Handled by parent container click
+                            className="mt-1 w-4 h-4 rounded border-slate-300 accent-emerald-600"
+                          />
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <strong className="text-sm font-bold text-slate-900 dark:text-white">
+                                {test.testName}
+                              </strong>
+                              {test.isBooked ? (
+                                <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase bg-blue-100 text-blue-800">
+                                  Already Booked
+                                </span>
+                              ) : (
+                                <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase bg-emerald-100 text-emerald-800">
+                                  Prescribed
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                              Sample: <span className="font-semibold text-slate-700 dark:text-slate-300">{test.sampleRequired || 'Blood'}</span> • TAT: {test.tatSnapshot || test.turnaroundTime || '24 Hours'}
+                            </p>
+                            {test.instructions && (
+                              <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1 font-medium">
+                                ℹ️ Prep: {test.instructions}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <span className="text-sm font-extrabold text-slate-900 dark:text-white block">
+                            ₹{test.priceSnapshot || test.price || 350}
+                          </span>
+                          <span className="text-[10px] text-slate-400">Standard Rate</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-12 space-y-3">
+                  <ClipboardList size={36} className="mx-auto text-slate-300 dark:text-slate-600" />
+                  <p className="text-sm font-bold text-slate-700 dark:text-slate-300">
+                    No Active Prescriptions with Lab Recommendations
+                  </p>
+                  <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                    You can browse the complete clinic diagnostic catalog to choose individual investigations.
+                  </p>
+                  <button
+                    onClick={() => setActiveMode('catalog')}
+                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition"
+                  >
+                    Browse Individual Tests
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* MODE 2: BROWSE INDIVIDUAL TESTS */}
+          {activeMode === 'catalog' && (
+            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 space-y-6 shadow-sm">
+              <div className="flex flex-col sm:flex-row items-center gap-3">
+                <div className="relative flex-1 w-full">
                   <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search tests by name or keyword..."
-                    className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm bg-slate-50 dark:bg-navy-900 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-aura-500 transition"
+                    placeholder="Search tests by name (e.g. CBC, Lipid, Vitamin D)..."
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-emerald-500"
                   />
                 </div>
-                <div className="flex items-center gap-2 w-full sm:w-auto">
-                  <select
-                    value={selectedCategory}
-                    onChange={(e) => setSelectedCategory(e.target.value)}
-                    className="px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-navy-900 text-xs font-semibold text-slate-700 dark:text-slate-200 focus:outline-none"
-                  >
-                    <option value="All">All Categories</option>
-                    {categories.filter(c => c !== 'All').map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                  <select className="px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-navy-900 text-xs font-semibold text-slate-700 dark:text-slate-200 focus:outline-none">
-                    <option>Sort By</option>
-                    <option>Price: Low to High</option>
-                    <option>Price: High to Low</option>
-                  </select>
-                  <button className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-navy-900 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 transition">
-                    <Filter size={13} />
-                    Filters
-                  </button>
-                </div>
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="px-3.5 py-2.5 rounded-xl text-xs font-semibold bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none w-full sm:w-auto"
+                >
+                  {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
               </div>
 
               {/* Catalog Table */}
-              <div className="rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-navy-800 overflow-hidden">
-                <div className="p-4 border-b border-slate-100 dark:border-white/[0.06] bg-slate-50/50 dark:bg-navy-900/20">
-                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">All Available Tests</h3>
-                </div>
-
-                <div className="overflow-x-auto">
-                  {filteredTests.length > 0 ? (
-                    <table className="w-full border-collapse text-left">
-                      <thead>
-                        <tr className="border-b border-slate-100 dark:border-white/[0.06] text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                          <th className="p-4">Test Name</th>
-                          <th className="p-4">Category</th>
-                          <th className="p-4">Sample Type</th>
-                          <th className="p-4">Report Time</th>
-                          <th className="p-4">Price</th>
-                          <th className="p-4 text-right">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 dark:divide-white/[0.04]">
-                        {filteredTests.map(test => (
-                          <tr key={test._id} className="hover:bg-slate-50/50 dark:hover:bg-navy-900/20 transition-colors">
-                            <td className="p-4 max-w-[280px]">
-                              <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{test.name}</p>
-                              <p className="text-[10px] text-slate-400 mt-0.5 line-clamp-1">{test.code || 'LAB-TEST'} • Details: standard lab validation</p>
+              <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                      <th className="p-3.5">Investigation</th>
+                      <th className="p-3.5">Category</th>
+                      <th className="p-3.5">Sample</th>
+                      <th className="p-3.5">Price</th>
+                      <th className="p-3.5 text-center">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {filteredCatalog.length > 0 ? (
+                      filteredCatalog.map(test => {
+                        const isAdded = selectedTests.some(t => t.name.toLowerCase() === test.name.toLowerCase());
+                        const isAvailable = test.availability === 'AVAILABLE';
+                        return (
+                          <tr key={test.investigationId || test._id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition">
+                            <td className="p-3.5">
+                              <strong className="text-slate-800 dark:text-slate-100 font-bold block">{test.name}</strong>
+                              <span className="text-[10px] text-slate-400 block mt-0.5">TAT: {test.reportingTime || test.tat || '24 Hours'}</span>
                             </td>
-                            <td className="p-4">
-                              <span className="inline-block px-2 py-0.5 text-[10px] font-bold rounded-lg bg-indigo-500/10 text-indigo-500 border border-indigo-500/10">
-                                {test.category || 'Diagnostics'}
+                            <td className="p-3.5">
+                              <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                                {test.category || 'General'}
                               </span>
                             </td>
-                            <td className="p-4">
-                              <span className="flex items-center gap-1 text-xs text-slate-600 dark:text-slate-400">
-                                <Droplet size={11} className="text-rose-500" />
-                                {test.specimenType || 'Blood'}
+                            <td className="p-3.5 text-slate-500">
+                              <span className="flex items-center gap-1 text-[11px]">
+                                <Droplet size={11} className="text-rose-500" /> {test.sampleType || 'Blood'}
                               </span>
                             </td>
-                            <td className="p-4">
-                              <span className="flex items-center gap-1 text-xs text-slate-600 dark:text-slate-400">
-                                <Clock size={11} className="text-amber-500" />
-                                24 hrs
-                              </span>
+                            <td className="p-3.5 font-bold text-slate-800 dark:text-white">
+                              {typeof test.price === 'number' ? `₹${test.price}` : (test.estimatedPriceRange || '—')}
                             </td>
-                            <td className="p-4">
-                              <p className="text-xs font-bold text-slate-800 dark:text-slate-200">₹{Number(test.price || 0).toFixed(2)}</p>
-                            </td>
-                            <td className="p-4 text-right">
+                            <td className="p-3.5 text-center">
                               <button
-                                onClick={() => {
-                                  setSelectedTest(test);
-                                  setBookingModalOpen(true);
-                                }}
-                                className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-xl bg-aura-600 hover:bg-aura-700 text-white text-xs font-bold transition"
+                                onClick={() => handleToggleTest(test)}
+                                className={`px-3 py-1.5 rounded-xl text-[10px] font-bold transition ${
+                                  isAdded
+                                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                                    : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                                }`}
                               >
-                                <Calendar size={11} />
-                                Book Now
+                                {isAdded ? 'Added ✓' : '+ Add Test'}
                               </button>
                             </td>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  ) : (
-                    <div className="text-center py-16">
-                      <FlaskConical size={36} className="mx-auto text-slate-300 dark:text-slate-600 mb-3" />
-                      <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">No Diagnostic Tests Found</p>
-                      <p className="text-xs text-slate-400 mt-1">Try relaxing your search keywords or choosing another category.</p>
-                    </div>
-                  )}
-                </div>
+                        );
+                      })
+                    ) : (
+                      <tr>
+                        <td colSpan={5} className="py-12 text-center text-slate-400 text-xs">
+                          No laboratory investigations found matching your filter.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
-            </>
-          ) : (
-            <div className="rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-navy-800 p-8 text-center">
-              <FlaskConical size={40} className="mx-auto text-indigo-500 mb-3" />
-              <h3 className="text-base font-bold text-slate-800 dark:text-slate-200">Comprehensive Health Packages</h3>
-              <p className="text-xs text-slate-400 max-w-sm mx-auto mt-1.5 leading-relaxed">
-                Save up to 40% with bundled diagnostic packages including complete full-body profiles, cardiac validation, and diabetic review checkups.
-              </p>
-              <button
-                onClick={() => setActiveSubTab('available')}
-                className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-aura-600 hover:bg-aura-700 text-white text-xs font-bold transition"
-              >
-                Browse Individual Tests
-                <ArrowRight size={13} />
-              </button>
             </div>
           )}
 
-          {/* Footer banner */}
-          <p className="text-[11px] text-slate-400 dark:text-slate-600 text-center leading-relaxed max-w-md mx-auto pt-3">
-            ℹ️ Sample collection and report times may vary based on test type and location. Please follow the instructions provided during booking.
-          </p>
-        </div>
+          {/* MODE 3: MY ORDERS & HISTORY */}
+          {activeMode === 'history' && (
+            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 space-y-4 shadow-sm">
+              <h2 className="text-base font-extrabold text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-800 pb-3">
+                Laboratory Order History
+              </h2>
 
-        {/* RIGHT COLUMN: Sidebar (1/3 width) */}
-        <div className="w-full lg:w-1/3 space-y-6">
-          
-          {/* My Lab Appointments Card */}
-          <div className="rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-navy-800 p-5">
-            <div className="flex justify-between items-center pb-3 mb-3 border-b border-slate-100 dark:border-white/[0.06]">
-              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">My Lab Appointments</h3>
-              <button onClick={() => alert('Viewing all booked lab orders')} className="text-xs font-bold text-aura-500 hover:text-aura-600">View All</button>
-            </div>
-
-            {/* Sub-tab: Upcoming / Completed */}
-            <div className="flex gap-2 p-1 rounded-xl bg-slate-50 dark:bg-navy-900/60 border border-slate-200 dark:border-white/10 mb-4">
-              <button
-                onClick={() => setSidebarTab('upcoming')}
-                className={`flex-1 py-1.5 text-center text-xs font-bold rounded-lg transition-all ${
-                  sidebarTab === 'upcoming'
-                    ? 'bg-white dark:bg-navy-700 text-slate-800 dark:text-white shadow-sm'
-                    : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
-                }`}
-              >
-                Upcoming
-              </button>
-              <button
-                onClick={() => setSidebarTab('completed')}
-                className={`flex-1 py-1.5 text-center text-xs font-bold rounded-lg transition-all ${
-                  sidebarTab === 'completed'
-                    ? 'bg-white dark:bg-navy-700 text-slate-800 dark:text-white shadow-sm'
-                    : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
-                }`}
-              >
-                Completed
-              </button>
-            </div>
-
-            {/* List of orders */}
-            <div className="space-y-3">
-              {(sidebarTab === 'upcoming' ? upcomingOrders : completedOrders).length > 0 ? (
-                (sidebarTab === 'upcoming' ? upcomingOrders : completedOrders).slice(0, 3).map(ord => {
-                  const d = ord.appointmentDate ? new Date(ord.appointmentDate) : new Date();
-                  const day = d.toLocaleDateString('en-IN', { day: '2-digit' });
-                  const month = d.toLocaleDateString('en-IN', { month: 'short' });
-                  const time = d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-
-                  return (
-                    <div
-                      key={ord._id}
-                      className="p-3 rounded-xl border border-slate-100 dark:border-white/[0.04] bg-slate-50/50 dark:bg-navy-900/40 flex items-start gap-3 relative hover:border-aura-400/30 transition-all"
-                    >
-                      {/* Date Block */}
-                      <div className="w-10 h-10 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-center flex flex-col justify-center shrink-0">
-                        <span className="text-sm font-extrabold text-indigo-500 leading-none">{day}</span>
-                        <span className="text-[9px] uppercase font-bold text-indigo-400 mt-0.5">{month}</span>
-                      </div>
-
-                      {/* Content */}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">{ord.testId?.name || 'Lab Diagnostic Test'}</p>
-                        <p className="text-[10px] text-slate-400 mt-0.5">{month} {day}, {d.getFullYear()} • {time}</p>
-                        <p className="text-[10px] text-slate-400 mt-0.5 italic truncate">{ord.notes || 'AI-CMS Diagnostics Lab'}</p>
-                        
-                        <div className="flex items-center gap-1.5 mt-2">
-                          <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold border ${
-                            ord.status === 'completed'
-                              ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/10'
-                              : ord.status === 'cancelled'
-                              ? 'bg-rose-500/10 text-rose-500 border-rose-500/10'
-                              : 'bg-sky-500/10 text-sky-500 border-sky-500/10'
-                          }`}>
-                            {ord.status ? ord.status.charAt(0).toUpperCase() + ord.status.slice(1) : 'Scheduled'}
+              {myOrders.length > 0 ? (
+                <div className="space-y-3">
+                  {myOrders.map(order => (
+                    <div key={order._id} className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <strong className="text-xs font-black text-slate-800 dark:text-white">
+                            Order #{order.orderNumber}
+                          </strong>
+                          <span className="text-[10px] text-slate-400 ml-2">
+                            {new Date(order.createdAt || order.orderedAt).toLocaleDateString('en-IN')}
                           </span>
                         </div>
+                        <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                          order.status === 'completed'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : order.status === 'cancelled'
+                            ? 'bg-rose-100 text-rose-800'
+                            : 'bg-indigo-100 text-indigo-800'
+                        }`}>
+                          {order.status}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-wrap gap-1.5">
+                        {(order.tests || []).map((t, idx) => (
+                          <span key={idx} className="text-[10px] px-2 py-0.5 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
+                            {t.name}
+                          </span>
+                        ))}
+                      </div>
+
+                      <div className="flex items-center justify-between pt-2 border-t border-slate-200/60 dark:border-slate-700/60 text-xs">
+                        <span className="text-slate-500">Method: {order.collectionMethod === 'HOME_COLLECTION' ? '🏠 Home Collection' : '🏥 Visit Laboratory'}</span>
+                        <strong className="text-slate-900 dark:text-white">₹{order.price}</strong>
                       </div>
                     </div>
-                  );
-                })
+                  ))}
+                </div>
               ) : (
-                <p className="text-xs text-slate-400 text-center py-6">No {sidebarTab} lab appointments.</p>
+                <div className="text-center py-12 text-slate-400 text-xs">
+                  No previous laboratory orders found.
+                </div>
               )}
+            </div>
+          )}
 
-              <button
-                onClick={() => setSelectedCategory('All')}
-                className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 text-xs font-semibold text-slate-700 dark:text-slate-300 transition"
+        </div>
+
+        {/* RIGHT COLUMN: Order Summary & Checkout Panel (1 Col) */}
+        <div className="space-y-6">
+
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 space-y-6 shadow-sm">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <h3 className="text-sm font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-200 flex items-center gap-2">
+                <ShoppingCart size={16} className="text-emerald-500" /> Selected Tests ({selectedTests.length})
+              </h3>
+              {selectedTests.length > 0 && (
+                <button
+                  onClick={() => { setSelectedTests([]); setAppliedPackage(null); }}
+                  className="text-[10px] font-bold text-rose-500 hover:text-rose-700 uppercase"
+                >
+                  Clear All
+                </button>
+              )}
+            </div>
+
+            {/* Selected items list */}
+            <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-1">
+              {selectedTests.length > 0 ? (
+                selectedTests.map((item, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 text-xs">
+                    <div className="min-w-0 pr-2">
+                      <strong className="text-slate-800 dark:text-slate-100 truncate block">{item.name}</strong>
+                      <span className="text-[10px] text-slate-400 block mt-0.5">TAT: {item.turnaroundTime}</span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <strong className="text-slate-800 dark:text-slate-100">₹{item.price}</strong>
+                      <button
+                        onClick={() => handleToggleTest(item)}
+                        className="text-slate-400 hover:text-rose-500 transition"
+                      >
+                        <X size={13} />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-6 text-slate-400 text-xs italic">
+                  No tests selected yet.
+                </div>
+              )}
+            </div>
+
+            {/* Laboratory Selection */}
+            <div className="space-y-1.5 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                Performing Laboratory
+              </label>
+              <select
+                value={selectedLaboratoryId}
+                onChange={(e) => setSelectedLaboratoryId(e.target.value)}
+                className="w-full text-xs font-semibold px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none"
               >
-                <Calendar size={13} />
-                Book New Test
-              </button>
-            </div>
-          </div>
-
-          {/* Health Insights */}
-          <div className="rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-navy-800 p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">Health Insights</h3>
-              <span className="px-1.5 py-0.5 text-[8px] font-bold uppercase rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/10">New</span>
+                {attachedLaboratories.map(lab => (
+                  <option key={lab._id} value={lab._id}>{lab.name} ({lab.address?.city || 'Main Hub'})</option>
+                ))}
+              </select>
             </div>
 
-            <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-navy-900/50 border border-slate-100 dark:border-white/[0.04] space-y-3">
-              <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 leading-relaxed">
-                Track your health over time. Regular tests help you monitor your health and detect issues early.
-              </p>
-              
-              {/* Graphic Mockup (Line chart illustration) */}
-              <div className="w-full h-16 bg-white dark:bg-navy-800 border border-slate-200 dark:border-white/10 rounded-lg flex items-center justify-center relative overflow-hidden">
-                <svg className="w-full h-full px-2" viewBox="0 0 100 40">
-                  <path d="M0 30 Q20 15 40 25 T80 10 T100 20" fill="none" stroke="url(#gradient)" strokeWidth="2.5" />
-                  <defs>
-                    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor="#4f46e5" />
-                      <stop offset="100%" stopColor="#06b6d4" />
-                    </linearGradient>
-                  </defs>
-                  <circle cx="40" cy="25" r="3" fill="#4f46e5" />
-                  <circle cx="80" cy="10" r="3" fill="#06b6d4" />
-                </svg>
-                <span className="absolute bottom-1 right-2 px-1 py-0.5 rounded text-[8px] bg-emerald-500/10 text-emerald-500 font-extrabold border border-emerald-500/20">Good</span>
+            {/* Collection Method Toggle */}
+            <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                Sample Collection Method
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCollectionMethod('AT_LAB')}
+                  className={`py-2 px-3 rounded-xl text-xs font-bold border transition flex items-center justify-center gap-1.5 ${
+                    collectionMethod === 'AT_LAB'
+                      ? 'bg-emerald-500 border-emerald-500 text-white shadow-sm'
+                      : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
+                  }`}
+                >
+                  <Building2 size={13} /> Visit Lab
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCollectionMethod('HOME_COLLECTION')}
+                  className={`py-2 px-3 rounded-xl text-xs font-bold border transition flex items-center justify-center gap-1.5 ${
+                    collectionMethod === 'HOME_COLLECTION'
+                      ? 'bg-emerald-500 border-emerald-500 text-white shadow-sm'
+                      : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
+                  }`}
+                >
+                  <Home size={13} /> Home (+₹150)
+                </button>
+              </div>
+
+              {collectionMethod === 'HOME_COLLECTION' && (
+                <div className="space-y-1.5 pt-2 animate-fade-in">
+                  <input
+                    type="text"
+                    placeholder="Street Address / House No"
+                    value={collectionAddress.line1}
+                    onChange={(e) => setCollectionAddress(prev => ({ ...prev, line1: e.target.value }))}
+                    className="w-full text-xs px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      placeholder="City"
+                      value={collectionAddress.city}
+                      onChange={(e) => setCollectionAddress(prev => ({ ...prev, city: e.target.value }))}
+                      className="w-full text-xs px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Pincode"
+                      value={collectionAddress.pincode}
+                      onChange={(e) => setCollectionAddress(prev => ({ ...prev, pincode: e.target.value }))}
+                      className="w-full text-xs px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Price Breakdown */}
+            <div className="space-y-2 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs">
+              <div className="flex items-center justify-between text-slate-500">
+                <span>Tests Subtotal:</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">₹{subtotalPrice}</span>
+              </div>
+              {collectionMethod === 'HOME_COLLECTION' && (
+                <div className="flex items-center justify-between text-slate-500">
+                  <span>Home Collection Fee:</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">₹{homeCollectionFee}</span>
+                </div>
+              )}
+              {appliedPackage && (
+                <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400 font-bold">
+                  <span>Package Savings:</span>
+                  <span>-₹{appliedPackage.savings}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between text-sm font-extrabold text-slate-900 dark:text-white pt-2 border-t border-slate-200 dark:border-slate-700">
+                <span>Total Amount:</span>
+                <span className="text-emerald-600 dark:text-emerald-400 text-base">₹{grandTotal}</span>
               </div>
             </div>
 
-            <div className="space-y-2.5">
-              {[
-                { title: 'Stay ahead with regular tests', desc: 'Early detection leads to better outcomes.' },
-                { title: 'Compare your results', desc: 'Track changes and progress over time.' },
-                { title: 'Get expert recommendations', desc: 'Personalized insights from our specialists.' }
-              ].map(ins => (
-                <div key={ins.title} className="flex gap-2.5 items-start">
-                  <div className="w-5 h-5 rounded-full bg-aura-500/10 flex items-center justify-center shrink-0 text-aura-500 mt-0.5">
-                    <CheckCircle size={10} />
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-bold text-slate-800 dark:text-slate-200">{ins.title}</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">{ins.desc}</p>
-                  </div>
-                </div>
-              ))}
+            {/* Order Confirmation Button */}
+            <button
+              disabled={selectedTests.length === 0 || isBooking}
+              onClick={handleConfirmOrder}
+              className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-extrabold text-xs uppercase tracking-wider transition shadow-lg flex items-center justify-center gap-2"
+            >
+              {isBooking ? (
+                <>
+                  <RefreshCw size={14} className="animate-spin" /> Processing Order...
+                </>
+              ) : (
+                <>
+                  <Check size={16} /> Confirm &amp; Place Lab Order
+                </>
+              )}
+            </button>
+          </div>
+
+        </div>
+
+      </div>
+
+      {/* SUCCESS MODAL */}
+      {bookingSuccessModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-100 dark:border-slate-800 space-y-4 animate-scale-in text-center">
+            <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-950/40 flex items-center justify-center mx-auto text-2xl">
+              ✓
+            </div>
+            <div>
+              <h3 className="text-lg font-extrabold text-slate-900 dark:text-white">
+                Laboratory Order Confirmed!
+              </h3>
+              <p className="text-xs text-slate-500 mt-1">
+                Order #{bookingSuccessModal.orderNumber || 'LAB-ORD'} has been successfully sent to the laboratory team.
+              </p>
+            </div>
+
+            <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl text-left space-y-1.5 text-xs">
+              <div className="flex justify-between">
+                <span className="text-slate-400">Total Price:</span>
+                <strong className="text-slate-800 dark:text-white">₹{bookingSuccessModal.price}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Collection:</span>
+                <strong className="text-slate-800 dark:text-white">{bookingSuccessModal.collectionMethod === 'HOME_COLLECTION' ? 'Home Collection' : 'At Laboratory'}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Status:</span>
+                <span className="px-2 py-0.5 rounded text-[9px] font-bold uppercase bg-emerald-100 text-emerald-800">
+                  {bookingSuccessModal.status}
+                </span>
+              </div>
             </div>
 
             <button
-              onClick={() => alert('Navigating to Clinical Health Records')}
-              className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 text-xs font-semibold text-aura-500 dark:text-aura-400 transition"
+              onClick={() => {
+                setBookingSuccessModal(null);
+                setActiveMode('history');
+              }}
+              className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition"
             >
-              <FileText size={13} />
-              View Health Records
+              View in My Orders
             </button>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Book Lab Test Modal */}
-      {bookingModalOpen && selectedTest && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-white dark:bg-navy-800 rounded-2xl border border-slate-200 dark:border-white/[0.08] shadow-2xl p-6 animate-scale-up">
-            <div className="flex justify-between items-center pb-4 mb-4 border-b border-slate-100 dark:border-white/[0.06]">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center">
-                  <FlaskConical size={16} className="text-indigo-600 dark:text-indigo-400" />
-                </div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-white">Schedule Diagnostic Test</h3>
-              </div>
-              <button onClick={() => setBookingModalOpen(false)} className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 text-slate-400">
-                <X size={18} />
+      {/* PRICE GUARD / DUPLICATE WARNING MODAL */}
+      {priceGuardWarning && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-100 dark:border-slate-800 space-y-4 animate-scale-in">
+            <div className="flex items-center gap-3 text-amber-500">
+              <ShieldAlert size={28} />
+              <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
+                Active Order Notice
+              </h3>
+            </div>
+            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed bg-amber-50 dark:bg-amber-950/20 p-3.5 rounded-2xl border border-amber-200 dark:border-amber-800">
+              {priceGuardWarning}
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setPriceGuardWarning(null)}
+                className="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold"
+              >
+                Close
+              </button>
+              <button
+                onClick={() => {
+                  setPriceGuardWarning(null);
+                  setActiveMode('history');
+                }}
+                className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold"
+              >
+                View Existing Order
               </button>
             </div>
-
-            {bookingSuccess ? (
-              <div className="py-6 text-center space-y-3">
-                <div className="w-12 h-12 rounded-full bg-aura-500/10 flex items-center justify-center mx-auto text-aura-500">
-                  <CheckCircle size={24} />
-                </div>
-                <h4 className="text-sm font-semibold text-slate-900 dark:text-white">Lab Test Scheduled</h4>
-                <p className="text-xs text-slate-400 dark:text-slate-500">A slot has been booked for you. Please visit the clinic lab on <span className="font-semibold">{bookingDate}</span> at <span className="font-semibold">{bookingTime}</span> for specimen collection.</p>
-              </div>
-            ) : (
-              <form onSubmit={handleBookTest} className="space-y-4">
-                <div>
-                  <h4 className="text-sm font-semibold text-slate-900 dark:text-white">{selectedTest.name}</h4>
-                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Code: {selectedTest.code} • Category: {selectedTest.category}</p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Collection Date</label>
-                    <input
-                      type="date"
-                      value={bookingDate}
-                      onChange={(e) => setBookingDate(e.target.value)}
-                      required
-                      className="w-full px-4 py-2 rounded-xl text-sm bg-slate-50 dark:bg-navy-900 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-aura-500 transition"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Preferred Time</label>
-                    <input
-                      type="time"
-                      value={bookingTime}
-                      onChange={(e) => setBookingTime(e.target.value)}
-                      required
-                      className="w-full px-4 py-2 rounded-xl text-sm bg-slate-50 dark:bg-navy-900 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-aura-500 transition"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Notes / Medical Indication (Optional)</label>
-                  <textarea
-                    rows={3}
-                    value={bookingNotes}
-                    onChange={(e) => setBookingNotes(e.target.value)}
-                    placeholder="Mention any symptoms, active prescriptions or instruction from your doctor..."
-                    className="w-full px-4 py-2.5 rounded-xl text-sm bg-slate-50 dark:bg-navy-900 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-aura-500 transition resize-none"
-                  />
-                </div>
-
-                <div className="pt-2 border-t border-slate-100 dark:border-white/[0.06] flex items-center justify-between">
-                  <div>
-                    <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">Test Price</span>
-                    <p className="text-lg font-bold text-slate-900 dark:text-white">₹{Number(selectedTest.price || 0).toFixed(2)}</p>
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={bookingStatus === 'booking'}
-                    className="px-6 py-2.5 rounded-xl text-sm font-semibold bg-aura-600 hover:bg-aura-700 text-white transition flex items-center gap-1.5"
-                  >
-                    <Calendar size={14} />
-                    {bookingStatus === 'booking' ? 'Booking...' : 'Confirm Book'}
-                  </button>
-                </div>
-              </form>
-            )}
           </div>
         </div>
       )}
+
     </div>
   );
 }

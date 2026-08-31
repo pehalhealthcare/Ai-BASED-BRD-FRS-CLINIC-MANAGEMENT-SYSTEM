@@ -8,4 +8,12 @@ const generatePrescriptionNumber = (clinicId) =>
     padLength: 6
   });
 
-module.exports = { generatePrescriptionNumber };
+const generateUploadedPrescriptionNumber = (clinicId) =>
+  generateScopedSequenceCode({
+    prefix: 'UPR',
+    scope: 'uploaded_prescription',
+    clinicId,
+    padLength: 5
+  });
+
+module.exports = { generatePrescriptionNumber, generateUploadedPrescriptionNumber };

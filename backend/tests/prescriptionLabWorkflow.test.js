@@ -4,7 +4,7 @@ describe('Clinical Consultation & Lab Order Integration Workflow', () => {
   let app, Prescription, LabOrder, GlobalLabTest, LabTest, Patient, User, Doctor, Clinic, Consultation, Appointment, Provider;
   let clinic, doctor, doctorUser, patient, patientUser, consultation, appointment, globalTest, localTest, jwtToken, providerLab;
 
-  beforeAll(async () => {
+  beforeAll(() => {
     app = require('../src/app');
     Prescription = require('../src/modules/prescriptions/prescription.model');
     LabOrder = require('../src/modules/labs/labOrder.model').LabOrder;
@@ -17,6 +17,9 @@ describe('Clinical Consultation & Lab Order Integration Workflow', () => {
     Consultation = require('../src/modules/consultations/consultation.model');
     Appointment = require('../src/modules/appointments/appointment.model');
     Provider = require('../src/modules/providers/provider.model');
+  });
+
+  beforeEach(async () => {
     clinic = await Clinic.create({
       name: 'Pehal Diagnostics Clinic',
       code: 'PEHAL_DIAG',
@@ -139,19 +142,6 @@ describe('Clinical Consultation & Lab Order Integration Workflow', () => {
     jwtToken = loginRes.body.data.accessToken;
   });
 
-  afterAll(async () => {
-    await Clinic.deleteMany({});
-    await User.deleteMany({});
-    await Doctor.deleteMany({});
-    await Patient.deleteMany({});
-    await Appointment.deleteMany({});
-    await Consultation.deleteMany({});
-    await GlobalLabTest.deleteMany({});
-    await LabTest.deleteMany({});
-    await Prescription.deleteMany({});
-    await LabOrder.deleteMany({});
-  });
-
   test('Prescription finalization does NOT automatically create a lab order', async () => {
     const rxPayload = {
       consultationId: consultation._id,
@@ -186,7 +176,30 @@ describe('Clinical Consultation & Lab Order Integration Workflow', () => {
   });
 
   test('Booking a prescription recommended test creates a mapped lab order', async () => {
-    const rx = await Prescription.findOne({ consultationId: consultation._id });
+    let rx = await Prescription.findOne({ consultationId: consultation._id });
+    if (!rx) {
+      rx = await Prescription.create({
+        consultationId: consultation._id,
+        patientId: patient._id,
+        doctorId: doctor._id,
+        appointmentId: appointment._id,
+        clinicId: clinic._id,
+        prescriptionNumber: 'PRS-1002004',
+        labs: [
+          {
+            testName: globalTest.name,
+            globalLabTestId: globalTest._id,
+            localInventoryId: localTest._id,
+            priority: 'routine',
+            sampleRequired: 'Blood',
+            availabilitySnapshot: 'AVAILABLE',
+            priceSnapshot: 350,
+            tatSnapshot: 'Same Day',
+            code: 'CBC'
+          }
+        ]
+      });
+    }
 
     const orderPayload = {
       consultationId: consultation._id,
