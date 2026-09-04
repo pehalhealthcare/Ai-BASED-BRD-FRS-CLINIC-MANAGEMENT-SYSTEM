@@ -136,6 +136,30 @@ const getSmartSuggestions = asyncHandler(async (req, res) => {
   return sendSuccess(res, 'Smart suggestions retrieved successfully', data);
 });
 
+const extractPrescriptionLabTests = asyncHandler(async (req, res) => {
+  const file = req.file;
+  const data = await prescriptionService.extractPrescriptionLabTests({
+    requester: req.user,
+    fileBuffer: file ? file.buffer : null,
+    contentType: file ? file.mimetype : 'image/jpeg',
+    fileName: file ? file.originalname : req.body.fileName,
+    requestedClinicId: req.query.clinicId || req.body.clinicId,
+    query: { ...req.query, ...req.body }
+  });
+
+  return sendSuccess(res, 'Prescription laboratory tests extracted successfully', data);
+});
+
+const saveUploadedPrescription = asyncHandler(async (req, res) => {
+  const prescription = await prescriptionService.saveUploadedPrescription({
+    requester: req.user,
+    payload: req.body,
+    requestedClinicId: req.query.clinicId || req.body.clinicId
+  });
+
+  return sendSuccess(res, 'Uploaded prescription saved successfully', { prescription }, 201);
+});
+
 module.exports = {
   createPrescription,
   getPrescriptionById,
@@ -148,5 +172,7 @@ module.exports = {
   downloadPrescriptionPdf,
   downloadMedicines,
   discoverLabTests,
-  getSmartSuggestions
+  getSmartSuggestions,
+  extractPrescriptionLabTests,
+  saveUploadedPrescription
 };

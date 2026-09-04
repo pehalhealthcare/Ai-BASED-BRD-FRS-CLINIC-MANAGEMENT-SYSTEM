@@ -140,6 +140,31 @@ const labTestSchema = new mongoose.Schema(
       type: Number,
       default: 0
     },
+    isPackage: {
+      type: Boolean,
+      default: false
+    },
+    packageTests: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'LabTest'
+      }
+    ],
+    globalPackageTests: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'GlobalLabTest'
+      }
+    ],
+    fastingRequired: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    individualPrice: {
+      type: Number,
+      default: 0
+    },
     processingMode: {
       type: String,
       enum: ['IN_HOUSE', 'OUTSOURCED'],

@@ -10,6 +10,7 @@ import toast from 'react-hot-toast';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
 import { labApi, dashboardApi, clinicApi, patientApi, doctorApi } from '../../lib/api';
+import SampleCollectionDesk from './SampleCollectionDesk';
 
 const LaboratoryWorkspace = ({ tab: propTab, laboratoryId: propLaboratoryId }) => {
   const { user, logout } = useAuth();
@@ -910,6 +911,15 @@ const LaboratoryWorkspace = ({ tab: propTab, laboratoryId: propLaboratoryId }) =
             </div>
           </div>
         )
+      )}
+
+      {/* --- SAMPLE COLLECTION TAB (PHASE 7) --- */}
+      {(activeTab === 'collection' || activeTab === 'sample-collection') && (
+        <SampleCollectionDesk
+          laboratoryId={laboratoryId}
+          clinicId={activeClinicId}
+          user={user}
+        />
       )}
 
       {/* --- LAB ORDERS TAB --- */}

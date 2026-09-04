@@ -108,6 +108,22 @@ const labReportSchema = new mongoose.Schema(
       trim: true,
       default: ''
     },
+    // AICMS structured report generated from manually-entered results
+    generatedReportUrl: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    generatedReportFileName: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    // When true, the generatedReport is the official report; when false, original upload is official
+    isGeneratedReportOfficial: {
+      type: Boolean,
+      default: false
+    },
     resultEntries: {
       type: [resultEntrySchema],
       default: []

@@ -216,6 +216,56 @@ const verifyHistoryPassword = asyncHandler(async (req, res) => {
   return sendSuccess(res, 'Medical history password verified successfully', { verified: true });
 });
 
+const getMyAddresses = asyncHandler(async (req, res) => {
+  const data = await patientService.getMyAddresses({
+    requester: req.user,
+    requestedClinicId: req.query.clinicId
+  });
+
+  return sendSuccess(res, 'Saved addresses retrieved successfully', data);
+});
+
+const addMyAddress = asyncHandler(async (req, res) => {
+  const data = await patientService.addMyAddress({
+    requester: req.user,
+    payload: req.body,
+    requestedClinicId: req.query.clinicId
+  });
+
+  return sendSuccess(res, 'Address added successfully', data);
+});
+
+const updateMyAddress = asyncHandler(async (req, res) => {
+  const data = await patientService.updateMyAddress({
+    requester: req.user,
+    addressId: req.params.addressId,
+    payload: req.body,
+    requestedClinicId: req.query.clinicId
+  });
+
+  return sendSuccess(res, 'Address updated successfully', data);
+});
+
+const deleteMyAddress = asyncHandler(async (req, res) => {
+  const data = await patientService.deleteMyAddress({
+    requester: req.user,
+    addressId: req.params.addressId,
+    requestedClinicId: req.query.clinicId
+  });
+
+  return sendSuccess(res, 'Address removed successfully', data);
+});
+
+const setDefaultMyAddress = asyncHandler(async (req, res) => {
+  const data = await patientService.setDefaultMyAddress({
+    requester: req.user,
+    addressId: req.params.addressId,
+    requestedClinicId: req.query.clinicId
+  });
+
+  return sendSuccess(res, 'Default address updated successfully', data);
+});
+
 module.exports = {
   createPatient,
   checkExists,
@@ -224,6 +274,11 @@ module.exports = {
   getMyClinics,
   getMyPatientProfile,
   updateMyPatientProfile,
+  getMyAddresses,
+  addMyAddress,
+  updateMyAddress,
+  deleteMyAddress,
+  setDefaultMyAddress,
   getPatientById,
   updatePatient,
   deletePatient,

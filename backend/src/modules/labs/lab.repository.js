@@ -4,6 +4,7 @@ const LabReport = require('./labReport.model');
 
 const populateLabOrder = (query) =>
   query
+    .populate('laboratoryId', 'name contactPerson phone email address')
     .populate('consultationId', 'chiefComplaint status diagnosis followUp labOrdered')
     .populate('patientId', 'patientId firstName lastName fullName age gender phone')
     .populate('doctorId', 'doctorCode firstName lastName fullName specialization userId')

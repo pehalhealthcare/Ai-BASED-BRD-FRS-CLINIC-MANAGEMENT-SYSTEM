@@ -47,6 +47,36 @@ router.post(
   authorize(ROLES.PATIENT),
   patientController.verifyHistoryPassword
 );
+router.get(
+  '/me/addresses',
+  protect,
+  authorize(ROLES.PATIENT),
+  patientController.getMyAddresses
+);
+router.post(
+  '/me/addresses',
+  protect,
+  authorize(ROLES.PATIENT),
+  patientController.addMyAddress
+);
+router.patch(
+  '/me/addresses/:addressId',
+  protect,
+  authorize(ROLES.PATIENT),
+  patientController.updateMyAddress
+);
+router.delete(
+  '/me/addresses/:addressId',
+  protect,
+  authorize(ROLES.PATIENT),
+  patientController.deleteMyAddress
+);
+router.patch(
+  '/me/addresses/:addressId/default',
+  protect,
+  authorize(ROLES.PATIENT),
+  patientController.setDefaultMyAddress
+);
 router.patch(
   '/me',
   protect,

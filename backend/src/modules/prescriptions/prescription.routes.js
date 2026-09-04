@@ -4,6 +4,7 @@ const { ROLES } = require('../../common/constants/roles');
 const { protect } = require('../../common/middlewares/auth.middleware');
 const { authorize } = require('../../common/middlewares/role.middleware');
 const { validate } = require('../../common/middlewares/validate.middleware');
+const { multipartUpload } = require('../../common/middlewares/multipartUpload.middleware');
 const prescriptionController = require('./prescription.controller');
 const {
   createPrescriptionSchema,
@@ -16,6 +17,21 @@ const {
 } = require('./prescription.validator');
 
 const router = Router();
+
+router.post(
+  '/extract-lab-tests',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR, ROLES.PATIENT),
+  multipartUpload,
+  prescriptionController.extractPrescriptionLabTests
+);
+
+router.post(
+  '/save-uploaded',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR, ROLES.PATIENT),
+  prescriptionController.saveUploadedPrescription
+);
 
 router.post(
   '/',

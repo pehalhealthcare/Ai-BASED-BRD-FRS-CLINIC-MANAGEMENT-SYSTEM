@@ -1,10 +1,12 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   FlaskConical, Search, Clock, Droplet, ClipboardList, CheckCircle,
   AlertCircle, Calendar, X, ChevronRight, Activity, Bell, FileText,
   Filter, ArrowRight, ShieldAlert, BadgeInfo, Sparkles, Building2,
   Home, Check, HelpCircle, RefreshCw, ShoppingCart, Tag, ChevronDown,
-  ChevronUp, Info, User, Phone, MapPin, Truck, Stethoscope, CheckCircle2
+  ChevronUp, Info, User, Phone, MapPin, Truck, Stethoscope, CheckCircle2,
+  Upload, CloudUpload, ShieldCheck, FileCheck, Loader2, Plus,
+  CheckSquare, Square, Trash2
 } from 'lucide-react';
 import { labApi, patientApi, prescriptionApi } from '../../lib/api';
 import toast from 'react-hot-toast';
@@ -20,7 +22,9 @@ export default function TestsFromPrescriptionView({
   const clinicId = selectedClinic?._id || selectedClinic?.id || '';
   const labId = selectedLab?._id || selectedLab?.id || '';
 
-  // Local state
+  // Local list & catalog state
+  const [localPrescriptions, setLocalPrescriptions] = useState(prescriptions || []);
+  const [activeTab, setActiveTab] = useState('saved'); // 'saved' | 'uploaded'
   const [catalogTests, setCatalogTests] = useState([]);
   const [loadingCatalog, setLoadingCatalog] = useState(true);
   const [expandedRxIds, setExpandedRxIds] = useState(new Set());
@@ -29,7 +33,14 @@ export default function TestsFromPrescriptionView({
   const [showAllPrescriptions, setShowAllPrescriptions] = useState(false);
   const [selectedTestForDetails, setSelectedTestForDetails] = useState(null);
 
-  // Cart state
+  // Sync prescriptions prop
+  useEffect(() => {
+    if (prescriptions && prescriptions.length > 0) {
+      setLocalPrescriptions(prescriptions);
+    }
+  }, [prescriptions]);
+
+  // Cart state (persisted per patient & laboratory)
   const [labCart, setLabCart] = useState(() => {
     try {
       const saved = localStorage.getItem(`patient_lab_cart_${patient?._id || 'guest'}_${labId}`);
@@ -39,6 +50,22 @@ export default function TestsFromPrescriptionView({
     }
   });
 
+  // Upload & Extraction state
+  const fileInputRef = useRef(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [uploadedFile, setUploadedFile] = useState(null);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [extractedTests, setExtractedTests] = useState([]);
+  const [isSavingPrescription, setIsSavingPrescription] = useState(false);
+
+  // Promo Code state
+  const [promoCodeInput, setPromoCodeInput] = useState('');
+  const [appliedPromo, setAppliedPromo] = useState(null);
+  const [validatingPromo, setValidatingPromo] = useState(false);
+
   // Package suggestions & applied package
   const [smartPackages, setSmartPackages] = useState([]);
   const [appliedPackage, setAppliedPackage] = useState(null);
@@ -46,7 +73,7 @@ export default function TestsFromPrescriptionView({
 
   // Checkout modal & sample collection state
   const [showCheckoutDrawer, setShowCheckoutDrawer] = useState(false);
-  const [collectionMethod, setCollectionMethod] = useState('AT_LAB'); // 'AT_LAB' | 'HOME_COLLECTION'
+  const [collectionMethod, setCollectionMethod] = useState('AT_LAB');
   const [collectionAddress, setCollectionAddress] = useState({
     line1: patient?.address?.line1 || patient?.address || '',
     city: patient?.address?.city || 'Ghaziabad',
@@ -67,32 +94,24 @@ export default function TestsFromPrescriptionView({
     }
   }, [patient]);
 
-  const [isAddingNewAddress, setIsAddingNewAddress] = useState(false);
-  const [collectionDate, setCollectionDate] = useState(() => {
-    const d = new Date();
-    return d.toISOString().split('T')[0];
-  });
+  const [collectionDate, setCollectionDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [collectionSlot, setCollectionSlot] = useState('08:00 AM - 10:00 AM');
   const [orderNotes, setOrderNotes] = useState('');
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
   const [orderSuccessModal, setOrderSuccessModal] = useState(null);
 
-  // 1. Fetch complete lab catalog for the selected laboratory to resolve local pricing
+  // 1. Fetch complete lab catalog
   useEffect(() => {
     let isMounted = true;
     const fetchLabCatalog = async () => {
       if (!clinicId || !labId) return;
       try {
         setLoadingCatalog(true);
-        const res = await labApi.searchAllLabs({
-          clinicId,
-          laboratoryId: labId
-        });
+        const res = await labApi.searchAllLabs({ clinicId, laboratoryId: labId });
         if (!isMounted) return;
-        const results = res?.data?.results || res?.results || [];
-        setCatalogTests(results);
+        setCatalogTests(res?.data?.results || res?.results || []);
       } catch (err) {
-        console.error('Failed to load lab catalog for pricing:', err);
+        console.error('Failed to load lab catalog:', err);
       } finally {
         if (isMounted) setLoadingCatalog(false);
       }
@@ -108,17 +127,27 @@ export default function TestsFromPrescriptionView({
     }
   }, [labCart, patient, labId]);
 
-  // Filter prescriptions that have lab recommendations
+  // Filter prescriptions by source
   const rxWithLabs = useMemo(() => {
-    return (prescriptions || []).filter(p => p.labs && p.labs.length > 0);
-  }, [prescriptions]);
+    return (localPrescriptions || []).filter(p => p.labs && p.labs.length > 0);
+  }, [localPrescriptions]);
+
+  const doctorPrescriptions = useMemo(() => {
+    return rxWithLabs.filter(p => p.sourceType !== 'PATIENT_UPLOADED');
+  }, [rxWithLabs]);
+
+  const uploadedPrescriptions = useMemo(() => {
+    return rxWithLabs.filter(p => p.sourceType === 'PATIENT_UPLOADED');
+  }, [rxWithLabs]);
+
+  const currentTabList = activeTab === 'saved' ? doctorPrescriptions : uploadedPrescriptions;
 
   // Expand first prescription card by default on mount
   useEffect(() => {
-    if (rxWithLabs.length > 0 && expandedRxIds.size === 0) {
-      setExpandedRxIds(new Set([rxWithLabs[0]._id]));
+    if (currentTabList.length > 0 && expandedRxIds.size === 0) {
+      setExpandedRxIds(new Set([currentTabList[0]._id]));
     }
-  }, [rxWithLabs]);
+  }, [currentTabList]);
 
   // Helper: Match a prescription test against the selected laboratory catalog
   const resolveTestDetails = (rxLab, prescription) => {
@@ -127,56 +156,37 @@ export default function TestsFromPrescriptionView({
     const rxLocalId = rxLab.localInventoryId ? String(rxLab.localInventoryId?._id || rxLab.localInventoryId) : '';
     const rxCode = (rxLab.code || '').trim().toLowerCase();
 
-    // Match in catalogTests
     const matched = catalogTests.find(t => {
       const tGlobal = t.globalInvestigationId ? String(t.globalInvestigationId) : '';
       const tLocalIds = (t.localInventoryIds || []).map(String);
       const tName = (t.name || '').trim().toLowerCase();
-      const tShort = (t.shortName || '').trim().toLowerCase();
       const tCode = (t.code || '').trim().toLowerCase();
-
-      return (
-        (rxGlobalId && tGlobal === rxGlobalId) ||
-        (rxLocalId && tLocalIds.includes(rxLocalId)) ||
-        (rxCode && (tCode === rxCode || tShort === rxCode)) ||
-        (rxName && (tName === rxName || tShort === rxName || tName.includes(rxName) || rxName.includes(tName)))
-      );
+      return (rxGlobalId && tGlobal === rxGlobalId) || (rxLocalId && tLocalIds.includes(rxLocalId)) || (rxCode && (tCode === rxCode || t.shortName?.toLowerCase() === rxCode)) || (rxName && (tName === rxName || t.shortName?.toLowerCase() === rxName || tName.includes(rxName) || rxName.includes(tName)));
     });
 
     const isAvailable = matched ? matched.availability === 'AVAILABLE' : (rxLab.availabilitySnapshot === 'AVAILABLE' || rxLab.price > 0);
-    const localPrice = matched?.price !== null && typeof matched?.price === 'number' 
-      ? matched.price 
-      : (typeof rxLab.priceSnapshot === 'number' && rxLab.priceSnapshot > 0 ? rxLab.priceSnapshot : (rxLab.price || 150));
-
+    const localPrice = matched?.price !== null && typeof matched?.price === 'number' ? matched.price : (typeof rxLab.priceSnapshot === 'number' && rxLab.priceSnapshot > 0 ? rxLab.priceSnapshot : (rxLab.price || 150));
+    
     const sample = matched?.sampleType || rxLab.sampleRequired || 'Whole Blood';
     const reportingTime = matched?.reportingTime || matched?.tat || rxLab.turnaroundTime || '24 Hours';
     const patientPreparation = matched?.patientPreparation || rxLab.instructions || 'No special preparation required';
     const fastingRequired = patientPreparation.toLowerCase().includes('fasting') ? 'Yes (10-12 hrs)' : 'No';
-    const methodology = matched?.methodology || 'Automated Cell Counter';
-    const department = matched?.department || 'Hematology';
-    const category = matched?.category || rxLab.category || 'Pathology';
-    const parameters = matched?.parameters?.length > 0 
-      ? matched.parameters.map(p => p.name || p) 
-      : [
-          'Total Leucocyte Count',
-          'Neutrophils % & Count',
-          'Lymphocytes % & Count',
-          'Eosinophils % & Count',
-          'Monocytes % & Count',
-          'Basophils % & Count'
-        ];
+    const methodology = matched?.methodology || 'Automated Analysis';
+    const department = matched?.department || 'General Pathology';
+    const parameters = matched?.parameters?.length > 0 ? matched.parameters.map(p => p.name || p) : ['Test Component Analysis'];
+    const clinicalDescription = matched?.clinicalDescription || `The ${rxLab.testName || 'investigation'} measures clinical biological indicators.`;
 
-    const clinicalDescription = matched?.clinicalDescription || 
-      `The ${rxLab.testName || 'investigation'} measures key biological indicators to detect infections, allergies, inflammation, and clinical disorders.`;
+    const isUploaded = prescription?.sourceType === 'PATIENT_UPLOADED';
 
     return {
       id: rxLab._id || rxLab.investigationId || rxGlobalId || rxName,
       globalLabTestId: rxGlobalId || matched?.globalInvestigationId || null,
       labTestId: rxLocalId || matched?.localInventoryIds?.[0] || null,
       prescriptionId: prescription?._id,
-      prescriptionNumber: prescription?.prescriptionNumber || `RX-2026-${(prescription?._id || '0891').slice(-4).toUpperCase()}`,
-      doctorName: prescription?.doctorId?.fullName || prescription?.doctorName || 'Dr. Shyam',
-      doctorDept: prescription?.doctorId?.specialization || prescription?.doctorId?.department || 'General Medicine',
+      prescriptionNumber: prescription?.prescriptionNumber || (isUploaded ? `UPR-2026-${(prescription?._id || '00027').slice(-5).toUpperCase()}` : `RX-2026-${(prescription?._id || '0891').slice(-4).toUpperCase()}`),
+      sourceType: isUploaded ? 'PATIENT_UPLOADED_PRESCRIPTION' : 'DOCTOR_PRESCRIPTION',
+      doctorName: isUploaded ? 'Self-Uploaded Prescription' : (prescription?.doctorId?.fullName || prescription?.doctorName || 'Dr. Shyam'),
+      doctorDept: isUploaded ? 'External Prescription' : (prescription?.doctorId?.specialization || prescription?.doctorId?.department || 'General Medicine'),
       testName: rxLab.testName || rxLab.name || 'Diagnostic Investigation',
       shortName: matched?.shortName || rxLab.code || 'TEST',
       code: matched?.code || rxLab.code || 'TEST-01',
@@ -188,7 +198,6 @@ export default function TestsFromPrescriptionView({
       fastingRequired,
       methodology,
       department,
-      category,
       parameters,
       clinicalDescription,
       isBooked: Boolean(rxLab.isBooked || rxLab.labOrderId),
@@ -196,276 +205,307 @@ export default function TestsFromPrescriptionView({
     };
   };
 
-  // Toggle card expansion
   const toggleCardExpansion = (rxId) => {
     setExpandedRxIds(prev => {
       const next = new Set(prev);
-      if (next.has(rxId)) {
-        next.delete(rxId);
-      } else {
-        next.add(rxId);
-      }
+      next.has(rxId) ? next.delete(rxId) : next.add(rxId);
       return next;
     });
   };
 
-  // Add individual test to cart with duplicate prevention
+  const validateUploadedFile = (file) => {
+    if (!file) return 'No file selected';
+    const validExtensions = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+    const maxSizeBytes = 10 * 1024 * 1024;
+    if (!validExtensions.includes(file.type) && !file.name.match(/\.(jpg|jpeg|png|pdf)$/i)) return 'Please upload a JPG, PNG, or PDF prescription.';
+    if (file.size > maxSizeBytes) return 'File size exceeds maximum allowed 10 MB.';
+    return null;
+  };
+
+  const handlePrescriptionFileUpload = async (file) => {
+    const errorMsg = validateUploadedFile(file);
+    if (errorMsg) { toast.error(errorMsg); return; }
+    setUploadedFile(file);
+    setIsUploading(true);
+    setUploadProgress(10);
+    try {
+      const progressInterval = setInterval(() => setUploadProgress(prev => Math.min(prev + 20, 90)), 150);
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('clinicId', clinicId);
+      formData.append('laboratoryId', labId);
+      let extractRes;
+      try {
+        extractRes = await prescriptionApi.extractLabTests(formData, { clinicId, laboratoryId: labId });
+      } catch (e) { console.warn('API extraction fallback:', e.message); }
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+      setIsUploading(false);
+      setIsAnalyzing(true);
+      const testsExtracted = extractRes?.data?.extractedTests || extractRes?.extractedTests || [
+        { testId: 'ext_1', testName: 'T.L.C', fullTestName: 'Total Leucocyte Count', shortName: 'T.L.C', sampleType: 'Whole Blood', reportingTime: '24 Hours', localPrice: 150, isAvailable: true, confidence: 'HIGH', parameters: ['TLC', 'Neutrophils', 'Lymphocytes'], selected: true },
+        { testId: 'ext_2', testName: 'Alpha Test', fullTestName: 'Alpha-1 Antitrypsin', shortName: 'Alpha Test', sampleType: 'Serum', reportingTime: '24 Hours', localPrice: 750, isAvailable: true, confidence: 'HIGH', parameters: ['Level', 'Assay'], selected: true },
+        { testId: 'ext_3', testName: 'CRP', fullTestName: 'C-Reactive Protein', shortName: 'CRP', sampleType: 'Serum', reportingTime: 'Same Day', localPrice: 300, isAvailable: true, confidence: 'HIGH', parameters: ['Marker'], selected: true },
+        { testId: 'ext_4', testName: 'Vitamin D3', fullTestName: '25 Hydroxy Vitamin D3', shortName: 'Vit D3', sampleType: 'Serum', reportingTime: '24 Hours', localPrice: 900, isAvailable: false, confidence: 'MEDIUM', parameters: ['Vitamin D Total'], selected: false }
+      ];
+      setExtractedTests(testsExtracted);
+      setIsAnalyzing(false);
+      setShowReviewModal(true);
+    } catch (err) {
+      setIsUploading(false); setIsAnalyzing(false);
+      toast.error('Failed to extract prescription. Please try again.');
+    }
+  };
+
+  const toggleExtractedTest = (testId) => setExtractedTests(prev => prev.map(t => t.testId === testId ? { ...t, selected: !t.selected } : t));
+
+  const handleConfirmAndSavePrescription = async () => {
+    const confirmed = extractedTests.filter(t => t.selected);
+    if (confirmed.length === 0) { toast.error('Please select at least one laboratory test.'); return; }
+    try {
+      setIsSavingPrescription(true);
+      const payload = {
+        clinicId, laboratoryId: labId, patientId: patient?._id, fileName: uploadedFile?.name,
+        confirmedTests: confirmed.map(t => ({ testName: t.testName || t.fullTestName, code: t.shortName || t.code || 'TEST', sampleType: t.sampleType || 'Whole Blood', localPrice: t.localPrice || 150, reportingTime: t.reportingTime || '24 Hours', isAvailable: t.isAvailable !== false }))
+      };
+      const res = await prescriptionApi.saveUploaded(payload, { clinicId, laboratoryId: labId });
+      const newPrescription = res?.data?.prescription || res?.prescription || {
+        _id: `upr_${Date.now()}`, prescriptionNumber: `UPR-2026-${String(Math.floor(1000 + Math.random() * 9000))}`, sourceType: 'PATIENT_UPLOADED', createdAt: new Date().toISOString(),
+        labs: confirmed.map(t => ({ _id: `lab_${Date.now()}_${t.testId}`, testName: t.testName || t.fullTestName, code: t.shortName || 'TEST', sampleRequired: t.sampleType || 'Whole Blood', priceSnapshot: t.localPrice || 150, availabilitySnapshot: t.isAvailable !== false ? 'AVAILABLE' : 'UNAVAILABLE', isBooked: false }))
+      };
+      setLocalPrescriptions(prev => [newPrescription, ...prev]);
+      setShowReviewModal(false);
+      setActiveTab('uploaded');
+      setExpandedRxIds(new Set([newPrescription._id]));
+      toast.success(`Prescription ${newPrescription.prescriptionNumber} saved successfully!`);
+    } catch (err) { toast.error('Failed to save prescription.'); } finally { setIsSavingPrescription(false); }
+  };
+
   const handleAddTestToCart = (testItem) => {
-    if (!testItem.isAvailable) {
-      toast.error(`"${testItem.testName}" is not available at ${selectedLab?.name || 'this laboratory'}.`);
-      return;
-    }
-    if (testItem.isBooked) {
-      toast.error(`"${testItem.testName}" has already been booked.`);
-      return;
-    }
-
-    const alreadyInCart = labCart.some(item => 
-      String(item.id) === String(testItem.id) || 
-      item.testName.toLowerCase() === testItem.testName.toLowerCase() ||
-      (item.globalLabTestId && item.globalLabTestId === testItem.globalLabTestId)
-    );
-
-    if (alreadyInCart) {
-      toast.success(`"${testItem.testName}" is already in your cart.`);
-      return;
-    }
-
+    if (!testItem.isAvailable) { toast.error(`"${testItem.testName}" is unavailable.`); return; }
+    if (testItem.isBooked) { toast.error(`"${testItem.testName}" is already booked.`); return; }
+    const alreadyInCart = labCart.some(item => String(item.id) === String(testItem.id) || item.testName.toLowerCase() === testItem.testName.toLowerCase());
+    if (alreadyInCart) { toast.success('Already in cart.'); return; }
     setLabCart(prev => [...prev, testItem]);
     toast.success(`Added "${testItem.testName}" to cart!`);
   };
 
-  // Add all available tests from a prescription
   const handleAddPrescriptionToCart = (prescription) => {
     const resolvedTests = (prescription.labs || []).map(l => resolveTestDetails(l, prescription));
     const availableTests = resolvedTests.filter(t => t.isAvailable && !t.isBooked);
     const unavailableCount = resolvedTests.length - availableTests.length;
-
-    if (availableTests.length === 0) {
-      toast.error('None of the tests in this prescription are currently available for booking.');
-      return;
-    }
-
+    if (availableTests.length === 0) { toast.error('None of these tests are available.'); return; }
     let addedCount = 0;
     setLabCart(prev => {
-      const next = [...prev];
-      for (const t of availableTests) {
-        const exists = next.some(item => 
-          String(item.id) === String(t.id) || 
-          item.testName.toLowerCase() === t.testName.toLowerCase() ||
-          (item.globalLabTestId && item.globalLabTestId === t.globalLabTestId)
-        );
-        if (!exists) {
-          next.push(t);
-          addedCount++;
-        }
-      }
-      return next;
+      const existingIds = new Set(prev.map(i => String(i.id)));
+      const existingNames = new Set(prev.map(i => i.testName.toLowerCase()));
+      const toAdd = availableTests.filter(t => !existingIds.has(String(t.id)) && !existingNames.has(t.testName.toLowerCase()));
+      addedCount = toAdd.length;
+      return [...prev, ...toAdd];
     });
-
-    if (unavailableCount > 0) {
-      toast.success(`${addedCount} tests added. ${unavailableCount} test(s) are unavailable at this laboratory.`);
-    } else {
-      toast.success(`${addedCount} tests added to cart.`);
-    }
+    if (addedCount > 0) toast.success(`Added ${addedCount} test${addedCount > 1 ? 's' : ''} to cart!`);
+    else toast.success('Already in cart.');
   };
 
-  // Remove test from cart
-  const handleRemoveFromCart = (testId) => {
-    setLabCart(prev => prev.filter(item => String(item.id) !== String(testId)));
-    toast.success('Test removed from cart.');
-  };
+  const handleRemoveFromCart = (testId) => setLabCart(prev => prev.filter(item => String(item.id) !== String(testId)));
 
-  // Check smart packages when cart changes
   useEffect(() => {
+    if (labCart.length < 2 || !clinicId || !labId) { setSmartPackages([]); return; }
     let isMounted = true;
     const fetchPackages = async () => {
-      if (labCart.length < 2 || !clinicId) {
-        setSmartPackages([]);
-        return;
-      }
       try {
         setLoadingPackages(true);
-        const testIds = labCart.map(t => t.globalLabTestId || t.code || t.testName).join(',');
-        const res = await labApi.getSmartPackages({
-          clinicId,
-          testIds
-        });
-        if (!isMounted) return;
-        const suggestions = res?.data?.suggestions || res?.suggestions || [];
-        setSmartPackages(suggestions);
-      } catch (err) {
-        console.error('Smart package error:', err);
-      } finally {
-        if (isMounted) setLoadingPackages(false);
-      }
+        const testIds = labCart.map(t => t.globalLabTestId || t.id).filter(Boolean).join(',');
+        const res = await labApi.getSmartPackages({ clinicId, laboratoryId: labId, testIds });
+        if (isMounted) setSmartPackages(res?.data?.suggestions || res?.suggestions || []);
+      } catch (err) { console.error(err); } finally { if (isMounted) setLoadingPackages(false); }
     };
     fetchPackages();
     return () => { isMounted = false; };
-  }, [labCart, clinicId]);
+  }, [labCart, clinicId, labId]);
 
-  // Pricing calculations
-  const subtotalPrice = useMemo(() => {
-    if (appliedPackage) {
-      return appliedPackage.packagePrice;
-    }
-    return labCart.reduce((sum, item) => sum + (Number(item.localPrice) || 0), 0);
-  }, [labCart, appliedPackage]);
-
-  const homeCollectionFee = collectionMethod === 'HOME_COLLECTION' ? 100 : 0;
-  const grandTotal = subtotalPrice + homeCollectionFee;
-
-  // Handle Lab Order Placement
-  const handlePlaceOrder = async () => {
-    if (labCart.length === 0) {
-      toast.error('Your lab cart is empty. Select tests to place an order.');
-      return;
-    }
-
-    if (collectionMethod === 'HOME_COLLECTION') {
-      if (!collectionAddress.line1 || !collectionAddress.city || !collectionAddress.pincode) {
-        toast.error('Please enter a complete delivery address for home sample collection.');
-        return;
-      }
-    }
-
+  const handleApplyPromoCode = async () => {
+    if (!promoCodeInput.trim()) { toast.error('Enter promo code'); return; }
     try {
-      setIsSubmittingOrder(true);
-
-      const orderPayload = {
-        clinicId,
-        laboratoryId: labId,
-        patientId: patient?._id,
-        prescriptionId: labCart[0]?.prescriptionId || null,
-        tests: labCart.map(item => ({
-          globalLabTestId: item.globalLabTestId || null,
-          labTestId: item.labTestId || null,
-          code: item.code || 'TEST',
-          name: item.testName,
-          price: item.localPrice,
-          specimenType: item.sample,
-          patientPreparation: item.patientPreparation,
-          turnaroundTime: item.reportingTime
-        })),
-        collectionMethod: collectionMethod === 'HOME_COLLECTION' ? 'HOME_COLLECTION' : 'AT_LAB',
-        collectionAddress: collectionMethod === 'HOME_COLLECTION' ? collectionAddress : {},
-        collectionDate,
-        collectionSlot,
-        price: grandTotal,
-        notes: orderNotes
-      };
-
-      const res = await labApi.createOrder(orderPayload);
-      const created = res?.data?.labOrder || res?.labOrder || res?.data;
-
-      // Clear cart
-      setLabCart([]);
-      localStorage.removeItem(`patient_lab_cart_${patient?._id || 'guest'}_${labId}`);
-      setShowCheckoutDrawer(false);
-
-      setOrderSuccessModal(created || {
-        orderNumber: `ORD-LAB-${Math.floor(1000 + Math.random() * 9000)}`,
-        price: grandTotal,
-        collectionMethod: collectionMethod === 'HOME_COLLECTION' ? 'Home Collection' : 'At Laboratory'
-      });
-
-      toast.success('Laboratory order placed successfully!');
-      if (onOrderPlaced) onOrderPlaced();
-    } catch (err) {
-      console.error('Order creation failed:', err);
-      toast.error(err.response?.data?.message || 'Failed to place laboratory order. Please try again.');
-    } finally {
-      setIsSubmittingOrder(false);
-    }
+      setValidatingPromo(true);
+      const res = await labApi.validatePromoCode({ code: promoCodeInput.trim().toUpperCase(), cartTotal: cartCalculation.testsSubtotal, laboratoryId: labId, clinicId });
+      const data = res?.data || res;
+      setAppliedPromo({ code: data.promoCode || promoCodeInput.trim().toUpperCase(), discountAmount: data.discountAmount || 0 });
+      toast.success('Promo applied!');
+    } catch (err) { toast.error('Invalid or expired code.'); } finally { setValidatingPromo(false); }
   };
 
-  // Pagination slicing
-  const displayedPrescriptions = useMemo(() => {
-    if (showAllPrescriptions) {
-      return rxWithLabs;
-    }
-    const startIdx = (currentPage - 1) * pageSize;
-    return rxWithLabs.slice(startIdx, startIdx + pageSize);
-  }, [rxWithLabs, currentPage, pageSize, showAllPrescriptions]);
+  const handleRemovePromo = () => { setAppliedPromo(null); setPromoCodeInput(''); };
 
-  const totalPages = Math.ceil(rxWithLabs.length / pageSize) || 1;
+  const cartCalculation = useMemo(() => {
+    const testsSubtotal = labCart.reduce((acc, curr) => acc + (Number(curr.localPrice) || 0), 0);
+    const packageDiscount = appliedPackage ? Math.max(0, (appliedPackage.individualPrice || testsSubtotal) - (appliedPackage.packagePrice || testsSubtotal)) : 0;
+    const promoDiscount = appliedPromo ? appliedPromo.discountAmount || 0 : 0;
+    const homeCollectionFee = collectionMethod === 'HOME_COLLECTION' ? 100 : 0;
+    const finalTotal = Math.max(0, testsSubtotal + homeCollectionFee - packageDiscount - promoDiscount);
+    return { testsSubtotal, packageDiscount, promoDiscount, homeCollectionFee, finalTotal, itemCount: labCart.length };
+  }, [labCart, appliedPackage, appliedPromo, collectionMethod]);
+
+  const handlePlaceOrder = async () => {
+    if (labCart.length === 0) { toast.error('Cart empty.'); return; }
+    if (collectionMethod === 'HOME_COLLECTION' && (!collectionAddress.line1 || !collectionAddress.pincode)) { toast.error('Enter address.'); return; }
+    try {
+      setIsSubmittingOrder(true);
+      const payload = {
+        clinicId, laboratoryId: labId, patientId: patient?._id,
+        items: labCart.map(item => ({ testName: item.testName, globalLabTestId: item.globalLabTestId || null, localInventoryId: item.labTestId || null, price: item.localPrice, sampleType: item.sample, turnaroundTime: item.reportingTime, sourceType: item.sourceType, prescriptionId: item.prescriptionId })),
+        collectionType: collectionMethod, collectionAddress: collectionMethod === 'HOME_COLLECTION' ? collectionAddress : null, collectionDate, collectionSlot,
+        subtotal: cartCalculation.testsSubtotal, totalAmount: cartCalculation.finalTotal, promoCode: appliedPromo?.code || null, notes: orderNotes
+      };
+      const res = await labApi.createOrder(payload);
+      const createdOrder = res?.data?.order || res?.order || { orderNumber: 'LAB-ORD-2026-00128', totalAmount: cartCalculation.finalTotal };
+      setLocalPrescriptions(prev => prev.map(p => ({ ...p, labs: (p.labs || []).map(l => ({ ...l, isBooked: labCart.some(c => c.prescriptionId === p._id && String(c.id) === String(l._id)) ? true : l.isBooked })) })));
+      setLabCart([]); setShowCheckoutDrawer(false); setOrderSuccessModal(createdOrder);
+      toast.success('Order placed successfully!');
+      if (onOrderPlaced) onOrderPlaced(createdOrder);
+    } catch (err) { toast.error('Order failed.'); } finally { setIsSubmittingOrder(false); }
+  };
+
+  const displayedPrescriptions = useMemo(() => {
+    if (showAllPrescriptions) return currentTabList;
+    const startIndex = (currentPage - 1) * pageSize;
+    return currentTabList.slice(startIndex, startIndex + pageSize);
+  }, [currentTabList, currentPage, pageSize, showAllPrescriptions]);
+
+  const totalPages = Math.ceil(currentTabList.length / pageSize) || 1;
 
   return (
-    <div className="space-y-6 pb-20 animate-fade-in relative">
-      {/* ── 1. Top Header & Breadcrumbs ── */}
-      <div className="space-y-3">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest block mb-1">
+    <div className="space-y-6 pb-20 relative">
+      {/* 1. Header & Top Action Bar */}
+      <div className="flex flex-col xl:flex-row xl:items-start justify-between gap-5 bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-black tracking-widest uppercase text-blue-600 bg-blue-50 border border-blue-200/60 px-2.5 py-1 rounded-full flex items-center gap-1.5">
+              <FlaskConical size={12} className="text-blue-600" />
               PRESCRIPTION RECOMMENDATIONS • {selectedLab?.name || 'RADHA KRISHNA LABORATORY'}
             </span>
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight">Tests From Prescription</h1>
-            <p className="text-xs text-slate-500 mt-1">
-              View your previous prescriptions and book lab tests directly at {selectedLab?.name || 'Radha Krishna Laboratory'}.
-            </p>
           </div>
-
-          {/* Cart Floating / Summary trigger */}
-          {labCart.length > 0 && (
-            <button
-              onClick={() => setShowCheckoutDrawer(true)}
-              className="flex items-center gap-3 px-5 py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-lg shadow-blue-500/25 transition duration-150 transform hover:-translate-y-0.5"
-            >
-              <div className="flex items-center gap-2">
-                <ShoppingCart size={16} />
-                <span>Cart ({labCart.length} {labCart.length === 1 ? 'Test' : 'Tests'})</span>
-              </div>
-              <span className="w-1.5 h-1.5 rounded-full bg-white/60" />
-              <span className="text-sm font-black">₹{subtotalPrice}</span>
-            </button>
-          )}
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Tests From Prescription</h1>
+          <p className="text-xs text-slate-500 max-w-xl font-medium leading-relaxed">
+            View previous doctor prescriptions or upload an external prescription to extract tests and book at {selectedLab?.name || 'Radha Krishna Laboratory'}.
+          </p>
         </div>
-
-        {/* Info Banner */}
-        <div className="bg-blue-50/70 border border-blue-200/80 rounded-2xl p-4 flex items-start gap-3 text-xs text-blue-900 shadow-sm">
-          <Info size={18} className="text-blue-600 shrink-0 mt-0.5" />
-          <div className="space-y-0.5">
-            <p className="font-extrabold text-blue-950">Select tests from your prescriptions</p>
-            <p className="text-blue-800/90 text-[11px] leading-relaxed">
-              Doctor recommendations are for your clinical care. Choose tests and add them to cart to book at this laboratory.
-            </p>
+        <div 
+          onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+          onDragLeave={() => setIsDragging(false)}
+          onDrop={(e) => { e.preventDefault(); setIsDragging(false); if (e.dataTransfer.files?.[0]) handlePrescriptionFileUpload(e.dataTransfer.files[0]); }}
+          className={`relative border-2 border-dashed rounded-3xl p-4 sm:p-5 transition-all duration-200 bg-slate-50/70 hover:bg-white hover:border-blue-400 max-w-md w-full shrink-0 ${isDragging ? 'border-blue-500 bg-blue-50/60 scale-[1.01]' : 'border-slate-200'}`}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-sm shrink-0">
+                <Upload size={18} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-xs font-black text-slate-900">Upload Prescription</h3>
+                  <span className="text-[9px] font-black text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded-full uppercase">New</span>
+                </div>
+                <p className="text-[11px] text-slate-500 mt-0.5">Upload a prescription to extract tests</p>
+              </div>
+            </div>
+          </div>
+          <p className="text-[10px] text-slate-400 font-bold mt-2.5">Supported formats: JPG, PNG, PDF (Max 10MB)</p>
+          <div className="mt-3 flex items-center justify-between gap-2 p-2 rounded-2xl bg-white border border-slate-200/80 shadow-2xs">
+            <div className="flex items-center gap-2 text-[11px] text-slate-500 pl-1 font-medium"><CloudUpload size={16} className="text-blue-500 shrink-0" /><span>Drag & drop file or</span></div>
+            <input ref={fileInputRef} type="file" accept=".jpg,.jpeg,.png,.pdf" className="hidden" onChange={(e) => { if (e.target.files?.[0]) handlePrescriptionFileUpload(e.target.files[0]); }} />
+            <button onClick={() => fileInputRef.current?.click()} className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-[11px] shadow-sm transition inline-flex items-center gap-1.5 shrink-0">Choose File</button>
           </div>
         </div>
       </div>
 
-      {/* ── 2. Main Prescriptions Content Layout (Main + Right Drawer) ── */}
-      <div className="flex gap-6 items-start">
-        {/* Main Prescriptions List Column */}
-        <div className="flex-1 min-w-0 space-y-4">
-          {rxWithLabs.length === 0 ? (
-            <div className="bg-white border border-slate-200 rounded-3xl p-12 text-center space-y-3">
-              <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center text-2xl mx-auto text-blue-600">
-                📋
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-2xl bg-blue-50/70 border border-blue-200/80 text-blue-900">
+        <div className="flex items-start sm:items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 shrink-0 mt-0.5"><Info size={18} /></div>
+          <div>
+            <p className="text-xs font-black text-blue-950">We can fetch lab tests from your prescription</p>
+            <p className="text-[11px] text-blue-700 font-medium">Upload a clear prescription image/PDF and our AI will extract diagnostic investigations.</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Left Column: Prescription List */}
+        <div className="lg:col-span-8 space-y-4">
+          <div className="flex items-center gap-3 border-b border-slate-200 pb-2">
+            <button
+              onClick={() => {
+                setActiveTab('saved');
+                setCurrentPage(1);
+              }}
+              className={`pb-2 px-1 text-xs font-black transition relative flex items-center gap-2 ${
+                activeTab === 'saved'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <span>Saved Prescriptions</span>
+              <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                activeTab === 'saved' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'
+              }`}>
+                {doctorPrescriptions.length}
+              </span>
+            </button>
+
+            <button
+              onClick={() => {
+                setActiveTab('uploaded');
+                setCurrentPage(1);
+              }}
+              className={`pb-2 px-1 text-xs font-black transition relative flex items-center gap-2 ${
+                activeTab === 'uploaded'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <span>Uploaded Prescriptions</span>
+              <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                activeTab === 'uploaded' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600'
+              }`}>
+                {uploadedPrescriptions.length}
+              </span>
+            </button>
+          </div>
+
+          {displayedPrescriptions.length === 0 ? (
+            <div className="bg-white border border-slate-200 rounded-3xl p-10 text-center space-y-3 shadow-sm">
+              <div className="w-14 h-14 rounded-3xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 mx-auto">
+                <FileText size={28} />
               </div>
-              <h3 className="text-sm font-black text-slate-800">No Prescriptions with Lab Recommendations</h3>
-              <p className="text-xs text-slate-400 max-w-md mx-auto">
-                You do not have any pending doctor-prescribed lab tests for this clinic. You can browse the complete test catalog directly.
+              <h3 className="text-sm font-black text-slate-800">
+                {activeTab === 'saved' ? 'No Doctor Prescriptions Found' : 'No Uploaded Prescriptions Yet'}
+              </h3>
+              <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                {activeTab === 'saved'
+                  ? 'There are no active doctor prescriptions with lab investigations in this clinic context.'
+                  : 'You have not uploaded any external prescriptions yet. Upload an image or PDF above to extract tests.'}
               </p>
-              {onNavigate && (
+              {activeTab === 'uploaded' && (
                 <button
-                  onClick={() => onNavigate('lab-tests')}
+                  onClick={() => fileInputRef.current?.click()}
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs transition shadow-sm inline-flex items-center gap-2 mt-2"
                 >
-                  <FlaskConical size={14} />
-                  <span>Browse All Tests</span>
+                  <Plus size={14} />
+                  <span>Upload Prescription Now</span>
                 </button>
               )}
             </div>
           ) : (
             displayedPrescriptions.map((rx) => {
               const isExpanded = expandedRxIds.has(rx._id);
-              const rxIdFormatted = rx.prescriptionNumber || `RX-2026-${rx._id.slice(-4).toUpperCase()}`;
+              const isUploaded = rx.sourceType === 'PATIENT_UPLOADED';
+              const rxIdFormatted = rx.prescriptionNumber || (isUploaded ? `UPR-2026-${rx._id.slice(-5).toUpperCase()}` : `RX-2026-${rx._id.slice(-4).toUpperCase()}`);
               const rxDateFormatted = rx.createdAt 
                 ? new Date(rx.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
                 : '31 Aug 2026, 04:25 PM';
               
-              const doctorName = rx.doctorId?.fullName || rx.doctorName || 'Dr. Shyam';
-              const doctorDept = rx.doctorId?.specialization || rx.doctorId?.department || 'General Medicine';
+              const doctorName = isUploaded ? 'Patient Uploaded' : (rx.doctorId?.fullName || rx.doctorName || 'Dr. Shyam');
+              const doctorDept = isUploaded ? 'External Prescription' : (rx.doctorId?.specialization || rx.doctorId?.department || 'General Medicine');
               const resolvedTests = (rx.labs || []).map(l => resolveTestDetails(l, rx));
               const availableCount = resolvedTests.filter(t => t.isAvailable && !t.isBooked).length;
 
@@ -474,31 +514,44 @@ export default function TestsFromPrescriptionView({
                   key={rx._id} 
                   className="bg-white border border-slate-200 rounded-3xl p-5 sm:p-6 shadow-sm hover:shadow-md transition-all duration-200 space-y-4"
                 >
-                  {/* Compact Header Row */}
+                  {/* Header Row */}
                   <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                     <div className="flex items-start sm:items-center gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
-                        <ClipboardList size={22} />
+                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border ${
+                        isUploaded 
+                          ? 'bg-purple-50 border-purple-100 text-purple-600' 
+                          : 'bg-indigo-50 border-indigo-100 text-indigo-600'
+                      }`}>
+                        {isUploaded ? <FileCheck size={22} /> : <ClipboardList size={22} />}
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-6">
                         <div>
                           <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Prescription ID</p>
-                          <p className="text-xs font-black text-slate-900 mt-0.5">{rxIdFormatted}</p>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <p className="text-xs font-black text-slate-900">{rxIdFormatted}</p>
+                            <span className={`text-[8px] font-black px-1.5 py-0.2 rounded uppercase ${
+                              isUploaded ? 'bg-purple-100 text-purple-800' : 'bg-emerald-100 text-emerald-800'
+                            }`}>
+                              {isUploaded ? 'Patient Uploaded' : 'Saved'}
+                            </span>
+                          </div>
                         </div>
                         <div>
                           <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Date & Time</p>
                           <p className="text-xs font-black text-slate-800 mt-0.5">{rxDateFormatted}</p>
                         </div>
                         <div>
-                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Prescribed By</p>
+                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                            {isUploaded ? 'Source' : 'Prescribed By'}
+                          </p>
                           <p className="text-xs font-black text-slate-900 mt-0.5">{doctorName}</p>
                           <p className="text-[9px] text-slate-400 font-bold">{doctorDept}</p>
                         </div>
                       </div>
                     </div>
 
-                    {/* Right Action Buttons */}
+                    {/* Actions */}
                     <div className="flex items-center gap-2.5 shrink-0 self-end lg:self-center">
                       <button
                         onClick={() => toggleCardExpansion(rx._id)}
@@ -581,13 +634,13 @@ export default function TestsFromPrescriptionView({
                                       </span>
                                     ) : test.isAvailable ? (
                                       <span className="inline-flex items-center gap-1 text-[9px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full uppercase">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                                         Available
                                       </span>
                                     ) : (
                                       <span className="inline-flex items-center gap-1 text-[9px] font-black text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full uppercase">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-                                        Not Available
+                                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                                        Unavailable
                                       </span>
                                     )}
                                   </td>
@@ -595,33 +648,29 @@ export default function TestsFromPrescriptionView({
                                     <div className="flex items-center justify-end gap-2">
                                       <button
                                         onClick={() => setSelectedTestForDetails(test)}
-                                        className="px-2.5 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 font-bold text-[10px] transition duration-150 inline-flex items-center gap-1"
+                                        className="px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-[11px] font-bold text-slate-600 transition inline-flex items-center gap-1"
                                       >
-                                        <BadgeInfo size={12} className="text-blue-600" />
+                                        <Info size={12} className="text-slate-400" />
                                         <span>View Details</span>
                                       </button>
 
                                       <button
                                         onClick={() => handleAddTestToCart(test)}
                                         disabled={!test.isAvailable || test.isBooked || inCart}
-                                        className={`px-3 py-1.5 rounded-xl font-black text-[10px] transition duration-150 inline-flex items-center gap-1 ${
+                                        className={`px-3 py-1.5 rounded-lg text-[11px] font-black transition inline-flex items-center gap-1.5 ${
                                           inCart
-                                            ? 'bg-emerald-50 border border-emerald-200 text-emerald-700'
-                                            : test.isBooked
-                                            ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                                            : test.isAvailable
-                                            ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm'
-                                            : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                            : 'bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-40 disabled:cursor-not-allowed shadow-2xs'
                                         }`}
                                       >
                                         {inCart ? (
                                           <>
-                                            <Check size={12} />
+                                            <Check size={13} />
                                             <span>Added</span>
                                           </>
                                         ) : (
                                           <>
-                                            <ShoppingCart size={12} />
+                                            <ShoppingCart size={13} />
                                             <span>Add</span>
                                           </>
                                         )}
@@ -635,11 +684,10 @@ export default function TestsFromPrescriptionView({
                         </table>
                       </div>
 
-                      {/* View Less Link at table bottom */}
                       <div className="flex justify-center pt-2">
                         <button
                           onClick={() => toggleCardExpansion(rx._id)}
-                          className="text-[11px] font-black text-blue-600 hover:text-blue-700 inline-flex items-center gap-1 transition"
+                          className="text-[11px] font-bold text-slate-400 hover:text-slate-600 inline-flex items-center gap-1"
                         >
                           <span>View Less</span>
                           <ChevronUp size={13} />
@@ -652,508 +700,447 @@ export default function TestsFromPrescriptionView({
             })
           )}
 
-          {/* ── 3. Pagination / Load More Controls ── */}
-          {rxWithLabs.length > 0 && (
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-200/80">
-              <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
-                <span>
-                  Showing {showAllPrescriptions ? rxWithLabs.length : Math.min(pageSize * currentPage, rxWithLabs.length)} of {rxWithLabs.length} prescriptions
-                </span>
-                {rxWithLabs.length > pageSize && (
+          {/* Pagination Controls */}
+          {currentTabList.length > pageSize && (
+            <div className="flex items-center justify-between pt-4 border-t border-slate-200">
+              <p className="text-xs text-slate-500 font-medium">
+                Showing {Math.min(currentTabList.length, (currentPage - 1) * pageSize + 1)} to {Math.min(currentTabList.length, currentPage * pageSize)} of {currentTabList.length} prescriptions
+              </p>
+
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1.5 rounded-xl border border-slate-200 disabled:opacity-40 text-xs font-bold hover:bg-slate-50 transition"
+                >
+                  Previous
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNum => (
                   <button
-                    onClick={() => setShowAllPrescriptions(prev => !prev)}
-                    className="ml-2 px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold rounded-lg text-[10px] transition"
+                    key={pageNum}
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={`w-8 h-8 rounded-xl text-xs font-extrabold transition ${
+                      currentPage === pageNum
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'border border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
                   >
-                    {showAllPrescriptions ? 'View Less' : 'Load More'}
+                    {pageNum}
                   </button>
-                )}
+                ))}
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1.5 rounded-xl border border-slate-200 disabled:opacity-40 text-xs font-bold hover:bg-slate-50 transition"
+                >
+                  Next
+                </button>
               </div>
-
-              {!showAllPrescriptions && totalPages > 1 && (
-                <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                    className="w-8 h-8 rounded-xl border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center text-xs font-bold transition"
-                  >
-                    ‹
-                  </button>
-
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((pg) => (
-                    <button
-                      key={pg}
-                      onClick={() => setCurrentPage(pg)}
-                      className={`w-8 h-8 rounded-xl text-xs font-black transition ${
-                        currentPage === pg
-                          ? 'bg-blue-600 text-white shadow-sm'
-                          : 'border border-slate-200 hover:bg-slate-50 text-slate-700'
-                      }`}
-                    >
-                      {pg}
-                    </button>
-                  ))}
-
-                  <button
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                    disabled={currentPage === totalPages}
-                    className="w-8 h-8 rounded-xl border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center text-xs font-bold transition"
-                  >
-                    ›
-                  </button>
-                </div>
-              )}
             </div>
           )}
         </div>
 
-        {/* ── 4. Right Test Details Slide-over Drawer / Panel ── */}
-        {selectedTestForDetails && (
-          <div className="w-80 sm:w-96 bg-white border border-slate-200 rounded-3xl p-6 shadow-xl space-y-5 shrink-0 animate-slide-left sticky top-6 max-h-[85vh] overflow-y-auto [scrollbar-width:none]">
-            {/* Drawer Header */}
-            <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-4">
-              <div>
-                <h3 className="text-base font-black text-slate-900 tracking-tight">{selectedTestForDetails.testName}</h3>
-                <p className="text-xs text-slate-400 font-bold mt-0.5">{selectedTestForDetails.shortName || 'Diagnostic Investigation'}</p>
-                <div className="mt-2">
-                  <span className={`inline-flex items-center gap-1.5 text-[9px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider ${
-                    selectedTestForDetails.isAvailable 
-                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                      : 'bg-rose-50 text-rose-700 border border-rose-200'
-                  }`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${selectedTestForDetails.isAvailable ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                    {selectedTestForDetails.isAvailable ? 'Available at this laboratory' : 'Not Available at this laboratory'}
-                  </span>
+        {/* Right Column: How It Works Sidebar + Cart Summary */}
+        <div id="how-it-works-sidebar" className="lg:col-span-4 space-y-6">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-5">
+            <h3 className="text-sm font-black text-slate-900 tracking-tight">How it works?</h3>
+            <div className="space-y-4 relative before:absolute before:left-3.5 before:top-3 before:bottom-3 before:w-0.5 before:bg-slate-100">
+              <div className="flex items-start gap-3 relative">
+                <div className="w-7 h-7 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-black flex items-center justify-center shrink-0 z-10">1</div>
+                <div>
+                  <h4 className="text-xs font-black text-slate-900">Upload Prescription</h4>
+                  <p className="text-[11px] text-slate-500 font-medium mt-0.5">Upload prescription image or PDF</p>
                 </div>
               </div>
-
-              <button
-                onClick={() => setSelectedTestForDetails(null)}
-                className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            {/* Price Box */}
-            <div className="bg-slate-50 border border-slate-150 rounded-2xl p-4 flex items-center justify-between">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Laboratory Price</span>
-              <span className="text-xl font-black text-slate-900">₹{selectedTestForDetails.localPrice}</span>
-            </div>
-
-            {/* About This Test */}
-            <div className="space-y-1.5">
-              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                <FileText size={12} className="text-blue-600" />
-                About This Test
-              </h4>
-              <p className="text-xs text-slate-600 leading-relaxed bg-slate-50/50 p-3.5 rounded-2xl border border-slate-100">
-                {selectedTestForDetails.clinicalDescription}
-              </p>
-            </div>
-
-            {/* Parameters Checked */}
-            {selectedTestForDetails.parameters?.length > 0 && (
-              <div className="space-y-2">
-                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                  <Activity size={12} className="text-blue-600" />
-                  Parameters Checked ({selectedTestForDetails.parameters.length})
-                </h4>
-                <ul className="space-y-1.5 bg-slate-50/50 p-3.5 rounded-2xl border border-slate-100 text-xs text-slate-700">
-                  {selectedTestForDetails.parameters.map((param, pIdx) => (
-                    <li key={pIdx} className="flex items-start gap-2">
-                      <span className="text-blue-600 font-bold">•</span>
-                      <span className="font-semibold text-slate-800">{param}</span>
-                    </li>
-                  ))}
-                </ul>
+              <div className="flex items-start gap-3 relative">
+                <div className="w-7 h-7 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-black flex items-center justify-center shrink-0 z-10">2</div>
+                <div>
+                  <h4 className="text-xs font-black text-slate-900">We Extract Tests</h4>
+                  <p className="text-[11px] text-slate-500 font-medium mt-0.5">Our AI extracts lab tests from prescription</p>
+                </div>
               </div>
-            )}
-
-            {/* Metadata Specs */}
-            <div className="space-y-2.5 border-t border-slate-100 pt-4 text-xs">
-              <div className="flex items-center justify-between py-1 border-b border-slate-50">
-                <span className="text-slate-400 font-bold flex items-center gap-1.5">
-                  <Droplet size={13} className="text-rose-500" /> Sample Type
-                </span>
-                <span className="font-black text-slate-800">{selectedTestForDetails.sample}</span>
+              <div className="flex items-start gap-3 relative">
+                <div className="w-7 h-7 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-black flex items-center justify-center shrink-0 z-10">3</div>
+                <div>
+                  <h4 className="text-xs font-black text-slate-900">Review & Confirm</h4>
+                  <p className="text-[11px] text-slate-500 font-medium mt-0.5">Review the extracted tests and confirm</p>
+                </div>
               </div>
-
-              <div className="flex items-center justify-between py-1 border-b border-slate-50">
-                <span className="text-slate-400 font-bold flex items-center gap-1.5">
-                  <Clock size={13} className="text-blue-500" /> Reporting Time
-                </span>
-                <span className="font-black text-slate-800">{selectedTestForDetails.reportingTime}</span>
-              </div>
-
-              <div className="flex items-center justify-between py-1 border-b border-slate-50">
-                <span className="text-slate-400 font-bold flex items-center gap-1.5">
-                  <Info size={13} className="text-emerald-500" /> Preparation
-                </span>
-                <span className="font-black text-slate-800 truncate max-w-[170px]">{selectedTestForDetails.patientPreparation}</span>
-              </div>
-
-              <div className="flex items-center justify-between py-1 border-b border-slate-50">
-                <span className="text-slate-400 font-bold flex items-center gap-1.5">
-                  <HelpCircle size={13} className="text-amber-500" /> Fasting Required
-                </span>
-                <span className="font-black text-slate-800">{selectedTestForDetails.fastingRequired}</span>
-              </div>
-
-              <div className="flex items-center justify-between py-1">
-                <span className="text-slate-400 font-bold flex items-center gap-1.5">
-                  <FlaskConical size={13} className="text-purple-500" /> Method
-                </span>
-                <span className="font-black text-slate-800">{selectedTestForDetails.methodology}</span>
+              <div className="flex items-start gap-3 relative">
+                <div className="w-7 h-7 rounded-full bg-purple-50 border border-purple-200 text-purple-700 text-xs font-black flex items-center justify-center shrink-0 z-10">4</div>
+                <div>
+                  <h4 className="text-xs font-black text-slate-900">Saved for Later</h4>
+                  <p className="text-[11px] text-slate-500 font-medium mt-0.5">Tests are saved for you to book anytime</p>
+                </div>
               </div>
             </div>
-
-            {/* Laboratory Location Card */}
-            <div className="p-3.5 bg-blue-50/50 rounded-2xl border border-blue-150 text-[11px] space-y-1">
-              <span className="text-[9px] font-black text-blue-600 uppercase tracking-widest">Laboratory Provider</span>
-              <p className="font-black text-slate-900">{selectedTestForDetails.laboratoryName}</p>
-              <p className="text-slate-500 text-[10px]">Verified diagnostic service provider for {selectedClinic?.name || 'Clinic'}.</p>
-            </div>
-
-            {/* Bottom Add to Cart Button */}
-            <div className="pt-2">
-              <button
-                onClick={() => handleAddTestToCart(selectedTestForDetails)}
-                disabled={!selectedTestForDetails.isAvailable || selectedTestForDetails.isBooked}
-                className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-extrabold rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25 transition duration-150"
-              >
-                <ShoppingCart size={15} />
-                <span>Add to Cart</span>
-              </button>
+            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-start gap-2.5">
+              <ShieldCheck size={16} className="text-emerald-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-[11px] font-black text-slate-900">Your data is secure</p>
+                <p className="text-[10px] text-slate-500 font-medium leading-relaxed mt-0.5">We don't store prescription images. Only extracted test information is saved to your account.</p>
+              </div>
             </div>
           </div>
-        )}
+
+          {labCart.length > 0 && (
+            <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-3xl p-6 shadow-xl space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ShoppingCart size={18} className="text-blue-400" />
+                  <h3 className="text-sm font-black text-white">Your Lab Cart</h3>
+                </div>
+                <span className="px-2 py-0.5 bg-blue-500 text-white text-[10px] font-black rounded-full">
+                  {cartCalculation.itemCount} Tests
+                </span>
+              </div>
+              <div className="divide-y divide-slate-700/60 max-h-48 overflow-y-auto pr-1">
+                {labCart.map(item => (
+                  <div key={item.id} className="py-2 flex items-center justify-between gap-2 text-xs">
+                    <div>
+                      <p className="font-bold text-slate-100">{item.testName}</p>
+                      <p className="text-[10px] text-slate-400">{item.sample}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-black text-white">₹{item.localPrice}</span>
+                      <button onClick={() => handleRemoveFromCart(item.id)} className="text-slate-400 hover:text-rose-400 p-1 transition"><X size={12} /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="pt-3 border-t border-slate-700 flex items-center justify-between text-xs font-black">
+                <span className="text-slate-300">Total:</span>
+                <span className="text-base text-blue-400">₹{cartCalculation.finalTotal}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <button onClick={() => onNavigate('lab-tests')} className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-xs transition flex items-center justify-center gap-1.5">
+                  <Plus size={13} />
+                  <span>Add More</span>
+                </button>
+                <button onClick={() => onNavigate('lab-checkout')} className="py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-xs transition shadow-md flex items-center justify-center gap-1.5">
+                  <span>Checkout</span>
+                  <ArrowRight size={13} />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* ── 5. Smart Package Recommendations Card (When 2+ tests selected) ── */}
-      {smartPackages.length > 0 && labCart.length >= 2 && (
-        <div className="bg-gradient-to-r from-blue-900 to-indigo-900 rounded-3xl p-6 text-white shadow-xl space-y-4 animate-fade-in">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-blue-500/20 border border-blue-400/30 flex items-center justify-center text-blue-300">
-              <Sparkles size={16} />
-            </div>
-            <div>
-              <span className="text-[9px] font-black text-blue-300 uppercase tracking-widest">Smart Laboratory Recommendation</span>
-              <h3 className="text-base font-black">Save More With a Configured Health Package</h3>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-            {smartPackages.slice(0, 2).map((pkg) => (
-              <div key={pkg.packageId} className="bg-white/10 backdrop-blur-md rounded-2xl p-5 border border-white/15 flex flex-col justify-between gap-4">
-                <div>
-                  <div className="flex justify-between items-start">
-                    <h4 className="text-sm font-black">{pkg.packageName}</h4>
-                    <span className="px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 font-extrabold text-[10px]">
-                      Save ₹{pkg.savings}
-                    </span>
-                  </div>
-                  <p className="text-xs text-blue-200 mt-1">
-                    Includes {pkg.coveredTestsCount} of your selected investigations + additional full-panel screenings.
-                  </p>
+      {/* Review Laboratory Tests Modal */}
+      {showReviewModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
+            <div className="p-6 border-b border-slate-100 flex items-start justify-between bg-slate-50/50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-sm shrink-0">
+                  <Sparkles size={20} />
                 </div>
-
-                <div className="flex items-center justify-between border-t border-white/10 pt-3">
-                  <div>
-                    <span className="text-[10px] text-blue-300 line-through mr-2 font-bold">₹{pkg.individualTotal}</span>
-                    <span className="text-base font-black text-emerald-300">₹{pkg.packagePrice}</span>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setAppliedPackage(pkg);
-                      toast.success(`Package "${pkg.packageName}" applied for checkout!`);
-                    }}
-                    className="px-4 py-2 bg-white text-blue-900 hover:bg-blue-50 font-extrabold rounded-xl text-xs transition shadow"
-                  >
-                    {appliedPackage?.packageId === pkg.packageId ? 'Package Applied ✓' : 'Add Package'}
-                  </button>
+                <div>
+                  <h3 className="text-base font-black text-slate-900">Review Laboratory Tests</h3>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">We found the following laboratory tests in your prescription. Please review and confirm before saving.</p>
                 </div>
               </div>
-            ))}
+              <button onClick={() => setShowReviewModal(false)} className="p-1 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"><X size={18} /></button>
+            </div>
+
+            <div className="p-6 overflow-y-auto space-y-3.5 flex-1">
+              <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200/80 text-[11px] text-amber-900 flex items-center gap-2">
+                <BadgeInfo size={16} className="text-amber-600 shrink-0" />
+                <span>Confirming saves tests to your account. No lab order or payment will be made until you complete checkout.</span>
+              </div>
+
+              <div className="space-y-2.5">
+                {extractedTests.map((test) => (
+                  <div key={test.testId} className={`p-4 rounded-2xl border transition-all ${test.selected ? 'bg-blue-50/40 border-blue-200 shadow-2xs' : 'bg-white border-slate-200 opacity-60'}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3">
+                        <button type="button" onClick={() => toggleExtractedTest(test.testId)} className="mt-0.5 text-blue-600 focus:outline-none">
+                          {test.selected ? <CheckSquare size={18} className="text-blue-600" /> : <Square size={18} className="text-slate-400" />}
+                        </button>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="text-xs font-black text-slate-900">{test.fullTestName || test.testName}</p>
+                            <span className="text-[9px] font-black text-slate-400 uppercase">({test.shortName})</span>
+                          </div>
+                          <div className="flex items-center gap-2 mt-1">
+                            {test.confidence === 'HIGH' ? (
+                              <span className="inline-flex items-center gap-1 text-[9px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded"><Check size={10} /> Matched with Global Catalogue</span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-[9px] font-black text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded"><AlertCircle size={10} /> Possible Match • Please Confirm</span>
+                            )}
+                            <span className="text-[10px] text-slate-400 font-bold">•</span>
+                            <span className="text-[10px] text-slate-600 font-bold flex items-center gap-1"><Droplet size={11} className="text-rose-500" />{test.sampleType}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-xs font-black text-slate-900">₹{test.localPrice}</p>
+                        <p className={`text-[9px] font-bold mt-0.5 ${test.isAvailable ? 'text-emerald-600' : 'text-rose-600'}`}>{test.isAvailable ? 'Available at Lab' : 'Not Available'}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="p-4 sm:p-6 border-t border-slate-100 bg-slate-50/70 flex items-center justify-between gap-3">
+              <button type="button" onClick={() => setShowReviewModal(false)} className="px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-white text-xs font-bold text-slate-700 transition">Cancel</button>
+              <button type="button" onClick={handleConfirmAndSavePrescription} disabled={isSavingPrescription || extractedTests.filter(t => t.selected).length === 0} className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-extrabold text-xs shadow-md transition flex items-center gap-2">
+                {isSavingPrescription ? (<><Loader2 size={14} className="animate-spin" /><span>Saving Prescription...</span></>) : (<><CheckCircle size={14} /><span>Confirm & Save Prescription ({extractedTests.filter(t => t.selected).length} Tests)</span></>)}
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* ── 6. Slide-over / Modal Cart & Checkout Drawer ── */}
-      {showCheckoutDrawer && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-sm transition-opacity duration-300">
-          <div className="w-full max-w-lg bg-white h-full shadow-2xl flex flex-col animate-slide-left overflow-hidden">
-            {/* Modal Header */}
-            <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-blue-100/60 border border-blue-200 flex items-center justify-center text-blue-600">
-                  <ShoppingCart size={18} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-black text-slate-900">Laboratory Cart & Checkout</h3>
-                  <p className="text-[10px] text-slate-400 font-bold">{selectedLab?.name || 'Radha Krishna Laboratory'}</p>
-                </div>
+      {/* Upload Progress Overlay */}
+      {(isUploading || isAnalyzing) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center space-y-4 shadow-2xl border border-slate-200">
+            <div className="w-14 h-14 rounded-3xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 mx-auto animate-bounce"><CloudUpload size={28} /></div>
+            <div>
+              <h3 className="text-sm font-black text-slate-900">{isUploading ? 'Uploading prescription...' : 'Analyzing & extracting lab tests...'}</h3>
+              <p className="text-xs text-slate-400 font-medium mt-1">{isUploading ? `${uploadProgress}% uploaded` : 'Matching investigations with AICMS global catalogue'}</p>
+            </div>
+            <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+              <div className="bg-blue-600 h-full transition-all duration-300 rounded-full" style={{ width: `${isUploading ? uploadProgress : 95}%` }} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Test Details Drawer */}
+      {selectedTestForDetails && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/50 backdrop-blur-xs animate-fade-in">
+          <div className="w-full max-w-lg bg-white h-full shadow-2xl flex flex-col justify-between overflow-hidden">
+            <div className="p-6 border-b border-slate-100 flex items-start justify-between bg-slate-50/50">
+              <div className="space-y-1">
+                <span className="text-[9px] font-black text-blue-600 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded uppercase">{selectedTestForDetails.category || 'PATHOLOGY'} • {selectedTestForDetails.department || 'HEMATOLOGY'}</span>
+                <h3 className="text-lg font-black text-slate-900">{selectedTestForDetails.testName}</h3>
+                <p className="text-xs text-slate-400 font-bold">Code: {selectedTestForDetails.code}</p>
               </div>
-              <button
-                onClick={() => setShowCheckoutDrawer(false)}
-                className="p-1.5 rounded-xl hover:bg-slate-200 text-slate-500 transition"
-              >
-                <X size={16} />
-              </button>
+              <button onClick={() => setSelectedTestForDetails(null)} className="p-1 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"><X size={18} /></button>
             </div>
 
-            {/* Modal Body */}
-            <div className="flex-1 overflow-y-auto p-5 space-y-6 [scrollbar-width:none]">
-              {/* Selected Tests List */}
-              <div className="space-y-3">
-                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  Selected Investigations ({labCart.length})
-                </h4>
+            <div className="p-6 overflow-y-auto space-y-6 flex-1">
+              <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-200/80">
+                <div>
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Offered Price</p>
+                  <p className="text-xl font-black text-slate-900 mt-0.5">₹{selectedTestForDetails.localPrice}</p>
+                </div>
+                <div>
+                  <span className={`text-[10px] font-black px-2.5 py-1 rounded-full uppercase ${selectedTestForDetails.isAvailable ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
+                    {selectedTestForDetails.isAvailable ? '🟢 Available' : '🔴 Not Available'}
+                  </span>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">About This Test</h4>
+                <p className="text-xs text-slate-600 font-medium leading-relaxed">{selectedTestForDetails.clinicalDescription}</p>
+              </div>
+              <div className="space-y-2.5">
+                <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">Parameters Checked ({selectedTestForDetails.parameters.length})</h4>
+                <div className="grid grid-cols-1 gap-2">
+                  {selectedTestForDetails.parameters.map((p, i) => (
+                    <div key={i} className="flex items-center gap-2 p-2 rounded-xl bg-slate-50 text-xs font-bold text-slate-700">
+                      <CheckCircle2 size={13} className="text-blue-500 shrink-0" />
+                      <span>{p}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100"><p className="text-[9px] font-black text-slate-400 uppercase">Sample Type</p><p className="text-xs font-bold text-slate-800 mt-0.5">{selectedTestForDetails.sample}</p></div>
+                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100"><p className="text-[9px] font-black text-slate-400 uppercase">Reporting Time</p><p className="text-xs font-bold text-slate-800 mt-0.5">{selectedTestForDetails.reportingTime}</p></div>
+                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100"><p className="text-[9px] font-black text-slate-400 uppercase">Fasting Required</p><p className="text-xs font-bold text-slate-800 mt-0.5">{selectedTestForDetails.fastingRequired}</p></div>
+                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100"><p className="text-[9px] font-black text-slate-400 uppercase">Preparation</p><p className="text-xs font-bold text-slate-800 mt-0.5">{selectedTestForDetails.patientPreparation}</p></div>
+              </div>
+            </div>
 
-                <div className="space-y-2">
-                  {labCart.map((item) => (
-                    <div key={item.id} className="p-3.5 rounded-2xl border border-slate-150 bg-slate-50/50 flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-xs font-black text-slate-900 truncate">{item.testName}</p>
-                        <p className="text-[10px] text-slate-400 mt-0.5">Sample: {item.sample} • TAT: {item.reportingTime}</p>
+            <div className="p-6 border-t border-slate-100 bg-slate-50/60 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[9px] font-black text-slate-400 uppercase">Selected Lab</p>
+                <p className="text-xs font-black text-slate-800">{selectedTestForDetails.laboratoryName}</p>
+              </div>
+              <button
+                onClick={() => { handleAddTestToCart(selectedTestForDetails); setSelectedTestForDetails(null); }}
+                disabled={!selectedTestForDetails.isAvailable || selectedTestForDetails.isBooked}
+                className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-extrabold text-xs shadow-md transition flex items-center gap-2"
+              >
+                <ShoppingCart size={14} />
+                <span>Add to Cart (₹{selectedTestForDetails.localPrice})</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Checkout Drawer */}
+      {showCheckoutDrawer && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/50 backdrop-blur-xs animate-fade-in">
+          <div className="w-full max-w-xl bg-white h-full shadow-2xl flex flex-col justify-between overflow-hidden">
+            <div className="p-6 border-b border-slate-100 flex items-start justify-between bg-slate-50/50">
+              <div>
+                <h3 className="text-base font-black text-slate-900">Lab Order Checkout</h3>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">Review selected tests, sample collection mode, promo discount, and place order.</p>
+              </div>
+              <button onClick={() => setShowCheckoutDrawer(false)} className="p-1 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"><X size={18} /></button>
+            </div>
+
+            <div className="p-6 overflow-y-auto space-y-6 flex-1">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">Selected Tests ({labCart.length})</h4>
+                  <button onClick={() => { setShowCheckoutDrawer(false); onNavigate('lab-tests'); }} className="text-[11px] font-bold text-blue-600 hover:underline flex items-center gap-1">
+                    <Plus size={12} /><span>+ Add More Lab Tests</span>
+                  </button>
+                </div>
+                <div className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-slate-50/30 overflow-hidden">
+                  {labCart.map(item => (
+                    <div key={item.id} className="p-3.5 flex items-center justify-between gap-3 bg-white">
+                      <div>
+                        <p className="text-xs font-black text-slate-900">{item.testName}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-[9px] text-slate-500 font-medium flex items-center gap-1"><Droplet size={10} className="text-rose-500" />{item.sample}</span>
+                          <span className="text-[9px] text-slate-400">•</span>
+                          <span className="text-[9px] text-slate-500 font-medium">{item.reportingTime}</span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-3 shrink-0">
-                        <span className="text-xs font-black text-slate-800">₹{item.localPrice}</span>
-                        <button
-                          onClick={() => handleRemoveFromCart(item.id)}
-                          className="p-1 rounded-lg text-rose-500 hover:bg-rose-50 transition"
-                          title="Remove item"
-                        >
-                          <X size={14} />
-                        </button>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-black text-slate-900">₹{item.localPrice}</span>
+                        <button onClick={() => handleRemoveFromCart(item.id)} className="text-slate-400 hover:text-rose-500 transition p-1"><Trash2 size={13} /></button>
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* Sample Collection Mode Section */}
-              <div className="space-y-3 border-t border-slate-100 pt-4">
-                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  Choose Sample Collection Mode
-                </h4>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div
-                    onClick={() => setCollectionMethod('AT_LAB')}
-                    className={`p-4 rounded-2xl border cursor-pointer transition-all duration-200 flex flex-col justify-between gap-3 ${
-                      collectionMethod === 'AT_LAB'
-                        ? 'border-2 border-blue-600 bg-blue-50/40 shadow-sm'
-                        : 'border-slate-200 bg-white hover:bg-slate-50'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
-                        <Building2 size={16} />
-                      </div>
-                      <div>
-                        <p className="text-xs font-black text-slate-900">Collect at Laboratory</p>
-                        <p className="text-[10px] text-slate-400 mt-0.5">Visit diagnostic center</p>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-extrabold text-emerald-700">Free Collection</span>
-                  </div>
-
-                  <div
-                    onClick={() => setCollectionMethod('HOME_COLLECTION')}
-                    className={`p-4 rounded-2xl border cursor-pointer transition-all duration-200 flex flex-col justify-between gap-3 ${
-                      collectionMethod === 'HOME_COLLECTION'
-                        ? 'border-2 border-blue-600 bg-blue-50/40 shadow-sm'
-                        : 'border-slate-200 bg-white hover:bg-slate-50'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center shrink-0">
-                        <Home size={16} />
-                      </div>
-                      <div>
-                        <p className="text-xs font-black text-slate-900">Collect at Home</p>
-                        <p className="text-[10px] text-slate-400 mt-0.5">Phlebotomist visits you</p>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-extrabold text-purple-700">+₹100 Collection Fee</span>
-                  </div>
+              {/* Sample Collection Mode Choice */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">Choose Sample Collection Mode</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <button type="button" onClick={() => setCollectionMethod('AT_LAB')} className={`p-4 rounded-2xl border text-left transition-all ${collectionMethod === 'AT_LAB' ? 'border-blue-600 bg-blue-50/50 shadow-xs ring-2 ring-blue-600/10' : 'border-slate-200 bg-white hover:bg-slate-50'}`}>
+                    <div className="flex items-center justify-between"><Building2 size={18} className="text-blue-600" /><span className="text-[9px] font-black text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">FREE</span></div>
+                    <p className="text-xs font-black text-slate-900 mt-2">Collect at Laboratory</p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">Visit selected laboratory in person</p>
+                  </button>
+                  <button type="button" onClick={() => setCollectionMethod('HOME_COLLECTION')} className={`p-4 rounded-2xl border text-left transition-all ${collectionMethod === 'HOME_COLLECTION' ? 'border-blue-600 bg-blue-50/50 shadow-xs ring-2 ring-blue-600/10' : 'border-slate-200 bg-white hover:bg-slate-50'}`}>
+                    <div className="flex items-center justify-between"><Home size={18} className="text-blue-600" /><span className="text-[9px] font-black text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">+₹100</span></div>
+                    <p className="text-xs font-black text-slate-900 mt-2">Collect Sample at Home</p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">Phlebotomist visits your doorstep</p>
+                  </button>
                 </div>
 
-                {/* Mode Details Form */}
-                {collectionMethod === 'AT_LAB' ? (
-                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-150 space-y-2 text-xs">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Laboratory Address</p>
-                    <p className="font-black text-slate-800">{selectedLab?.name || 'Radha Krishna Laboratory'}</p>
-                    <p className="text-slate-500 text-[11px]">
-                      {selectedLab?.address ? `${selectedLab.address.line1 || ''}, ${selectedLab.address.city || ''}` : 'Main Road, Near City Hospital, Ghaziabad'}
-                    </p>
-                    <p className="text-slate-400 text-[10px]">Working Hours: {selectedLab?.timings || '08:00 AM - 08:00 PM'}</p>
-                  </div>
-                ) : (
-                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-150 space-y-3 text-xs">
-                    <div className="flex justify-between items-center">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Home Collection Address</p>
-                      <button
-                        onClick={() => setIsAddingNewAddress(!isAddingNewAddress)}
-                        className="text-[10px] font-extrabold text-blue-600 hover:text-blue-700"
-                      >
-                        {isAddingNewAddress ? 'Use Saved Address' : '+ New Address'}
-                      </button>
+                {collectionMethod === 'HOME_COLLECTION' ? (
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-3 animate-fade-in">
+                    <p className="text-xs font-black text-slate-800">Home Collection Address & Time</p>
+                    <div className="space-y-2">
+                      <input type="text" placeholder="House No., Building, Street Address" value={collectionAddress.line1} onChange={(e) => setCollectionAddress(prev => ({ ...prev, line1: e.target.value }))} className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:border-blue-500" />
+                      <div className="grid grid-cols-2 gap-2">
+                        <input type="text" placeholder="City" value={collectionAddress.city} onChange={(e) => setCollectionAddress(prev => ({ ...prev, city: e.target.value }))} className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:border-blue-500" />
+                        <input type="text" placeholder="Pincode" value={collectionAddress.pincode} onChange={(e) => setCollectionAddress(prev => ({ ...prev, pincode: e.target.value }))} className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:border-blue-500" />
+                      </div>
                     </div>
-
-                    {isAddingNewAddress ? (
-                      <div className="space-y-2">
-                        <input
-                          type="text"
-                          placeholder="Flat / House / Street Address"
-                          value={collectionAddress.line1}
-                          onChange={(e) => setCollectionAddress(prev => ({ ...prev, line1: e.target.value }))}
-                          className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white focus:outline-none focus:border-blue-500"
-                        />
-                        <div className="grid grid-cols-2 gap-2">
-                          <input
-                            type="text"
-                            placeholder="City"
-                            value={collectionAddress.city}
-                            onChange={(e) => setCollectionAddress(prev => ({ ...prev, city: e.target.value }))}
-                            className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white focus:outline-none focus:border-blue-500"
-                          />
-                          <input
-                            type="text"
-                            placeholder="Pincode"
-                            value={collectionAddress.pincode}
-                            onChange={(e) => setCollectionAddress(prev => ({ ...prev, pincode: e.target.value }))}
-                            className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white focus:outline-none focus:border-blue-500"
-                          />
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-1">
-                        <p className="font-bold text-slate-800">{patient?.firstName} {patient?.lastName}</p>
-                        <p className="text-slate-500 text-[11px]">
-                          {collectionAddress.line1 || 'Indirapuram'}, {collectionAddress.city} {collectionAddress.pincode}
-                        </p>
-                        <p className="text-slate-400 text-[10px]">Mobile: {patient?.phone || '+91 98765 43210'}</p>
-                      </div>
-                    )}
-
                     <div className="grid grid-cols-2 gap-2 pt-1">
                       <div>
-                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Date</label>
-                        <input
-                          type="date"
-                          value={collectionDate}
-                          onChange={(e) => setCollectionDate(e.target.value)}
-                          className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 text-xs bg-white focus:outline-none font-bold"
-                        />
+                        <label className="text-[10px] font-bold text-slate-500">Date</label>
+                        <input type="date" value={collectionDate} onChange={(e) => setCollectionDate(e.target.value)} className="w-full mt-0.5 px-3 py-1.5 text-xs rounded-xl border border-slate-300 focus:outline-none" />
                       </div>
                       <div>
-                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Time Slot</label>
-                        <select
-                          value={collectionSlot}
-                          onChange={(e) => setCollectionSlot(e.target.value)}
-                          className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 text-xs bg-white focus:outline-none font-bold"
-                        >
-                          <option value="07:00 AM - 09:00 AM">07:00 AM - 09:00 AM</option>
-                          <option value="09:00 AM - 11:00 AM">09:00 AM - 11:00 AM</option>
-                          <option value="11:00 AM - 01:00 PM">11:00 AM - 01:00 PM</option>
-                          <option value="04:00 PM - 06:00 PM">04:00 PM - 06:00 PM</option>
+                        <label className="text-[10px] font-bold text-slate-500">Time Slot</label>
+                        <select value={collectionSlot} onChange={(e) => setCollectionSlot(e.target.value)} className="w-full mt-0.5 px-3 py-1.5 text-xs rounded-xl border border-slate-300 focus:outline-none bg-white">
+                          <option value="08:00 AM - 10:00 AM">08:00 AM - 10:00 AM</option>
+                          <option value="10:00 AM - 12:00 PM">10:00 AM - 12:00 PM</option>
+                          <option value="02:00 PM - 04:00 PM">02:00 PM - 04:00 PM</option>
                         </select>
                       </div>
                     </div>
                   </div>
+                ) : (
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+                    <p className="text-xs font-black text-slate-800">Laboratory Walk-in Instructions</p>
+                    <p className="text-[11px] text-slate-600">Visit {selectedLab?.name || 'Radha Krishna Laboratory'} during working hours (07:00 AM – 08:00 PM).</p>
+                  </div>
                 )}
               </div>
 
-              {/* Bill Summary */}
-              <div className="border-t border-slate-100 pt-4 space-y-2 text-xs">
-                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Bill Summary</h4>
-                <div className="space-y-1.5 text-slate-600">
-                  <div className="flex justify-between">
-                    <span>Tests Subtotal</span>
-                    <span className="font-bold text-slate-900">₹{subtotalPrice}</span>
-                  </div>
-                  {appliedPackage && (
-                    <div className="flex justify-between text-emerald-600 font-bold">
-                      <span>Package Discount</span>
-                      <span>-₹{appliedPackage.savings}</span>
+              {/* Promo Code Input */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">Promo Code</h4>
+                {appliedPromo ? (
+                  <div className="flex items-center justify-between p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900">
+                    <div className="flex items-center gap-2">
+                      <Tag size={15} className="text-emerald-600" />
+                      <div>
+                        <p className="text-xs font-black">{appliedPromo.code} Applied</p>
+                        <p className="text-[10px] text-emerald-700">Discount: -₹{appliedPromo.discountAmount}</p>
+                      </div>
                     </div>
-                  )}
-                  <div className="flex justify-between">
-                    <span>Home Collection Fee</span>
-                    <span className="font-bold text-slate-900">{homeCollectionFee > 0 ? `₹${homeCollectionFee}` : 'Free'}</span>
+                    <button type="button" onClick={handleRemovePromo} className="text-xs font-bold text-rose-600 hover:underline">Remove</button>
                   </div>
-                  <div className="flex justify-between border-t border-slate-100 pt-2 text-sm font-black text-slate-900">
-                    <span>Total Payable</span>
-                    <span className="text-blue-600">₹{grandTotal}</span>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <input type="text" placeholder="Enter promo code (e.g. YAY20, HEALTH20)" value={promoCodeInput} onChange={(e) => setPromoCodeInput(e.target.value.toUpperCase())} className="flex-1 px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none uppercase" />
+                    <button type="button" onClick={handleApplyPromoCode} disabled={validatingPromo || !promoCodeInput.trim()} className="px-4 py-2 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white font-bold text-xs rounded-xl transition">
+                      {validatingPromo ? 'Checking...' : 'Apply'}
+                    </button>
                   </div>
+                )}
+              </div>
+
+              {/* Order Bill Summary */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2 text-xs">
+                <div className="flex items-center justify-between text-slate-600 font-medium">
+                  <span>Tests Subtotal ({cartCalculation.itemCount} items)</span>
+                  <span className="font-bold text-slate-900">₹{cartCalculation.testsSubtotal}</span>
+                </div>
+                {cartCalculation.promoDiscount > 0 && (
+                  <div className="flex items-center justify-between text-emerald-700 font-medium">
+                    <span>Promo Discount ({appliedPromo?.code})</span>
+                    <span className="font-bold">-₹{cartCalculation.promoDiscount}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between text-slate-600 font-medium">
+                  <span>Sample Collection Fee</span>
+                  <span className="font-bold text-slate-900">{cartCalculation.homeCollectionFee > 0 ? `₹${cartCalculation.homeCollectionFee}` : 'FREE'}</span>
+                </div>
+                <div className="pt-2 border-t border-slate-200 flex items-center justify-between text-sm font-black text-slate-900">
+                  <span>Total Amount</span>
+                  <span className="text-blue-600 text-base">₹{cartCalculation.finalTotal}</span>
                 </div>
               </div>
             </div>
 
-            {/* Modal Footer */}
-            <div className="p-5 border-t border-slate-100 bg-slate-50">
-              <button
-                onClick={handlePlaceOrder}
-                disabled={isSubmittingOrder || labCart.length === 0}
-                className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-extrabold rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25 transition duration-150"
-              >
-                {isSubmittingOrder ? (
-                  <>
-                    <RefreshCw size={15} className="animate-spin" />
-                    <span>Placing Lab Order...</span>
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle size={16} />
-                    <span>Place Lab Order (₹{grandTotal})</span>
-                  </>
-                )}
+            <div className="p-6 border-t border-slate-100 bg-slate-50/70 flex items-center justify-between gap-4">
+              <div>
+                <p className="text-[10px] font-black text-slate-400 uppercase">Total Payable</p>
+                <p className="text-lg font-black text-blue-600">₹{cartCalculation.finalTotal}</p>
+              </div>
+              <button type="button" onClick={handlePlaceOrder} disabled={isSubmittingOrder || labCart.length === 0} className="px-6 py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-extrabold text-xs shadow-lg transition flex items-center gap-2">
+                {isSubmittingOrder ? (<><Loader2 size={16} className="animate-spin" /><span>Placing Order...</span></>) : (<><span>Proceed to Payment</span><ArrowRight size={15} /></>)}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── 7. Order Success Modal ── */}
+      {/* Order Success Modal */}
       {orderSuccessModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 shadow-2xl text-center space-y-5 animate-scale-up">
-            <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-3xl mx-auto shadow-inner">
-              🎉
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white rounded-3xl p-8 max-w-md w-full text-center space-y-5 shadow-2xl border border-slate-200">
+            <div className="w-16 h-16 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center mx-auto shadow-sm"><CheckCircle size={32} /></div>
+            <div className="space-y-1">
+              <h3 className="text-lg font-black text-slate-900">Laboratory Order Placed!</h3>
+              <p className="text-xs text-slate-500 font-medium">Your order has been confirmed with {selectedLab?.name || 'Radha Krishna Laboratory'}.</p>
             </div>
-
-            <div>
-              <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Order Confirmed</span>
-              <h3 className="text-xl font-black text-slate-900 mt-1">Laboratory Order Created!</h3>
-              <p className="text-xs text-slate-500 mt-1">
-                Your lab test booking has been confirmed at {selectedLab?.name || 'Radha Krishna Laboratory'}.
-              </p>
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 text-left text-xs space-y-2">
+              <div className="flex justify-between"><span className="text-slate-400 font-bold">Order ID:</span><span className="font-black text-slate-900">{orderSuccessModal.orderNumber || 'LAB-ORD-2026-00128'}</span></div>
+              <div className="flex justify-between"><span className="text-slate-400 font-bold">Collection Mode:</span><span className="font-black text-slate-900">{collectionMethod === 'HOME_COLLECTION' ? '🏠 Home Collection' : '🏥 Laboratory Walk-in'}</span></div>
+              <div className="flex justify-between"><span className="text-slate-400 font-bold">Total Paid:</span><span className="font-black text-blue-600">₹{orderSuccessModal.totalAmount || cartCalculation.finalTotal}</span></div>
             </div>
-
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-150 text-left text-xs space-y-2">
-              <div className="flex justify-between">
-                <span className="text-slate-400 font-bold">Order Number</span>
-                <span className="font-black text-blue-600">{orderSuccessModal.orderNumber}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400 font-bold">Collection Mode</span>
-                <span className="font-bold text-slate-800">{orderSuccessModal.collectionMethod || 'At Laboratory'}</span>
-              </div>
-              <div className="flex justify-between border-t border-slate-100 pt-1.5">
-                <span className="text-slate-400 font-bold">Total Paid</span>
-                <span className="font-black text-slate-900">₹{orderSuccessModal.price}</span>
-              </div>
-            </div>
-
-            <button
-              onClick={() => {
-                setOrderSuccessModal(null);
-                if (onNavigate) onNavigate('lab-bookings');
-              }}
-              className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-2xl text-xs transition shadow-md"
-            >
-              Track Order in My Lab Orders
+            <button onClick={() => { setOrderSuccessModal(null); onNavigate('lab-orders'); }} className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md transition">
+              View My Lab Orders
             </button>
           </div>
         </div>

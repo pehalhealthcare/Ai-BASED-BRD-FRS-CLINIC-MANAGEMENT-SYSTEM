@@ -82,8 +82,12 @@ const patientApi = {
   uploadDocument: (patientId, payload) => extractData(apiClient.post(`/patients/${patientId}/documents`, payload)),
   listDocuments: (patientId) => extractData(apiClient.get(`/patients/${patientId}/documents`)),
   downloadDocument: (patientId, documentId) => extractData(apiClient.get(`/patients/${patientId}/documents/${documentId}`)),
-  deleteDocument: (patientId, documentId) => extractData(apiClient.delete(`/patients/${patientId}/documents/${documentId}`)),
   getMyClinics: () => extractData(apiClient.get('/patients/me/clinics')),
+  getAddresses: () => extractData(apiClient.get('/patients/me/addresses')),
+  addAddress: (payload) => extractData(apiClient.post('/patients/me/addresses', payload)),
+  updateAddress: (id, payload) => extractData(apiClient.patch(`/patients/me/addresses/${id}`, payload)),
+  deleteAddress: (id) => extractData(apiClient.delete(`/patients/me/addresses/${id}`)),
+  setDefaultAddress: (id) => extractData(apiClient.patch(`/patients/me/addresses/${id}/default`)),
   checkExists: (phone) => extractData(apiClient.get('/patients/check-exists', { params: { phone } })),
   associate: (id) => extractData(apiClient.post(`/patients/${id}/associate`))
 };
@@ -211,6 +215,8 @@ const prescriptionApi = {
   update: (id, payload) => extractData(apiClient.patch(`/prescriptions/${id}`, payload)),
   finalize: (id, payload) => extractData(apiClient.post(`/prescriptions/${id}/finalize`, payload)),
   cancel: (id, payload) => extractData(apiClient.post(`/prescriptions/${id}/cancel`, payload)),
+  extractLabTests: (formData, params = {}) => extractData(apiClient.post('/prescriptions/extract-lab-tests', formData, { params, headers: { 'Content-Type': 'multipart/form-data' } })),
+  saveUploaded: (payload, params = {}) => extractData(apiClient.post('/prescriptions/save-uploaded', payload, { params })),
   download: async (id) => {
     const response = await apiClient.get(`/prescriptions/${id}/download`, {
       responseType: 'blob'
@@ -271,6 +277,8 @@ const labApi = {
   listOrders: (params = {}) => extractData(apiClient.get('/labs/orders', { params })),
   getOrder: (id) => extractData(apiClient.get(`/labs/orders/${id}`)),
   updateOrderStatus: (id, payload) => extractData(apiClient.patch(`/labs/orders/${id}/status`, payload)),
+  cancelOrder: (id, payload = {}) => extractData(apiClient.patch(`/labs/orders/${id}/cancel`, payload)),
+  rescheduleOrder: (id, payload = {}) => extractData(apiClient.patch(`/labs/orders/${id}/reschedule`, payload)),
   createReport: (payload) => extractData(apiClient.post('/labs/reports', payload)),
   getReport: (id) => extractData(apiClient.get(`/labs/reports/${id}`)),
   updateReport: (id, payload) => extractData(apiClient.patch(`/labs/reports/${id}`, payload)),
@@ -295,7 +303,34 @@ const labApi = {
   createQcCalibration: (payload) => extractData(apiClient.post('/labs/qc-calibrations', payload)),
   getLabAlerts: (params = {}) => extractData(apiClient.get('/labs/dashboard/alerts', { params })),
   lookupPrescription: (params = {}) => extractData(apiClient.get('/labs/lookup-prescription', { params })),
-  getSmartPackages: (params = {}) => extractData(apiClient.get('/labs/smart-packages', { params }))
+  getSmartPackages: (params = {}) => extractData(apiClient.get('/labs/smart-packages', { params })),
+  validatePromoCode: (payload) => extractData(apiClient.post('/labs/promo-codes/validate', payload)),
+  // Phase 7 APIs
+  getCollectionQueue: (params = {}) => extractData(apiClient.get('/labs/collection-queue', { params })),
+  getRequiredSamples: (orderId, params = {}) => extractData(apiClient.get(`/labs/orders/${orderId}/required-samples`, { params })),
+  generateToken: (payload) => extractData(apiClient.post('/labs/tokens/generate', payload)),
+  callToken: (id, payload = {}) => extractData(apiClient.patch(`/labs/tokens/${id}/call`, payload)),
+  recallToken: (id, payload = {}) => extractData(apiClient.patch(`/labs/tokens/${id}/recall`, payload)),
+  skipToken: (id) => extractData(apiClient.patch(`/labs/tokens/${id}/skip`)),
+  getPublicTokens: (params = {}) => extractData(apiClient.get('/labs/tokens/public-display', { params })),
+  collectOrderSamples: (orderId, payload) => extractData(apiClient.post(`/labs/orders/${orderId}/collect-samples`, payload)),
+  rejectSample: (id, payload) => extractData(apiClient.post(`/labs/samples/${id}/reject`, payload)),
+  recollectSample: (id, payload = {}) => extractData(apiClient.post(`/labs/samples/${id}/recollect`, payload)),
+  getSampleTimeline: (params = {}) => extractData(apiClient.get('/labs/samples/timeline', { params })),
+  listHomeCollections: (params = {}) => extractData(apiClient.get('/labs/home-collections', { params })),
+  assignHomeCollector: (id, payload) => extractData(apiClient.patch(`/labs/home-collections/${id}/assign`, payload)),
+  updateHomeCollectionStatus: (id, payload) => extractData(apiClient.patch(`/labs/home-collections/${id}/status`, payload)),
+  receiveHomeCollection: (id, payload = {}) => extractData(apiClient.post(`/labs/home-collections/${id}/receive`, payload)),
+  lookupUniversalScan: (params = {}) => extractData(apiClient.get('/labs/lookup-scan', { params })),
+  // LIMS Result Entry
+  initializeOrderResults: (orderId, payload = {}) => extractData(apiClient.post(`/labs/orders/${orderId}/results/initialize`, payload)),
+  getOrderResults: (orderId, params = {}) => extractData(apiClient.get(`/labs/orders/${orderId}/results`, { params })),
+  saveResultsBatch: (orderId, payload) => extractData(apiClient.patch(`/labs/orders/${orderId}/results/batch`, payload)),
+  updateSingleResult: (orderId, resultId, payload) => extractData(apiClient.patch(`/labs/orders/${orderId}/results/${resultId}`, payload)),
+  checkOrderCompletion: (orderId, params = {}) => extractData(apiClient.get(`/labs/orders/${orderId}/completion-check`, { params })),
+  finalizeOrder: (orderId, payload = {}) => extractData(apiClient.patch(`/labs/orders/${orderId}/finalize`, payload)),
+  amendOrder: (orderId, payload) => extractData(apiClient.patch(`/labs/orders/${orderId}/amend`, payload)),
+  generateOrderPdf: (reportId, payload = {}) => extractData(apiClient.post(`/labs/reports/${reportId}/generate-pdf`, payload))
 };
 
 const pharmacyApi = {

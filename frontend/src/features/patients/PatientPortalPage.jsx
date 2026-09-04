@@ -30,8 +30,9 @@ import AppointmentDetailsModal from './PortalComponents/AppointmentDetailsModal'
 import Notifications from './PortalComponents/Notifications';
 import Records from './PortalComponents/Records';
 import BillingInsurance from './PortalComponents/BillingInsurance';
-import { SectionLabel } from './PortalComponents/SharedComponents';
 import TestsFromPrescriptionView from './TestsFromPrescriptionView';
+import PatientLabCheckoutView from './PatientLabCheckoutView';
+import PatientLabOrdersView from './PatientLabOrdersView';
 
 // ============================================================
 // Translations & Helpers
@@ -1513,8 +1514,33 @@ const PatientPortalPage = () => {
                           {test.price > 0 ? `₹${test.price}` : 'Price on request'}
                         </p>
                         <button
-                          onClick={() => toast.success('Lab test booking request sent successfully!')}
-                          className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-[10px] transition"
+                          onClick={() => {
+                            const patientKey = `patient_lab_cart_${profile?._id || user?._id || 'guest'}_${selectedLabId}`;
+                            let existing = [];
+                            try {
+                              existing = JSON.parse(localStorage.getItem(patientKey) || '[]');
+                            } catch {}
+                            const inCart = existing.some(e => String(e.id) === String(test.id) || e.testName?.toLowerCase() === test.name?.toLowerCase());
+                            if (!inCart) {
+                              const newItem = {
+                                id: test.id,
+                                testName: test.name,
+                                fullName: test.name,
+                                code: test.code || 'TEST',
+                                sample: test.sample || 'Whole Blood',
+                                reportingTime: test.time || '24 Hours',
+                                localPrice: test.price || 150,
+                                sourceType: 'MANUAL_SELECTION'
+                              };
+                              const updated = [...existing, newItem];
+                              localStorage.setItem(patientKey, JSON.stringify(updated));
+                              toast.success(`Added "${test.name}" to your cart!`);
+                            }
+                            const currentParams = new URLSearchParams(location.search);
+                            currentParams.set('tab', 'lab-checkout');
+                            setSearchParams(currentParams);
+                          }}
+                          className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-[10px] transition shadow-sm"
                         >
                           Book Test
                         </button>
@@ -1560,6 +1586,36 @@ const PatientPortalPage = () => {
       )}
 
       {/* ============================================================ */}
+      {/* ── STATE: Lab Workspace - Laboratory Checkout Page ── */}
+      {/* ============================================================ */}
+      {activeTab === 'lab-checkout' && selectedLabId && (
+        <PatientLabCheckoutView
+          selectedClinic={clinics.find(c => String(c._id) === String(selectedClinicId)) || { _id: selectedClinicId, name: activeClinic?.name || 'Clinic' }}
+          selectedLab={activeLab || { _id: selectedLabId, name: 'Radha Krishna Laboratory' }}
+          patient={profile || user}
+          onNavigate={(targetTab) => {
+            const currentParams = new URLSearchParams(location.search);
+            if (targetTab === 'book-lab') {
+              currentParams.delete('labId');
+            }
+            currentParams.set('tab', targetTab);
+            setSearchParams(currentParams);
+          }}
+          onOrderPlaced={() => {
+            const patientId = profile?._id || user?._id;
+            if (patientId) {
+              prescriptionApi.getPatientPrescriptions(patientId)
+                .then(rxRes => {
+                  const rxList = rxRes?.data?.prescriptions || rxRes?.prescriptions || [];
+                  setPrescriptions(rxList);
+                })
+                .catch(() => {});
+            }
+          }}
+        />
+      )}
+
+      {/* ============================================================ */}
       {/* ── STATE: Lab Workspace - My Lab Bookings / Orders ── */}
       {/* ============================================================ */}
       {['lab-bookings', 'lab-orders'].includes(activeTab) && selectedLabId && (
@@ -1573,54 +1629,20 @@ const PatientPortalPage = () => {
             }}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 font-extrabold text-xs transition duration-150"
           >
-            <ChevronLeft size={14} className="text-slate-405" />
+            <ChevronLeft size={14} className="text-slate-400" />
             <span>Back to Laboratories</span>
           </button>
 
-          <div className="bg-slate-50 p-6 rounded-3xl border border-slate-150 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-              <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest block mb-1">
-                Order Tracking • {activeLab?.name}
-              </span>
-              <h2 className="text-xl font-black text-slate-900">My Lab Orders</h2>
-              <p className="text-xs text-slate-500 mt-1">
-                Track status of diagnostic tests, sample collection, and reports from {activeLab?.name}.
-              </p>
-            </div>
-          </div>
-
-          <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {[
-                { id: 'ORD-LAB-1082', test: 'Complete Blood Count (CBC) + Lipid Profile', date: 'Today, 10:30 AM', status: 'Processing', collection: 'Home Collection', token: 'SMP-8821' },
-                { id: 'ORD-LAB-1049', test: 'HbA1c & Fasting Blood Sugar', date: '28 Aug 2026', status: 'Completed', collection: 'At Laboratory', token: 'SMP-7419' }
-              ].map((ord) => (
-                <div key={ord.id} className="p-4 rounded-2xl border border-slate-150 bg-slate-50/50 space-y-3">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="text-[10px] font-black text-blue-600 uppercase tracking-wider">{ord.id}</p>
-                      <h4 className="text-xs font-black text-slate-800 mt-0.5">{ord.test}</h4>
-                      <p className="text-[10px] text-slate-400 mt-0.5">Token: {ord.token} • {ord.collection}</p>
-                    </div>
-                    <span className={`px-2 py-0.5 rounded-lg text-[9px] font-bold uppercase tracking-wider ${
-                      ord.status === 'Completed' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
-                    }`}>
-                      {ord.status}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between border-t border-slate-200/60 pt-2 text-[10px] text-slate-500">
-                    <span>{ord.date}</span>
-                    <button
-                      onClick={() => toast.success(`Viewing order details for ${ord.id}`)}
-                      className="text-blue-600 hover:text-blue-700 font-extrabold"
-                    >
-                      View Details
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          <PatientLabOrdersView
+            selectedClinic={clinics.find(c => String(c._id) === String(selectedClinicId)) || { _id: selectedClinicId, name: activeClinic?.name || "Ram's Dental Clinic" }}
+            selectedLab={activeLab || { _id: selectedLabId, name: 'Radha Krishna Laboratory' }}
+            patient={profile || user}
+            onNavigate={(targetTab) => {
+              const currentParams = new URLSearchParams(location.search);
+              currentParams.set('tab', targetTab);
+              setSearchParams(currentParams);
+            }}
+          />
         </div>
       )}
 

@@ -15,6 +15,7 @@ const consultationRepository = require('../consultations/consultation.repository
 const Consultation = require('../consultations/consultation.model');
 const doctorRepository = require('../doctors/doctor.repository');
 const patientRepository = require('../patients/patient.repository');
+const Prescription = require('./prescription.model');
 const prescriptionRepository = require('./prescription.repository');
 const { generatePrescriptionPdf } = require('./prescriptionPdf.service');
 
@@ -1048,7 +1049,7 @@ const saveUploadedPrescription = async ({ requester, payload, requestedClinicId 
 
   const prescriptionNumber = await generateUploadedPrescriptionNumber(clinicId);
 
-  const confirmedLabs = (payload.confirmedTests || payload.labs || []).map((t) => ({
+  const confirmedLabs = (payload.confirmedTests || payload.labs || payload.tests || []).map((t) => ({
     testName: t.testName || t.name,
     globalLabTestId: t.globalLabTestId || null,
     localInventoryId: t.localInventoryId || t.labTestId || null,

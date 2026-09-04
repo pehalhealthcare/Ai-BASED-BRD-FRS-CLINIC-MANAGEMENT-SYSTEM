@@ -70,20 +70,24 @@ const paymentMethodSchema = z.object({
 });
 
 const savedAddressSchema = z.object({
-  fullName: z.string().trim().min(1, 'Full name is required'),
-  mobileNumber: z.string().trim().min(1, 'Mobile number is required'),
+  _id: z.any().optional(),
+  fullName: z.string().trim().optional(),
+  mobileNumber: z.string().trim().optional(),
+  phone: z.string().trim().optional(),
   alternateNumber: z.string().trim().optional().nullable(),
-  houseFlatNumber: z.string().trim().min(1, 'House/Flat number is required'),
+  houseFlatNumber: z.string().trim().optional().nullable(),
   buildingName: z.string().trim().optional().nullable(),
-  street: z.string().trim().min(1, 'Street is required'),
+  street: z.string().trim().optional().nullable(),
+  line1: z.string().trim().optional().nullable(),
   landmark: z.string().trim().optional().nullable(),
-  area: z.string().trim().min(1, 'Area is required'),
-  city: z.string().trim().min(1, 'City is required'),
-  state: z.string().trim().min(1, 'State is required'),
-  pinCode: z.string().trim().min(1, 'Pin Code is required'),
-  addressType: z.enum(['Home', 'Work', 'Other']).default('Home'),
+  area: z.string().trim().optional().nullable(),
+  city: z.string().trim().optional().nullable(),
+  state: z.string().trim().optional().nullable(),
+  pinCode: z.string().trim().optional().nullable(),
+  pincode: z.string().trim().optional().nullable(),
+  addressType: z.string().trim().default('Home'),
   isDefault: z.boolean().default(false)
-});
+}).passthrough();
 
 const patientPayloadSchema = z.object({
   firstName: z.string().trim().min(1, 'First name is required').max(100),

@@ -320,6 +320,7 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
       return [
         { label: 'Dashboard', path: `${base}/dashboard`, iconKey: 'Dashboard' },
         { label: 'Lab Orders', path: `${base}/orders`, iconKey: 'Laboratory' },
+        { label: 'Sample Collection', path: `${base}/collection`, iconKey: 'Syringe' },
         { label: 'Test Catalogue', path: `${base}/catalogue`, iconKey: 'Departments' },
         { label: 'Patients', path: `${base}/patients`, iconKey: 'Patients' },
         { label: 'Reports', path: `${base}/reports`, iconKey: 'Reports' },

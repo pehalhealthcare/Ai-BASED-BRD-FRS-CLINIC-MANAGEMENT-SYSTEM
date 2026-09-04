@@ -67,6 +67,28 @@ const updateLabOrderStatus = asyncHandler(async (req, res) => {
   return sendSuccess(res, 'Lab order status updated successfully', { labOrder });
 });
 
+const cancelLabOrder = asyncHandler(async (req, res) => {
+  const labOrder = await labService.cancelLabOrder({
+    requester: req.user,
+    orderId: req.params.id,
+    clinicId: req.query.clinicId,
+    reason: req.body.reason
+  });
+
+  return sendSuccess(res, 'Lab order cancelled successfully', { labOrder });
+});
+
+const rescheduleLabOrder = asyncHandler(async (req, res) => {
+  const labOrder = await labService.rescheduleLabOrder({
+    requester: req.user,
+    orderId: req.params.id,
+    clinicId: req.query.clinicId,
+    payload: req.body
+  });
+
+  return sendSuccess(res, 'Lab order rescheduled successfully', { labOrder });
+});
+
 const createLabReport = asyncHandler(async (req, res) => {
   const labReport = await labService.createLabReport({
     requester: req.user,
@@ -322,7 +344,262 @@ const getSmartPackageSuggestions = asyncHandler(async (req, res) => {
     requester: req.user,
     query: req.query
   });
-  return sendSuccess(res, 'Smart package suggestions retrieved successfully', { suggestions });
+  return sendSuccess(res, 'Smart package suggestions retrieved successfully', { suggestions, packages: suggestions });
+});
+
+const validatePromoCode = asyncHandler(async (req, res) => {
+  const result = await labService.validateLabPromoCode({
+    code: req.body.code,
+    cartTotal: typeof req.body.cartTotal === 'number' ? req.body.cartTotal : (typeof req.body.subtotal === 'number' ? req.body.subtotal : 0),
+    laboratoryId: req.body.laboratoryId,
+    clinicId: req.body.clinicId || req.query.clinicId,
+    patientId: req.user?._id
+  });
+  return sendSuccess(res, result.message, result);
+});
+
+// Phase 7 Controller Handlers
+const getCollectionQueue = asyncHandler(async (req, res) => {
+  const data = await labService.getCollectionQueueDashboard({
+    clinicId: req.query.clinicId,
+    laboratoryId: req.query.laboratoryId,
+    date: req.query.date,
+    requester: req.user
+  });
+  return sendSuccess(res, 'Collection queue dashboard loaded successfully', data);
+});
+
+const calculateRequiredSpecimens = asyncHandler(async (req, res) => {
+  const data = await labService.calculateRequiredSpecimens({
+    orderId: req.params.orderId,
+    clinicId: req.query.clinicId,
+    requester: req.user
+  });
+  return sendSuccess(res, 'Specimen requirements calculated successfully', data);
+});
+
+const generateQueueToken = asyncHandler(async (req, res) => {
+  const token = await labService.generateQueueToken({
+    clinicId: req.body.clinicId || req.query.clinicId,
+    laboratoryId: req.body.laboratoryId,
+    orderId: req.body.orderId,
+    patientId: req.body.patientId,
+    queueType: req.body.queueType,
+    priority: req.body.priority,
+    deskNumber: req.body.deskNumber,
+    counterPrefix: req.body.counterPrefix,
+    requester: req.user
+  });
+  return sendSuccess(res, 'Queue token generated successfully', { token }, 201);
+});
+
+const callQueueToken = asyncHandler(async (req, res) => {
+  const token = await labService.callQueueToken({
+    tokenId: req.params.id,
+    deskNumber: req.body.deskNumber,
+    requester: req.user
+  });
+  return sendSuccess(res, `Token ${token.tokenNumber} called to ${token.deskNumber}`, { token });
+});
+
+const recallQueueToken = asyncHandler(async (req, res) => {
+  const token = await labService.recallQueueToken({
+    tokenId: req.params.id,
+    deskNumber: req.body.deskNumber,
+    requester: req.user
+  });
+  return sendSuccess(res, `Token ${token.tokenNumber} recalled`, { token });
+});
+
+const skipQueueToken = asyncHandler(async (req, res) => {
+  const token = await labService.skipQueueToken({
+    tokenId: req.params.id,
+    requester: req.user
+  });
+  return sendSuccess(res, `Token ${token.tokenNumber} marked as skipped`, { token });
+});
+
+const getPublicTokenDisplay = asyncHandler(async (req, res) => {
+  const data = await labService.getPublicTokenDisplay({
+    clinicId: req.query.clinicId,
+    laboratoryId: req.query.laboratoryId
+  });
+  return sendSuccess(res, 'Public token display loaded successfully', data);
+});
+
+const collectOrderSamples = asyncHandler(async (req, res) => {
+  const data = await labService.collectOrderSamples({
+    orderId: req.params.orderId,
+    specimens: req.body.specimens || [],
+    deskNumber: req.body.deskNumber,
+    notes: req.body.notes,
+    requester: req.user
+  });
+  return sendSuccess(res, 'Samples collected successfully and barcodes generated', data, 201);
+});
+
+const rejectSample = asyncHandler(async (req, res) => {
+  const sample = await labService.rejectSample({
+    sampleId: req.params.id,
+    reason: req.body.reason,
+    notes: req.body.notes,
+    requester: req.user
+  });
+  return sendSuccess(res, 'Sample rejected and recollection flagged', { sample });
+});
+
+const recollectSample = asyncHandler(async (req, res) => {
+  const sample = await labService.recollectSample({
+    sampleId: req.params.id,
+    deskNumber: req.body.deskNumber,
+    notes: req.body.notes,
+    requester: req.user
+  });
+  return sendSuccess(res, 'Sample recollected successfully', { sample }, 201);
+});
+
+const getSampleTimeline = asyncHandler(async (req, res) => {
+  const data = await labService.getSampleTimeline({
+    sampleId: req.query.sampleId,
+    orderId: req.query.orderId
+  });
+  return sendSuccess(res, 'Sample timeline retrieved successfully', data);
+});
+
+const listHomeCollectionTasks = asyncHandler(async (req, res) => {
+  const tasks = await labService.listHomeCollectionTasks({
+    clinicId: req.query.clinicId,
+    laboratoryId: req.query.laboratoryId,
+    scheduledDate: req.query.scheduledDate,
+    status: req.query.status,
+    collectorId: req.query.collectorId
+  });
+  return sendSuccess(res, 'Home collection tasks retrieved successfully', { tasks });
+});
+
+const assignHomeCollector = asyncHandler(async (req, res) => {
+  const task = await labService.assignHomeCollector({
+    taskId: req.params.id,
+    collectorId: req.body.collectorId,
+    collectorName: req.body.collectorName,
+    collectorPhone: req.body.collectorPhone,
+    requester: req.user
+  });
+  return sendSuccess(res, 'Collector assigned successfully', { task });
+});
+
+const updateHomeCollectionStatus = asyncHandler(async (req, res) => {
+  const task = await labService.updateHomeCollectionStatus({
+    taskId: req.params.id,
+    status: req.body.status,
+    failureReason: req.body.failureReason,
+    notes: req.body.notes,
+    requester: req.user
+  });
+  return sendSuccess(res, 'Home collection status updated successfully', { task });
+});
+
+const receiveHomeCollectionAtLab = asyncHandler(async (req, res) => {
+  const task = await labService.receiveHomeCollectionAtLab({
+    taskId: req.params.id,
+    sampleCondition: req.body.sampleCondition,
+    notes: req.body.notes,
+    requester: req.user
+  });
+  return sendSuccess(res, 'Home collected sample received at laboratory', { task });
+});
+
+const universalScanLookup = asyncHandler(async (req, res) => {
+  const data = await labService.universalScanLookup({
+    code: req.query.code || req.body.code,
+    clinicId: req.query.clinicId || req.body.clinicId,
+    laboratoryId: req.query.laboratoryId || req.body.laboratoryId,
+    requester: req.user
+  });
+  return sendSuccess(res, 'Scan code resolved successfully', data);
+});
+
+// ============================================================================
+// LIMS — Result Entry Controller Handlers
+// ============================================================================
+
+const initializeOrderResults = asyncHandler(async (req, res) => {
+  const results = await labService.initializeOrderResults({
+    requester: req.user,
+    labOrderId: req.params.id,
+    requestedClinicId: req.body?.clinicId || req.query?.clinicId || null
+  });
+  return sendSuccess(res, 'Order results initialized successfully', { results });
+});
+
+const getOrderResults = asyncHandler(async (req, res) => {
+  const data = await labService.getOrderResults({
+    requester: req.user,
+    labOrderId: req.params.id,
+    requestedClinicId: req.query?.clinicId || null
+  });
+  return sendSuccess(res, 'Order results retrieved successfully', data);
+});
+
+const saveResultsBatch = asyncHandler(async (req, res) => {
+  const data = await labService.saveResultsBatch({
+    requester: req.user,
+    labOrderId: req.params.id,
+    results: req.body.results,
+    requestedClinicId: req.body?.clinicId || null
+  });
+  return sendSuccess(res, 'Results saved successfully', data);
+});
+
+const updateSingleResult = asyncHandler(async (req, res) => {
+  const result = await labService.updateSingleResult({
+    requester: req.user,
+    labOrderId: req.params.id,
+    resultId: req.params.resultId,
+    payload: req.body,
+    requestedClinicId: req.body?.clinicId || null
+  });
+  return sendSuccess(res, 'Result updated successfully', { result });
+});
+
+const checkOrderCompletion = asyncHandler(async (req, res) => {
+  const data = await labService.checkOrderCompletion({
+    requester: req.user,
+    labOrderId: req.params.id,
+    requestedClinicId: req.query?.clinicId || null
+  });
+  return sendSuccess(res, 'Order completion check performed', data);
+});
+
+const finalizeOrder = asyncHandler(async (req, res) => {
+  const data = await labService.finalizeOrder({
+    requester: req.user,
+    labOrderId: req.params.id,
+    generatePdf: req.body?.generatePdf !== false,
+    notes: req.body?.notes || '',
+    requestedClinicId: req.body?.clinicId || null,
+    req
+  });
+  return sendSuccess(res, 'Lab order finalized and completed successfully', data);
+});
+
+const amendOrder = asyncHandler(async (req, res) => {
+  const labOrder = await labService.amendOrder({
+    requester: req.user,
+    labOrderId: req.params.id,
+    reason: req.body.reason,
+    requestedClinicId: req.body?.clinicId || null
+  });
+  return sendSuccess(res, 'Lab order unlocked for amendment', { labOrder });
+});
+
+const generateOrderPdf = asyncHandler(async (req, res) => {
+  const data = await labService.generateOrderPdf({
+    requester: req.user,
+    labReportId: req.params.id,
+    requestedClinicId: req.body?.clinicId || null
+  });
+  return sendSuccess(res, 'Report PDF generated successfully', data);
 });
 
 module.exports = {
@@ -358,6 +635,36 @@ module.exports = {
   createQcCalibration,
   getLabAlerts,
   lookupPrescriptionForLab,
-  getSmartPackageSuggestions
+  cancelLabOrder,
+  rescheduleLabOrder,
+  getSmartPackageSuggestions,
+  validatePromoCode,
+  // Phase 7 Exports
+  getCollectionQueue,
+  calculateRequiredSpecimens,
+  generateQueueToken,
+  callQueueToken,
+  recallQueueToken,
+  skipQueueToken,
+  getPublicTokenDisplay,
+  collectOrderSamples,
+  rejectSample,
+  recollectSample,
+  getSampleTimeline,
+  listHomeCollectionTasks,
+  assignHomeCollector,
+  updateHomeCollectionStatus,
+  receiveHomeCollectionAtLab,
+  universalScanLookup,
+  // LIMS Result Entry Exports
+  initializeOrderResults,
+  getOrderResults,
+  saveResultsBatch,
+  updateSingleResult,
+  checkOrderCompletion,
+  finalizeOrder,
+  amendOrder,
+  generateOrderPdf
 };
+
 

@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const { HTTP_STATUS } = require('../../common/constants/httpStatus');
 const { ROLES } = require('../../common/constants/roles');
 const { AppError } = require('../../common/utils/AppError');
@@ -1079,6 +1080,148 @@ const getMyClinics = async ({ requester }) => {
   return { clinics };
 };
 
+const getMyAddresses = async ({ requester, requestedClinicId = null }) => {
+  const patient = await resolvePatientForRequester({ requester, clinicId: requestedClinicId });
+  let addresses = patient.savedAddresses || [];
+
+  if (addresses.length === 0 && (patient.address?.line1 || patient.address?.city)) {
+    const primaryAddr = {
+      _id: new mongoose.Types.ObjectId(),
+      fullName: patient.fullName || `${patient.firstName || ''} ${patient.lastName || ''}`.trim() || requester.name || 'Patient',
+      mobileNumber: patient.phone || requester.phone || '',
+      alternateNumber: '',
+      houseFlatNumber: '',
+      buildingName: '',
+      street: patient.address.line1 || '',
+      landmark: patient.address.line2 || '',
+      area: '',
+      city: patient.address.city || 'Ghaziabad',
+      state: patient.address.state || 'Uttar Pradesh',
+      pinCode: patient.address.pincode || '201001',
+      addressType: 'Home',
+      isDefault: true
+    };
+    patient.savedAddresses = [primaryAddr];
+    await patient.save();
+    addresses = patient.savedAddresses;
+  }
+
+  return { addresses };
+};
+
+const addMyAddress = async ({ requester, payload, requestedClinicId = null }) => {
+  const patient = await resolvePatientForRequester({ requester, clinicId: requestedClinicId });
+  
+  if (!patient.savedAddresses) {
+    patient.savedAddresses = [];
+  }
+
+  if (payload.isDefault) {
+    patient.savedAddresses.forEach((a) => {
+      a.isDefault = false;
+    });
+  }
+
+  const newAddress = {
+    _id: new mongoose.Types.ObjectId(),
+    fullName: payload.fullName || patient.fullName || requester.name || '',
+    mobileNumber: payload.mobileNumber || payload.phone || patient.phone || requester.phone || '',
+    alternateNumber: payload.alternateNumber || '',
+    houseFlatNumber: payload.houseFlatNumber || '',
+    buildingName: payload.buildingName || '',
+    street: payload.street || payload.line1 || '',
+    landmark: payload.landmark || '',
+    area: payload.area || '',
+    city: payload.city || '',
+    state: payload.state || '',
+    pinCode: payload.pinCode || payload.pincode || '',
+    addressType: payload.addressType || payload.tag || 'Home',
+    isDefault: payload.isDefault !== undefined ? !!payload.isDefault : patient.savedAddresses.length === 0
+  };
+
+  patient.savedAddresses.push(newAddress);
+  patient.updatedBy = requester._id;
+  await patient.save();
+
+  return { address: newAddress, addresses: patient.savedAddresses };
+};
+
+const updateMyAddress = async ({ requester, addressId, payload, requestedClinicId = null }) => {
+  const patient = await resolvePatientForRequester({ requester, clinicId: requestedClinicId });
+  const address = (patient.savedAddresses || []).find((a) => String(a._id) === String(addressId));
+
+  if (!address) {
+    throw new AppError('Address not found in patient address book.', HTTP_STATUS.NOT_FOUND);
+  }
+
+  if (payload.isDefault) {
+    patient.savedAddresses.forEach((a) => {
+      a.isDefault = false;
+    });
+  }
+
+  if (payload.fullName !== undefined) address.fullName = payload.fullName;
+  if (payload.mobileNumber !== undefined || payload.phone !== undefined) address.mobileNumber = payload.mobileNumber || payload.phone;
+  if (payload.alternateNumber !== undefined) address.alternateNumber = payload.alternateNumber;
+  if (payload.houseFlatNumber !== undefined) address.houseFlatNumber = payload.houseFlatNumber;
+  if (payload.buildingName !== undefined) address.buildingName = payload.buildingName;
+  if (payload.street !== undefined || payload.line1 !== undefined) address.street = payload.street || payload.line1;
+  if (payload.landmark !== undefined) address.landmark = payload.landmark;
+  if (payload.area !== undefined) address.area = payload.area;
+  if (payload.city !== undefined) address.city = payload.city;
+  if (payload.state !== undefined) address.state = payload.state;
+  if (payload.pinCode !== undefined || payload.pincode !== undefined) address.pinCode = payload.pinCode || payload.pincode;
+  if (payload.addressType !== undefined || payload.tag !== undefined) address.addressType = payload.addressType || payload.tag;
+  if (payload.isDefault !== undefined) address.isDefault = !!payload.isDefault;
+
+  patient.updatedBy = requester._id;
+  await patient.save();
+
+  return { address, addresses: patient.savedAddresses };
+};
+
+const deleteMyAddress = async ({ requester, addressId, requestedClinicId = null }) => {
+  const patient = await resolvePatientForRequester({ requester, clinicId: requestedClinicId });
+  const initialLength = (patient.savedAddresses || []).length;
+  patient.savedAddresses = (patient.savedAddresses || []).filter((a) => String(a._id) !== String(addressId));
+
+  if (patient.savedAddresses.length === initialLength) {
+    throw new AppError('Address not found.', HTTP_STATUS.NOT_FOUND);
+  }
+
+  if (patient.savedAddresses.length > 0 && !patient.savedAddresses.some((a) => a.isDefault)) {
+    patient.savedAddresses[0].isDefault = true;
+  }
+
+  patient.updatedBy = requester._id;
+  await patient.save();
+
+  return { addresses: patient.savedAddresses };
+};
+
+const setDefaultMyAddress = async ({ requester, addressId, requestedClinicId = null }) => {
+  const patient = await resolvePatientForRequester({ requester, clinicId: requestedClinicId });
+  let found = false;
+
+  (patient.savedAddresses || []).forEach((a) => {
+    if (String(a._id) === String(addressId)) {
+      a.isDefault = true;
+      found = true;
+    } else {
+      a.isDefault = false;
+    }
+  });
+
+  if (!found) {
+    throw new AppError('Address not found.', HTTP_STATUS.NOT_FOUND);
+  }
+
+  patient.updatedBy = requester._id;
+  await patient.save();
+
+  return { addresses: patient.savedAddresses };
+};
+
 module.exports = {
   createPatient,
   checkExists,
@@ -1087,6 +1230,11 @@ module.exports = {
   getMyClinics,
   getMyPatientProfile,
   updateMyPatientProfile,
+  getMyAddresses,
+  addMyAddress,
+  updateMyAddress,
+  deleteMyAddress,
+  setDefaultMyAddress,
   resolvePatientForRequester,
   getPatientById,
   updatePatient,

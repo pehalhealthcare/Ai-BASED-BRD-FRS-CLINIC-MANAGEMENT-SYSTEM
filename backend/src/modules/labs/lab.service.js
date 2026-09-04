@@ -23,6 +23,9 @@ const LabEquipment = require('./labEquipment.model');
 const LabQcCalibration = require('./labQcCalibration.model');
 const LabReport = require('./labReport.model');
 const { LabOrder } = require('./labOrder.model');
+const { LabSample } = require('./labSample.model');
+const { LabToken } = require('./labToken.model');
+const { HomeCollectionTask } = require('./homeCollectionTask.model');
 const Provider = require('../providers/provider.model');
 const Patient = require('../patients/patient.model');
 const Prescription = require('../prescriptions/prescription.model');
@@ -42,9 +45,14 @@ const verifyLaboratoryAccess = async (laboratoryId, clinicId) => {
 const ORDER_STATUS_TRANSITIONS = {
   ordered: ['sample_collected', 'cancelled'],
   sample_collected: ['processing', 'cancelled'],
-  processing: ['completed', 'cancelled'],
-  completed: [],
-  cancelled: []
+  processing: ['results_entry', 'cancelled'],
+  // Legacy: allow processing→completed for backward-compat with old orders
+  // New orders should go through results_entry → ready_for_review → finalize
+  results_entry: ['ready_for_review', 'cancelled'],
+  ready_for_review: ['cancelled'], // completed only via finalizeOrder()
+  completed: ['cancelled'], // only amend workflow after this
+  cancelled: [],
+  rejected: []
 };
 
 const AI_ANALYSIS_DISCLAIMER = 'AI output is assistive only and must be reviewed by a qualified doctor.';
@@ -429,8 +437,8 @@ const buildLabOrderTests = ({ payloadTests = [], catalogTests = [], globalTests 
     return {
       labTestId: matchedCatalogTest?._id || test.labTestId || null,
       globalLabTestId: matchedCatalogTest?.globalLabTestId || matchedGlobalTest?._id || test.globalLabTestId || null,
-      code: (matchedCatalogTest?.code || matchedGlobalTest?.internalCode || test.code || '').trim().toUpperCase(),
-      name: (matchedCatalogTest?.name || matchedGlobalTest?.name || test.name || '').trim(),
+      code: (matchedCatalogTest?.code || matchedGlobalTest?.internalCode || test.code || test.testCode || '').trim().toUpperCase(),
+      name: (matchedCatalogTest?.name || matchedGlobalTest?.name || test.name || test.testName || '').trim(),
       category: matchedCatalogTest?.category || matchedGlobalTest?.category?.name || test.category || 'General',
       specimenType: matchedCatalogTest?.specimenType || matchedGlobalTest?.sampleType || test.specimenType || 'Blood',
       unit: matchedCatalogTest?.unit || test.unit || '',
@@ -873,26 +881,44 @@ const createLabOrder = async ({ requester, payload, requestedClinicId = null, re
     patient = await patientRepository.findPatientByUserId({ userId: requester._id });
   } else if (payload.patientType === 'WALK_IN' && payload.nonRegisteredPatientDetails) {
     const details = payload.nonRegisteredPatientDetails;
-    const names = String(details.fullName || '').trim().split(' ');
-    const firstName = names[0] || 'Walk-In';
-    const lastName = names.slice(1).join(' ') || 'Patient';
-    
-    const patientService = require('../patients/patient.service');
-    patient = await patientService.createPatient({
-      requester,
-      payload: {
-        firstName,
-        lastName,
-        phone: details.phone,
-        email: details.email || `${details.phone}@walkin-pehal.com`,
-        gender: details.gender || 'male',
-        dateOfBirth: details.age ? new Date(new Date().setFullYear(new Date().getFullYear() - Number(details.age))) : new Date(),
-        address: details.address || '',
-        clinicId
-      },
-      requestedClinicId: clinicId,
-      req: req || { ip: '127.0.0.1', get: () => 'System' }
-    });
+    const Patient = require('../patients/patient.model');
+    const matchCriteria = [];
+    if (details.phone) matchCriteria.push({ phone: details.phone });
+    if (details.email) matchCriteria.push({ email: details.email });
+
+    const existingPatient = matchCriteria.length > 0
+      ? await Patient.findOne({ clinicId, $or: matchCriteria })
+      : null;
+
+    if (existingPatient) {
+      patient = existingPatient;
+    } else {
+      const names = String(details.fullName || '').trim().split(' ');
+      const firstName = names[0] || 'Walk-In';
+      const lastName = names.slice(1).join(' ') || 'Patient';
+      
+      const patientService = require('../patients/patient.service');
+      try {
+        patient = await patientService.createPatient({
+          requester,
+          payload: {
+            firstName,
+            lastName,
+            phone: details.phone,
+            email: details.email || `${details.phone}@walkin-pehal.com`,
+            gender: details.gender || 'male',
+            dateOfBirth: details.age ? new Date(new Date().setFullYear(new Date().getFullYear() - Number(details.age))) : new Date(),
+            address: details.address || '',
+            clinicId
+          },
+          requestedClinicId: clinicId,
+          req: req || { ip: '127.0.0.1', get: () => 'System' }
+        });
+      } catch (err) {
+        patient = await Patient.findOne({ clinicId, phone: details.phone });
+        if (!patient) throw err;
+      }
+    }
   }
 
   if (!patient) {
@@ -987,6 +1013,32 @@ const createLabOrder = async ({ requester, payload, requestedClinicId = null, re
       ? payload.price
       : tests.reduce((sum, t) => sum + (t.price || 0), 0);
 
+  let tokenNumber = payload.tokenNumber || '';
+  if (!tokenNumber && (payload.collectionMethod === 'AT_LAB' || !payload.collectionMethod)) {
+    const targetDate = payload.collectionDate ? new Date(payload.collectionDate) : new Date();
+    const startOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0);
+    const endOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59, 999);
+
+    const count = await LabOrder.countDocuments({
+      clinicId,
+      ...(payload.laboratoryId ? { laboratoryId: payload.laboratoryId } : {}),
+      collectionMethod: 'AT_LAB',
+      createdAt: { $gte: startOfDay, $lte: endOfDay }
+    });
+    tokenNumber = `T-${String(count + 1).padStart(2, '0')}`;
+  }
+
+  const initialStatus = payload.status || (payload.collectionMethod === 'HOME_COLLECTION' ? 'scheduled' : 'ordered');
+  const initialOrderStatus = payload.orderStatus || (payload.collectionMethod === 'HOME_COLLECTION' ? 'COLLECTION_SCHEDULED' : 'ORDER_BOOKED');
+  const initialSampleStatus = payload.sampleStatus || 'AWAITING_COLLECTION';
+  const initialBookingSource =
+    payload.bookingSource ||
+    (requester.role === ROLES.PATIENT
+      ? 'PATIENT_PORTAL'
+      : payload.patientType === 'WALK_IN'
+      ? 'WALK_IN'
+      : 'LABORATORY_STAFF');
+
   const labOrder = await labRepository.createLabOrder({
     clinicId,
     laboratoryId: payload.laboratoryId || null,
@@ -996,13 +1048,26 @@ const createLabOrder = async ({ requester, payload, requestedClinicId = null, re
     doctorId: doctor ? doctor._id : null,
     appointmentId: appointmentId || null,
     orderNumber: await generateLabOrderNumber(clinicId),
+    tokenNumber,
     tests,
     priority: payload.priority || 'routine',
     notes: payload.notes?.trim?.() || '',
     collectionMethod: payload.collectionMethod || 'AT_LAB',
     collectionAddress: payload.collectionAddress || {},
+    collectionDate: payload.collectionDate ? new Date(payload.collectionDate) : null,
+    collectionSlot: payload.collectionSlot || '',
+    homeCollectionFee: payload.homeCollectionFee || 0,
+    discountAmount: payload.discountAmount || 0,
+    promoCode: payload.promoCode || '',
+    packageId: payload.packageId || null,
+    packageName: payload.packageName || '',
+    paymentStatus: payload.paymentStatus || 'PAID',
+    paymentMethod: payload.paymentMethod || 'ONLINE',
+    paymentId: payload.paymentId || '',
     price: totalPrice,
+    totalAmount: typeof payload.totalAmount === 'number' ? payload.totalAmount : totalPrice,
     patientType: payload.patientType || (patient ? 'REGISTERED' : 'WALK_IN'),
+    bookingSource: initialBookingSource,
     guestPatient: payload.guestPatient || payload.nonRegisteredPatientDetails || {},
     source:
       payload.source ||
@@ -1012,7 +1077,9 @@ const createLabOrder = async ({ requester, payload, requestedClinicId = null, re
         ? 'PATIENT_BOOKED'
         : 'LAB_CREATED'),
     documents: payload.documents || [],
-    status: 'ordered',
+    status: initialStatus,
+    orderStatus: initialOrderStatus,
+    sampleStatus: initialSampleStatus,
     orderedAt: new Date(),
     createdBy: requester._id,
     updatedBy: requester._id
@@ -1042,16 +1109,16 @@ const createLabOrder = async ({ requester, payload, requestedClinicId = null, re
           return {
             ...plain,
             isBooked: true,
-            labOrderId: labOrder._id
+            labOrderId: labOrder._id,
+            status: 'ordered'
           };
         }
         return plain;
       });
 
-      await Prescription.updateOne(
-        { _id: payload.prescriptionId },
-        { $set: { labs: updatedLabs } }
-      );
+      await Prescription.findByIdAndUpdate(payload.prescriptionId, {
+        labs: updatedLabs
+      });
     }
   }
 
@@ -1073,12 +1140,11 @@ const createLabOrder = async ({ requester, payload, requestedClinicId = null, re
     entity: 'LabOrder',
     entityId: labOrder._id,
     metadata: {
-      clinicId: String(clinicId),
-      consultationId: consultation ? String(consultation._id) : null,
-      patientId: String(patient._id),
-      doctorId: doctor ? String(doctor._id) : null,
       orderNumber: labOrder.orderNumber,
-      tests: tests.map((test) => test.code)
+      patientId: labOrder.patientId,
+      doctorId: labOrder.doctorId,
+      totalAmount: labOrder.totalAmount,
+      testsCount: labOrder.tests.length
     },
     ipAddress: req?.ip || '127.0.0.1',
     userAgent: req?.get ? req.get('user-agent') : 'Internal/Service',
@@ -1104,6 +1170,10 @@ const listLabOrders = async ({ requester, query = {}, requestedClinicId = null }
     filter.laboratoryId = query.laboratoryId;
   }
 
+  if (query.collectionMethod) {
+    filter.collectionMethod = query.collectionMethod.toUpperCase();
+  }
+
   if (query.patientId) {
     filter.patientId = query.patientId;
   }
@@ -1117,7 +1187,48 @@ const listLabOrders = async ({ requester, query = {}, requestedClinicId = null }
   }
 
   if (query.status) {
-    filter.status = query.status;
+    const s = query.status.toLowerCase();
+    if (s === 'scheduled') {
+      filter.$or = [{ status: 'scheduled' }, { orderStatus: 'COLLECTION_SCHEDULED' }];
+    } else if (s === 'in_lab_testing' || s === 'processing' || s === 'in_processing' || s === 'in_analysis') {
+      filter.$or = [{ status: { $in: ['processing', 'in_processing', 'in_analysis'] } }, { orderStatus: 'IN_LAB_TESTING' }];
+    } else if (s === 'completed' || s === 'report_available' || s === 'report_ready') {
+      filter.$or = [{ status: { $in: ['completed', 'report_ready'] } }, { orderStatus: { $in: ['REPORT_GENERATED', 'REPORT_AVAILABLE'] } }];
+    } else if (s === 'cancelled') {
+      filter.$or = [{ status: 'cancelled' }, { orderStatus: 'CANCELLED' }];
+    } else {
+      filter.status = query.status;
+    }
+  }
+
+  if (query.source || query.bookingSource) {
+    const src = (query.source || query.bookingSource).toUpperCase();
+    if (src === 'WALK_IN') {
+      filter.$or = [{ bookingSource: 'WALK_IN' }, { patientType: 'WALK_IN' }, { source: 'WALK_IN' }];
+    } else if (src === 'PATIENT_PORTAL' || src === 'PATIENT_BOOKED') {
+      filter.$or = [{ bookingSource: 'PATIENT_PORTAL' }, { source: 'PATIENT_BOOKED' }];
+    }
+  }
+
+  if (query.search) {
+    const sRegex = new RegExp(query.search.trim(), 'i');
+    filter.$or = [
+      { orderNumber: sRegex },
+      { tokenNumber: sRegex },
+      { packageName: sRegex },
+      { 'tests.name': sRegex },
+      { 'guestPatient.fullName': sRegex }
+    ];
+  }
+
+  if (query.todayOnly === 'true' || query.today === 'true') {
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    filter.$or = [
+      { collectionDate: { $gte: startOfDay, $lte: endOfDay } },
+      { createdAt: { $gte: startOfDay, $lte: endOfDay } }
+    ];
   }
 
   if (query.from || query.to) {
@@ -1135,10 +1246,46 @@ const listLabOrders = async ({ requester, query = {}, requestedClinicId = null }
     filter.doctorId = doctor._id;
   }
 
+  if (requester.role === ROLES.PATIENT) {
+    const Patient = require('../patients/patient.model');
+    const patient = await Patient.findOne({
+      $or: [{ userId: requester._id }, { email: requester.email }, { phone: requester.phone }]
+    }).lean();
+
+    if (patient) {
+      filter.$or = [
+        { patientId: patient._id },
+        { 'guestPatient.phone': patient.phone },
+        { 'guestPatient.email': patient.email },
+        { 'guestPatient.phone': requester.phone },
+        { 'guestPatient.email': requester.email }
+      ];
+    } else {
+      filter.$or = [
+        { patientId: requester._id },
+        { 'guestPatient.phone': requester.phone },
+        { 'guestPatient.email': requester.email }
+      ];
+    }
+  } else if (query.patientId) {
+    filter.patientId = query.patientId;
+  }
+
+  // Sorting
+  let sortOption = { orderedAt: -1, createdAt: -1 };
+  if (query.sort === 'oldest') {
+    sortOption = { orderedAt: 1, createdAt: 1 };
+  } else if (query.sort === 'collectionDate') {
+    sortOption = { collectionDate: 1, orderedAt: -1 };
+  } else if (query.sort === 'status') {
+    sortOption = { status: 1, orderedAt: -1 };
+  }
+
   const { labOrders, total } = await labRepository.listLabOrders({
     filter,
     page,
-    limit
+    limit,
+    sort: sortOption
   });
   const reports = await labRepository.findReportsByOrderIds({
     labOrderIds: labOrders.map((order) => order._id),
@@ -1146,23 +1293,128 @@ const listLabOrders = async ({ requester, query = {}, requestedClinicId = null }
   });
   const reportsByOrderId = new Map(reports.map((report) => [String(report.labOrderId), report]));
 
+  const todayStr = new Date().toISOString().split('T')[0];
+
   return {
     labOrders: labOrders.map((order) => {
       const report = reportsByOrderId.get(String(order._id));
+      const orderDateStr = order.collectionDate ? new Date(order.collectionDate).toISOString().split('T')[0] : '';
+      const createdDateStr = order.createdAt ? new Date(order.createdAt).toISOString().split('T')[0] : '';
+      const isToday = orderDateStr === todayStr || createdDateStr === todayStr;
+
+      // Determine clean user-facing status and timeline step
+      let displayStatus = order.orderStatus || 'ORDER_BOOKED';
+      let displayStatusLabel = 'Order Booked';
+      let activeStepIndex = 0; // 0: Booked, 1: Scheduled/Awaiting, 2: Sample Collected, 3: In Lab Testing, 4: Report Generated, 5: Report Available
+
+      const st = (order.status || '').toLowerCase();
+      const ost = (order.orderStatus || '').toUpperCase();
+      const sst = (order.sampleStatus || '').toUpperCase();
+      const rst = (report?.status || order.reportStatus || '').toUpperCase();
+
+      if (st === 'cancelled' || ost === 'CANCELLED') {
+        displayStatus = 'CANCELLED';
+        displayStatusLabel = 'Cancelled';
+        activeStepIndex = -1;
+      } else if (rst === 'AVAILABLE' || rst === 'FINALIZED' || rst === 'APPROVED' || st === 'completed') {
+        displayStatus = 'REPORT_AVAILABLE';
+        displayStatusLabel = 'Report Available';
+        activeStepIndex = 5;
+      } else if (rst === 'GENERATED' || st === 'report_ready' || ost === 'REPORT_GENERATED') {
+        displayStatus = 'REPORT_GENERATED';
+        displayStatusLabel = 'Report Generated';
+        activeStepIndex = 4;
+      } else if (ost === 'IN_LAB_TESTING' || st === 'processing' || st === 'in_processing' || st === 'in_analysis') {
+        displayStatus = 'IN_LAB_TESTING';
+        displayStatusLabel = 'In Lab Testing';
+        activeStepIndex = 3;
+      } else if (sst === 'SAMPLE_COLLECTED' || st === 'sample_collected') {
+        displayStatus = 'SAMPLE_COLLECTED';
+        displayStatusLabel = 'Sample Collected';
+        activeStepIndex = 2;
+      } else if (order.collectionMethod === 'HOME_COLLECTION') {
+        displayStatus = 'SCHEDULED';
+        displayStatusLabel = 'Collection Scheduled';
+        activeStepIndex = 1;
+      } else {
+        displayStatus = 'AWAITING_COLLECTION';
+        displayStatusLabel = 'Awaiting Collection';
+        activeStepIndex = 1;
+      }
+
       return {
         ...order,
+        isToday,
+        displayStatus,
+        displayStatusLabel,
+        activeStepIndex,
+        isWalkIn: order.bookingSource === 'WALK_IN' || order.patientType === 'WALK_IN' || order.source === 'WALK_IN',
         report: report
           ? {
               _id: report._id,
               status: report.status,
+              isAvailable: true,
+              releasedAt: report.releasedAt || report.createdAt,
               reportFileName: report.reportFileName || '',
-              abnormalCount: (report.resultEntries || []).filter((entry) => entry.isAbnormal).length
+              abnormalCount: (report.resultEntries || []).filter((entry) => entry.isAbnormal).length,
+              resultEntries: report.resultEntries || [],
+              aiSummary: report.aiSummary || '',
+              clinicalSignificance: report.clinicalSignificance || ''
             }
           : null
       };
     }),
     pagination: buildPaginationMeta({ page, limit, total })
   };
+};
+
+const cancelLabOrder = async ({ requester, orderId, clinicId, reason }) => {
+  const order = await LabOrder.findById(orderId);
+  if (!order) {
+    throw new AppError('Lab order not found.', HTTP_STATUS.NOT_FOUND);
+  }
+
+  if (
+    ['in_processing', 'in_analysis', 'completed', 'report_ready', 'IN_LAB_TESTING', 'REPORT_GENERATED', 'REPORT_AVAILABLE'].includes(order.status) ||
+    ['IN_LAB_TESTING', 'REPORT_GENERATED', 'REPORT_AVAILABLE'].includes(order.orderStatus)
+  ) {
+    throw new AppError('Order cannot be cancelled because sample processing or analysis has already started.', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  order.status = 'cancelled';
+  order.orderStatus = 'CANCELLED';
+  order.notes = [order.notes, `Cancelled: ${reason || 'Cancelled by user'}`].filter(Boolean).join(' | ');
+  order.updatedBy = requester._id;
+  await order.save();
+
+  return order;
+};
+
+const rescheduleLabOrder = async ({ requester, orderId, clinicId, payload = {} }) => {
+  const order = await LabOrder.findById(orderId);
+  if (!order) {
+    throw new AppError('Lab order not found.', HTTP_STATUS.NOT_FOUND);
+  }
+
+  if (['completed', 'cancelled', 'REPORT_AVAILABLE'].includes(order.status)) {
+    throw new AppError('Completed or cancelled orders cannot be rescheduled.', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  if (payload.collectionDate) {
+    order.collectionDate = new Date(payload.collectionDate);
+  }
+  if (payload.collectionSlot) {
+    order.collectionSlot = payload.collectionSlot;
+  }
+  if (payload.collectionAddress) {
+    order.collectionAddress = { ...order.collectionAddress, ...payload.collectionAddress };
+  }
+  order.orderStatus = 'COLLECTION_SCHEDULED';
+  order.status = 'scheduled';
+  order.updatedBy = requester._id;
+  await order.save();
+
+  return order;
 };
 
 const getLabOrderById = async ({ requester, labOrderId, requestedClinicId = null }) => {
@@ -1198,14 +1450,34 @@ const updateLabOrderStatus = async ({ requester, labOrderId, status, requestedCl
     );
   }
 
+  const updateData = {
+    status,
+    tests: (labOrder.tests || []).map((test) => serializeOrderTestForUpdate(test, status)),
+    updatedBy: requester._id
+  };
+
+  const now = new Date();
+  if (status === 'sample_collected') {
+    updateData.sampleStatus = 'SAMPLE_COLLECTED';
+    updateData.sampleCollectedAt = now;
+    updateData.orderStatus = 'SAMPLE_COLLECTED';
+    updateData.sampleStatusMessage = `Collected at ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  } else if (['processing', 'in_processing', 'in_analysis'].includes(status)) {
+    updateData.sampleStatus = 'SAMPLE_RECEIVED';
+    updateData.testingStartedAt = now;
+    updateData.orderStatus = 'IN_LAB_TESTING';
+  } else if (status === 'completed' || status === 'report_ready') {
+    updateData.reportStatus = 'AVAILABLE';
+    updateData.reportAvailableAt = now;
+    updateData.orderStatus = 'REPORT_AVAILABLE';
+  } else if (status === 'cancelled') {
+    updateData.orderStatus = 'CANCELLED';
+  }
+
   const updatedLabOrder = await labRepository.updateLabOrder({
     id: labOrder._id,
     clinicId,
-    data: {
-      status,
-      tests: (labOrder.tests || []).map((test) => serializeOrderTestForUpdate(test, status)),
-      updatedBy: requester._id
-    },
+    data: updateData,
     populateDetails: true
   });
 
@@ -1219,8 +1491,8 @@ const updateLabOrderStatus = async ({ requester, labOrderId, status, requestedCl
       newStatus: status,
       orderNumber: labOrder.orderNumber
     },
-    ipAddress: req.ip,
-    userAgent: req.get('user-agent'),
+    ipAddress: req?.ip || '127.0.0.1',
+    userAgent: req?.get ? req.get('user-agent') : 'Internal/Service',
     status: 'SUCCESS'
   });
 
@@ -2505,6 +2777,62 @@ const getSmartPackageSuggestions = async ({ requester, query = {} }) => {
     requestedClinicId: query.clinicId
   });
 
+  const laboratoryId = query.laboratoryId;
+
+  // 1. Fetch all active tests offered by this specific laboratory
+  const labTestQuery = {
+    clinicId,
+    isActive: true
+  };
+  if (laboratoryId) {
+    labTestQuery.laboratoryId = laboratoryId;
+  }
+
+  const activeLabTests = await LabTest.find(labTestQuery)
+    .populate('globalLabTestId')
+    .lean();
+
+  if (activeLabTests.length === 0) {
+    return [];
+  }
+
+  // Create fast lookup maps for laboratory tests
+  const labTestMapById = new Map();
+  const labTestMapByGlobalId = new Map();
+  const labTestMapByName = new Map();
+
+  for (const t of activeLabTests) {
+    labTestMapById.set(String(t._id), t);
+    if (t.globalLabTestId?._id) {
+      labTestMapByGlobalId.set(String(t.globalLabTestId._id), t);
+    }
+    if (t.name) {
+      labTestMapByName.set(t.name.trim().toLowerCase(), t);
+    }
+  }
+
+  // 2. Identify candidate packages offered by this laboratory
+  const packageCandidates = activeLabTests.filter((t) => {
+    const name = (t.name || t.globalLabTestId?.name || '').toLowerCase();
+    const cat = (t.category || t.globalLabTestId?.category?.name || '').toLowerCase();
+    const gType = t.globalLabTestId?.investigationType;
+    return (
+      t.isPackage === true ||
+      gType === 'PACKAGE' ||
+      gType === 'PROFILE' ||
+      gType === 'PANEL' ||
+      name.includes('package') ||
+      name.includes('panel') ||
+      name.includes('profile') ||
+      name.includes('checkup') ||
+      name.includes('screening') ||
+      cat.includes('package') ||
+      cat.includes('panel') ||
+      cat.includes('profile')
+    );
+  });
+
+  // 3. Resolve cart/prescribed test IDs
   let testIds = [];
   if (query.testIds) {
     testIds = String(query.testIds)
@@ -2514,76 +2842,1814 @@ const getSmartPackageSuggestions = async ({ requester, query = {} }) => {
   }
 
   if (query.prescriptionId) {
-    const Prescription = require('../prescriptions/prescription.model');
-    const prescription = await Prescription.findById(query.prescriptionId).lean();
-    if (prescription?.labs) {
-      const pTestIds = prescription.labs
-        .map((l) => l.globalLabTestId || l.investigationId || l.code)
-        .filter(Boolean);
-      testIds = [...new Set([...testIds, ...pTestIds])];
-    }
+    try {
+      const Prescription = require('../prescriptions/prescription.model');
+      const prescription = await Prescription.findById(query.prescriptionId).lean();
+      if (prescription?.labs) {
+        const pTestIds = prescription.labs
+          .map((l) => l.globalLabTestId || l.investigationId || l.code || l.testName)
+          .filter(Boolean);
+        testIds = [...new Set([...testIds, ...pTestIds])];
+      }
+    } catch {}
   }
 
-  const packages = await LabTest.find({
-    clinicId,
-    isActive: true
-  })
-    .populate('globalLabTestId')
-    .lean();
-
-  const selectedGlobalTests = await GlobalLabTest.find({
-    $or: [
-      { _id: { $in: testIds.filter((id) => mongoose.Types.ObjectId.isValid(id)) } },
-      { internalCode: { $in: testIds } },
-      { shortName: { $in: testIds } }
-    ]
-  }).lean();
-
-  const packageCandidates = packages.filter((pkg) => {
-    const name = (pkg.name || pkg.globalLabTestId?.name || '').toLowerCase();
-    const cat = (pkg.category || pkg.globalLabTestId?.category?.name || '').toLowerCase();
-    return pkg.isPackage || pkg.isHealthPackage || name.includes('package') || name.includes('panel') || name.includes('profile') || cat.includes('package') || cat.includes('panel');
-  });
+  const PanelInvestigation = require('../healthcare-catalog/panelInvestigation.model');
+  const ProfileComposition = require('../healthcare-catalog/profileComposition.model');
 
   const suggestions = [];
 
   for (const pkg of packageCandidates) {
     const g = pkg.globalLabTestId;
-    const packageName = pkg.name || g?.name || 'Complete Health Package';
-    const includedNames = (g?.parameters || []).map((p) => p.name || p).filter(Boolean);
+    const packageName = pkg.name || g?.name || 'Health Package';
 
-    const covered = selectedGlobalTests.filter((st) => {
-      const stName = st.name.toLowerCase();
-      const stCode = (st.shortName || st.internalCode || '').toLowerCase();
-      return (
-        packageName.toLowerCase().includes(stCode) ||
-        packageName.toLowerCase().includes(stName) ||
-        includedNames.some((inc) => inc.toLowerCase().includes(stName) || stName.includes(inc.toLowerCase()))
-      );
-    });
+    // 4. Resolve Constituent Investigations
+    let constituentTestList = [];
 
-    const packagePrice = pkg.price || pkg.testPrice || 900;
-    const individualTotal = selectedGlobalTests.reduce((sum, t) => sum + (t.testPrice || t.price || 400), 0) || 1200;
-    const savings = individualTotal > packagePrice ? individualTotal - packagePrice : 300;
+    // Check if direct packageTests exist
+    if (Array.isArray(pkg.packageTests) && pkg.packageTests.length > 0) {
+      constituentTestList = pkg.packageTests
+        .map((ptId) => {
+          const found = labTestMapById.get(String(ptId));
+          if (!found) return null;
+          return {
+            id: found._id,
+            name: found.name,
+            code: found.code || 'TEST',
+            sampleType: found.specimenType || 'Whole Blood',
+            price: found.price || found.testPrice || 150,
+            isOfferedByLab: true,
+            turnaroundTime: found.turnaroundTime || '24 Hours'
+          };
+        })
+        .filter(Boolean);
+    }
+
+    // Check if PanelInvestigation exists for globalLabTestId
+    if (constituentTestList.length === 0 && g?._id) {
+      const panelInvs = await PanelInvestigation.find({ panelId: g._id }).populate('investigationId').lean();
+      if (panelInvs.length > 0) {
+        constituentTestList = panelInvs
+          .map((pi) => {
+            const inv = pi.investigationId;
+            if (!inv) return null;
+            const matchedLabTest = labTestMapByGlobalId.get(String(inv._id)) || labTestMapByName.get((inv.name || '').toLowerCase());
+            return {
+              id: matchedLabTest?._id || inv._id,
+              name: matchedLabTest?.name || inv.name,
+              code: matchedLabTest?.code || inv.internalCode || inv.globalId || 'TEST',
+              sampleType: matchedLabTest?.specimenType || inv.sampleType || 'Whole Blood',
+              price: matchedLabTest ? (matchedLabTest.price || matchedLabTest.testPrice || 150) : (inv.price || inv.testPrice || 150),
+              isOfferedByLab: !!matchedLabTest,
+              turnaroundTime: matchedLabTest?.turnaroundTime || inv.normalReportingTime || '24 Hours'
+            };
+          })
+          .filter(Boolean);
+      }
+    }
+
+    // Check ProfileComposition
+    if (constituentTestList.length === 0 && g?._id) {
+      const profileComps = await ProfileComposition.find({ profileId: g._id }).populate('investigationId panelId').lean();
+      if (profileComps.length > 0) {
+        constituentTestList = profileComps
+          .map((pc) => {
+            const inv = pc.investigationId || pc.panelId;
+            if (!inv) return null;
+            const matchedLabTest = labTestMapByGlobalId.get(String(inv._id)) || labTestMapByName.get((inv.name || '').toLowerCase());
+            return {
+              id: matchedLabTest?._id || inv._id,
+              name: matchedLabTest?.name || inv.name,
+              code: matchedLabTest?.code || inv.internalCode || inv.globalId || 'TEST',
+              sampleType: matchedLabTest?.specimenType || inv.sampleType || 'Serum',
+              price: matchedLabTest ? (matchedLabTest.price || matchedLabTest.testPrice || 200) : (inv.price || inv.testPrice || 200),
+              isOfferedByLab: !!matchedLabTest,
+              turnaroundTime: matchedLabTest?.turnaroundTime || inv.normalReportingTime || '24 Hours'
+            };
+          })
+          .filter(Boolean);
+      }
+    }
+
+    // Fallback: parameters or local parameters or included names
+    if (constituentTestList.length === 0) {
+      const paramNames = (g?.parameters || pkg.localParameters || []).map((p) => p.name || p).filter(Boolean);
+      if (paramNames.length > 0) {
+        constituentTestList = paramNames.map((pName) => {
+          const matchedLabTest = labTestMapByName.get(String(pName).toLowerCase());
+          return {
+            id: matchedLabTest?._id || new mongoose.Types.ObjectId(),
+            name: String(pName),
+            code: matchedLabTest?.code || 'TEST',
+            sampleType: matchedLabTest?.specimenType || pkg.specimenType || 'Whole Blood',
+            price: matchedLabTest ? (matchedLabTest.price || matchedLabTest.testPrice || 150) : 150,
+            isOfferedByLab: !!matchedLabTest,
+            turnaroundTime: matchedLabTest?.turnaroundTime || '24 Hours'
+          };
+        });
+      }
+    }
+
+    // If still empty, infer from active tests of this lab if it's a package
+    if (constituentTestList.length === 0) {
+      const subLabTests = activeLabTests.filter((lt) => !lt.isPackage && String(lt._id) !== String(pkg._id));
+      if (subLabTests.length > 0) {
+        constituentTestList = subLabTests.slice(0, 5).map((t) => ({
+          id: t._id,
+          name: t.name,
+          code: t.code,
+          sampleType: t.specimenType || 'Whole Blood',
+          price: t.price || t.testPrice || 150,
+          isOfferedByLab: true,
+          turnaroundTime: t.turnaroundTime || '24 Hours'
+        }));
+      }
+    }
+
+    const totalTestsCount = constituentTestList.length;
+    const availableTests = constituentTestList.filter((t) => t.isOfferedByLab);
+    const availableTestsCount = availableTests.length;
+
+    // Do NOT display packages containing tests that the laboratory does not conduct or has 0 available tests
+    if (totalTestsCount === 0 || availableTestsCount === 0) {
+      continue;
+    }
+
+    // 5. Calculate Real Pricing & Savings
+    const rawIndividualSum = constituentTestList.reduce((sum, t) => sum + (Number(t.price) || 0), 0);
+    const packagePrice = Number(pkg.price) || Number(pkg.testPrice) || (rawIndividualSum > 0 ? Math.round(rawIndividualSum * 0.75) : 900);
+    const individualTotal = pkg.individualPrice || (rawIndividualSum > packagePrice ? rawIndividualSum : Math.round(packagePrice * 1.35));
+    const savings = individualTotal > packagePrice ? individualTotal - packagePrice : Math.round(packagePrice * 0.25);
+    const discountPercent = individualTotal > 0 ? Math.round((savings / individualTotal) * 100) : 0;
+
+    // 6. Check Cart / Prescribed Tests Coverage
+    const coveredTests = [];
+    if (testIds.length > 0) {
+      for (const tId of testIds) {
+        const queryStr = String(tId).toLowerCase();
+        const found = constituentTestList.find((ct) =>
+          String(ct.id) === String(tId) ||
+          String(ct.code).toLowerCase() === queryStr ||
+          ct.name.toLowerCase().includes(queryStr) ||
+          queryStr.includes(ct.name.toLowerCase())
+        );
+        if (found && !coveredTests.includes(found.name)) {
+          coveredTests.push(found.name);
+        }
+      }
+    }
+
+    // 7. Fasting & Instructions
+    const fastingRequired =
+      pkg.fastingRequired ||
+      pkg.importantInstructions ||
+      (packageName.toLowerCase().includes('lipid') ||
+      packageName.toLowerCase().includes('diab') ||
+      packageName.toLowerCase().includes('glucose') ||
+      packageName.toLowerCase().includes('health check')
+        ? '10-12 Hours Fasting Required'
+        : 'No Fasting Required');
 
     suggestions.push({
       packageId: pkg._id,
+      id: pkg._id,
       globalPackageId: g?._id || null,
       packageName,
+      name: packageName,
       packageCode: pkg.code || g?.globalId || 'PKG',
+      code: pkg.code || g?.globalId || 'PKG',
+      category: pkg.category || g?.category?.name || 'Health Checkup',
+      laboratoryId: pkg.laboratoryId,
+      clinicId: pkg.clinicId,
       packagePrice,
+      price: packagePrice,
       individualTotal,
+      individualPrice: individualTotal,
       savings,
-      coveredTests: covered.map((c) => c.name),
-      coveredTestsCount: covered.length || selectedGlobalTests.length,
-      extraInvestigations: ['Lipid Profile', 'Kidney Function Test (KFT)'].filter((ex) => !packageName.includes(ex)),
+      discountPercent,
+      isBestValue: discountPercent >= 20 || savings >= 300,
       turnaroundTime: pkg.turnaroundTime || '24 Hours',
+      sampleType: pkg.specimenType || 'Blood & Urine',
+      fastingRequired,
+      description: pkg.importantInstructions || `Comprehensive ${packageName} offered by laboratory with verified constituent parameters.`,
+      coveredTests,
+      coversSelectedCount: coveredTests.length,
+      coveredTestsCount: coveredTests.length,
+      isFullyAvailable: availableTestsCount === totalTestsCount,
+      totalTestsCount,
+      availableTestsCount,
+      includedInvestigations: constituentTestList,
+      tests: constituentTestList.map((t) => t.name),
       suggestedOption: true,
       isDoctorPrescribed: false
     });
   }
 
-  return suggestions.sort((a, b) => b.savings - a.savings);
+  // 8. Sorting based on recommendation rules:
+  // Priority 1: Packages covering prescribed/cart tests
+  // Priority 2: Packages sorted by savings / discount
+  suggestions.sort((a, b) => {
+    if (b.coversSelectedCount !== a.coversSelectedCount) {
+      return b.coversSelectedCount - a.coversSelectedCount;
+    }
+    return b.savings - a.savings;
+  });
+
+  return suggestions;
+};
+
+const validateLabPromoCode = async ({ code, cartTotal = 0, laboratoryId, clinicId, patientId }) => {
+  if (!code || typeof code !== 'string') {
+    throw new AppError('Promo code is required.', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  const normalizedCode = code.trim().toUpperCase();
+
+  // Try checking PromoCode model from database first if exists
+  let promoDoc = null;
+  try {
+    const PromoCode = require('../subscriptions/promoCode.model');
+    promoDoc = await PromoCode.findOne({ code: normalizedCode });
+  } catch (err) {
+    // Model fallback
+  }
+
+  if (promoDoc) {
+    if (!promoDoc.isActive) {
+      throw new AppError('This promo code is inactive.', HTTP_STATUS.BAD_REQUEST);
+    }
+    const now = new Date();
+    if (now < promoDoc.startDate || now > promoDoc.endDate) {
+      throw new AppError('This promo code has expired or is not yet valid.', HTTP_STATUS.BAD_REQUEST);
+    }
+    if (promoDoc.maxUsage !== null && promoDoc.usageCount >= promoDoc.maxUsage) {
+      throw new AppError('This promo code usage limit has been reached.', HTTP_STATUS.BAD_REQUEST);
+    }
+    if (cartTotal < (promoDoc.minPurchaseAmount || 0)) {
+      throw new AppError(`Minimum order amount of ₹${promoDoc.minPurchaseAmount} is required for this code.`, HTTP_STATUS.BAD_REQUEST);
+    }
+    let discountAmount = 0;
+    if (promoDoc.discountType === 'percentage') {
+      discountAmount = Math.round((cartTotal * promoDoc.discountValue) / 100);
+      if (promoDoc.maxDiscount) {
+        discountAmount = Math.min(discountAmount, promoDoc.maxDiscount);
+      }
+    } else {
+      discountAmount = Math.min(promoDoc.discountValue, cartTotal);
+    }
+    return {
+      isValid: true,
+      valid: true,
+      promoCode: normalizedCode,
+      discountType: promoDoc.discountType,
+      discountValue: promoDoc.discountValue,
+      discountAmount,
+      message: `Promo code ${normalizedCode} applied successfully!`
+    };
+  }
+
+  // System configured healthcare/lab promo codes
+  const SYSTEM_PROMOS = {
+    'YAY20': { discountType: 'percentage', discountValue: 20, maxDiscount: 240, minAmount: 200 },
+    'HEALTH20': { discountType: 'percentage', discountValue: 20, maxDiscount: 300, minAmount: 300 },
+    'LAB10': { discountType: 'percentage', discountValue: 10, maxDiscount: 150, minAmount: 100 },
+    'SAVE100': { discountType: 'fixed', discountValue: 100, maxDiscount: 100, minAmount: 500 },
+    'WELCOME15': { discountType: 'percentage', discountValue: 15, maxDiscount: 200, minAmount: 150 }
+  };
+
+  const sysPromo = SYSTEM_PROMOS[normalizedCode];
+  if (!sysPromo) {
+    throw new AppError(`Invalid promo code "${normalizedCode}". Please check and try again.`, HTTP_STATUS.BAD_REQUEST);
+  }
+
+  if (cartTotal < sysPromo.minAmount) {
+    throw new AppError(`Minimum order value of ₹${sysPromo.minAmount} is required for code ${normalizedCode}.`, HTTP_STATUS.BAD_REQUEST);
+  }
+
+  let discountAmount = 0;
+  if (sysPromo.discountType === 'percentage') {
+    discountAmount = Math.round((cartTotal * sysPromo.discountValue) / 100);
+    if (sysPromo.maxDiscount) {
+      discountAmount = Math.min(discountAmount, sysPromo.maxDiscount);
+    }
+  } else {
+    discountAmount = Math.min(sysPromo.discountValue, cartTotal);
+  }
+
+  return {
+    isValid: true,
+    valid: true,
+    promoCode: normalizedCode,
+    discountType: sysPromo.discountType,
+    discountValue: sysPromo.discountValue,
+    discountAmount,
+    message: `Promo code ${normalizedCode} applied successfully!`
+  };
+};
+
+// ============================================================================
+// PHASE 7: SAMPLE COLLECTION, TOKEN QUEUE, HOME COLLECTION & BARCODE SYSTEM
+// ============================================================================
+
+const determineSpecimenAndContainer = (test) => {
+  const name = (test.name || test.testName || '').toLowerCase();
+  const cat = (test.category || '').toLowerCase();
+  const spec = (test.specimenType || '').toLowerCase();
+
+  if (
+    name.includes('cbc') ||
+    name.includes('complete blood') ||
+    name.includes('hemoglobin') ||
+    name.includes('hba1c') ||
+    name.includes('edta') ||
+    name.includes('esr')
+  ) {
+    return {
+      specimenType: 'Blood',
+      containerType: 'EDTA Tube (Lavender Top)',
+      containerColor: '#8B5CF6',
+      volumeRequired: '2.5 mL',
+      combineKey: 'BLOOD_EDTA'
+    };
+  }
+  if (
+    name.includes('sugar') ||
+    name.includes('glucose') ||
+    name.includes('fluoride') ||
+    name.includes('fbs') ||
+    name.includes('ppbs')
+  ) {
+    return {
+      specimenType: 'Blood',
+      containerType: 'Sodium Fluoride Tube (Grey Top)',
+      containerColor: '#9CA3AF',
+      volumeRequired: '2.0 mL',
+      combineKey: 'BLOOD_FLUORIDE'
+    };
+  }
+  if (name.includes('urine') || cat.includes('urine') || spec.includes('urine')) {
+    return {
+      specimenType: 'Urine',
+      containerType: 'Sterile Urine Container (Yellow Top)',
+      containerColor: '#F59E0B',
+      volumeRequired: '10 - 20 mL',
+      combineKey: 'URINE_STERILE'
+    };
+  }
+  if (name.includes('stool') || spec.includes('stool')) {
+    return {
+      specimenType: 'Stool',
+      containerType: 'Sterile Stool Specimen Container',
+      containerColor: '#D97706',
+      volumeRequired: '5 - 10 g',
+      combineKey: 'STOOL_STERILE'
+    };
+  }
+  if (name.includes('swab') || spec.includes('swab')) {
+    return {
+      specimenType: 'Swab',
+      containerType: 'Viral/Bacterial Transport Medium Swab',
+      containerColor: '#10B981',
+      volumeRequired: '1 Swab',
+      combineKey: 'SWAB_TRANSPORT'
+    };
+  }
+  // Default to Serum SST (Red/Gold) for LFT, KFT, Lipid, Thyroid, Vitamins, Electrolytes, Biochemistry
+  return {
+    specimenType: 'Blood',
+    containerType: 'Serum Separator Tube SST (Gold/Red Top)',
+    containerColor: '#EF4444',
+    volumeRequired: '3.5 mL',
+    combineKey: 'BLOOD_SERUM'
+  };
+};
+
+const calculateRequiredSpecimens = async ({ orderId, clinicId, requester }) => {
+  const order = await LabOrder.findOne({ _id: orderId, ...(clinicId ? { clinicId } : {}) })
+    .populate('patientId')
+    .populate('laboratoryId');
+
+  if (!order) {
+    throw new AppError('Lab order not found.', HTTP_STATUS.NOT_FOUND);
+  }
+
+  const tests = order.tests || [];
+  const combinedMap = new Map();
+
+  let hasFastingRequirement = false;
+  let fastingHours = 0;
+
+  for (const t of tests) {
+    const specInfo = determineSpecimenAndContainer(t);
+    const key = specInfo.combineKey;
+
+    const tName = (t.name || t.testName || '').toLowerCase();
+    if (
+      tName.includes('lipid') ||
+      tName.includes('glucose') ||
+      tName.includes('sugar') ||
+      tName.includes('fasting') ||
+      tName.includes('fbs') ||
+      tName.includes('cholesterol')
+    ) {
+      hasFastingRequirement = true;
+      fastingHours = Math.max(fastingHours, 10);
+    }
+
+    if (!combinedMap.has(key)) {
+      combinedMap.set(key, {
+        combineKey: key,
+        specimenType: specInfo.specimenType,
+        containerType: specInfo.containerType,
+        containerColor: specInfo.containerColor,
+        volumeRequired: specInfo.volumeRequired,
+        tests: [t.name || t.testName],
+        testIds: [t._id || t.labTestId || t.code]
+      });
+    } else {
+      const existing = combinedMap.get(key);
+      existing.tests.push(t.name || t.testName);
+      existing.testIds.push(t._id || t.labTestId || t.code);
+    }
+  }
+
+  const requiredSpecimens = Array.from(combinedMap.values());
+  const existingSamples = await LabSample.find({ orderId: order._id }).lean();
+
+  return {
+    orderId: order._id,
+    orderNumber: order.orderNumber,
+    tokenNumber: order.tokenNumber || '',
+    patient: order.patientId || order.guestPatient || {},
+    laboratory: order.laboratoryId || {},
+    collectionMethod: order.collectionMethod,
+    priority: order.priority || 'routine',
+    testsCount: tests.length,
+    preparationInstructions: hasFastingRequirement
+      ? `${fastingHours}-12 Hours Overnight Fasting Required (Water permitted)`
+      : 'No special patient fasting preparation required.',
+    hasFastingRequirement,
+    fastingHours,
+    requiredSpecimensCount: requiredSpecimens.length,
+    requiredSpecimens,
+    existingSamples,
+    isFullyCollected:
+      existingSamples.length >= requiredSpecimens.length &&
+      existingSamples.every((s) => s.status === 'COLLECTED'),
+    checklist: [
+      { id: 'chk_patient_id', label: 'Patient identity verified with government ID or phone OTP', required: true },
+      { id: 'chk_order_verified', label: 'Lab order & requested investigations confirmed', required: true },
+      { id: 'chk_prep_confirmed', label: 'Fasting and preparation guidelines confirmed with patient', required: true },
+      { id: 'chk_correct_tubes', label: 'Correct tubes / sterile containers inspected and ready', required: true },
+      { id: 'chk_sufficient_volume', label: 'Adequate sample volume collected as per guidelines', required: true },
+      { id: 'chk_label_attached', label: 'Unique barcode label affixed firmly to sample container', required: true }
+    ]
+  };
+};
+
+const getCollectionQueueDashboard = async ({ clinicId, laboratoryId, date, requester }) => {
+  const targetDateStr = date || new Date().toISOString().split('T')[0];
+  const startOfDay = new Date(`${targetDateStr}T00:00:00.000Z`);
+  const endOfDay = new Date(`${targetDateStr}T23:59:59.999Z`);
+
+  const clinicFilter = clinicId ? { clinicId } : {};
+  const labFilter = laboratoryId ? { laboratoryId } : {};
+
+  // 1. Live Metrics Calculations
+  const [
+    awaitingCollectionCount,
+    tokensWaitingCount,
+    inProgressCount,
+    samplesCollectedCount,
+    homeCollectionsCount,
+    recollectionsRequiredCount,
+    tokens,
+    todayOrders,
+    homeTasks
+  ] = await Promise.all([
+    // Awaiting collection orders
+    LabOrder.countDocuments({
+      ...clinicFilter,
+      ...labFilter,
+      status: { $in: ['ordered', 'scheduled', 'confirmed'] },
+      orderStatus: { $in: ['ORDER_BOOKED', 'COLLECTION_SCHEDULED', 'AWAITING_COLLECTION', ''] }
+    }),
+    // Tokens waiting
+    LabToken.countDocuments({
+      ...clinicFilter,
+      ...labFilter,
+      date: targetDateStr,
+      status: 'WAITING'
+    }),
+    // In progress collection
+    LabToken.countDocuments({
+      ...clinicFilter,
+      ...labFilter,
+      date: targetDateStr,
+      status: { $in: ['CALLED', 'IN_COLLECTION'] }
+    }),
+    // Samples collected today
+    LabSample.countDocuments({
+      ...clinicFilter,
+      ...labFilter,
+      collectedAt: { $gte: startOfDay, $lte: endOfDay },
+      status: { $in: ['COLLECTED', 'RECEIVED', 'IN_PROCESSING', 'COMPLETED'] }
+    }),
+    // Home collections scheduled today
+    HomeCollectionTask.countDocuments({
+      ...clinicFilter,
+      ...labFilter,
+      scheduledDate: { $gte: startOfDay, $lte: endOfDay }
+    }),
+    // Recollections required
+    LabSample.countDocuments({
+      ...clinicFilter,
+      ...labFilter,
+      status: 'REJECTED'
+    }),
+    // Tokens list for today
+    LabToken.find({
+      ...clinicFilter,
+      ...labFilter,
+      date: targetDateStr
+    })
+      .sort({ sequenceNumber: 1 })
+      .populate('orderId')
+      .populate('patientId')
+      .lean(),
+    // Orders list for today
+    LabOrder.find({
+      ...clinicFilter,
+      ...labFilter,
+      createdAt: { $gte: startOfDay, $lte: endOfDay }
+    })
+      .sort({ createdAt: -1 })
+      .populate('patientId')
+      .lean(),
+    // Home collection tasks for today
+    HomeCollectionTask.find({
+      ...clinicFilter,
+      ...labFilter,
+      scheduledDate: { $gte: startOfDay, $lte: endOfDay }
+    })
+      .sort({ createdAt: -1 })
+      .populate('patientId')
+      .populate('collectorId')
+      .lean()
+  ]);
+
+  // Derive Current Serving Token (Active Token Called)
+  const currentToken =
+    tokens.find((t) => t.status === 'CALLED' || t.status === 'IN_COLLECTION') || null;
+
+  return {
+    date: targetDateStr,
+    metrics: {
+      awaitingCollection: awaitingCollectionCount,
+      tokensWaiting: tokensWaitingCount,
+      collectionInProgress: inProgressCount,
+      samplesCollected: samplesCollectedCount,
+      homeCollections: homeCollectionsCount,
+      recollectionRequired: recollectionsRequiredCount
+    },
+    currentToken,
+    tokens,
+    todayOrders,
+    homeTasks,
+    desks: ['Desk 1', 'Desk 2', 'Desk 3', 'Phlebotomy Room A', 'Phlebotomy Room B']
+  };
+};
+
+const generateQueueToken = async ({
+  clinicId,
+  laboratoryId,
+  orderId,
+  patientId,
+  queueType = 'ROUTINE',
+  priority = 'routine',
+  deskNumber = 'Desk 1',
+  counterPrefix = 'A',
+  requester
+}) => {
+  const targetDateStr = new Date().toISOString().split('T')[0];
+
+  let order = null;
+  if (orderId) {
+    order = await LabOrder.findById(orderId).populate('patientId');
+  }
+
+  let patient = null;
+  if (patientId) {
+    patient = await Patient.findById(patientId);
+  } else if (order?.patientId) {
+    patient = order.patientId;
+  }
+
+  // Count existing tokens for today to generate next sequence number
+  const existingCount = await LabToken.countDocuments({
+    clinicId,
+    ...(laboratoryId ? { laboratoryId } : {}),
+    date: targetDateStr
+  });
+
+  const sequenceNumber = existingCount + 1;
+  const tokenNumber = `${counterPrefix}-${String(sequenceNumber).padStart(3, '0')}`;
+  const tokenId = `TKN-${targetDateStr.replace(/-/g, '')}-${String(sequenceNumber).padStart(4, '0')}`;
+
+  const testsSummary = order?.tests?.map((t) => t.name || t.testName).join(' + ') || 'General Lab Investigations';
+  const patientName =
+    patient?.fullName ||
+    `${patient?.firstName || ''} ${patient?.lastName || ''}`.trim() ||
+    order?.guestPatient?.fullName ||
+    'Walk-in Patient';
+  const patientPhone = patient?.phone || order?.guestPatient?.phone || '';
+
+  const token = await LabToken.create({
+    tokenId,
+    laboratoryId: laboratoryId || order?.laboratoryId || null,
+    clinicId,
+    date: targetDateStr,
+    tokenNumber,
+    sequenceNumber,
+    counterPrefix,
+    deskNumber,
+    queueType: queueType.toUpperCase(),
+    priority: priority.toLowerCase(),
+    orderId: order?._id || null,
+    orderNumber: order?.orderNumber || '',
+    patientId: patient?._id || null,
+    patientName,
+    patientPhone,
+    testsSummary,
+    status: 'WAITING',
+    createdBy: requester?._id || null
+  });
+
+  if (order) {
+    order.tokenNumber = tokenNumber;
+    order.orderStatus = 'TOKEN_GENERATED';
+    await order.save();
+  }
+
+  await createAuditLog({
+    actorUserId: requester?._id || null,
+    action: 'LAB_TOKEN_GENERATED',
+    entity: 'LabToken',
+    entityId: token._id,
+    metadata: {
+      tokenNumber,
+      orderNumber: order?.orderNumber,
+      patientName
+    },
+    ipAddress: requester?.ip || '127.0.0.1',
+    userAgent: requester?.userAgent || 'System',
+    status: 'SUCCESS'
+  });
+
+  return token;
+};
+
+const callQueueToken = async ({ tokenId, deskNumber, requester }) => {
+  const token = await LabToken.findById(tokenId);
+  if (!token) {
+    throw new AppError('Queue token not found.', HTTP_STATUS.NOT_FOUND);
+  }
+
+  token.status = 'CALLED';
+  token.calledAt = new Date();
+  if (deskNumber) token.deskNumber = deskNumber;
+  await token.save();
+
+  if (token.orderId) {
+    await LabOrder.findByIdAndUpdate(token.orderId, {
+      orderStatus: 'CALLED_FOR_COLLECTION'
+    });
+  }
+
+  await createAuditLog({
+    actorUserId: requester?._id || null,
+    action: 'LAB_TOKEN_CALLED',
+    entity: 'LabToken',
+    entityId: token._id,
+    metadata: {
+      tokenNumber: token.tokenNumber,
+      deskNumber: token.deskNumber
+    },
+    ipAddress: requester?.ip || '127.0.0.1',
+    userAgent: requester?.userAgent || 'System',
+    status: 'SUCCESS'
+  });
+
+  return token;
+};
+
+const recallQueueToken = async ({ tokenId, deskNumber, requester }) => {
+  const token = await LabToken.findById(tokenId);
+  if (!token) {
+    throw new AppError('Queue token not found.', HTTP_STATUS.NOT_FOUND);
+  }
+
+  token.status = 'CALLED';
+  token.recalledCount = (token.recalledCount || 0) + 1;
+  token.calledAt = new Date();
+  if (deskNumber) token.deskNumber = deskNumber;
+  await token.save();
+
+  return token;
+};
+
+const skipQueueToken = async ({ tokenId, requester }) => {
+  const token = await LabToken.findById(tokenId);
+  if (!token) {
+    throw new AppError('Queue token not found.', HTTP_STATUS.NOT_FOUND);
+  }
+
+  token.status = 'SKIPPED';
+  await token.save();
+
+  return token;
+};
+
+const getPublicTokenDisplay = async ({ clinicId, laboratoryId }) => {
+  const targetDateStr = new Date().toISOString().split('T')[0];
+
+  const filter = {
+    ...(clinicId ? { clinicId } : {}),
+    ...(laboratoryId ? { laboratoryId } : {}),
+    date: targetDateStr
+  };
+
+  const [activeTokens, waitingTokens, totalWaiting] = await Promise.all([
+    LabToken.find({ ...filter, status: { $in: ['CALLED', 'IN_COLLECTION'] } })
+      .select('tokenNumber deskNumber status calledAt priority')
+      .sort({ calledAt: -1 })
+      .limit(4)
+      .lean(),
+    LabToken.find({ ...filter, status: 'WAITING' })
+      .select('tokenNumber priority sequenceNumber')
+      .sort({ sequenceNumber: 1 })
+      .limit(6)
+      .lean(),
+    LabToken.countDocuments({ ...filter, status: 'WAITING' })
+  ]);
+
+  return {
+    date: targetDateStr,
+    currentServing: activeTokens,
+    nextInQueue: waitingTokens.map((t) => t.tokenNumber),
+    totalWaiting
+  };
+};
+
+const collectOrderSamples = async ({ orderId, specimens, deskNumber = 'Desk 1', notes = '', requester }) => {
+  const order = await LabOrder.findById(orderId).populate('patientId');
+  if (!order) {
+    throw new AppError('Lab order not found.', HTTP_STATUS.NOT_FOUND);
+  }
+
+  const collectedSamples = [];
+  const now = new Date();
+  const datePrefix = now.toISOString().split('T')[0].replace(/-/g, '');
+
+  for (let i = 0; i < specimens.length; i++) {
+    const spec = specimens[i];
+    const randSeq = Math.floor(1000 + Math.random() * 9000);
+    const sampleId = `SMP-${datePrefix}-${randSeq}`;
+
+    const sample = await LabSample.create({
+      sampleId,
+      orderId: order._id,
+      orderNumber: order.orderNumber,
+      patientId: order.patientId?._id || null,
+      patientName:
+        order.patientId?.fullName ||
+        `${order.patientId?.firstName || ''} ${order.patientId?.lastName || ''}`.trim() ||
+        order.guestPatient?.fullName ||
+        'Patient',
+      patientPhone: order.patientId?.phone || order.guestPatient?.phone || '',
+      laboratoryId: order.laboratoryId,
+      clinicId: order.clinicId,
+      specimenType: spec.specimenType || 'Blood',
+      containerType: spec.containerType || 'EDTA Tube (Lavender)',
+      containerColor: spec.containerColor || '#8B5CF6',
+      collectionLocation: order.collectionMethod || 'AT_LAB',
+      status: 'COLLECTED',
+      testIds: spec.testIds || [],
+      testNames: spec.tests || spec.testNames || [],
+      volumeRequired: spec.volumeRequired || '2.5 mL',
+      volumeCollected: spec.volumeCollected || spec.volumeRequired || '2.5 mL',
+      collectedBy: requester?._id || null,
+      collectedByName: requester?.name || 'Lab Staff',
+      collectedAt: now,
+      deskNumber,
+      barcode: sampleId,
+      labelPrintedAt: now,
+      notes: notes || spec.notes || '',
+      timeline: [
+        {
+          action: 'SAMPLE_COLLECTED',
+          timestamp: now,
+          actorId: requester?._id || null,
+          actorName: requester?.name || 'Lab Staff',
+          actorRole: requester?.role || 'LAB_TECHNICIAN',
+          notes: `Sample collected at ${deskNumber}. Container: ${spec.containerType}`
+        }
+      ]
+    });
+
+    collectedSamples.push(sample);
+  }
+
+  // Update order status
+  order.status = 'sample_collected';
+  order.orderStatus = 'SAMPLE_COLLECTED';
+  order.sampleStatus = 'SAMPLE_COLLECTED';
+  order.sampleCollectedAt = now;
+  order.sampleStatusMessage = `Sample collected at ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  await order.save();
+
+  // Complete any active queue token for this order
+  await LabToken.updateMany(
+    { orderId: order._id, status: { $in: ['WAITING', 'CALLED', 'IN_COLLECTION'] } },
+    { status: 'COLLECTED', completedAt: now }
+  );
+
+  await createAuditLog({
+    actorUserId: requester?._id || null,
+    action: 'LAB_SAMPLES_COLLECTED',
+    entity: 'LabOrder',
+    entityId: order._id,
+    metadata: {
+      orderNumber: order.orderNumber,
+      sampleIds: collectedSamples.map((s) => s.sampleId)
+    },
+    ipAddress: requester?.ip || '127.0.0.1',
+    userAgent: requester?.userAgent || 'System',
+    status: 'SUCCESS'
+  });
+
+  return {
+    order,
+    samples: collectedSamples
+  };
+};
+
+const rejectSample = async ({ sampleId, reason, notes = '', requester }) => {
+  const sample = await LabSample.findOne({
+    $or: [{ _id: mongoose.isValidObjectId(sampleId) ? sampleId : null }, { sampleId }]
+  });
+
+  if (!sample) {
+    throw new AppError('Sample not found.', HTTP_STATUS.NOT_FOUND);
+  }
+
+  const now = new Date();
+  sample.status = 'REJECTED';
+  sample.rejectionReason = reason;
+  sample.notes = [sample.notes, `Rejected: ${reason} - ${notes}`].filter(Boolean).join(' | ');
+  sample.timeline.push({
+    action: 'SAMPLE_REJECTED',
+    timestamp: now,
+    actorId: requester?._id || null,
+    actorName: requester?.name || 'Lab Staff',
+    actorRole: requester?.role || 'LAB_TECHNICIAN',
+    notes: `Reason: ${reason}. Notes: ${notes}`
+  });
+  await sample.save();
+
+  // Update LabOrder to prompt recollection
+  await LabOrder.findByIdAndUpdate(sample.orderId, {
+    orderStatus: 'SAMPLE_RECOLLECTION_REQUIRED',
+    sampleStatus: 'SAMPLE_REJECTED',
+    sampleStatusMessage: `Recollection required: ${reason}`
+  });
+
+  await createAuditLog({
+    actorUserId: requester?._id || null,
+    action: 'LAB_SAMPLE_REJECTED',
+    entity: 'LabSample',
+    entityId: sample._id,
+    metadata: {
+      sampleId: sample.sampleId,
+      reason
+    },
+    ipAddress: requester?.ip || '127.0.0.1',
+    userAgent: requester?.userAgent || 'System',
+    status: 'SUCCESS'
+  });
+
+  return sample;
+};
+
+const recollectSample = async ({ sampleId, deskNumber = 'Desk 1', notes = '', requester }) => {
+  const originalSample = await LabSample.findOne({
+    $or: [{ _id: mongoose.isValidObjectId(sampleId) ? sampleId : null }, { sampleId }]
+  });
+
+  if (!originalSample) {
+    throw new AppError('Original sample not found.', HTTP_STATUS.NOT_FOUND);
+  }
+
+  const now = new Date();
+  const datePrefix = now.toISOString().split('T')[0].replace(/-/g, '');
+  const newSampleId = `SMP-${datePrefix}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+  const newSample = await LabSample.create({
+    sampleId: newSampleId,
+    orderId: originalSample.orderId,
+    orderNumber: originalSample.orderNumber,
+    patientId: originalSample.patientId,
+    patientName: originalSample.patientName,
+    patientPhone: originalSample.patientPhone,
+    laboratoryId: originalSample.laboratoryId,
+    clinicId: originalSample.clinicId,
+    specimenType: originalSample.specimenType,
+    containerType: originalSample.containerType,
+    containerColor: originalSample.containerColor,
+    collectionLocation: originalSample.collectionLocation,
+    status: 'COLLECTED',
+    testIds: originalSample.testIds,
+    testNames: originalSample.testNames,
+    volumeRequired: originalSample.volumeRequired,
+    volumeCollected: originalSample.volumeRequired,
+    collectedBy: requester?._id || null,
+    collectedByName: requester?.name || 'Lab Staff',
+    collectedAt: now,
+    deskNumber,
+    barcode: newSampleId,
+    labelPrintedAt: now,
+    recollectionOfSampleId: originalSample._id,
+    notes: notes || `Recollection following rejected sample ${originalSample.sampleId}`,
+    timeline: [
+      {
+        action: 'SAMPLE_RECOLLECTED',
+        timestamp: now,
+        actorId: requester?._id || null,
+        actorName: requester?.name || 'Lab Staff',
+        actorRole: requester?.role || 'LAB_TECHNICIAN',
+        notes: `Recollection for rejected sample ${originalSample.sampleId}`
+      }
+    ]
+  });
+
+  // Update order status back to sample_collected
+  await LabOrder.findByIdAndUpdate(originalSample.orderId, {
+    status: 'sample_collected',
+    orderStatus: 'SAMPLE_COLLECTED',
+    sampleStatus: 'SAMPLE_COLLECTED',
+    sampleCollectedAt: now,
+    sampleStatusMessage: `Recollected at ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+  });
+
+  return newSample;
+};
+
+const getSampleTimeline = async ({ sampleId, orderId }) => {
+  const query = {};
+  if (sampleId) {
+    query.$or = [{ _id: mongoose.isValidObjectId(sampleId) ? sampleId : null }, { sampleId }];
+  } else if (orderId) {
+    query.orderId = orderId;
+  }
+
+  const samples = await LabSample.find(query).sort({ createdAt: 1 }).lean();
+  const order = orderId ? await LabOrder.findById(orderId).lean() : null;
+
+  return {
+    order,
+    samples,
+    timeline: samples.flatMap((s) =>
+      (s.timeline || []).map((ev) => ({
+        ...ev,
+        sampleId: s.sampleId,
+        specimenType: s.specimenType,
+        containerType: s.containerType
+      }))
+    )
+  };
+};
+
+const listHomeCollectionTasks = async ({ clinicId, laboratoryId, scheduledDate, status, collectorId }) => {
+  const filter = {
+    ...(clinicId ? { clinicId } : {}),
+    ...(laboratoryId ? { laboratoryId } : {})
+  };
+
+  if (scheduledDate) {
+    const startOfDay = new Date(`${scheduledDate}T00:00:00.000Z`);
+    const endOfDay = new Date(`${scheduledDate}T23:59:59.999Z`);
+    filter.scheduledDate = { $gte: startOfDay, $lte: endOfDay };
+  }
+
+  if (status) {
+    filter.status = status.toUpperCase();
+  }
+
+  if (collectorId) {
+    filter.collectorId = collectorId;
+  }
+
+  const tasks = await HomeCollectionTask.find(filter)
+    .sort({ scheduledDate: 1, createdAt: -1 })
+    .populate('patientId')
+    .populate('orderId')
+    .populate('collectorId')
+    .lean();
+
+  return tasks;
+};
+
+const assignHomeCollector = async ({ taskId, collectorId, collectorName, collectorPhone, requester }) => {
+  const task = await HomeCollectionTask.findById(taskId);
+  if (!task) {
+    throw new AppError('Home collection task not found.', HTTP_STATUS.NOT_FOUND);
+  }
+
+  task.collectorId = collectorId;
+  task.collectorName = collectorName;
+  task.collectorPhone = collectorPhone || '';
+  task.status = 'ASSIGNED';
+  task.assignedAt = new Date();
+  await task.save();
+
+  return task;
+};
+
+const updateHomeCollectionStatus = async ({ taskId, status, failureReason = '', notes = '', requester }) => {
+  const task = await HomeCollectionTask.findById(taskId);
+  if (!task) {
+    throw new AppError('Home collection task not found.', HTTP_STATUS.NOT_FOUND);
+  }
+
+  const now = new Date();
+  task.status = status.toUpperCase();
+
+  if (status === 'COLLECTOR_DISPATCHED') task.startedAt = now;
+  if (status === 'ARRIVED') task.arrivedAt = now;
+  if (status === 'COLLECTED') task.completedAt = now;
+  if (status === 'FAILED') {
+    task.failureReason = failureReason;
+    task.notes = [task.notes, notes].filter(Boolean).join(' | ');
+  }
+
+  await task.save();
+  return task;
+};
+
+const receiveHomeCollectionAtLab = async ({ taskId, sampleCondition = 'GOOD', notes = '', requester }) => {
+  const task = await HomeCollectionTask.findById(taskId).populate('orderId');
+  if (!task) {
+    throw new AppError('Home collection task not found.', HTTP_STATUS.NOT_FOUND);
+  }
+
+  const now = new Date();
+  task.status = 'RECEIVED_AT_LAB';
+  task.receivedAtLabAt = now;
+  task.receivedBy = requester?._id || null;
+  task.sampleCondition = sampleCondition;
+  task.notes = [task.notes, notes].filter(Boolean).join(' | ');
+  await task.save();
+
+  if (task.orderId) {
+    await LabOrder.findByIdAndUpdate(task.orderId._id, {
+      status: 'in_processing',
+      orderStatus: 'IN_LAB_TESTING',
+      sampleStatus: 'SAMPLE_RECEIVED'
+    });
+  }
+
+  return task;
+};
+
+const universalScanLookup = async ({ code, clinicId, laboratoryId, requester }) => {
+  const cleanCode = String(code || '').trim();
+  if (!cleanCode) {
+    throw new AppError('Scan code or query is required.', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  const filterClinic = clinicId ? { clinicId } : {};
+
+  // 1. Sample Barcode Lookup
+  if (cleanCode.startsWith('SMP-') || cleanCode.includes('SMP')) {
+    const sample = await LabSample.findOne({
+      $or: [{ sampleId: cleanCode }, { barcode: cleanCode }]
+    })
+      .populate('orderId')
+      .populate('patientId');
+
+    if (sample) {
+      return {
+        type: 'SAMPLE',
+        sample,
+        order: sample.orderId,
+        patient: sample.patientId
+      };
+    }
+  }
+
+  // 2. Token Lookup
+  if (cleanCode.startsWith('TKN-') || cleanCode.startsWith('A-') || cleanCode.startsWith('T-')) {
+    const token = await LabToken.findOne({
+      $or: [{ tokenId: cleanCode }, { tokenNumber: cleanCode }]
+    })
+      .populate('orderId')
+      .populate('patientId');
+
+    if (token) {
+      return {
+        type: 'TOKEN',
+        token,
+        order: token.orderId,
+        patient: token.patientId
+      };
+    }
+  }
+
+  // 3. Lab Order Number Lookup
+  if (cleanCode.startsWith('ORD-') || cleanCode.startsWith('LAB-')) {
+    const order = await LabOrder.findOne({
+      ...filterClinic,
+      $or: [{ orderNumber: cleanCode }, { _id: mongoose.isValidObjectId(cleanCode) ? cleanCode : null }]
+    })
+      .populate('patientId')
+      .populate('laboratoryId');
+
+    if (order) {
+      return {
+        type: 'LAB_ORDER',
+        order,
+        patient: order.patientId
+      };
+    }
+  }
+
+  // 4. Prescription Number / ID Lookup
+  if (cleanCode.startsWith('RX-') || mongoose.isValidObjectId(cleanCode)) {
+    const prescription = await Prescription.findOne({
+      ...filterClinic,
+      $or: [
+        { prescriptionNumber: cleanCode },
+        { _id: mongoose.isValidObjectId(cleanCode) ? cleanCode : null }
+      ]
+    })
+      .populate('patientId')
+      .populate('doctorId');
+
+    if (prescription) {
+      return {
+        type: 'PRESCRIPTION',
+        prescription,
+        patient: prescription.patientId
+      };
+    }
+  }
+
+  // 5. Patient Phone / Email / Number Lookup
+  const patient = await Patient.findOne({
+    ...filterClinic,
+    $or: [
+      { phone: cleanCode },
+      { email: cleanCode.toLowerCase() },
+      { patientId: cleanCode },
+      { _id: mongoose.isValidObjectId(cleanCode) ? cleanCode : null }
+    ]
+  });
+
+  if (patient) {
+    const activeOrders = await LabOrder.find({
+      patientId: patient._id,
+      status: { $ne: 'cancelled' }
+    })
+      .sort({ createdAt: -1 })
+      .limit(10);
+
+    return {
+      type: 'PATIENT',
+      patient,
+      activeOrders
+    };
+  }
+
+  throw new AppError(`No matching sample, order, token, or patient found for '${cleanCode}'.`, HTTP_STATUS.NOT_FOUND);
+};
+
+// ============================================================================
+// LIMS — Lab Result Entry Service Functions
+// ============================================================================
+
+const LabResult = require('./labResult.model');
+const path = require('path');
+const fs = require('fs');
+const { generateLabReportPdf } = require('./lab.pdfGenerator');
+
+/**
+ * Compute auto flag from reference ranges and critical thresholds.
+ */
+const computeAutoFlag = (numericValue, criticalLow, criticalHigh, refMin, refMax) => {
+  if (numericValue == null) return 'not_evaluated';
+  if (criticalLow != null && numericValue <= criticalLow) return 'critical_low';
+  if (criticalHigh != null && numericValue >= criticalHigh) return 'critical_high';
+  if (refMin != null && refMax != null) {
+    if (numericValue < refMin) return 'low';
+    if (numericValue > refMax) return 'high';
+    return 'normal';
+  }
+  return 'not_evaluated';
+};
+
+/**
+ * Compute auto flag for qualitative/enum types.
+ */
+const computeQualitativeFlag = (value, allowedValues = []) => {
+  if (!value) return 'not_evaluated';
+  const match = allowedValues.find((av) => av.value?.toLowerCase() === value.toLowerCase());
+  if (!match) return 'not_evaluated';
+  if (match.isCritical) return 'critical_high';
+  if (match.isAbnormal) return 'abnormal';
+  return 'normal';
+};
+
+/**
+ * Build the effective flag (manual overrides auto).
+ */
+const computeEffectiveFlag = (autoFlag, manualFlag, isFlagManuallyOverridden) => {
+  if (isFlagManuallyOverridden && manualFlag) return manualFlag;
+  return autoFlag || 'not_evaluated';
+};
+
+/**
+ * Update the order's resultsSummary after any batch save.
+ */
+const refreshResultsSummary = async (labOrderId, clinicId) => {
+  const totals = await LabResult.aggregate([
+    { $match: { labOrderId: new mongoose.Types.ObjectId(String(labOrderId)), clinicId: new mongoose.Types.ObjectId(String(clinicId)) } },
+    {
+      $group: {
+        _id: null,
+        total: { $sum: 1 },
+        completed: { $sum: { $cond: [{ $eq: ['$status', 'entered'] }, 1, 0] } },
+        notApplicable: { $sum: { $cond: [{ $eq: ['$status', 'not_applicable'] }, 1, 0] } },
+        abnormal: {
+          $sum: {
+            $cond: [{ $in: ['$effectiveFlag', ['low', 'high', 'abnormal']] }, 1, 0]
+          }
+        },
+        critical: {
+          $sum: {
+            $cond: [{ $in: ['$effectiveFlag', ['critical_low', 'critical_high']] }, 1, 0]
+          }
+        }
+      }
+    }
+  ]);
+
+  const summary = totals[0] || { total: 0, completed: 0, notApplicable: 0, abnormal: 0, critical: 0 };
+  await labRepository.updateLabOrder({
+    id: labOrderId,
+    clinicId,
+    data: {
+      resultsSummary: {
+        totalParams: summary.total,
+        completedParams: summary.completed + summary.notApplicable,
+        abnormalCount: summary.abnormal,
+        criticalCount: summary.critical,
+        lastUpdated: new Date()
+      }
+    },
+    populateDetails: false
+  });
+};
+
+/**
+ * Initialize LabResult documents for every parameter in every test of the order.
+ * Idempotent — skips parameters that already have a LabResult.
+ */
+const initializeOrderResults = async ({ requester, labOrderId, requestedClinicId = null }) => {
+  const { clinicId, labOrder } = await getScopedLabOrder({ requester, labOrderId, requestedClinicId });
+
+  const existingCount = await LabResult.countDocuments({ labOrderId: labOrder._id, clinicId });
+
+  const toCreate = [];
+
+  for (const orderedTest of labOrder.tests || []) {
+    const testId = orderedTest.labTestId;
+    let parameters = [];
+
+    // Prefer full LabTest.localParameters
+    if (testId) {
+      const labTest = await LabTest.findById(testId).lean();
+      if (labTest?.localParameters?.length) {
+        parameters = labTest.localParameters.map((p, idx) => ({
+          parameterId: p._id || null,
+          parameterName: p.name,
+          parameterShortName: p.shortName || '',
+          parameterCode: p.shortName || p.name,
+          resultType: p.resultType || 'NUMERIC',
+          unit: p.unit || '',
+          criticalLow: p.criticalLow ?? null,
+          criticalHigh: p.criticalHigh ?? null,
+          decimalPrecision: p.decimalPrecision ?? 1,
+          allowedValues: p.allowedValues || [],
+          referenceRange: buildRefRangeSnapshot(p, requester),
+          displayOrder: idx
+        }));
+      }
+    }
+
+    // Fallback to GlobalLabTest parameters
+    if (parameters.length === 0 && orderedTest.globalLabTestId) {
+      const globalTest = await GlobalLabTest.findById(orderedTest.globalLabTestId)
+        .populate('parameters')
+        .lean();
+      if (globalTest?.parameters?.length) {
+        parameters = globalTest.parameters.map((p, idx) => ({
+          parameterId: p._id,
+          parameterName: p.name,
+          parameterShortName: p.shortName || '',
+          parameterCode: p.code || p.shortName || p.name,
+          resultType: p.resultType || 'NUMERIC',
+          unit: p.defaultUnit || '',
+          criticalLow: p.criticalLow ?? null,
+          criticalHigh: p.criticalHigh ?? null,
+          decimalPrecision: p.decimalPrecision ?? 1,
+          allowedValues: (p.allowedValues || []).filter((av) => av.isActive !== false),
+          referenceRange: buildRefRangeSnapshot(p, requester),
+          displayOrder: idx
+        }));
+      }
+    }
+
+    // If no parameters found, create a single generic result for the test itself
+    if (parameters.length === 0) {
+      parameters = [{
+        parameterId: null,
+        parameterName: orderedTest.name || 'Result',
+        parameterShortName: '',
+        parameterCode: orderedTest.code || '',
+        resultType: 'TEXT',
+        unit: orderedTest.unit || '',
+        criticalLow: null,
+        criticalHigh: null,
+        decimalPrecision: 0,
+        allowedValues: [],
+        referenceRange: {},
+        displayOrder: 0
+      }];
+    }
+
+    for (const param of parameters) {
+      // Check if already exists (idempotent)
+      const exists = await LabResult.exists({
+        labOrderId: labOrder._id,
+        clinicId,
+        testCode: orderedTest.code,
+        parameterName: param.parameterName
+      });
+      if (exists) continue;
+
+      toCreate.push({
+        clinicId,
+        labOrderId: labOrder._id,
+        labTestId: testId || null,
+        orderTestItemId: orderedTest._id,
+        testCode: orderedTest.code,
+        testName: orderedTest.name,
+        parameterId: param.parameterId,
+        parameterName: param.parameterName,
+        parameterShortName: param.parameterShortName,
+        parameterCode: param.parameterCode,
+        resultType: param.resultType,
+        unit: param.unit,
+        referenceRange: param.referenceRange,
+        criticalLow: param.criticalLow,
+        criticalHigh: param.criticalHigh,
+        decimalPrecision: param.decimalPrecision,
+        allowedValues: param.allowedValues,
+        displayOrder: param.displayOrder,
+        status: 'pending'
+      });
+    }
+  }
+
+  if (toCreate.length > 0) {
+    await LabResult.insertMany(toCreate, { ordered: false });
+  }
+
+  // Mark resultsInitialized and move to results_entry if currently processing
+  const updateData = { resultsInitialized: true, updatedBy: requester._id };
+  if (['processing', 'in_processing', 'in_analysis', 'sample_collected'].includes(labOrder.status)) {
+    updateData.status = 'results_entry';
+    updateData.orderStatus = 'RESULTS_ENTRY';
+  }
+  await labRepository.updateLabOrder({ id: labOrder._id, clinicId, data: updateData, populateDetails: false });
+
+  await refreshResultsSummary(labOrder._id, clinicId);
+
+  const updatedResults = await LabResult.find({ labOrderId: labOrder._id, clinicId }).sort({ testCode: 1, displayOrder: 1 }).lean();
+  return updatedResults;
+};
+
+/**
+ * Simple helper — build reference range snapshot for a parameter.
+ */
+const buildRefRangeSnapshot = (param, requester) => {
+  const ranges = param.referenceRanges || [];
+  const defaultRange = ranges.find((r) => r.gender === 'ALL') || ranges[0];
+  if (!defaultRange) return {};
+  return {
+    min: defaultRange.lowerValue ?? defaultRange.fromValue ?? null,
+    max: defaultRange.upperValue ?? defaultRange.toValue ?? null,
+    text: defaultRange.text || (defaultRange.lowerValue != null && defaultRange.upperValue != null
+      ? `${defaultRange.lowerValue} – ${defaultRange.upperValue}` : ''),
+    displayLabel: ''
+  };
+};
+
+/**
+ * Get all results for an order, grouped by test.
+ */
+const getOrderResults = async ({ requester, labOrderId, requestedClinicId = null }) => {
+  const { clinicId, labOrder } = await getScopedLabOrder({ requester, labOrderId, requestedClinicId });
+
+  const results = await LabResult.find({ labOrderId: labOrder._id, clinicId })
+    .sort({ testCode: 1, displayOrder: 1 })
+    .lean();
+
+  // Group by test
+  const grouped = {};
+  for (const r of results) {
+    const key = r.testCode || r.testName || 'Unknown';
+    if (!grouped[key]) {
+      grouped[key] = {
+        testCode: r.testCode,
+        testName: r.testName,
+        labTestId: r.labTestId,
+        results: []
+      };
+    }
+    grouped[key].results.push(r);
+  }
+
+  const groups = Object.values(grouped);
+
+  // Compute per-group progress
+  groups.forEach((g) => {
+    g.totalParams = g.results.length;
+    g.completedParams = g.results.filter((r) => ['entered', 'not_applicable'].includes(r.status)).length;
+    g.completionPct = g.totalParams > 0 ? Math.round((g.completedParams / g.totalParams) * 100) : 0;
+    g.isComplete = g.completedParams === g.totalParams;
+  });
+
+  return {
+    labOrderId,
+    groups,
+    totalParams: results.length,
+    completedParams: results.filter((r) => ['entered', 'not_applicable'].includes(r.status)).length,
+    abnormalCount: results.filter((r) => ['low', 'high', 'abnormal'].includes(r.effectiveFlag)).length,
+    criticalCount: results.filter((r) => ['critical_low', 'critical_high'].includes(r.effectiveFlag)).length
+  };
+};
+
+/**
+ * Save multiple parameter results (batch/autosave).
+ */
+const saveResultsBatch = async ({ requester, labOrderId, results, requestedClinicId = null }) => {
+  const { clinicId, labOrder } = await getScopedLabOrder({ requester, labOrderId, requestedClinicId });
+
+  if (labOrder.status === 'completed') {
+    throw new AppError('Order is finalized. Use amend workflow to edit results.', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  const now = new Date();
+  const bulkOps = [];
+
+  for (const item of results) {
+    const existing = await LabResult.findOne({ _id: item.resultId, labOrderId: labOrder._id, clinicId }).lean();
+    if (!existing) continue;
+    if (existing.isLocked) continue;
+
+    const numericValue = item.numericValue ?? (item.value !== '' ? parseFloat(item.value) : null);
+    const isNumeric = !isNaN(numericValue) && numericValue != null;
+
+    const autoFlag = existing.resultType === 'NUMERIC' && isNumeric
+      ? computeAutoFlag(numericValue, existing.criticalLow, existing.criticalHigh, existing.referenceRange?.min, existing.referenceRange?.max)
+      : (existing.resultType !== 'NUMERIC' ? computeQualitativeFlag(item.value, existing.allowedValues) : 'not_evaluated');
+
+    const isFlagManuallyOverridden = !!(item.manualFlag && item.manualFlag !== '');
+    const effectiveFlag = computeEffectiveFlag(autoFlag, item.manualFlag, isFlagManuallyOverridden);
+
+    const statusVal = item.status || (item.value !== '' && item.value != null ? 'entered' : existing.status);
+
+    const historyEntry = (existing.value !== undefined && (item.value !== existing.value || item.manualFlag !== existing.manualFlag))
+      ? {
+          previousValue: existing.value,
+          previousFlag: existing.effectiveFlag || existing.autoFlag,
+          newValue: item.value ?? existing.value,
+          newFlag: effectiveFlag,
+          editedBy: requester._id,
+          editedAt: now,
+          reason: item.overrideReason || ''
+        }
+      : null;
+
+    const $set = {
+      value: item.value ?? existing.value,
+      numericValue: isNumeric ? numericValue : (existing.numericValue ?? null),
+      unit: item.unit ?? existing.unit,
+      autoFlag,
+      isFlagManuallyOverridden,
+      effectiveFlag,
+      comment: item.comment ?? existing.comment,
+      status: statusVal,
+      enteredBy: requester._id,
+      enteredAt: now
+    };
+
+    if (isFlagManuallyOverridden) {
+      $set.manualFlag = item.manualFlag;
+      $set.overriddenBy = requester._id;
+      $set.overriddenAt = now;
+      $set.overrideReason = item.overrideReason || '';
+    }
+
+    const update = { $set };
+    if (historyEntry) {
+      update.$push = { editHistory: historyEntry };
+    }
+
+    bulkOps.push({ updateOne: { filter: { _id: existing._id }, update } });
+  }
+
+  if (bulkOps.length > 0) {
+    await LabResult.bulkWrite(bulkOps);
+  }
+
+  await refreshResultsSummary(labOrder._id, clinicId);
+
+  return { saved: bulkOps.length };
+};
+
+/**
+ * Update a single result parameter.
+ */
+const updateSingleResult = async ({ requester, labOrderId, resultId, payload, requestedClinicId = null }) => {
+  const { clinicId, labOrder } = await getScopedLabOrder({ requester, labOrderId, requestedClinicId });
+  if (labOrder.status === 'completed') {
+    throw new AppError('Order is finalized. Use amend workflow.', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  const result = await LabResult.findOne({ _id: resultId, labOrderId: labOrder._id, clinicId });
+  if (!result) throw new AppError('Result not found.', HTTP_STATUS.NOT_FOUND);
+  if (result.isLocked) throw new AppError('Result is locked after finalization.', HTTP_STATUS.BAD_REQUEST);
+
+  await saveResultsBatch({
+    requester,
+    labOrderId,
+    results: [{ resultId, ...payload }],
+    requestedClinicId
+  });
+
+  const updated = await LabResult.findById(resultId).lean();
+  return updated;
+};
+
+/**
+ * Pre-finalization check — returns missing/incomplete parameters.
+ */
+const checkOrderCompletion = async ({ requester, labOrderId, requestedClinicId = null }) => {
+  const { clinicId, labOrder } = await getScopedLabOrder({ requester, labOrderId, requestedClinicId });
+
+  const results = await LabResult.find({ labOrderId: labOrder._id, clinicId }).sort({ testCode: 1, displayOrder: 1 }).lean();
+
+  const pendingByTest = {};
+  for (const r of results) {
+    if (r.isRequired && r.status === 'pending') {
+      const key = r.testName || r.testCode;
+      if (!pendingByTest[key]) pendingByTest[key] = [];
+      pendingByTest[key].push(r.parameterName);
+    }
+  }
+
+  const missingGroups = Object.entries(pendingByTest).map(([testName, params]) => ({ testName, missingParams: params }));
+  const totalMissing = results.filter((r) => r.isRequired && r.status === 'pending').length;
+
+  return {
+    canFinalize: totalMissing === 0,
+    totalMissing,
+    missingGroups,
+    totalParams: results.length,
+    completedParams: results.filter((r) => ['entered', 'not_applicable'].includes(r.status)).length
+  };
+};
+
+/**
+ * Finalize an order:
+ * 1. Validate all required params entered
+ * 2. Lock all results
+ * 3. Mark order completed
+ * 4. Generate PDF if requested
+ * 5. Notify patient
+ */
+const finalizeOrder = async ({ requester, labOrderId, generatePdf = true, notes = '', requestedClinicId = null, req }) => {
+  const { clinicId, labOrder } = await getScopedLabOrder({ requester, labOrderId, requestedClinicId });
+
+  if (labOrder.status === 'completed') {
+    throw new AppError('Order is already completed.', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  // 1. Completeness check
+  const completion = await checkOrderCompletion({ requester, labOrderId, requestedClinicId });
+  if (!completion.canFinalize) {
+    throw new AppError(
+      `Cannot finalize: ${completion.totalMissing} required result(s) are missing.`,
+      HTTP_STATUS.BAD_REQUEST,
+      { missingGroups: completion.missingGroups }
+    );
+  }
+
+  const now = new Date();
+
+  // 2. Lock all results
+  await LabResult.updateMany(
+    { labOrderId: labOrder._id, clinicId },
+    { $set: { isLocked: true, lockedAt: now, lockedBy: requester._id } }
+  );
+
+  // 3. Refresh summary
+  await refreshResultsSummary(labOrder._id, clinicId);
+
+  // 4. Mark order completed
+  const orderUpdateData = {
+    status: 'completed',
+    orderStatus: 'REPORT_AVAILABLE',
+    reportStatus: 'AVAILABLE',
+    reportAvailableAt: now,
+    finalizedAt: now,
+    updatedBy: requester._id,
+    tests: (labOrder.tests || []).map((t) => ({ ...t.toObject(), status: 'completed' }))
+  };
+  if (notes) orderUpdateData.notes = notes;
+
+  const updatedOrder = await labRepository.updateLabOrder({
+    id: labOrder._id,
+    clinicId,
+    data: orderUpdateData,
+    populateDetails: true
+  });
+
+  // 5. Ensure LabReport exists (create if not)
+  let labReport = await LabReport.findOne({ labOrderId: labOrder._id, clinicId });
+  if (!labReport) {
+    const patient = labOrder.patientId;
+    labReport = await LabReport.create({
+      clinicId,
+      labOrderId: labOrder._id,
+      patientId: patient?._id || patient || null,
+      consultationId: labOrder.consultationId || null,
+      uploadedBy: requester._id,
+      status: 'finalized',
+      reviewedBy: requester._id,
+      reviewedAt: now,
+      resultEntries: [],
+      createdBy: requester._id,
+      updatedBy: requester._id
+    });
+    await labRepository.updateLabOrder({ id: labOrder._id, clinicId, data: { reportId: labReport._id }, populateDetails: false });
+  } else if (labReport.status !== 'finalized') {
+    await LabReport.findByIdAndUpdate(labReport._id, { status: 'finalized', reviewedBy: requester._id, reviewedAt: now, updatedBy: requester._id });
+  }
+
+  // 6. Generate structured PDF
+  let generatedPdfUrl = '';
+  if (generatePdf) {
+    try {
+      const results = await LabResult.find({ labOrderId: labOrder._id, clinicId }).sort({ testCode: 1, displayOrder: 1 }).lean();
+
+      // Group results
+      const grouped = {};
+      results.forEach((r) => {
+        const key = r.testCode || r.testName || 'test';
+        if (!grouped[key]) grouped[key] = { testName: r.testName, testCode: r.testCode, results: [] };
+        grouped[key].results.push(r);
+      });
+
+      const uploadDir = path.join(process.cwd(), 'uploads', 'lab-reports');
+      fs.mkdirSync(uploadDir, { recursive: true });
+      const fileName = `${labOrder.orderNumber}-${Date.now()}.pdf`;
+      const outputPath = path.join(uploadDir, fileName);
+
+      // Populate lab/patient info
+      const lab = await Provider.findById(labOrder.laboratoryId).lean();
+      const patient = labOrder.patientId ? await Patient.findById(labOrder.patientId).lean() : null;
+
+      await generateLabReportPdf({
+        order: labOrder,
+        report: labReport,
+        results: Object.values(grouped),
+        lab,
+        patient,
+        outputPath
+      });
+
+      generatedPdfUrl = `/uploads/lab-reports/${fileName}`;
+      await LabReport.findByIdAndUpdate(labReport._id, { generatedReportUrl: generatedPdfUrl, updatedBy: requester._id });
+    } catch (pdfError) {
+      // PDF generation failure should not block finalization
+      console.error('[LabService] PDF generation failed:', pdfError?.message);
+    }
+  }
+
+  // 7. Audit log
+  await createAuditLog({
+    actorUserId: requester._id,
+    action: 'LAB_ORDER_FINALIZED',
+    entity: 'LabOrder',
+    entityId: labOrder._id,
+    metadata: { orderNumber: labOrder.orderNumber, generatedPdf: !!generatedPdfUrl },
+    ipAddress: req?.ip || '127.0.0.1',
+    userAgent: req?.get ? req.get('user-agent') : 'Internal/Service',
+    status: 'SUCCESS'
+  });
+
+  // 8. Notify
+  try {
+    const { sendLabReportReadyNotification } = require('../notifications/notification.service');
+    await sendLabReportReadyNotification({ labReport, actorUserId: requester._id });
+  } catch (_) {}
+
+  return { labOrder: updatedOrder, labReport, generatedPdfUrl };
+};
+
+/**
+ * Amend a completed order — unlocks results for editing.
+ * Records reason and who unlocked.
+ */
+const amendOrder = async ({ requester, labOrderId, reason, requestedClinicId = null }) => {
+  const { clinicId, labOrder } = await getScopedLabOrder({ requester, labOrderId, requestedClinicId });
+
+  if (labOrder.status !== 'completed') {
+    throw new AppError('Only completed orders can be amended.', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  const now = new Date();
+  await LabResult.updateMany(
+    { labOrderId: labOrder._id, clinicId },
+    {
+      $set: { isLocked: false, isAmended: true, amendedBy: requester._id, amendedAt: now, amendReason: reason }
+    }
+  );
+
+  const updated = await labRepository.updateLabOrder({
+    id: labOrder._id,
+    clinicId,
+    data: { status: 'results_entry', orderStatus: 'AMENDMENT_IN_PROGRESS', updatedBy: requester._id },
+    populateDetails: true
+  });
+
+  await createAuditLog({
+    actorUserId: requester._id,
+    action: 'LAB_ORDER_AMENDED',
+    entity: 'LabOrder',
+    entityId: labOrder._id,
+    metadata: { reason },
+    ipAddress: '127.0.0.1',
+    status: 'SUCCESS'
+  });
+
+  return updated;
+};
+
+/**
+ * Generate PDF for an already-finalized order on-demand.
+ */
+const generateOrderPdf = async ({ requester, labReportId, requestedClinicId = null }) => {
+  const { clinicId, labReport } = await getScopedLabReport({ requester, labReportId, requestedClinicId });
+  const labOrder = await labRepository.findLabOrderById({ id: labReport.labOrderId, clinicId, populateDetails: true });
+  if (!labOrder) throw new AppError('Lab order not found.', HTTP_STATUS.NOT_FOUND);
+
+  const results = await LabResult.find({ labOrderId: labOrder._id, clinicId }).sort({ testCode: 1, displayOrder: 1 }).lean();
+
+  const grouped = {};
+  results.forEach((r) => {
+    const key = r.testCode || r.testName;
+    if (!grouped[key]) grouped[key] = { testName: r.testName, testCode: r.testCode, results: [] };
+    grouped[key].results.push(r);
+  });
+
+  const uploadDir = path.join(process.cwd(), 'uploads', 'lab-reports');
+  fs.mkdirSync(uploadDir, { recursive: true });
+  const fileName = `${labOrder.orderNumber}-${Date.now()}.pdf`;
+  const outputPath = path.join(uploadDir, fileName);
+
+  const lab = await Provider.findById(labOrder.laboratoryId).lean();
+  const patient = labOrder.patientId ? await Patient.findById(labOrder.patientId).lean() : null;
+
+  await generateLabReportPdf({ order: labOrder, report: labReport, results: Object.values(grouped), lab, patient, outputPath });
+
+  const generatedPdfUrl = `/uploads/lab-reports/${fileName}`;
+  await LabReport.findByIdAndUpdate(labReport._id, { generatedReportUrl: generatedPdfUrl, updatedBy: requester._id });
+
+  return { generatedPdfUrl };
 };
 
 module.exports = {
@@ -2618,6 +4684,34 @@ module.exports = {
   listAvailableGlobalTests,
   bulkActivateGlobalTests,
   lookupPrescriptionForLab,
-  getSmartPackageSuggestions
+  cancelLabOrder,
+  rescheduleLabOrder,
+  getSmartPackageSuggestions,
+  validateLabPromoCode,
+  // Phase 7 Exports
+  calculateRequiredSpecimens,
+  getCollectionQueueDashboard,
+  generateQueueToken,
+  callQueueToken,
+  recallQueueToken,
+  skipQueueToken,
+  getPublicTokenDisplay,
+  collectOrderSamples,
+  rejectSample,
+  recollectSample,
+  getSampleTimeline,
+  listHomeCollectionTasks,
+  assignHomeCollector,
+  updateHomeCollectionStatus,
+  receiveHomeCollectionAtLab,
+  universalScanLookup,
+  // LIMS — Result Entry
+  initializeOrderResults,
+  getOrderResults,
+  saveResultsBatch,
+  updateSingleResult,
+  checkOrderCompletion,
+  finalizeOrder,
+  amendOrder,
+  generateOrderPdf
 };
-

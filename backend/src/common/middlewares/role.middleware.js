@@ -17,7 +17,10 @@ const authorize =
       rolesList.push('Laboratory Operator');
     }
 
-    if (!rolesList.includes(req.user.role)) {
+    const normalizedUserRole = String(req.user.role || '').toUpperCase();
+    const normalizedAllowed = rolesList.map(r => String(r).toUpperCase());
+
+    if (!rolesList.includes(req.user.role) && !normalizedAllowed.includes(normalizedUserRole)) {
       return next(new AppError(RESPONSE_MESSAGES.ACCESS_DENIED, HTTP_STATUS.FORBIDDEN));
     }
 

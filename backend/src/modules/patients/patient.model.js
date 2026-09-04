@@ -278,7 +278,7 @@ const patientSchema = new mongoose.Schema(
         city: { type: String, trim: true, default: '' },
         state: { type: String, trim: true, default: '' },
         pinCode: { type: String, trim: true, default: '' },
-        addressType: { type: String, enum: ['Home', 'Work', 'Other'], default: 'Home' },
+        addressType: { type: String, default: 'Home' },
         isDefault: { type: Boolean, default: false }
       }
     ],

@@ -108,6 +108,7 @@ const labOrderTestSchema = z
     globalLabTestId: objectIdSchema.optional(),
     code: z.string().trim().max(50).optional(),
     name: z.string().trim().max(200).optional(),
+    testName: z.string().trim().max(200).optional(),
     category: z.string().trim().optional(),
     specimenType: z.string().trim().optional(),
     unit: z.string().trim().optional(),
@@ -118,10 +119,10 @@ const labOrderTestSchema = z
   })
   .passthrough()
   .superRefine((value, ctx) => {
-    if (!value.labTestId && !value.globalLabTestId && !value.code && !value.name) {
+    if (!value.labTestId && !value.globalLabTestId && !value.code && !value.name && !value.testName) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: 'A test identifier (labTestId, globalLabTestId, code, or name) is required',
+        message: 'A test identifier (labTestId, globalLabTestId, code, name, or testName) is required',
         path: ['name']
       });
     }
@@ -146,8 +147,15 @@ const createLabOrderSchema = z.object({
         state: z.string().optional(),
         pincode: z.string().optional()
       })
+      .nullable()
       .optional(),
+    collectionDate: z.union([z.string(), z.date()]).optional(),
+    collectionSlot: z.string().optional(),
+    homeCollectionFee: z.number().optional(),
+    totalAmount: z.number().optional(),
     price: z.number().optional(),
+    promoCode: z.string().optional(),
+    discountAmount: z.number().optional(),
     patientType: z.enum(['REGISTERED', 'WALK_IN']).optional(),
     prescriptionId: objectIdSchema.optional(),
     source: z.enum(['DOCTOR_BOOKED', 'PATIENT_BOOKED', 'PRESCRIPTION', 'WALK_IN', 'LAB_CREATED', 'EXTERNAL_REFERRAL']).optional(),
@@ -160,7 +168,7 @@ const createLabOrderSchema = z.object({
       gender: z.string().optional(),
       address: z.string().optional()
     }).optional()
-  })
+  }).passthrough()
 });
 
 const lookupPrescriptionQuerySchema = z.object({
@@ -179,9 +187,13 @@ const lookupPrescriptionQuerySchema = z.object({
 const smartPackagesQuerySchema = z.object({
   query: z.object({
     clinicId: objectIdSchema.optional(),
+    laboratoryId: objectIdSchema.optional(),
     testIds: z.string().optional(),
-    prescriptionId: objectIdSchema.optional()
-  })
+    prescriptionId: objectIdSchema.optional(),
+    search: z.string().optional(),
+    category: z.string().optional(),
+    sort: z.string().optional()
+  }).passthrough()
 });
 
 const listLabOrderQuerySchema = z.object({
@@ -190,11 +202,18 @@ const listLabOrderQuerySchema = z.object({
     doctorId: objectIdSchema.optional(),
     consultationId: objectIdSchema.optional(),
     laboratoryId: objectIdSchema.optional(),
-    status: z.enum(['ordered', 'sample_collected', 'processing', 'completed', 'cancelled']).optional(),
+    status: z.string().optional(),
+    collectionMethod: z.string().optional(),
+    source: z.string().optional(),
+    bookingSource: z.string().optional(),
+    search: z.string().optional(),
+    todayOnly: z.string().optional(),
+    today: z.string().optional(),
+    sort: z.string().optional(),
     from: dateStringSchema.optional(),
     to: dateStringSchema.optional(),
     clinicId: objectIdSchema.optional()
-  })
+  }).passthrough()
 });
 
 const labOrderIdParamSchema = objectIdParamSchema('id');
@@ -385,6 +404,64 @@ const adjustConsumableStockSchema = z.object({
   })
 });
 
+// ============================================================
+// LIMS — Result Entry Schemas
+// ============================================================
+
+const resultFlagEnum = z.enum([
+  'normal', 'low', 'high', 'critical_low', 'critical_high', 'abnormal', 'not_applicable', ''
+]).optional();
+
+const singleResultUpdateSchema = z.object({
+  params: z.object({ id: objectIdSchema, resultId: objectIdSchema }),
+  body: z.object({
+    value: z.string().trim().max(500).optional(),
+    numericValue: z.coerce.number().optional().nullable(),
+    unit: z.string().trim().max(60).optional(),
+    manualFlag: resultFlagEnum,
+    overrideReason: z.string().trim().max(500).optional(),
+    comment: z.string().trim().max(1000).optional(),
+    status: z.enum(['pending', 'entered', 'not_applicable']).optional()
+  })
+});
+
+const batchResultItemSchema = z.object({
+  resultId: objectIdSchema,
+  value: z.string().trim().max(500).optional(),
+  numericValue: z.coerce.number().optional().nullable(),
+  unit: z.string().trim().max(60).optional(),
+  manualFlag: resultFlagEnum,
+  overrideReason: z.string().trim().max(500).optional(),
+  comment: z.string().trim().max(1000).optional(),
+  status: z.enum(['pending', 'entered', 'not_applicable']).optional()
+});
+
+const batchResultEntrySchema = z.object({
+  params: z.object({ id: objectIdSchema }),
+  body: z.object({
+    results: z.array(batchResultItemSchema).min(1, 'At least one result is required')
+  })
+});
+
+const finalizeOrderSchema = z.object({
+  params: z.object({ id: objectIdSchema }),
+  body: z.object({
+    generatePdf: z.boolean().optional().default(true),
+    notes: z.string().trim().max(500).optional()
+  })
+});
+
+const amendOrderSchema = z.object({
+  params: z.object({ id: objectIdSchema }),
+  body: z.object({
+    reason: z.string().trim().min(5, 'Amendment reason must be at least 5 characters').max(500)
+  })
+});
+
+const generateReportPdfSchema = z.object({
+  params: z.object({ id: objectIdSchema })
+});
+
 module.exports = {
   createLabTestSchema,
   listLabTestQuerySchema,
@@ -404,5 +481,11 @@ module.exports = {
   addConsumableBatchSchema,
   adjustConsumableStockSchema,
   lookupPrescriptionQuerySchema,
-  smartPackagesQuerySchema
+  smartPackagesQuerySchema,
+  // LIMS
+  singleResultUpdateSchema,
+  batchResultEntrySchema,
+  finalizeOrderSchema,
+  amendOrderSchema,
+  generateReportPdfSchema
 };

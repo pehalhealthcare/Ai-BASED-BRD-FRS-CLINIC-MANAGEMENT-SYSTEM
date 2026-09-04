@@ -9,9 +9,12 @@ const ORDER_STATUSES = [
   'processing',
   'in_processing',
   'in_analysis',
+  'results_entry',      // Lab staff entering results
+  'ready_for_review',  // All results entered, pending final review
   'completed',
   'report_ready',
-  'cancelled'
+  'cancelled',
+  'rejected'
 ];
 
 const normalRangeSchema = new mongoose.Schema(
@@ -165,6 +168,11 @@ const labOrderSchema = new mongoose.Schema(
       required: true,
       trim: true
     },
+    tokenNumber: {
+      type: String,
+      trim: true,
+      default: ''
+    },
     tests: {
       type: [orderedTestSchema],
       default: []
@@ -181,8 +189,47 @@ const labOrderSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ORDER_STATUSES,
       default: 'ordered'
+    },
+    orderStatus: {
+      type: String,
+      trim: true,
+      default: 'ORDER_BOOKED'
+    },
+    sampleStatus: {
+      type: String,
+      default: 'AWAITING_COLLECTION'
+    },
+    sampleStatusMessage: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    sampleCollectedAt: {
+      type: Date,
+      default: null
+    },
+    testingStartedAt: {
+      type: Date,
+      default: null
+    },
+    reportGeneratedAt: {
+      type: Date,
+      default: null
+    },
+    reportAvailableAt: {
+      type: Date,
+      default: null
+    },
+    reportStatus: {
+      type: String,
+      enum: ['PENDING', 'GENERATED', 'AVAILABLE', 'REJECTED'],
+      default: 'PENDING'
+    },
+    reportId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'LabReport',
+      default: null
     },
     collectionMethod: {
       type: String,
@@ -195,7 +242,57 @@ const labOrderSchema = new mongoose.Schema(
       state: { type: String, trim: true, default: '' },
       pincode: { type: String, trim: true, default: '' }
     },
+    collectionDate: {
+      type: Date,
+      default: null
+    },
+    collectionSlot: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    homeCollectionFee: {
+      type: Number,
+      default: 0
+    },
+    discountAmount: {
+      type: Number,
+      default: 0
+    },
+    promoCode: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    packageId: {
+      type: mongoose.Schema.Types.ObjectId,
+      default: null
+    },
+    packageName: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    paymentStatus: {
+      type: String,
+      enum: ['PENDING', 'PAID', 'FAILED', 'REFUNDED'],
+      default: 'PAID'
+    },
+    paymentMethod: {
+      type: String,
+      trim: true,
+      default: 'ONLINE'
+    },
+    paymentId: {
+      type: String,
+      trim: true,
+      default: ''
+    },
     price: {
+      type: Number,
+      default: 0
+    },
+    totalAmount: {
       type: Number,
       default: 0
     },
@@ -203,6 +300,11 @@ const labOrderSchema = new mongoose.Schema(
       type: String,
       enum: ['REGISTERED', 'WALK_IN'],
       default: 'REGISTERED'
+    },
+    bookingSource: {
+      type: String,
+      enum: ['PATIENT_PORTAL', 'DOCTOR', 'LABORATORY_STAFF', 'WALK_IN', 'PRESCRIPTION'],
+      default: 'PATIENT_PORTAL'
     },
     guestPatient: {
       fullName: { type: String, trim: true, default: '' },
@@ -239,6 +341,21 @@ const labOrderSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       default: null
+    },
+    finalizedAt: {
+      type: Date,
+      default: null
+    },
+    resultsSummary: {
+      totalParams: { type: Number, default: 0 },
+      completedParams: { type: Number, default: 0 },
+      abnormalCount: { type: Number, default: 0 },
+      criticalCount: { type: Number, default: 0 },
+      lastUpdated: { type: Date, default: null }
+    },
+    resultsInitialized: {
+      type: Boolean,
+      default: false
     }
   },
   {
@@ -248,6 +365,7 @@ const labOrderSchema = new mongoose.Schema(
 );
 
 labOrderSchema.index({ clinicId: 1, orderNumber: 1 }, { unique: true });
+labOrderSchema.index({ clinicId: 1, laboratoryId: 1, collectionDate: 1, tokenNumber: 1 });
 labOrderSchema.index({ clinicId: 1, patientId: 1, createdAt: -1 });
 labOrderSchema.index({ clinicId: 1, doctorId: 1, createdAt: -1 });
 labOrderSchema.index({ clinicId: 1, consultationId: 1, createdAt: -1 });

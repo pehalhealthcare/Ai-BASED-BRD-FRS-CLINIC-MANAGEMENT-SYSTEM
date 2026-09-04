@@ -348,6 +348,23 @@ const LabReportPage = () => {
               />
             </label>
 
+            {report?.generatedReportUrl ? (
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3.5 flex items-center justify-between">
+                <div>
+                  <div className="text-xs font-bold text-emerald-950">Official Generated PDF Report</div>
+                  <div className="text-[11px] text-emerald-700">Generated from verified diagnostic parameters</div>
+                </div>
+                <a
+                  href={report.generatedReportUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
+                >
+                  Download PDF
+                </a>
+              </div>
+            ) : null}
+
             {!isFinalized ? (
               <label className="grid gap-2 text-sm font-medium text-stone-700">
                 <span>Upload lab report (OCR)</span>
@@ -358,7 +375,7 @@ const LabReportPage = () => {
             ) : null}
 
             <label className="grid gap-2 text-sm font-medium text-stone-700">
-              <span>Report URL</span>
+              <span>Original Upload / External Report URL</span>
               <input
                 className={FIELD_CLASS}
                 value={form.reportUrl}
@@ -366,6 +383,19 @@ const LabReportPage = () => {
                 disabled={isFinalized}
               />
             </label>
+
+            {form.reportUrl ? (
+              <div className="flex justify-end">
+                <a
+                  href={form.reportUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs font-semibold text-violet-600 hover:underline"
+                >
+                  Open External Report Link ↗
+                </a>
+              </div>
+            ) : null}
 
             <label className="grid gap-2 text-sm font-medium text-stone-700">
               <span>Workflow status</span>

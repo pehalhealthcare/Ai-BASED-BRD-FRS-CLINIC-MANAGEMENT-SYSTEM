@@ -36,7 +36,7 @@ const protect = async (req, _res, next) => {
     const headerClinicId = req.headers['x-clinic-id'] || req.headers['X-Clinic-ID'];
     if (headerClinicId) {
       req.query.clinicId = headerClinicId;
-      if (user.role === 'patient') {
+      if (user.role && user.role.toLowerCase() === 'patient') {
         user.clinicId = headerClinicId;
       }
     } else {
@@ -48,7 +48,7 @@ const protect = async (req, _res, next) => {
     if (error instanceof AppError) {
       return next(error);
     }
-
+    console.error('PROTECT UNCAUGHT ERROR:', error);
     return next(new AppError(RESPONSE_MESSAGES.AUTHENTICATION_REQUIRED, HTTP_STATUS.UNAUTHORIZED));
   }
 };
