@@ -30,9 +30,11 @@ import AppointmentDetailsModal from './PortalComponents/AppointmentDetailsModal'
 import Notifications from './PortalComponents/Notifications';
 import Records from './PortalComponents/Records';
 import BillingInsurance from './PortalComponents/BillingInsurance';
+import { SectionLabel, TagList, InputRow, SelectRow } from './PortalComponents/SharedComponents';
 import TestsFromPrescriptionView from './TestsFromPrescriptionView';
 import PatientLabCheckoutView from './PatientLabCheckoutView';
 import PatientLabOrdersView from './PatientLabOrdersView';
+import PatientLabReportsView from './PatientLabReportsView';
 
 // ============================================================
 // Translations & Helpers
@@ -1396,13 +1398,15 @@ const PatientPortalPage = () => {
 
                     <button
                       onClick={() => {
+                        localStorage.setItem('patientActiveLabId', lab._id);
+                        window.dispatchEvent(new CustomEvent('patient:lab-changed', { detail: lab._id }));
                         const currentParams = new URLSearchParams(location.search);
                         currentParams.set('labId', lab._id);
                         currentParams.set('tab', 'lab-tests');
                         if (selectedClinicId) currentParams.set('clinicId', selectedClinicId);
                         setSearchParams(currentParams);
                       }}
-                      className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs transition shadow-sm"
+                      className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs transition shadow-sm cursor-pointer"
                     >
                       View Tests
                     </button>
@@ -1616,7 +1620,7 @@ const PatientPortalPage = () => {
       )}
 
       {/* ============================================================ */}
-      {/* ── STATE: Lab Workspace - My Lab Bookings / Orders ── */}
+      {/* ── STATE: Lab Workspace - My Lab Orders / Bookings ── */}
       {/* ============================================================ */}
       {['lab-bookings', 'lab-orders'].includes(activeTab) && selectedLabId && (
         <div className="space-y-6 animate-fade-in">
@@ -1626,8 +1630,10 @@ const PatientPortalPage = () => {
               currentParams.delete('labId');
               currentParams.set('tab', 'book-lab');
               setSearchParams(currentParams);
+              localStorage.removeItem('patientActiveLabId');
+              window.dispatchEvent(new CustomEvent('patient:lab-changed', { detail: null }));
             }}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 font-extrabold text-xs transition duration-150"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 font-extrabold text-xs transition duration-150 cursor-pointer"
           >
             <ChevronLeft size={14} className="text-slate-400" />
             <span>Back to Laboratories</span>
@@ -1637,6 +1643,8 @@ const PatientPortalPage = () => {
             selectedClinic={clinics.find(c => String(c._id) === String(selectedClinicId)) || { _id: selectedClinicId, name: activeClinic?.name || "Ram's Dental Clinic" }}
             selectedLab={activeLab || { _id: selectedLabId, name: 'Radha Krishna Laboratory' }}
             patient={profile || user}
+            initialStatusFilter="ALL"
+            fromTab="lab-orders"
             onNavigate={(targetTab) => {
               const currentParams = new URLSearchParams(location.search);
               currentParams.set('tab', targetTab);
@@ -1657,51 +1665,26 @@ const PatientPortalPage = () => {
               currentParams.delete('labId');
               currentParams.set('tab', 'book-lab');
               setSearchParams(currentParams);
+              localStorage.removeItem('patientActiveLabId');
+              window.dispatchEvent(new CustomEvent('patient:lab-changed', { detail: null }));
             }}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 font-extrabold text-xs transition duration-150"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 font-extrabold text-xs transition duration-150 cursor-pointer"
           >
-            <ChevronLeft size={14} className="text-slate-405" />
+            <ChevronLeft size={14} className="text-slate-400" />
             <span>Back to Laboratories</span>
           </button>
 
-          <div className="bg-slate-50 p-6 rounded-3xl border border-slate-150 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-              <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest block mb-1">
-                Diagnostic Reports • {activeLab?.name}
-              </span>
-              <h2 className="text-xl font-black text-slate-900">Lab Reports</h2>
-              <p className="text-xs text-slate-500 mt-1">
-                View and download verified laboratory test reports from {activeLab?.name}.
-              </p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {[
-              { name: 'HbA1c & Fasting Blood Sugar', doctor: 'Dr. Rahul Verma', status: 'Ready', date: '28 Aug 2026', ref: 'REP-7419' },
-              { name: 'Thyroid Profile Total (T3, T4, TSH)', doctor: 'Dr. Neha Sharma', status: 'Ready', date: '15 Aug 2026', ref: 'REP-6520' }
-            ].map((lab, i) => (
-              <div key={i} className="bg-white border border-slate-200 rounded-3xl p-5 flex items-center justify-between gap-4 shadow-sm hover:shadow transition">
-                <div>
-                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{lab.ref}</span>
-                  <h3 className="text-xs font-black text-slate-900 mt-0.5">{lab.name}</h3>
-                  <p className="text-[10px] text-slate-400 mt-0.5">Doctor: {lab.doctor} • {lab.date}</p>
-                  <div className="mt-2">
-                    <span className="px-2 py-0.5 rounded-lg text-[9px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
-                      {lab.status}
-                    </span>
-                  </div>
-                </div>
-                <button
-                  onClick={() => alert(`Downloading Lab Report PDF: ${lab.ref}`)}
-                  className="w-10 h-10 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200 flex items-center justify-center text-blue-600 transition shrink-0"
-                  title="Download Report"
-                >
-                  <FileText size={16} />
-                </button>
-              </div>
-            ))}
-          </div>
+          <PatientLabReportsView
+            selectedClinic={clinics.find(c => String(c._id) === String(selectedClinicId)) || { _id: selectedClinicId, name: activeClinic?.name || "Ram's Dental Clinic" }}
+            selectedLab={activeLab || { _id: selectedLabId, name: 'Radha Krishna Laboratory' }}
+            patient={profile || user}
+            fromTab="lab-reports"
+            onNavigate={(targetTab) => {
+              const currentParams = new URLSearchParams(location.search);
+              currentParams.set('tab', targetTab);
+              setSearchParams(currentParams);
+            }}
+          />
         </div>
       )}
 
@@ -3359,42 +3342,33 @@ const PatientPortalPage = () => {
       )}
 
       {/* ============================================================ */}
-      {/* ── STATE: Lab Reports ── */}
+      {/* ── STATE: View Lab Reports (Clinic-Wide / All Labs) ── */}
       {/* ============================================================ */}
       {activeTab === 'labs' && (
-        <div className="space-y-6">
-          <div>
-            <h2 className="text-xl font-black text-slate-900">Lab Reports</h2>
-            <p className="text-xs text-slate-500 mt-0.5">Lab test requests and results from active diagnostics.</p>
-          </div>
+        <div className="space-y-6 animate-fade-in">
+          <button
+            onClick={() => {
+              const currentParams = new URLSearchParams(location.search);
+              currentParams.set('tab', 'book-lab');
+              setSearchParams(currentParams);
+            }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 font-extrabold text-xs transition duration-150 cursor-pointer"
+          >
+            <ChevronLeft size={14} className="text-slate-400" />
+            <span>Back to Laboratories</span>
+          </button>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {[
-              { name: 'CBC (Complete Blood Count)', doctor: 'Dr. Rahul Verma', status: 'Ready', date: '10 May 2024' },
-              { name: 'Vitamin D', doctor: 'Dr. Rahul Verma', status: 'Ready', date: '10 May 2024' },
-              { name: 'Blood Sugar', doctor: 'Dr. Neha Sharma', status: 'Processing', date: '28 Apr 2024' }
-            ].map((lab, i) => (
-              <div key={i} className="bg-white border border-slate-200 rounded-3xl p-5 flex items-center justify-between gap-4">
-                <div>
-                  <h3 className="text-xs font-black text-slate-900">{lab.name}</h3>
-                  <p className="text-[10px] text-slate-400 mt-0.5">Ordered by: {lab.doctor} • {lab.date}</p>
-                  <div className="mt-2.5">
-                    <span className={`px-2 py-0.5 rounded-lg text-[9px] font-bold uppercase tracking-wider ${lab.status === 'Ready' ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-600 border border-amber-500/20'}`}>
-                      {lab.status}
-                    </span>
-                  </div>
-                </div>
-                {lab.status === 'Ready' && (
-                  <button
-                    onClick={() => alert('Downloading Lab Report PDF')}
-                    className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 transition"
-                  >
-                    <FileText size={15} />
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
+          <PatientLabReportsView
+            selectedClinic={clinics.find(c => String(c._id) === String(selectedClinicId)) || { _id: selectedClinicId, name: activeClinic?.name || "Ram's Dental Clinic" }}
+            selectedLab={activeLab}
+            patient={profile || user}
+            fromTab="labs"
+            onNavigate={(targetTab) => {
+              const currentParams = new URLSearchParams(location.search);
+              currentParams.set('tab', targetTab);
+              setSearchParams(currentParams);
+            }}
+          />
         </div>
       )}
 

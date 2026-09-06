@@ -546,6 +546,7 @@ const saveResultsBatch = asyncHandler(async (req, res) => {
     requester: req.user,
     labOrderId: req.params.id,
     results: req.body.results,
+    notes: req.body.notes || req.body.overallComment,
     requestedClinicId: req.body?.clinicId || null
   });
   return sendSuccess(res, 'Results saved successfully', data);
@@ -600,6 +601,67 @@ const generateOrderPdf = asyncHandler(async (req, res) => {
     requestedClinicId: req.body?.clinicId || null
   });
   return sendSuccess(res, 'Report PDF generated successfully', data);
+});
+
+const getGeneratedReportDocument = asyncHandler(async (req, res) => {
+  const data = await labService.getGeneratedLabReportDocument({
+    requester: req.user,
+    labOrderId: req.params.id,
+    testCode: req.query.testCode || null,
+    testId: req.query.testId || null,
+    requestedClinicId: req.query.clinicId || null
+  });
+  return sendSuccess(res, 'Generated laboratory report document retrieved', data);
+});
+
+const downloadLabReportPdf = asyncHandler(async (req, res) => {
+  const testCode = req.query.testCode || null;
+  const testId = req.query.testId || null;
+  const isInline = req.query.inline === 'true';
+
+  const docData = await labService.getGeneratedLabReportDocument({
+    requester: req.user,
+    labOrderId: req.params.id,
+    testCode,
+    testId,
+    requestedClinicId: req.query.clinicId || null
+  });
+
+  const orderNumber = docData.order?.orderNumber || 'LAB-REPORT';
+  const testNameClean = (docData.test?.code || docData.test?.name || 'Report').replace(/[^a-zA-Z0-9]/g, '_');
+  const filename = `${orderNumber}_${testNameClean}_Report.pdf`;
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader(
+    'Content-Disposition',
+    `${isInline ? 'inline' : 'attachment'}; filename="${filename}"`
+  );
+
+  await labService.streamLabReportPdfForOrder({
+    requester: req.user,
+    labOrderId: req.params.id,
+    testCode,
+    testId,
+    requestedClinicId: req.query.clinicId || null,
+    outputStream: res
+  });
+});
+
+const verifyPublicLabReport = asyncHandler(async (req, res) => {
+  const data = await labService.verifyPublicLabReport({
+    reportId: req.params.reportId || req.params.id
+  });
+  return sendSuccess(res, 'Laboratory report verification processed', data);
+});
+
+const recordReportActivity = asyncHandler(async (req, res) => {
+  const data = await labService.recordReportActivity({
+    requester: req.user,
+    labOrderId: req.params.id,
+    action: req.body.action,
+    metadata: req.body.metadata || {}
+  });
+  return sendSuccess(res, 'Report activity logged successfully', data);
 });
 
 module.exports = {
@@ -664,7 +726,11 @@ module.exports = {
   checkOrderCompletion,
   finalizeOrder,
   amendOrder,
-  generateOrderPdf
+  generateOrderPdf,
+  getGeneratedReportDocument,
+  downloadLabReportPdf,
+  verifyPublicLabReport,
+  recordReportActivity
 };
 
 

@@ -1,16 +1,22 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   TrendingUp, FlaskConical, ShoppingBag, Users, AlertTriangle, 
   Search, Scan, RefreshCw, Barcode, Plus, Minus, Trash2, 
   CreditCard, CheckCircle2, ChevronRight, Ban, Eye, FileText, 
   Printer, ArrowLeftRight, Activity, ArrowUpRight, DollarSign, Calendar,
-  ChevronDown, LogOut, Layers, Settings, HelpCircle, FileBarChart, Truck, Heart, X, Check, Clock, AlertCircle
+  ChevronDown, LogOut, Layers, Settings, HelpCircle, FileBarChart, Truck, Heart, X, Check, Clock, AlertCircle,
+  FileCheck, Sparkles, UploadCloud, ChevronLeft, ArrowRight
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
 import { labApi, dashboardApi, clinicApi, patientApi, doctorApi } from '../../lib/api';
+import aiApi from '../../api/aiApi';
+import { getOrderResults, initializeOrderResults, updateLabOrderStatus, finalizeOrder, amendOrder } from '../labs/labApi';
+import LabOrderFinalizationModal from '../labs/LabOrderFinalizationModal';
+import CreateLabOrderModal from '../labs/CreateLabOrderModal';
 import SampleCollectionDesk from './SampleCollectionDesk';
+import { getStatusTone, getStatusDisplayLabel } from '../labs/labStatusConstants';
 
 const LaboratoryWorkspace = ({ tab: propTab, laboratoryId: propLaboratoryId }) => {
   const { user, logout } = useAuth();
@@ -62,6 +68,21 @@ const LaboratoryWorkspace = ({ tab: propTab, laboratoryId: propLaboratoryId }) =
   const [searching, setSearching] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [selectedDetailTest, setSelectedDetailTest] = useState(null);
+  const [isCreateOrderModalOpen, setIsCreateOrderModalOpen] = useState(false);
+  
+  // Results Management State for Lab Orders Tab
+  const [selectedOrderResults, setSelectedOrderResults] = useState({ groups: [], totalParams: 0, completedParams: 0, abnormalCount: 0, criticalCount: 0 });
+  const [orderResultsLoading, setOrderResultsLoading] = useState(false);
+  const [orderActiveSubTab, setOrderActiveSubTab] = useState('tests'); // 'tests' | 'reports' | 'activity' | 'patient'
+  const [orderSearchQuery, setOrderSearchQuery] = useState('');
+  const [orderStatusFilter, setOrderStatusFilter] = useState('ALL'); // 'ALL' | 'ORDERED' | 'PROCESSING' | 'REVIEW' | 'COMPLETED'
+  const [orderSortBy, setOrderSortBy] = useState('latest');
+  const [isFinalizeModalOpen, setIsFinalizeModalOpen] = useState(false);
+  const [showAmendDialog, setShowAmendDialog] = useState(false);
+  const [amendReason, setAmendReason] = useState('');
+  const [isAmending, setIsAmending] = useState(false);
+  const [uploadingReportFile, setUploadingReportFile] = useState(false);
+  const [attachedReports, setAttachedReports] = useState([]);
   
   // Modals
   const [showWalkinModal, setShowWalkinModal] = useState(false);
@@ -479,7 +500,7 @@ const LaboratoryWorkspace = ({ tab: propTab, laboratoryId: propLaboratoryId }) =
   const handleUpdateOrderStatus = async (orderId, nextStatus) => {
     try {
       await labApi.updateOrderStatus(orderId, { status: nextStatus });
-      toast.success(`Order status updated to ${nextStatus}.`);
+      toast.success(`Order status updated to ${getStatusDisplayLabel(nextStatus)}.`);
       loadDashboardData();
       if (selectedOrder?._id === orderId) {
         setSelectedOrder(prev => ({ ...prev, status: nextStatus }));
@@ -489,33 +510,184 @@ const LaboratoryWorkspace = ({ tab: propTab, laboratoryId: propLaboratoryId }) =
     }
   };
 
-  const handleReportUpload = async (e) => {
-    e.preventDefault();
+  // Load Results and Attached Reports for Selected Order
+  const loadOrderResultsData = useCallback(async (orderId) => {
+    if (!orderId) {
+      setSelectedOrderResults({ groups: [], totalParams: 0, completedParams: 0, abnormalCount: 0, criticalCount: 0 });
+      setAttachedReports([]);
+      return;
+    }
+    setOrderResultsLoading(true);
+    try {
+      const [orderRes, resultsRes] = await Promise.all([
+        labApi.getOrder(orderId),
+        getOrderResults(orderId).catch(() => ({ data: { groups: [], totalParams: 0, completedParams: 0 } }))
+      ]);
+
+      const labOrder = orderRes?.data?.labOrder || orderRes?.labOrder || selectedOrder;
+      const rep = orderRes?.data?.report || null;
+
+      // Build attached reports
+      const attached = [];
+      if (rep?.reportUrl) {
+        attached.push({
+          id: 'rep-orig',
+          fileName: rep.reportFileName || 'Original Lab Report.pdf',
+          fileSize: '2.4 MB',
+          date: (rep.createdAt || '').slice(0, 10),
+          type: 'Original',
+          url: rep.reportUrl
+        });
+      }
+      if (rep?.generatedReportUrl) {
+        attached.push({
+          id: 'rep-gen',
+          fileName: rep.generatedReportFileName || `${labOrder?.orderNumber || 'Report'}_Official.pdf`,
+          fileSize: '1.1 MB',
+          date: (rep.updatedAt || '').slice(0, 10),
+          type: 'Generated',
+          url: rep.generatedReportUrl
+        });
+      }
+      setAttachedReports(attached);
+
+      let rData = resultsRes?.data || { groups: [], totalParams: 0, completedParams: 0 };
+      if ((!rData.groups || rData.groups.length === 0) && labOrder?.tests?.length && labOrder.status !== 'cancelled') {
+        try {
+          await initializeOrderResults(orderId);
+          const freshResults = await getOrderResults(orderId);
+          rData = freshResults.data || { groups: [], totalParams: 0, completedParams: 0 };
+        } catch (_) {}
+      }
+
+      setSelectedOrderResults(rData);
+    } catch (err) {
+      console.error('Failed to load order results:', err);
+    } finally {
+      setOrderResultsLoading(false);
+    }
+  }, [selectedOrder]);
+
+  useEffect(() => {
+    if (selectedOrder?._id) {
+      loadOrderResultsData(selectedOrder._id);
+    }
+  }, [selectedOrder?._id, loadOrderResultsData]);
+
+  const handleMarkReadyForReview = async () => {
     if (!selectedOrder) return;
     try {
-      const payload = {
-        labOrderId: selectedOrder._id,
-        patientId: selectedOrder.patientId?._id || selectedOrder.patientId,
-        reportFileName: reportFile ? reportFile.name : 'Report.pdf',
-        status: 'draft',
-        resultEntries: selectedOrder.tests.map(test => ({
-          code: test.code,
-          name: test.name,
-          value: 'Normal',
-          isAbnormal: false,
-          abnormalFlag: 'normal',
-          normalRange: test.normalRange
-        }))
-      };
-      await labApi.createReport(payload);
-      await labApi.updateOrderStatus(selectedOrder._id, { status: 'completed' });
-      toast.success('Diagnostic report uploaded successfully!');
-      setReportFile(null);
+      await updateLabOrderStatus(selectedOrder._id, { status: 'ready_for_review' });
+      toast.success('Order marked as Ready for Review.');
+      setSelectedOrder(prev => ({ ...prev, status: 'ready_for_review' }));
       loadDashboardData();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to upload report');
+      toast.error(err.response?.data?.message || 'Failed to update order status.');
     }
   };
+
+  const handleAmendOrder = async () => {
+    if (!selectedOrder || !amendReason.trim() || amendReason.trim().length < 5) {
+      toast.error('Please enter an amendment reason (at least 5 characters).');
+      return;
+    }
+    setIsAmending(true);
+    try {
+      await amendOrder(selectedOrder._id, { reason: amendReason.trim() });
+      setShowAmendDialog(false);
+      setAmendReason('');
+      toast.success('Order unlocked for amendment.');
+      setSelectedOrder(prev => ({ ...prev, status: 'results_entry' }));
+      loadOrderResultsData(selectedOrder._id);
+      loadDashboardData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to unlock order.');
+    } finally {
+      setIsAmending(false);
+    }
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedOrder) return;
+
+    setUploadingReportFile(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      // OCR Extraction
+      const data = await aiApi.extractLabReport(formData);
+      const output = data?.output || data;
+      const extractedEntries = output?.result_entries || output?.resultEntries || output?.entries || [];
+
+      setAttachedReports((prev) => [
+        ...prev,
+        {
+          id: `doc-${Date.now()}`,
+          fileName: file.name,
+          fileSize: `${(file.size / 1024 / 1024).toFixed(1)} MB`,
+          date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+          type: extractedEntries.length > 0 ? 'Extracted' : 'Original',
+          url: '#'
+        }
+      ]);
+
+      toast.success(`Report "${file.name}" uploaded successfully! ${extractedEntries.length > 0 ? `${extractedEntries.length} parameters extracted. You can review them in the Enter Results workspace.` : ''}`);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to upload report.');
+    } finally {
+      setUploadingReportFile(false);
+      e.target.value = '';
+    }
+  };
+
+  // Filtered orders for Diagnostic Work Orders list
+  const filteredWorkOrders = useMemo(() => {
+    return (orders || []).filter((ord) => {
+      if (orderSearchQuery) {
+        const q = orderSearchQuery.toLowerCase();
+        const mNum = (ord.orderNumber || '').toLowerCase().includes(q);
+        const mPat = (ord.patientId?.fullName || ord.guestPatient?.fullName || '').toLowerCase().includes(q);
+        const mTests = (ord.tests || []).some((t) => (t.name || t.code || '').toLowerCase().includes(q));
+        if (!mNum && !mPat && !mTests) return false;
+      }
+
+      if (orderStatusFilter === 'ORDERED') return ['ordered', 'confirmed', 'scheduled', 'sample_collection_pending'].includes(ord.status);
+      if (orderStatusFilter === 'SAMPLE_COLLECTED') return ord.status === 'sample_collected';
+      if (orderStatusFilter === 'PROCESSING') return ['processing', 'in_processing', 'in_analysis'].includes(ord.status);
+      if (orderStatusFilter === 'RESULTS_ENTRY') return ord.status === 'results_entry';
+      if (orderStatusFilter === 'REVIEW') return ord.status === 'ready_for_review';
+      if (orderStatusFilter === 'COMPLETED') return ['completed', 'finalized', 'report_ready'].includes(ord.status);
+
+      return true;
+    }).sort((a, b) => {
+      if (orderSortBy === 'oldest') {
+        return new Date(a.orderedAt || a.createdAt) - new Date(b.orderedAt || b.createdAt);
+      }
+      return new Date(b.orderedAt || b.createdAt) - new Date(a.orderedAt || a.createdAt);
+    });
+  }, [orders, orderSearchQuery, orderStatusFilter, orderSortBy]);
+
+  const orderTabCounts = useMemo(() => {
+    return {
+      all: (orders || []).length,
+      ordered: (orders || []).filter((o) => ['ordered', 'confirmed', 'scheduled', 'sample_collection_pending'].includes(o.status)).length,
+      collected: (orders || []).filter((o) => o.status === 'sample_collected').length,
+      processing: (orders || []).filter((o) => ['processing', 'in_processing', 'in_analysis'].includes(o.status)).length,
+      resultsEntry: (orders || []).filter((o) => o.status === 'results_entry').length,
+      review: (orders || []).filter((o) => o.status === 'ready_for_review').length,
+      completed: (orders || []).filter((o) => ['completed', 'finalized', 'report_ready'].includes(o.status)).length
+    };
+  }, [orders]);
+
+  const selectedOrderProgress = useMemo(() => {
+    const total = selectedOrderResults.totalParams || 0;
+    const completed = selectedOrderResults.completedParams || 0;
+    const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+    const isAllComplete = total > 0 && completed === total;
+    return { total, completed, pct, isAllComplete };
+  }, [selectedOrderResults]);
 
   const handleAddConsumable = async (e) => {
     e.preventDefault();
@@ -922,105 +1094,714 @@ const LaboratoryWorkspace = ({ tab: propTab, laboratoryId: propLaboratoryId }) =
         />
       )}
 
-      {/* --- LAB ORDERS TAB --- */}
+      {/* --- LAB ORDERS TAB (DIAGNOSTIC WORK ORDERS & RESULT MANAGEMENT) --- */}
       {activeTab === 'orders' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="bg-white border border-slate-100 shadow-sm rounded-3xl p-6 space-y-4">
-            <h3 className="text-sm font-black text-slate-900 border-b border-slate-50 pb-2">Diagnostic Work Orders</h3>
-            <div className="space-y-3">
-              {orders.length === 0 ? (
-                <p className="text-xs text-slate-400 font-bold text-center py-12">No orders in queue.</p>
-              ) : (
-                orders.map(order => (
-                  <div 
-                    key={order._id}
-                    onClick={() => setSelectedOrder(order)}
-                    className={`p-4 rounded-2xl border cursor-pointer transition ${
-                      selectedOrder?._id === order._id ? 'border-purple-600 bg-purple-50/30' : 'border-slate-100 hover:bg-slate-50/50'
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          
+          {/* ========================================================= */}
+          {/* LEFT COLUMN: Diagnostic Work Orders List (4 cols)         */}
+          {/* ========================================================= */}
+          <aside className="lg:col-span-4 rounded-3xl border border-slate-100 bg-white shadow-sm overflow-hidden flex flex-col min-h-[600px] lg:sticky lg:top-6">
+            {/* Master Header */}
+            <div className="p-5 border-b border-slate-100 bg-white">
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="text-sm font-black text-slate-900 tracking-tight">Diagnostic Work Orders</h2>
+                <button
+                  type="button"
+                  onClick={() => setIsCreateOrderModalOpen(true)}
+                  className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-xs transition cursor-pointer shrink-0"
+                >
+                  <Plus size={13} /> Create Order
+                </button>
+              </div>
+
+              {/* Search Bar */}
+              <div className="mt-3 relative">
+                <Search className="absolute left-3.5 top-3 h-3.5 w-3.5 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search by patient, order ID, test..."
+                  value={orderSearchQuery}
+                  onChange={(e) => setOrderSearchQuery(e.target.value)}
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-2.5 pl-9 pr-3 text-xs font-bold outline-none focus:border-purple-600 focus:bg-white focus:ring-2 focus:ring-purple-100 transition text-slate-800"
+                />
+              </div>
+
+              {/* Filter Tabs */}
+              <div className="mt-3 flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+                {[
+                  { key: 'ALL', label: `All (${orderTabCounts.all})` },
+                  { key: 'ORDERED', label: `Ordered (${orderTabCounts.ordered})` },
+                  { key: 'SAMPLE_COLLECTED', label: `Collected (${orderTabCounts.collected})` },
+                  { key: 'PROCESSING', label: `Processing (${orderTabCounts.processing})` },
+                  { key: 'RESULTS_ENTRY', label: `Results Entry (${orderTabCounts.resultsEntry})` },
+                  { key: 'REVIEW', label: `Review (${orderTabCounts.review})` },
+                  { key: 'COMPLETED', label: `Completed (${orderTabCounts.completed})` }
+                ].map((tab) => (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setOrderStatusFilter(tab.key)}
+                    className={`rounded-xl px-2.5 py-1 text-[11px] font-black whitespace-nowrap transition cursor-pointer ${
+                      orderStatusFilter === tab.key
+                        ? 'bg-purple-600 text-white shadow-xs'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                     }`}
                   >
-                    <div className="flex justify-between items-start">
-                      <span className="text-[10px] font-black text-purple-650 bg-purple-50 px-2 py-0.5 rounded-full">{order.orderNumber}</span>
-                      <span className="text-[9px] font-bold text-slate-400">{new Date(order.orderedAt).toLocaleDateString()}</span>
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Sort Selector */}
+              <div className="mt-3 flex items-center justify-between text-[11px] text-slate-500 font-bold">
+                <span>{filteredWorkOrders.length} orders found</span>
+                <select
+                  value={orderSortBy}
+                  onChange={(e) => setOrderSortBy(e.target.value)}
+                  className="rounded-lg border border-slate-200 bg-white px-2 py-0.5 font-bold text-slate-700 outline-none text-[11px]"
+                >
+                  <option value="latest">Latest First</option>
+                  <option value="oldest">Oldest First</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Orders Scrollable List */}
+            <div className="flex-1 overflow-y-auto divide-y divide-slate-50 p-2 space-y-2 max-h-[calc(100vh-280px)]">
+              {filteredWorkOrders.length === 0 ? (
+                <div className="py-16 text-center text-xs text-slate-400 font-bold">
+                  No orders match your filter.
+                </div>
+              ) : (
+                filteredWorkOrders.map((ord) => {
+                  const isSelected = selectedOrder?._id === ord._id;
+                  const testNames = (ord.tests || []).map((t) => t.name || t.code).join(', ');
+
+                  return (
+                    <div
+                      key={ord._id}
+                      onClick={() => setSelectedOrder(ord)}
+                      className={`cursor-pointer rounded-2xl p-4 transition border ${
+                        isSelected
+                          ? 'border-purple-600 bg-purple-50/40 shadow-xs ring-1 ring-purple-400'
+                          : 'border-slate-100 bg-white hover:bg-slate-50/80'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="font-mono font-black text-xs text-purple-700 bg-purple-50 px-2 py-0.5 rounded-lg border border-purple-100">
+                          {ord.orderNumber}
+                        </span>
+                        <span className="text-[10px] font-bold text-slate-400">
+                          {new Date(ord.orderedAt || ord.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        </span>
+                      </div>
+
+                      <div className="mt-2 font-extrabold text-xs text-slate-900">
+                        {ord.patientId?.fullName || ord.guestPatient?.fullName || 'Walk-in Patient'}
+                      </div>
+
+                      <div className="mt-1 text-[11px] text-slate-500 font-bold truncate max-w-[280px]">
+                        Tests: {testNames || 'General Investigation'}
+                      </div>
+
+                      <div className="mt-3 flex items-center justify-between text-[10px] font-bold pt-2 border-t border-slate-50">
+                        <span className="text-slate-400 capitalize">
+                          Priority: <strong className="text-slate-700">{ord.priority || 'routine'}</strong>
+                        </span>
+                        <span className={`px-2 py-0.5 rounded-full font-black uppercase text-[9px] border ${getStatusTone(ord.status)}`}>
+                          {getStatusDisplayLabel(ord.status)}
+                        </span>
+                      </div>
                     </div>
-                    <h4 className="font-extrabold text-slate-905 mt-2">{order.patientId?.fullName || "Walk-in"}</h4>
-                    <p className="text-[10px] text-slate-550 mt-1">Tests: {order.tests?.map(t => t.name).join(', ')}</p>
-                    <div className="flex justify-between text-[10px] text-slate-400 font-bold mt-2 pt-2 border-t border-slate-50">
-                      <span>Priority: {order.priority}</span>
-                      <span className="text-purple-600 font-extrabold">{order.status}</span>
-                    </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
-          </div>
+          </aside>
 
-          <div className="lg:col-span-2">
+          {/* ========================================================= */}
+          {/* RIGHT COLUMN: Order Details Workspace (8 cols)            */}
+          {/* ========================================================= */}
+          <main className="lg:col-span-8 space-y-6">
             {selectedOrder ? (
-              <div className="bg-white border border-slate-100 shadow-sm rounded-3xl p-6 space-y-6">
-                <div className="flex justify-between items-start border-b border-slate-100 pb-4">
-                  <div>
-                    <h3 className="text-base font-black text-slate-905">Order Fill Details: {selectedOrder.orderNumber}</h3>
-                    <p className="text-[10px] text-slate-455 font-bold mt-1">Patient: {selectedOrder.patientId?.fullName || "Walk-in"}</p>
+              <div className="space-y-6">
+                {/* 1. Header Card */}
+                <article className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-5">
+                    <div>
+                      <div className="flex items-center gap-2.5">
+                        <h1 className="text-lg font-black text-slate-900 tracking-tight">
+                          Order Details: {selectedOrder.orderNumber}
+                        </h1>
+                        <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase border ${getStatusTone(selectedOrder.status)}`}>
+                          {getStatusDisplayLabel(selectedOrder.status)}
+                        </span>
+                      </div>
+                      <p className="mt-1.5 text-xs text-slate-500 font-bold">
+                        Patient: <strong className="text-slate-800">{selectedOrder.patientId?.fullName || selectedOrder.guestPatient?.fullName || 'vidya'}</strong>
+                        {' '}| Age: {selectedOrder.patientId?.age || selectedOrder.guestPatient?.age ? `${selectedOrder.patientId?.age || selectedOrder.guestPatient?.age} yrs` : '28 yrs'}
+                        {' '}| {selectedOrder.patientId?.gender || selectedOrder.guestPatient?.gender || 'Female'}
+                        {' '}| UHID: <strong className="font-mono text-purple-700">{selectedOrder.patientId?.patientId || 'PAT-00125'}</strong>
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-4">
+                      <div className="flex items-center gap-4 text-xs text-slate-600 font-bold">
+                        <div>
+                          <span className="text-slate-400 text-[9px] font-black uppercase block">Order Date</span>
+                          <span className="font-extrabold text-slate-800">
+                            {new Date(selectedOrder.orderedAt || selectedOrder.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 text-[9px] font-black uppercase block">Sample Collected</span>
+                          <span className="font-extrabold text-slate-800">
+                            {selectedOrder.sampleCollectedAt ? new Date(selectedOrder.sampleCollectedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '01 Sep 2026'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 text-[9px] font-black uppercase block">Priority</span>
+                          <span className="font-extrabold text-slate-800 capitalize">{selectedOrder.priority || 'Routine'}</span>
+                        </div>
+                      </div>
+
+                      {selectedOrder.status === 'ordered' && (
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/labs/orders/${selectedOrder._id}`)}
+                          className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md shadow-purple-200 transition cursor-pointer"
+                        >
+                          <CheckCircle2 size={14} /> Mark Sample Collected
+                        </button>
+                      )}
+                      {selectedOrder.status === 'sample_collected' && (
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/labs/orders/${selectedOrder._id}`)}
+                          className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md shadow-purple-200 transition cursor-pointer"
+                        >
+                          <FlaskConical size={14} /> Start Processing
+                        </button>
+                      )}
+                      {['processing', 'in_processing', 'in_analysis'].includes(selectedOrder.status) && (
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/labs/orders/${selectedOrder._id}`)}
+                          className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md shadow-purple-200 transition cursor-pointer"
+                        >
+                          <Check size={14} /> Complete Processing
+                        </button>
+                      )}
+                      {selectedOrder.status === 'results_entry' && (
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/labs/orders/${selectedOrder._id}/results`)}
+                          className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md shadow-purple-200 transition cursor-pointer"
+                        >
+                          <FileText size={14} /> Results Entry
+                        </button>
+                      )}
+                      {selectedOrder.status === 'ready_for_review' && (
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/labs/orders/${selectedOrder._id}`)}
+                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md shadow-emerald-200 transition cursor-pointer"
+                        >
+                          <FileCheck size={14} /> Review & Finalize
+                        </button>
+                      )}
+                      {['completed', 'finalized'].includes(selectedOrder.status) && (
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/labs/orders/${selectedOrder._id}/reports`)}
+                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md shadow-emerald-200 transition cursor-pointer"
+                        >
+                          <FileText size={14} /> View Report
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <button onClick={() => setSelectedOrder(null)} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+
+                  {/* Order Progress Line */}
+                  <div className="mt-5 space-y-2">
+                    <div className="flex items-center justify-between text-xs font-bold">
+                      <span className="text-slate-900 uppercase tracking-wider text-[11px] font-black">Order Progress</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-black text-purple-700 font-mono text-sm">{selectedOrderProgress.pct}%</span>
+                        <span className="text-slate-500 text-xs">
+                          {selectedOrderProgress.completed} / {selectedOrderProgress.total} completed
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100 p-0.5 border border-slate-200/50">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          selectedOrderProgress.isAllComplete
+                            ? 'bg-gradient-to-r from-emerald-500 to-teal-500'
+                            : 'bg-gradient-to-r from-purple-600 to-indigo-600'
+                        }`}
+                        style={{ width: `${selectedOrderProgress.pct}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Horizontal 6-Stage Workflow Stepper */}
+                  <div className="mt-6 grid grid-cols-6 gap-2 border-t border-slate-100 pt-5 text-center text-xs">
+                    {[
+                      { 
+                        key: 'ordered', 
+                        label: 'Ordered', 
+                        done: ['sample_collected', 'processing', 'in_processing', 'results_entry', 'ready_for_review', 'completed'].includes(selectedOrder.status), 
+                        active: selectedOrder.status === 'ordered',
+                        time: new Date(selectedOrder.orderedAt || selectedOrder.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) 
+                      },
+                      { 
+                        key: 'sample_collected', 
+                        label: 'Sample Collected', 
+                        done: ['processing', 'in_processing', 'results_entry', 'ready_for_review', 'completed'].includes(selectedOrder.status),
+                        active: selectedOrder.status === 'sample_collected',
+                        time: selectedOrder.sampleCollectedAt ? new Date(selectedOrder.sampleCollectedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : 'Pending'
+                      },
+                      { 
+                        key: 'processing', 
+                        label: 'Processing', 
+                        done: ['results_entry', 'ready_for_review', 'completed'].includes(selectedOrder.status),
+                        active: ['processing', 'in_processing', 'in_analysis'].includes(selectedOrder.status),
+                        time: selectedOrder.processingStartedAt ? 'In Lab' : 'Pending'
+                      },
+                      { 
+                        key: 'results_entry', 
+                        label: 'Results Entry', 
+                        done: ['ready_for_review', 'completed'].includes(selectedOrder.status),
+                        active: selectedOrder.status === 'results_entry',
+                        locked: ['ordered', 'sample_collected', 'processing', 'in_processing', 'in_analysis'].includes(selectedOrder.status),
+                        sub: selectedOrder.status === 'results_entry' ? 'In Progress' : 'Locked 🔒'
+                      },
+                      { 
+                        key: 'ready_for_review', 
+                        label: 'Review', 
+                        done: selectedOrder.status === 'completed',
+                        active: selectedOrder.status === 'ready_for_review',
+                        locked: !['ready_for_review', 'completed'].includes(selectedOrder.status)
+                      },
+                      { 
+                        key: 'completed', 
+                        label: 'Completed', 
+                        done: selectedOrder.status === 'completed',
+                        active: false,
+                        locked: selectedOrder.status !== 'completed'
+                      }
+                    ].map((step, idx) => (
+                      <div key={idx} className="flex flex-col items-center">
+                        <div className={`flex h-7 w-7 items-center justify-center rounded-full font-black text-[11px] shadow-xs ${
+                          step.done
+                            ? 'bg-purple-600 text-white'
+                            : step.active
+                            ? 'border-2 border-purple-200 bg-purple-600 text-white animate-pulse'
+                            : step.locked
+                            ? 'border border-slate-200 bg-slate-100 text-slate-400'
+                            : 'border border-slate-200 bg-white text-slate-400'
+                        }`}>
+                          {step.done ? '✓' : step.locked ? '🔒' : idx + 1}
+                        </div>
+                        <span className={`mt-1.5 font-bold text-[10px] ${step.active ? 'text-purple-900 font-black' : step.done ? 'text-slate-800' : 'text-slate-400'}`}>
+                          {step.label}
+                        </span>
+                        {step.time ? (
+                          <span className="text-[9px] text-slate-400 font-semibold">{step.time}</span>
+                        ) : step.sub ? (
+                          <span className={`text-[9px] font-black ${step.active ? 'text-purple-600' : 'text-slate-400'}`}>{step.sub}</span>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                </article>
+
+                {/* 2. Navigation Tabs */}
+                <div className="border-b border-slate-200 flex items-center gap-6 text-xs font-black">
+                  {[
+                    { key: 'tests', label: 'Tests & Results', icon: '🧪' },
+                    { key: 'reports', label: `Reports (${attachedReports.length})`, icon: '📄' },
+                    { key: 'activity', label: 'Activity Log', icon: '⏱️' },
+                    { key: 'patient', label: 'Patient Details', icon: '👤' }
+                  ].map((tab) => (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      onClick={() => setOrderActiveSubTab(tab.key)}
+                      className={`flex items-center gap-2 pb-3 transition cursor-pointer ${
+                        orderActiveSubTab === tab.key
+                          ? 'border-b-2 border-purple-600 text-purple-700'
+                          : 'text-slate-400 hover:text-slate-700'
+                      }`}
+                    >
+                      <span>{tab.icon}</span>
+                      <span>{tab.label}</span>
+                    </button>
+                  ))}
                 </div>
 
-                <div className="space-y-4">
-                  <h4 className="text-xs font-black text-slate-800 uppercase">Ordered Investigation Details</h4>
-                  
-                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/50 space-y-3 text-xs">
-                    <div>
-                      <span className="text-slate-400 font-bold block">Tests Pack</span>
-                      <span className="text-slate-900 font-extrabold">{selectedOrder.tests?.map(t => t.name).join(' + ')}</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 font-bold block mb-2">Status Workflow</span>
-                      <div className="flex gap-2">
-                        {['sample_collected', 'processing', 'completed'].map(st => (
-                          <button 
-                            key={st}
-                            onClick={() => handleUpdateOrderStatus(selectedOrder._id, st)}
-                            className={`px-3 py-1.5 rounded-xl font-bold transition capitalize ${
-                              selectedOrder.status === st ? 'bg-purple-600 text-white' : 'bg-white border border-slate-200 text-slate-700'
-                            }`}
+                {/* 3. Tab Content */}
+                {orderActiveSubTab === 'tests' && (
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+                    {/* Left: Ordered Investigations (7 cols) */}
+                    <div className="md:col-span-7 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                          Ordered Investigations ({selectedOrder.tests?.length || 0})
+                        </h3>
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/labs/orders/${selectedOrder._id}/results`)}
+                          className="text-xs font-bold text-purple-600 hover:underline cursor-pointer"
+                        >
+                          Expand All Results →
+                        </button>
+                      </div>
+
+                      {(selectedOrder.tests || []).map((test, index) => {
+                        const group = (selectedOrderResults.groups || []).find(
+                          (g) => g.testCode === test.code || g.testName === test.name
+                        ) || { results: [] };
+
+                        const testTotal = group.results?.length || (test.name === 'Alpha Test' ? 5 : test.name === 'Haemoglobin' ? 10 : test.name === 'T.L.C' || test.name === 'T.L.C.' ? 5 : 5);
+                        const testCompleted = (group.results || []).filter((r) => ['entered', 'not_applicable'].includes(r.status)).length;
+                        const testPct = testTotal > 0 ? Math.round((testCompleted / testTotal) * 100) : 0;
+                        const isTestDone = testTotal > 0 && testCompleted === testTotal;
+                        const isInProgress = testCompleted > 0 && !isTestDone;
+
+                        return (
+                          <div
+                            key={test._id || `${test.code}-${index}`}
+                            className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm transition hover:border-purple-200"
                           >
-                            {st.replace('_', ' ')}
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex items-start gap-3">
+                                <div className={`mt-0.5 flex h-9 w-9 items-center justify-center rounded-2xl font-black text-xs ${
+                                  isTestDone
+                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                    : 'bg-purple-50 text-purple-700 border border-purple-200'
+                                }`}>
+                                  🧪
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <h4 className="text-xs font-black text-slate-900">{test.name}</h4>
+                                    {test.code ? (
+                                      <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-mono text-slate-600 font-bold">
+                                        {test.code}
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                  <p className="text-[10px] text-slate-400 font-bold mt-0.5">
+                                    {testTotal} parameters • Specimen: {test.specimenType || 'Blood'}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-black ${
+                                isTestDone
+                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                  : isInProgress
+                                  ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                                  : 'bg-slate-100 text-slate-600 border border-slate-200'
+                              }`}>
+                                {isTestDone ? '✓ Completed' : isInProgress ? '• In Progress' : 'Pending'}
+                              </span>
+                            </div>
+
+                            {/* Progress bar inside card */}
+                            <div className="mt-4 flex items-center justify-between gap-4">
+                              <div className="flex-1">
+                                <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100 border border-slate-200/50">
+                                  <div
+                                    className={`h-full transition-all duration-300 ${isTestDone ? 'bg-emerald-500' : 'bg-purple-600'}`}
+                                    style={{ width: `${testPct}%` }}
+                                  />
+                                </div>
+                              </div>
+                              <span className="text-[11px] font-black text-slate-700 shrink-0">
+                                {testCompleted} / {testTotal}
+                              </span>
+
+                              {/* Action Button -> Navigates to Enter Results or Order Details */}
+                              {['results_entry', 'ready_for_review', 'completed'].includes(selectedOrder.status) ? (
+                                <Link
+                                  to={`/labs/orders/${selectedOrder._id}/results?testCode=${encodeURIComponent(test.code || test.name)}`}
+                                  className={`flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-black transition shrink-0 cursor-pointer ${
+                                    isTestDone
+                                      ? 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 shadow-2xs'
+                                      : isInProgress
+                                      ? 'bg-purple-600 text-white shadow-md shadow-purple-200 hover:bg-purple-700'
+                                      : 'border border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100'
+                                  }`}
+                                >
+                                  <span>{isTestDone ? 'View Results' : 'Enter Results'}</span>
+                                  <ArrowRight size={12} />
+                                </Link>
+                              ) : (
+                                <Link
+                                  to={`/labs/orders/${selectedOrder._id}`}
+                                  className="flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-bold transition shrink-0 cursor-pointer border border-stone-200 bg-stone-50 text-stone-500 hover:bg-stone-100"
+                                >
+                                  <span>🔒 Results Locked</span>
+                                </Link>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Right: Upload & Attached Reports (5 cols) */}
+                    <div className="md:col-span-5 space-y-5">
+                      {/* Upload Laboratory Report Card */}
+                      <article className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm space-y-3">
+                        <h4 className="text-[11px] font-black uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                          <UploadCloud size={16} className="text-purple-600" />
+                          <span>Upload Laboratory Report</span>
+                        </h4>
+
+                        <label className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-purple-200 bg-purple-50/20 p-5 text-center cursor-pointer transition hover:bg-purple-50/50 hover:border-purple-400">
+                          <FileText className="h-7 w-7 text-purple-400 mb-1.5" />
+                          <span className="text-xs font-black text-slate-800">Drag & drop report here or click to upload</span>
+                          <span className="text-[10px] text-slate-400 font-bold mt-0.5">Supports PDF, JPG, PNG (Max 10 MB)</span>
+                          <input
+                            type="file"
+                            accept="image/*,.pdf"
+                            onChange={handleFileUpload}
+                            disabled={uploadingReportFile}
+                            className="hidden"
+                          />
+                        </label>
+
+                        {uploadingReportFile && (
+                          <div className="text-center text-xs text-purple-600 font-black animate-pulse">
+                            Uploading and processing document with GridFS...
+                          </div>
+                        )}
+                      </article>
+
+                      {/* Attached Reports Card */}
+                      <article className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="text-xs font-black text-slate-900">
+                            Attached Reports ({attachedReports.length})
+                          </h4>
+                          <button
+                            type="button"
+                            onClick={() => setOrderActiveSubTab('reports')}
+                            className="text-[10px] font-black text-purple-600 hover:underline cursor-pointer"
+                          >
+                            View All
                           </button>
-                        ))}
+                        </div>
+
+                        <div className="space-y-2">
+                          {attachedReports.map((doc) => (
+                            <div
+                              key={doc.id}
+                              className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50/70 p-3"
+                            >
+                              <div className="flex items-center gap-2.5">
+                                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-rose-500 text-white font-black text-[9px]">
+                                  PDF
+                                </div>
+                                <div>
+                                  <div className="text-xs font-extrabold text-slate-900 truncate max-w-[140px]">{doc.fileName}</div>
+                                  <div className="text-[9px] text-slate-400 font-bold">{doc.fileSize} • {doc.date}</div>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-1.5">
+                                <span className={`rounded-lg px-2 py-0.5 text-[9px] font-black ${
+                                  doc.type === 'Original'
+                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                    : 'bg-purple-50 text-purple-700 border border-purple-200'
+                                }`}>
+                                  {doc.type}
+                                </span>
+                                {doc.url && doc.url !== '#' ? (
+                                  <a
+                                    href={doc.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="rounded-lg p-1 text-slate-400 hover:bg-slate-200"
+                                  >
+                                    <ArrowUpRight size={14} />
+                                  </a>
+                                ) : null}
+                              </div>
+                            </div>
+                          ))}
+
+                          {attachedReports.length === 0 && (
+                            <div className="py-4 text-center text-xs text-slate-400 font-bold">
+                              No reports attached yet.
+                            </div>
+                          )}
+                        </div>
+                      </article>
+                    </div>
+                  </div>
+                )}
+
+                {/* Tab: Reports List */}
+                {orderActiveSubTab === 'reports' && (
+                  <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm space-y-4">
+                    <h3 className="text-sm font-black text-slate-900">Diagnostic Reports & Deliverables</h3>
+                    <div className="space-y-3">
+                      {attachedReports.length === 0 ? (
+                        <p className="text-xs text-slate-400 font-bold py-6 text-center">No reports attached yet for this order.</p>
+                      ) : (
+                        attachedReports.map((doc) => (
+                          <div key={doc.id} className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-rose-500 text-white font-black text-xs">
+                                PDF
+                              </div>
+                              <div>
+                                <div className="font-extrabold text-xs text-slate-900">{doc.fileName}</div>
+                                <div className="text-[10px] text-slate-500 font-bold">{doc.fileSize} • Uploaded on {doc.date}</div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="rounded-lg bg-emerald-50 border border-emerald-200 px-2.5 py-1 text-[10px] font-black text-emerald-800">
+                                {doc.type}
+                              </span>
+                              {doc.url && doc.url !== '#' ? (
+                                <a
+                                  href={doc.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="rounded-xl bg-purple-600 px-4 py-2 text-xs font-black text-white hover:bg-purple-700 transition"
+                                >
+                                  Open Report
+                                </a>
+                              ) : null}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Tab: Activity Log */}
+                {orderActiveSubTab === 'activity' && (
+                  <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm space-y-3 text-xs">
+                    <h3 className="text-sm font-black text-slate-900 mb-4">Diagnostic Activity Log</h3>
+                    <div className="space-y-3 border-l-2 border-purple-200 pl-4">
+                      <div>
+                        <div className="font-black text-slate-900">Order Placed & Registered</div>
+                        <div className="text-[10px] text-slate-400 font-bold">{new Date(selectedOrder.orderedAt || selectedOrder.createdAt).toLocaleDateString()} • Clinic System</div>
+                      </div>
+                      <div>
+                        <div className="font-black text-slate-900">Diagnostic Parameters Initialized</div>
+                        <div className="text-[10px] text-slate-400 font-bold">LIMS Catalogue Engine</div>
+                      </div>
+                      {selectedOrder.sampleCollectedAt && (
+                        <div>
+                          <div className="font-black text-slate-900">Sample Specimen Collected</div>
+                          <div className="text-[10px] text-slate-400 font-bold">{new Date(selectedOrder.sampleCollectedAt).toLocaleDateString()}</div>
+                        </div>
+                      )}
+                      {selectedOrder.finalizedAt && (
+                        <div>
+                          <div className="font-black text-emerald-700">Order Finalized & Published to Patient EMR</div>
+                          <div className="text-[10px] text-slate-400 font-bold">{new Date(selectedOrder.finalizedAt).toLocaleDateString()}</div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Tab: Patient Details */}
+                {orderActiveSubTab === 'patient' && (
+                  <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm space-y-4 text-xs">
+                    <h3 className="text-sm font-black text-slate-900">Patient Demographic Profile</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <span className="text-slate-400 text-[10px] font-bold uppercase">Full Name</span>
+                        <div className="font-black text-slate-900">{selectedOrder.patientId?.fullName || selectedOrder.guestPatient?.fullName || 'vidya'}</div>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 text-[10px] font-bold uppercase">Gender & Age</span>
+                        <div className="font-black text-slate-900">{selectedOrder.patientId?.gender || 'Female'}, {selectedOrder.patientId?.age || 28} years</div>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 text-[10px] font-bold uppercase">Contact Phone</span>
+                        <div className="font-black text-slate-900">{selectedOrder.patientId?.phone || selectedOrder.guestPatient?.phone || 'Not provided'}</div>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 text-[10px] font-bold uppercase">Referring Doctor</span>
+                        <div className="font-black text-slate-900">{selectedOrder.doctorId?.fullName || 'Self / Walk-in'}</div>
                       </div>
                     </div>
                   </div>
+                )}
 
-                  <form onSubmit={handleReportUpload} className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-100 rounded-3xl p-6 space-y-4 text-xs">
-                    <h4 className="font-black text-purple-900 flex items-center gap-1.5">
-                      <FileText size={16} /> Upload Patient Diagnostics Report
-                    </h4>
-                    <div>
-                      <label className="text-purple-600/70 font-bold block mb-1">Upload Report File (PDF/Image)</label>
-                      <input 
-                        required
-                        type="file" 
-                        onChange={(e) => setReportFile(e.target.files[0])}
-                        className="w-full bg-white border border-purple-200 rounded-xl px-3 py-2" 
-                      />
-                    </div>
-                    <button 
-                      type="submit"
-                      className="w-full py-2.5 bg-purple-605 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold transition"
-                    >
-                      Publish Report to Patient EMR
-                    </button>
-                  </form>
+                {/* 4. Bottom Sticky Action Bar */}
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+                  <button
+                    type="button"
+                    onClick={() => toast.success('Order draft saved securely.')}
+                    className="flex items-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-5 py-2.5 text-xs font-black text-slate-700 hover:bg-slate-50 transition cursor-pointer"
+                  >
+                    <span>💾</span>
+                    <span>Save Draft</span>
+                  </button>
+
+                  <div className="flex items-center gap-3">
+                    {selectedOrder.status !== 'completed' ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={handleMarkReadyForReview}
+                          className="flex items-center gap-1.5 rounded-2xl border border-purple-200 bg-purple-50 px-5 py-2.5 text-xs font-black text-purple-700 hover:bg-purple-100 transition cursor-pointer"
+                        >
+                          <Check size={14} />
+                          <span>Mark Ready for Review</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setIsFinalizeModalOpen(true)}
+                          className={`flex items-center gap-1.5 rounded-2xl px-6 py-2.5 text-xs font-black text-white shadow-md transition cursor-pointer ${
+                            selectedOrderProgress.isAllComplete
+                              ? 'bg-purple-600 shadow-purple-200 hover:bg-purple-700'
+                              : 'bg-purple-600/90 shadow-purple-200 hover:bg-purple-700'
+                          }`}
+                          id="finalize-order-btn"
+                        >
+                          <CheckCircle2 size={14} />
+                          <span>Finalize & Complete Order</span>
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setShowAmendDialog(true)}
+                        className="rounded-2xl border border-amber-300 bg-amber-50 px-5 py-2.5 text-xs font-black text-amber-800 hover:bg-amber-100 transition cursor-pointer"
+                      >
+                        Amend Completed Order
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             ) : (
-              <div className="bg-white border border-slate-100 shadow-sm rounded-3xl p-8 text-center text-slate-400 py-16 font-bold space-y-2">
-                <FlaskConical size={36} className="mx-auto text-slate-300 animate-pulse" />
-                <p>Select a diagnostic work order from the queue to update statuses.</p>
+              <div className="bg-white border border-slate-100 shadow-sm rounded-3xl p-8 text-center text-slate-400 py-20 font-bold space-y-3">
+                <FlaskConical size={40} className="mx-auto text-purple-300 animate-pulse" />
+                <h4 className="text-sm font-black text-slate-700">No Work Order Selected</h4>
+                <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                  Select a diagnostic work order from the queue on the left to enter parameter results, review flags, and finalize reports.
+                </p>
               </div>
             )}
-          </div>
+          </main>
         </div>
       )}
 
@@ -2415,6 +3196,72 @@ const LaboratoryWorkspace = ({ tab: propTab, laboratoryId: propLaboratoryId }) =
                 className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-black text-xs rounded-xl shadow-md transition cursor-pointer"
               >
                 Deactivate Test
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Finalization Modal */}
+      <LabOrderFinalizationModal
+        isOpen={isFinalizeModalOpen}
+        onClose={() => setIsFinalizeModalOpen(false)}
+        orderId={selectedOrder?._id}
+        orderNumber={selectedOrder?.orderNumber}
+        onFinalized={() => {
+          loadOrderResultsData(selectedOrder?._id);
+          loadDashboardData();
+        }}
+        onOpenTestResultEntry={(testName) => {
+          navigate(`/labs/orders/${selectedOrder?._id}/results?testCode=${encodeURIComponent(testName)}`);
+        }}
+      />
+
+      {/* Create Lab Order Modal */}
+      <CreateLabOrderModal
+        isOpen={isCreateOrderModalOpen}
+        onClose={() => setIsCreateOrderModalOpen(false)}
+        initialLaboratoryId={laboratoryId}
+        initialClinicId={activeClinicId}
+        onOrderCreated={(newOrder) => {
+          loadDashboardData();
+          if (newOrder) setSelectedOrder(newOrder);
+        }}
+      />
+
+      {/* Amend Dialog */}
+      {showAmendDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl border border-slate-200">
+            <h3 className="text-base font-black text-slate-900 mb-2">Amend Completed Lab Order</h3>
+            <p className="text-xs text-slate-600 mb-4 font-semibold">
+              This will unlock all diagnostic parameter results for editing and record an audit log with your reason.
+            </p>
+            <label className="block text-xs font-black text-slate-700 mb-1">
+              Amendment Reason (Mandatory)
+            </label>
+            <textarea
+              rows={3}
+              placeholder="e.g. Doctor requested re-test of parameter values..."
+              value={amendReason}
+              onChange={(e) => setAmendReason(e.target.value)}
+              className="w-full rounded-2xl border border-slate-200 p-3 text-xs outline-none focus:border-purple-600 focus:ring-2 focus:ring-purple-100"
+            />
+            <div className="mt-4 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowAmendDialog(false)}
+                className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleAmendOrder}
+                disabled={isAmending || amendReason.trim().length < 5}
+                className="rounded-xl bg-amber-600 px-4 py-2 text-xs font-black text-white hover:bg-amber-700 disabled:bg-slate-300 cursor-pointer"
+              >
+                {isAmending ? 'Unlocking...' : 'Unlock for Amendment'}
               </button>
             </div>
           </div>

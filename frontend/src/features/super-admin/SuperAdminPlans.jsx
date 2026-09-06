@@ -41,12 +41,13 @@ const ALL_FEATURES = [
 const EMPTY_PLAN = {
   name: '',
   code: '',
+  description: '',
   priceMonthly: 0,
   priceYearly: 0,
   features: [],
   trialPeriodDays: 14,
   displayOrder: 0,
-  limits: { maxDoctors: null, maxStaff: null, maxPatients: null },
+  limits: { maxDoctors: null, maxStaff: null, maxPatients: null, maxBranches: null },
   isActive: true,
 };
 
@@ -107,6 +108,7 @@ const SuperAdminPlans = () => {
   const openEdit = (plan) => {
     setEditingPlan({
       ...plan,
+      description: plan.description || '',
       features: [...(plan.features || [])],
       limits: { ...plan.limits }
     });
@@ -264,6 +266,10 @@ const SuperAdminPlans = () => {
                   </div>
                 </div>
 
+                {plan.description && (
+                  <p className="text-xs text-slate-500 mb-3 line-clamp-2 leading-relaxed">{plan.description}</p>
+                )}
+
                 <div className="grid grid-cols-2 gap-3 mb-4">
                   <div className="bg-slate-50 rounded-2xl p-3">
                     <p className="text-xs text-slate-400 font-bold mb-0.5">Monthly</p>
@@ -275,15 +281,16 @@ const SuperAdminPlans = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2 mb-4 text-center">
+                <div className="grid grid-cols-4 gap-2 mb-4 text-center">
                   {[
                     { label: 'Doctors', val: plan.limits?.maxDoctors ?? '∞' },
                     { label: 'Staff', val: plan.limits?.maxStaff ?? '∞' },
+                    { label: 'Branches', val: plan.limits?.maxBranches ? (plan.limits.maxBranches >= 9999 ? '∞' : plan.limits.maxBranches) : '1' },
                     { label: 'Patients', val: plan.limits?.maxPatients === 999999 ? '∞' : plan.limits?.maxPatients ?? '∞' },
                   ].map(l => (
                     <div key={l.label} className="bg-blue-50 rounded-xl p-2">
-                      <p className="text-xs text-blue-400 font-bold">{l.label}</p>
-                      <p className="text-blue-700 font-black text-sm">{l.val}</p>
+                      <p className="text-[10px] text-blue-400 font-bold">{l.label}</p>
+                      <p className="text-blue-700 font-black text-xs">{l.val}</p>
                     </div>
                   ))}
                 </div>
@@ -345,6 +352,18 @@ const SuperAdminPlans = () => {
                 </div>
               </div>
 
+              {/* Short Description */}
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1.5">Short Description</label>
+                <textarea
+                  rows="2"
+                  value={editingPlan.description || ''}
+                  onChange={e => setEditingPlan(p => ({ ...p, description: e.target.value }))}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  placeholder="e.g. Essential toolkit for solo medical practitioners and emerging clinics."
+                />
+              </div>
+
               {/* Pricing */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -362,10 +381,11 @@ const SuperAdminPlans = () => {
               {/* Limits */}
               <div>
                 <label className="block text-xs font-bold text-slate-600 mb-1.5">Usage Limits (leave blank for unlimited)</label>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {[
                     { key: 'maxDoctors', label: 'Max Doctors' },
                     { key: 'maxStaff', label: 'Max Staff' },
+                    { key: 'maxBranches', label: 'Max Branches' },
                     { key: 'maxPatients', label: 'Max Patients' },
                   ].map(l => (
                     <div key={l.key}>

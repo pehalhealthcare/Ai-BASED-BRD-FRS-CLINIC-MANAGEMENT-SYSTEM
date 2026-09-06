@@ -1,15 +1,50 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { clinicApi, promoApi } from '../../lib/api';
 import {
   User, Mail, Phone, Lock, Calendar, MapPin,
   Check, ArrowRight, ArrowLeft, ShieldCheck,
   Clock, Globe, CheckCircle, HelpCircle, UploadCloud, Building2, X, RefreshCw,
-  Eye, EyeOff, Shield, Sparkles, MessageSquare, CreditCard, PhoneCall, CheckSquare
+  Eye, EyeOff, Shield, Sparkles, MessageSquare, CreditCard, PhoneCall, CheckSquare,
+  AlertTriangle, AlertCircle, Zap, Star, Crown, Package
 } from 'lucide-react';
 import MapPicker from '../../components/common/MapPicker';
 import PehalLogo from '../../components/common/PehalLogo';
 import { motion, AnimatePresence } from 'framer-motion';
+
+const FEATURE_LABELS = {
+  appointments: 'Appointment Management',
+  billing: 'Billing & Invoicing',
+  prescriptions: 'Digital Prescriptions',
+  emr: 'Electronic Medical Records (EMR)',
+  sms: 'SMS & Email Reminders',
+  reports: 'Daily & Financial Reports',
+  multi_doctor: 'Multi-Doctor Management',
+  ai_scheduling: 'AI Appointment Scheduling',
+  pharmacy: 'Integrated Pharmacy Management',
+  inventory: 'Medical Inventory Management',
+  labs: 'Laboratory & Diagnostic Module',
+  whatsapp: 'WhatsApp Notifications & Alerts',
+  analytics: 'Advanced Clinical Analytics',
+  symptom_checker: 'AI Symptom Checker',
+  consultation_assistant: 'AI Clinical Consultation Assistant',
+  voice_to_text: 'Voice-to-Text Clinical Dictation',
+  ai_prescription_suggestions: 'AI Prescription & Drug Interaction Suggestions',
+  ai_risk_scoring: 'AI Patient Risk Stratification',
+  lab_recommendations: 'AI Lab Test Recommendations',
+  online_consultation: 'Telemedicine & Video Consultation',
+  multi_branch: 'Multi-Branch & Location Support',
+  api_access: 'Developer API Access',
+  unlimited_users: 'Unlimited Staff & Practitioners',
+  unlimited_patients: 'Unlimited Patient Records',
+  unlimited_branches: 'Unlimited Branch Locations',
+  dedicated_server: 'Dedicated HIPAA-Ready Cloud Server',
+  custom_branding: 'White-label & Custom Branding',
+  insurance: 'Insurance & TPA Claims Processing',
+  abdm: 'ABDM & Ayushman Bharat Integration',
+  custom_apis: 'Custom Enterprise Integrations',
+  priority_support: '24×7 Priority Healthcare Support'
+};
 
 const validateDOB = (dateStr) => {
   if (!dateStr) return { valid: false, error: 'Date of birth is required.' };
@@ -38,6 +73,9 @@ export default function ClinicRegister() {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [plans, setPlans] = useState([]);
+  const [plansLoading, setPlansLoading] = useState(true);
+  const [plansError, setPlansError] = useState('');
+  const [stepThreeError, setStepThreeError] = useState('');
   const [billingCycle, setBillingCycle] = useState('monthly');
   const [promoCode, setPromoCode] = useState('');
   const [promoApplied, setPromoApplied] = useState(false);
@@ -105,22 +143,33 @@ export default function ClinicRegister() {
   const [otpLoading, setOtpLoading] = useState(false);
   const [otpResent, setOtpResent] = useState(false);
 
-  useEffect(() => {
-    const fetchPlans = async () => {
-      try {
-        const response = await clinicApi.getRegistrationPlans();
-        const availablePlans = response.data?.plans || [];
-        setPlans(availablePlans);
-        if (availablePlans.length > 0) {
+  const fetchPlans = useCallback(async () => {
+    setPlansLoading(true);
+    setPlansError('');
+    try {
+      const response = await clinicApi.getRegistrationPlans();
+      const availablePlans = response.data?.plans || [];
+      setPlans(availablePlans);
+      if (availablePlans.length > 0) {
+        setSelectedPlanId(prev => {
+          if (prev && availablePlans.some(p => p._id === prev)) return prev;
           const professional = availablePlans.find(p => p.code === 'PROFESSIONAL') || availablePlans[0];
-          setSelectedPlanId(professional._id);
-        }
-      } catch (err) {
-        console.error('Failed to load plans:', err);
+          return professional._id;
+        });
+      } else {
+        setSelectedPlanId('');
       }
-    };
-    fetchPlans();
+    } catch (err) {
+      console.error('Failed to load plans:', err);
+      setPlansError(err.response?.data?.message || 'Unable to fetch subscription plans from server. Please verify network connection or try again.');
+    } finally {
+      setPlansLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchPlans();
+  }, [fetchPlans]);
 
   const handleValidateEmail = (emailVal) => {
     if (emailTimeout.current) clearTimeout(emailTimeout.current);
@@ -295,12 +344,16 @@ export default function ClinicRegister() {
       if (valid) setCurrentStep(2);
     } else if (currentStep === 2) {
       const valid = await validateStepTwo();
-      if (valid) setCurrentStep(3);
+      if (valid) {
+        setStepThreeError('');
+        setCurrentStep(3);
+      }
     } else if (currentStep === 3) {
-      if (!selectedPlanId) {
-        alert('Please select a subscription plan');
+      if (!selectedPlanId || !plans.some(p => p._id === selectedPlanId)) {
+        setStepThreeError('Please select a subscription plan to continue.');
         return;
       }
+      setStepThreeError('');
       setCurrentStep(4);
     }
   };
@@ -1281,98 +1334,314 @@ export default function ClinicRegister() {
 
                 {/* ── STEP 3: SUBSCRIPTION SELECTION ── */}
                 {currentStep === 3 && (
-                  <div className="space-y-6">
-                    <div className="flex justify-between items-center">
+                  <div className="space-y-5">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/80 p-4 rounded-2xl border border-slate-150">
                       <div>
-                        <h4 className="text-sm font-black text-slate-800">Select Subscription Plan</h4>
-                        <p className="text-[10px] text-slate-400 font-bold font-semibold">Choose a plan scale for your clinic workspace.</p>
+                        <h4 className="text-sm font-black text-slate-900 flex items-center gap-2">
+                          <CreditCard className="w-4 h-4 text-green-600" /> Select Subscription Plan
+                        </h4>
+                        <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                          Choose a clinic workspace scale configured and managed by Super Admin.
+                        </p>
                       </div>
-                      <div className="flex items-center gap-1.5 bg-slate-100 p-0.5 rounded-xl border border-slate-200">
+                      <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 shadow-sm self-start sm:self-auto">
                         <button
                           type="button"
                           onClick={() => setBillingCycle('monthly')}
-                          className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition ${billingCycle === 'monthly' ? 'bg-white text-slate-850 shadow-sm' : 'text-slate-500'}`}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-black transition cursor-pointer ${
+                            billingCycle === 'monthly' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                          }`}
                         >
                           Monthly
                         </button>
                         <button
                           type="button"
                           onClick={() => setBillingCycle('yearly')}
-                          className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition ${billingCycle === 'yearly' ? 'bg-white text-slate-850 shadow-sm' : 'text-slate-500'}`}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black transition cursor-pointer ${
+                            billingCycle === 'yearly' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                          }`}
                         >
-                          Yearly (Save 20%)
+                          <span>Yearly</span>
+                          <span className="px-1.5 py-0.5 rounded-md bg-green-500 text-white text-[9px] font-black uppercase tracking-wider">
+                            Save 20%
+                          </span>
                         </button>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {plans.map(p => {
-                        const isSelected = selectedPlanId === p._id;
-                        const isStarter = (p.name || '').toLowerCase().includes('starter');
-                        const isProfessional = (p.name || '').toLowerCase().includes('professional');
-                        
-                        let price = billingCycle === 'monthly' ? p.monthlyPrice || p.price : p.yearlyPrice || (p.price * 10);
-                        if (!price && price !== 0) price = 4999;
+                    {stepThreeError && (
+                      <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold flex items-center justify-between gap-2 animate-shake">
+                        <div className="flex items-center gap-2">
+                          <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
+                          <span>{stepThreeError}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setStepThreeError('')}
+                          className="text-rose-400 hover:text-rose-700 p-1 cursor-pointer"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    )}
 
-                        return (
+                    {/* SKELETON LOADING STATE */}
+                    {plansLoading && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {[1, 2].map(n => (
                           <div
-                            key={p._id}
-                            onClick={() => setSelectedPlanId(p._id)}
-                            className={`border-2 rounded-2xl p-5 cursor-pointer transition flex flex-col justify-between relative hover:shadow-md ${
-                              isSelected ? 'border-green-600 bg-green-50/5 shadow-md' : 'border-slate-200 bg-white'
-                            }`}
+                            key={n}
+                            className="flex flex-col h-[520px] rounded-2xl border border-slate-200 bg-white p-5 animate-pulse justify-between"
                           >
-                            {isSelected && (
-                              <div className="absolute -top-2.5 -right-2.5 w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center shadow-lg">
-                                <Check size={12} />
-                              </div>
-                            )}
-                            <div>
-                              <div className="flex justify-between items-start mb-3">
-                                <div>
-                                  <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">{p.name}</h4>
-                                  <span className="text-[9px] text-slate-400 font-extrabold uppercase mt-0.5 block">{p.code || 'LICENSE'}</span>
+                            <div className="space-y-4">
+                              <div className="flex justify-between items-start">
+                                <div className="space-y-2">
+                                  <div className="w-32 h-5 bg-slate-200 rounded-lg" />
+                                  <div className="w-16 h-3 bg-slate-100 rounded-md" />
                                 </div>
-                                <div className="text-right">
-                                  <span className="text-lg font-black text-slate-900">₹{price}</span>
-                                  <span className="text-[9px] text-slate-400 block font-bold">/{billingCycle === 'monthly' ? 'mo' : 'yr'}</span>
-                                </div>
+                                <div className="w-20 h-7 bg-slate-200 rounded-lg" />
                               </div>
-                              <ul className="space-y-1.5 text-[10px] font-bold text-slate-600 mb-6">
-                                <li className="flex items-center gap-1.5">
-                                  <Check className="text-green-600 shrink-0" size={11} /> 
-                                  <span>Doctors Limit: {isStarter ? '1 Active Doctor' : isProfessional ? 'Up to 3 Doctors' : 'Unlimited Doctors'}</span>
-                                </li>
-                                <li className="flex items-center gap-1.5">
-                                  <Check className="text-green-600 shrink-0" size={11} />
-                                  <span>Staff Limit: {isStarter ? '2 Staff Accounts' : isProfessional ? 'Up to 5 Staff' : 'Unlimited Staff'}</span>
-                                </li>
-                                <li className="flex items-center gap-1.5">
-                                  <Check className="text-green-600 shrink-0" size={11} />
-                                  <span>Branches: {isStarter ? '1 Branch' : isProfessional ? 'Up to 2 Branches' : 'Unlimited Branches'}</span>
-                                </li>
-                                <li className="flex items-center gap-1.5">
-                                  <Check className="text-green-600 shrink-0" size={11} />
-                                  <span>AI Modules: {isStarter || isProfessional ? 'Locked' : 'All Modules Enabled'}</span>
-                                </li>
-                                <li className="flex items-center gap-1.5">
-                                  <Check className="text-green-600 shrink-0" size={11} />
-                                  <span>Telemedicine Consultations: {isStarter ? 'Unavailable' : 'Zoom/GMeet Integration'}</span>
-                                </li>
-                              </ul>
+                              <div className="w-full h-10 bg-slate-100 rounded-xl" />
+                              <div className="space-y-2 pt-2">
+                                {[1, 2, 3, 4, 5].map(i => (
+                                  <div key={i} className="flex items-center gap-2">
+                                    <div className="w-3.5 h-3.5 bg-slate-200 rounded-full shrink-0" />
+                                    <div className="w-4/5 h-3.5 bg-slate-100 rounded" />
+                                  </div>
+                                ))}
+                              </div>
                             </div>
-                            <button
-                              type="button"
-                              className={`w-full py-2.5 rounded-xl text-[10px] font-black transition ${
-                                isSelected ? 'bg-green-600 text-white shadow-md' : 'bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100'
+                            <div className="w-full h-10 bg-slate-200 rounded-xl" />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* ERROR STATE */}
+                    {!plansLoading && plansError && (
+                      <div className="p-8 text-center bg-white rounded-2xl border border-dashed border-rose-200 space-y-4">
+                        <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mx-auto">
+                          <AlertTriangle className="w-6 h-6" />
+                        </div>
+                        <div className="space-y-1">
+                          <h4 className="text-sm font-black text-slate-800">Failed to Load Subscription Plans</h4>
+                          <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">{plansError}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={fetchPlans}
+                          className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-black hover:bg-slate-800 transition cursor-pointer shadow-sm"
+                        >
+                          <RefreshCw size={12} /> Retry Loading Plans
+                        </button>
+                      </div>
+                    )}
+
+                    {/* EMPTY STATE */}
+                    {!plansLoading && !plansError && plans.length === 0 && (
+                      <div className="p-8 text-center bg-white rounded-2xl border border-dashed border-slate-200 space-y-4">
+                        <div className="w-12 h-12 bg-slate-100 text-slate-400 rounded-2xl flex items-center justify-center mx-auto">
+                          <Package className="w-6 h-6" />
+                        </div>
+                        <div className="space-y-1">
+                          <h4 className="text-sm font-black text-slate-800">No Plans Available</h4>
+                          <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+                            No subscription plans are currently available. Please contact your administrator.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={fetchPlans}
+                          className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-xl text-xs font-black transition cursor-pointer"
+                        >
+                          <RefreshCw size={12} /> Refresh
+                        </button>
+                      </div>
+                    )}
+
+                    {/* DYNAMIC PLAN CARDS WITH INTERNAL SCROLLING */}
+                    {!plansLoading && !plansError && plans.length > 0 && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {plans.map(p => {
+                          const isSelected = selectedPlanId === p._id;
+                          const monthlyPrice = p.priceMonthly ?? p.price ?? 0;
+                          const yearlyPrice = p.priceYearly ?? (monthlyPrice * 12);
+                          const activePrice = billingCycle === 'monthly' ? monthlyPrice : yearlyPrice;
+                          
+                          // Calculate yearly savings percentage if applicable
+                          let yearlyDiscountPct = 0;
+                          if (monthlyPrice > 0 && yearlyPrice < (monthlyPrice * 12)) {
+                            yearlyDiscountPct = Math.round((1 - (yearlyPrice / (monthlyPrice * 12))) * 100);
+                          }
+
+                          return (
+                            <div
+                              key={p._id}
+                              onClick={() => {
+                                setSelectedPlanId(p._id);
+                                if (stepThreeError) setStepThreeError('');
+                              }}
+                              className={`flex flex-col h-[520px] rounded-2xl border-2 p-5 cursor-pointer transition-all duration-200 relative group select-none ${
+                                isSelected
+                                  ? 'border-green-600 bg-green-50/10 ring-2 ring-green-600/20 shadow-md'
+                                  : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm'
                               }`}
                             >
-                              {isSelected ? 'Plan Selected' : 'Choose Plan'}
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
+                              {/* Selected check badge */}
+                              {isSelected && (
+                                <div className="absolute -top-2.5 -right-2.5 w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center shadow-lg ring-2 ring-white z-10">
+                                  <Check size={13} className="stroke-[3]" />
+                                </div>
+                              )}
+
+                              {/* FIXED HEADER */}
+                              <div className="shrink-0 pb-3 border-b border-slate-100 space-y-2">
+                                <div className="flex justify-between items-start gap-2">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider truncate">
+                                        {p.name}
+                                      </h4>
+                                      <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 font-mono">
+                                        {p.code || 'PLAN'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div className="text-right shrink-0">
+                                    <div className="flex items-baseline justify-end gap-1">
+                                      <span className="text-xl font-black text-slate-900">
+                                        ₹{activePrice.toLocaleString()}
+                                      </span>
+                                      <span className="text-[10px] text-slate-400 font-bold">
+                                        /{billingCycle === 'monthly' ? 'mo' : 'yr'}
+                                      </span>
+                                    </div>
+                                    {billingCycle === 'yearly' && yearlyDiscountPct > 0 && (
+                                      <span className="text-[9px] font-black text-green-600 bg-green-50 px-1.5 py-0.5 rounded inline-block mt-0.5">
+                                        Save {yearlyDiscountPct}%
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {p.description ? (
+                                  <p className="text-[11px] text-slate-500 font-medium leading-relaxed line-clamp-2">
+                                    {p.description}
+                                  </p>
+                                ) : (
+                                  <p className="text-[11px] text-slate-400 font-medium italic">
+                                    Super Admin configured clinical plan.
+                                  </p>
+                                )}
+                              </div>
+
+                              {/* SCROLLABLE FEATURES CONTAINER */}
+                              <div
+                                className="cw-scroll flex-1 min-h-0 overflow-y-auto pr-1.5 my-3 space-y-2"
+                                style={{
+                                  scrollbarWidth: 'thin',
+                                  scrollbarColor: '#cbd5e1 transparent'
+                                }}
+                              >
+                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">
+                                  Included Limits &amp; Features
+                                </span>
+
+                                {/* Limits list */}
+                                <div className="space-y-1.5 text-[11px] font-bold text-slate-700">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-4 h-4 rounded-full bg-green-50 text-green-600 flex items-center justify-center shrink-0">
+                                      <Check size={10} className="stroke-[3]" />
+                                    </div>
+                                    <span className="leading-tight">
+                                      Doctors:{' '}
+                                      <strong className="text-slate-900">
+                                        {p.limits?.maxDoctors ? (p.limits.maxDoctors >= 9999 ? 'Unlimited Doctors' : `Up to ${p.limits.maxDoctors} Doctor${p.limits.maxDoctors > 1 ? 's' : ''}`) : 'Unlimited Doctors'}
+                                      </strong>
+                                    </span>
+                                  </div>
+
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-4 h-4 rounded-full bg-green-50 text-green-600 flex items-center justify-center shrink-0">
+                                      <Check size={10} className="stroke-[3]" />
+                                    </div>
+                                    <span className="leading-tight">
+                                      Staff:{' '}
+                                      <strong className="text-slate-900">
+                                        {p.limits?.maxStaff ? (p.limits.maxStaff >= 9999 ? 'Unlimited Staff' : `Up to ${p.limits.maxStaff} Staff Account${p.limits.maxStaff > 1 ? 's' : ''}`) : 'Unlimited Staff'}
+                                      </strong>
+                                    </span>
+                                  </div>
+
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-4 h-4 rounded-full bg-green-50 text-green-600 flex items-center justify-center shrink-0">
+                                      <Check size={10} className="stroke-[3]" />
+                                    </div>
+                                    <span className="leading-tight">
+                                      Branches:{' '}
+                                      <strong className="text-slate-900">
+                                        {p.limits?.maxBranches ? (p.limits.maxBranches >= 9999 ? 'Unlimited Branches' : `Up to ${p.limits.maxBranches} Branch${p.limits.maxBranches > 1 ? 'es' : ''}`) : '1 Branch'}
+                                      </strong>
+                                    </span>
+                                  </div>
+
+                                  {p.limits?.maxPatients && p.limits.maxPatients !== 999999 && (
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-4 h-4 rounded-full bg-green-50 text-green-600 flex items-center justify-center shrink-0">
+                                        <Check size={10} className="stroke-[3]" />
+                                      </div>
+                                      <span className="leading-tight">
+                                        Patients:{' '}
+                                        <strong className="text-slate-900">
+                                          Up to {p.limits.maxPatients.toLocaleString()} Patients
+                                        </strong>
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Dynamic Features */}
+                                {p.features && p.features.length > 0 && (
+                                  <div className="pt-2 border-t border-slate-100 space-y-1.5 text-[11px] font-semibold text-slate-600">
+                                    {p.features.map(f => {
+                                      const label = FEATURE_LABELS[f] || f;
+                                      return (
+                                        <div key={f} className="flex items-start gap-2">
+                                          <div className="w-4 h-4 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
+                                            <Check size={10} className="stroke-[3]" />
+                                          </div>
+                                          <span className="leading-snug text-slate-700">{label}</span>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* FIXED FOOTER CTA */}
+                              <div className="shrink-0 pt-3 border-t border-slate-100">
+                                <button
+                                  type="button"
+                                  className={`w-full py-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                                    isSelected
+                                      ? 'bg-green-600 text-white shadow-md shadow-green-600/20'
+                                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                                  }`}
+                                >
+                                  {isSelected ? (
+                                    <>
+                                      <Check size={13} className="stroke-[3]" /> Plan Selected
+                                    </>
+                                  ) : (
+                                    'Choose Plan'
+                                  )}
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -1382,7 +1651,7 @@ export default function ClinicRegister() {
                     <div className="space-y-4">
                       {/* Summary Owner Card */}
                       <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 relative">
-                        <button onClick={() => setCurrentStep(1)} className="absolute right-4 top-4 text-xs font-black text-green-600 hover:underline">Edit</button>
+                        <button onClick={() => setCurrentStep(1)} className="absolute right-4 top-4 text-xs font-black text-green-600 hover:underline cursor-pointer">Edit</button>
                         <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Owner Summary</h4>
                         <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-xs font-semibold text-slate-700">
                           <div>Name: <span className="text-slate-900 font-bold">{ownerForm.name || '-'}</span></div>
@@ -1396,7 +1665,7 @@ export default function ClinicRegister() {
 
                       {/* Summary Clinic Card */}
                       <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 relative">
-                        <button onClick={() => setCurrentStep(2)} className="absolute right-4 top-4 text-xs font-black text-green-600 hover:underline">Edit</button>
+                        <button onClick={() => setCurrentStep(2)} className="absolute right-4 top-4 text-xs font-black text-green-600 hover:underline cursor-pointer">Edit</button>
                         <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Clinic Summary</h4>
                         <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-xs font-semibold text-slate-700">
                           <div>Name: <span className="text-slate-900 font-bold">{clinicForm.name || '-'}</span></div>
@@ -1409,17 +1678,18 @@ export default function ClinicRegister() {
 
                       {/* Subscription Summary */}
                       <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 relative">
-                        <button onClick={() => setCurrentStep(3)} className="absolute right-4 top-4 text-xs font-black text-green-600 hover:underline">Edit</button>
+                        <button onClick={() => setCurrentStep(3)} className="absolute right-4 top-4 text-xs font-black text-green-600 hover:underline cursor-pointer">Edit</button>
                         <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Selected Plan Summary</h4>
                         <div className="flex items-center justify-between">
                           <div>
-                            <span className="text-sm font-black text-slate-900 uppercase block">{activePlanObj?.name || 'Professional Plan'}</span>
+                            <span className="text-sm font-black text-slate-900 uppercase block">{activePlanObj?.name || 'No Plan Selected'}</span>
                             <span className="text-[10px] text-slate-400 font-bold capitalize">Billing Cycle: {billingCycle}</span>
                           </div>
                           <div className="text-right">
                             <span className="text-lg font-black text-slate-900">
-                              ₹{billingCycle === 'monthly' ? activePlanObj?.monthlyPrice || activePlanObj?.price : activePlanObj?.yearlyPrice || (activePlanObj?.price * 10)}
+                              ₹{(billingCycle === 'monthly' ? activePlanObj?.priceMonthly : activePlanObj?.priceYearly)?.toLocaleString() || 0}
                             </span>
+                            <span className="text-[9px] text-slate-400 block font-bold">/{billingCycle === 'monthly' ? 'month' : 'year'}</span>
                           </div>
                         </div>
                       </div>
@@ -1480,6 +1750,34 @@ export default function ClinicRegister() {
                 <span className="text-[10px] text-slate-500 mt-0.5 block">{clinicForm.name || 'New Clinic'}</span>
               </div>
             </div>
+
+            {/* Selected Plan Real-time Card */}
+            {activePlanObj ? (
+              <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3.5 space-y-2">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 block">Selected Plan</span>
+                    <span className="text-xs font-black text-slate-900 block mt-0.5 leading-snug">{activePlanObj.name}</span>
+                  </div>
+                  <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded-md bg-green-100 text-green-700 font-mono shrink-0">
+                    {activePlanObj.code || 'PLAN'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center pt-2 border-t border-slate-200/60 text-[11px]">
+                  <span className="text-slate-500 font-semibold capitalize">
+                    Billing: <strong className="text-slate-800">{billingCycle}</strong>
+                  </span>
+                  <span className="text-xs font-black text-green-700">
+                    ₹{(billingCycle === 'monthly' ? activePlanObj.priceMonthly : activePlanObj.priceYearly)?.toLocaleString() || 0}
+                    <span className="text-[9px] text-slate-400 font-bold">/{billingCycle === 'monthly' ? 'mo' : 'yr'}</span>
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-slate-50 border border-dashed border-slate-200 rounded-xl p-3 text-center">
+                <span className="text-[10px] font-bold text-slate-400">No plan selected yet</span>
+              </div>
+            )}
 
             {/* What's Next Checklist */}
             <div className="pt-3 border-t border-slate-100 space-y-2">

@@ -1,27 +1,5 @@
 const mongoose = require('mongoose');
-
-const SAMPLE_STATUSES = [
-  'EXPECTED',
-  'COLLECTION_PENDING',
-  'COLLECTION_IN_PROGRESS',
-  'COLLECTED',
-  'REJECTED',
-  'RECOLLECTION_REQUIRED',
-  'RECEIVED',
-  'IN_PROCESSING',
-  'COMPLETED',
-  'DISPOSED'
-];
-
-const SAMPLE_CONDITIONS = [
-  'GOOD',
-  'HEMOLYSED',
-  'CLOTTED',
-  'INSUFFICIENT',
-  'LEAKING',
-  'DAMAGED',
-  'OTHER'
-];
+const { SAMPLE_STATUSES, SAMPLE_CONDITIONS } = require('./labStatus.constants');
 
 const timelineEventSchema = new mongoose.Schema(
   {

@@ -330,7 +330,15 @@ const labApi = {
   checkOrderCompletion: (orderId, params = {}) => extractData(apiClient.get(`/labs/orders/${orderId}/completion-check`, { params })),
   finalizeOrder: (orderId, payload = {}) => extractData(apiClient.patch(`/labs/orders/${orderId}/finalize`, payload)),
   amendOrder: (orderId, payload) => extractData(apiClient.patch(`/labs/orders/${orderId}/amend`, payload)),
-  generateOrderPdf: (reportId, payload = {}) => extractData(apiClient.post(`/labs/reports/${reportId}/generate-pdf`, payload))
+  generateOrderPdf: (reportId, payload = {}) => extractData(apiClient.post(`/labs/reports/${reportId}/generate-pdf`, payload)),
+  getGeneratedReportDocument: (orderId, params = {}) => extractData(apiClient.get(`/labs/orders/${orderId}/report-document`, { params })),
+  downloadReportPdf: (orderId, params = {}) =>
+    apiClient.get(`/labs/orders/${orderId}/report/pdf`, {
+      params,
+      responseType: 'blob'
+    }),
+  verifyReport: (reportId) => extractData(apiClient.get(`/labs/reports/verify/${reportId}`)),
+  logReportActivity: (orderId, payload) => extractData(apiClient.post(`/labs/orders/${orderId}/report/activity`, payload))
 };
 
 const pharmacyApi = {

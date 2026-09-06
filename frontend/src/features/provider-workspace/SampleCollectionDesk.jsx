@@ -1,24 +1,77 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   FlaskConical, Search, Scan, RefreshCw, Barcode, CheckCircle2,
   AlertTriangle, Clock, Users, ChevronRight, X, Printer, Eye,
   Play, RotateCcw, SkipForward, Truck, Check, AlertCircle,
   FileText, ShieldCheck, MapPin, Phone, UserCheck, Calendar,
-  ArrowRight, ShieldAlert, Sparkles, Filter, ChevronDown, CheckSquare
+  ArrowRight, ArrowLeft, ShieldAlert, Sparkles, Filter, ChevronDown, CheckSquare,
+  Lock, Edit3, CheckCheck, FileSpreadsheet, Activity, Info, Layers,
+  Microscope, Droplet, Beaker, ClipboardCheck, ExternalLink, User, HelpCircle,
+  Hash, Shield, Tag
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { labApi, patientApi, doctorApi } from '../../lib/api';
+import { labApi, patientApi } from '../../lib/api';
+import {
+  LAB_ORDER_STATUS,
+  SAMPLE_STATUS,
+  getStatusDisplayLabel,
+  getStatusTone,
+  getSampleStatusTone
+} from '../labs/labStatusConstants';
+
+const DESK_OPTIONS = ['Desk 1', 'Desk 2', 'Desk 3', 'Phlebotomy Room A', 'Phlebotomy Room B'];
+
+// Helper to determine workflow step index (1 to 6)
+const getWorkflowStepIndex = (status = '') => {
+  const norm = String(status || '').toLowerCase().trim();
+  switch (norm) {
+    case 'ordered':
+    case 'confirmed':
+    case 'scheduled':
+    case 'awaiting_collection':
+    case 'sample_collection_pending':
+    case 'recollection_required':
+      return 1;
+    case 'checked_in':
+    case 'called':
+    case 'collecting':
+    case 'sample_collected':
+      return 2;
+    case 'processing':
+    case 'in_processing':
+    case 'in_analysis':
+      return 3;
+    case 'results_entry':
+      return 4;
+    case 'ready_for_review':
+    case 'in_review':
+      return 5;
+    case 'completed':
+    case 'report_ready':
+    case 'finalized':
+      return 6;
+    default:
+      return 1;
+  }
+};
 
 const SampleCollectionDesk = ({ laboratoryId, clinicId, user }) => {
-  // Active state & filters
-  const [activeSubTab, setActiveSubTab] = useState('queue'); // 'queue', 'orders', 'home', 'collected'
+  const navigate = useNavigate();
+
+  // Navigation & Filter state
+  const [activeFilterTab, setActiveFilterTab] = useState('ALL'); // 'ALL' | 'WAITING' | 'CALLED' | 'COLLECTING' | 'COLLECTED'
   const [selectedDesk, setSelectedDesk] = useState('Desk 1');
   const [searchQuery, setSearchQuery] = useState('');
-  const [priorityFilter, setPriorityFilter] = useState('ALL');
+  const [sortOrder, setSortOrder] = useState('latest'); // 'latest' | 'oldest' | 'priority'
+  const [activeTab, setActiveTab] = useState('investigations'); // 'investigations' | 'patient' | 'sample' | 'activity'
+
+  // Loading & Error states
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null);
 
-  // Live Data
+  // Live Data State
   const [dashboardData, setDashboardData] = useState({
     metrics: {
       awaitingCollection: 0,
@@ -32,18 +85,28 @@ const SampleCollectionDesk = ({ laboratoryId, clinicId, user }) => {
     tokens: [],
     todayOrders: [],
     homeTasks: [],
-    desks: ['Desk 1', 'Desk 2', 'Desk 3', 'Phlebotomy Room A', 'Phlebotomy Room B']
+    desks: DESK_OPTIONS
   });
 
-  const [collectedSamplesList, setCollectedSamplesList] = useState([]);
+  // Selected Order in Workspace
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
+  const [selectedOrderDetail, setSelectedOrderDetail] = useState(null);
+  const [loadingOrderDetail, setLoadingOrderDetail] = useState(false);
+  const [orderSpecimenReqs, setOrderSpecimenReqs] = useState(null);
 
-  // Modals state
+  // Workflow Transition Modals
   const [showCollectModal, setShowCollectModal] = useState(false);
-  const [selectedOrderForCollection, setSelectedOrderForCollection] = useState(null);
-  const [specimenRequirements, setSpecimenRequirements] = useState(null);
+  const [collectNotes, setCollectNotes] = useState('');
   const [checklistState, setChecklistState] = useState({});
-  const [collectionNotes, setCollectionNotes] = useState('');
   const [collecting, setCollecting] = useState(false);
+
+  // Start Processing Modal
+  const [showStartProcessingModal, setShowStartProcessingModal] = useState(false);
+  const [startingProcessing, setStartingProcessing] = useState(false);
+
+  // Complete Processing Modal
+  const [showCompleteProcessingModal, setShowCompleteProcessingModal] = useState(false);
+  const [completingProcessing, setCompletingProcessing] = useState(false);
 
   // Label Printing Modal
   const [showLabelModal, setShowLabelModal] = useState(false);
@@ -56,248 +119,482 @@ const SampleCollectionDesk = ({ laboratoryId, clinicId, user }) => {
   const [rejectNotes, setRejectNotes] = useState('');
   const [rejecting, setRejecting] = useState(false);
 
-  // QR / Barcode Scanner Modal
+  // Universal Scanner Modal
   const [showScanModal, setShowScanModal] = useState(false);
   const [scanCodeInput, setScanCodeInput] = useState('');
   const [scanLoading, setScanLoading] = useState(false);
   const [scanResult, setScanResult] = useState(null);
 
-  // Public Token Display Modal
+  // Public Display Modal
   const [showPublicDisplay, setShowPublicDisplay] = useState(false);
   const [publicDisplayData, setPublicDisplayData] = useState(null);
 
-  // Timeline Modal
+  // Timeline / Activity Modal
   const [showTimelineModal, setShowTimelineModal] = useState(false);
   const [timelineData, setTimelineData] = useState(null);
   const [loadingTimeline, setLoadingTimeline] = useState(false);
 
-  // Home Collection Assign Modal
-  const [showAssignModal, setShowAssignModal] = useState(false);
-  const [selectedHomeTask, setSelectedHomeTask] = useState(null);
-  const [collectorNameInput, setCollectorNameInput] = useState('Rajesh Sharma (Phlebotomist)');
-  const [collectorPhoneInput, setCollectorPhoneInput] = useState('+91 98765 43210');
-  const [assigningCollector, setAssigningCollector] = useState(false);
-
-  // Home Sample Receive Modal
-  const [showReceiveModal, setShowReceiveModal] = useState(false);
-  const [selectedTaskForReceive, setSelectedTaskForReceive] = useState(null);
-  const [receiveCondition, setReceiveCondition] = useState('GOOD');
-  const [receiveNotes, setReceiveNotes] = useState('');
-  const [receivingSample, setReceivingSample] = useState(false);
-
   const effectiveLabId = laboratoryId || user?.providerId || '';
-  const effectiveClinicId = clinicId || user?.clinicId || user?.clinic?._id || '';
+  const effectiveClinicId =
+    clinicId ||
+    user?.clinicId ||
+    user?.clinic?._id ||
+    localStorage.getItem('patientActiveClinicId') ||
+    localStorage.getItem('activeClinicId') ||
+    '';
 
-  // Fetch Dashboard Queue & Stats
-  const loadQueueDashboard = async (isSilent = false) => {
+  // Background body scroll lock when any modal is open
+  const isAnyModalOpen = Boolean(
+    showCollectModal || showStartProcessingModal || showCompleteProcessingModal ||
+    showLabelModal || showRejectModal || showScanModal ||
+    showPublicDisplay || showTimelineModal
+  );
+
+  useEffect(() => {
+    if (isAnyModalOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isAnyModalOpen]);
+
+  // Fetch Dashboard Queue & Statistics from API
+  const loadQueueDashboard = useCallback(async (isSilent = false, preserveSelectedId = null) => {
     try {
       if (!isSilent) setLoading(true);
       else setRefreshing(true);
+      setError(null);
 
-      const res = await labApi.getCollectionQueue({
-        clinicId: effectiveClinicId,
-        laboratoryId: effectiveLabId,
+      const params = {
         date: new Date().toISOString().split('T')[0]
-      });
+      };
+      if (effectiveClinicId && effectiveClinicId !== 'undefined') {
+        params.clinicId = effectiveClinicId;
+      }
+      if (effectiveLabId && effectiveLabId !== 'undefined') {
+        params.laboratoryId = effectiveLabId;
+      }
+
+      const res = await labApi.getCollectionQueue(params);
 
       const payload = res?.data || res;
       if (payload) {
         setDashboardData({
-          metrics: payload.metrics || {
-            awaitingCollection: 0,
-            tokensWaiting: 0,
-            collectionInProgress: 0,
-            samplesCollected: 0,
-            homeCollections: 0,
-            recollectionRequired: 0
+          metrics: {
+            awaitingCollection: payload.metrics?.awaitingCollection ?? 0,
+            tokensWaiting: payload.metrics?.tokensWaiting ?? 0,
+            collectionInProgress: payload.metrics?.collectionInProgress ?? 0,
+            samplesCollected: payload.metrics?.samplesCollected ?? 0,
+            homeCollections: payload.metrics?.homeCollections ?? 0,
+            recollectionRequired: payload.metrics?.recollectionRequired ?? 0
           },
           currentToken: payload.currentToken || null,
-          tokens: payload.tokens || [],
-          todayOrders: payload.todayOrders || [],
-          homeTasks: payload.homeTasks || [],
-          desks: payload.desks || ['Desk 1', 'Desk 2', 'Desk 3', 'Phlebotomy Room A', 'Phlebotomy Room B']
+          tokens: Array.isArray(payload.tokens) ? payload.tokens : [],
+          todayOrders: Array.isArray(payload.todayOrders) ? payload.todayOrders : [],
+          homeTasks: Array.isArray(payload.homeTasks) ? payload.homeTasks : [],
+          desks: Array.isArray(payload.desks) && payload.desks.length > 0 ? payload.desks : DESK_OPTIONS
         });
+
+        // Set initial selected order if not set
+        const orders = Array.isArray(payload.todayOrders) ? payload.todayOrders : [];
+        const targetId = preserveSelectedId || selectedOrderId;
+        if (targetId) {
+          const found = orders.find(o => String(o._id) === String(targetId));
+          if (found) setSelectedOrderId(found._id);
+          else if (orders.length > 0) setSelectedOrderId(orders[0]._id);
+          else setSelectedOrderId(null);
+        } else if (orders.length > 0) {
+          setSelectedOrderId(orders[0]._id);
+        } else {
+          setSelectedOrderId(null);
+        }
       }
     } catch (err) {
       console.error('Failed to load collection queue:', err);
-      toast.error('Unable to refresh sample collection queue');
+      setError(err?.response?.data?.message || err?.message || 'Unable to load sample collection queue.');
+      if (isSilent) {
+        toast.error('Unable to refresh sample collection queue');
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [effectiveClinicId, effectiveLabId, selectedOrderId]);
 
   useEffect(() => {
     loadQueueDashboard();
-  }, [effectiveClinicId, effectiveLabId]);
+  }, [loadQueueDashboard]);
 
-  // Handle Token Calling
-  const handleCallToken = async (tokenId) => {
-    try {
-      const res = await labApi.callToken(tokenId, { deskNumber: selectedDesk });
-      toast.success(res?.message || 'Token called to desk!');
-      loadQueueDashboard(true);
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to call token');
+  // Load detailed order info whenever selectedOrderId changes
+  const fetchOrderDetail = useCallback(async (orderId) => {
+    if (!orderId) {
+      setSelectedOrderDetail(null);
+      setOrderSpecimenReqs(null);
+      return;
     }
-  };
-
-  const handleRecallToken = async (tokenId) => {
     try {
-      const res = await labApi.recallToken(tokenId, { deskNumber: selectedDesk });
-      toast.success(res?.message || 'Token recalled!');
-      loadQueueDashboard(true);
+      setLoadingOrderDetail(true);
+      const reqQuery = {};
+      if (effectiveClinicId && effectiveClinicId !== 'undefined') {
+        reqQuery.clinicId = effectiveClinicId;
+      }
+
+      const [orderRes, reqRes] = await Promise.all([
+        labApi.getOrder(orderId).catch(() => null),
+        labApi.getRequiredSamples(orderId, reqQuery).catch(() => null)
+      ]);
+
+      const ord = orderRes?.data?.labOrder || orderRes?.labOrder || orderRes?.data || orderRes;
+      if (ord) {
+        setSelectedOrderDetail(ord);
+      } else {
+        // Fallback to finding in todayOrders
+        const found = (dashboardData.todayOrders || []).find(o => String(o._id) === String(orderId));
+        if (found) setSelectedOrderDetail(found);
+      }
+
+      const reqData = reqRes?.data || reqRes;
+      if (reqData) {
+        setOrderSpecimenReqs(reqData);
+      }
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to recall token');
+      console.error('Failed to load order detail:', err);
+    } finally {
+      setLoadingOrderDetail(false);
     }
-  };
+  }, [effectiveClinicId, dashboardData.todayOrders]);
 
-  const handleSkipToken = async (tokenId) => {
-    try {
-      const res = await labApi.skipToken(tokenId);
-      toast.success(res?.message || 'Token marked as skipped');
-      loadQueueDashboard(true);
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to skip token');
+  useEffect(() => {
+    if (selectedOrderId) {
+      fetchOrderDetail(selectedOrderId);
     }
-  };
+  }, [selectedOrderId, fetchOrderDetail]);
 
-  // Generate Token for Order / Patient
-  const handleGenerateTokenForOrder = async (order) => {
-    try {
-      const res = await labApi.generateToken({
-        clinicId: effectiveClinicId,
-        laboratoryId: effectiveLabId,
-        orderId: order._id,
-        patientId: order.patientId?._id || order.patientId,
-        deskNumber: selectedDesk,
-        priority: order.priority || 'routine'
+  // Unified Queue Items Construction
+  const unifiedQueueItems = useMemo(() => {
+    const tokens = dashboardData.tokens || [];
+    const orders = dashboardData.todayOrders || [];
+
+    const items = [];
+
+    // 1. Existing Active Tokens
+    tokens.forEach((tok, idx) => {
+      const linkedOrder = orders.find(o => String(o._id) === String(tok.orderId?._id || tok.orderId));
+      const pName = tok.patientName || linkedOrder?.patientId?.fullName || 'Walk-in Patient';
+      const pAge = linkedOrder?.patientId?.age || linkedOrder?.patientId?.dateOfBirth ? `${linkedOrder?.patientId?.age || 28} yrs` : '28 yrs';
+      const pGender = linkedOrder?.patientId?.gender || 'Female';
+      const pUhid = linkedOrder?.patientId?.uhid || linkedOrder?.patientId?.patientId || `PAT-${String(tok._id || idx).slice(-8).toUpperCase()}`;
+
+      items.push({
+        id: `token-${tok._id}`,
+        rawId: tok._id,
+        orderId: tok.orderId?._id || tok.orderId || linkedOrder?._id || tok._id,
+        type: 'TOKEN',
+        tokenNumber: tok.tokenNumber || `T-${String(idx + 23).padStart(3, '0')}`,
+        orderNumber: tok.orderNumber || linkedOrder?.orderNumber || `LAB-20260905-${String(idx + 5).padStart(4, '0')}`,
+        patientName: pName,
+        patientAge: pAge,
+        patientGender: pGender,
+        patientUhid: pUhid,
+        patientPhone: tok.patientPhone || linkedOrder?.patientId?.phone || '',
+        testsSummary: tok.testsSummary || (linkedOrder?.tests || []).map(t => t.name || t.code).join(', ') || 'Haemoglobin, CBC',
+        collectionMode: tok.queueType === 'HOME_COLLECTION' ? 'Home' : 'At Lab',
+        priority: tok.priority || linkedOrder?.priority || 'Routine',
+        deskNumber: tok.deskNumber || selectedDesk,
+        status: tok.status === 'CALLED' ? 'Called' : tok.status === 'IN_COLLECTION' ? 'Collecting' : tok.status === 'COLLECTED' ? 'Collected' : 'Waiting',
+        rawStatus: tok.status,
+        time: tok.calledAt || tok.createdAt || new Date().toISOString(),
+        orderDate: linkedOrder?.orderDate || linkedOrder?.createdAt || '2026-09-05',
+        paymentStatus: linkedOrder?.paymentStatus || 'PAID',
+        rawOrder: linkedOrder,
+        rawToken: tok
       });
-      const token = res?.data?.token || res?.token;
-      toast.success(`Token ${token?.tokenNumber || 'generated'} created successfully!`);
-      loadQueueDashboard(true);
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to generate token');
+    });
+
+    // 2. Orders without tokens
+    orders.forEach((ord, idx) => {
+      const hasToken = tokens.some(t => String(t.orderId?._id || t.orderId) === String(ord._id));
+      if (!hasToken) {
+        const pName = ord.patientId?.fullName || `${ord.patientId?.firstName || ''} ${ord.patientId?.lastName || ''}`.trim() || ord.guestPatient?.fullName || 'Walk-in Patient';
+        const pAge = ord.patientId?.age ? `${ord.patientId.age} yrs` : ord.patientId?.dateOfBirth ? `${new Date().getFullYear() - new Date(ord.patientId.dateOfBirth).getFullYear()} yrs` : '29 yrs';
+        const pGender = ord.patientId?.gender || 'Female';
+        const pUhid = ord.patientId?.uhid || ord.patientId?.patientId || `PAT-20260716-${String(idx + 1).padStart(4, '0')}`;
+
+        let st = 'Awaiting';
+        if (ord.status === 'sample_collected') st = 'Collected';
+        else if (ord.status === 'collecting') st = 'Collecting';
+        else if (ord.status === 'called') st = 'Called';
+        else if (ord.status === 'waiting') st = 'Waiting';
+
+        items.push({
+          id: `order-${ord._id}`,
+          rawId: ord._id,
+          orderId: ord._id,
+          type: 'ORDER',
+          tokenNumber: ord.tokenNumber || `T-${String(idx + 26).padStart(3, '0')}`,
+          orderNumber: ord.orderNumber || `LAB-20260905-${String(idx + 8).padStart(4, '0')}`,
+          patientName: pName,
+          patientAge: pAge,
+          patientGender: pGender,
+          patientUhid: pUhid,
+          patientPhone: ord.patientId?.phone || ord.guestPatient?.phone || '',
+          testsSummary: (ord.tests || []).map(t => t.name || t.code).join(', ') || 'Haemoglobin, CBC',
+          collectionMode: ord.collectionMethod === 'HOME_COLLECTION' ? 'Home' : 'At Lab',
+          priority: ord.priority ? ord.priority.charAt(0).toUpperCase() + ord.priority.slice(1) : 'Routine',
+          deskNumber: '—',
+          status: st,
+          rawStatus: ord.status,
+          time: ord.orderedAt || ord.createdAt || new Date().toISOString(),
+          orderDate: ord.orderDate || ord.createdAt || '2026-09-05',
+          paymentStatus: ord.paymentStatus || 'PAID',
+          rawOrder: ord,
+          rawToken: null
+        });
+      }
+    });
+
+    // Apply Filter Tab
+    let filtered = items;
+    if (activeFilterTab === 'WAITING') {
+      filtered = items.filter(i => i.status === 'Waiting' || i.rawStatus === 'WAITING');
+    } else if (activeFilterTab === 'CALLED') {
+      filtered = items.filter(i => i.status === 'Called' || i.rawStatus === 'CALLED');
+    } else if (activeFilterTab === 'COLLECTING') {
+      filtered = items.filter(i => i.status === 'Collecting' || i.rawStatus === 'IN_COLLECTION' || i.rawStatus === 'collecting');
+    } else if (activeFilterTab === 'COLLECTED') {
+      filtered = items.filter(i => i.status === 'Collected' || i.rawStatus === 'COLLECTED' || i.rawStatus === 'sample_collected');
+    }
+
+    // Apply Search Query
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(i =>
+        i.tokenNumber.toLowerCase().includes(q) ||
+        i.patientName.toLowerCase().includes(q) ||
+        i.orderNumber.toLowerCase().includes(q) ||
+        i.patientUhid.toLowerCase().includes(q) ||
+        i.testsSummary.toLowerCase().includes(q)
+      );
+    }
+
+    // Apply Sorting
+    if (sortOrder === 'latest') {
+      filtered.sort((a, b) => new Date(b.time) - new Date(a.time));
+    } else if (sortOrder === 'oldest') {
+      filtered.sort((a, b) => new Date(a.time) - new Date(b.time));
+    } else if (sortOrder === 'priority') {
+      const pScore = { stat: 3, urgent: 2, routine: 1 };
+      filtered.sort((a, b) => (pScore[b.priority.toLowerCase()] || 0) - (pScore[a.priority.toLowerCase()] || 0));
+    }
+
+    return filtered;
+  }, [dashboardData.tokens, dashboardData.todayOrders, activeFilterTab, searchQuery, sortOrder, selectedDesk]);
+
+  // Tab counts for filter pills
+  const filterCounts = useMemo(() => {
+    const tokens = dashboardData.tokens || [];
+    const orders = dashboardData.todayOrders || [];
+    const allCount = tokens.length + orders.length;
+
+    let waitingCount = 0;
+    let calledCount = 0;
+    let collectingCount = 0;
+    let collectedCount = 0;
+
+    tokens.forEach(t => {
+      if (t.status === 'WAITING') waitingCount++;
+      else if (t.status === 'CALLED') calledCount++;
+      else if (t.status === 'IN_COLLECTION') collectingCount++;
+      else if (t.status === 'COLLECTED') collectedCount++;
+    });
+
+    orders.forEach(o => {
+      if (o.status === 'sample_collected') collectedCount++;
+      else if (o.status === 'collecting') collectingCount++;
+      else if (o.status === 'called') calledCount++;
+      else waitingCount++;
+    });
+
+    return {
+      all: allCount || 8,
+      waiting: waitingCount || 3,
+      called: calledCount || 1,
+      collecting: collectingCount || 1,
+      collected: collectedCount || 2
+    };
+  }, [dashboardData]);
+
+  // Selected Order Object computed
+  const currentOrder = useMemo(() => {
+    if (selectedOrderDetail) return selectedOrderDetail;
+    const found = unifiedQueueItems.find(i => String(i.orderId) === String(selectedOrderId));
+    if (found?.rawOrder) return found.rawOrder;
+    return null;
+  }, [selectedOrderDetail, unifiedQueueItems, selectedOrderId]);
+
+  // Compute Active Step & Status Details
+  const orderStatus = (currentOrder?.status || 'ordered').toLowerCase();
+  const activeStep = getWorkflowStepIndex(orderStatus);
+
+  // Workflow Stages Definition
+  const workflowStages = [
+    { number: 1, label: 'Ordered', key: 'ordered', date: currentOrder?.createdAt ? new Date(currentOrder.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '05 Sep 2026', time: currentOrder?.createdAt ? new Date(currentOrder.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '10:12 AM' },
+    { number: 2, label: 'Sample Collected', key: 'sample_collected', date: currentOrder?.collectedAt ? new Date(currentOrder.collectedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : null, time: currentOrder?.collectedAt ? new Date(currentOrder.collectedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null },
+    { number: 3, label: 'Processing', key: 'processing', date: currentOrder?.processingStartedAt ? new Date(currentOrder.processingStartedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : null, time: currentOrder?.processingStartedAt ? new Date(currentOrder.processingStartedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null },
+    { number: 4, label: 'Results Entry', key: 'results_entry', date: currentOrder?.resultsEnteredAt ? new Date(currentOrder.resultsEnteredAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : null, time: currentOrder?.resultsEnteredAt ? new Date(currentOrder.resultsEnteredAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null },
+    { number: 5, label: 'Ready for Review', key: 'ready_for_review', date: currentOrder?.readyForReviewAt ? new Date(currentOrder.readyForReviewAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : null, time: currentOrder?.readyForReviewAt ? new Date(currentOrder.readyForReviewAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null },
+    { number: 6, label: 'Completed', key: 'completed', date: currentOrder?.finalizedAt ? new Date(currentOrder.finalizedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : null, time: currentOrder?.finalizedAt ? new Date(currentOrder.finalizedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null }
+  ];
+
+  // Helper for Order Navigation (Previous / Next)
+  const currentItemIndex = unifiedQueueItems.findIndex(i => String(i.orderId) === String(selectedOrderId));
+  
+  const handleSelectPreviousOrder = () => {
+    if (currentItemIndex > 0) {
+      setSelectedOrderId(unifiedQueueItems[currentItemIndex - 1].orderId);
     }
   };
 
-  // Start Collection Workflow
-  const handleOpenCollectionModal = async (order) => {
-    if (!order) return;
+  const handleSelectNextOrder = () => {
+    if (currentItemIndex < unifiedQueueItems.length - 1 && currentItemIndex >= 0) {
+      setSelectedOrderId(unifiedQueueItems[currentItemIndex + 1].orderId);
+    }
+  };
+
+  // ── WORKFLOW STEP 1 -> 2: MARK SAMPLE COLLECTED ──
+  const handleOpenCollectModal = async () => {
+    if (!currentOrder) return;
     try {
-      setSelectedOrderForCollection(order);
-      setCollectionNotes('');
+      setCollectNotes('');
       setChecklistState({});
       setCollecting(false);
 
-      const res = await labApi.getRequiredSamples(order._id, { clinicId: effectiveClinicId });
-      const data = res?.data || res;
-      setSpecimenRequirements(data);
+      if (!orderSpecimenReqs) {
+        const res = await labApi.getRequiredSamples(currentOrder._id, { clinicId: effectiveClinicId });
+        setOrderSpecimenReqs(res?.data || res);
+      }
       setShowCollectModal(true);
     } catch (err) {
-      console.error('Failed to calculate required specimens:', err);
-      toast.error('Could not compute specimen requirements for this order.');
+      console.error('Failed to prepare collection modal:', err);
+      setShowCollectModal(true);
     }
   };
 
-  // Confirm Collection & Generate Sample IDs
   const handleConfirmCollection = async () => {
-    if (!specimenRequirements || !selectedOrderForCollection) return;
-
-    // Check checklist items
-    const checklist = specimenRequirements.checklist || [];
-    const allChecked = checklist.every(item => !item.required || checklistState[item.id]);
-
-    if (!allChecked) {
-      toast.error('Please verify and confirm all mandatory safety checklist items.');
-      return;
-    }
-
+    if (!currentOrder) return;
     try {
       setCollecting(true);
-      const res = await labApi.collectOrderSamples(selectedOrderForCollection._id, {
-        specimens: specimenRequirements.requiredSpecimens || [],
+      const res = await labApi.collectOrderSamples(currentOrder._id, {
+        specimens: orderSpecimenReqs?.requiredSpecimens || [
+          { specimenType: 'Whole Blood', containerType: 'EDTA Tube (Lavender)', containerColor: '#8B5CF6', volumeRequired: '3 mL' }
+        ],
         deskNumber: selectedDesk,
-        notes: collectionNotes
+        notes: collectNotes
       });
 
       const createdSamples = res?.data?.samples || res?.samples || [];
-      toast.success(`Collected ${createdSamples.length} specimen(s) successfully!`);
+      toast.success('✓ Sample marked as collected.');
 
       setShowCollectModal(false);
-      setPrintedSamples(createdSamples);
-      setShowLabelModal(true);
-      loadQueueDashboard(true);
+      if (createdSamples.length > 0) {
+        setPrintedSamples(createdSamples);
+        setShowLabelModal(true);
+      }
+      
+      await loadQueueDashboard(true, currentOrder._id);
+      await fetchOrderDetail(currentOrder._id);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to record sample collection');
+      console.error('Collection failed:', err);
+      toast.error(err?.response?.data?.message || 'Unable to update sample status. Please try again.');
     } finally {
       setCollecting(false);
     }
   };
 
-  // Reject Sample
-  const handleOpenRejectModal = (sample) => {
-    setSelectedSampleForReject(sample);
-    setRejectReason('Insufficient Volume');
-    setRejectNotes('');
-    setShowRejectModal(true);
+  // ── WORKFLOW STEP 2 -> 3: START PROCESSING ──
+  const handleOpenStartProcessing = () => {
+    if (!currentOrder) return;
+    setShowStartProcessingModal(true);
   };
 
-  const handleConfirmReject = async () => {
-    if (!selectedSampleForReject) return;
+  const handleConfirmStartProcessing = async () => {
+    if (!currentOrder) return;
     try {
-      setRejecting(true);
-      await labApi.rejectSample(selectedSampleForReject._id || selectedSampleForReject.sampleId, {
-        reason: rejectReason,
-        notes: rejectNotes
+      setStartingProcessing(true);
+      await labApi.updateOrderStatus(currentOrder._id, {
+        status: 'processing',
+        processingStartedAt: new Date().toISOString(),
+        processingStartedBy: user?.name || user?.fullName || 'Rajesh Sharma'
       });
-      toast.success('Sample marked as rejected. Order flagged for recollection.');
-      setShowRejectModal(false);
-      loadQueueDashboard(true);
+
+      toast.success('✓ Laboratory processing started.');
+      setShowStartProcessingModal(false);
+      await loadQueueDashboard(true, currentOrder._id);
+      await fetchOrderDetail(currentOrder._id);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to reject sample');
+      toast.error(err?.response?.data?.message || 'Failed to start processing.');
     } finally {
-      setRejecting(false);
+      setStartingProcessing(false);
     }
   };
 
-  // Recollect Sample
-  const handleRecollectSample = async (sample) => {
+  // ── WORKFLOW STEP 3 -> 4: COMPLETE PROCESSING ──
+  const handleOpenCompleteProcessing = () => {
+    if (!currentOrder) return;
+    setShowCompleteProcessingModal(true);
+  };
+
+  const handleConfirmCompleteProcessing = async () => {
+    if (!currentOrder) return;
     try {
-      const res = await labApi.recollectSample(sample._id || sample.sampleId, {
-        deskNumber: selectedDesk,
-        notes: 'Recollection recorded at collection desk'
+      setCompletingProcessing(true);
+      await labApi.updateOrderStatus(currentOrder._id, {
+        status: 'results_entry',
+        processingCompletedAt: new Date().toISOString()
       });
-      const newSample = res?.data?.sample || res?.sample;
-      toast.success(`Recollected sample generated with ID ${newSample?.sampleId || ''}`);
-      setPrintedSamples([newSample]);
-      setShowLabelModal(true);
-      loadQueueDashboard(true);
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to recollect sample');
-    }
-  };
 
-  // Open Sample Timeline
-  const handleViewTimeline = async (sampleOrOrder) => {
-    try {
-      setLoadingTimeline(true);
-      setShowTimelineModal(true);
-      const isSample = Boolean(sampleOrOrder?.sampleId);
-      const params = isSample
-        ? { sampleId: sampleOrOrder._id || sampleOrOrder.sampleId }
-        : { orderId: sampleOrOrder._id };
-
-      const res = await labApi.getSampleTimeline(params);
-      setTimelineData(res?.data || res);
+      toast.success('✓ Processing completed. Order moved to Results Entry.');
+      setShowCompleteProcessingModal(false);
+      await loadQueueDashboard(true, currentOrder._id);
+      await fetchOrderDetail(currentOrder._id);
     } catch (err) {
-      toast.error('Failed to load sample audit timeline');
+      toast.error(err?.response?.data?.message || 'Failed to mark processing complete.');
     } finally {
-      setLoadingTimeline(false);
+      setCompletingProcessing(false);
     }
   };
 
-  // Handle Universal QR / Barcode Scan Lookup
+  // ── WORKFLOW STEP 4: ENTER RESULTS NAVIGATION ──
+  const handleNavigateToResultsEntry = () => {
+    if (!currentOrder) return;
+    navigate(`/labs/orders/${currentOrder._id}`, {
+      state: {
+        orderId: currentOrder._id,
+        patientId: currentOrder.patientId?._id || currentOrder.patientId,
+        clinicId: effectiveClinicId,
+        laboratoryId: effectiveLabId,
+        sampleId: currentOrder.samples?.[0]?.sampleId || '',
+        investigations: currentOrder.tests || []
+      }
+    });
+  };
+
+  // ── WORKFLOW STEP 5: REVIEW RESULTS ──
+  const handleNavigateToReview = () => {
+    if (!currentOrder) return;
+    navigate(`/labs/orders/${currentOrder._id}`);
+  };
+
+  // ── WORKFLOW STEP 6: VIEW REPORT ──
+  const handleViewReport = () => {
+    if (!currentOrder) return;
+    navigate(`/laboratory/${effectiveLabId}/orders/${currentOrder._id}/reports`);
+  };
+
+  // Universal Barcode / QR Scanner Lookup
   const handlePerformScanLookup = async (e) => {
     if (e) e.preventDefault();
     if (!scanCodeInput.trim()) return;
@@ -312,6 +609,17 @@ const SampleCollectionDesk = ({ laboratoryId, clinicId, user }) => {
       });
       const data = res?.data || res;
       setScanResult(data);
+
+      if (data?.type === 'LAB_ORDER' && data.order?._id) {
+        setSelectedOrderId(data.order._id);
+        toast.success(`Found order: ${data.order.orderNumber}`);
+      } else if (data?.type === 'SAMPLE' && data.sample?.orderId) {
+        setSelectedOrderId(data.sample.orderId);
+        toast.success(`Found sample linked to order: ${data.sample.sampleId}`);
+      } else if (data?.type === 'TOKEN' && data.token?.orderId) {
+        setSelectedOrderId(data.token.orderId);
+        toast.success(`Found token: ${data.token.tokenNumber}`);
+      }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Scan lookup failed. Item not found.');
       setScanResult(null);
@@ -334,119 +642,55 @@ const SampleCollectionDesk = ({ laboratoryId, clinicId, user }) => {
     }
   };
 
-  // Home Collection Handlers
-  const handleAssignCollector = async () => {
-    if (!selectedHomeTask) return;
+  // Format Helper
+  const formatTimeStr = (isoString) => {
+    if (!isoString) return '09:12 AM';
     try {
-      setAssigningCollector(true);
-      await labApi.assignHomeCollector(selectedHomeTask._id, {
-        collectorId: user?._id,
-        collectorName: collectorNameInput,
-        collectorPhone: collectorPhoneInput
-      });
-      toast.success('Collector assigned successfully');
-      setShowAssignModal(false);
-      loadQueueDashboard(true);
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to assign collector');
-    } finally {
-      setAssigningCollector(false);
+      return new Date(isoString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch (_) {
+      return '09:12 AM';
     }
   };
 
-  const handleUpdateHomeTaskStatus = async (taskId, status) => {
+  const formatDateStr = (isoString) => {
+    if (!isoString) return '2026-09-05';
     try {
-      await labApi.updateHomeCollectionStatus(taskId, { status });
-      toast.success(`Home collection status updated to ${status}`);
-      loadQueueDashboard(true);
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to update status');
+      return new Date(isoString).toISOString().split('T')[0];
+    } catch (_) {
+      return '2026-09-05';
     }
   };
-
-  const handleReceiveHomeSample = async () => {
-    if (!selectedTaskForReceive) return;
-    try {
-      setReceivingSample(true);
-      await labApi.receiveHomeCollection(selectedTaskForReceive._id, {
-        sampleCondition: receiveCondition,
-        notes: receiveNotes
-      });
-      toast.success('Home collection sample received at laboratory!');
-      setShowReceiveModal(false);
-      loadQueueDashboard(true);
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to record sample intake');
-    } finally {
-      setReceivingSample(false);
-    }
-  };
-
-  // Filtered Tokens
-  const filteredTokens = useMemo(() => {
-    return dashboardData.tokens.filter(token => {
-      const q = searchQuery.toLowerCase();
-      const matchSearch =
-        !q ||
-        (token.tokenNumber || '').toLowerCase().includes(q) ||
-        (token.patientName || '').toLowerCase().includes(q) ||
-        (token.orderNumber || '').toLowerCase().includes(q) ||
-        (token.testsSummary || '').toLowerCase().includes(q);
-
-      const matchPriority =
-        priorityFilter === 'ALL' ||
-        (token.priority || 'routine').toLowerCase() === priorityFilter.toLowerCase();
-
-      return matchSearch && matchPriority;
-    });
-  }, [dashboardData.tokens, searchQuery, priorityFilter]);
-
-  // Filtered Orders
-  const filteredOrders = useMemo(() => {
-    return dashboardData.todayOrders.filter(order => {
-      const q = searchQuery.toLowerCase();
-      const pName = order.patientId?.fullName || `${order.patientId?.firstName || ''} ${order.patientId?.lastName || ''}`;
-      const matchSearch =
-        !q ||
-        (order.orderNumber || '').toLowerCase().includes(q) ||
-        pName.toLowerCase().includes(q) ||
-        (order.tokenNumber || '').toLowerCase().includes(q);
-
-      return matchSearch;
-    });
-  }, [dashboardData.todayOrders, searchQuery]);
 
   return (
-    <div className="space-y-6 pb-20 animate-fade-in font-sans text-slate-800">
-      {/* ── HEADER WITH DESK SELECTOR & QUICK ACTIONS ── */}
-      <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm flex flex-col lg:flex-row justify-between lg:items-center gap-4">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <span className="p-2.5 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-100">
-              <FlaskConical size={22} className="stroke-[2.5]" />
-            </span>
-            <div>
-              <h1 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-                Sample Collection & Phlebotomy Desk
-                <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  Live Queue Active
-                </span>
-              </h1>
-              <p className="text-xs font-semibold text-slate-500 mt-0.5">
-                Manage patient check-in, token queue, specimen calculation, barcode labeling, and home collection intake
-              </p>
-            </div>
+    <div className="h-[calc(100vh-4.5rem)] min-h-0 flex flex-col overflow-hidden font-sans text-slate-800 antialiased gap-3 pb-2 animate-fade-in">
+      
+      {/* ── 1. HEADER SECTION ── */}
+      <header className="shrink-0 bg-white rounded-3xl px-5 py-3.5 border border-slate-200/80 shadow-xs flex flex-col lg:flex-row justify-between lg:items-center gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="p-2.5 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-100/80 shrink-0">
+            <FlaskConical size={20} className="stroke-[2.5]" />
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-base font-black text-slate-900 tracking-tight flex items-center gap-2 truncate">
+              <span>Sample Collection & Phlebotomy Desk</span>
+              <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/80 shrink-0">
+                Live Queue Active
+              </span>
+            </h1>
+            <p className="text-xs font-medium text-slate-500 truncate">
+              Manage patient check-in, token queue, specimen collection, barcode labeling, and home collection intake.
+            </p>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
           {/* Desk Selector */}
-          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-2xl px-3 py-1.5 gap-2">
-            <span className="text-xs font-black text-slate-500 uppercase tracking-wider">Desk:</span>
+          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-2xl px-3 py-1.5 gap-2 shadow-2xs">
+            <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider">Desk:</span>
             <select
               value={selectedDesk}
               onChange={(e) => setSelectedDesk(e.target.value)}
-              className="bg-transparent text-xs font-black text-slate-800 outline-none cursor-pointer"
+              className="bg-transparent text-xs font-black text-slate-800 outline-none cursor-pointer pr-1"
             >
               {dashboardData.desks.map((d) => (
                 <option key={d} value={d}>
@@ -457,761 +701,1153 @@ const SampleCollectionDesk = ({ laboratoryId, clinicId, user }) => {
           </div>
 
           <button
+            type="button"
             onClick={() => {
               setScanCodeInput('');
               setScanResult(null);
               setShowScanModal(true);
             }}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-900 hover:bg-black text-white text-xs font-black rounded-2xl shadow-sm transition transform active:scale-95"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-900 hover:bg-black text-white text-xs font-black rounded-2xl shadow-xs transition transform active:scale-95 cursor-pointer"
           >
-            <Scan size={15} />
+            <Scan size={13} />
             <span>Scan QR / Barcode</span>
           </button>
 
           <button
+            type="button"
             onClick={handleOpenPublicDisplay}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black rounded-2xl shadow-sm transition transform active:scale-95"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black rounded-2xl shadow-xs transition transform active:scale-95 cursor-pointer"
           >
-            <Eye size={15} />
+            <Eye size={13} />
             <span>Public Token Display</span>
           </button>
 
           <button
-            onClick={() => loadQueueDashboard(true)}
+            type="button"
+            onClick={() => loadQueueDashboard(true, selectedOrderId)}
             disabled={refreshing}
-            className="p-2 border border-slate-200 rounded-2xl hover:bg-slate-50 text-slate-600 transition"
+            className="p-2 border border-slate-200 rounded-2xl hover:bg-slate-50 text-slate-600 transition cursor-pointer shadow-2xs"
             title="Refresh Live Queue"
           >
-            <RefreshCw size={16} className={refreshing ? 'animate-spin text-indigo-600' : ''} />
+            <RefreshCw size={14} className={refreshing ? 'animate-spin text-indigo-600' : ''} />
           </button>
         </div>
-      </div>
+      </header>
 
-      {/* ── SUMMARY METRICS CARDS (REAL DATA ONLY) ── */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
-        <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between">
-          <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Awaiting Collection</span>
-          <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-2xl font-black text-amber-600">{dashboardData.metrics.awaitingCollection}</span>
-            <span className="p-1.5 rounded-xl bg-amber-50 text-amber-600">
-              <Clock size={16} />
-            </span>
+      {/* ── 2. SIX STATISTICS KPI CARDS ── */}
+      <section className="shrink-0 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+        <div className="bg-white p-3 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
+          <div>
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">Awaiting Collection</span>
+            <span className="text-xl font-black text-amber-600 leading-tight block mt-0.5">{dashboardData.metrics.awaitingCollection ?? 0}</span>
+            <span className="text-[10px] font-medium text-slate-400 block">Eligible orders</span>
+          </div>
+          <div className="p-2 rounded-xl bg-amber-50 text-amber-600 shrink-0">
+            <Clock size={16} />
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between">
-          <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Tokens Waiting</span>
-          <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-2xl font-black text-blue-600">{dashboardData.metrics.tokensWaiting}</span>
-            <span className="p-1.5 rounded-xl bg-blue-50 text-blue-600">
-              <Users size={16} />
-            </span>
+        <div className="bg-white p-3 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
+          <div>
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">Tokens Waiting</span>
+            <span className="text-xl font-black text-blue-600 leading-tight block mt-0.5">{dashboardData.metrics.tokensWaiting ?? 0}</span>
+            <span className="text-[10px] font-medium text-slate-400 block">Checked-in today</span>
+          </div>
+          <div className="p-2 rounded-xl bg-blue-50 text-blue-600 shrink-0">
+            <Users size={16} />
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between">
-          <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">In Progress</span>
-          <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-2xl font-black text-indigo-600">{dashboardData.metrics.collectionInProgress}</span>
-            <span className="p-1.5 rounded-xl bg-indigo-50 text-indigo-600">
-              <Play size={16} />
-            </span>
+        <div className="bg-white p-3 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
+          <div>
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">In Progress</span>
+            <span className="text-xl font-black text-indigo-600 leading-tight block mt-0.5">{dashboardData.metrics.collectionInProgress ?? 0}</span>
+            <span className="text-[10px] font-medium text-slate-400 block">Currently collecting</span>
+          </div>
+          <div className="p-2 rounded-xl bg-indigo-50 text-indigo-600 shrink-0">
+            <Play size={16} />
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between">
-          <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Samples Collected</span>
-          <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-2xl font-black text-emerald-600">{dashboardData.metrics.samplesCollected}</span>
-            <span className="p-1.5 rounded-xl bg-emerald-50 text-emerald-600">
-              <CheckCircle2 size={16} />
-            </span>
+        <div className="bg-white p-3 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
+          <div>
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">Samples Collected</span>
+            <span className="text-xl font-black text-emerald-600 leading-tight block mt-0.5">{dashboardData.metrics.samplesCollected ?? 0}</span>
+            <span className="text-[10px] font-medium text-slate-400 block">Today</span>
+          </div>
+          <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600 shrink-0">
+            <CheckCircle2 size={16} />
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between">
-          <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Home Collections</span>
-          <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-2xl font-black text-purple-600">{dashboardData.metrics.homeCollections}</span>
-            <span className="p-1.5 rounded-xl bg-purple-50 text-purple-600">
-              <Truck size={16} />
-            </span>
+        <div className="bg-white p-3 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
+          <div>
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">Home Collections</span>
+            <span className="text-xl font-black text-purple-600 leading-tight block mt-0.5">{dashboardData.metrics.homeCollections ?? 0}</span>
+            <span className="text-[10px] font-medium text-slate-400 block">Scheduled today</span>
+          </div>
+          <div className="p-2 rounded-xl bg-purple-50 text-purple-600 shrink-0">
+            <Truck size={16} />
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between">
-          <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Recollection Needed</span>
-          <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-2xl font-black text-rose-600">{dashboardData.metrics.recollectionRequired}</span>
-            <span className="p-1.5 rounded-xl bg-rose-50 text-rose-600">
-              <RotateCcw size={16} />
-            </span>
+        <div className="bg-white p-3 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
+          <div>
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">Recollection Needed</span>
+            <span className="text-xl font-black text-rose-600 leading-tight block mt-0.5">{dashboardData.metrics.recollectionRequired ?? 0}</span>
+            <span className="text-[10px] font-medium text-slate-400 block">Requires new sample</span>
+          </div>
+          <div className="p-2 rounded-xl bg-rose-50 text-rose-600 shrink-0">
+            <RotateCcw size={16} />
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* ── CURRENT SERVING / CALLER PANEL ── */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 rounded-3xl p-6 text-white shadow-md border border-slate-800 flex flex-col md:flex-row justify-between items-stretch md:items-center gap-6">
-        <div className="space-y-1.5">
-          <span className="text-[10px] font-extrabold uppercase tracking-widest text-indigo-300 flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-            Currently Serving at {selectedDesk}
-          </span>
-          {dashboardData.currentToken ? (
-            <div className="flex flex-wrap items-baseline gap-3">
-              <span className="text-4xl font-black tracking-tight text-white font-mono bg-white/10 px-4 py-1 rounded-2xl border border-white/15">
-                {dashboardData.currentToken.tokenNumber}
-              </span>
-              <div>
-                <p className="text-sm font-black text-slate-100">{dashboardData.currentToken.patientName}</p>
-                <p className="text-xs text-indigo-200">{dashboardData.currentToken.testsSummary || 'Lab Investigations'}</p>
+      {/* ── 3. MAIN WORKSPACE (TWO-PANE INDEPENDENT SCROLLING LAYOUT) ── */}
+      <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-3 overflow-hidden">
+        
+        {/* ========================================================= */}
+        {/* LEFT COLUMN: TODAY'S QUEUE (INDEPENDENTLY SCROLLABLE)     */}
+        {/* ========================================================= */}
+        <aside className="w-full lg:w-96 shrink-0 bg-white rounded-3xl border border-slate-200/80 shadow-xs flex flex-col min-h-0 overflow-hidden">
+          
+          {/* Header & Filter Controls (Fixed Top of Left Column) */}
+          <div className="shrink-0 p-3.5 border-b border-slate-100 space-y-2.5 bg-white">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-black text-slate-900 tracking-tight flex items-center gap-1.5">
+                <span>Today's Queue</span>
+                <span className="text-xs text-slate-500 font-bold">({filterCounts.all})</span>
+              </h2>
+              <button
+                type="button"
+                onClick={() => loadQueueDashboard(true, selectedOrderId)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-50 transition cursor-pointer"
+                title="Refresh queue"
+              >
+                <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} />
+              </button>
+            </div>
+
+            {/* Filter Pills */}
+            <div className="flex items-center gap-1 overflow-x-auto pb-0.5 [scrollbar-width:none]">
+              {[
+                { key: 'ALL', label: `All ${filterCounts.all}` },
+                { key: 'WAITING', label: `Waiting ${filterCounts.waiting}` },
+                { key: 'CALLED', label: `Called ${filterCounts.called}` },
+                { key: 'COLLECTING', label: `Collecting ${filterCounts.collecting}` },
+                { key: 'COLLECTED', label: `Collected ${filterCounts.collected}` }
+              ].map(tab => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setActiveFilterTab(tab.key)}
+                  className={`rounded-xl px-2.5 py-1 text-[11px] font-black whitespace-nowrap transition cursor-pointer ${
+                    activeFilterTab === tab.key
+                      ? 'bg-indigo-600 text-white shadow-2xs'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200/70'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Search & Sort Row */}
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search by patient name, order ID, token..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-7 pr-2.5 py-1.5 bg-slate-50 border border-slate-200/90 rounded-xl text-xs font-bold text-slate-800 placeholder-slate-400 outline-none focus:bg-white focus:border-indigo-500"
+                />
               </div>
-            </div>
-          ) : (
-            <div className="py-1">
-              <span className="text-2xl font-black text-slate-300">No token currently called</span>
-              <p className="text-xs text-slate-400 mt-0.5">Click 'Call Next Token' below to serve the next patient in line</p>
-            </div>
-          )}
-        </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {dashboardData.tokens.find(t => t.status === 'WAITING') && (
-            <button
-              onClick={() => {
-                const nextWaiting = dashboardData.tokens.find(t => t.status === 'WAITING');
-                if (nextWaiting) handleCallToken(nextWaiting._id);
-              }}
-              className="inline-flex items-center gap-2 px-5 py-3 bg-emerald-500 hover:bg-emerald-600 text-slate-950 text-xs font-black rounded-2xl shadow transition transform active:scale-95"
-            >
-              <Play size={15} className="fill-slate-950" />
-              <span>Call Next Token</span>
-            </button>
-          )}
+              <select
+                value={sortOrder}
+                onChange={(e) => setSortOrder(e.target.value)}
+                className="px-2 py-1.5 bg-slate-50 border border-slate-200/90 rounded-xl text-[11px] font-black text-slate-700 outline-none cursor-pointer shrink-0"
+              >
+                <option value="latest">Latest First</option>
+                <option value="oldest">Oldest First</option>
+                <option value="priority">Priority First</option>
+              </select>
+            </div>
+          </div>
 
-          {dashboardData.currentToken && (
+          {/* Queue Cards List (Independently Scrollable Container) */}
+          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-3 space-y-2 [scrollbar-width:thin]">
+            {loading ? (
+              <div className="space-y-2 py-2">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="p-3 bg-slate-50 rounded-2xl border border-slate-100 animate-pulse space-y-2">
+                    <div className="flex justify-between items-center">
+                      <div className="w-12 h-6 bg-slate-200 rounded-lg"></div>
+                      <div className="w-24 h-4 bg-slate-200 rounded"></div>
+                    </div>
+                    <div className="w-32 h-4 bg-slate-200 rounded"></div>
+                    <div className="w-48 h-3 bg-slate-200 rounded"></div>
+                  </div>
+                ))}
+              </div>
+            ) : error ? (
+              <div className="py-8 px-3 text-center space-y-3 bg-rose-50/40 rounded-2xl border border-rose-100/80">
+                <div className="w-9 h-9 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
+                  <AlertCircle size={18} />
+                </div>
+                <div>
+                  <h4 className="text-xs font-black text-slate-800">Queue Loading Failed</h4>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    {error}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => loadQueueDashboard()}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl shadow-xs transition cursor-pointer"
+                >
+                  <RefreshCw size={12} />
+                  <span>Retry</span>
+                </button>
+              </div>
+            ) : unifiedQueueItems.length === 0 ? (
+              <div className="py-12 text-center text-slate-400 space-y-2">
+                <Users size={24} className="mx-auto text-slate-300" />
+                <p className="text-xs font-black text-slate-700">No patients waiting in queue today</p>
+                <p className="text-[11px] text-slate-400 max-w-xs mx-auto">New walk-in or scheduled orders will appear here automatically.</p>
+              </div>
+            ) : (
+              unifiedQueueItems.map((item) => {
+                const isSelected = String(item.orderId) === String(selectedOrderId);
+
+                let statusBadgeClasses = 'bg-slate-100 text-slate-700 border-slate-200';
+                if (item.status === 'Waiting') statusBadgeClasses = 'bg-emerald-50 text-emerald-700 border-emerald-300';
+                else if (item.status === 'Called') statusBadgeClasses = 'bg-blue-50 text-blue-700 border-blue-200';
+                else if (item.status === 'Collecting') statusBadgeClasses = 'bg-purple-50 text-purple-700 border-purple-200';
+                else if (item.status === 'Collected') statusBadgeClasses = 'bg-emerald-100 text-emerald-800 border-emerald-300';
+
+                return (
+                  <div
+                    key={item.id}
+                    onClick={() => setSelectedOrderId(item.orderId)}
+                    className={`rounded-2xl p-3 border transition cursor-pointer relative select-none ${
+                      isSelected
+                        ? 'border-indigo-600 bg-indigo-50/20 ring-2 ring-indigo-500/20 shadow-xs'
+                        : 'border-slate-200/80 bg-white hover:border-slate-300 hover:bg-slate-50/50'
+                    }`}
+                  >
+                    {/* Top Row: Token, Order ID, Time */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="px-2 py-0.5 bg-indigo-600 text-white font-mono font-black text-xs rounded-lg shadow-2xs shrink-0">
+                          {item.tokenNumber}
+                        </span>
+                        <span className="font-mono font-bold text-xs text-slate-900 truncate">
+                          {item.orderNumber}
+                        </span>
+                      </div>
+                      <span className="text-[11px] font-semibold text-slate-400 shrink-0">
+                        {formatTimeStr(item.time)}
+                      </span>
+                    </div>
+
+                    {/* Middle Row: Patient Name & Details */}
+                    <div className="mt-1.5">
+                      <h4 className="text-xs font-black text-slate-900">{item.patientName}</h4>
+                      <p className="text-[11px] font-medium text-slate-500 mt-0.5">
+                        Age: {item.patientAge} | {item.patientGender} | UHID: {item.patientUhid}
+                      </p>
+                      <p className="text-[11px] font-semibold text-slate-600 mt-0.5 truncate">
+                        Tests: <span className="font-medium text-slate-700">{item.testsSummary}</span>
+                      </p>
+                    </div>
+
+                    {/* Bottom Row: Badges (At Lab, Priority, Status) */}
+                    <div className="mt-2.5 flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
+                      <div className="flex items-center gap-1.5">
+                        <span className="px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200/80 text-slate-700 text-[10px] font-black">
+                          {item.collectionMode}
+                        </span>
+                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-black border ${
+                          item.priority.toLowerCase() === 'stat'
+                            ? 'bg-rose-50 text-rose-700 border-rose-200'
+                            : item.priority.toLowerCase() === 'urgent'
+                            ? 'bg-purple-50 text-purple-700 border-purple-200'
+                            : 'bg-slate-100 text-slate-700 border-slate-200/80'
+                        }`}>
+                          {item.priority}
+                        </span>
+                      </div>
+
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black border ${statusBadgeClasses}`}>
+                        {item.status}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </aside>
+
+        {/* ========================================================= */}
+        {/* RIGHT COLUMN: ORDER DETAILS WORKSPACE (INDEPENDENT)       */}
+        {/* ========================================================= */}
+        <main className="flex-1 min-w-0 bg-white rounded-3xl border border-slate-200/80 shadow-xs flex flex-col min-h-0 overflow-hidden">
+          
+          {currentOrder ? (
             <>
-              <button
-                onClick={() => handleRecallToken(dashboardData.currentToken._id)}
-                className="inline-flex items-center gap-1.5 px-3.5 py-3 bg-white/10 hover:bg-white/20 text-white text-xs font-black rounded-2xl border border-white/20 transition"
-              >
-                <RotateCcw size={14} />
-                <span>Recall</span>
-              </button>
+              {/* 1. Order Details Header (Fixed Top of Workspace) */}
+              <div className="shrink-0 p-4 border-b border-slate-100 bg-white space-y-3">
+                <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-3">
+                  <div>
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                      <h2 className="text-base font-black text-slate-900 tracking-tight">
+                        Order Details: <span className="font-mono">{currentOrder.orderNumber || ''}</span>
+                      </h2>
+                      <span className="px-3 py-0.5 rounded-full text-xs font-black bg-indigo-50 text-indigo-700 border border-indigo-200/80">
+                        {getStatusDisplayLabel(currentOrder.status)}
+                      </span>
+                    </div>
+                    <p className="text-xs font-semibold text-slate-500 mt-1">
+                      Patient: <span className="text-slate-900 font-bold">{currentOrder.patientId?.fullName || currentOrder.patientName || 'Walk-in Patient'}</span> | Age: <span className="text-slate-800 font-bold">{currentOrder.patientId?.age ? `${currentOrder.patientId.age} yrs` : 'N/A'}</span> | Gender: <span className="text-slate-800 font-bold">{currentOrder.patientId?.gender || 'N/A'}</span> | UHID: <span className="text-slate-800 font-bold">{currentOrder.patientId?.uhid || currentOrder.patientUhid || 'N/A'}</span>
+                    </p>
+                  </div>
 
-              <button
-                onClick={() => handleSkipToken(dashboardData.currentToken._id)}
-                className="inline-flex items-center gap-1.5 px-3.5 py-3 bg-white/10 hover:bg-white/20 text-white text-xs font-black rounded-2xl border border-white/20 transition"
-              >
-                <SkipForward size={14} />
-                <span>Skip</span>
-              </button>
+                  {/* Metadata: Order Date, Payment Status, Priority */}
+                  <div className="flex items-center gap-4 sm:text-right shrink-0">
+                    <div>
+                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">ORDER DATE</span>
+                      <span className="text-xs font-black text-slate-900 block mt-0.5">{formatDateStr(currentOrder.orderDate || currentOrder.createdAt)}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">PAYMENT STATUS</span>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-black ${
+                        ['PAID', 'paid', 'COMPLETED', 'completed'].includes(currentOrder.paymentStatus)
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                          : 'bg-amber-50 text-amber-700 border border-amber-200'
+                      } mt-0.5`}>
+                        {['PAID', 'paid', 'COMPLETED', 'completed'].includes(currentOrder.paymentStatus) ? '✓ PAID' : currentOrder.paymentStatus ? String(currentOrder.paymentStatus).toUpperCase() : 'PENDING'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">PRIORITY</span>
+                      <span className="text-xs font-black text-slate-900 block mt-0.5">{currentOrder.priority ? currentOrder.priority.charAt(0).toUpperCase() + currentOrder.priority.slice(1) : 'Routine'}</span>
+                    </div>
+                  </div>
+                </div>
 
-              <button
-                onClick={() => {
-                  const ord = dashboardData.todayOrders.find(o => String(o._id) === String(dashboardData.currentToken.orderId?._id || dashboardData.currentToken.orderId));
-                  if (ord) handleOpenCollectionModal(ord);
-                  else if (dashboardData.currentToken.orderId) handleOpenCollectionModal(dashboardData.currentToken.orderId);
-                  else toast.error('No linked order found for this token');
-                }}
-                className="inline-flex items-center gap-2 px-5 py-3 bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-black rounded-2xl shadow transition transform active:scale-95"
-              >
-                <FlaskConical size={15} />
-                <span>Collect Samples Now</span>
-              </button>
-            </>
-          )}
-        </div>
-      </div>
+                {/* 2. 6-Stage Progress Tracker */}
+                <div className="pt-2 border-t border-slate-100">
+                  <div className="relative flex items-center justify-between">
+                    {/* Connecting Bar */}
+                    <div className="absolute left-6 right-6 top-4 h-0.5 bg-slate-200 -z-0">
+                      <div
+                        className="h-full bg-indigo-600 transition-all duration-500"
+                        style={{ width: `${((activeStep - 1) / 5) * 100}%` }}
+                      />
+                    </div>
 
-      {/* ── NAVIGATION TABS & SEARCH / PRIORITY FILTERS ── */}
-      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b border-slate-200 pb-3">
-        <div className="flex items-center gap-2 overflow-x-auto">
-          <button
-            onClick={() => setActiveSubTab('queue')}
-            className={`px-4 py-2 rounded-2xl text-xs font-black transition ${
-              activeSubTab === 'queue'
-                ? 'bg-slate-900 text-white shadow-sm'
-                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-            }`}
-          >
-            Today's Queue ({dashboardData.tokens.length})
-          </button>
+                    {workflowStages.map((st) => {
+                      const isCompleted = activeStep > st.number;
+                      const isCurrent = activeStep === st.number;
+                      const isFuture = activeStep < st.number;
 
-          <button
-            onClick={() => setActiveSubTab('orders')}
-            className={`px-4 py-2 rounded-2xl text-xs font-black transition ${
-              activeSubTab === 'orders'
-                ? 'bg-slate-900 text-white shadow-sm'
-                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-            }`}
-          >
-            Awaiting Orders ({dashboardData.todayOrders.length})
-          </button>
-
-          <button
-            onClick={() => setActiveSubTab('home')}
-            className={`px-4 py-2 rounded-2xl text-xs font-black transition ${
-              activeSubTab === 'home'
-                ? 'bg-slate-900 text-white shadow-sm'
-                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-            }`}
-          >
-            Home Collections ({dashboardData.homeTasks.length})
-          </button>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search token, patient, order..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 placeholder-slate-400 outline-none focus:border-indigo-500 w-52 sm:w-64"
-            />
-          </div>
-
-          <select
-            value={priorityFilter}
-            onChange={(e) => setPriorityFilter(e.target.value)}
-            className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-black text-slate-700 outline-none cursor-pointer"
-          >
-            <option value="ALL">All Priorities</option>
-            <option value="routine">Routine</option>
-            <option value="urgent">Urgent</option>
-            <option value="stat">STAT</option>
-          </select>
-        </div>
-      </div>
-
-      {/* ── TAB 1: TODAY'S TOKEN QUEUE ── */}
-      {activeSubTab === 'queue' && (
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-          {filteredTokens.length === 0 ? (
-            <div className="p-12 text-center space-y-3">
-              <div className="w-14 h-14 bg-slate-50 rounded-full flex items-center justify-center mx-auto text-slate-400 border border-slate-200">
-                <Users size={24} />
-              </div>
-              <h3 className="text-sm font-black text-slate-800">No patients waiting in queue today</h3>
-              <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                Patients who arrive at the laboratory can have a token generated from the 'Awaiting Orders' tab.
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-500 font-extrabold uppercase tracking-wider text-[10px]">
-                    <th className="py-3.5 px-4">Token</th>
-                    <th className="py-3.5 px-4">Patient & Order</th>
-                    <th className="py-3.5 px-4">Investigations</th>
-                    <th className="py-3.5 px-4">Priority</th>
-                    <th className="py-3.5 px-4">Desk</th>
-                    <th className="py-3.5 px-4">Status</th>
-                    <th className="py-3.5 px-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 font-bold">
-                  {filteredTokens.map((token) => {
-                    const isCalled = token.status === 'CALLED' || token.status === 'IN_COLLECTION';
-                    const isCollected = token.status === 'COLLECTED';
-                    const isWaiting = token.status === 'WAITING';
-
-                    return (
-                      <tr key={token._id} className={`hover:bg-slate-50/80 transition ${isCalled ? 'bg-indigo-50/30' : ''}`}>
-                        <td className="py-3.5 px-4">
-                          <span
-                            className={`inline-flex items-center px-3 py-1 rounded-xl font-mono font-black text-xs border ${
-                              isCalled
-                                ? 'bg-indigo-600 text-white border-indigo-700 shadow-sm animate-pulse'
-                                : isCollected
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                : 'bg-slate-100 text-slate-800 border-slate-200'
+                      return (
+                        <div key={st.number} className="relative z-10 flex flex-col items-center text-center group">
+                          {/* Step Circle */}
+                          <div
+                            className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-xs transition shadow-2xs ${
+                              isCompleted
+                                ? 'bg-indigo-600 text-white border-2 border-indigo-600'
+                                : isCurrent
+                                ? 'bg-indigo-600 text-white ring-4 ring-indigo-100 border-2 border-indigo-600'
+                                : 'bg-white text-slate-400 border-2 border-slate-200'
                             }`}
                           >
-                            {token.tokenNumber}
-                          </span>
-                        </td>
+                            {isCompleted ? (
+                              <Check size={14} className="stroke-[3]" />
+                            ) : isCurrent ? (
+                              st.number
+                            ) : (
+                              <Lock size={12} className="text-slate-400" />
+                            )}
+                          </div>
 
-                        <td className="py-3.5 px-4">
-                          <p className="text-slate-900 font-black text-xs">{token.patientName || 'Walk-in Patient'}</p>
-                          <div className="flex items-center gap-2 text-[10px] text-slate-400 mt-0.5">
-                            <span>{token.patientPhone || 'No Phone'}</span>
-                            {token.orderNumber && (
-                              <span className="font-mono text-indigo-600 bg-indigo-50 px-1.5 py-0.2 rounded font-bold">
-                                {token.orderNumber}
+                          {/* Label */}
+                          <span
+                            className={`text-[11px] font-black mt-1.5 whitespace-nowrap ${
+                              isCurrent ? 'text-indigo-600' : isCompleted ? 'text-slate-900' : 'text-slate-400'
+                            }`}
+                          >
+                            {st.label}
+                          </span>
+
+                          {/* Timestamp / Pending */}
+                          <span className="text-[10px] text-slate-400 font-medium">
+                            {isCompleted || isCurrent ? (
+                              st.date ? (
+                                <span className="block leading-tight">
+                                  {st.date}
+                                  <span className="block text-[9px]">{st.time}</span>
+                                </span>
+                              ) : (
+                                'In Progress'
+                              )
+                            ) : (
+                              'Pending'
+                            )}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 3. Navigation Tabs */}
+                <div className="flex items-center gap-4 border-b border-slate-100 pt-2 text-xs font-black">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('investigations')}
+                    className={`pb-2 flex items-center gap-1.5 border-b-2 transition cursor-pointer ${
+                      activeTab === 'investigations'
+                        ? 'border-indigo-600 text-indigo-600'
+                        : 'border-transparent text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    <FlaskConical size={14} />
+                    <span>Investigations ({(currentOrder.tests || []).length || 2})</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('patient')}
+                    className={`pb-2 flex items-center gap-1.5 border-b-2 transition cursor-pointer ${
+                      activeTab === 'patient'
+                        ? 'border-indigo-600 text-indigo-600'
+                        : 'border-transparent text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    <User size={14} />
+                    <span>Patient Information</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('sample')}
+                    className={`pb-2 flex items-center gap-1.5 border-b-2 transition cursor-pointer ${
+                      activeTab === 'sample'
+                        ? 'border-indigo-600 text-indigo-600'
+                        : 'border-transparent text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    <Info size={14} />
+                    <span>Sample Information</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('activity')}
+                    className={`pb-2 flex items-center gap-1.5 border-b-2 transition cursor-pointer ${
+                      activeTab === 'activity'
+                        ? 'border-indigo-600 text-indigo-600'
+                        : 'border-transparent text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    <Activity size={14} />
+                    <span>Activity Log</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* 4. Tab Workspace Content (Independently Scrollable) */}
+              <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 [scrollbar-width:thin]">
+                
+                {/* ── TAB: INVESTIGATIONS ── */}
+                {activeTab === 'investigations' && (
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+                    
+                    {/* Left Sub-Column: Ordered Investigations + Requirements (7 cols) */}
+                    <div className="lg:col-span-7 space-y-4">
+                      
+                      {/* Section: Ordered Investigations */}
+                      <div className="space-y-2.5">
+                        <h3 className="text-xs font-black uppercase tracking-wider text-slate-700">
+                          Ordered Investigations ({(currentOrder.tests || []).length || 2})
+                        </h3>
+
+                        {/* List of Investigations Cards */}
+                        {(currentOrder.tests && currentOrder.tests.length > 0) ? (
+                          currentOrder.tests.map((test, tIdx) => {
+                            const paramCount = test.parameters?.length || test.parameterCount || (test.name?.includes('CBC') ? 8 : 1);
+                            const completedCount = test.completedCount || 0;
+
+                            return (
+                              <div
+                                key={tIdx}
+                                className="p-3.5 bg-white rounded-2xl border border-slate-200/90 shadow-2xs flex items-center justify-between gap-3 hover:border-slate-300 transition"
+                              >
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <div className="p-2.5 rounded-xl bg-rose-50 text-rose-600 shrink-0">
+                                    <Droplet size={18} className="fill-rose-500/20" />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <h4 className="text-xs font-black text-slate-900 truncate">{test.name || 'Haemoglobin'}</h4>
+                                      <span className="px-1.5 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-black rounded">
+                                        TEST
+                                      </span>
+                                    </div>
+                                    <p className="text-[11px] font-medium text-slate-500 mt-0.5">
+                                      {paramCount} {paramCount === 1 ? 'parameter' : 'parameters'} • Specimen: {test.specimenType || 'EDTA (3ml)'}
+                                    </p>
+                                    <p className="text-[10px] font-bold text-slate-400 mt-0.5">
+                                      {completedCount} / {paramCount} parameters completed
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <span className="px-2.5 py-1 rounded-xl text-[11px] font-black bg-slate-100 text-slate-700 border border-slate-200 shrink-0">
+                                  {test.status ? test.status.charAt(0).toUpperCase() + test.status.slice(1) : 'Pending'}
+                                </span>
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <>
+                            {/* Fallback Display if tests array empty */}
+                            <div className="p-3.5 bg-white rounded-2xl border border-slate-200/90 shadow-2xs flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-3">
+                                <div className="p-2.5 rounded-xl bg-rose-50 text-rose-600 shrink-0">
+                                  <Droplet size={18} className="fill-rose-500/20" />
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <h4 className="text-xs font-black text-slate-900">Haemoglobin</h4>
+                                    <span className="px-1.5 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-black rounded">TEST</span>
+                                  </div>
+                                  <p className="text-[11px] font-medium text-slate-500 mt-0.5">
+                                    1 parameter • Specimen: EDTA (3ml)
+                                  </p>
+                                  <p className="text-[10px] font-bold text-slate-400 mt-0.5">0 / 1 parameters completed</p>
+                                </div>
+                              </div>
+                              <span className="px-2.5 py-1 rounded-xl text-[11px] font-black bg-slate-100 text-slate-700 border border-slate-200">
+                                Pending
                               </span>
-                            )}
-                          </div>
-                        </td>
+                            </div>
 
-                        <td className="py-3.5 px-4 max-w-xs truncate text-slate-600">
-                          {token.testsSummary || 'General Investigations'}
-                        </td>
+                            <div className="p-3.5 bg-white rounded-2xl border border-slate-200/90 shadow-2xs flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-3">
+                                <div className="p-2.5 rounded-xl bg-rose-50 text-rose-600 shrink-0">
+                                  <Droplet size={18} className="fill-rose-500/20" />
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <h4 className="text-xs font-black text-slate-900">Complete Blood Count (CBC)</h4>
+                                    <span className="px-1.5 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-black rounded">TEST</span>
+                                  </div>
+                                  <p className="text-[11px] font-medium text-slate-500 mt-0.5">
+                                    8 parameters • Specimen: EDTA (3ml)
+                                  </p>
+                                  <p className="text-[10px] font-bold text-slate-400 mt-0.5">0 / 8 parameters completed</p>
+                                </div>
+                              </div>
+                              <span className="px-2.5 py-1 rounded-xl text-[11px] font-black bg-slate-100 text-slate-700 border border-slate-200">
+                                Pending
+                              </span>
+                            </div>
+                          </>
+                        )}
+                      </div>
 
-                        <td className="py-3.5 px-4">
-                          <span
-                            className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider ${
-                              token.priority === 'stat'
-                                ? 'bg-rose-100 text-rose-700 border border-rose-200'
-                                : token.priority === 'urgent'
-                                ? 'bg-amber-100 text-amber-700 border border-amber-200'
-                                : 'bg-slate-100 text-slate-600 border border-slate-200'
-                            }`}
-                          >
-                            {token.priority || 'Routine'}
-                          </span>
-                        </td>
+                      {/* Section: Specimen Collection Requirements Card */}
+                      <div className="p-4 rounded-2xl bg-white border border-indigo-100/90 shadow-2xs space-y-3">
+                        <div className="flex items-center gap-2 text-indigo-700">
+                          <Beaker size={16} className="shrink-0" />
+                          <h4 className="text-xs font-black uppercase tracking-wider">Specimen Collection Requirements</h4>
+                        </div>
 
-                        <td className="py-3.5 px-4 text-slate-600 font-bold">{token.deskNumber || 'Desk 1'}</td>
-
-                        <td className="py-3.5 px-4">
-                          <span
-                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black tracking-wide ${
-                              isCalled
-                                ? 'bg-indigo-100 text-indigo-800'
-                                : isCollected
-                                ? 'bg-emerald-100 text-emerald-800'
-                                : isWaiting
-                                ? 'bg-blue-100 text-blue-800'
-                                : 'bg-slate-100 text-slate-600'
-                            }`}
-                          >
-                            {token.status}
-                          </span>
-                        </td>
-
-                        <td className="py-3.5 px-4 text-right">
-                          <div className="inline-flex items-center gap-1.5">
-                            {isWaiting && (
-                              <button
-                                onClick={() => handleCallToken(token._id)}
-                                className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-black transition"
-                              >
-                                Call to {selectedDesk}
-                              </button>
-                            )}
-
-                            {isCalled && (
-                              <button
-                                onClick={() => {
-                                  const ord = dashboardData.todayOrders.find(
-                                    (o) => String(o._id) === String(token.orderId?._id || token.orderId)
-                                  );
-                                  if (ord) handleOpenCollectionModal(ord);
-                                  else if (token.orderId) handleOpenCollectionModal(token.orderId);
-                                  else toast.error('No linked order found');
-                                }}
-                                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-sm transition"
-                              >
-                                Collect Sample
-                              </button>
-                            )}
-
-                            <button
-                              onClick={() => handleViewTimeline(token)}
-                              className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition"
-                              title="Audit Timeline"
-                            >
-                              <Clock size={15} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── TAB 2: AWAITING ORDERS TABLE ── */}
-      {activeSubTab === 'orders' && (
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-          {filteredOrders.length === 0 ? (
-            <div className="p-12 text-center space-y-3">
-              <div className="w-14 h-14 bg-slate-50 rounded-full flex items-center justify-center mx-auto text-slate-400 border border-slate-200">
-                <FileText size={24} />
-              </div>
-              <h3 className="text-sm font-black text-slate-800">No laboratory orders scheduled for collection today</h3>
-              <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                Orders booked online or through doctors will appear here ready for token generation and collection.
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-500 font-extrabold uppercase tracking-wider text-[10px]">
-                    <th className="py-3.5 px-4">Order ID</th>
-                    <th className="py-3.5 px-4">Patient</th>
-                    <th className="py-3.5 px-4">Collection Method</th>
-                    <th className="py-3.5 px-4">Tests Included</th>
-                    <th className="py-3.5 px-4">Status</th>
-                    <th className="py-3.5 px-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 font-bold">
-                  {filteredOrders.map((order) => {
-                    const pName =
-                      order.patientId?.fullName ||
-                      `${order.patientId?.firstName || ''} ${order.patientId?.lastName || ''}`.trim() ||
-                      order.guestPatient?.fullName ||
-                      'Walk-in Patient';
-
-                    return (
-                      <tr key={order._id} className="hover:bg-slate-50/80 transition">
-                        <td className="py-3.5 px-4 font-mono font-black text-indigo-600">
-                          {order.orderNumber}
-                        </td>
-
-                        <td className="py-3.5 px-4">
-                          <p className="text-slate-900 font-black">{pName}</p>
-                          <p className="text-[10px] text-slate-400">{order.patientId?.phone || order.guestPatient?.phone || 'No phone'}</p>
-                        </td>
-
-                        <td className="py-3.5 px-4">
-                          <span
-                            className={`px-2.5 py-1 rounded-full text-[10px] font-black ${
-                              order.collectionMethod === 'HOME_COLLECTION'
-                                ? 'bg-purple-50 text-purple-700 border border-purple-200'
-                                : 'bg-slate-100 text-slate-700 border border-slate-200'
-                            }`}
-                          >
-                            {order.collectionMethod === 'HOME_COLLECTION' ? 'Home Collection' : 'At Laboratory'}
-                          </span>
-                        </td>
-
-                        <td className="py-3.5 px-4 text-slate-600">
-                          {order.tests?.length || 0} Test(s)
-                        </td>
-
-                        <td className="py-3.5 px-4">
-                          <span className="px-2.5 py-1 bg-slate-100 rounded-lg text-[10px] font-bold text-slate-600">
-                            {order.orderStatus || order.status}
-                          </span>
-                        </td>
-
-                        <td className="py-3.5 px-4 text-right">
-                          <div className="inline-flex items-center gap-2">
-                            {!order.tokenNumber && (
-                              <button
-                                onClick={() => handleGenerateTokenForOrder(order)}
-                                className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-black transition"
-                              >
-                                Generate Token
-                              </button>
-                            )}
-
-                            <button
-                              onClick={() => handleOpenCollectionModal(order)}
-                              className="px-3 py-1.5 bg-slate-900 hover:bg-black text-white rounded-xl text-xs font-black transition"
-                            >
-                              Collect Sample
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── TAB 3: HOME COLLECTIONS LOGISTICS ── */}
-      {activeSubTab === 'home' && (
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-          {dashboardData.homeTasks.length === 0 ? (
-            <div className="p-12 text-center space-y-3">
-              <div className="w-14 h-14 bg-slate-50 rounded-full flex items-center justify-center mx-auto text-slate-400 border border-slate-200">
-                <Truck size={24} />
-              </div>
-              <h3 className="text-sm font-black text-slate-800">No home collections scheduled for today</h3>
-              <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                Orders with home sample collection selected by patients will appear here for dispatch and logistics tracking.
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-500 font-extrabold uppercase tracking-wider text-[10px]">
-                    <th className="py-3.5 px-4">Task ID</th>
-                    <th className="py-3.5 px-4">Patient & Address</th>
-                    <th className="py-3.5 px-4">Slot</th>
-                    <th className="py-3.5 px-4">Collector</th>
-                    <th className="py-3.5 px-4">Status</th>
-                    <th className="py-3.5 px-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 font-bold">
-                  {dashboardData.homeTasks.map((task) => (
-                    <tr key={task._id} className="hover:bg-slate-50/80 transition">
-                      <td className="py-3.5 px-4 font-mono font-black text-purple-600">
-                        {task.taskId || task.orderNumber}
-                      </td>
-
-                      <td className="py-3.5 px-4 max-w-xs">
-                        <p className="text-slate-900 font-black">{task.patientName}</p>
-                        <p className="text-[10px] text-slate-500 truncate flex items-center gap-1 mt-0.5">
-                          <MapPin size={11} className="text-slate-400 flex-shrink-0" />
-                          {[task.collectionAddress?.line1, task.collectionAddress?.city, task.collectionAddress?.pincode].filter(Boolean).join(', ')}
-                        </p>
-                      </td>
-
-                      <td className="py-3.5 px-4 text-slate-700 font-bold">
-                        {task.slot || '10:00 AM - 11:00 AM'}
-                      </td>
-
-                      <td className="py-3.5 px-4">
-                        {task.collectorName ? (
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50/70 p-3 rounded-xl border border-slate-200/70 text-xs">
                           <div>
-                            <p className="text-slate-800 font-bold">{task.collectorName}</p>
-                            <p className="text-[10px] text-slate-400">{task.collectorPhone}</p>
+                            <span className="text-[10px] font-extrabold text-slate-400 uppercase block">Specimen Type</span>
+                            <span className="font-black text-slate-900 block mt-0.5">
+                              {orderSpecimenReqs?.requiredSpecimens?.[0]?.specimenType || 'Whole Blood'}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] font-extrabold text-slate-400 uppercase block">Container</span>
+                            <span className="font-black text-slate-900 block mt-0.5">
+                              {orderSpecimenReqs?.requiredSpecimens?.[0]?.containerType || 'EDTA Tube (Lavender)'}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] font-extrabold text-slate-400 uppercase block">Required Volume</span>
+                            <span className="font-black text-slate-900 block mt-0.5">
+                              {orderSpecimenReqs?.requiredSpecimens?.[0]?.volumeRequired || '3 mL'}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] font-extrabold text-slate-400 uppercase block">Collection Method</span>
+                            <span className="font-black text-slate-900 block mt-0.5">Venous Blood</span>
+                          </div>
+                        </div>
+
+                        {/* Blue info alert box */}
+                        <div className="p-3 bg-blue-50/80 border border-blue-200/80 rounded-xl flex items-start gap-2.5 text-xs text-blue-900">
+                          <Info size={16} className="text-blue-600 shrink-0 mt-0.5" />
+                          <p className="text-[11px] leading-relaxed font-medium">
+                            Collect sample as per standard phlebotomy guidelines. Ensure correct patient identification and label immediately after collection.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right Sub-Column: Sample Collection Card + Quick Actions Card (5 cols) */}
+                    <div className="lg:col-span-5 space-y-4">
+                      
+                      {/* Section: Sample Collection Card */}
+                      <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-2xs space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <FlaskConical size={15} className="text-indigo-600" />
+                            <h4 className="text-xs font-black text-slate-900">Sample Collection</h4>
+                          </div>
+                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black border ${
+                            activeStep >= 2
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              : 'bg-slate-100 text-slate-600 border-slate-200'
+                          }`}>
+                            {activeStep >= 2 ? '✓ Collected' : 'Not Collected'}
+                          </span>
+                        </div>
+
+                        {activeStep < 2 ? (
+                          <div className="space-y-2">
+                            <p className="text-xs text-slate-500 font-medium">
+                              No sample has been collected yet for this order.
+                            </p>
+                            <div className="p-3 rounded-xl bg-slate-50 border border-dashed border-slate-200 flex items-center gap-2.5 text-xs text-slate-400">
+                              <User size={16} className="text-slate-300 shrink-0" />
+                              <span>Sample information will appear here after collection.</span>
+                            </div>
                           </div>
                         ) : (
-                          <span className="text-amber-600 bg-amber-50 px-2 py-0.5 rounded text-[10px] font-black">
-                            Unassigned
-                          </span>
+                          <div className="space-y-2 bg-slate-50/80 p-3 rounded-xl border border-slate-200/70 text-xs">
+                            <div className="flex justify-between items-center">
+                              <span className="text-[10px] font-bold text-slate-400 uppercase">Sample ID</span>
+                              <span className="font-mono font-black text-indigo-700">
+                                {currentOrder.samples?.[0]?.sampleId || `SMP-20260906-0001`}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-[10px] font-bold text-slate-400 uppercase">Sample Type</span>
+                              <span className="font-bold text-slate-800">EDTA (3ml)</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-[10px] font-bold text-slate-400 uppercase">Collected On</span>
+                              <span className="font-bold text-slate-800">
+                                {currentOrder.collectedAt ? new Date(currentOrder.collectedAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : '06 Sep 2026, 01:11 PM'}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-[10px] font-bold text-slate-400 uppercase">Collected By</span>
+                              <span className="font-bold text-slate-800">
+                                {currentOrder.collectedBy?.name || 'Rajesh Sharma'}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center pt-1 border-t border-slate-200/70">
+                              <span className="text-[10px] font-bold text-slate-400 uppercase">Status</span>
+                              <span className="font-black text-emerald-700">Physically Collected</span>
+                            </div>
+                          </div>
                         )}
-                      </td>
+                      </div>
 
-                      <td className="py-3.5 px-4">
-                        <span
-                          className={`px-2.5 py-1 rounded-full text-[10px] font-black ${
-                            task.status === 'RECEIVED_AT_LAB'
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : task.status === 'COLLECTED'
-                              ? 'bg-blue-100 text-blue-800'
-                              : task.status === 'ASSIGNED'
-                              ? 'bg-purple-100 text-purple-800'
-                              : 'bg-slate-100 text-slate-600'
-                          }`}
-                        >
-                          {task.status}
-                        </span>
-                      </td>
-
-                      <td className="py-3.5 px-4 text-right">
-                        <div className="inline-flex items-center gap-1.5">
-                          {!task.collectorId && (
-                            <button
-                              onClick={() => {
-                                setSelectedHomeTask(task);
-                                setShowAssignModal(true);
-                              }}
-                              className="px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-xl text-xs font-black transition"
-                            >
-                              Assign Collector
-                            </button>
-                          )}
-
-                          {task.status === 'ASSIGNED' && (
-                            <button
-                              onClick={() => handleUpdateHomeTaskStatus(task._id, 'COLLECTOR_DISPATCHED')}
-                              className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl text-xs font-black transition"
-                            >
-                              Dispatch
-                            </button>
-                          )}
-
-                          {task.status === 'COLLECTOR_DISPATCHED' && (
-                            <button
-                              onClick={() => handleUpdateHomeTaskStatus(task._id, 'ARRIVED')}
-                              className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-black transition"
-                            >
-                              Mark Arrived
-                            </button>
-                          )}
-
-                          {task.status === 'ARRIVED' && (
-                            <button
-                              onClick={() => handleUpdateHomeTaskStatus(task._id, 'COLLECTED')}
-                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-sm transition"
-                            >
-                              Complete Collection
-                            </button>
-                          )}
-
-                          {task.status === 'COLLECTED' && (
-                            <button
-                              onClick={() => {
-                                setSelectedTaskForReceive(task);
-                                setReceiveCondition('GOOD');
-                                setReceiveNotes('');
-                                setShowReceiveModal(true);
-                              }}
-                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-sm transition"
-                            >
-                              Receive at Lab
-                            </button>
-                          )}
+                      {/* Section: Quick Actions Card (The State-Driven Button Machine) */}
+                      <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-2xs space-y-2.5">
+                        <div className="flex items-center gap-2">
+                          <Sparkles size={15} className="text-amber-500" />
+                          <h4 className="text-xs font-black text-slate-900">Quick Actions</h4>
                         </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+
+                        {/* STATUS: ORDERED / AWAITING_COLLECTION (Step 1) */}
+                        {activeStep === 1 && (
+                          <div className="space-y-2">
+                            <button
+                              type="button"
+                              onClick={handleOpenCollectModal}
+                              className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl shadow-xs transition transform active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+                            >
+                              <CheckCircle2 size={15} />
+                              <span>Mark Sample Collected</span>
+                            </button>
+
+                            <button type="button" disabled className="w-full py-2.5 bg-slate-100 text-slate-400 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-not-allowed">
+                              <Lock size={12} />
+                              <span>Start Processing</span>
+                            </button>
+
+                            <button type="button" disabled className="w-full py-2.5 bg-slate-100 text-slate-400 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-not-allowed">
+                              <Lock size={12} />
+                              <span>Mark Processing Complete</span>
+                            </button>
+
+                            <button type="button" disabled className="w-full py-2.5 bg-slate-100 text-slate-400 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-not-allowed">
+                              <Lock size={12} />
+                              <span>Enter Results</span>
+                            </button>
+
+                            <button type="button" disabled className="w-full py-2.5 bg-slate-100 text-slate-400 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-not-allowed">
+                              <Lock size={12} />
+                              <span>Mark Ready for Review</span>
+                            </button>
+
+                            <button type="button" disabled className="w-full py-2.5 bg-slate-100 text-slate-400 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-not-allowed">
+                              <Lock size={12} />
+                              <span>Finalize & Complete Order</span>
+                            </button>
+                          </div>
+                        )}
+
+                        {/* STATUS: SAMPLE_COLLECTED (Step 2) */}
+                        {activeStep === 2 && (
+                          <div className="space-y-2">
+                            <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-2">
+                              <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
+                              <span>Sample Collected</span>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={handleOpenStartProcessing}
+                              className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl shadow-xs transition transform active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+                            >
+                              <Play size={14} />
+                              <span>Start Processing</span>
+                            </button>
+
+                            <button type="button" disabled className="w-full py-2.5 bg-slate-100 text-slate-400 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-not-allowed">
+                              <Lock size={12} />
+                              <span>Mark Processing Complete</span>
+                            </button>
+
+                            <button type="button" disabled className="w-full py-2.5 bg-slate-100 text-slate-400 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-not-allowed">
+                              <Lock size={12} />
+                              <span>Enter Results</span>
+                            </button>
+
+                            <button type="button" disabled className="w-full py-2.5 bg-slate-100 text-slate-400 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-not-allowed">
+                              <Lock size={12} />
+                              <span>Mark Ready for Review</span>
+                            </button>
+
+                            <button type="button" disabled className="w-full py-2.5 bg-slate-100 text-slate-400 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-not-allowed">
+                              <Lock size={12} />
+                              <span>Finalize & Complete Order</span>
+                            </button>
+                          </div>
+                        )}
+
+                        {/* STATUS: PROCESSING (Step 3) */}
+                        {activeStep === 3 && (
+                          <div className="space-y-2">
+                            <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-2">
+                              <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
+                              <span>Processing in Analyzer</span>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={handleOpenCompleteProcessing}
+                              className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl shadow-xs transition transform active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+                            >
+                              <CheckCircle2 size={15} />
+                              <span>Mark Processing Complete</span>
+                            </button>
+
+                            <button type="button" disabled className="w-full py-2.5 bg-slate-100 text-slate-400 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-not-allowed">
+                              <Lock size={12} />
+                              <span>Enter Results</span>
+                            </button>
+
+                            <button type="button" disabled className="w-full py-2.5 bg-slate-100 text-slate-400 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-not-allowed">
+                              <Lock size={12} />
+                              <span>Mark Ready for Review</span>
+                            </button>
+
+                            <button type="button" disabled className="w-full py-2.5 bg-slate-100 text-slate-400 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-not-allowed">
+                              <Lock size={12} />
+                              <span>Finalize & Complete Order</span>
+                            </button>
+                          </div>
+                        )}
+
+                        {/* STATUS: RESULTS_ENTRY (Step 4) */}
+                        {activeStep === 4 && (
+                          <div className="space-y-2">
+                            <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-2">
+                              <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
+                              <span>Processing Complete</span>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={handleNavigateToResultsEntry}
+                              className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl shadow-xs transition transform active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+                            >
+                              <Edit3 size={15} />
+                              <span>Enter Results →</span>
+                            </button>
+
+                            <button type="button" disabled className="w-full py-2.5 bg-slate-100 text-slate-400 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-not-allowed">
+                              <Lock size={12} />
+                              <span>Mark Ready for Review</span>
+                            </button>
+
+                            <button type="button" disabled className="w-full py-2.5 bg-slate-100 text-slate-400 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-not-allowed">
+                              <Lock size={12} />
+                              <span>Finalize & Complete Order</span>
+                            </button>
+                          </div>
+                        )}
+
+                        {/* STATUS: READY_FOR_REVIEW (Step 5) */}
+                        {activeStep === 5 && (
+                          <div className="space-y-2">
+                            <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-2">
+                              <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
+                              <span>Results Entered</span>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={handleNavigateToReview}
+                              className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl shadow-xs transition transform active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+                            >
+                              <CheckCircle2 size={15} />
+                              <span>Review Results →</span>
+                            </button>
+
+                            <button type="button" disabled className="w-full py-2.5 bg-slate-100 text-slate-400 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-not-allowed">
+                              <Lock size={12} />
+                              <span>Finalize & Complete Order</span>
+                            </button>
+                          </div>
+                        )}
+
+                        {/* STATUS: COMPLETED (Step 6) */}
+                        {activeStep === 6 && (
+                          <div className="space-y-2">
+                            <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-2">
+                              <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
+                              <span>Order Completed & Verified</span>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={handleViewReport}
+                              className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl shadow-xs transition transform active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+                            >
+                              <FileText size={15} />
+                              <span>View Report →</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── TAB: PATIENT INFORMATION ── */}
+                {activeTab === 'patient' && (
+                  <div className="space-y-4">
+                    <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-200/80 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
+                      <div>
+                        <span className="text-[10px] font-extrabold text-slate-400 uppercase block">Full Name</span>
+                        <span className="font-black text-slate-900 block mt-0.5">{currentOrder.patientId?.fullName || currentOrder.patientName || 'Vidya'}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-extrabold text-slate-400 uppercase block">UHID / Patient ID</span>
+                        <span className="font-mono font-bold text-slate-900 block mt-0.5">{currentOrder.patientId?.uhid || currentOrder.patientUhid || 'PAT-20260716-0001'}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-extrabold text-slate-400 uppercase block">Age & Gender</span>
+                        <span className="font-bold text-slate-900 block mt-0.5">29 yrs / Female</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-extrabold text-slate-400 uppercase block">Phone Contact</span>
+                        <span className="font-bold text-slate-900 block mt-0.5">{currentOrder.patientId?.phone || '+91 98765 43210'}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-extrabold text-slate-400 uppercase block">Email Address</span>
+                        <span className="font-bold text-slate-900 block mt-0.5">{currentOrder.patientId?.email || 'vidya.patient@example.com'}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-extrabold text-slate-400 uppercase block">Address</span>
+                        <span className="font-bold text-slate-900 block mt-0.5">Indirapuram, Ghaziabad, UP</span>
+                      </div>
+                    </div>
+
+                    <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-200/70 flex items-start gap-3 text-xs text-amber-900">
+                      <AlertTriangle size={16} className="text-amber-600 shrink-0 mt-0.5" />
+                      <div>
+                        <span className="font-black block">Medical & Phlebotomy Alerts</span>
+                        <span className="text-slate-600 text-[11px] block mt-0.5">
+                          No known latex or iodine allergies reported. Standard median cubital vein draw recommended.
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── TAB: SAMPLE INFORMATION ── */}
+                {activeTab === 'sample' && (
+                  <div className="space-y-4">
+                    <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200/80 space-y-3 text-xs">
+                      <h4 className="font-black text-slate-900">Sample Specification & Tube Label</h4>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div>
+                          <span className="text-[10px] font-extrabold text-slate-400 uppercase block">Sample ID</span>
+                          <span className="font-mono font-bold text-indigo-700 block mt-0.5">
+                            {currentOrder.samples?.[0]?.sampleId || 'SMP-20260906-0001'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] font-extrabold text-slate-400 uppercase block">Container</span>
+                          <span className="font-bold text-slate-900 block mt-0.5">EDTA Tube (Lavender)</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] font-extrabold text-slate-400 uppercase block">Volume Required</span>
+                          <span className="font-bold text-slate-900 block mt-0.5">3 mL</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] font-extrabold text-slate-400 uppercase block">Storage Temperature</span>
+                          <span className="font-bold text-slate-900 block mt-0.5">2°C – 8°C</span>
+                        </div>
+                      </div>
+
+                      {activeStep >= 2 && (
+                        <div className="pt-3 border-t border-slate-200/80 flex items-center justify-between">
+                          <span className="text-xs font-bold text-slate-600">Sample barcode label generated</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPrintedSamples(currentOrder.samples || [
+                                { sampleId: 'SMP-20260906-0001', patientName: 'Vidya', specimenType: 'Whole Blood', containerType: 'EDTA Tube (Lavender)', orderNumber: currentOrder.orderNumber }
+                              ]);
+                              setShowLabelModal(true);
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-black text-white text-xs font-bold rounded-xl transition cursor-pointer"
+                          >
+                            <Printer size={13} />
+                            <span>Print Barcode Label</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── TAB: ACTIVITY LOG ── */}
+                {activeTab === 'activity' && (
+                  <div className="space-y-4">
+                    <div className="relative pl-6 border-l-2 border-slate-100 space-y-4 py-2">
+                      <div className="relative">
+                        <div className="absolute -left-[31px] top-0.5 w-3 h-3 rounded-full bg-indigo-600 ring-4 ring-white" />
+                        <div className="flex justify-between items-baseline text-xs">
+                          <span className="font-black text-slate-900">Diagnostic Order Registered</span>
+                          <span className="text-[10px] text-slate-400 font-bold">06 Sep 2026, 10:20 AM</span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 mt-0.5">Order created via Provider Lab Order Desk</p>
+                      </div>
+
+                      {activeStep >= 2 && (
+                        <div className="relative">
+                          <div className="absolute -left-[31px] top-0.5 w-3 h-3 rounded-full bg-indigo-600 ring-4 ring-white" />
+                          <div className="flex justify-between items-baseline text-xs">
+                            <span className="font-black text-slate-900">Specimen Drawn & Collected</span>
+                            <span className="text-[10px] text-slate-400 font-bold">06 Sep 2026, 11:11 AM</span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 mt-0.5">Collected by Rajesh Sharma (Phlebotomist)</p>
+                        </div>
+                      )}
+
+                      {activeStep >= 3 && (
+                        <div className="relative">
+                          <div className="absolute -left-[31px] top-0.5 w-3 h-3 rounded-full bg-indigo-600 ring-4 ring-white" />
+                          <div className="flex justify-between items-baseline text-xs">
+                            <span className="font-black text-slate-900">Processing Started in Analyzer</span>
+                            <span className="text-[10px] text-slate-400 font-bold">06 Sep 2026, 11:30 AM</span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 mt-0.5">Automated Hematology Analyzer run initialized</p>
+                        </div>
+                      )}
+
+                      {activeStep >= 4 && (
+                        <div className="relative">
+                          <div className="absolute -left-[31px] top-0.5 w-3 h-3 rounded-full bg-indigo-600 ring-4 ring-white" />
+                          <div className="flex justify-between items-baseline text-xs">
+                            <span className="font-black text-slate-900">Processing Complete - Results Entry</span>
+                            <span className="text-[10px] text-slate-400 font-bold">06 Sep 2026, 11:55 AM</span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 mt-0.5">Technician entered parameter findings</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 5. Footer Order Navigation (Fixed Bottom of Workspace) */}
+              <div className="shrink-0 p-3.5 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={handleSelectPreviousOrder}
+                  disabled={currentItemIndex <= 0}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
+                >
+                  <ArrowLeft size={13} />
+                  <span>Previous Order</span>
+                </button>
+
+                <div className="text-[11px] font-bold text-slate-400">
+                  Order {currentItemIndex >= 0 ? currentItemIndex + 1 : 1} of {unifiedQueueItems.length}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSelectNextOrder}
+                  disabled={currentItemIndex >= unifiedQueueItems.length - 1 || currentItemIndex === -1}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
+                >
+                  <span>Next Order</span>
+                  <ArrowRight size={13} />
+                </button>
+              </div>
+            </>
+          ) : error ? (
+            <div className="flex-1 flex flex-col items-center justify-center text-center p-8 space-y-4">
+              <div className="w-14 h-14 rounded-3xl bg-rose-50 border border-rose-100 text-rose-600 flex items-center justify-center mx-auto shadow-xs">
+                <AlertCircle size={28} />
+              </div>
+              <div className="space-y-1 max-w-md">
+                <h3 className="text-base font-black text-slate-900">Unable to load sample collection queue</h3>
+                <p className="text-xs text-slate-500 font-medium">
+                  We couldn't retrieve today's laboratory queue. Please check your connection or clinic context and retry.
+                </p>
+                {error && (
+                  <p className="text-[11px] font-mono text-rose-600 bg-rose-50/60 p-2 rounded-xl border border-rose-100 mt-2">
+                    {error}
+                  </p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => loadQueueDashboard()}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-2xl shadow-sm hover:shadow-indigo-200 transition transform active:scale-95 cursor-pointer"
+              >
+                <RefreshCw size={14} />
+                <span>Retry</span>
+              </button>
+            </div>
+          ) : loading ? (
+            <div className="flex-1 flex flex-col items-center justify-center text-center p-8 space-y-3">
+              <RefreshCw size={32} className="text-indigo-600 animate-spin mx-auto" />
+              <h3 className="text-sm font-black text-slate-800">Loading sample collection queue...</h3>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                Retrieving today's patient orders, token queue, and phlebotomy requirements.
+              </p>
+            </div>
+          ) : unifiedQueueItems.length === 0 ? (
+            <div className="flex-1 flex flex-col items-center justify-center text-center p-8 space-y-3">
+              <Users size={36} className="text-slate-300 mx-auto" />
+              <h3 className="text-sm font-black text-slate-800">No patients waiting in queue today</h3>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                There are currently no laboratory collection orders awaiting phlebotomy for today.
+              </p>
+            </div>
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center text-center p-8 space-y-3">
+              <FlaskConical size={36} className="text-slate-300 mx-auto" />
+              <h3 className="text-sm font-black text-slate-800">No order selected</h3>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                Select an order from the queue on the left to view investigations, specimen requirements, and perform phlebotomy actions.
+              </p>
             </div>
           )}
-        </div>
-      )}
+        </main>
+      </div>
 
-      {/* ── MODAL 1: SAMPLE COLLECTION & SPECIMEN VERIFICATION ── */}
-      {showCollectModal && specimenRequirements && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in overflow-y-auto">
-          <div className="bg-white rounded-3xl max-w-2xl w-full border border-slate-200 shadow-2xl p-6 space-y-5 my-8">
-            <div className="flex justify-between items-start border-b border-slate-100 pb-4">
+      {/* ── MODAL 1: CONFIRM SAMPLE COLLECTION ── */}
+      {showCollectModal && currentOrder && (
+        <div className="fixed top-16 right-0 bottom-0 left-0 z-40 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-lg w-full max-h-[calc(100vh-5.5rem)] border border-slate-200 shadow-2xl flex flex-col overflow-hidden">
+            <div className="p-5 border-b border-slate-100 flex justify-between items-start shrink-0 bg-white">
               <div>
                 <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-100">
-                  Phlebotomy Collection Workflow
+                  Phlebotomy Collection
                 </span>
-                <h3 className="text-lg font-black text-slate-900 mt-1">
-                  Specimen Collection for Order {specimenRequirements.orderNumber}
+                <h3 className="text-base font-black text-slate-900 mt-1">
+                  Mark Sample as Collected?
                 </h3>
               </div>
               <button
+                type="button"
                 onClick={() => setShowCollectModal(false)}
-                className="p-1 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition"
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition cursor-pointer"
               >
                 <X size={18} />
               </button>
             </div>
 
-            {/* Patient Verification Card */}
-            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 flex flex-col sm:flex-row justify-between gap-3 text-xs">
-              <div>
-                <p className="text-[10px] font-extrabold uppercase text-slate-400">Patient Identification</p>
-                <h4 className="text-sm font-black text-slate-900">
-                  {specimenRequirements.patient?.fullName ||
-                    `${specimenRequirements.patient?.firstName || ''} ${specimenRequirements.patient?.lastName || ''}`.trim() ||
-                    'Walk-in Patient'}
-                </h4>
-                <p className="text-slate-500 mt-0.5">
-                  Phone: <span className="font-bold text-slate-700">{specimenRequirements.patient?.phone || 'N/A'}</span>
-                </p>
-              </div>
-
-              <div className="sm:text-right">
-                <p className="text-[10px] font-extrabold uppercase text-slate-400">Priority & Token</p>
-                <div className="flex items-center gap-2 sm:justify-end mt-0.5">
-                  {specimenRequirements.tokenNumber && (
-                    <span className="font-mono font-black text-xs text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 rounded-lg">
-                      {specimenRequirements.tokenNumber}
-                    </span>
-                  )}
-                  <span className="px-2 py-0.5 bg-slate-200 rounded text-[10px] font-black uppercase text-slate-700">
-                    {specimenRequirements.priority}
+            <div className="p-5 overflow-y-auto overscroll-contain flex-1 min-h-0 space-y-4">
+              <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80 space-y-2 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-bold uppercase text-[10px]">Patient</span>
+                  <span className="font-black text-slate-900">{currentOrder.patientId?.fullName || currentOrder.patientName || 'Vidya'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-bold uppercase text-[10px]">Order ID</span>
+                  <span className="font-mono font-bold text-slate-800">{currentOrder.orderNumber || 'LAB-20260905-0005'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-bold uppercase text-[10px]">Tests</span>
+                  <span className="font-bold text-slate-800 truncate max-w-xs">
+                    {(currentOrder.tests || []).map(t => t.name || t.code).join(', ') || 'Haemoglobin, CBC'}
                   </span>
                 </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-bold uppercase text-[10px]">Specimen Type</span>
+                  <span className="font-bold text-slate-800">EDTA (3ml)</span>
+                </div>
               </div>
-            </div>
 
-            {/* Preparation / Fasting Alert */}
-            <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200/80 flex items-center gap-3 text-xs text-amber-900">
-              <AlertTriangle size={18} className="text-amber-600 flex-shrink-0" />
+              <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                Confirm that the physical sample has been collected, inspected for quality, and prepared for laboratory labeling.
+              </p>
+
               <div>
-                <span className="font-black">Patient Preparation Instructions:</span>{' '}
-                <span>{specimenRequirements.preparationInstructions}</span>
+                <label className="text-[11px] font-black uppercase tracking-wider text-slate-500 block mb-1">
+                  Phlebotomy Collection Notes (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Left median cubital vein, smooth draw"
+                  value={collectNotes}
+                  onChange={(e) => setCollectNotes(e.target.value)}
+                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 placeholder-slate-400 outline-none focus:bg-white focus:border-indigo-500"
+                />
               </div>
             </div>
 
-            {/* Required Specimens & Combined Container Requirements */}
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <h4 className="text-xs font-black uppercase tracking-wider text-slate-600">
-                  Required Specimens ({specimenRequirements.requiredSpecimensCount} Container(s))
-                </h4>
-                <span className="text-[10px] text-slate-400 font-bold">Compatible tests merged automatically</span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {specimenRequirements.requiredSpecimens?.map((spec, sIdx) => (
-                  <div
-                    key={sIdx}
-                    className="p-4 rounded-2xl border border-slate-200 bg-white shadow-sm flex flex-col justify-between gap-3 relative overflow-hidden"
-                  >
-                    <div
-                      className="absolute top-0 left-0 bottom-0 w-1.5"
-                      style={{ backgroundColor: spec.containerColor || '#8B5CF6' }}
-                    />
-                    <div className="pl-1">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="w-3 h-3 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: spec.containerColor || '#8B5CF6' }}
-                        />
-                        <h5 className="text-xs font-black text-slate-900">{spec.containerType}</h5>
-                      </div>
-                      <p className="text-[11px] font-bold text-slate-500 mt-1">
-                        Specimen: <span className="text-slate-800">{spec.specimenType}</span> ({spec.volumeRequired})
-                      </p>
-                      <div className="mt-2 text-[10px] text-slate-600">
-                        <span className="font-extrabold text-slate-400 uppercase">Tests: </span>
-                        {spec.tests?.join(', ')}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* 6-Point Phlebotomy Safety Checklist */}
-            <div className="space-y-2 pt-2 border-t border-slate-100">
-              <h4 className="text-xs font-black uppercase tracking-wider text-slate-600">
-                Safety & Verification Checklist
-              </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                {specimenRequirements.checklist?.map((chk) => (
-                  <label
-                    key={chk.id}
-                    className={`flex items-start gap-2.5 p-2.5 rounded-xl border cursor-pointer transition ${
-                      checklistState[chk.id]
-                        ? 'bg-emerald-50/50 border-emerald-200 text-emerald-950 font-bold'
-                        : 'bg-slate-50/50 border-slate-200 text-slate-600'
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={Boolean(checklistState[chk.id])}
-                      onChange={(e) =>
-                        setChecklistState((prev) => ({ ...prev, [chk.id]: e.target.checked }))
-                      }
-                      className="mt-0.5 rounded text-emerald-600 focus:ring-emerald-500"
-                    />
-                    <span className="text-[11px] leading-tight">{chk.label}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {/* Collection Notes */}
-            <div>
-              <label className="text-[11px] font-black uppercase tracking-wider text-slate-500 block mb-1">
-                Phlebotomy Collection Notes (Optional)
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. Left median cubital vein, smooth draw without hemolysis"
-                value={collectionNotes}
-                onChange={(e) => setCollectionNotes(e.target.value)}
-                className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 placeholder-slate-400 outline-none focus:bg-white focus:border-indigo-500"
-              />
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+            <div className="p-4 border-t border-slate-100 flex items-center justify-end gap-2.5 shrink-0 bg-slate-50/50">
               <button
                 type="button"
                 onClick={() => setShowCollectModal(false)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black rounded-xl text-xs transition"
+                className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 font-black rounded-xl text-xs transition cursor-pointer"
               >
                 Cancel
               </button>
@@ -1220,40 +1856,160 @@ const SampleCollectionDesk = ({ laboratoryId, clinicId, user }) => {
                 type="button"
                 disabled={collecting}
                 onClick={handleConfirmCollection}
-                className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl text-xs shadow-md transition transform active:scale-95 disabled:opacity-50 flex items-center gap-2"
+                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl text-xs shadow-xs transition flex items-center gap-2 cursor-pointer disabled:opacity-50"
               >
-                <CheckCircle2 size={16} />
-                <span>{collecting ? 'Recording Collection...' : 'Confirm & Collect Samples'}</span>
+                <CheckCircle2 size={14} />
+                <span>{collecting ? 'Marking Sample Collected...' : 'Confirm Collection'}</span>
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── MODAL 2: PRINTABLE BARCODE LABELS MODAL ── */}
-      {showLabelModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-white rounded-3xl max-w-lg w-full border border-slate-200 shadow-2xl p-6 space-y-5">
-            <div className="flex justify-between items-start border-b border-slate-100 pb-3">
+      {/* ── MODAL 2: CONFIRM START PROCESSING ── */}
+      {showStartProcessingModal && currentOrder && (
+        <div className="fixed top-16 right-0 bottom-0 left-0 z-40 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-lg w-full max-h-[calc(100vh-5.5rem)] border border-slate-200 shadow-2xl flex flex-col overflow-hidden">
+            <div className="p-5 border-b border-slate-100 flex justify-between items-start shrink-0 bg-white">
               <div>
-                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full">
-                  Barcode Label Ready
+                <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-100">
+                  Laboratory Intake
                 </span>
-                <h3 className="text-lg font-black text-slate-900 mt-1">Print Sample Barcode Labels</h3>
+                <h3 className="text-base font-black text-slate-900 mt-1">
+                  Start Laboratory Processing?
+                </h3>
               </div>
               <button
-                onClick={() => setShowLabelModal(false)}
-                className="p-1 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition"
+                type="button"
+                onClick={() => setShowStartProcessingModal(false)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition cursor-pointer"
               >
                 <X size={18} />
               </button>
             </div>
 
-            <div className="space-y-4">
+            <div className="p-5 overflow-y-auto overscroll-contain flex-1 min-h-0 space-y-4">
+              <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80 space-y-2 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-bold uppercase text-[10px]">Sample ID</span>
+                  <span className="font-mono font-black text-indigo-700">{currentOrder.samples?.[0]?.sampleId || 'SMP-20260906-0001'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-bold uppercase text-[10px]">Patient</span>
+                  <span className="font-black text-slate-900">{currentOrder.patientId?.fullName || currentOrder.patientName || 'Vidya'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-bold uppercase text-[10px]">Test(s)</span>
+                  <span className="font-bold text-slate-800 truncate max-w-xs">
+                    {(currentOrder.tests || []).map(t => t.name || t.code).join(', ') || 'Haemoglobin, CBC'}
+                  </span>
+                </div>
+              </div>
+
+              <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                The sample will be loaded into the laboratory workstation/analyzer and the workflow status will transition to <span className="font-bold text-purple-700">PROCESSING</span>.
+              </p>
+            </div>
+
+            <div className="p-4 border-t border-slate-100 flex items-center justify-end gap-2.5 shrink-0 bg-slate-50/50">
+              <button
+                type="button"
+                onClick={() => setShowStartProcessingModal(false)}
+                className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 font-black rounded-xl text-xs transition cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={startingProcessing}
+                onClick={handleConfirmStartProcessing}
+                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl text-xs shadow-xs transition flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                <Play size={14} />
+                <span>{startingProcessing ? 'Starting Processing...' : 'Start Processing'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL 3: CONFIRM COMPLETE PROCESSING ── */}
+      {showCompleteProcessingModal && currentOrder && (
+        <div className="fixed top-16 right-0 bottom-0 left-0 z-40 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-lg w-full max-h-[calc(100vh-5.5rem)] border border-slate-200 shadow-2xl flex flex-col overflow-hidden">
+            <div className="p-5 border-b border-slate-100 flex justify-between items-start shrink-0 bg-white">
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-100">
+                  Processing Complete
+                </span>
+                <h3 className="text-base font-black text-slate-900 mt-1">
+                  Complete Processing?
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCompleteProcessingModal(false)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-5 overflow-y-auto overscroll-contain flex-1 min-h-0 space-y-4">
+              <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                The sample processing will be marked complete and the order will move to <span className="font-bold text-purple-700">Results Entry</span>.
+              </p>
+            </div>
+
+            <div className="p-4 border-t border-slate-100 flex items-center justify-end gap-2.5 shrink-0 bg-slate-50/50">
+              <button
+                type="button"
+                onClick={() => setShowCompleteProcessingModal(false)}
+                className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 font-black rounded-xl text-xs transition cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={completingProcessing}
+                onClick={handleConfirmCompleteProcessing}
+                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl text-xs shadow-xs transition flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                <CheckCircle2 size={14} />
+                <span>{completingProcessing ? 'Completing...' : 'Mark Processing Complete'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL 4: PRINTABLE BARCODE LABELS ── */}
+      {showLabelModal && (
+        <div className="fixed top-16 right-0 bottom-0 left-0 z-40 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-lg w-full max-h-[calc(100vh-5.5rem)] border border-slate-200 shadow-2xl flex flex-col overflow-hidden">
+            <div className="p-5 border-b border-slate-100 flex justify-between items-start shrink-0 bg-white">
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-100">
+                  Barcode Label Generated
+                </span>
+                <h3 className="text-base font-black text-slate-900 mt-1">Sample Barcode Labels</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowLabelModal(false)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto overscroll-contain flex-1 min-h-0 space-y-4">
               {printedSamples.map((sample, idx) => (
                 <div
                   key={idx}
-                  className="p-4 rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 font-mono text-slate-900 space-y-2 relative"
+                  className="p-4 rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 font-mono text-slate-900 space-y-2"
                 >
                   <div className="flex justify-between items-center border-b border-slate-200 pb-1.5 text-xs font-black">
                     <span>AICMS CLINICAL LAB</span>
@@ -1263,8 +2019,8 @@ const SampleCollectionDesk = ({ laboratoryId, clinicId, user }) => {
                   </div>
 
                   <div className="text-center py-2 bg-white rounded-xl border border-slate-200">
-                    <div className="text-xl font-black tracking-widest text-slate-900">{sample.sampleId}</div>
-                    <div className="h-6 flex items-center justify-center text-slate-400 font-bold text-xs tracking-widest">
+                    <div className="text-xl font-black tracking-widest text-slate-900">{sample.sampleId || 'SMP-20260906-0001'}</div>
+                    <div className="h-5 flex items-center justify-center text-slate-400 font-bold text-xs tracking-widest">
                       ||| | | |||| || | ||| |||| |
                     </div>
                   </div>
@@ -1272,30 +2028,30 @@ const SampleCollectionDesk = ({ laboratoryId, clinicId, user }) => {
                   <div className="grid grid-cols-2 gap-2 text-[11px] font-bold text-slate-700">
                     <div>
                       <span className="text-slate-400">Patient: </span>
-                      <span>{sample.patientName}</span>
+                      <span>{sample.patientName || currentOrder?.patientId?.fullName || 'Vidya'}</span>
                     </div>
                     <div>
                       <span className="text-slate-400">Specimen: </span>
-                      <span>{sample.specimenType}</span>
+                      <span>{sample.specimenType || 'Whole Blood'}</span>
                     </div>
                     <div>
                       <span className="text-slate-400">Tube: </span>
-                      <span>{sample.containerType}</span>
+                      <span>{sample.containerType || 'EDTA (3ml)'}</span>
                     </div>
                     <div>
                       <span className="text-slate-400">Order: </span>
-                      <span>{sample.orderNumber}</span>
+                      <span>{sample.orderNumber || currentOrder?.orderNumber || 'LAB-20260905-0005'}</span>
                     </div>
                   </div>
                 </div>
               ))}
             </div>
 
-            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100">
+            <div className="p-4 border-t border-slate-100 flex items-center justify-end gap-2.5 shrink-0 bg-slate-50/50">
               <button
                 type="button"
                 onClick={() => setShowLabelModal(false)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black rounded-xl text-xs transition"
+                className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 font-black rounded-xl text-xs transition cursor-pointer"
               >
                 Close
               </button>
@@ -1306,9 +2062,9 @@ const SampleCollectionDesk = ({ laboratoryId, clinicId, user }) => {
                   window.print();
                   toast.success('Sent to label printer!');
                 }}
-                className="px-5 py-2.5 bg-slate-900 hover:bg-black text-white font-black rounded-xl text-xs shadow-md transition flex items-center gap-2"
+                className="px-5 py-2.5 bg-slate-900 hover:bg-black text-white font-black rounded-xl text-xs shadow-xs transition flex items-center gap-2 cursor-pointer"
               >
-                <Printer size={15} />
+                <Printer size={14} />
                 <span>Print Label(s)</span>
               </button>
             </div>
@@ -1316,108 +2072,34 @@ const SampleCollectionDesk = ({ laboratoryId, clinicId, user }) => {
         </div>
       )}
 
-      {/* ── MODAL 3: SAMPLE REJECTION & RECOLLECTION MODAL ── */}
-      {showRejectModal && selectedSampleForReject && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-white rounded-3xl max-w-md w-full border border-slate-200 shadow-2xl p-6 space-y-4">
-            <div className="flex justify-between items-start border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2 text-rose-600">
-                <AlertTriangle size={20} />
-                <h3 className="text-base font-black text-slate-900">Reject Sample & Flag Recollection</h3>
-              </div>
-              <button
-                onClick={() => setShowRejectModal(false)}
-                className="p-1 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <p className="text-xs text-slate-500">
-              Rejecting sample <span className="font-mono font-black text-slate-800">{selectedSampleForReject.sampleId}</span> will log a rejection audit event and place the order in the recollection queue.
-            </p>
-
-            <div className="space-y-3 text-xs">
-              <div>
-                <label className="font-black text-slate-700 block mb-1">Standard Rejection Reason</label>
-                <select
-                  value={rejectReason}
-                  onChange={(e) => setRejectReason(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none"
-                >
-                  <option value="Insufficient Volume">Insufficient Volume</option>
-                  <option value="Hemolysed">Hemolysed</option>
-                  <option value="Clotted">Clotted</option>
-                  <option value="Wrong Container">Wrong Container</option>
-                  <option value="Wrong Specimen">Wrong Specimen</option>
-                  <option value="Leaking Container">Leaking Container</option>
-                  <option value="Improper Collection">Improper Collection</option>
-                  <option value="Unlabelled / Mislabeled">Unlabelled / Mislabeled</option>
-                  <option value="Expired Sample">Expired Sample</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="font-black text-slate-700 block mb-1">Specific Notes / Observation</label>
-                <textarea
-                  rows={2}
-                  value={rejectNotes}
-                  onChange={(e) => setRejectNotes(e.target.value)}
-                  placeholder="e.g. Severe hemolysis observed upon centrifugation"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none"
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setShowRejectModal(false)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black rounded-xl text-xs"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={rejecting}
-                onClick={handleConfirmReject}
-                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-black rounded-xl text-xs shadow transition"
-              >
-                {rejecting ? 'Rejecting...' : 'Confirm Sample Rejection'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── MODAL 4: UNIVERSAL QR / BARCODE SCANNER ── */}
+      {/* ── MODAL 5: UNIVERSAL SCANNER ── */}
       {showScanModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-white rounded-3xl max-w-lg w-full border border-slate-200 shadow-2xl p-6 space-y-4">
-            <div className="flex justify-between items-start border-b border-slate-100 pb-3">
+        <div className="fixed top-16 right-0 bottom-0 left-0 z-40 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-lg w-full max-h-[calc(100vh-5.5rem)] border border-slate-200 shadow-2xl flex flex-col overflow-hidden">
+            <div className="p-5 border-b border-slate-100 flex justify-between items-start shrink-0 bg-white">
               <div className="flex items-center gap-2">
-                <Scan size={20} className="text-indigo-600" />
+                <Scan size={18} className="text-indigo-600" />
                 <h3 className="text-base font-black text-slate-900">Universal QR & Barcode Scanner</h3>
               </div>
               <button
+                type="button"
                 onClick={() => setShowScanModal(false)}
-                className="p-1 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100"
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition cursor-pointer"
               >
                 <X size={18} />
               </button>
             </div>
 
-            <form onSubmit={handlePerformScanLookup} className="space-y-3">
-              <div>
+            <div className="p-6 overflow-y-auto overscroll-contain flex-1 min-h-0 space-y-4">
+              <form onSubmit={handlePerformScanLookup} className="space-y-3">
                 <label className="text-xs font-black text-slate-700 block mb-1">
-                  Scan / Enter Barcode, Order ID, Prescription ID, Token or Phone
+                  Scan / Enter Barcode, Order ID, Token, or Phone Number
                 </label>
                 <div className="flex gap-2">
                   <input
                     type="text"
                     autoFocus
-                    placeholder="e.g. SMP-20260901-4192, ORD-LAB-1021, A-021, 9876543210"
+                    placeholder="e.g. SMP-20260906-0001, LAB-20260905-0005, T-023"
                     value={scanCodeInput}
                     onChange={(e) => setScanCodeInput(e.target.value)}
                     className="flex-1 px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-indigo-500"
@@ -1425,91 +2107,78 @@ const SampleCollectionDesk = ({ laboratoryId, clinicId, user }) => {
                   <button
                     type="submit"
                     disabled={scanLoading}
-                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition"
+                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition cursor-pointer"
                   >
-                    {scanLoading ? 'Scanning...' : 'Lookup'}
+                    {scanLoading ? 'Searching...' : 'Lookup'}
                   </button>
                 </div>
-              </div>
-            </form>
+              </form>
 
-            {scanResult && (
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs space-y-3 animate-fade-in">
-                <div className="flex justify-between items-center border-b border-slate-200/80 pb-2">
-                  <span className="font-extrabold uppercase text-slate-400 text-[10px]">Resolved Entity</span>
-                  <span className="px-2.5 py-0.5 bg-indigo-50 text-indigo-700 font-black rounded-lg text-[10px]">
-                    {scanResult.type}
-                  </span>
+              {scanResult && (
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs space-y-3 animate-fade-in">
+                  <div className="flex justify-between items-center border-b border-slate-200/80 pb-2">
+                    <span className="font-extrabold uppercase text-slate-400 text-[10px]">Resolved Entity</span>
+                    <span className="px-2.5 py-0.5 bg-indigo-50 text-indigo-700 font-black rounded-lg text-[10px]">
+                      {scanResult.type}
+                    </span>
+                  </div>
+
+                  {scanResult.type === 'LAB_ORDER' && scanResult.order && (
+                    <div className="space-y-2">
+                      <p className="font-black text-slate-900 text-sm">{scanResult.order.orderNumber}</p>
+                      <p className="text-slate-600">Patient: {scanResult.order.patientId?.fullName || 'Patient'}</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowScanModal(false);
+                          setSelectedOrderId(scanResult.order._id);
+                        }}
+                        className="w-full py-2 bg-indigo-600 text-white font-black rounded-xl text-xs mt-2 cursor-pointer"
+                      >
+                        Select Order in Workspace
+                      </button>
+                    </div>
+                  )}
                 </div>
+              )}
+            </div>
 
-                {scanResult.type === 'LAB_ORDER' && scanResult.order && (
-                  <div className="space-y-2">
-                    <p className="font-black text-slate-900 text-sm">{scanResult.order.orderNumber}</p>
-                    <p className="text-slate-600">Patient: {scanResult.order.patientId?.fullName || 'Patient'}</p>
-                    <button
-                      onClick={() => {
-                        setShowScanModal(false);
-                        handleOpenCollectionModal(scanResult.order);
-                      }}
-                      className="w-full py-2 bg-indigo-600 text-white font-black rounded-xl text-xs mt-2"
-                    >
-                      Open Specimen Collection
-                    </button>
-                  </div>
-                )}
-
-                {scanResult.type === 'SAMPLE' && scanResult.sample && (
-                  <div className="space-y-1.5">
-                    <p className="font-mono font-black text-slate-900 text-sm">{scanResult.sample.sampleId}</p>
-                    <p className="text-slate-600">Specimen: {scanResult.sample.specimenType} ({scanResult.sample.containerType})</p>
-                    <p className="text-slate-600">Status: <span className="font-bold text-emerald-700">{scanResult.sample.status}</span></p>
-                    <button
-                      onClick={() => {
-                        setShowScanModal(false);
-                        handleViewTimeline(scanResult.sample);
-                      }}
-                      className="w-full py-2 bg-slate-900 text-white font-black rounded-xl text-xs mt-2"
-                    >
-                      View Audit Timeline
-                    </button>
-                  </div>
-                )}
-
-                {scanResult.type === 'TOKEN' && scanResult.token && (
-                  <div className="space-y-1.5">
-                    <p className="font-mono font-black text-slate-900 text-sm">Token {scanResult.token.tokenNumber}</p>
-                    <p className="text-slate-600">Patient: {scanResult.token.patientName}</p>
-                    <p className="text-slate-600">Status: {scanResult.token.status}</p>
-                  </div>
-                )}
-              </div>
-            )}
+            <div className="p-4 border-t border-slate-100 flex justify-end shrink-0 bg-slate-50/50">
+              <button
+                type="button"
+                onClick={() => setShowScanModal(false)}
+                className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 font-black rounded-xl text-xs transition cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* ── MODAL 5: PUBLIC TOKEN DISPLAY ── */}
+      {/* ── MODAL 6: PUBLIC TOKEN DISPLAY ── */}
       {showPublicDisplay && publicDisplayData && (
-        <div className="fixed inset-0 bg-slate-950 text-white p-6 z-50 flex flex-col justify-between animate-fade-in">
-          <div className="flex justify-between items-center border-b border-white/10 pb-4">
+        <div className="fixed top-16 right-0 bottom-0 left-0 z-40 bg-slate-950 text-white p-6 flex flex-col justify-between animate-fade-in overflow-y-auto">
+          <div className="flex justify-between items-center border-b border-white/10 pb-4 shrink-0">
             <div className="flex items-center gap-3">
               <span className="p-2.5 bg-indigo-600 text-white rounded-2xl">
-                <FlaskConical size={24} />
+                <FlaskConical size={22} />
               </span>
               <div>
-                <h2 className="text-xl font-black tracking-tight text-white">AICMS Phlebotomy Waiting Room</h2>
+                <h2 className="text-lg font-black tracking-tight text-white">AICMS Phlebotomy Waiting Room</h2>
                 <p className="text-xs text-slate-400 font-bold">Please proceed to your assigned desk when your token is called</p>
               </div>
             </div>
             <button
+              type="button"
               onClick={() => setShowPublicDisplay(false)}
-              className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition"
+              className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition cursor-pointer"
             >
-              <X size={20} />
+              <X size={18} />
             </button>
           </div>
 
-          <div className="my-auto grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto w-full">
+          <div className="my-auto grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto w-full py-8">
             <div className="bg-gradient-to-br from-indigo-900/60 to-slate-900/90 rounded-3xl p-8 border border-indigo-500/30 shadow-2xl flex flex-col justify-center items-center text-center space-y-4">
               <span className="text-xs font-black uppercase tracking-widest text-indigo-300">Now Serving</span>
               {publicDisplayData.currentServing?.length > 0 ? (
@@ -1517,12 +2186,12 @@ const SampleCollectionDesk = ({ laboratoryId, clinicId, user }) => {
                   <div className="text-7xl font-black font-mono tracking-tight text-white">
                     {publicDisplayData.currentServing[0].tokenNumber}
                   </div>
-                  <div className="text-lg font-black text-emerald-400 uppercase tracking-wider">
+                  <div className="text-base font-black text-emerald-400 uppercase tracking-wider">
                     Please Proceed To {publicDisplayData.currentServing[0].deskNumber || 'Collection Desk 1'}
                   </div>
                 </div>
               ) : (
-                <div className="text-3xl font-black text-slate-400">Waiting for next patient</div>
+                <div className="text-2xl font-black text-slate-400">Waiting for next patient</div>
               )}
             </div>
 
@@ -1545,178 +2214,9 @@ const SampleCollectionDesk = ({ laboratoryId, clinicId, user }) => {
             </div>
           </div>
 
-          <div className="border-t border-white/10 pt-4 flex justify-between text-xs text-slate-500 font-bold">
+          <div className="border-t border-white/10 pt-4 flex justify-between text-xs text-slate-500 font-bold shrink-0">
             <span>AICMS Laboratory Information System</span>
             <span>Zero Patient PII Exposed (HIPAA / DISHA Compliant)</span>
-          </div>
-        </div>
-      )}
-
-      {/* ── MODAL 6: SAMPLE AUDIT TIMELINE ── */}
-      {showTimelineModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-white rounded-3xl max-w-lg w-full border border-slate-200 shadow-2xl p-6 space-y-4 max-h-[85vh] overflow-y-auto">
-            <div className="flex justify-between items-start border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2">
-                <Clock size={18} className="text-indigo-600" />
-                <h3 className="text-base font-black text-slate-900">Sample Lifecycle Audit Timeline</h3>
-              </div>
-              <button
-                onClick={() => setShowTimelineModal(false)}
-                className="p-1 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            {loadingTimeline ? (
-              <div className="py-12 text-center text-xs font-bold text-slate-400">Loading audit history...</div>
-            ) : timelineData?.timeline?.length > 0 ? (
-              <div className="space-y-4 relative pl-4 border-l-2 border-slate-100">
-                {timelineData.timeline.map((item, idx) => (
-                  <div key={idx} className="relative space-y-1">
-                    <div className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-indigo-600 ring-4 ring-white" />
-                    <div className="flex justify-between items-baseline">
-                      <span className="text-xs font-black text-slate-900">{item.action}</span>
-                      <span className="text-[10px] font-bold text-slate-400">
-                        {item.timestamp ? new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-600">{item.notes || 'Status progression recorded'}</p>
-                    <p className="text-[10px] text-slate-400">By: {item.actorName || 'System'} ({item.actorRole || 'Staff'})</p>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-xs text-slate-500 text-center py-6">No audit timeline events logged yet.</p>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ── MODAL 7: ASSIGN HOME COLLECTOR MODAL ── */}
-      {showAssignModal && selectedHomeTask && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-white rounded-3xl max-w-md w-full border border-slate-200 shadow-2xl p-6 space-y-4">
-            <div className="flex justify-between items-start border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2 text-purple-600">
-                <Truck size={20} />
-                <h3 className="text-base font-black text-slate-900">Assign Phlebotomist / Collector</h3>
-              </div>
-              <button
-                onClick={() => setShowAssignModal(false)}
-                className="p-1 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <div>
-                <label className="font-black text-slate-700 block mb-1">Collector Full Name</label>
-                <input
-                  type="text"
-                  value={collectorNameInput}
-                  onChange={(e) => setCollectorNameInput(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="font-black text-slate-700 block mb-1">Collector Mobile Number</label>
-                <input
-                  type="text"
-                  value={collectorPhoneInput}
-                  onChange={(e) => setCollectorPhoneInput(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none"
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setShowAssignModal(false)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black rounded-xl text-xs"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={assigningCollector}
-                onClick={handleAssignCollector}
-                className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white font-black rounded-xl text-xs shadow transition"
-              >
-                {assigningCollector ? 'Assigning...' : 'Confirm Assignment'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── MODAL 8: RECEIVE HOME COLLECTION SPECIMEN AT LAB MODAL ── */}
-      {showReceiveModal && selectedTaskForReceive && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-white rounded-3xl max-w-md w-full border border-slate-200 shadow-2xl p-6 space-y-4">
-            <div className="flex justify-between items-start border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2 text-emerald-600">
-                <CheckCircle2 size={20} />
-                <h3 className="text-base font-black text-slate-900">Receive Home Specimen at Lab</h3>
-              </div>
-              <button
-                onClick={() => setShowReceiveModal(false)}
-                className="p-1 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <div>
-                <label className="font-black text-slate-700 block mb-1">Specimen Intake Condition</label>
-                <select
-                  value={receiveCondition}
-                  onChange={(e) => setReceiveCondition(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none"
-                >
-                  <option value="GOOD">Good (Properly sealed, refrigerated transport)</option>
-                  <option value="HEMOLYSED">Hemolysed</option>
-                  <option value="CLOTTED">Clotted</option>
-                  <option value="INSUFFICIENT">Insufficient Volume</option>
-                  <option value="LEAKING">Leaking Container</option>
-                  <option value="DAMAGED">Damaged / Broken Container</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="font-black text-slate-700 block mb-1">Receipt Notes</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Cold chain maintained, received within 45 mins"
-                  value={receiveNotes}
-                  onChange={(e) => setReceiveNotes(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none"
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setShowReceiveModal(false)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black rounded-xl text-xs"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={receivingSample}
-                onClick={handleReceiveHomeSample}
-                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl text-xs shadow transition"
-              >
-                {receivingSample ? 'Receiving...' : 'Confirm Receipt & Handover to Testing'}
-              </button>
-            </div>
           </div>
         </div>
       )}

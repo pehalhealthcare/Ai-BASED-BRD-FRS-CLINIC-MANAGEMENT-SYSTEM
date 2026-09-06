@@ -8,6 +8,11 @@ const subscriptionPlanSchema = new mongoose.Schema(
       unique: true,
       trim: true
     },
+    description: {
+      type: String,
+      default: '',
+      trim: true
+    },
     code: {
       type: String,
       required: true,

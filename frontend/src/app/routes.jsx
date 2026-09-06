@@ -2,7 +2,21 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 
 import DashboardLayout from '../components/layout/DashboardLayout';
 import AdminDashboardPage from '../features/dashboard/admin/AdminDashboardPage';
-import { ROLES } from '../constants/roles';
+import { ROLES, ADMIN_ROLES, STAFF_ROLES } from '../constants/roles';
+
+const LAB_ROLES = [
+  ...ADMIN_ROLES,
+  ROLES.DOCTOR,
+  ROLES.RECEPTIONIST,
+  ROLES.LAB_TECHNICIAN,
+  ROLES.LAB_OPERATOR,
+  ...STAFF_ROLES
+];
+
+const LAB_VIEW_ROLES = [
+  ...LAB_ROLES,
+  ROLES.PATIENT
+];
 import UsersAdminPage from '../features/admin/UsersAdminPage';
 import OrganizationSettingsPage from '../features/admin/OrganizationSettingsPage';
 import DoctorReview from '../features/admin/DoctorReview';
@@ -34,8 +48,11 @@ import DashboardPharmacyPage from '../features/dashboard/DashboardPharmacyPage';
 import DashboardRevenuePage from '../features/dashboard/DashboardRevenuePage';
 import LabOrderCreatePage from '../features/labs/LabOrderCreatePage';
 import LabOrderDetailPage from '../features/labs/LabOrderDetailPage';
+import LabEnterResultsPage from '../features/labs/LabEnterResultsPage';
 import LabOrdersPage from '../features/labs/LabOrdersPage';
 import LabReportPage from '../features/labs/LabReportPage';
+import LabReportViewPage from '../features/labs/LabReportViewPage';
+import PublicReportVerificationPage from '../pages/PublicReportVerificationPage';
 import LabTestCatalogPage from '../features/labs/LabTestCatalogPage';
 import LabConsumablesPage from '../features/labs/LabConsumablesPage';
 import FollowUpTasksPage from '../features/notifications/FollowUpTasksPage';
@@ -205,6 +222,19 @@ export const router = createBrowserRouter([
     path: '/login',
     element: <LoginPage />
   },
+  // Public Laboratory Report Verification (No Auth Required for QR Scan verification)
+  {
+    path: '/verify/:reportId',
+    element: <PublicReportVerificationPage />
+  },
+  {
+    path: '/verify/report/:reportId',
+    element: <PublicReportVerificationPage />
+  },
+  {
+    path: '/reports/verify/:reportId',
+    element: <PublicReportVerificationPage />
+  },
   // Clinic Admin status portals (no sidebar – full-page)
   {
     path: '/clinic/status',
@@ -268,6 +298,18 @@ export const router = createBrowserRouter([
       {
         path: 'patient/appointments',
         element: protect(<PatientAppointmentsPage />, [ROLES.PATIENT])
+      },
+      {
+        path: 'patient/lab-reports/:id',
+        element: protect(<LabReportViewPage />, [ROLES.PATIENT, ...LAB_ROLES])
+      },
+      {
+        path: 'patient/lab-reports/:id/:testId',
+        element: protect(<LabReportViewPage />, [ROLES.PATIENT, ...LAB_ROLES])
+      },
+      {
+        path: 'patient/lab-orders/:id/report',
+        element: protect(<LabReportViewPage />, [ROLES.PATIENT, ...LAB_ROLES])
       },
       {
         path: 'users',
@@ -538,23 +580,143 @@ export const router = createBrowserRouter([
       },
       {
         path: 'labs/tests',
-        element: protect(<LabTestsRoute />, [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.DOCTOR, ROLES.RECEPTIONIST, ROLES.LAB_TECHNICIAN, ROLES.PATIENT])
+        element: protect(<LabTestsRoute />, [...LAB_ROLES, ROLES.PATIENT])
       },
       {
         path: 'labs/consumables',
-        element: protect(<LabConsumablesPage />, [ROLES.SUPER_ADMIN, ROLES.LAB_TECHNICIAN])
+        element: protect(<LabConsumablesPage />, LAB_ROLES)
       },
       {
         path: 'labs/orders',
-        element: protect(<LabOrdersPage />, [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.DOCTOR, ROLES.RECEPTIONIST, ROLES.LAB_TECHNICIAN])
+        element: protect(<LabOrderDetailPage />, LAB_ROLES)
       },
       {
         path: 'labs/orders/:id',
-        element: protect(<LabOrderDetailPage />, [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.DOCTOR, ROLES.RECEPTIONIST, ROLES.LAB_TECHNICIAN])
+        element: protect(<LabOrderDetailPage />, LAB_ROLES)
+      },
+      {
+        path: 'labs/orders/:id/results',
+        element: protect(<LabEnterResultsPage />, LAB_ROLES)
+      },
+      {
+        path: 'labs/orders/:id/reports/:testId',
+        element: protect(<LabReportViewPage />, LAB_VIEW_ROLES)
+      },
+      {
+        path: 'labs/orders/:id/reports',
+        element: protect(<LabReportViewPage />, LAB_VIEW_ROLES)
       },
       {
         path: 'labs/reports/:id',
-        element: protect(<LabReportPage />, [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.DOCTOR, ROLES.LAB_TECHNICIAN])
+        element: protect(<LabReportPage />, LAB_VIEW_ROLES)
+      },
+      {
+        path: 'lab-orders',
+        element: protect(<LabOrderDetailPage />, LAB_ROLES)
+      },
+      {
+        path: 'lab-orders/:id',
+        element: protect(<LabOrderDetailPage />, LAB_VIEW_ROLES)
+      },
+      {
+        path: 'lab-orders/:id/results',
+        element: protect(<LabEnterResultsPage />, LAB_ROLES)
+      },
+      {
+        path: 'lab-orders/:id/results-entry',
+        element: protect(<LabEnterResultsPage />, LAB_ROLES)
+      },
+      {
+        path: 'lab-orders/:id/reports/:testId',
+        element: protect(<LabReportViewPage />, LAB_VIEW_ROLES)
+      },
+      {
+        path: 'lab-orders/:id/reports',
+        element: protect(<LabReportViewPage />, LAB_VIEW_ROLES)
+      },
+      {
+        path: 'lab-orders/:id/generated-report',
+        element: protect(<LabReportViewPage />, LAB_VIEW_ROLES)
+      },
+      {
+        path: 'labs/orders/:id/results-entry',
+        element: protect(<LabEnterResultsPage />, LAB_ROLES)
+      },
+      {
+        path: 'labs/orders/:id/generated-report',
+        element: protect(<LabReportViewPage />, LAB_VIEW_ROLES)
+      },
+      {
+        path: 'laboratory/:laboratoryId/orders',
+        element: protect(<LabOrderDetailPage />, LAB_ROLES)
+      },
+      {
+        path: 'laboratory/:laboratoryId/orders/:id',
+        element: protect(<LabOrderDetailPage />, LAB_ROLES)
+      },
+      {
+        path: 'laboratory/:laboratoryId/orders/:id/results',
+        element: protect(<LabEnterResultsPage />, LAB_ROLES)
+      },
+      {
+        path: 'laboratory/:laboratoryId/orders/:id/results-entry',
+        element: protect(<LabEnterResultsPage />, LAB_ROLES)
+      },
+      {
+        path: 'laboratory/:laboratoryId/orders/:id/reports/:testId',
+        element: protect(<LabReportViewPage />, LAB_VIEW_ROLES)
+      },
+      {
+        path: 'laboratory/:laboratoryId/orders/:id/reports',
+        element: protect(<LabReportViewPage />, LAB_VIEW_ROLES)
+      },
+      {
+        path: 'laboratory/:laboratoryId/orders/:id/generated-report',
+        element: protect(<LabReportViewPage />, LAB_VIEW_ROLES)
+      },
+      {
+        path: 'sample-collection',
+        element: protect(<ProviderWorkspacePage type="laboratory" />, LAB_ROLES)
+      },
+      {
+        path: 'test-catalogue',
+        element: protect(<LabTestsRoute />, [...LAB_ROLES, ROLES.PATIENT])
+      },
+      {
+        path: 'lab-inventory',
+        element: protect(<LabConsumablesPage />, LAB_ROLES)
+      },
+      {
+        path: 'qc-calibration',
+        element: protect(<ProviderWorkspacePage type="laboratory" />, LAB_ROLES)
+      },
+      {
+        path: 'reports-analytics',
+        element: protect(<ProviderWorkspacePage type="laboratory" />, LAB_ROLES)
+      },
+      {
+        path: 'reports',
+        element: protect(<ReportsPage />, [ROLES.ADMIN, ROLES.LAB_OPERATOR, ROLES.LAB_TECHNICIAN])
+      },
+      {
+        path: 'staff',
+        element: protect(<MyReceptionistsDashboard />, [ROLES.ADMIN, ROLES.LAB_OPERATOR, ROLES.LAB_TECHNICIAN])
+      },
+      {
+        path: 'settings',
+        element: protect(<SettingsAdminPage />, [ROLES.ADMIN, ROLES.LAB_OPERATOR, ROLES.LAB_TECHNICIAN, ROLES.DOCTOR, ROLES.RECEPTIONIST])
+      },
+      {
+        path: 'laboratory/book-test',
+        element: protect(<Navigate to="/portal?tab=book-lab" replace />, [ROLES.PATIENT])
+      },
+      {
+        path: 'laboratory/reports',
+        element: protect(<Navigate to="/portal?tab=labs" replace />, [ROLES.PATIENT])
+      },
+      {
+        path: 'laboratory/reports/:id',
+        element: protect(<LabReportViewPage />, LAB_VIEW_ROLES)
       },
       {
         path: 'pharmacy/medicines',

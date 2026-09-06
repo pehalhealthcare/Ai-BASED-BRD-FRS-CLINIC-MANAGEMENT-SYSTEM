@@ -1,13 +1,18 @@
 import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Calendar as CalendarIcon, X, ChevronLeft, ChevronRight, Info } from 'lucide-react';
 import { clinicApi } from '../../lib/api';
 
 const BottomFloatingNavBar = () => {
+  const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const [holidays, setHolidays] = useState([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [hoveredDate, setHoveredDate] = useState(null);
   const [hoveredHolidays, setHoveredHolidays] = useState([]);
+
+  // Hide on pages with sticky bottom footers
+  const isExcludedPage = location.pathname.includes('/results') || location.pathname.includes('/dispense');
 
   // Fetch holidays
   const fetchHolidays = async () => {
@@ -20,10 +25,12 @@ const BottomFloatingNavBar = () => {
   };
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !isExcludedPage) {
       fetchHolidays();
     }
-  }, [isOpen]);
+  }, [isOpen, isExcludedPage]);
+
+  if (isExcludedPage) return null;
 
   // Calendar Helpers
   const year = currentDate.getFullYear();

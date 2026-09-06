@@ -20,5 +20,9 @@ export const checkOrderCompletion = (orderId, params) => labApi.checkOrderComple
 export const finalizeOrder = (orderId, payload) => labApi.finalizeOrder(orderId, payload);
 export const amendOrder = (orderId, payload) => labApi.amendOrder(orderId, payload);
 export const generateOrderPdf = (reportId, payload) => labApi.generateOrderPdf(reportId, payload);
+export const getGeneratedReportDocument = (orderId, params) => labApi.getGeneratedReportDocument(orderId, params);
+export const downloadReportPdf = (orderId, params) => labApi.downloadReportPdf(orderId, params);
+export const verifyReport = (reportId) => labApi.verifyReport(reportId);
+export const logReportActivity = (orderId, payload) => labApi.logReportActivity(orderId, payload);
 
 export default labApi;

@@ -80,7 +80,7 @@ const labReportSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'LabOrder',
       required: true,
-      unique: true
+      index: true
     },
     patientId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -163,8 +163,53 @@ const labReportSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['draft', 'reviewed', 'finalized'],
+      enum: ['draft', 'generating', 'generated', 'reviewed', 'finalized', 'published', 'superseded', 'cancelled'],
       default: 'draft'
+    },
+    version: {
+      type: Number,
+      default: 1
+    },
+    isSuperseded: {
+      type: Boolean,
+      default: false
+    },
+    previousVersionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'LabReport',
+      default: null
+    },
+    reportNumber: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    verificationToken: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    issuedAt: {
+      type: Date,
+      default: null
+    },
+    publishedAt: {
+      type: Date,
+      default: null
+    },
+    verifiedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
+    verifiedAt: {
+      type: Date,
+      default: null
+    },
+    comments: {
+      type: String,
+      trim: true,
+      default: ''
     },
     reviewedBy: {
       type: mongoose.Schema.Types.ObjectId,
@@ -196,6 +241,8 @@ labReportSchema.index({ clinicId: 1, patientId: 1, createdAt: -1 });
 labReportSchema.index({ clinicId: 1, consultationId: 1, createdAt: -1 });
 labReportSchema.index({ clinicId: 1, status: 1, createdAt: -1 });
 labReportSchema.index({ clinicId: 1, aiReviewStatus: 1, createdAt: -1 });
+labReportSchema.index({ reportNumber: 1 });
+labReportSchema.index({ labOrderId: 1, version: -1 });
 
 const LabReport = mongoose.models.LabReport || mongoose.model('LabReport', labReportSchema);
 

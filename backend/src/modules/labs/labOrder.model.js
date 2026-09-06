@@ -1,21 +1,7 @@
 const mongoose = require('mongoose');
+const { LAB_ORDER_STATUSES } = require('./labStatus.constants');
 
-const ORDER_STATUSES = [
-  'ordered',
-  'confirmed',
-  'scheduled',
-  'sample_collection_pending',
-  'sample_collected',
-  'processing',
-  'in_processing',
-  'in_analysis',
-  'results_entry',      // Lab staff entering results
-  'ready_for_review',  // All results entered, pending final review
-  'completed',
-  'report_ready',
-  'cancelled',
-  'rejected'
-];
+const ORDER_STATUSES = LAB_ORDER_STATUSES;
 
 const normalRangeSchema = new mongoose.Schema(
   {
@@ -126,6 +112,43 @@ const orderDocumentSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const orderTimelineSchema = new mongoose.Schema(
+  {
+    oldStatus: {
+      type: String,
+      default: ''
+    },
+    newStatus: {
+      type: String,
+      default: ''
+    },
+    action: {
+      type: String,
+      default: ''
+    },
+    performedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
+    performedByName: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    performedAt: {
+      type: Date,
+      default: Date.now
+    },
+    notes: {
+      type: String,
+      trim: true,
+      default: ''
+    }
+  },
+  { _id: true }
+);
+
 const labOrderSchema = new mongoose.Schema(
   {
     clinicId: {
@@ -205,9 +228,76 @@ const labOrderSchema = new mongoose.Schema(
       trim: true,
       default: ''
     },
+    sampleId: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    sampleType: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    sampleCollectionMethod: {
+      type: String,
+      trim: true,
+      default: 'AT_LAB'
+    },
     sampleCollectedAt: {
       type: Date,
       default: null
+    },
+    sampleCollectedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
+    sampleCollectedByName: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    processingStartedAt: {
+      type: Date,
+      default: null
+    },
+    processingStartedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
+    processingStartedByName: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    processingCompletedAt: {
+      type: Date,
+      default: null
+    },
+    processingCompletedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
+    processingCompletedByName: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    resultsCompletedAt: {
+      type: Date,
+      default: null
+    },
+    resultsCompletedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
+    resultsCompletedByName: {
+      type: String,
+      trim: true,
+      default: ''
     },
     testingStartedAt: {
       type: Date,
@@ -345,6 +435,20 @@ const labOrderSchema = new mongoose.Schema(
     finalizedAt: {
       type: Date,
       default: null
+    },
+    finalizedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
+    finalizedByName: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    timeline: {
+      type: [orderTimelineSchema],
+      default: []
     },
     resultsSummary: {
       totalParams: { type: Number, default: 0 },

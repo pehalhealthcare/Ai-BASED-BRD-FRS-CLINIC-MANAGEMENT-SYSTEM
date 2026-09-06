@@ -1,6 +1,17 @@
+const mongoose = require('mongoose');
 const LabTest = require('./labTest.model');
 const { LabOrder } = require('./labOrder.model');
 const LabReport = require('./labReport.model');
+
+const buildOrderQueryFilter = (id, clinicId) => {
+  if (!id) return { _id: null };
+  const isObjectId = mongoose.Types.ObjectId.isValid(id) && String(new mongoose.Types.ObjectId(id)) === String(id);
+  const filter = isObjectId ? { _id: id } : { orderNumber: id };
+  if (clinicId) {
+    filter.clinicId = clinicId;
+  }
+  return filter;
+};
 
 const populateLabOrder = (query) =>
   query
@@ -75,7 +86,8 @@ const listLabOrders = async ({ filter, page = 1, limit = 10, sort = { orderedAt:
 };
 
 const findLabOrderById = ({ id, clinicId, populateDetails = true, lean = false }) => {
-  let query = LabOrder.findOne({ _id: id, clinicId });
+  const filter = buildOrderQueryFilter(id, clinicId);
+  let query = LabOrder.findOne(filter);
 
   if (populateDetails) {
     query = populateLabOrder(query);
@@ -89,7 +101,8 @@ const findLabOrderById = ({ id, clinicId, populateDetails = true, lean = false }
 };
 
 const updateLabOrder = ({ id, clinicId, data, populateDetails = true }) => {
-  let query = LabOrder.findOneAndUpdate({ _id: id, clinicId }, data, {
+  const filter = buildOrderQueryFilter(id, clinicId);
+  let query = LabOrder.findOneAndUpdate(filter, data, {
     new: true,
     runValidators: true
   });
@@ -117,8 +130,22 @@ const findLabReportById = ({ id, clinicId, populateDetails = true, lean = false 
   return query;
 };
 
-const findLabReportByOrderId = ({ labOrderId, clinicId, populateDetails = true, lean = false }) => {
-  let query = LabReport.findOne({ labOrderId, clinicId });
+const findLabReportByOrderId = async ({ labOrderId, clinicId, populateDetails = true, lean = false }) => {
+  let orderId = labOrderId;
+  const isObjectId = mongoose.Types.ObjectId.isValid(labOrderId) && String(new mongoose.Types.ObjectId(labOrderId)) === String(labOrderId);
+  if (!isObjectId) {
+    const orderDoc = await LabOrder.findOne(buildOrderQueryFilter(labOrderId, clinicId)).select('_id').lean();
+    if (orderDoc) {
+      orderId = orderDoc._id;
+    }
+  }
+
+  let filter = { labOrderId: orderId };
+  if (clinicId) {
+    filter.clinicId = clinicId;
+  }
+
+  let query = LabReport.findOne(filter);
 
   if (populateDetails) {
     query = populateLabReport(query);

@@ -4,6 +4,7 @@ const PLANS_DATA = [
   {
     name: 'AI Starter Clinic',
     code: 'STARTER',
+    description: 'Essential toolkit for solo medical practitioners and emerging boutique clinics.',
     priceMonthly: 999,
     priceYearly: 9590, // ~20% off
     features: [
@@ -19,6 +20,7 @@ const PLANS_DATA = [
     limits: {
       maxDoctors: 1,
       maxStaff: 2,
+      maxBranches: 1,
       maxPatients: 500
     },
     isActive: true
@@ -26,6 +28,7 @@ const PLANS_DATA = [
   {
     name: 'AI Professional Clinic',
     code: 'PROFESSIONAL',
+    description: 'Complete multi-specialty clinical operating system with smart automation & integrations.',
     priceMonthly: 1999,
     priceYearly: 19190, // ~20% off
     features: [
@@ -48,6 +51,7 @@ const PLANS_DATA = [
     limits: {
       maxDoctors: 3,
       maxStaff: 10,
+      maxBranches: 2,
       maxPatients: 999999
     },
     isActive: true
@@ -55,6 +59,7 @@ const PLANS_DATA = [
   {
     name: 'AI Premium Clinic',
     code: 'PREMIUM',
+    description: 'Advanced AI consultation assistant, diagnostic scoring, and telemedicine for fast-scaling polyclinics.',
     priceMonthly: 2999,
     priceYearly: 28790, // ~20% off
     features: [
@@ -86,6 +91,7 @@ const PLANS_DATA = [
     limits: {
       maxDoctors: 15,
       maxStaff: 25,
+      maxBranches: 5,
       maxPatients: 999999
     },
     isActive: true
@@ -93,6 +99,7 @@ const PLANS_DATA = [
   {
     name: 'AI Enterprise ClinicOS',
     code: 'ENTERPRISE',
+    description: 'Enterprise-grade healthcare network platform with custom APIs, ABDM, dedicated server & unlimited scale.',
     priceMonthly: 4999,
     priceYearly: 47990, // ~20% off
     features: [
@@ -133,6 +140,7 @@ const PLANS_DATA = [
     limits: {
       maxDoctors: 999999,
       maxStaff: 999999,
+      maxBranches: 999999,
       maxPatients: 999999
     },
     isActive: true
@@ -146,8 +154,9 @@ const seedPlans = async () => {
       await SubscriptionPlan.create(plan);
       console.log(`[Subscription Service] Seeded plan: ${plan.name}`);
     } else {
-      // Keep features and limits updated
-      existing.name = plan.name; // Keep name synced (e.g. AI Enterprise ClinicOS)
+      // Keep features, description, and limits updated
+      existing.name = plan.name;
+      existing.description = plan.description || existing.description || '';
       existing.priceMonthly = plan.priceMonthly;
       existing.priceYearly = plan.priceYearly;
       existing.features = plan.features;

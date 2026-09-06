@@ -18,7 +18,7 @@ const getAllPlans = asyncHandler(async (req, res) => {
 
 // Create a new subscription plan
 const createPlan = asyncHandler(async (req, res) => {
-  const { name, code, priceMonthly, priceYearly, features, trialPeriodDays, displayOrder, limits } = req.body;
+  const { name, code, description, priceMonthly, priceYearly, features, trialPeriodDays, displayOrder, limits } = req.body;
 
   if (!name || !code) {
     throw new AppError('Name and Code are required fields.', HTTP_STATUS.BAD_REQUEST);
@@ -32,12 +32,13 @@ const createPlan = asyncHandler(async (req, res) => {
   const plan = await SubscriptionPlan.create({
     name,
     code: code.toUpperCase(),
+    description: description || '',
     priceMonthly: priceMonthly || 0,
     priceYearly: priceYearly || 0,
     features: features || [],
     trialPeriodDays: trialPeriodDays || 0,
     displayOrder: displayOrder || 0,
-    limits: limits || { maxDoctors: null, maxStaff: null, maxPatients: null },
+    limits: limits || { maxDoctors: null, maxStaff: null, maxPatients: null, maxBranches: 0 },
     isActive: true
   });
 
@@ -47,7 +48,7 @@ const createPlan = asyncHandler(async (req, res) => {
 // Update a plan
 const updatePlan = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { name, priceMonthly, priceYearly, features, trialPeriodDays, displayOrder, limits, isActive } = req.body;
+  const { name, code, description, priceMonthly, priceYearly, features, trialPeriodDays, displayOrder, limits, isActive } = req.body;
 
   const plan = await SubscriptionPlan.findById(id);
   if (!plan) {
@@ -55,6 +56,7 @@ const updatePlan = asyncHandler(async (req, res) => {
   }
 
   if (name !== undefined) plan.name = name;
+  if (description !== undefined) plan.description = description;
   if (priceMonthly !== undefined) plan.priceMonthly = priceMonthly;
   if (priceYearly !== undefined) plan.priceYearly = priceYearly;
   if (features !== undefined) plan.features = features;
@@ -87,6 +89,7 @@ const duplicatePlan = asyncHandler(async (req, res) => {
   const plan = await SubscriptionPlan.create({
     name: `${original.name} (Copy)`,
     code: newCode,
+    description: original.description || '',
     priceMonthly: original.priceMonthly,
     priceYearly: original.priceYearly,
     features: original.features,

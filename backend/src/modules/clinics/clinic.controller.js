@@ -338,11 +338,14 @@ const submitRegistration = asyncHandler(async (req, res) => {
   if (!plan) {
     throw new AppError('Selected subscription plan not found', HTTP_STATUS.NOT_FOUND);
   }
+  if (!plan.isActive || plan.isArchived) {
+    throw new AppError('Selected subscription plan is no longer active or available for registration', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  const billingCycle = selectedPlan.billingCycle === 'yearly' ? 'yearly' : 'monthly';
 
   // Hash password for storing
   const hashedPassword = await bcrypt.hash(ownerDetails.password, 10);
-
-  const billingCycle = selectedPlan.billingCycle || 'monthly';
 
   const clinic = await Clinic.create({
     name: clinicDetails.name,

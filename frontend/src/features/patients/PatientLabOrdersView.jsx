@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Calendar, Clock, MapPin, Phone, Building2, Droplets, CheckCircle2,
   AlertCircle, ChevronRight, Filter, Search, X, Eye, FileText,
@@ -12,8 +13,11 @@ export default function PatientLabOrdersView({
   selectedClinic,
   selectedLab,
   patient,
-  onNavigate
+  onNavigate,
+  initialStatusFilter = 'ALL',
+  fromTab = 'lab-orders'
 }) {
+  const navigate = useNavigate();
   const clinicId = selectedClinic?._id || selectedClinic?.id;
   const labId = selectedLab?._id || selectedLab?.id;
   const labName = selectedLab?.name || 'Radha Krishna Laboratory';
@@ -29,14 +33,13 @@ export default function PatientLabOrdersView({
   // 2. Filter & Sort States
   const [searchQuery, setSearchQuery] = useState('');
   const [collectionFilter, setCollectionFilter] = useState('ALL'); // 'ALL' | 'HOME_COLLECTION' | 'AT_LAB'
-  const [statusFilter, setStatusFilter] = useState('ALL'); // 'ALL' | 'SCHEDULED' | 'IN_LAB_TESTING' | 'REPORT_AVAILABLE' | 'CANCELLED'
+  const [statusFilter, setStatusFilter] = useState(initialStatusFilter); // 'ALL' | 'SCHEDULED' | 'IN_LAB_TESTING' | 'REPORT_AVAILABLE' | 'CANCELLED'
   const [sourceFilter, setSourceFilter] = useState('ALL'); // 'ALL' | 'PATIENT_PORTAL' | 'WALK_IN'
   const [sortBy, setSortBy] = useState('NEWEST'); // 'NEWEST' | 'OLDEST' | 'COLLECTION_DATE' | 'STATUS'
   const [showFilterModal, setShowFilterModal] = useState(false);
 
   // 3. Modal States
   const [selectedOrderForDetails, setSelectedOrderForDetails] = useState(null);
-  const [selectedReportForModal, setSelectedReportForModal] = useState(null);
   const [expandedPackageOrderIds, setExpandedPackageOrderIds] = useState(new Set());
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -157,6 +160,22 @@ export default function PatientLabOrdersView({
       toast.error(err?.response?.data?.message || 'Failed to cancel order.');
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const handleViewReport = (order) => {
+    const targetId = order?._id || order?.orderNumber;
+    if (targetId) {
+      const activeLabId = selectedLab?._id || order?.laboratoryId || labId || '';
+      const activeClinicId = selectedClinic?._id || order?.clinicId || clinicId || '';
+      if (activeLabId) {
+        localStorage.setItem('patientActiveLabId', activeLabId);
+        window.dispatchEvent(new CustomEvent('patient:lab-changed', { detail: activeLabId }));
+      }
+      if (activeClinicId) {
+        localStorage.setItem('patientActiveClinicId', activeClinicId);
+      }
+      navigate(`/patient/lab-reports/${targetId}?labId=${activeLabId}&clinicId=${activeClinicId}&fromTab=${fromTab}`);
     }
   };
 
@@ -521,8 +540,8 @@ export default function PatientLabOrdersView({
                               {isReportReady ? (
                                 <button
                                   type="button"
-                                  onClick={() => setSelectedReportForModal(order)}
-                                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-xl transition shadow-xs flex items-center gap-1.5"
+                                  onClick={() => handleViewReport(order)}
+                                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-xl transition shadow-xs flex items-center gap-1.5 cursor-pointer"
                                 >
                                   <FileText size={13} />
                                   <span>View Report</span>
@@ -651,8 +670,8 @@ export default function PatientLabOrdersView({
                                 {isReportReady ? (
                                   <button
                                     type="button"
-                                    onClick={() => setSelectedReportForModal(order)}
-                                    className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-xl transition shadow-xs whitespace-nowrap"
+                                    onClick={() => handleViewReport(order)}
+                                    className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-xl transition shadow-xs whitespace-nowrap cursor-pointer"
                                   >
                                     View Report
                                   </button>
@@ -922,9 +941,9 @@ export default function PatientLabOrdersView({
                   onClick={() => {
                     const ord = selectedOrderForDetails;
                     setSelectedOrderForDetails(null);
-                    setSelectedReportForModal(ord);
+                    handleViewReport(ord);
                   }}
-                  className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-xl transition shadow-xs flex items-center justify-center gap-1.5"
+                  className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-xl transition shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   <FileText size={14} />
                   <span>View Lab Report</span>
@@ -944,125 +963,7 @@ export default function PatientLabOrdersView({
         </div>
       )}
 
-      {/* ============================================================ */}
-      {/* ── REPORT VIEWER MODAL ── */}
-      {/* ============================================================ */}
-      {selectedReportForModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-5 animate-scale-in max-h-[90vh] overflow-y-auto">
-            
-            {/* Report Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div>
-                <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest block">
-                  Official Diagnostic Report
-                </span>
-                <h3 className="text-base font-black text-slate-900">
-                  {selectedReportForModal.packageName || (selectedReportForModal.tests || []).map(t => t.name).join(', ')}
-                </h3>
-              </div>
-              <button onClick={() => setSelectedReportForModal(null)} className="p-1 text-slate-400 hover:text-slate-700">
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Laboratory Signoff Banner */}
-            <div className="p-4 bg-blue-50/70 border border-blue-100 rounded-2xl flex items-center justify-between text-xs">
-              <div className="space-y-0.5">
-                <h4 className="font-black text-slate-900">{labName}</h4>
-                <p className="text-slate-500 font-medium">{labCity}, Uttar Pradesh • Certified Medical Laboratory</p>
-                <p className="text-[10px] text-slate-400 font-bold">Order ID: {selectedReportForModal.orderNumber}</p>
-              </div>
-              <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-100 text-emerald-800 text-[10px] font-black rounded-xl">
-                <ShieldCheck size={14} className="text-emerald-600" />
-                <span>Verified by Pathologist</span>
-              </div>
-            </div>
-
-            {/* Clinical Test Results Table */}
-            <div className="space-y-2">
-              <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider">
-                Investigation Parameters
-              </h4>
-              <div className="overflow-x-auto border border-slate-200 rounded-2xl">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="border-b border-slate-200 text-slate-400 font-bold text-[10px] uppercase bg-slate-50">
-                      <th className="py-2.5 pl-3">Test Parameter</th>
-                      <th className="py-2.5">Observed Value</th>
-                      <th className="py-2.5">Unit</th>
-                      <th className="py-2.5 pr-3">Reference Range</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 font-medium">
-                    {/* Render entries from real report or tests array */}
-                    {(selectedReportForModal.report?.resultEntries?.length > 0
-                      ? selectedReportForModal.report.resultEntries
-                      : (selectedReportForModal.tests || []).map((t, idx) => ({
-                          testName: t.name || t.testName,
-                          observedValue: t.name?.includes('Sugar') ? '92' : t.name?.includes('CBC') ? '14.2' : 'Normal',
-                          unit: t.name?.includes('Sugar') ? 'mg/dL' : t.name?.includes('CBC') ? 'g/dL' : '',
-                          referenceRange: t.name?.includes('Sugar') ? '70 - 100' : t.name?.includes('CBC') ? '13.0 - 17.0' : 'Normal'
-                        }))
-                    ).map((entry, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50/50">
-                        <td className="py-2.5 pl-3 font-bold text-slate-800">{entry.testName}</td>
-                        <td className="py-2.5 font-black text-blue-600">{entry.observedValue || entry.value || 'Normal'}</td>
-                        <td className="py-2.5 text-slate-500">{entry.unit || '—'}</td>
-                        <td className="py-2.5 pr-3 text-slate-500">{entry.referenceRange || entry.biologicalReferenceInterval || 'Standard'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* AI Summary & Clinical Remarks */}
-            <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 text-xs space-y-1">
-              <div className="flex items-center gap-1.5 text-blue-700 font-black">
-                <Sparkles size={14} />
-                <span>Clinical Interpretation</span>
-              </div>
-              <p className="text-slate-600 leading-relaxed font-medium">
-                {selectedReportForModal.report?.aiSummary || 'All physiological test parameters are within expected biological reference intervals. Routine clinical follow-up recommended.'}
-              </p>
-            </div>
-
-            {/* Report Actions */}
-            <div className="flex gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  window.print();
-                }}
-                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition flex items-center gap-1.5"
-              >
-                <Printer size={14} />
-                <span>Print Report</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  toast.success('Report downloaded successfully.');
-                }}
-                className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-xl transition shadow-xs flex items-center justify-center gap-1.5"
-              >
-                <Download size={14} />
-                <span>Download Report PDF</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedReportForModal(null)}
-                className="py-2.5 px-5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition"
-              >
-                Close
-              </button>
-            </div>
-
-          </div>
-        </div>
-      )}
-
     </div>
   );
 }
+

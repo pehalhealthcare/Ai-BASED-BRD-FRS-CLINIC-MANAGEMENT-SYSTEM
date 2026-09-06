@@ -25,13 +25,16 @@ const isDatabaseUnavailableError = (error) => {
 
 const errorMiddleware = (error, _req, res, _next) => {
   if (error instanceof ZodError) {
+    const issues = error.issues.map((issue) => ({
+      field: issue.path.join('.') || undefined,
+      message: issue.message
+    }));
+    const message = issues.map((i) => (i.field ? `${i.field}: ${i.message}` : i.message)).join('; ') || RESPONSE_MESSAGES.VALIDATION_FAILED;
+
     return sendError(
       res,
-      RESPONSE_MESSAGES.VALIDATION_FAILED,
-      error.issues.map((issue) => ({
-        field: issue.path.join('.') || undefined,
-        message: issue.message
-      })),
+      message,
+      issues,
       HTTP_STATUS.BAD_REQUEST,
       includeStack(error)
     );
@@ -42,10 +45,11 @@ const errorMiddleware = (error, _req, res, _next) => {
       field: issue.path,
       message: issue.message
     }));
+    const message = details.map((i) => (i.field ? `${i.field}: ${i.message}` : i.message)).join('; ') || RESPONSE_MESSAGES.VALIDATION_FAILED;
 
     return sendError(
       res,
-      RESPONSE_MESSAGES.VALIDATION_FAILED,
+      message,
       details,
       HTTP_STATUS.BAD_REQUEST,
       includeStack(error)

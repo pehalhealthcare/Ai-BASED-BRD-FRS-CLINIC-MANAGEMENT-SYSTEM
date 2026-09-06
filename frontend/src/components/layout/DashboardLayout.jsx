@@ -45,6 +45,7 @@ const DashboardLayout = () => {
     const saved = localStorage.getItem('sidebarOpen');
     return saved !== null ? JSON.parse(saved) : true;
   });
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [walkInModalOpen, setWalkInModalOpen] = useState(false);
   const [subInfo, setSubInfo] = useState(null);
 
@@ -158,20 +159,25 @@ const DashboardLayout = () => {
 
   return (
     <LoadingProvider>
-      <div className="min-h-screen bg-[var(--bg-base)] text-[var(--text-primary)] flex">
+      <div className="h-screen max-h-screen overflow-hidden bg-[var(--bg-base)] text-[var(--text-primary)] flex">
         <Sidebar
           user={user}
           role={user?.role}
           open={sidebarOpen}
-          onNavigate={(state) => setSidebarOpen(state)}
+          mobileOpen={mobileDrawerOpen}
+          onToggleMobile={setMobileDrawerOpen}
+          onNavigate={(state) => {
+            setSidebarOpen(state);
+            if (!state) setMobileDrawerOpen(false);
+          }}
           onLogout={handleLogout}
           onAddWalkIn={() => setWalkInModalOpen(true)}
         />
 
         {/* Main content */}
-        <div className="relative flex min-h-screen flex-1 flex-col overflow-hidden w-full max-w-full pl-[72px] sm:pl-[80px] xl:pl-0">
+        <div className="relative flex h-screen max-h-screen flex-1 flex-col overflow-hidden w-full max-w-full pl-[72px] sm:pl-[80px] xl:pl-0">
           {show24hWarning && (
-            <div className="bg-rose-650 bg-rose-600 text-white p-4 text-xs font-bold flex items-center justify-between gap-4 flex-wrap">
+            <div className="bg-rose-650 bg-rose-600 text-white p-4 text-xs font-bold flex items-center justify-between gap-4 flex-wrap shrink-0">
               <span>
                 ⚠️ <strong>Your subscription will expire within the next 24 hours.</strong> Please renew your subscription to avoid interruption of clinic services.
               </span>
@@ -224,14 +230,20 @@ const DashboardLayout = () => {
             title={activeTitle}
             currentUser={user}
             sidebarOpen={sidebarOpen}
-            onToggleSidebar={() => setSidebarOpen((s) => {
-              const next = !s;
-              localStorage.setItem('sidebarOpen', JSON.stringify(next));
-              return next;
-            })}
+            onToggleSidebar={() => {
+              if (typeof window !== 'undefined' && window.innerWidth < 1280) {
+                setMobileDrawerOpen((m) => !m);
+              } else {
+                setSidebarOpen((s) => {
+                  const next = !s;
+                  localStorage.setItem('sidebarOpen', JSON.stringify(next));
+                  return next;
+                });
+              }
+            }}
             onLogout={handleLogout}
           />
-          <main className="flex-1 p-4 md:p-6 overflow-x-auto animate-fade-in">
+          <main className="flex-1 min-h-0 flex flex-col overflow-hidden p-3 sm:p-4 lg:p-5 animate-fade-in">
             <Outlet />
           </main>
           {user?.role === ROLES.PATIENT && <FloatingChatbot />}

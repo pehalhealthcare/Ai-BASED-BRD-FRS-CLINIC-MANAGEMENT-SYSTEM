@@ -1,4 +1,5 @@
 const { z } = require('zod');
+const { LAB_ORDER_STATUSES } = require('./labStatus.constants');
 
 const { objectIdParamSchema, objectIdSchema } = require('../../common/validators/objectId.validator');
 
@@ -216,12 +217,21 @@ const listLabOrderQuerySchema = z.object({
   }).passthrough()
 });
 
-const labOrderIdParamSchema = objectIdParamSchema('id');
+const labOrderIdParamSchema = z.object({
+  params: z.object({
+    id: z.string().trim().min(1, 'Order ID or Order Number is required')
+  })
+});
 
 const updateLabOrderStatusSchema = z.object({
   params: labOrderIdParamSchema.shape.params,
   body: z.object({
-    status: z.enum(['sample_collected', 'processing', 'completed', 'cancelled'])
+    status: z.preprocess(
+      (val) => String(val || '').trim().toLowerCase(),
+      z.enum(LAB_ORDER_STATUSES)
+    ),
+    notes: optionalTrimmedString(500),
+    reason: optionalTrimmedString(500)
   })
 });
 
@@ -408,9 +418,22 @@ const adjustConsumableStockSchema = z.object({
 // LIMS — Result Entry Schemas
 // ============================================================
 
-const resultFlagEnum = z.enum([
-  'normal', 'low', 'high', 'critical_low', 'critical_high', 'abnormal', 'not_applicable', ''
-]).optional();
+const resultFlagEnum = z.preprocess(
+  (val) => (typeof val === 'string' ? val.trim().toLowerCase() : val),
+  z.enum([
+    'pending',
+    'normal',
+    'abnormal',
+    'critical',
+    'low',
+    'high',
+    'critical_low',
+    'critical_high',
+    'not_applicable',
+    'not_evaluated',
+    ''
+  ])
+).optional();
 
 const singleResultUpdateSchema = z.object({
   params: z.object({ id: objectIdSchema, resultId: objectIdSchema }),
@@ -419,6 +442,9 @@ const singleResultUpdateSchema = z.object({
     numericValue: z.coerce.number().optional().nullable(),
     unit: z.string().trim().max(60).optional(),
     manualFlag: resultFlagEnum,
+    effectiveFlag: resultFlagEnum,
+    flagSource: z.enum(['automatic', 'manual']).optional(),
+    isFlagManuallyOverridden: z.boolean().optional(),
     overrideReason: z.string().trim().max(500).optional(),
     comment: z.string().trim().max(1000).optional(),
     status: z.enum(['pending', 'entered', 'not_applicable']).optional()
@@ -431,20 +457,25 @@ const batchResultItemSchema = z.object({
   numericValue: z.coerce.number().optional().nullable(),
   unit: z.string().trim().max(60).optional(),
   manualFlag: resultFlagEnum,
+  effectiveFlag: resultFlagEnum,
+  flagSource: z.enum(['automatic', 'manual']).optional(),
+  isFlagManuallyOverridden: z.boolean().optional(),
   overrideReason: z.string().trim().max(500).optional(),
   comment: z.string().trim().max(1000).optional(),
   status: z.enum(['pending', 'entered', 'not_applicable']).optional()
 });
 
 const batchResultEntrySchema = z.object({
-  params: z.object({ id: objectIdSchema }),
+  params: z.object({ id: z.string().trim().min(1, 'Order ID is required') }),
   body: z.object({
-    results: z.array(batchResultItemSchema).min(1, 'At least one result is required')
+    results: z.array(batchResultItemSchema).min(1, 'At least one result is required'),
+    overallComment: z.string().trim().max(1000).optional(),
+    notes: z.string().trim().max(1000).optional()
   })
 });
 
 const finalizeOrderSchema = z.object({
-  params: z.object({ id: objectIdSchema }),
+  params: z.object({ id: z.string().trim().min(1, 'Order ID is required') }),
   body: z.object({
     generatePdf: z.boolean().optional().default(true),
     notes: z.string().trim().max(500).optional()
@@ -452,14 +483,14 @@ const finalizeOrderSchema = z.object({
 });
 
 const amendOrderSchema = z.object({
-  params: z.object({ id: objectIdSchema }),
+  params: z.object({ id: z.string().trim().min(1, 'Order ID is required') }),
   body: z.object({
     reason: z.string().trim().min(5, 'Amendment reason must be at least 5 characters').max(500)
   })
 });
 
 const generateReportPdfSchema = z.object({
-  params: z.object({ id: objectIdSchema })
+  params: z.object({ id: z.string().trim().min(1, 'Report ID is required') })
 });
 
 module.exports = {

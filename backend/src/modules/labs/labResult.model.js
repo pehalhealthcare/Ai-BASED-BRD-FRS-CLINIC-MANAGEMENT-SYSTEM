@@ -1,4 +1,4 @@
-﻿const mongoose = require("mongoose");
+const mongoose = require("mongoose");
 
 const editHistorySchema = new mongoose.Schema(
   {
@@ -57,13 +57,18 @@ const labResultSchema = new mongoose.Schema(
     ],
     autoFlag: {
       type: String,
-      enum: ["normal", "low", "high", "critical_low", "critical_high", "abnormal", "not_evaluated"],
+      enum: ["pending", "normal", "low", "high", "critical_low", "critical_high", "abnormal", "critical", "not_evaluated"],
       default: "not_evaluated"
     },
     manualFlag: {
       type: String,
-      enum: ["normal", "low", "high", "critical_low", "critical_high", "abnormal", "not_applicable", ""],
+      enum: ["pending", "normal", "low", "high", "critical_low", "critical_high", "abnormal", "critical", "not_applicable", "not_evaluated", ""],
       default: ""
+    },
+    flagSource: {
+      type: String,
+      enum: ["automatic", "manual"],
+      default: "automatic"
     },
     isFlagManuallyOverridden: { type: Boolean, default: false },
     overriddenBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
@@ -71,7 +76,7 @@ const labResultSchema = new mongoose.Schema(
     overrideReason: { type: String, trim: true, default: "" },
     effectiveFlag: {
       type: String,
-      enum: ["normal", "low", "high", "critical_low", "critical_high", "abnormal", "not_applicable", "not_evaluated", ""],
+      enum: ["pending", "normal", "low", "high", "critical_low", "critical_high", "abnormal", "critical", "not_applicable", "not_evaluated", ""],
       default: "not_evaluated"
     },
     comment: { type: String, trim: true, default: "" },

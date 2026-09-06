@@ -229,6 +229,40 @@ router.post(
   labController.generateOrderPdf
 );
 
+router.get(
+  '/orders/:id/report-document',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR, ROLES.LAB_TECHNICIAN, ROLES.LAB_OPERATOR, ROLES.PATIENT, ROLES.RECEPTIONIST),
+  validate(labOrderIdParamSchema),
+  labController.getGeneratedReportDocument
+);
+
+router.get(
+  '/orders/:id/report/pdf',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR, ROLES.LAB_TECHNICIAN, ROLES.LAB_OPERATOR, ROLES.PATIENT, ROLES.RECEPTIONIST),
+  validate(labOrderIdParamSchema),
+  labController.downloadLabReportPdf
+);
+
+router.post(
+  '/orders/:id/report/activity',
+  protect,
+  validate(labOrderIdParamSchema),
+  labController.recordReportActivity
+);
+
+// Public Report Verification (No Auth Required for QR Scan verification)
+router.get(
+  '/reports/verify/:reportId',
+  labController.verifyPublicLabReport
+);
+
+router.get(
+  '/verify/:reportId',
+  labController.verifyPublicLabReport
+);
+
 router.post(
   '/reports',
   protect,

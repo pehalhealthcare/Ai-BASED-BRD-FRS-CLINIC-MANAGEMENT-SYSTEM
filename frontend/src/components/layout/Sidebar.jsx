@@ -6,7 +6,8 @@ import {
   LayoutDashboard, Calendar, Users, UserCog, UserCheck, LayoutGrid,
   Building2, Activity, CreditCard, Receipt, BarChart3, Package,
   Settings, ChevronDown, ChevronRight, ChevronLeft, X, Menu, Lock, User,
-  ClipboardList, FlaskConical, Pill, FileText, Stethoscope, ShieldAlert
+  ClipboardList, FlaskConical, Pill, FileText, Stethoscope, ShieldAlert,
+  Syringe
 } from 'lucide-react';
 import { clinicApi, patientApi, providersApi } from '../../lib/api';
 import pehalLogo from '../../assets/pehal_logo.svg';
@@ -21,16 +22,25 @@ const ICON_MAP = {
   'Healthcare Providers': <Building2 size={20} />,
   'Procedures': <Activity size={20} />,
   'Billing & Invoices': <CreditCard size={20} />,
+  'Billing': <CreditCard size={20} />,
   'Payments': <Receipt size={20} />,
   'Reports': <BarChart3 size={20} />,
   'Reports & Analytics': <BarChart3 size={20} />,
   'Subscription & Plan': <BarChart3 size={20} />,
   'Inventory': <Package size={20} />,
   'Pharmacy': <Package size={20} />,
-  'Laboratory': <LayoutGrid size={20} />,
+  'Laboratory': <FlaskConical size={20} />,
+  'Lab Orders': <FlaskConical size={20} />,
+  'Sample Collection': <Syringe size={20} />,
+  'Syringe': <Syringe size={20} />,
+  'Test Catalogue': <LayoutGrid size={20} />,
+  'Lab Inventory': <Package size={20} />,
   'Lab Consumables': <Package size={20} />,
+  'QC & Calibration': <Activity size={20} />,
   'Branches': <Building2 size={20} />,
   'Notifications': <Activity size={20} />,
+  'Doctor Leaves': <UserCheck size={20} />,
+  'Earnings': <Receipt size={20} />,
   'Settings': <Settings size={20} />,
   'My Portal': <LayoutDashboard size={20} />,
   'Lab Tests': <Activity size={20} />,
@@ -64,7 +74,14 @@ const isClinicFeatureActive = (clinic, featureCode) => {
   return false;
 };
 
-const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
+const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOpen: externalMobileOpen, onToggleMobile }) => {
+  const [internalMobileOpen, setInternalMobileOpen] = useState(false);
+  const isMobileDrawerOpen = externalMobileOpen !== undefined ? externalMobileOpen : internalMobileOpen;
+  const setMobileDrawer = (val) => {
+    if (onToggleMobile) onToggleMobile(val);
+    setInternalMobileOpen(val);
+    if (onNavigate && val === false) onNavigate(false);
+  };
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -77,6 +94,13 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
   const labIdMatch = location.pathname.match(/^\/laboratory\/([^/]+)/);
   const currentLaboratoryId = labIdMatch ? labIdMatch[1] : '';
   const activeLaboratoryId = currentLaboratoryId || user?.providerId || '';
+
+  const isLabWorkspaceRoute = Boolean(currentLaboratoryId) ||
+    location.pathname.startsWith('/provider-workspace/laboratory') ||
+    location.pathname.startsWith('/lab-orders') ||
+    location.pathname.startsWith('/labs/') ||
+    ['/sample-collection', '/test-catalogue', '/lab-inventory', '/qc-calibration', '/reports-analytics'].some(p => location.pathname === p || location.pathname.startsWith(p + '/'));
+  const isLabContext = isLabRole || isLabWorkspaceRoute;
 
   // State hooks for Patient context
   const [patientClinics, setPatientClinics] = useState([]);
@@ -170,7 +194,7 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
     }
   }, [isPatient, selectedClinicId]);
 
-  // Sync selected clinic from URL search params
+  // Sync selected clinic and lab from URL search params or custom events
   useEffect(() => {
     const currentParams = new URLSearchParams(location.search);
     const urlClinicId = currentParams.get('clinicId');
@@ -178,12 +202,34 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
       setSelectedClinicId(urlClinicId);
       localStorage.setItem('patientActiveClinicId', urlClinicId);
     }
+    const urlLabId = currentParams.get('labId');
+    if (urlLabId) {
+      localStorage.setItem('patientActiveLabId', urlLabId);
+    }
+    const urlPharmacyId = currentParams.get('pharmacyId');
+    if (urlPharmacyId) {
+      localStorage.setItem('patientActivePharmacyId', urlPharmacyId);
+    }
   }, [location.search]);
 
-  // Derive URL query params
+  // Listen to custom clinic/lab change events
+  useEffect(() => {
+    const handleLabChanged = (e) => {
+      const newLabId = e.detail;
+      if (newLabId) {
+        localStorage.setItem('patientActiveLabId', newLabId);
+      } else {
+        localStorage.removeItem('patientActiveLabId');
+      }
+    };
+    window.addEventListener('patient:lab-changed', handleLabChanged);
+    return () => window.removeEventListener('patient:lab-changed', handleLabChanged);
+  }, []);
+
+  // Derive URL query params with storage fallbacks
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
-  const selectedLabId = searchParams.get('labId') || '';
-  const selectedPharmacyId = searchParams.get('pharmacyId') || '';
+  const selectedLabId = searchParams.get('labId') || localStorage.getItem('patientActiveLabId') || '';
+  const selectedPharmacyId = searchParams.get('pharmacyId') || localStorage.getItem('patientActivePharmacyId') || '';
 
   // Track dynamic active laboratory record
   useEffect(() => {
@@ -221,13 +267,17 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
     }
   }, [selectedPharmacyId, patientPharmacies]);
 
+  // Detect laboratory-specific path / tab
+  const isLabReportPath = location.pathname.startsWith('/patient/lab-reports') || location.pathname.startsWith('/patient/lab-orders') || location.pathname.includes('/lab-report') || location.pathname.startsWith('/laboratory/reports');
+  const isLabTab = ['lab-tests', 'lab-prescriptions', 'lab-bookings', 'lab-orders', 'lab-reports', 'lab-packages', 'lab-checkout'].includes(currentTab);
+
   // Determine current Patient Context
   const patientContext = useMemo(() => {
     if (!selectedClinicId) return 'CLINIC_SELECTION';
-    if (selectedLabId || ['lab-tests', 'lab-prescriptions', 'lab-bookings', 'lab-orders', 'lab-reports'].includes(currentTab)) {
+    if (selectedLabId || isLabTab || isLabReportPath) {
       return 'LABORATORY_CONTEXT';
     }
-    if (currentTab === 'book-lab' || location.pathname === '/labs/tests') {
+    if (currentTab === 'book-lab' || location.pathname === '/labs/tests' || location.pathname === '/laboratory/book-test') {
       return 'LABORATORY_SELECTION_CONTEXT';
     }
     if (selectedPharmacyId || ['pharmacy-medicines', 'pharmacy-prescriptions', 'pharmacy-orders-workspace', 'pharmacy-cart'].includes(currentTab)) {
@@ -237,7 +287,7 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
       return 'PHARMACY_SELECTION_CONTEXT';
     }
     return 'CLINIC_CONTEXT';
-  }, [selectedClinicId, selectedLabId, selectedPharmacyId, currentTab, location.pathname]);
+  }, [selectedClinicId, selectedLabId, selectedPharmacyId, currentTab, location.pathname, isLabTab, isLabReportPath]);
 
   const selectedClinic = useMemo(() => {
     return patientClinics.find(c => String(c._id) === String(selectedClinicId)) || null;
@@ -252,6 +302,23 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
 
   // Sidebar Menu options configuration for non-patient roles
   const menuItems = useMemo(() => {
+    if (isLabRole || isLabWorkspaceRoute) {
+      const base = activeLaboratoryId ? `/laboratory/${activeLaboratoryId}` : '/provider-workspace/laboratory';
+      return [
+        { label: 'Dashboard', path: `${base}/dashboard`, iconKey: 'Dashboard' },
+        { label: 'Lab Orders', path: `${base}/orders`, iconKey: 'Lab Orders' },
+        { label: 'Sample Collection', path: `${base}/collection`, iconKey: 'Sample Collection' },
+        { label: 'Test Catalogue', path: `${base}/catalogue`, iconKey: 'Test Catalogue' },
+        { label: 'Patients', path: `${base}/patients`, iconKey: 'Patients' },
+        { label: 'Reports', path: `${base}/reports`, iconKey: 'Reports' },
+        { label: 'Lab Inventory', path: `${base}/inventory`, iconKey: 'Lab Inventory' },
+        { label: 'QC & Calibration', path: `${base}/qc`, iconKey: 'QC & Calibration' },
+        { label: 'Reports & Analytics', path: `${base}/analytics`, iconKey: 'Reports & Analytics' },
+        { label: 'Staff', path: `${base}/staff`, iconKey: 'Staff' },
+        { label: 'Settings', path: `${base}/settings`, iconKey: 'Settings' }
+      ];
+    }
+
     if (role === 'RECEPTIONIST') {
       return [
         { label: 'Dashboard', path: '/dashboard', iconKey: 'Dashboard' },
@@ -315,31 +382,14 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
       ];
     }
 
-    if (normRole === 'LABORATORY OPERATOR' || role === 'LAB_TECHNICIAN') {
-      const base = activeLaboratoryId ? `/laboratory/${activeLaboratoryId}` : '/provider-workspace/laboratory';
-      return [
-        { label: 'Dashboard', path: `${base}/dashboard`, iconKey: 'Dashboard' },
-        { label: 'Lab Orders', path: `${base}/orders`, iconKey: 'Laboratory' },
-        { label: 'Sample Collection', path: `${base}/collection`, iconKey: 'Syringe' },
-        { label: 'Test Catalogue', path: `${base}/catalogue`, iconKey: 'Departments' },
-        { label: 'Patients', path: `${base}/patients`, iconKey: 'Patients' },
-        { label: 'Reports', path: `${base}/reports`, iconKey: 'Reports' },
-        { label: 'Lab Inventory', path: `${base}/inventory`, iconKey: 'Pharmacy' },
-        { label: 'QC & Calibration', path: `${base}/qc`, iconKey: 'Procedures' },
-        { label: 'Reports & Analytics', path: `${base}/analytics`, iconKey: 'Reports' },
-        { label: 'Staff', path: `${base}/staff`, iconKey: 'Staff' },
-        { label: 'Settings', path: `${base}/settings`, iconKey: 'Settings' }
-      ];
-    }
-
     if (role === 'DOCTOR') {
       return [
         { label: 'Dashboard', path: '/dashboard', iconKey: 'Dashboard' },
         { label: 'Appointments', path: '/appointments', iconKey: 'Appointments' },
         { label: 'Patients', path: '/patients', iconKey: 'Patients' },
         { label: 'Procedures', path: '/procedures', iconKey: 'Procedures' },
-        { label: 'Doctor Leaves', path: '/doctor/leaves', iconKey: 'Staff' },
-        { label: 'Earnings', path: '/doctor/earnings', iconKey: 'Payments' },
+        { label: 'Doctor Leaves', path: '/doctor/leaves', iconKey: 'Doctor Leaves' },
+        { label: 'Earnings', path: '/doctor/earnings', iconKey: 'Earnings' },
         { label: 'Notifications / Messages', path: '/notifications/logs', iconKey: 'Notifications' }
       ];
     }
@@ -382,7 +432,7 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
       { label: 'Inventory', path: '/pharmacy/medicines', iconKey: 'Inventory' },
       { label: 'Settings', path: '/admin/settings', iconKey: 'Settings' }
     ];
-  }, [role, activeLaboratoryId]);
+  }, [role, activeLaboratoryId, isLabRole, isLabWorkspaceRoute]);
 
   const handleClinicSelect = (clinicId) => {
     localStorage.setItem('patientActiveClinicId', clinicId);
@@ -393,26 +443,269 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
     navigate(`/portal?tab=${activeTab === 'clinics' ? 'dashboard' : activeTab}&clinicId=${clinicId}`);
   };
 
-  const isItemActive = (path) => {
+  const isItemActive = (itemOrPath, optionalItem) => {
+    const item = typeof itemOrPath === 'object' && itemOrPath !== null 
+      ? itemOrPath 
+      : (optionalItem || { path: typeof itemOrPath === 'string' ? itemOrPath : '' });
+    const path = item.path || (typeof itemOrPath === 'string' ? itemOrPath : '');
+    const label = item.label || '';
+    const menuKey = item.menuKey || '';
+    
+    const pathname = location.pathname;
+    const searchParams = new URLSearchParams(location.search);
+    const currentTabParam = searchParams.get('tab') || '';
+    const currentSubParam = searchParams.get('sub') || '';
+
+    // Handle Pharmacist / Pharmacy Operator workspace tabs
     const normRole = (role || '').toUpperCase();
-    if (normRole === 'PATIENT' || normRole === 'PHARMACY STORE OPERATOR' || normRole === 'LABORATORY OPERATOR' || normRole === 'PHARMACIST' || normRole === 'LAB_TECHNICIAN') {
-      const itemUrl = new URL(path, window.location.origin);
-      if (itemUrl.pathname.startsWith('/laboratory/')) {
-        return location.pathname === itemUrl.pathname;
+    if (normRole === 'PHARMACY STORE OPERATOR' || role === 'PHARMACIST') {
+      if (path.includes('?tab=') || path.includes('&sub=')) {
+        try {
+          const itemUrl = new URL(path, window.location.origin);
+          const itemTab = itemUrl.searchParams.get('tab');
+          const itemSub = itemUrl.searchParams.get('sub');
+          if (itemSub) {
+            return itemTab === currentTabParam && itemSub === currentSubParam;
+          }
+          if (itemTab === 'suppliers') {
+            return ['suppliers', 'purchase-orders', 'manufacturers'].includes(currentTabParam);
+          }
+          if (itemTab === 'sales-performance') {
+            return ['sales-performance', 'inventory-ledger'].includes(currentTabParam);
+          }
+          if (itemTab === 'dashboard') {
+            return currentTabParam === 'dashboard' || !currentTabParam;
+          }
+          return itemTab === currentTabParam;
+        } catch {
+          // fallback
+        }
       }
-      const isPathMatch = location.pathname === itemUrl.pathname;
-      const itemTab = itemUrl.searchParams.get('tab');
-      const currentTab = new URLSearchParams(location.search).get('tab') || 'dashboard';
-      const itemSub = itemUrl.searchParams.get('sub');
-      const currentSub = new URLSearchParams(location.search).get('sub');
-      
-      // If parent item is checked, we also match if the tab is selected
-      if (itemSub) {
-        return isPathMatch && itemTab === currentTab && itemSub === currentSub;
+      if (path === '/pharmacist/orders/online') {
+        return pathname === '/pharmacist/orders/online';
       }
-      return isPathMatch && itemTab === currentTab;
     }
-    return location.pathname === path || location.pathname.startsWith(path + '/');
+
+    // Handle Super Admin Healthcare Catalog subItems / menu
+    if (normRole === 'SUPER_ADMIN') {
+      if (menuKey === 'globalLabCatalog' || label === 'Global Lab Catalogue') {
+        return pathname.startsWith('/super-admin/healthcare-catalog') && !pathname.includes('/medicines');
+      }
+      if (label === 'Global Medicine Catalog' || path === '/super-admin/healthcare-catalog/medicines') {
+        return pathname === '/super-admin/healthcare-catalog/medicines';
+      }
+      if (path.startsWith('/super-admin/healthcare-catalog/')) {
+        return pathname === path;
+      }
+      if (label === 'Clinics' || path === '/super-admin/clinics') {
+        return pathname.startsWith('/super-admin/clinics') || pathname === '/admin/clinics-dashboard';
+      }
+      if (label === 'Plans' || path === '/super-admin/plans') {
+        return pathname.startsWith('/super-admin/plans');
+      }
+      if (label === 'Promo Codes' || path === '/super-admin/promo-codes') {
+        return pathname.startsWith('/super-admin/promo-codes');
+      }
+    }
+
+    // Lab Orders matching: includes all nested routes
+    if (label === 'Lab Orders' || (isLabContext && (path.endsWith('/orders') || path.endsWith('/orders/'))) || (!isLabRole && label === 'Laboratory')) {
+      return (
+        pathname.startsWith('/lab-orders') ||
+        pathname.startsWith('/labs/orders') ||
+        /^\/laboratory\/[^/]+\/orders(\/.*)?$/.test(pathname) ||
+        pathname.startsWith('/labs/reports') ||
+        (pathname.startsWith('/provider-workspace/laboratory') && currentTabParam === 'orders')
+      );
+    }
+
+    // Sample Collection
+    if (label === 'Sample Collection' || (isLabContext && path.endsWith('/collection'))) {
+      return (
+        pathname.startsWith('/sample-collection') ||
+        pathname.startsWith('/labs/sample-collection') ||
+        /^\/laboratory\/[^/]+\/(collection|sample-collection)(\/.*)?$/.test(pathname) ||
+        (pathname.startsWith('/provider-workspace/laboratory') && (currentTabParam === 'collection' || currentTabParam === 'sample-collection'))
+      );
+    }
+
+    // Test Catalogue
+    if (label === 'Test Catalogue' || (isLabContext && path.endsWith('/catalogue'))) {
+      return (
+        pathname.startsWith('/test-catalogue') ||
+        pathname.startsWith('/labs/tests') ||
+        /^\/laboratory\/[^/]+\/(catalogue|test-catalogue)(\/.*)?$/.test(pathname) ||
+        (pathname.startsWith('/provider-workspace/laboratory') && currentTabParam === 'catalogue')
+      );
+    }
+
+    // Lab Inventory
+    if (label === 'Lab Inventory' || (isLabContext && path.endsWith('/inventory'))) {
+      return (
+        pathname.startsWith('/lab-inventory') ||
+        pathname.startsWith('/labs/consumables') ||
+        /^\/laboratory\/[^/]+\/inventory(\/.*)?$/.test(pathname) ||
+        (pathname.startsWith('/provider-workspace/laboratory') && currentTabParam === 'inventory')
+      );
+    }
+
+    // QC & Calibration
+    if (label === 'QC & Calibration' || (isLabContext && path.endsWith('/qc'))) {
+      return (
+        pathname.startsWith('/qc-calibration') ||
+        /^\/laboratory\/[^/]+\/qc(\/.*)?$/.test(pathname) ||
+        (pathname.startsWith('/provider-workspace/laboratory') && currentTabParam === 'qc')
+      );
+    }
+
+    // Reports & Analytics
+    if (label === 'Reports & Analytics' || (isLabContext && path.endsWith('/analytics'))) {
+      return (
+        pathname.startsWith('/reports-analytics') ||
+        /^\/laboratory\/[^/]+\/analytics(\/.*)?$/.test(pathname) ||
+        (pathname.startsWith('/provider-workspace/laboratory') && currentTabParam === 'analytics')
+      );
+    }
+
+    // Reports (exclusive of Reports & Analytics)
+    if (label === 'Reports' || (isLabContext && path.endsWith('/reports'))) {
+      return (
+        ((pathname === '/reports' || pathname.startsWith('/reports/')) && !pathname.startsWith('/reports-analytics')) ||
+        pathname.startsWith('/admin/reports') ||
+        /^\/laboratory\/[^/]+\/reports(\/.*)?$/.test(pathname) ||
+        (pathname.startsWith('/provider-workspace/laboratory') && currentTabParam === 'reports')
+      );
+    }
+
+    // Patients
+    if (label === 'Patients') {
+      return (
+        pathname.startsWith('/patients') ||
+        pathname === '/dashboard/patients' ||
+        /^\/laboratory\/[^/]+\/patients(\/.*)?$/.test(pathname) ||
+        (pathname.startsWith('/provider-workspace/laboratory') && currentTabParam === 'patients')
+      );
+    }
+
+    // Staff
+    if (label === 'Staff') {
+      return (
+        pathname.startsWith('/staff') ||
+        pathname.startsWith('/admin/staff') ||
+        pathname.startsWith('/admin/my-receptionists-dashboard') ||
+        /^\/laboratory\/[^/]+\/staff(\/.*)?$/.test(pathname) ||
+        (pathname.startsWith('/provider-workspace/laboratory') && currentTabParam === 'staff')
+      );
+    }
+
+    // Settings
+    if (label === 'Settings') {
+      return (
+        pathname.startsWith('/settings') ||
+        pathname.startsWith('/admin/settings') ||
+        pathname.startsWith('/clinic/settings') ||
+        pathname.startsWith('/admin/organization-settings') ||
+        pathname.startsWith('/admin/specialities') ||
+        pathname.startsWith('/admin/branches') ||
+        pathname.startsWith('/admin/subscription') ||
+        /^\/laboratory\/[^/]+\/settings(\/.*)?$/.test(pathname) ||
+        (pathname.startsWith('/provider-workspace/laboratory') && currentTabParam === 'settings')
+      );
+    }
+
+    // Appointments
+    if (label === 'Appointments') {
+      return pathname.startsWith('/appointments') || pathname === '/dashboard/appointments';
+    }
+
+    // Doctors
+    if (label === 'Doctors') {
+      return (
+        pathname.startsWith('/doctors') ||
+        pathname.startsWith('/admin/doctors') ||
+        pathname === '/admin/my-doctors-dashboard'
+      );
+    }
+
+    // Procedures
+    if (label === 'Procedures') {
+      return pathname.startsWith('/procedures');
+    }
+
+    // Departments
+    if (label === 'Departments') {
+      return pathname.startsWith('/admin/departments');
+    }
+
+    // Healthcare Providers
+    if (label === 'Healthcare Providers') {
+      return pathname.startsWith('/admin/providers');
+    }
+
+    // Billing & Invoices
+    if (label === 'Billing & Invoices' || label === 'Billing') {
+      return pathname.startsWith('/billing') && !pathname.startsWith('/billing/financials');
+    }
+
+    // Payments
+    if (label === 'Payments') {
+      return pathname.startsWith('/billing/financials') || pathname === '/dashboard/revenue';
+    }
+
+    // Doctor Leaves
+    if (label === 'Doctor Leaves') {
+      return (
+        pathname.startsWith('/doctor/leaves') ||
+        pathname.startsWith('/admin/leaves-review') ||
+        pathname.startsWith('/admin/leave-policy')
+      );
+    }
+
+    // Earnings
+    if (label === 'Earnings') {
+      return pathname.startsWith('/doctor/earnings');
+    }
+
+    // Notifications / Messages
+    if (label === 'Notifications / Messages' || label === 'Notifications') {
+      return (
+        pathname.startsWith('/notifications') ||
+        pathname === '/dashboard/notifications' ||
+        pathname === '/chat'
+      );
+    }
+
+    // Inventory / Pharmacy (Clinic Admin / Receptionist)
+    if (label === 'Inventory' || label === 'Pharmacy') {
+      return pathname.startsWith('/pharmacy');
+    }
+
+    // Dashboard
+    if (label === 'Dashboard' || path === '/dashboard' || path === '/clinic/dashboard') {
+      const isOtherDashboardSubPage = 
+        pathname === '/dashboard/appointments' ||
+        pathname === '/dashboard/revenue' ||
+        pathname === '/dashboard/patients' ||
+        pathname === '/dashboard/notifications' ||
+        pathname === '/dashboard/pharmacy' ||
+        pathname === '/dashboard/billing-fraud' ||
+        pathname === '/dashboard/audit-logs';
+
+      if (isOtherDashboardSubPage) {
+        return false;
+      }
+
+      return (
+        pathname === '/dashboard' ||
+        pathname === '/clinic/dashboard' ||
+        pathname === '/' ||
+        /^\/laboratory\/[^/]+\/dashboard(\/.*)?$/.test(pathname) ||
+        (pathname.startsWith('/provider-workspace/laboratory') && (!currentTabParam || currentTabParam === 'dashboard'))
+      );
+    }
+
+    // Fallback match
+    return pathname === path || (path !== '/' && pathname.startsWith(path + '/'));
   };
 
   const bottomCardInfo = useMemo(() => {
@@ -552,12 +845,12 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
               to={`/portal?tab=labs&clinicId=${selectedClinicId}`}
               onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
               className={`flex items-center gap-3 px-3.5 h-[46px] rounded-2xl text-[13px] font-bold transition duration-150 ${
-                currentTab === 'labs'
+                ['labs', 'lab-reports'].includes(currentTab) || (isLabReportPath && searchParams.get('fromTab') !== 'lab-bookings' && searchParams.get('fromTab') !== 'lab-orders')
                   ? 'bg-gradient-to-r from-blue-50/80 to-blue-50/20 text-slate-900 border-l-4 border-blue-500 shadow-sm'
                   : 'text-slate-500 hover:bg-slate-50 hover:text-blue-600'
               }`}
             >
-              <FileText size={18} className={currentTab === 'labs' ? 'text-blue-600' : 'text-slate-400'} />
+              <FileText size={18} className={['labs', 'lab-reports'].includes(currentTab) || (isLabReportPath && searchParams.get('fromTab') !== 'lab-bookings' && searchParams.get('fromTab') !== 'lab-orders') ? 'text-blue-600' : 'text-slate-400'} />
               <span>View Lab Reports</span>
             </NavLink>
           </nav>
@@ -584,12 +877,31 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
     // 3. Selected Laboratory Context
     if (patientContext === 'LABORATORY_CONTEXT') {
       const activeLabName = activeLabDetails?.name || (selectedLabId ? 'Laboratory' : 'Selected Laboratory');
+      const fromTabParam = searchParams.get('fromTab');
+      const isOrdersActive = ['lab-bookings', 'lab-orders'].includes(currentTab) || (isLabReportPath && (fromTabParam === 'lab-bookings' || fromTabParam === 'lab-orders'));
+      const isReportsActive = ['lab-reports', 'labs'].includes(currentTab) || (isLabReportPath && fromTabParam !== 'lab-bookings' && fromTabParam !== 'lab-orders');
+      const isBrowseTestsActive = currentTab === 'lab-tests';
+      const isPrescriptionsActive = currentTab === 'lab-prescriptions';
+
+      const handleExitLaboratories = () => {
+        localStorage.removeItem('patientActiveLabId');
+        window.dispatchEvent(new CustomEvent('patient:lab-changed', { detail: null }));
+        navigate(`/portal?tab=book-lab&clinicId=${selectedClinicId}`);
+      };
+
+      const handleExitToClinic = () => {
+        localStorage.removeItem('patientActiveLabId');
+        localStorage.removeItem('patientActivePharmacyId');
+        window.dispatchEvent(new CustomEvent('patient:lab-changed', { detail: null }));
+        navigate(`/portal?tab=dashboard&clinicId=${selectedClinicId}`);
+      };
+
       return (
         <div className="flex-1 flex flex-col min-h-0 relative overflow-hidden">
           <div className="px-4 pt-3 pb-1 shrink-0">
             <button
-              onClick={() => navigate(`/portal?tab=book-lab&clinicId=${selectedClinicId}`)}
-              className="w-full flex items-center gap-1.5 px-3 py-2 text-xs font-extrabold text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-xl transition duration-150"
+              onClick={handleExitLaboratories}
+              className="w-full flex items-center gap-1.5 px-3 py-2 text-xs font-extrabold text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-xl transition duration-150 cursor-pointer"
             >
               <ChevronLeft size={14} />
               <span>Back to Laboratories</span>
@@ -618,12 +930,12 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
               to={`/portal?tab=lab-tests&labId=${selectedLabId}&clinicId=${selectedClinicId}`}
               onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
               className={`flex items-center gap-3 px-3.5 h-[46px] rounded-2xl text-[13px] font-bold transition duration-150 ${
-                currentTab === 'lab-tests'
+                isBrowseTestsActive
                   ? 'bg-gradient-to-r from-blue-50/80 to-blue-50/20 text-slate-900 border-l-4 border-blue-500 shadow-sm'
                   : 'text-slate-500 hover:bg-slate-50 hover:text-blue-600'
               }`}
             >
-              <FlaskConical size={18} className={currentTab === 'lab-tests' ? 'text-blue-600' : 'text-slate-400'} />
+              <FlaskConical size={18} className={isBrowseTestsActive ? 'text-blue-600' : 'text-slate-400'} />
               <span>Browse Tests</span>
             </NavLink>
 
@@ -631,12 +943,12 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
               to={`/portal?tab=lab-prescriptions&labId=${selectedLabId}&clinicId=${selectedClinicId}`}
               onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
               className={`flex items-center gap-3 px-3.5 h-[46px] rounded-2xl text-[13px] font-bold transition duration-150 ${
-                currentTab === 'lab-prescriptions'
+                isPrescriptionsActive
                   ? 'bg-gradient-to-r from-blue-50/80 to-blue-50/20 text-slate-900 border-l-4 border-blue-500 shadow-sm'
                   : 'text-slate-500 hover:bg-slate-50 hover:text-blue-600'
               }`}
             >
-              <ClipboardList size={18} className={currentTab === 'lab-prescriptions' ? 'text-blue-600' : 'text-slate-400'} />
+              <ClipboardList size={18} className={isPrescriptionsActive ? 'text-blue-600' : 'text-slate-400'} />
               <span>Tests From Prescription</span>
             </NavLink>
 
@@ -644,12 +956,12 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
               to={`/portal?tab=lab-bookings&labId=${selectedLabId}&clinicId=${selectedClinicId}`}
               onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
               className={`flex items-center gap-3 px-3.5 h-[46px] rounded-2xl text-[13px] font-bold transition duration-150 ${
-                ['lab-bookings', 'lab-orders'].includes(currentTab)
+                isOrdersActive
                   ? 'bg-gradient-to-r from-blue-50/80 to-blue-50/20 text-slate-900 border-l-4 border-blue-500 shadow-sm'
                   : 'text-slate-500 hover:bg-slate-50 hover:text-blue-600'
               }`}
             >
-              <Activity size={18} className={['lab-bookings', 'lab-orders'].includes(currentTab) ? 'text-blue-600' : 'text-slate-400'} />
+              <Activity size={18} className={isOrdersActive ? 'text-blue-600' : 'text-slate-400'} />
               <span>My Lab Orders</span>
             </NavLink>
 
@@ -657,12 +969,12 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
               to={`/portal?tab=lab-reports&labId=${selectedLabId}&clinicId=${selectedClinicId}`}
               onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
               className={`flex items-center gap-3 px-3.5 h-[46px] rounded-2xl text-[13px] font-bold transition duration-150 ${
-                currentTab === 'lab-reports'
+                isReportsActive
                   ? 'bg-gradient-to-r from-blue-50/80 to-blue-50/20 text-slate-900 border-l-4 border-blue-500 shadow-sm'
                   : 'text-slate-500 hover:bg-slate-50 hover:text-blue-600'
               }`}
             >
-              <FileText size={18} className={currentTab === 'lab-reports' ? 'text-blue-600' : 'text-slate-400'} />
+              <FileText size={18} className={isReportsActive ? 'text-blue-600' : 'text-slate-400'} />
               <span>Lab Reports</span>
             </NavLink>
           </nav>
@@ -671,8 +983,8 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
             <div className="p-4 border-t border-slate-100 bg-slate-50/50 shrink-0">
               <p className="text-[8px] text-slate-400 font-extrabold uppercase tracking-widest mb-1.5">Back to Clinic</p>
               <button
-                onClick={() => navigate(`/portal?tab=dashboard&clinicId=${selectedClinicId}`)}
-                className="w-full p-2.5 rounded-xl bg-white border border-slate-200 flex items-center justify-between gap-2 shadow-sm hover:bg-slate-100/70 transition"
+                onClick={handleExitToClinic}
+                className="w-full p-2.5 rounded-xl bg-white border border-slate-200 flex items-center justify-between gap-2 shadow-sm hover:bg-slate-100/70 transition cursor-pointer"
               >
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="text-sm shrink-0">🏥</span>
@@ -966,9 +1278,9 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
                 <NavLink
                   to={`/portal?tab=labs&clinicId=${selectedClinicId}`}
                   onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
-                  className={`flex items-center gap-2 py-1.5 text-xs font-bold ${currentTab === 'labs' ? 'text-emerald-600' : 'text-slate-400 hover:text-slate-650'}`}
+                  className={`flex items-center gap-2 py-1.5 text-xs font-bold ${currentTab === 'labs' || currentTab === 'lab-reports' || isLabReportPath ? 'text-emerald-600' : 'text-slate-400 hover:text-slate-650'}`}
                 >
-                  <span className={`w-1.5 h-1.5 rounded-full ${currentTab === 'labs' ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                  <span className={`w-1.5 h-1.5 rounded-full ${currentTab === 'labs' || currentTab === 'lab-reports' || isLabReportPath ? 'bg-emerald-500' : 'bg-slate-300'}`} />
                   <span>View Lab Reports</span>
                 </NavLink>
               </div>
@@ -1065,8 +1377,10 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
       <aside className="fixed inset-y-0 left-0 z-30 w-[72px] sm:w-[80px] bg-white border-r border-slate-150 flex flex-col items-center py-5 shadow-md rounded-r-3xl xl:hidden select-none">
         <div className="flex flex-col items-center gap-6 w-full shrink-0">
           <button 
-            onClick={() => onNavigate && onNavigate(true)}
-            className="p-2 rounded-xl hover:bg-slate-50 transition text-slate-800"
+            type="button"
+            onClick={() => setMobileDrawer(true)}
+            aria-label="Open navigation menu"
+            className="p-2 rounded-xl hover:bg-slate-50 transition text-slate-800 cursor-pointer"
           >
             <Menu size={22} />
           </button>
@@ -1077,7 +1391,8 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
           {isPatient ? (
             <div className="relative group flex items-center justify-center">
               <button
-                onClick={() => onNavigate && onNavigate(true)}
+                type="button"
+                onClick={() => setMobileDrawer(true)}
                 className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${
                   patientContext.includes('LABORATORY')
                     ? 'bg-blue-50 text-blue-600 border-l-4 border-blue-500'
@@ -1097,18 +1412,18 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
             </div>
           ) : (
             menuItems.map((item, idx) => {
-              const active = isItemActive(item.path);
+              const active = isItemActive(item);
               return (
                 <div key={idx} className="relative group flex items-center justify-center">
                   <NavLink
                     to={item.path}
                     className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${
                       active 
-                        ? (isLabRole ? 'bg-gradient-to-r from-purple-50/70 to-purple-50/20 text-slate-800 border-l-4 border-purple-500 shadow-sm' : 'bg-gradient-to-r from-emerald-50/70 to-emerald-50/20 text-slate-800 border-l-4 border-emerald-500 shadow-sm') 
-                        : (isLabRole ? 'text-slate-400 hover:bg-slate-50 hover:text-purple-500' : 'text-slate-400 hover:bg-slate-50 hover:text-emerald-500')
+                        ? (isLabContext ? 'bg-gradient-to-r from-purple-50/70 to-purple-50/20 text-slate-800 border-l-4 border-purple-500 shadow-sm' : 'bg-gradient-to-r from-emerald-50/70 to-emerald-50/20 text-slate-800 border-l-4 border-emerald-500 shadow-sm') 
+                        : (isLabContext ? 'text-slate-400 hover:bg-slate-50 hover:text-purple-500' : 'text-slate-400 hover:bg-slate-50 hover:text-emerald-500')
                     }`}
                   >
-                    <span className={active ? (isLabRole ? 'text-purple-500' : 'text-emerald-500') : 'text-slate-400'}>
+                    <span className={active ? (isLabContext ? 'text-purple-500' : 'text-emerald-500') : 'text-slate-400'}>
                       {ICON_MAP[item.iconKey] || <LayoutGrid size={20} />}
                     </span>
                   </NavLink>
@@ -1122,16 +1437,16 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
         </nav>
       </aside>
 
-      {/* State 2: Open Overlay Sidebar Drawer */}
+      {/* State 2: Open Overlay Sidebar Drawer (Only when mobile menu is explicitly open) */}
       <AnimatePresence>
-        {open && (
+        {isMobileDrawerOpen && (
           <>
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 0.4 }}
               exit={{ opacity: 0 }}
-              onClick={() => onNavigate && onNavigate(false)}
-              className="fixed inset-0 bg-black backdrop-blur-sm z-40 xl:hidden"
+              onClick={() => setMobileDrawer(false)}
+              className="fixed inset-0 bg-black backdrop-blur-sm z-40 xl:hidden cursor-pointer"
             />
 
             <motion.aside 
@@ -1150,8 +1465,9 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
                   </div>
                 </div>
                 <button 
-                  onClick={() => onNavigate && onNavigate(false)}
-                  className="p-1.5 rounded-xl hover:bg-slate-50 text-slate-555"
+                  type="button"
+                  onClick={() => setMobileDrawer(false)}
+                  className="p-1.5 rounded-xl hover:bg-slate-50 text-slate-555 cursor-pointer"
                 >
                   <X size={18} />
                 </button>
@@ -1176,7 +1492,7 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
 
                   <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1.5 [scrollbar-width:none]">
                     {menuItems.map((item, idx) => {
-                      const active = isItemActive(item.path);
+                      const active = isItemActive(item);
                       const isExpandable = !!item.subItems;
                       const isExpanded = expandedMenus[item.menuKey];
 
@@ -1188,12 +1504,12 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
                                 onClick={() => toggleSubMenu(item.menuKey)}
                                 className={`w-full flex items-center justify-between px-3.5 h-[46px] rounded-2xl text-[13px] font-bold transition duration-150 ${
                                   active 
-                                    ? (isLabRole ? 'bg-gradient-to-r from-purple-50/70 to-purple-50/20 text-slate-800 border-l-4 border-purple-500' : 'bg-gradient-to-r from-emerald-50/70 to-emerald-50/20 text-slate-800 border-l-4 border-emerald-500') 
-                                    : `text-slate-500 hover:bg-slate-50 ${isLabRole ? 'hover:text-purple-650' : 'hover:text-emerald-650'}`
+                                    ? (isLabContext ? 'bg-gradient-to-r from-purple-50/70 to-purple-50/20 text-slate-800 border-l-4 border-purple-500' : 'bg-gradient-to-r from-emerald-50/70 to-emerald-50/20 text-slate-800 border-l-4 border-emerald-500') 
+                                    : `text-slate-500 hover:bg-slate-50 ${isLabContext ? 'hover:text-purple-650' : 'hover:text-emerald-650'}`
                                 }`}
                               >
                                 <div className="flex items-center gap-3">
-                                  <span className={active ? (isLabRole ? 'text-purple-500' : 'text-emerald-500') : 'text-slate-400'}>
+                                  <span className={active ? (isLabContext ? 'text-purple-500' : 'text-emerald-500') : 'text-slate-400'}>
                                     {ICON_MAP[item.iconKey] || <LayoutGrid size={20} />}
                                   </span>
                                   <span>{item.label}</span>
@@ -1218,7 +1534,7 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
                                       </div>
                                     );
                                   }
-                                  const subActive = isItemActive(sub.path);
+                                  const subActive = isItemActive(sub);
                                   return (
                                     <NavLink
                                       key={sIdx}
@@ -1226,11 +1542,11 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
                                       onClick={() => onNavigate && onNavigate(false)}
                                       className={`flex items-center gap-2 py-1.5 text-xs font-bold px-3 rounded-xl transition duration-150 ${
                                         subActive 
-                                          ? (isLabRole ? 'bg-purple-50/50 text-purple-600' : 'bg-emerald-50/50 text-emerald-600') 
-                                          : `text-slate-450 hover:bg-slate-50/30 ${isLabRole ? 'hover:text-purple-655' : 'hover:text-emerald-655'}`
+                                          ? (isLabContext ? 'bg-purple-50/50 text-purple-600' : 'bg-emerald-50/50 text-emerald-600') 
+                                          : `text-slate-450 hover:bg-slate-50/30 ${isLabContext ? 'hover:text-purple-655' : 'hover:text-emerald-655'}`
                                       }`}
                                     >
-                                      <span className={`w-1.5 h-1.5 rounded-full ${subActive ? (isLabRole ? 'bg-purple-500' : 'bg-emerald-500') : 'bg-slate-350'}`} />
+                                      <span className={`w-1.5 h-1.5 rounded-full ${subActive ? (isLabContext ? 'bg-purple-500' : 'bg-emerald-500') : 'bg-slate-350'}`} />
                                       <span>{sub.label}</span>
                                     </NavLink>
                                   );
@@ -1243,11 +1559,11 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
                               onClick={() => onNavigate && onNavigate(false)}
                               className={`flex items-center gap-3 px-3.5 h-[46px] rounded-2xl text-[13px] font-bold transition duration-150 ${
                                 active
-                                  ? (isLabRole ? 'bg-gradient-to-r from-purple-50/70 to-purple-50/20 text-slate-805 border-l-4 border-purple-500 shadow-sm' : 'bg-gradient-to-r from-emerald-50/70 to-emerald-50/20 text-slate-855 border-l-4 border-emerald-500 shadow-sm')
-                                  : `text-slate-500 hover:bg-slate-50 ${isLabRole ? 'hover:text-purple-600' : 'hover:text-emerald-600'}`
+                                  ? (isLabContext ? 'bg-gradient-to-r from-purple-50/70 to-purple-50/20 text-slate-805 border-l-4 border-purple-500 shadow-sm' : 'bg-gradient-to-r from-emerald-50/70 to-emerald-50/20 text-slate-855 border-l-4 border-emerald-500 shadow-sm')
+                                  : `text-slate-500 hover:bg-slate-50 ${isLabContext ? 'hover:text-purple-600' : 'hover:text-emerald-600'}`
                               }`}
                             >
-                              <span className={active ? (isLabRole ? 'text-purple-500' : 'text-emerald-500') : 'text-slate-400'}>
+                              <span className={active ? (isLabContext ? 'text-purple-500' : 'text-emerald-500') : 'text-slate-400'}>
                                 {ICON_MAP[item.iconKey] || <LayoutGrid size={20} />}
                               </span>
                               <span>{item.label}</span>
@@ -1361,7 +1677,7 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
           <>
             <div className="flex-1 overflow-y-auto px-4 py-2 space-y-1.5 [scrollbar-width:none]">
               {menuItems.map((item, idx) => {
-                const active = isItemActive(item.path);
+                const active = isItemActive(item);
                 const isExpandable = !!item.subItems;
                 const isExpanded = expandedMenus[item.menuKey];
 
@@ -1374,12 +1690,12 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
                             onClick={() => toggleSubMenu(item.menuKey)}
                             className={`w-full flex items-center justify-between px-3.5 h-[46px] rounded-2xl text-[13px] font-bold transition duration-150 ${
                               active 
-                                ? (isLabRole ? 'bg-gradient-to-r from-purple-50/70 to-purple-50/20 text-slate-800 border-l-4 border-purple-500' : 'bg-gradient-to-r from-emerald-50/70 to-emerald-50/20 text-slate-800 border-l-4 border-emerald-500') 
-                                : `text-slate-500 hover:bg-slate-50 ${isLabRole ? 'hover:text-purple-650' : 'hover:text-emerald-650'}`
+                                ? (isLabContext ? 'bg-gradient-to-r from-purple-50/70 to-purple-50/20 text-slate-800 border-l-4 border-purple-500' : 'bg-gradient-to-r from-emerald-50/70 to-emerald-50/20 text-slate-800 border-l-4 border-emerald-500') 
+                                : `text-slate-500 hover:bg-slate-50 ${isLabContext ? 'hover:text-purple-650' : 'hover:text-emerald-650'}`
                             }`}
                           >
                             <div className="flex items-center gap-3">
-                              <span className={active ? (isLabRole ? 'text-purple-500' : 'text-emerald-500') : 'text-slate-400'}>
+                              <span className={active ? (isLabContext ? 'text-purple-500' : 'text-emerald-500') : 'text-slate-400'}>
                                 {ICON_MAP[item.iconKey] || <LayoutGrid size={20} />}
                               </span>
                               <span>{item.label}</span>
@@ -1388,18 +1704,18 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
                           </button>
                           <div className={`pl-9 space-y-1.5 overflow-hidden transition-all duration-300 ${isExpanded ? 'max-h-40 opacity-100 mt-1' : 'max-h-0 opacity-0 pointer-events-none'}`}>
                             {item.subItems.map((sub, sIdx) => {
-                              const subActive = isItemActive(sub.path);
+                              const subActive = isItemActive(sub);
                               return (
                                 <NavLink
                                   key={sIdx}
                                   to={sub.path}
                                   className={`flex items-center gap-2 py-1.5 text-xs font-bold px-3 rounded-xl transition duration-150 ${
                                     subActive 
-                                      ? (isLabRole ? 'bg-purple-50/50 text-purple-600' : 'bg-emerald-50/50 text-emerald-600') 
-                                      : `text-slate-450 hover:bg-slate-50/30 ${isLabRole ? 'hover:text-purple-655' : 'hover:text-emerald-655'}`
+                                      ? (isLabContext ? 'bg-purple-50/50 text-purple-600' : 'bg-emerald-50/50 text-emerald-600') 
+                                      : `text-slate-450 hover:bg-slate-50/30 ${isLabContext ? 'hover:text-purple-655' : 'hover:text-emerald-655'}`
                                   }`}
                                 >
-                                  <span className={`w-1.5 h-1.5 rounded-full ${subActive ? (isLabRole ? 'bg-purple-500' : 'bg-emerald-500') : 'bg-slate-350'}`} />
+                                  <span className={`w-1.5 h-1.5 rounded-full ${subActive ? (isLabContext ? 'bg-purple-500' : 'bg-emerald-500') : 'bg-slate-350'}`} />
                                   <span>{sub.label}</span>
                                 </NavLink>
                               );
@@ -1411,11 +1727,11 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
                           to={item.path}
                           className={`flex items-center gap-3 px-3.5 h-[46px] rounded-2xl text-[13px] font-bold transition duration-150 ${
                             active
-                              ? (isLabRole ? 'bg-gradient-to-r from-purple-50/70 to-purple-50/20 text-slate-800 border-l-4 border-purple-500 shadow-sm' : 'bg-gradient-to-r from-emerald-50/70 to-emerald-50/20 text-slate-800 border-l-4 border-emerald-500 shadow-sm')
-                              : `text-slate-500 hover:bg-slate-50 ${isLabRole ? 'hover:text-purple-600' : 'hover:text-emerald-600'}`
+                              ? (isLabContext ? 'bg-gradient-to-r from-purple-50/70 to-purple-50/20 text-slate-800 border-l-4 border-purple-500 shadow-sm' : 'bg-gradient-to-r from-emerald-50/70 to-emerald-50/20 text-slate-800 border-l-4 border-emerald-500 shadow-sm')
+                              : `text-slate-500 hover:bg-slate-50 ${isLabContext ? 'hover:text-purple-600' : 'hover:text-emerald-600'}`
                           }`}
                         >
-                          <span className={active ? (isLabRole ? 'text-purple-500' : 'text-emerald-500') : 'text-slate-400'}>
+                          <span className={active ? (isLabContext ? 'text-purple-500' : 'text-emerald-500') : 'text-slate-400'}>
                             {ICON_MAP[item.iconKey] || <LayoutGrid size={20} />}
                           </span>
                           <span>{item.label}</span>
@@ -1427,11 +1743,11 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn }) => {
                           to={item.path}
                           className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${
                             active 
-                              ? (isLabRole ? 'bg-gradient-to-r from-purple-50/70 to-purple-50/20 text-slate-805 border-l-4 border-purple-500 shadow-sm' : 'bg-gradient-to-r from-emerald-50/70 to-emerald-50/20 text-slate-805 border-l-4 border-emerald-500 shadow-sm') 
-                              : (isLabRole ? 'text-slate-400 hover:bg-slate-50 hover:text-purple-555' : 'text-slate-400 hover:bg-slate-50 hover:text-emerald-555')
+                              ? (isLabContext ? 'bg-gradient-to-r from-purple-50/70 to-purple-50/20 text-slate-805 border-l-4 border-purple-500 shadow-sm' : 'bg-gradient-to-r from-emerald-50/70 to-emerald-50/20 text-slate-805 border-l-4 border-emerald-500 shadow-sm') 
+                              : (isLabContext ? 'text-slate-400 hover:bg-slate-50 hover:text-purple-555' : 'text-slate-400 hover:bg-slate-50 hover:text-emerald-555')
                           }`}
                         >
-                          <span className={active ? (isLabRole ? 'text-purple-500' : 'text-emerald-500') : 'text-slate-400'}>
+                          <span className={active ? (isLabContext ? 'text-purple-500' : 'text-emerald-500') : 'text-slate-400'}>
                             {ICON_MAP[item.iconKey] || <LayoutGrid size={20} />}
                           </span>
                         </NavLink>

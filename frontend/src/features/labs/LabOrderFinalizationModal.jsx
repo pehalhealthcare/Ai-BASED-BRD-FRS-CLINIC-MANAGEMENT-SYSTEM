@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Badge from '../../components/common/Badge';
 import { checkOrderCompletion, finalizeOrder } from './labApi';
 
@@ -24,7 +24,8 @@ const LabOrderFinalizationModal = ({
 
     try {
       const response = await checkOrderCompletion(orderId);
-      setCompletionData(response.data);
+      const data = response?.data || response;
+      setCompletionData(data);
     } catch (err) {
       setError(err.response?.data?.message || 'Unable to check order completion status.');
     } finally {
@@ -47,7 +48,7 @@ const LabOrderFinalizationModal = ({
         generatePdf,
         notes: finalNotes
       });
-      if (onFinalized) onFinalized(response.data);
+      if (onFinalized) onFinalized(response?.data || response);
       onClose();
     } catch (err) {
       setError(err.response?.data?.message || 'Finalization failed.');
@@ -56,13 +57,46 @@ const LabOrderFinalizationModal = ({
     }
   };
 
+  // Resilient normalization of completion status
+  const { canFinalize, totalMissing, totalParams, completedCount, missingGroups } = useMemo(() => {
+    if (!completionData) {
+      return { canFinalize: false, totalMissing: 0, totalParams: 0, completedCount: 0, missingGroups: [] };
+    }
+
+    const canFin = Boolean(completionData.canFinalize ?? completionData.isComplete);
+    const totMissing = completionData.totalMissing ?? completionData.missingCount ?? 0;
+    const totParams = completionData.totalParams ?? completionData.totalCount ?? 0;
+    const compCount = completionData.completedCount ?? completionData.completedParams ?? Math.max(0, totParams - totMissing);
+
+    let groups = completionData.missingGroups || [];
+    if (groups.length === 0 && (completionData.missingParameters || []).length > 0) {
+      const map = {};
+      completionData.missingParameters.forEach((m) => {
+        const tName = m.testName || 'Diagnostic Investigation';
+        if (!map[tName]) {
+          map[tName] = { testName: tName, missingParams: [] };
+        }
+        map[tName].missingParams.push(m.parameterName || 'Required Parameter');
+      });
+      groups = Object.values(map);
+    }
+
+    return {
+      canFinalize: canFin,
+      totalMissing: totMissing,
+      totalParams: totParams,
+      completedCount: compCount,
+      missingGroups: groups
+    };
+  }, [completionData]);
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200" id="lab-finalization-modal">
-      <div className="w-full max-w-xl rounded-3xl bg-white shadow-2xl overflow-hidden border border-stone-100 animate-in zoom-in-95 duration-200">
+    <div className="fixed top-16 right-0 bottom-0 left-0 z-40 flex items-center justify-center bg-stone-900/60 backdrop-blur-sm p-4 overflow-hidden animate-in fade-in duration-200" id="lab-finalization-modal">
+      <div className="w-full max-w-xl max-h-[calc(100vh-5.5rem)] flex flex-col rounded-3xl bg-white shadow-2xl overflow-hidden border border-stone-100 animate-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="border-b border-stone-200 bg-stone-50/80 px-6 py-4">
+        <div className="border-b border-stone-200 bg-stone-50/80 px-6 py-4 shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-violet-600 text-white shadow-md shadow-violet-200">
@@ -79,7 +113,7 @@ const LabOrderFinalizationModal = ({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-xl border border-stone-200 p-2 text-stone-400 hover:bg-stone-100 hover:text-stone-700"
+              className="rounded-xl border border-stone-200 p-2 text-stone-400 hover:bg-stone-100 hover:text-stone-700 cursor-pointer"
             >
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -102,7 +136,7 @@ const LabOrderFinalizationModal = ({
             <div className="rounded-2xl bg-rose-50 border border-rose-200 p-4 text-xs font-medium text-rose-700">
               {error}
             </div>
-          ) : !completionData?.canFinalize ? (
+          ) : !canFinalize ? (
             <div className="space-y-4">
               {/* Incomplete Alert */}
               <div className="rounded-2xl border border-amber-300 bg-amber-50/80 p-4">
@@ -112,7 +146,7 @@ const LabOrderFinalizationModal = ({
                   </div>
                   <div>
                     <h4 className="text-xs font-bold text-amber-900">
-                      Cannot Finalize: {completionData?.totalMissing} Required Parameter(s) Missing
+                      Cannot Finalize: {totalMissing} Required Parameter(s) Missing
                     </h4>
                     <p className="mt-1 text-xs text-amber-700">
                       In accordance with clinical protocol, every diagnostic investigation in this order must have its mandatory parameter values entered or marked N/A before the order can be marked completed.
@@ -126,37 +160,43 @@ const LabOrderFinalizationModal = ({
                 <h5 className="text-xs font-bold uppercase tracking-wider text-stone-500 mb-3">
                   Missing Result Parameters:
                 </h5>
-                <div className="space-y-3 max-h-60 overflow-y-auto">
-                  {(completionData?.missingGroups || []).map((group, idx) => (
-                    <div key={idx} className="rounded-xl border border-stone-200 bg-white p-3 shadow-sm">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-bold text-stone-900">{group.testName}</span>
-                        {onOpenTestResultEntry ? (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              onClose();
-                              onOpenTestResultEntry(group.testName);
-                            }}
-                            className="text-xs font-semibold text-violet-600 hover:underline"
-                          >
-                            Enter Results →
-                          </button>
-                        ) : null}
+                {missingGroups.length === 0 ? (
+                  <p className="text-xs text-stone-500 italic">
+                    Diagnostic parameters are currently pending entry in the Result Entry workspace.
+                  </p>
+                ) : (
+                  <div className="space-y-3 max-h-60 overflow-y-auto">
+                    {missingGroups.map((group, idx) => (
+                      <div key={idx} className="rounded-xl border border-stone-200 bg-white p-3 shadow-xs">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-bold text-stone-900">{group.testName}</span>
+                          {onOpenTestResultEntry ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onClose();
+                                onOpenTestResultEntry(group.testName);
+                              }}
+                              className="text-xs font-semibold text-violet-600 hover:underline cursor-pointer"
+                            >
+                              Enter Results →
+                            </button>
+                          ) : null}
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {(group.missingParams || []).map((paramName, pIdx) => (
+                            <span
+                              key={pIdx}
+                              className="rounded-lg bg-rose-50 border border-rose-200 px-2 py-0.5 text-[11px] font-semibold text-rose-700"
+                            >
+                              • {paramName}
+                            </span>
+                          ))}
+                        </div>
                       </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {group.missingParams.map((paramName, pIdx) => (
-                          <span
-                            key={pIdx}
-                            className="rounded-lg bg-rose-50 border border-rose-200 px-2 py-0.5 text-[11px] font-semibold text-rose-700"
-                          >
-                            {paramName}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           ) : (
@@ -171,10 +211,10 @@ const LabOrderFinalizationModal = ({
                   </div>
                   <div>
                     <h4 className="text-xs font-bold text-emerald-900">
-                      All {completionData.totalParams} Diagnostic Parameters Verified
+                      All {totalParams} Diagnostic Parameters Verified
                     </h4>
                     <p className="text-xs text-emerald-700">
-                      This order is fully completed and ready for official release and report publication.
+                      All required laboratory results have been entered ({completedCount} / {totalParams} parameters completed). The order will be marked Completed and the final report will be published.
                     </p>
                   </div>
                 </div>
@@ -228,17 +268,17 @@ const LabOrderFinalizationModal = ({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-2xl border border-stone-300 bg-white px-4 py-2.5 text-xs font-semibold text-stone-700 hover:bg-stone-50"
+              className="rounded-2xl border border-stone-300 bg-white px-4 py-2.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 cursor-pointer"
             >
-              Cancel
+              {canFinalize ? 'Cancel' : 'Close'}
             </button>
 
-            {completionData?.canFinalize ? (
+            {canFinalize ? (
               <button
                 type="button"
                 onClick={handleFinalize}
                 disabled={finalizing}
-                className="flex items-center gap-2 rounded-2xl bg-emerald-600 px-5 py-2.5 text-xs font-semibold text-white shadow-md shadow-emerald-200 hover:bg-emerald-700 disabled:bg-stone-300 disabled:shadow-none"
+                className="flex items-center gap-2 rounded-2xl bg-emerald-600 px-5 py-2.5 text-xs font-semibold text-white shadow-md shadow-emerald-200 hover:bg-emerald-700 disabled:bg-stone-300 disabled:shadow-none cursor-pointer"
                 id="confirm-finalize-btn"
               >
                 {finalizing ? (
