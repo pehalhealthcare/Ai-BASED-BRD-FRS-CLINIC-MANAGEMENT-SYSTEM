@@ -588,6 +588,68 @@ const SampleCollectionDesk = ({ laboratoryId, clinicId, user }) => {
     navigate(`/labs/orders/${currentOrder._id}`);
   };
 
+  // ── REJECTION & RECOLLECTION WORKFLOW ──
+  const handleOpenRejectModal = (sample = null) => {
+    setSelectedSampleForReject(sample || currentOrder?.samples?.[0] || null);
+    setRejectReason('Insufficient Sample');
+    setRejectNotes('');
+    setShowRejectModal(true);
+  };
+
+  const handleConfirmRejectSample = async () => {
+    const targetSample = selectedSampleForReject || currentOrder?.samples?.[0];
+    if (!targetSample?._id && !targetSample?.sampleId) {
+      toast.error('No sample selected for rejection.');
+      return;
+    }
+    try {
+      setRejecting(true);
+      await labApi.rejectSample(targetSample._id || targetSample.sampleId, {
+        reason: rejectReason,
+        notes: rejectNotes
+      });
+      toast.success('✓ Sample rejected. Order moved to Recollection Needed queue.');
+      setShowRejectModal(false);
+      await loadQueueDashboard(true, currentOrder?._id);
+      if (currentOrder?._id) {
+        await fetchOrderDetail(currentOrder._id);
+      }
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to reject sample.');
+    } finally {
+      setRejecting(false);
+    }
+  };
+
+  const handleConfirmRecollect = async () => {
+    const targetSample = currentOrder?.samples?.[0] || currentOrder?.latestSample;
+    if (!targetSample?._id && !targetSample?.sampleId) {
+      handleOpenCollectModal();
+      return;
+    }
+    try {
+      setCollecting(true);
+      const res = await labApi.recollectSample(targetSample._id || targetSample.sampleId, {
+        deskNumber: selectedDesk,
+        notes: `Recollection replacement drawn at ${selectedDesk}`
+      });
+      const newSample = res?.data || res;
+      toast.success(`✓ Replacement sample ${newSample?.sampleId || ''} collected.`);
+      if (newSample?.sampleId) {
+        setPrintedSamples([newSample]);
+        setShowLabelModal(true);
+      }
+      await loadQueueDashboard(true, currentOrder?._id);
+      if (currentOrder?._id) {
+        await fetchOrderDetail(currentOrder._id);
+      }
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to collect replacement sample.');
+    } finally {
+      setCollecting(false);
+    }
+  };
+
   // ── WORKFLOW STEP 6: VIEW REPORT ──
   const handleViewReport = () => {
     if (!currentOrder) return;
@@ -610,15 +672,9 @@ const SampleCollectionDesk = ({ laboratoryId, clinicId, user }) => {
       const data = res?.data || res;
       setScanResult(data);
 
-      if (data?.type === 'LAB_ORDER' && data.order?._id) {
-        setSelectedOrderId(data.order._id);
-        toast.success(`Found order: ${data.order.orderNumber}`);
-      } else if (data?.type === 'SAMPLE' && data.sample?.orderId) {
-        setSelectedOrderId(data.sample.orderId);
-        toast.success(`Found sample linked to order: ${data.sample.sampleId}`);
-      } else if (data?.type === 'TOKEN' && data.token?.orderId) {
-        setSelectedOrderId(data.token.orderId);
-        toast.success(`Found token: ${data.token.tokenNumber}`);
+      const resolvedOrder = data?.order || (data?.type === 'LAB_ORDER' ? data.order : null) || (data?.type === 'SAMPLE' ? data.sample?.orderId : null);
+      if (resolvedOrder?._id) {
+        toast.success(`✓ Order identified: ${resolvedOrder.orderNumber || ''}`);
       }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Scan lookup failed. Item not found.');
@@ -626,6 +682,18 @@ const SampleCollectionDesk = ({ laboratoryId, clinicId, user }) => {
     } finally {
       setScanLoading(false);
     }
+  };
+
+  const handleVerifyAndStartCollection = (orderToCollect) => {
+    const targetOrder = orderToCollect || scanResult?.order;
+    if (!targetOrder?._id) return;
+    setSelectedOrderId(targetOrder._id);
+    setShowScanModal(false);
+    setScanResult(null);
+    setScanCodeInput('');
+    setTimeout(() => {
+      handleOpenCollectModal();
+    }, 150);
   };
 
   // Public Token Display Feed
@@ -1373,16 +1441,28 @@ const SampleCollectionDesk = ({ laboratoryId, clinicId, user }) => {
                           <h4 className="text-xs font-black text-slate-900">Quick Actions</h4>
                         </div>
 
-                        {/* STATUS: ORDERED / AWAITING_COLLECTION (Step 1) */}
+                        {/* STATUS: ORDERED / AWAITING_COLLECTION / RECOLLECTION (Step 1) */}
                         {activeStep === 1 && (
                           <div className="space-y-2">
+                            {currentOrder.isRecollectionRequired && (
+                              <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 text-xs font-bold space-y-1">
+                                <div className="flex items-center gap-1.5 font-black text-rose-800">
+                                  <AlertTriangle size={14} />
+                                  <span>Recollection Required</span>
+                                </div>
+                                <div className="text-[11px] font-normal text-rose-700">
+                                  Reason: {currentOrder.sampleStatusMessage || currentOrder.latestSample?.rejectionReason || 'Previous sample rejected/unsuitable.'}
+                                </div>
+                              </div>
+                            )}
+
                             <button
                               type="button"
-                              onClick={handleOpenCollectModal}
+                              onClick={currentOrder.isRecollectionRequired ? handleConfirmRecollect : handleOpenCollectModal}
                               className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl shadow-xs transition transform active:scale-95 cursor-pointer flex items-center justify-center gap-2"
                             >
                               <CheckCircle2 size={15} />
-                              <span>Mark Sample Collected</span>
+                              <span>{currentOrder.isRecollectionRequired ? 'Collect Replacement Sample' : 'Mark Sample Collected'}</span>
                             </button>
 
                             <button type="button" disabled className="w-full py-2.5 bg-slate-100 text-slate-400 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-not-allowed">
@@ -1429,6 +1509,28 @@ const SampleCollectionDesk = ({ laboratoryId, clinicId, user }) => {
                               <span>Start Processing</span>
                             </button>
 
+                            <div className="flex gap-2 pt-1">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPrintedSamples(currentOrder.samples || [{ sampleId: currentOrder.activeSampleId || 'SMP-20260907-0001', ...currentOrder }]);
+                                  setShowLabelModal(true);
+                                }}
+                                className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer"
+                              >
+                                <Printer size={13} />
+                                <span>Print Label</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenRejectModal(currentOrder.samples?.[0])}
+                                className="flex-1 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer"
+                              >
+                                <AlertTriangle size={13} />
+                                <span>Reject / Recollect</span>
+                              </button>
+                            </div>
+
                             <button type="button" disabled className="w-full py-2.5 bg-slate-100 text-slate-400 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-not-allowed">
                               <Lock size={12} />
                               <span>Mark Processing Complete</span>
@@ -1467,6 +1569,17 @@ const SampleCollectionDesk = ({ laboratoryId, clinicId, user }) => {
                               <CheckCircle2 size={15} />
                               <span>Mark Processing Complete</span>
                             </button>
+
+                            <div className="flex gap-2 pt-1">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenRejectModal(currentOrder.samples?.[0])}
+                                className="w-full py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer"
+                              >
+                                <AlertTriangle size={13} />
+                                <span>Flag Specimen Issue / Request Recollection</span>
+                              </button>
+                            </div>
 
                             <button type="button" disabled className="w-full py-2.5 bg-slate-100 text-slate-400 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-not-allowed">
                               <Lock size={12} />
@@ -1985,6 +2098,97 @@ const SampleCollectionDesk = ({ laboratoryId, clinicId, user }) => {
         </div>
       )}
 
+      {/* ── MODAL 3B: REQUEST RECOLLECTION / REJECT SAMPLE ── */}
+      {showRejectModal && (
+        <div className="fixed top-16 right-0 bottom-0 left-0 z-40 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-lg w-full max-h-[calc(100vh-5.5rem)] border border-slate-200 shadow-2xl flex flex-col overflow-hidden">
+            <div className="p-5 border-b border-slate-100 flex justify-between items-start shrink-0 bg-white">
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-widest text-rose-600 bg-rose-50 px-2.5 py-0.5 rounded-full border border-rose-100">
+                  Sample Quality Rejection
+                </span>
+                <h3 className="text-base font-black text-slate-900 mt-1">
+                  Request Sample Recollection
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowRejectModal(false)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-5 overflow-y-auto overscroll-contain flex-1 min-h-0 space-y-4 text-xs">
+              <div className="bg-rose-50 border border-rose-200 p-3.5 rounded-2xl text-rose-900 font-bold space-y-1">
+                <div className="flex items-center gap-1.5 font-black text-rose-800">
+                  <AlertTriangle size={15} />
+                  <span>Important: Full Audit Trail Preserved</span>
+                </div>
+                <p className="text-[11px] font-medium leading-relaxed">
+                  The current sample ({selectedSampleForReject?.sampleId || currentOrder?.samples?.[0]?.sampleId || 'Current Sample'}) will be marked as <strong className="text-rose-900">REJECTED</strong> and preserved in permanent history. The order will enter <strong className="text-rose-900">Recollection Needed</strong> queue.
+                </p>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-black uppercase tracking-wider text-slate-600 block mb-1">
+                  Reason for Rejection / Recollection *
+                </label>
+                <select
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-rose-500 cursor-pointer"
+                >
+                  <option value="Insufficient Sample">Insufficient Sample Volume (QNS)</option>
+                  <option value="Hemolyzed Sample">Hemolyzed Blood Specimen</option>
+                  <option value="Clotted Blood">Clotted Specimen (Micro-clots)</option>
+                  <option value="Damaged / Leaking Container">Damaged / Leaking Tube or Container</option>
+                  <option value="Mislabeled Specimen">Mislabeled / Barcode Misaligned</option>
+                  <option value="Incorrect Container Type">Incorrect Container / Tube Used</option>
+                  <option value="Contaminated Sample">Contaminated Sample</option>
+                  <option value="Patient Preparation Criteria Not Met">Fasting / Preparation Criteria Not Met</option>
+                  <option value="Other">Other Unsuitable Specimen Condition</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-black uppercase tracking-wider text-slate-600 block mb-1">
+                  Technician Notes / Phlebotomy Instructions
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="e.g. Draw minimum 3ml whole blood in lavender EDTA tube."
+                  value={rejectNotes}
+                  onChange={(e) => setRejectNotes(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 placeholder-slate-400 outline-none focus:bg-white focus:border-rose-500"
+                />
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-slate-100 flex items-center justify-end gap-2.5 shrink-0 bg-slate-50/50">
+              <button
+                type="button"
+                onClick={() => setShowRejectModal(false)}
+                className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 font-black rounded-xl text-xs transition cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={rejecting}
+                onClick={handleConfirmRejectSample}
+                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-black rounded-xl text-xs shadow-xs transition flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                <AlertTriangle size={14} />
+                <span>{rejecting ? 'Flagging Recollection...' : 'Confirm Sample Rejection'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── MODAL 4: PRINTABLE BARCODE LABELS ── */}
       {showLabelModal && (
         <div className="fixed top-16 right-0 bottom-0 left-0 z-40 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
@@ -2012,7 +2216,7 @@ const SampleCollectionDesk = ({ laboratoryId, clinicId, user }) => {
                   className="p-4 rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 font-mono text-slate-900 space-y-2"
                 >
                   <div className="flex justify-between items-center border-b border-slate-200 pb-1.5 text-xs font-black">
-                    <span>AICMS CLINICAL LAB</span>
+                    <span>Radha Krishna Laboratory</span>
                     <span className="text-[10px] font-bold text-slate-500">
                       {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
@@ -2036,7 +2240,7 @@ const SampleCollectionDesk = ({ laboratoryId, clinicId, user }) => {
                     </div>
                     <div>
                       <span className="text-slate-400">Tube: </span>
-                      <span>{sample.containerType || 'EDTA (3ml)'}</span>
+                      <span>{sample.containerType || 'EDTA (Lavender)'}</span>
                     </div>
                     <div>
                       <span className="text-slate-400">Order: </span>
@@ -2072,14 +2276,14 @@ const SampleCollectionDesk = ({ laboratoryId, clinicId, user }) => {
         </div>
       )}
 
-      {/* ── MODAL 5: UNIVERSAL SCANNER ── */}
+      {/* ── MODAL 5: UNIVERSAL SCANNER & VERIFY COLLECTION ── */}
       {showScanModal && (
         <div className="fixed top-16 right-0 bottom-0 left-0 z-40 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-white rounded-3xl max-w-lg w-full max-h-[calc(100vh-5.5rem)] border border-slate-200 shadow-2xl flex flex-col overflow-hidden">
             <div className="p-5 border-b border-slate-100 flex justify-between items-start shrink-0 bg-white">
               <div className="flex items-center gap-2">
                 <Scan size={18} className="text-indigo-600" />
-                <h3 className="text-base font-black text-slate-900">Universal QR & Barcode Scanner</h3>
+                <h3 className="text-base font-black text-slate-900">Scan QR / Barcode Verification</h3>
               </div>
               <button
                 type="button"
@@ -2093,13 +2297,13 @@ const SampleCollectionDesk = ({ laboratoryId, clinicId, user }) => {
             <div className="p-6 overflow-y-auto overscroll-contain flex-1 min-h-0 space-y-4">
               <form onSubmit={handlePerformScanLookup} className="space-y-3">
                 <label className="text-xs font-black text-slate-700 block mb-1">
-                  Scan / Enter Barcode, Order ID, Token, or Phone Number
+                  Scan Patient QR Code, Sample Barcode, Order ID, or Token
                 </label>
                 <div className="flex gap-2">
                   <input
                     type="text"
                     autoFocus
-                    placeholder="e.g. SMP-20260906-0001, LAB-20260905-0005, T-023"
+                    placeholder="e.g. LAB-20260907-0001, SMP-20260907-0001, T-021"
                     value={scanCodeInput}
                     onChange={(e) => setScanCodeInput(e.target.value)}
                     className="flex-1 px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-indigo-500"
@@ -2109,36 +2313,154 @@ const SampleCollectionDesk = ({ laboratoryId, clinicId, user }) => {
                     disabled={scanLoading}
                     className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition cursor-pointer"
                   >
-                    {scanLoading ? 'Searching...' : 'Lookup'}
+                    {scanLoading ? 'Searching...' : 'Lookup / Verify'}
                   </button>
                 </div>
               </form>
 
               {scanResult && (
-                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs space-y-3 animate-fade-in">
-                  <div className="flex justify-between items-center border-b border-slate-200/80 pb-2">
-                    <span className="font-extrabold uppercase text-slate-400 text-[10px]">Resolved Entity</span>
-                    <span className="px-2.5 py-0.5 bg-indigo-50 text-indigo-700 font-black rounded-lg text-[10px]">
-                      {scanResult.type}
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs space-y-4 animate-fade-in">
+                  <div className="flex justify-between items-center border-b border-slate-200/80 pb-2.5">
+                    <div className="flex items-center gap-2">
+                      <ShieldCheck size={16} className="text-emerald-600" />
+                      <span className="font-black text-slate-900 uppercase text-xs tracking-wider">Verify Collection</span>
+                    </div>
+                    <span
+                      className={`px-2.5 py-0.5 font-black rounded-lg text-[10px] ${
+                        scanResult.validationStatus === 'READY_FOR_COLLECTION'
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : scanResult.validationStatus === 'RECOLLECTION_READY'
+                          ? 'bg-amber-100 text-amber-800'
+                          : scanResult.validationStatus === 'ALREADY_COLLECTED'
+                          ? 'bg-blue-100 text-blue-800'
+                          : scanResult.validationStatus === 'PAYMENT_PENDING'
+                          ? 'bg-rose-100 text-rose-800'
+                          : 'bg-slate-200 text-slate-700'
+                      }`}
+                    >
+                      {scanResult.validationStatus?.replace(/_/g, ' ') || scanResult.type}
                     </span>
                   </div>
 
-                  {scanResult.type === 'LAB_ORDER' && scanResult.order && (
-                    <div className="space-y-2">
-                      <p className="font-black text-slate-900 text-sm">{scanResult.order.orderNumber}</p>
-                      <p className="text-slate-600">Patient: {scanResult.order.patientId?.fullName || 'Patient'}</p>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowScanModal(false);
-                          setSelectedOrderId(scanResult.order._id);
-                        }}
-                        className="w-full py-2 bg-indigo-600 text-white font-black rounded-xl text-xs mt-2 cursor-pointer"
-                      >
-                        Select Order in Workspace
-                      </button>
+                  {/* Validation message banner */}
+                  {scanResult.validationMessage && (
+                    <div
+                      className={`p-3 rounded-xl border text-xs font-bold flex items-start gap-2 ${
+                        scanResult.validationStatus === 'RECOLLECTION_READY'
+                          ? 'bg-amber-50 border-amber-200 text-amber-900'
+                          : scanResult.validationStatus === 'ALREADY_COLLECTED'
+                          ? 'bg-blue-50 border-blue-200 text-blue-900'
+                          : scanResult.validationStatus === 'PAYMENT_PENDING'
+                          ? 'bg-rose-50 border-rose-200 text-rose-900'
+                          : 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                      }`}
+                    >
+                      <Info size={15} className="shrink-0 mt-0.5" />
+                      <div>{scanResult.validationMessage}</div>
                     </div>
                   )}
+
+                  {/* Patient Demographics & Verification */}
+                  <div className="bg-white p-3.5 rounded-xl border border-slate-200 space-y-2">
+                    <div className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Patient Demographics</div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <span className="text-slate-400 text-[10px] block">Patient Name</span>
+                        <span className="font-black text-slate-900">
+                          {scanResult.patient?.fullName || scanResult.patient?.name || scanResult.order?.patientId?.fullName || 'Patient'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 text-[10px] block">UHID / Patient ID</span>
+                        <span className="font-mono font-bold text-slate-800">
+                          {scanResult.patient?.patientId || scanResult.patient?.uhid || scanResult.order?.patientId?.patientId || 'PAT-WALKIN'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 text-[10px] block">Age & Gender</span>
+                        <span className="font-bold text-slate-800">
+                          {scanResult.patient?.age || 'N/A'}, {scanResult.patient?.gender || 'N/A'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 text-[10px] block">Phone Number</span>
+                        <span className="font-bold text-slate-800">{scanResult.patient?.phone || 'N/A'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Order & Collection Details */}
+                  {scanResult.order && (
+                    <div className="bg-white p-3.5 rounded-xl border border-slate-200 space-y-2">
+                      <div className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Order & Schedule Details</div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <span className="text-slate-400 text-[10px] block">Order Number</span>
+                          <span className="font-mono font-black text-indigo-700">{scanResult.order.orderNumber}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 text-[10px] block">Collection Mode</span>
+                          <span className="font-black text-slate-900">
+                            {scanResult.collectionMode === 'HOME_COLLECTION' || scanResult.order.collectionMethod === 'HOME_COLLECTION'
+                              ? '🏠 Home Collection'
+                              : '🏥 At Laboratory Desk'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 text-[10px] block">Scheduled Time</span>
+                          <span className="font-bold text-slate-800">
+                            {scanResult.scheduledDate
+                              ? new Date(scanResult.scheduledDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                              : 'Today'}{' '}
+                            • {scanResult.scheduledTimeSlot || '10:00 AM - 12:00 PM'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 text-[10px] block">Payment Status</span>
+                          <span className={`inline-flex items-center gap-1 font-black ${scanResult.isPaid ? 'text-emerald-600' : 'text-rose-600'}`}>
+                            {scanResult.isPaid ? '✓ Paid' : '⚠ Payment Pending'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Tests requested */}
+                      <div className="pt-2 border-t border-slate-100">
+                        <span className="text-slate-400 text-[10px] block mb-1">Investigations / Tests</span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {(scanResult.order.tests || []).map((t, idx) => (
+                            <span key={idx} className="px-2 py-0.5 bg-slate-100 border border-slate-200 rounded-lg text-slate-800 font-bold text-[11px]">
+                              {t.name || t.code}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Verification Action Buttons */}
+                  <div className="flex gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setScanResult(null);
+                        setScanCodeInput('');
+                      }}
+                      className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition cursor-pointer"
+                    >
+                      Clear / Scan Another
+                    </button>
+
+                    {scanResult.order && (
+                      <button
+                        type="button"
+                        onClick={() => handleVerifyAndStartCollection(scanResult.order)}
+                        className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl text-xs transition shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        <CheckCircle2 size={14} />
+                        <span>Verify & Start Collection</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

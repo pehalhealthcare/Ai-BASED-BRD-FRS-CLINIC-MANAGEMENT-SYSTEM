@@ -1,6 +1,10 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import {
+  FlaskConical, RotateCcw, RefreshCw, Search, Plus, X,
+  CheckCircle2, AlertTriangle, AlertCircle, Clock, Droplet
+} from 'lucide-react';
 
 import ErrorState from '../../components/common/ErrorState';
 import LoadingState from '../../components/common/LoadingState';
@@ -22,6 +26,32 @@ import LabOrderFinalizationModal from './LabOrderFinalizationModal';
 import CreateLabOrderModal from './CreateLabOrderModal';
 import { getStatusTone, getStatusDisplayLabel } from './labStatusConstants';
 
+// Helper to normalize and match order status to frontend tab
+const matchOrderStatusToTab = (orderStatus, tabKey) => {
+  const s = String(orderStatus || '').toLowerCase().trim();
+  switch (tabKey) {
+    case 'ALL':
+      return true;
+    case 'ORDERED':
+      return ['ordered', 'confirmed', 'scheduled', 'awaiting_collection', 'sample_collection_pending', 'checked_in', 'called', 'collecting'].includes(s);
+    case 'SAMPLE_COLLECTED':
+    case 'COLLECTED':
+      return ['sample_collected', 'collected'].includes(s);
+    case 'PROCESSING':
+      return ['processing', 'in_processing', 'in_analysis', 'in_lab_testing'].includes(s);
+    case 'RESULTS_ENTRY':
+    case 'RESULTS':
+      return ['results_entry', 'result_entry', 'testing_complete', 'results_in_progress'].includes(s);
+    case 'REVIEW':
+    case 'READY_FOR_REVIEW':
+      return ['ready_for_review', 'review', 'under_review'].includes(s);
+    case 'COMPLETED':
+      return ['completed', 'finalized', 'report_ready', 'report_generated', 'report_available'].includes(s);
+    default:
+      return true;
+  }
+};
+
 const LabOrderDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -32,7 +62,8 @@ const LabOrderDetailPage = () => {
 
   // Master list state (Column 1 - Left pane)
   const [ordersList, setOrdersList] = useState([]);
-  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [ordersLoading, setOrdersLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [orderSearchQuery, setOrderSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL'); // ALL, ORDERED, SAMPLE_COLLECTED, PROCESSING, RESULTS_ENTRY, REVIEW, COMPLETED
   const [sortBy, setSortBy] = useState('latest');
@@ -75,26 +106,50 @@ const LabOrderDetailPage = () => {
   const canManageOrder = [ROLES.DOCTOR, ROLES.LAB_TECHNICIAN, ROLES.LAB_OPERATOR, ...ADMIN_ROLES].includes(user?.role);
   const isFinalized = order?.status === 'completed';
 
+  // Helper to fetch all available orders without truncation or pagination cutoff
+  const fetchAllOrders = useCallback(async (params = {}) => {
+    const res = await listLabOrders({ ...params, page: 1, limit: 100 });
+    const resData = res?.data || res || {};
+    let allOrders = resData.labOrders || res.labOrders || [];
+    const total = resData.total ?? res.total ?? allOrders.length;
+
+    const totalPages = Math.ceil(total / 100);
+    if (totalPages > 1) {
+      const pagePromises = [];
+      for (let p = 2; p <= totalPages; p++) {
+        pagePromises.push(listLabOrders({ ...params, page: p, limit: 100 }).catch(() => null));
+      }
+      const subsequentResponses = await Promise.all(pagePromises);
+      for (const subRes of subsequentResponses) {
+        if (!subRes) continue;
+        const subData = subRes.data || subRes || {};
+        const subOrders = subData.labOrders || subRes.labOrders || [];
+        allOrders = allOrders.concat(subOrders);
+      }
+    }
+    return { labOrders: allOrders, total };
+  }, []);
+
   // 1. Load Orders for Left Master List
   const loadOrdersList = useCallback(async (selectId = null) => {
     setOrdersLoading(true);
     try {
-      const res = await listLabOrders({ limit: 100 });
-      const items = res.data?.labOrders || [];
+      const { labOrders: items } = await fetchAllOrders();
       setOrdersList(items);
-      
+
       const targetId = selectId || id;
       if (!targetId && items.length > 0) {
         navigate(`/labs/orders/${items[0]._id}`, { replace: true });
       } else if (!targetId) {
         setLoading(false);
       }
-    } catch (_) {
+    } catch (err) {
+      console.error('Failed to load lab orders list:', err);
       if (!id) setLoading(false);
     } finally {
       setOrdersLoading(false);
     }
-  }, [id, navigate]);
+  }, [id, navigate, fetchAllOrders]);
 
   useEffect(() => {
     loadOrdersList();
@@ -112,10 +167,10 @@ const LabOrderDetailPage = () => {
         getOrderResults(id).catch(() => ({ data: { groups: [], totalParams: 0, completedParams: 0 } }))
       ]);
 
-      const labOrder = orderRes.data.labOrder;
+      const labOrder = orderRes.data?.labOrder || orderRes.labOrder || orderRes;
       setOrder(labOrder);
       setOrderNotes(labOrder.notes || '');
-      const rep = orderRes.data.report || null;
+      const rep = orderRes.data?.report || orderRes.report || null;
       setReport(rep);
 
       // Build attached reports list
@@ -155,6 +210,36 @@ const LabOrderDetailPage = () => {
     loadActiveOrder();
   }, [loadActiveOrder]);
 
+  // Refresh Handler
+  const handleRefreshOrders = async (selectId = null) => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      const [{ labOrders: items }] = await Promise.all([
+        fetchAllOrders(),
+        id ? loadActiveOrder() : Promise.resolve()
+      ]);
+      setOrdersList(items);
+
+      const targetId = selectId || id;
+      if (targetId) {
+        const stillExists = items.some(o => String(o._id) === String(targetId));
+        if (!stillExists && items.length > 0) {
+          navigate(`/labs/orders/${items[0]._id}`, { replace: true });
+        }
+      } else if (items.length > 0) {
+        navigate(`/labs/orders/${items[0]._id}`, { replace: true });
+      }
+
+      toast.success('Laboratory orders refreshed');
+    } catch (err) {
+      console.error('Failed to refresh laboratory orders:', err);
+      toast.error('Unable to refresh laboratory orders. Please try again.');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   // Completion stats
   const overallProgress = useMemo(() => {
     const total = resultsData.totalParams || 0;
@@ -168,36 +253,38 @@ const LabOrderDetailPage = () => {
   const tabCounts = useMemo(() => {
     return {
       all: ordersList.length,
-      ordered: ordersList.filter((o) => ['ordered', 'confirmed', 'scheduled', 'sample_collection_pending'].includes(o.status)).length,
-      collected: ordersList.filter((o) => o.status === 'sample_collected').length,
-      processing: ordersList.filter((o) => ['processing', 'in_processing', 'in_analysis'].includes(o.status)).length,
-      resultsEntry: ordersList.filter((o) => o.status === 'results_entry').length,
-      review: ordersList.filter((o) => o.status === 'ready_for_review').length,
-      completed: ordersList.filter((o) => ['completed', 'finalized', 'report_ready'].includes(o.status)).length
+      ordered: ordersList.filter((o) => matchOrderStatusToTab(o.status || o.orderStatus, 'ORDERED')).length,
+      collected: ordersList.filter((o) => matchOrderStatusToTab(o.status || o.orderStatus, 'SAMPLE_COLLECTED')).length,
+      processing: ordersList.filter((o) => matchOrderStatusToTab(o.status || o.orderStatus, 'PROCESSING')).length,
+      resultsEntry: ordersList.filter((o) => matchOrderStatusToTab(o.status || o.orderStatus, 'RESULTS_ENTRY')).length,
+      review: ordersList.filter((o) => matchOrderStatusToTab(o.status || o.orderStatus, 'REVIEW')).length,
+      completed: ordersList.filter((o) => matchOrderStatusToTab(o.status || o.orderStatus, 'COMPLETED')).length
     };
   }, [ordersList]);
 
   // Filtered Orders for Left Master List
   const filteredOrders = useMemo(() => {
     return ordersList.filter((ord) => {
-      // Search filter
+      // Search filter across Patient Name, UHID, Order ID, Test Name/Code, Token, Sample ID
       if (orderSearchQuery) {
-        const q = orderSearchQuery.toLowerCase();
+        const q = orderSearchQuery.toLowerCase().trim();
         const mNum = (ord.orderNumber || '').toLowerCase().includes(q);
-        const mPat = (ord.patientId?.fullName || ord.guestPatient?.fullName || '').toLowerCase().includes(q);
-        const mUHID = (ord.patientId?.patientId || '').toLowerCase().includes(q);
-        const mTests = (ord.tests || []).some((t) => (t.name || t.code || '').toLowerCase().includes(q));
-        if (!mNum && !mPat && !mUHID && !mTests) return false;
+        const mToken = (ord.tokenNumber || '').toLowerCase().includes(q);
+        const mSampleId = (ord.sampleId || ord.barcode || '').toLowerCase().includes(q);
+        const mPat = (
+          ord.patientId?.fullName ||
+          `${ord.patientId?.firstName || ''} ${ord.patientId?.lastName || ''}`.trim() ||
+          ord.guestPatient?.fullName ||
+          ord.patientName ||
+          ''
+        ).toLowerCase().includes(q);
+        const mUHID = (ord.patientId?.patientId || ord.patientId?.uhid || ord.uhid || '').toLowerCase().includes(q);
+        const mTests = (ord.tests || []).some((t) => (t.name || t.testName || t.code || '').toLowerCase().includes(q));
+        if (!mNum && !mToken && !mSampleId && !mPat && !mUHID && !mTests) return false;
       }
 
       // Status tab filter
-      if (statusFilter === 'ORDERED') return ['ordered', 'confirmed', 'scheduled', 'sample_collection_pending'].includes(ord.status);
-      if (statusFilter === 'SAMPLE_COLLECTED') return ord.status === 'sample_collected';
-      if (statusFilter === 'PROCESSING') return ['processing', 'in_processing', 'in_analysis'].includes(ord.status);
-      if (statusFilter === 'RESULTS_ENTRY') return ord.status === 'results_entry';
-      if (statusFilter === 'REVIEW') return ord.status === 'ready_for_review';
-      if (statusFilter === 'COMPLETED') return ['completed', 'finalized', 'report_ready'].includes(ord.status);
-
+      return matchOrderStatusToTab(ord.status || ord.orderStatus, statusFilter);
     }).sort((a, b) => {
       if (sortBy === 'oldest') {
         return new Date(a.orderedAt || a.createdAt) - new Date(b.orderedAt || b.createdAt);
@@ -354,10 +441,10 @@ const LabOrderDetailPage = () => {
   };
 
   const primaryTestName = order?.tests?.[0]?.name || 'Diagnostic Investigation';
-  const sampleIdDisplay = order?.sampleId || (order?.status !== 'ordered' ? 'SMP-20260905-0010' : 'Not collected');
-  const sampleTypeDisplay = order?.sampleType || order?.tests?.[0]?.specimenType || 'Whole Blood (EDTA)';
+  const sampleIdDisplay = order?.activeSample?.sampleId || order?.samples?.[0]?.sampleId || order?.sampleId || (order?.status !== 'ordered' ? '—' : 'Not collected');
+  const sampleTypeDisplay = order?.sampleType || order?.tests?.[0]?.specimenType || '—';
   const sampleCollectedOnDisplay = order?.sampleCollectedAt ? new Date(order.sampleCollectedAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
-  const sampleCollectedByDisplay = order?.sampleCollectedByName || (order?.status !== 'ordered' ? (user?.fullName || user?.name || 'Rajesh Sharma') : '—');
+  const sampleCollectedByDisplay = order?.sampleCollectedByName || order?.activeSample?.collectedByName || (order?.status !== 'ordered' ? (user?.fullName || user?.name || '—') : '—');
 
   // Stepper items
   const steps = [
@@ -452,16 +539,30 @@ const LabOrderDetailPage = () => {
           </p>
         </div>
 
-        {/* Primary + Create Lab Order Action Button */}
-        <button
-          type="button"
-          onClick={() => setIsCreateModalOpen(true)}
-          className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white font-bold rounded-2xl text-xs flex items-center justify-center gap-2 shadow-md shadow-violet-200 transition cursor-pointer shrink-0"
-          id="create-lab-order-btn"
-        >
-          <span className="text-base font-black leading-none">+</span>
-          <span>Create Lab Order</span>
-        </button>
+        {/* Header Actions: Refresh and Create Lab Order Buttons */}
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => handleRefreshOrders()}
+            disabled={isRefreshing}
+            title="Refresh laboratory orders"
+            className="px-3.5 py-2 bg-white hover:bg-stone-50 text-stone-700 border border-stone-200 font-bold rounded-2xl text-xs flex items-center justify-center gap-2 shadow-2xs hover:border-stone-300 transition cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+            id="refresh-lab-orders-btn"
+          >
+            <RotateCcw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin text-violet-600' : 'text-stone-500'}`} />
+            <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsCreateModalOpen(true)}
+            className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white font-bold rounded-2xl text-xs flex items-center justify-center gap-2 shadow-md shadow-violet-200 transition cursor-pointer shrink-0"
+            id="create-lab-order-btn"
+          >
+            <span className="text-base font-black leading-none">+</span>
+            <span>Create Lab Order</span>
+          </button>
+        </div>
       </div>
 
       {/* ========================================================= */}
@@ -518,7 +619,7 @@ const LabOrderDetailPage = () => {
 
             {/* Count & Sort */}
             <div className="flex items-center justify-between text-[11px] text-stone-500 pt-0.5 font-medium">
-              <span>{filteredOrders.length} orders found</span>
+              <span>{ordersLoading ? 'Loading orders...' : `${filteredOrders.length} orders found`}</span>
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
@@ -532,9 +633,30 @@ const LabOrderDetailPage = () => {
 
           {/* Independently Scrollable Orders Cards List */}
           <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-2.5 space-y-2 [scrollbar-width:thin]">
-            {filteredOrders.length === 0 ? (
-              <div className="py-16 text-center text-xs text-stone-400">
-                No orders match this filter.
+            {ordersLoading ? (
+              <div className="space-y-2 p-1">
+                {[1, 2, 3, 4].map((n) => (
+                  <div key={n} className="animate-pulse rounded-2xl border border-stone-200/80 bg-stone-50 p-3.5 space-y-2.5">
+                    <div className="flex justify-between items-center">
+                      <div className="h-3 w-28 bg-stone-200 rounded"></div>
+                      <div className="h-2.5 w-16 bg-stone-200 rounded"></div>
+                    </div>
+                    <div className="h-3.5 w-36 bg-stone-200 rounded"></div>
+                    <div className="h-2.5 w-48 bg-stone-200 rounded"></div>
+                    <div className="h-2.5 w-40 bg-stone-200 rounded"></div>
+                    <div className="pt-2 border-t border-stone-200/60 flex justify-between">
+                      <div className="h-2.5 w-16 bg-stone-200 rounded"></div>
+                      <div className="h-4 w-20 bg-stone-200 rounded-full"></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : filteredOrders.length === 0 ? (
+              <div className="py-16 text-center text-xs text-stone-400 space-y-1">
+                <p className="font-semibold text-stone-500">No orders found</p>
+                <p className="text-[11px] text-stone-400">
+                  {orderSearchQuery ? 'No diagnostic orders match your search criteria.' : 'No orders in this status category.'}
+                </p>
               </div>
             ) : (
               filteredOrders.map((ord) => {
@@ -561,11 +683,11 @@ const LabOrderDetailPage = () => {
                     </div>
 
                     <div className="mt-1 font-bold text-xs text-stone-900">
-                      {ord.patientId?.fullName || ord.guestPatient?.fullName || 'Patient Alpha'}
+                      {ord.patientId?.fullName || ord.guestPatient?.fullName || 'Patient'}
                     </div>
 
                     <div className="mt-0.5 text-[10px] text-stone-500">
-                      UHID: <strong className="font-mono text-stone-700">{ord.patientId?.patientId || 'PAT-0010'}</strong> • {ord.patientId?.age || ord.guestPatient?.age || 28}y • {ord.patientId?.gender || ord.guestPatient?.gender || 'Other'}
+                      UHID: <strong className="font-mono text-stone-700">{ord.patientId?.patientId || ord.patientId?.uhid || ord.uhid || '—'}</strong> • {ord.patientId?.age || ord.guestPatient?.age || '—'}y • {ord.patientId?.gender || ord.guestPatient?.gender || '—'}
                     </div>
 
                     <div className="mt-1 text-[11px] text-stone-600 truncate max-w-[280px]">
@@ -587,43 +709,63 @@ const LabOrderDetailPage = () => {
           </div>
         </aside>
 
-        {/* ========================================================= */}
-        {/* COLUMN 2: Order Details (Middle - 5 cols / 5.5 on xl)     */}
-        {/* ========================================================= */}
-        <section className="lg:col-span-5 xl:col-span-5.5 h-full flex flex-col rounded-3xl border border-stone-200/90 bg-white shadow-2xs overflow-hidden min-h-0">
-          
-          {/* Sticky Header inside Column 2: Order Info + Stepper + Banner + Tabs */}
-          <div className="p-4 sm:p-5 border-b border-stone-100 bg-white shrink-0 space-y-3.5">
-            {/* Header Top Info */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-stone-100 pb-3.5">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-base sm:text-lg font-extrabold text-stone-900 tracking-tight">
-                    Order: {order?.orderNumber}
-                  </h2>
-                  <span className="rounded-full bg-violet-100 px-2.5 py-0.5 text-[11px] font-extrabold text-violet-800">
-                    {getStatusDisplayLabel(order?.status)}
-                  </span>
-                </div>
-                <p className="mt-0.5 text-xs text-stone-600">
-                  Patient: <strong className="text-stone-900 font-bold">{order?.patientId?.fullName || order?.guestPatient?.fullName || 'Patient Alpha'}</strong>
-                  {' '}| UHID: <strong className="font-mono text-stone-800 font-bold">{order?.patientId?.patientId || 'PAT-20260905-0010'}</strong>
-                  {' '}| {order?.patientId?.age || order?.guestPatient?.age || 28}y, {order?.patientId?.gender || order?.guestPatient?.gender || 'Other'}
-                </p>
-              </div>
+        {!order ? (
+          <section className="lg:col-span-8 xl:col-span-8.5 h-full flex flex-col items-center justify-center rounded-3xl border border-stone-200/90 bg-white p-8 text-center shadow-2xs">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-violet-50 text-violet-600 mb-4 ring-8 ring-violet-50/50">
+              <FlaskConical className="h-8 w-8" />
+            </div>
+            <h3 className="text-base font-extrabold text-stone-900">No Lab Order Selected</h3>
+            <p className="mt-1.5 max-w-md text-xs text-stone-500 font-medium">
+              There are currently no laboratory work orders matching this clinic or filter. Click &ldquo;+ Create Lab Order&rdquo; to generate a new diagnostic order.
+            </p>
+            <button
+              type="button"
+              onClick={() => setIsCreateModalOpen(true)}
+              className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-violet-600 px-5 py-2.5 text-xs font-extrabold text-white shadow-md shadow-violet-200 hover:bg-violet-700 transition"
+            >
+              <span>+</span>
+              <span>Create Lab Order</span>
+            </button>
+          </section>
+        ) : (
+          <>
+            {/* ========================================================= */}
+            {/* COLUMN 2: Order Details (Middle - 5 cols / 5.5 on xl)     */}
+            {/* ========================================================= */}
+            <section className="lg:col-span-5 xl:col-span-5.5 h-full flex flex-col rounded-3xl border border-stone-200/90 bg-white shadow-2xs overflow-hidden min-h-0">
+              
+              {/* Sticky Header inside Column 2: Order Info + Stepper + Banner + Tabs */}
+              <div className="p-4 sm:p-5 border-b border-stone-100 bg-white shrink-0 space-y-3.5">
+                {/* Header Top Info */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-stone-100 pb-3.5">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-base sm:text-lg font-extrabold text-stone-900 tracking-tight">
+                        Order: {order?.orderNumber}
+                      </h2>
+                      <span className="rounded-full bg-violet-100 px-2.5 py-0.5 text-[11px] font-extrabold text-violet-800">
+                        {getStatusDisplayLabel(order?.status)}
+                      </span>
+                    </div>
+                    <p className="mt-0.5 text-xs text-stone-600">
+                      Patient: <strong className="text-stone-900 font-bold">{order?.patientId?.fullName || order?.guestPatient?.fullName || 'Walk-in Patient'}</strong>
+                      {' '}| UHID: <strong className="font-mono text-stone-800 font-bold">{order?.patientId?.patientId || order?.patientId?.uhid || '—'}</strong>
+                      {' '}| {order?.patientId?.age || order?.guestPatient?.age ? `${order?.patientId?.age || order?.guestPatient?.age}y` : '—'}, {order?.patientId?.gender || order?.guestPatient?.gender || '—'}
+                    </p>
+                  </div>
 
-              <div className="flex items-center gap-3 text-xs text-stone-600 flex-wrap">
-                <div>
-                  <span className="text-stone-400 text-[9px] font-bold uppercase block">Order Date</span>
-                  <span className="font-bold text-stone-800 text-[11px]">{(order?.orderedAt || order?.createdAt || '').slice(0, 10) || '05 Sep 2026'}</span>
-                </div>
-                <div>
-                  <span className="text-stone-400 text-[9px] font-bold uppercase block">Payment</span>
-                  <span className="inline-flex items-center gap-1 font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-1.5 py-0.2 text-[10px]">
-                    <span>✓</span>
-                    <span>{order?.paymentStatus || 'Paid'}</span>
-                  </span>
-                </div>
+                  <div className="flex items-center gap-3 text-xs text-stone-600 flex-wrap">
+                    <div>
+                      <span className="text-stone-400 text-[9px] font-bold uppercase block">Order Date</span>
+                      <span className="font-bold text-stone-800 text-[11px]">{order?.orderedAt || order?.createdAt ? new Date(order.orderedAt || order.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</span>
+                    </div>
+                    <div>
+                      <span className="text-stone-400 text-[9px] font-bold uppercase block">Payment</span>
+                      <span className="inline-flex items-center gap-1 font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-1.5 py-0.2 text-[10px]">
+                        <span>✓</span>
+                        <span>{order?.paymentStatus || 'Paid'}</span>
+                      </span>
+                    </div>
                 <div>
                   <span className="text-stone-400 text-[9px] font-bold uppercase block">Priority</span>
                   <span className={`inline-flex items-center font-bold px-1.5 py-0.2 rounded text-[10px] ${
@@ -986,21 +1128,30 @@ const LabOrderDetailPage = () => {
 
             {/* TAB 2: Sample Information */}
             {activeTab === 'sample' && (
-              <div className="rounded-2xl border border-stone-200/90 bg-white p-5 shadow-2xs space-y-4 text-xs">
-                <h3 className="text-sm font-bold text-stone-900">Specimen & Sample Information</h3>
-                
+              <div className="rounded-2xl border border-stone-200/90 bg-white p-5 shadow-2xs space-y-5 text-xs">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-stone-900">Specimen & Sample Information</h3>
+                  {(order?.hasRecollection || (order?.samples && order.samples.length > 1) || order?.status === 'recollection_required') && (
+                    <span className="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-800 font-extrabold text-[11px] border border-amber-200 flex items-center gap-1.5">
+                      <span>⚠</span>
+                      <span>Recollection Cycle ({order?.samples?.length || 2} samples on record)</span>
+                    </span>
+                  )}
+                </div>
+
+                {/* Primary / Active Sample Information */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="p-3 rounded-xl border border-stone-200 bg-stone-50">
-                    <span className="text-stone-400 text-[10px] block">Sample ID Barcode</span>
-                    <div className="font-mono font-extrabold text-xs text-stone-900 mt-0.5">{sampleIdDisplay}</div>
+                    <span className="text-stone-400 text-[10px] block">Active Sample ID</span>
+                    <div className="font-mono font-extrabold text-xs text-stone-900 mt-0.5">{order?.activeSample?.sampleId || sampleIdDisplay}</div>
                   </div>
                   <div className="p-3 rounded-xl border border-stone-200 bg-stone-50">
                     <span className="text-stone-400 text-[10px] block">Specimen Type & Container</span>
-                    <div className="font-bold text-xs text-stone-900 mt-0.5">{sampleTypeDisplay}</div>
+                    <div className="font-bold text-xs text-stone-900 mt-0.5">{order?.activeSample?.specimenType || sampleTypeDisplay}</div>
                   </div>
                   <div className="p-3 rounded-xl border border-stone-200 bg-stone-50">
                     <span className="text-stone-400 text-[10px] block">Collection Location</span>
-                    <div className="font-bold text-xs text-stone-900 mt-0.5">{order?.collectionMethod === 'HOME_COLLECTION' ? 'Home Collection' : 'At Laboratory Desk'}</div>
+                    <div className="font-bold text-xs text-stone-900 mt-0.5">{order?.collectionMethod === 'HOME_COLLECTION' || order?.collectionMode === 'HOME_COLLECTION' ? 'Home Collection' : 'At Laboratory Desk'}</div>
                   </div>
                   <div className="p-3 rounded-xl border border-stone-200 bg-stone-50">
                     <span className="text-stone-400 text-[10px] block">Collection Timestamp</span>
@@ -1012,9 +1163,70 @@ const LabOrderDetailPage = () => {
                   </div>
                   <div className="p-3 rounded-xl border border-stone-200 bg-stone-50">
                     <span className="text-stone-400 text-[10px] block">Current Status</span>
-                    <div className="font-bold text-xs text-emerald-800 mt-0.5">{order?.status === 'ordered' ? 'Awaiting Collection' : 'Collected & Processed'}</div>
+                    <div className="font-bold text-xs mt-0.5">
+                      {order?.status === 'ordered' || order?.status === 'scheduled' || order?.status === 'awaiting_collection' ? (
+                        <span className="text-amber-700">Awaiting Physical Collection</span>
+                      ) : order?.status === 'recollection_required' ? (
+                        <span className="text-rose-700 font-black">Recollection Required</span>
+                      ) : (
+                        <span className="text-emerald-800 font-bold">Collected & Active</span>
+                      )}
+                    </div>
                   </div>
                 </div>
+
+                {/* Complete Sample History on this Order */}
+                {order?.samples && order.samples.length > 0 && (
+                  <div className="space-y-3 pt-3 border-t border-stone-100">
+                    <div className="flex items-center justify-between">
+                      <span className="text-stone-400 font-bold uppercase text-[10px] tracking-wider">
+                        Complete Sample Audit History ({order.samples.length} specimen{order.samples.length > 1 ? 's' : ''})
+                      </span>
+                    </div>
+
+                    <div className="space-y-2">
+                      {order.samples.map((s, idx) => (
+                        <div
+                          key={s._id || idx}
+                          className={`p-3 rounded-xl border text-xs flex items-center justify-between ${
+                            s.status === 'REJECTED' || s.status === 'RECOLLECTION_REQUIRED'
+                              ? 'bg-rose-50/70 border-rose-200 text-rose-900'
+                              : 'bg-stone-50 border-stone-200 text-stone-900'
+                          }`}
+                        >
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono font-black">{s.sampleId}</span>
+                              <span
+                                className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                  s.status === 'REJECTED'
+                                    ? 'bg-rose-100 text-rose-800'
+                                    : 'bg-emerald-100 text-emerald-800'
+                                }`}
+                              >
+                                {s.status === 'REJECTED' ? 'Rejected' : 'Collected'}
+                              </span>
+                              {s._id === order.activeSample?._id && (
+                                <span className="text-emerald-700 font-black text-[10px]">✓ Active Sample</span>
+                              )}
+                            </div>
+                            <div className="text-[11px] text-stone-500">
+                              Specimen: <strong className="text-stone-700">{s.specimenType}</strong> ({s.containerType}) • Collected at {s.collectedAt ? new Date(s.collectedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '09:30 AM'} by {s.collectedByName || 'Lab Staff'}
+                            </div>
+                            {s.rejectionReason && (
+                              <div className="text-[11px] text-rose-700 font-bold">
+                                Rejection Reason: {s.rejectionReason}
+                              </div>
+                            )}
+                          </div>
+                          <div className="text-right">
+                            <span className="font-mono text-[10px] text-stone-400 block">{s.barcode || s.sampleId}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -1026,19 +1238,21 @@ const LabOrderDetailPage = () => {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <span className="text-stone-400 text-[10px] block">Full Name</span>
-                    <div className="font-bold text-stone-900 mt-0.5">{order?.patientId?.fullName || order?.guestPatient?.fullName || 'Patient Alpha'}</div>
+                    <div className="font-bold text-stone-900 mt-0.5">{order?.patientId?.fullName || order?.guestPatient?.fullName || 'Walk-in Patient'}</div>
                   </div>
                   <div>
                     <span className="text-stone-400 text-[10px] block">UHID / Patient ID</span>
-                    <div className="font-mono font-bold text-stone-900 mt-0.5">{order?.patientId?.patientId || 'PAT-20260905-0010'}</div>
+                    <div className="font-mono font-bold text-stone-900 mt-0.5">{order?.patientId?.patientId || order?.patientId?.uhid || '—'}</div>
                   </div>
                   <div>
                     <span className="text-stone-400 text-[10px] block">Age & Gender</span>
-                    <div className="font-bold text-stone-900 mt-0.5">{order?.patientId?.age || 28} yrs, {order?.patientId?.gender || 'Other'}</div>
+                    <div className="font-bold text-stone-900 mt-0.5">
+                      {order?.patientId?.age || order?.guestPatient?.age ? `${order?.patientId?.age || order?.guestPatient?.age} yrs` : '—'}, {order?.patientId?.gender || order?.guestPatient?.gender || '—'}
+                    </div>
                   </div>
                   <div>
                     <span className="text-stone-400 text-[10px] block">Phone Number</span>
-                    <div className="font-bold text-stone-900 mt-0.5">{order?.patientId?.phone || order?.guestPatient?.phone || '+91 98765 43210'}</div>
+                    <div className="font-bold text-stone-900 mt-0.5">{order?.patientId?.phone || order?.guestPatient?.phone || '—'}</div>
                   </div>
                   <div>
                     <span className="text-stone-400 text-[10px] block">Referring Doctor</span>
@@ -1046,7 +1260,7 @@ const LabOrderDetailPage = () => {
                   </div>
                   <div>
                     <span className="text-stone-400 text-[10px] block">Address</span>
-                    <div className="font-bold text-stone-900 mt-0.5">{order?.patientId?.address || 'Indirapuram, Ghaziabad'}</div>
+                    <div className="font-bold text-stone-900 mt-0.5">{order?.patientId?.address?.line1 || (typeof order?.patientId?.address === 'string' ? order?.patientId?.address : '—')}</div>
                   </div>
                 </div>
               </div>
@@ -1468,6 +1682,8 @@ const LabOrderDetailPage = () => {
             </article>
           </div>
         </aside>
+      </>
+    )}
 
       </div>
 
@@ -1833,6 +2049,16 @@ const LabOrderDetailPage = () => {
           </div>
         </div>
       )}
+
+      {/* Create Lab Order Modal */}
+      <CreateLabOrderModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onOrderCreated={async (newOrder) => {
+          setIsCreateModalOpen(false);
+          await loadOrdersList(newOrder?._id);
+        }}
+      />
     </div>
   );
 };

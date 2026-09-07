@@ -100,8 +100,17 @@ const labSampleSchema = new mongoose.Schema(
     },
     collectionLocation: {
       type: String,
-      enum: ['AT_LAB', 'HOME_COLLECTION'],
+      enum: ['AT_LAB', 'AT_LABORATORY', 'HOME_COLLECTION'],
       default: 'AT_LAB'
+    },
+    collectionMode: {
+      type: String,
+      enum: ['AT_LAB', 'AT_LABORATORY', 'HOME_COLLECTION'],
+      default: 'AT_LABORATORY'
+    },
+    scheduledCollectionDate: {
+      type: Date,
+      default: null
     },
     status: {
       type: String,

@@ -35,6 +35,7 @@ import TestsFromPrescriptionView from './TestsFromPrescriptionView';
 import PatientLabCheckoutView from './PatientLabCheckoutView';
 import PatientLabOrdersView from './PatientLabOrdersView';
 import PatientLabReportsView from './PatientLabReportsView';
+import FloatingLabCart from './FloatingLabCart';
 
 // ============================================================
 // Translations & Helpers
@@ -301,6 +302,104 @@ const PatientPortalPage = () => {
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [workspaceMappings, setWorkspaceMappings] = useState([]);
   const [loadingMappings, setLoadingMappings] = useState(false);
+
+  // Laboratory Cart Management
+  const getLabCartKey = useCallback((labId = selectedLabId) => {
+    return `patient_lab_cart_${profile?._id || user?._id || 'guest'}_${labId || 'all'}`;
+  }, [profile?._id, user?._id, selectedLabId]);
+
+  const [labCartItems, setLabCartItems] = useState(() => {
+    try {
+      const key = `patient_lab_cart_${profile?._id || user?._id || 'guest'}_${selectedLabId || 'all'}`;
+      return JSON.parse(localStorage.getItem(key) || '[]');
+    } catch {
+      return [];
+    }
+  });
+
+  // Sync lab cart whenever selectedLabId or profile/user changes
+  useEffect(() => {
+    const key = getLabCartKey();
+    try {
+      const stored = JSON.parse(localStorage.getItem(key) || '[]');
+      setLabCartItems(stored);
+    } catch {
+      setLabCartItems([]);
+    }
+  }, [selectedLabId, getLabCartKey]);
+
+  const handleToggleLabTest = useCallback((test) => {
+    const key = getLabCartKey();
+    let current = [];
+    try {
+      current = JSON.parse(localStorage.getItem(key) || '[]');
+    } catch {
+      current = [];
+    }
+    const isAdded = current.some(e => 
+      String(e.id) === String(test.id) || 
+      String(e._id) === String(test.id) || 
+      e.testName?.toLowerCase() === test.name?.toLowerCase() ||
+      e.name?.toLowerCase() === test.name?.toLowerCase()
+    );
+
+    let updated;
+    if (isAdded) {
+      updated = current.filter(e => 
+        String(e.id) !== String(test.id) && 
+        String(e._id) !== String(test.id) && 
+        e.testName?.toLowerCase() !== test.name?.toLowerCase() &&
+        e.name?.toLowerCase() !== test.name?.toLowerCase()
+      );
+      toast.success(`Removed "${test.name}" from cart`);
+    } else {
+      const newItem = {
+        id: test.id,
+        testId: test.id,
+        testName: test.name,
+        fullName: test.name,
+        name: test.name,
+        code: test.code || 'TEST',
+        sample: test.sample || 'Whole Blood',
+        specimenType: test.sample || 'Blood',
+        reportingTime: test.time || '24 Hours',
+        turnaroundTime: test.time || '24 Hours',
+        localPrice: test.price || 150,
+        price: test.price || 150,
+        category: test.category || 'General',
+        sourceType: 'MANUAL_SELECTION'
+      };
+      updated = [...current, newItem];
+      toast.success(`Added "${test.name}" to cart!`);
+    }
+    localStorage.setItem(key, JSON.stringify(updated));
+    setLabCartItems(updated);
+  }, [getLabCartKey]);
+
+  const handleRemoveLabCartItem = useCallback((itemId) => {
+    const key = getLabCartKey();
+    let current = [];
+    try {
+      current = JSON.parse(localStorage.getItem(key) || '[]');
+    } catch {
+      current = [];
+    }
+    const updated = current.filter(e => 
+      String(e.id) !== String(itemId) && 
+      String(e._id) !== String(itemId) && 
+      e.testName !== itemId && 
+      e.name !== itemId
+    );
+    localStorage.setItem(key, JSON.stringify(updated));
+    setLabCartItems(updated);
+  }, [getLabCartKey]);
+
+  const handleClearLabCart = useCallback(() => {
+    const key = getLabCartKey();
+    localStorage.setItem(key, JSON.stringify([]));
+    setLabCartItems([]);
+    toast.success('Laboratory cart cleared');
+  }, [getLabCartKey]);
 
   // My Orders Search, Filters and Drawer states
   const [orderSearchQuery, setOrderSearchQuery] = useState('');
@@ -1425,25 +1524,43 @@ const PatientPortalPage = () => {
       {/* ── STATE: Lab Workspace - Tests List ── */}
       {/* ============================================================ */}
       {activeTab === 'lab-tests' && selectedLabId && (
-        <div className="space-y-6 animate-fade-in">
-          <button
-            onClick={() => {
-              const currentParams = new URLSearchParams(location.search);
-              currentParams.delete('labId');
-              currentParams.set('tab', 'book-lab');
-              setSearchParams(currentParams);
-            }}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 font-extrabold text-xs transition duration-150"
-          >
-            <ChevronLeft size={14} className="text-slate-405" />
-            <span>Back to Laboratories</span>
-          </button>
+        <div className="space-y-6 animate-fade-in relative min-h-0 flex flex-col">
+          <div className="flex items-center justify-between gap-4">
+            <button
+              onClick={() => {
+                const currentParams = new URLSearchParams(location.search);
+                currentParams.delete('labId');
+                currentParams.set('tab', 'book-lab');
+                setSearchParams(currentParams);
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 font-extrabold text-xs transition duration-150 cursor-pointer"
+            >
+              <ChevronLeft size={14} className="text-slate-400" />
+              <span>Back to Laboratories</span>
+            </button>
+
+            {labCartItems.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  const currentParams = new URLSearchParams(location.search);
+                  currentParams.set('tab', 'lab-checkout');
+                  setSearchParams(currentParams);
+                }}
+                className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs shadow-md transition cursor-pointer"
+              >
+                <ShoppingCart size={14} />
+                <span>Go to Cart ({labCartItems.length})</span>
+                <ChevronRight size={14} />
+              </button>
+            )}
+          </div>
 
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-50 p-6 rounded-3xl border border-slate-150">
             <div>
               <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest block mb-1">Book Lab Test • {activeLab?.name}</span>
               <h2 className="text-xl font-black text-slate-900">{activeLab?.name}</h2>
-              <p className="text-xs text-slate-500 mt-1">⭐ {activeLab?.rating} reviews • 🕒 Open • {activeLab?.timings}</p>
+              <p className="text-xs text-slate-500 mt-1">⭐ {activeLab?.rating || '4.8'} reviews • 🕒 Open • {activeLab?.timings || '08:00 AM - 08:00 PM'}</p>
             </div>
           </div>
 
@@ -1452,27 +1569,30 @@ const PatientPortalPage = () => {
             <div className="w-full sm:max-w-xs relative">
               <input
                 type="text"
-                placeholder="Search tests..."
+                placeholder="Search tests (e.g. CBC, Vitamin D)..."
                 value={labSearchQuery}
                 onChange={(e) => setLabSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-blue-500 text-xs shadow-sm bg-white"
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-blue-500 text-xs shadow-sm bg-white"
               />
-              <Search size={14} className="absolute left-3.5 top-3 text-slate-400" />
+              <Search size={14} className="absolute left-3.5 top-3.5 text-slate-400" />
             </div>
 
             <select
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
-              className="px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white text-slate-600"
+              className="px-3 py-2.5 rounded-xl border border-slate-200 text-xs bg-white text-slate-600 font-semibold"
             >
               <option value="All">All Categories</option>
               <option value="Hematology">Hematology</option>
               <option value="Biochemistry">Biochemistry</option>
               <option value="Vitamins">Vitamins</option>
+              <option value="General">General</option>
+              <option value="Microbiology">Microbiology</option>
+              <option value="Hormones">Hormones</option>
             </select>
           </div>
 
-          {/* Lab Tests Grid */}
+          {/* Lab Tests Grid Scroll Container */}
           {loadingMappings ? (
             <div className="flex justify-center items-center py-16">
               <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
@@ -1485,9 +1605,10 @@ const PatientPortalPage = () => {
                   id: item._id,
                   name: item.providerName || item.globalLabTestId?.name || 'Lab Test',
                   price: Number(item.mrp) || Number(item.price) || 0,
-                  sample: item.sampleType || '',
-                  time: item.normalReportingTime || '',
-                  category: item.methodology || item.globalLabTestId?.category || 'General'
+                  sample: item.sampleType || 'Blood',
+                  time: item.normalReportingTime || '24 Hours',
+                  category: item.methodology || item.globalLabTestId?.category || 'General',
+                  code: item.globalLabTestId?.code || 'TEST'
                 }))
                 .filter(t => t.name.toLowerCase().includes(labSearchQuery.toLowerCase()))
                 .filter(t => categoryFilter === 'All' || t.category === categoryFilter);
@@ -1496,65 +1617,90 @@ const PatientPortalPage = () => {
                 return (
                   <div className="bg-white border border-slate-200 rounded-3xl p-12 text-center col-span-full">
                     <div className="text-4xl mb-3">🧪</div>
-                    <p className="text-sm font-bold text-slate-600">No lab tests have been listed by laboratory.</p>
-                    <p className="text-xs text-slate-400 mt-1">The laboratory store has not listed any tests yet.</p>
+                    <p className="text-sm font-bold text-slate-600">No lab tests found.</p>
+                    <p className="text-xs text-slate-400 mt-1">Try changing your search query or category filter.</p>
                   </div>
                 );
               }
 
               return (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {labTestMappings.map((test) => (
-                    <div key={test.id} className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm flex flex-col justify-between space-y-4 hover:shadow transition duration-200">
-                      <div>
-                        <span className="text-[9px] font-bold bg-blue-50 text-blue-600 px-2 py-0.5 rounded-md uppercase tracking-wider">{test.category}</span>
-                        <h4 className="text-xs font-black text-slate-800 mt-2.5">{test.name}</h4>
-                        <p className="text-[10px] text-slate-400 mt-1">
-                          {[test.sample && `🧪 ${test.sample}`, test.time && `🕒 ${test.time}`].filter(Boolean).join(' • ')}
-                        </p>
-                      </div>
-                      <div className="flex items-center justify-between border-t border-slate-100 pt-3">
-                        <p className="text-sm font-black text-slate-800">
-                          {test.price > 0 ? `₹${test.price}` : 'Price on request'}
-                        </p>
-                        <button
-                          onClick={() => {
-                            const patientKey = `patient_lab_cart_${profile?._id || user?._id || 'guest'}_${selectedLabId}`;
-                            let existing = [];
-                            try {
-                              existing = JSON.parse(localStorage.getItem(patientKey) || '[]');
-                            } catch {}
-                            const inCart = existing.some(e => String(e.id) === String(test.id) || e.testName?.toLowerCase() === test.name?.toLowerCase());
-                            if (!inCart) {
-                              const newItem = {
-                                id: test.id,
-                                testName: test.name,
-                                fullName: test.name,
-                                code: test.code || 'TEST',
-                                sample: test.sample || 'Whole Blood',
-                                reportingTime: test.time || '24 Hours',
-                                localPrice: test.price || 150,
-                                sourceType: 'MANUAL_SELECTION'
-                              };
-                              const updated = [...existing, newItem];
-                              localStorage.setItem(patientKey, JSON.stringify(updated));
-                              toast.success(`Added "${test.name}" to your cart!`);
-                            }
-                            const currentParams = new URLSearchParams(location.search);
-                            currentParams.set('tab', 'lab-checkout');
-                            setSearchParams(currentParams);
-                          }}
-                          className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-[10px] transition shadow-sm"
+                <div className="max-h-[calc(100vh-320px)] overflow-y-auto overscroll-contain pr-2 pb-32 [scrollbar-width:thin]">
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    {labTestMappings.map((test) => {
+                      const isAdded = labCartItems.some(item => 
+                        String(item.id) === String(test.id) || 
+                        String(item._id) === String(test.id) ||
+                        item.testName?.toLowerCase() === test.name?.toLowerCase() ||
+                        item.name?.toLowerCase() === test.name?.toLowerCase()
+                      );
+
+                      return (
+                        <div
+                          key={test.id}
+                          className={`bg-white border rounded-3xl p-5 shadow-xs flex flex-col justify-between space-y-4 hover:shadow-md transition-all duration-200 ${
+                            isAdded ? 'border-emerald-300 ring-2 ring-emerald-100 bg-emerald-50/10' : 'border-slate-200/90'
+                          }`}
                         >
-                          Book Test
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                          <div>
+                            <span className="text-[9px] font-bold bg-blue-50 text-blue-600 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                              {test.category}
+                            </span>
+                            <h4 className="text-xs font-black text-slate-800 mt-2.5 leading-snug">
+                              {test.name}
+                            </h4>
+                            <p className="text-[10px] text-slate-400 mt-1 flex items-center gap-1.5">
+                              <span>🧪 {test.sample}</span>
+                              <span>•</span>
+                              <span>🕒 {test.time}</span>
+                            </p>
+                          </div>
+                          <div className="flex items-center justify-between border-t border-slate-100 pt-3">
+                            <p className="text-sm font-black text-slate-800">
+                              {test.price > 0 ? `₹${test.price.toLocaleString('en-IN')}` : 'Price on request'}
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => handleToggleLabTest(test)}
+                              aria-label={isAdded ? `Remove ${test.name} from cart` : `Add ${test.name} to cart`}
+                              className={`px-3.5 py-1.5 font-bold rounded-xl text-[10px] transition cursor-pointer flex items-center gap-1.5 shadow-xs ${
+                                isAdded
+                                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white ring-2 ring-emerald-200'
+                                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+                              }`}
+                            >
+                              {isAdded ? (
+                                <>
+                                  <CheckCircle2 size={12} />
+                                  <span>✓ Added</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Plus size={12} />
+                                  <span>Add Test</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               );
             })()
           )}
+
+          {/* Floating Laboratory Cart Pill & Slide-Over Drawer */}
+          <FloatingLabCart
+            cartItems={labCartItems}
+            onRemoveItem={handleRemoveLabCartItem}
+            onClearCart={handleClearLabCart}
+            onProceedToCheckout={() => {
+              const currentParams = new URLSearchParams(location.search);
+              currentParams.set('tab', 'lab-checkout');
+              setSearchParams(currentParams);
+            }}
+          />
         </div>
       )}
 

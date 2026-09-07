@@ -502,6 +502,13 @@ router.get(
   labController.universalScanLookup
 );
 
+router.post(
+  '/lookup-scan',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR, ROLES.LAB_TECHNICIAN, ROLES.LAB_OPERATOR, ROLES.RECEPTIONIST),
+  labController.universalScanLookup
+);
+
 module.exports = router;
 
 

@@ -32,51 +32,16 @@ export default function PatientLabCheckoutView({
   const [cartItems, setCartItems] = useState(() => {
     try {
       const saved = localStorage.getItem(cartStorageKey);
-      if (saved) {
+      if (saved !== null) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           return parsed;
         }
       }
     } catch (e) {
       console.warn('Error reading cart from storage:', e);
     }
-    // Default initial items matching the reference tests
-    return [
-      {
-        id: 'test_tlc_01',
-        testName: 'T.L.C',
-        fullName: 'Total Leucocyte Count',
-        code: 'TLC01',
-        sample: 'Whole Blood',
-        reportingTime: '24 Hours',
-        localPrice: 150,
-        sourceType: 'PATIENT_UPLOADED_PRESCRIPTION',
-        prescriptionId: null
-      },
-      {
-        id: 'test_alpha_02',
-        testName: 'Alpha Test',
-        fullName: 'Alpha-1 Antitrypsin',
-        code: 'ALPHA01',
-        sample: 'Serum',
-        reportingTime: '24 Hours',
-        localPrice: 750,
-        sourceType: 'DOCTOR_PRESCRIPTION',
-        prescriptionId: null
-      },
-      {
-        id: 'test_crp_03',
-        testName: 'CRP',
-        fullName: 'C-Reactive Protein',
-        code: 'CRP01',
-        sample: 'Serum',
-        reportingTime: 'Same Day',
-        localPrice: 300,
-        sourceType: 'DOCTOR_PRESCRIPTION',
-        prescriptionId: null
-      }
-    ];
+    return [];
   });
 
   // Sync cart changes with localStorage
@@ -698,6 +663,30 @@ export default function PatientLabCheckoutView({
             <div className="inline-block px-4 py-1.5 bg-blue-50 text-blue-700 font-black text-xs rounded-full mt-2">
               Order ID: {placedOrder.orderNumber || placedOrder._id}
             </div>
+          </div>
+
+          {/* Collection QR Code */}
+          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80 max-w-xs mx-auto text-center space-y-2.5 shadow-inner">
+            <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 block">
+              Patient Collection QR
+            </span>
+            <img
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=3&data=${encodeURIComponent(
+                placedOrder.collectionQrPayload ||
+                JSON.stringify({
+                  type: 'LAB_COLLECTION_QR',
+                  orderNumber: placedOrder.orderNumber,
+                  orderId: placedOrder._id,
+                  collectionToken: placedOrder.collectionToken || `TKN-COL-${placedOrder.orderNumber}`,
+                  clinicId
+                })
+              )}`}
+              alt="Collection QR Code"
+              className="w-40 h-40 rounded-xl mx-auto border border-white shadow-xs"
+            />
+            <p className="text-[10px] text-slate-500 font-medium">
+              Show this QR at the collection desk or to your home phlebotomist
+            </p>
           </div>
 
           <div className="bg-slate-50 rounded-2xl p-5 text-left text-xs space-y-2.5 max-w-lg mx-auto border border-slate-200/70">

@@ -1070,23 +1070,49 @@ const createLabOrder = async ({ requester, payload, requestedClinicId = null, re
       ? payload.price
       : tests.reduce((sum, t) => sum + (t.price || 0), 0);
 
+  const orderNumber = await generateLabOrderNumber(clinicId);
+  const normMode =
+    payload.collectionMode === 'HOME_COLLECTION' || payload.collectionMethod === 'HOME_COLLECTION'
+      ? 'HOME_COLLECTION'
+      : 'AT_LABORATORY';
+
+  const scheduledDate = payload.scheduledCollectionDate
+    ? new Date(payload.scheduledCollectionDate)
+    : payload.collectionDate
+    ? new Date(payload.collectionDate)
+    : new Date();
+
+  const startTime = payload.scheduledCollectionStartTime || (payload.collectionSlot ? payload.collectionSlot.split('-')[0]?.trim() : '10:00 AM');
+  const endTime = payload.scheduledCollectionEndTime || (payload.collectionSlot ? payload.collectionSlot.split('-')[1]?.trim() : '12:00 PM');
+  const slot = payload.collectionSlot || `${startTime} - ${endTime}`.trim();
+
   let tokenNumber = payload.tokenNumber || '';
-  if (!tokenNumber && (payload.collectionMethod === 'AT_LAB' || !payload.collectionMethod)) {
-    const targetDate = payload.collectionDate ? new Date(payload.collectionDate) : new Date();
+  if (!tokenNumber && normMode !== 'HOME_COLLECTION') {
+    const targetDate = scheduledDate;
     const startOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0);
     const endOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59, 999);
 
     const count = await LabOrder.countDocuments({
       clinicId,
       ...(payload.laboratoryId ? { laboratoryId: payload.laboratoryId } : {}),
-      collectionMethod: 'AT_LAB',
+      collectionMethod: { $in: ['AT_LAB', 'AT_LABORATORY'] },
       createdAt: { $gte: startOfDay, $lte: endOfDay }
     });
     tokenNumber = `T-${String(count + 1).padStart(2, '0')}`;
   }
 
-  const initialStatus = payload.status || (payload.collectionMethod === 'HOME_COLLECTION' ? 'scheduled' : 'ordered');
-  const initialOrderStatus = payload.orderStatus || (payload.collectionMethod === 'HOME_COLLECTION' ? 'COLLECTION_SCHEDULED' : 'ORDER_BOOKED');
+  const collectionToken = `COL-${orderNumber.replace(/[^A-Z0-9]/gi, '')}-${Date.now().toString(36).toUpperCase()}`;
+  const collectionQrPayload = JSON.stringify({
+    orderNumber,
+    token: collectionToken,
+    clinicId: String(clinicId),
+    laboratoryId: payload.laboratoryId ? String(payload.laboratoryId) : null,
+    collectionMode: normMode,
+    scheduledDate: scheduledDate.toISOString().split('T')[0]
+  });
+
+  const initialStatus = payload.status || (normMode === 'HOME_COLLECTION' ? 'scheduled' : 'ordered');
+  const initialOrderStatus = payload.orderStatus || (normMode === 'HOME_COLLECTION' ? 'COLLECTION_SCHEDULED' : 'ORDER_BOOKED');
   const initialSampleStatus = payload.sampleStatus || 'AWAITING_COLLECTION';
   const initialBookingSource =
     payload.bookingSource ||
@@ -1104,15 +1130,21 @@ const createLabOrder = async ({ requester, payload, requestedClinicId = null, re
     patientId: patient?._id || null,
     doctorId: doctor ? doctor._id : null,
     appointmentId: appointmentId || null,
-    orderNumber: await generateLabOrderNumber(clinicId),
+    orderNumber,
     tokenNumber,
+    collectionToken,
+    collectionQrPayload,
     tests,
     priority: payload.priority || 'routine',
     notes: payload.notes?.trim?.() || '',
-    collectionMethod: payload.collectionMethod || 'AT_LAB',
+    collectionMethod: normMode === 'HOME_COLLECTION' ? 'HOME_COLLECTION' : 'AT_LAB',
+    collectionMode: normMode,
     collectionAddress: payload.collectionAddress || {},
-    collectionDate: payload.collectionDate ? new Date(payload.collectionDate) : null,
-    collectionSlot: payload.collectionSlot || '',
+    collectionDate: scheduledDate,
+    collectionSlot: slot,
+    scheduledCollectionDate: scheduledDate,
+    scheduledCollectionStartTime: startTime,
+    scheduledCollectionEndTime: endTime,
     homeCollectionFee: payload.homeCollectionFee || 0,
     discountAmount: payload.discountAmount || 0,
     promoCode: payload.promoCode || '',
@@ -1139,8 +1171,79 @@ const createLabOrder = async ({ requester, payload, requestedClinicId = null, re
     sampleStatus: initialSampleStatus,
     orderedAt: new Date(),
     createdBy: requester._id,
-    updatedBy: requester._id
+    updatedBy: requester._id,
+    timeline: [
+      {
+        oldStatus: '',
+        newStatus: initialStatus,
+        action: 'ORDER_CREATED',
+        performedBy: requester._id,
+        performedByName: requester?.name || requester?.fullName || 'System',
+        notes: `Order created via ${initialBookingSource}`
+      }
+    ]
   });
+
+  // Auto-provision HomeCollectionTask for home collection orders
+  if (normMode === 'HOME_COLLECTION') {
+    try {
+      const targetDateStr = scheduledDate.toISOString().split('T')[0];
+      const taskCount = await HomeCollectionTask.countDocuments({ clinicId });
+      const taskId = `HCT-${targetDateStr.replace(/-/g, '')}-${String(taskCount + 1).padStart(3, '0')}`;
+      await HomeCollectionTask.create({
+        taskId,
+        orderId: labOrder._id,
+        orderNumber: labOrder.orderNumber,
+        patientId: patient?._id || null,
+        patientName: patient?.fullName || `${patient?.firstName || ''} ${patient?.lastName || ''}`.trim() || payload.guestPatient?.fullName || 'Patient',
+        patientPhone: patient?.phone || payload.guestPatient?.phone || '',
+        laboratoryId: payload.laboratoryId || null,
+        clinicId,
+        scheduledDate,
+        slot,
+        collectionAddress: payload.collectionAddress || {},
+        testsSummary: tests.map((t) => t.name).join(' + '),
+        status: 'REQUESTED'
+      });
+    } catch (e) {
+      console.warn('Failed to auto-create HomeCollectionTask:', e.message);
+    }
+  } else {
+    // Auto-provision initial LabToken for walk-in / at-lab desk queue
+    try {
+      const targetDateStr = scheduledDate.toISOString().split('T')[0];
+      const existingTokenCount = await LabToken.countDocuments({
+        clinicId,
+        ...(payload.laboratoryId ? { laboratoryId: payload.laboratoryId } : {}),
+        date: targetDateStr
+      });
+      const seq = existingTokenCount + 1;
+      const tNumber = tokenNumber || `A-${String(seq).padStart(3, '0')}`;
+      const tId = `TKN-${targetDateStr.replace(/-/g, '')}-${String(seq).padStart(4, '0')}`;
+      await LabToken.create({
+        tokenId: tId,
+        laboratoryId: payload.laboratoryId || null,
+        clinicId,
+        date: targetDateStr,
+        tokenNumber: tNumber,
+        sequenceNumber: seq,
+        counterPrefix: 'A',
+        deskNumber: 'Desk 1',
+        queueType: 'ROUTINE',
+        priority: payload.priority || 'routine',
+        orderId: labOrder._id,
+        orderNumber: labOrder.orderNumber,
+        patientId: patient?._id || null,
+        patientName: patient?.fullName || `${patient?.firstName || ''} ${patient?.lastName || ''}`.trim() || payload.guestPatient?.fullName || 'Patient',
+        patientPhone: patient?.phone || payload.guestPatient?.phone || '',
+        testsSummary: tests.map((t) => t.name).join(' + '),
+        status: 'WAITING',
+        createdBy: requester._id
+      });
+    } catch (e) {
+      console.warn('Failed to auto-create LabToken:', e.message);
+    }
+  }
 
   if (payload.prescriptionId) {
     const Prescription = require('../prescriptions/prescription.model');
@@ -1216,15 +1319,32 @@ const createLabOrder = async ({ requester, payload, requestedClinicId = null, re
 };
 
 const listLabOrders = async ({ requester, query = {}, requestedClinicId = null }) => {
-  const clinicId = resolveClinicContext({
-    user: requester,
-    requestedClinicId: requestedClinicId || query.clinicId
-  });
+  let clinicId = null;
+  try {
+    clinicId = resolveClinicContext({
+      user: requester,
+      requestedClinicId: requestedClinicId || query.clinicId
+    });
+  } catch (err) {
+    if (
+      [ROLES.SUPER_ADMIN, ROLES.LAB_TECHNICIAN, ROLES.LAB_OPERATOR].includes(requester?.role) ||
+      requester?.laboratoryId ||
+      query.laboratoryId
+    ) {
+      clinicId = null;
+    } else {
+      throw err;
+    }
+  }
   const { page, limit } = getPagination(query);
-  const filter = { clinicId };
+  const filter = {};
+  if (clinicId) {
+    filter.clinicId = clinicId;
+  }
 
-  if (query.laboratoryId) {
-    filter.laboratoryId = query.laboratoryId;
+  const targetLabId = query.laboratoryId || (requester?.laboratoryId ? String(requester.laboratoryId) : null);
+  if (targetLabId) {
+    filter.laboratoryId = targetLabId;
   }
 
   if (query.collectionMethod) {
@@ -1344,17 +1464,32 @@ const listLabOrders = async ({ requester, query = {}, requestedClinicId = null }
     limit,
     sort: sortOption
   });
-  const reports = await labRepository.findReportsByOrderIds({
-    labOrderIds: labOrders.map((order) => order._id),
-    clinicId
-  });
+  const orderIds = labOrders.map((order) => order._id);
+  const [reports, samplesList] = await Promise.all([
+    labRepository.findReportsByOrderIds({
+      labOrderIds: orderIds,
+      clinicId
+    }),
+    LabSample.find({ orderId: { $in: orderIds } }).sort({ createdAt: 1 }).lean()
+  ]);
+
   const reportsByOrderId = new Map(reports.map((report) => [String(report.labOrderId), report]));
+  const samplesByOrderId = new Map();
+  for (const s of samplesList) {
+    const k = String(s.orderId);
+    if (!samplesByOrderId.has(k)) {
+      samplesByOrderId.set(k, []);
+    }
+    samplesByOrderId.get(k).push(s);
+  }
 
   const todayStr = new Date().toISOString().split('T')[0];
 
   return {
     labOrders: labOrders.map((order) => {
-      const report = reportsByOrderId.get(String(order._id));
+      const orderIdStr = String(order._id);
+      const report = reportsByOrderId.get(orderIdStr);
+      const orderSamples = samplesByOrderId.get(orderIdStr) || [];
       const orderDateStr = order.collectionDate ? new Date(order.collectionDate).toISOString().split('T')[0] : '';
       const createdDateStr = order.createdAt ? new Date(order.createdAt).toISOString().split('T')[0] : '';
       const isToday = orderDateStr === todayStr || createdDateStr === todayStr;
@@ -1362,12 +1497,15 @@ const listLabOrders = async ({ requester, query = {}, requestedClinicId = null }
       // Determine clean user-facing status and timeline step
       let displayStatus = order.orderStatus || 'ORDER_BOOKED';
       let displayStatusLabel = 'Order Booked';
-      let activeStepIndex = 0; // 0: Booked, 1: Scheduled/Awaiting, 2: Sample Collected, 3: In Lab Testing, 4: Report Generated, 5: Report Available
+      let activeStepIndex = 0; // 0: Booked, 1: Scheduled/Awaiting, 2: Sample Collected, 3: In Lab Testing, 4: Results Entry, 5: Ready for Review, 6: Report Available
 
       const st = (order.status || '').toLowerCase();
       const ost = (order.orderStatus || '').toUpperCase();
       const sst = (order.sampleStatus || '').toUpperCase();
       const rst = (report?.status || order.reportStatus || '').toUpperCase();
+
+      const hasRecollection = orderSamples.length > 1 || (order.recollectionCount || 0) > 0 || st === 'recollection_required' || ost === 'RECOLLECTION_REQUIRED';
+      const latestSample = orderSamples[orderSamples.length - 1] || null;
 
       if (st === 'cancelled' || ost === 'CANCELLED') {
         displayStatus = 'CANCELLED';
@@ -1376,20 +1514,32 @@ const listLabOrders = async ({ requester, query = {}, requestedClinicId = null }
       } else if (rst === 'AVAILABLE' || rst === 'FINALIZED' || rst === 'APPROVED' || st === 'completed') {
         displayStatus = 'REPORT_AVAILABLE';
         displayStatusLabel = 'Report Available';
-        activeStepIndex = 5;
+        activeStepIndex = 6;
       } else if (rst === 'GENERATED' || st === 'report_ready' || ost === 'REPORT_GENERATED') {
         displayStatus = 'REPORT_GENERATED';
         displayStatusLabel = 'Report Generated';
+        activeStepIndex = 6;
+      } else if (st === 'ready_for_review' || ost === 'READY_FOR_REVIEW') {
+        displayStatus = 'READY_FOR_REVIEW';
+        displayStatusLabel = 'Ready for Review';
+        activeStepIndex = 5;
+      } else if (st === 'results_entry' || ost === 'RESULTS_ENTRY') {
+        displayStatus = 'RESULTS_ENTRY';
+        displayStatusLabel = 'Results Entry';
         activeStepIndex = 4;
       } else if (ost === 'IN_LAB_TESTING' || st === 'processing' || st === 'in_processing' || st === 'in_analysis') {
         displayStatus = 'IN_LAB_TESTING';
         displayStatusLabel = 'In Lab Testing';
         activeStepIndex = 3;
+      } else if (st === 'recollection_required' || ost === 'RECOLLECTION_REQUIRED') {
+        displayStatus = 'RECOLLECTION_REQUIRED';
+        displayStatusLabel = 'Recollection Required';
+        activeStepIndex = 1;
       } else if (sst === 'SAMPLE_COLLECTED' || st === 'sample_collected') {
         displayStatus = 'SAMPLE_COLLECTED';
         displayStatusLabel = 'Sample Collected';
         activeStepIndex = 2;
-      } else if (order.collectionMethod === 'HOME_COLLECTION') {
+      } else if (order.collectionMethod === 'HOME_COLLECTION' || order.collectionMode === 'HOME_COLLECTION') {
         displayStatus = 'SCHEDULED';
         displayStatusLabel = 'Collection Scheduled';
         activeStepIndex = 1;
@@ -1405,6 +1555,11 @@ const listLabOrders = async ({ requester, query = {}, requestedClinicId = null }
         displayStatus,
         displayStatusLabel,
         activeStepIndex,
+        samples: orderSamples,
+        sampleHistory: orderSamples,
+        latestSample,
+        hasRecollection,
+        sampleCount: orderSamples.length,
         isWalkIn: order.bookingSource === 'WALK_IN' || order.patientType === 'WALK_IN' || order.source === 'WALK_IN',
         report: report
           ? {
@@ -1421,6 +1576,7 @@ const listLabOrders = async ({ requester, query = {}, requestedClinicId = null }
           : null
       };
     }),
+    total,
     pagination: buildPaginationMeta({ page, limit, total })
   };
 };
@@ -1480,15 +1636,30 @@ const getLabOrderById = async ({ requester, labOrderId, requestedClinicId = null
     labOrderId,
     requestedClinicId
   });
-  const report = await labRepository.findLabReportByOrderId({
-    labOrderId,
-    clinicId,
-    populateDetails: true
-  });
+  const [report, samples] = await Promise.all([
+    labRepository.findLabReportByOrderId({
+      labOrderId,
+      clinicId,
+      populateDetails: true
+    }),
+    LabSample.find({ orderId: labOrder._id }).sort({ createdAt: 1 }).lean()
+  ]);
+
+  const hasRecollection = samples.length > 1 || (labOrder.recollectionCount || 0) > 0 || labOrder.status === 'recollection_required' || labOrder.orderStatus === 'RECOLLECTION_REQUIRED';
+  const activeSample = samples.find((s) => s.status === 'COLLECTED' || s.status === 'VERIFIED' || s.status === 'RECEIVED' || s.status === 'PROCESSING') || samples[samples.length - 1] || null;
+
+  const orderObj = labOrder.toObject ? labOrder.toObject() : { ...labOrder };
+  orderObj.samples = samples;
+  orderObj.sampleHistory = samples;
+  orderObj.hasRecollection = hasRecollection;
+  orderObj.activeSample = activeSample;
+  orderObj.sampleCount = samples.length;
 
   return {
-    labOrder,
-    report
+    labOrder: orderObj,
+    report,
+    samples,
+    sampleHistory: samples
   };
 };
 
@@ -3692,11 +3863,15 @@ const getCollectionQueueDashboard = async ({ clinicId, laboratoryId, date, reque
       ...labFilter,
       scheduledDate: { $gte: startOfDay, $lte: endOfDay }
     }),
-    // Recollections required
-    LabSample.countDocuments({
+    // Recollections required count
+    LabOrder.countDocuments({
       ...clinicFilter,
       ...labFilter,
-      status: { $in: ['REJECTED', 'RECOLLECTION_REQUIRED'] }
+      $or: [
+        { status: 'recollection_required' },
+        { orderStatus: 'RECOLLECTION_REQUIRED' },
+        { sampleStatus: 'SAMPLE_REJECTED' }
+      ]
     }),
     // Tokens list for today
     LabToken.find({
@@ -3712,7 +3887,10 @@ const getCollectionQueueDashboard = async ({ clinicId, laboratoryId, date, reque
     LabOrder.find({
       ...clinicFilter,
       ...labFilter,
-      status: { $in: actionableCollectionStatuses }
+      $or: [
+        { status: { $in: actionableCollectionStatuses } },
+        { orderStatus: { $in: ['ORDER_BOOKED', 'COLLECTION_SCHEDULED', 'AWAITING_COLLECTION', 'CHECKED_IN', 'CALLED', 'COLLECTING', 'RECOLLECTION_REQUIRED'] } }
+      ]
     })
       .sort({ createdAt: -1 })
       .populate('patientId')
@@ -3730,6 +3908,38 @@ const getCollectionQueueDashboard = async ({ clinicId, laboratoryId, date, reque
       .lean()
   ]);
 
+  // Query all samples for returned todayOrders in batch
+  const todayOrderIds = todayOrders.map((o) => o._id);
+  const allSamplesForToday = await LabSample.find({ orderId: { $in: todayOrderIds } }).sort({ createdAt: 1 }).lean();
+  const samplesByOrderId = new Map();
+  for (const s of allSamplesForToday) {
+    const k = String(s.orderId);
+    if (!samplesByOrderId.has(k)) {
+      samplesByOrderId.set(k, []);
+    }
+    samplesByOrderId.get(k).push(s);
+  }
+
+  const enrichedTodayOrders = todayOrders.map((order) => {
+    const orderIdStr = String(order._id);
+    const orderSamples = samplesByOrderId.get(orderIdStr) || [];
+    const hasRejectedSample = orderSamples.some((s) => s.status === 'REJECTED' || s.status === 'RECOLLECTION_REQUIRED');
+    const isRecollection = order.status === 'recollection_required' || order.orderStatus === 'RECOLLECTION_REQUIRED' || hasRejectedSample;
+    const latestSample = orderSamples[orderSamples.length - 1] || null;
+    const activeSample = orderSamples.find((s) => s.status === 'COLLECTED' || s.status === 'VERIFIED') || latestSample;
+
+    return {
+      ...order,
+      samples: orderSamples,
+      sampleHistory: orderSamples,
+      latestSample,
+      activeSample,
+      sampleCount: orderSamples.length,
+      hasRecollection: orderSamples.length > 1 || isRecollection || (order.recollectionCount || 0) > 0,
+      isRecollectionRequired: isRecollection
+    };
+  });
+
   // Derive Current Serving Token (Active Token Called)
   const currentToken =
     tokens.find((t) => t.status === 'CALLED' || t.status === 'IN_COLLECTION') || null;
@@ -3746,7 +3956,7 @@ const getCollectionQueueDashboard = async ({ clinicId, laboratoryId, date, reque
     },
     currentToken,
     tokens,
-    todayOrders,
+    todayOrders: enrichedTodayOrders,
     homeTasks,
     desks: ['Desk 1', 'Desk 2', 'Desk 3', 'Phlebotomy Room A', 'Phlebotomy Room B']
   };
@@ -3939,7 +4149,7 @@ const collectOrderSamples = async ({ orderId, specimens, deskNumber = 'Desk 1', 
     throw new AppError('Valid lab order ID is required.', HTTP_STATUS.BAD_REQUEST);
   }
 
-  const order = await LabOrder.findById(validOrderId).populate('patientId');
+  const order = await LabOrder.findById(validOrderId).populate('patientId').populate('laboratoryId');
   if (!order) {
     throw new AppError('Lab order not found.', HTTP_STATUS.NOT_FOUND);
   }
@@ -3949,12 +4159,64 @@ const collectOrderSamples = async ({ orderId, specimens, deskNumber = 'Desk 1', 
     throw new AppError(`Cannot collect sample: Laboratory order payment is ${order.paymentStatus.toLowerCase()}.`, HTTP_STATUS.BAD_REQUEST);
   }
 
+  // Find previous samples for this order to check for recollection cycle
+  const previousSamples = await LabSample.find({ orderId: order._id }).sort({ createdAt: -1 });
+  const latestRejectedSample = previousSamples.find((s) => s.status === 'REJECTED' || s.status === 'RECOLLECTION_REQUIRED');
+  const isRecollection = order.status === 'recollection_required' || order.orderStatus === 'RECOLLECTION_REQUIRED' || Boolean(latestRejectedSample);
+
+  // Auto-derive specimens if not provided
+  let specsToCollect = Array.isArray(specimens) && specimens.length > 0 ? specimens : [];
+  if (specsToCollect.length === 0) {
+    const tests = order.tests || [];
+    const specimenMap = new Map();
+    for (const t of tests) {
+      const specType = t.specimenType || 'Whole Blood';
+      const container = specType.toLowerCase().includes('blood') || specType.toLowerCase().includes('cbc') || specType.toLowerCase().includes('edta')
+        ? 'EDTA Tube (Lavender)'
+        : specType.toLowerCase().includes('serum') || specType.toLowerCase().includes('lipid') || specType.toLowerCase().includes('liver')
+        ? 'SST Serum Separator (Gold/Yellow)'
+        : specType.toLowerCase().includes('urine')
+        ? 'Sterile Urine Container'
+        : specType.toLowerCase().includes('glucose') || specType.toLowerCase().includes('sugar')
+        ? 'Sodium Fluoride Tube (Grey)'
+        : 'Standard Specimen Container';
+      const color = container.includes('Lavender') ? '#8B5CF6' : container.includes('Gold') ? '#EAB308' : container.includes('Grey') ? '#94A3B8' : '#3B82F6';
+
+      if (!specimenMap.has(specType)) {
+        specimenMap.set(specType, {
+          specimenType: specType,
+          containerType: container,
+          containerColor: color,
+          volumeRequired: '2.5 mL',
+          testIds: [t.labTestId || t._id],
+          testNames: [t.name || t.code]
+        });
+      } else {
+        const item = specimenMap.get(specType);
+        item.testIds.push(t.labTestId || t._id);
+        item.testNames.push(t.name || t.code);
+      }
+    }
+    specsToCollect = Array.from(specimenMap.values());
+    if (specsToCollect.length === 0) {
+      specsToCollect = [{
+        specimenType: 'Whole Blood (EDTA)',
+        containerType: 'EDTA Tube (Lavender)',
+        containerColor: '#8B5CF6',
+        volumeRequired: '2.5 mL',
+        testIds: [],
+        testNames: ['Diagnostic Investigation']
+      }];
+    }
+  }
+
   const collectedSamples = [];
   const now = new Date();
   const datePrefix = now.toISOString().split('T')[0].replace(/-/g, '');
+  const performerName = requester?.name || requester?.fullName || `${requester?.firstName || ''} ${requester?.lastName || ''}`.trim() || 'Laboratory Staff';
 
-  for (let i = 0; i < specimens.length; i++) {
-    const spec = specimens[i];
+  for (let i = 0; i < specsToCollect.length; i++) {
+    const spec = specsToCollect[i];
     const randSeq = Math.floor(1000 + Math.random() * 9000);
     const sampleId = `SMP-${datePrefix}-${randSeq}`;
 
@@ -3969,32 +4231,33 @@ const collectOrderSamples = async ({ orderId, specimens, deskNumber = 'Desk 1', 
         order.guestPatient?.fullName ||
         'Patient',
       patientPhone: order.patientId?.phone || order.guestPatient?.phone || '',
-      laboratoryId: order.laboratoryId,
+      laboratoryId: order.laboratoryId?._id || order.laboratoryId || null,
       clinicId: order.clinicId,
       specimenType: spec.specimenType || 'Blood',
       containerType: spec.containerType || 'EDTA Tube (Lavender)',
       containerColor: spec.containerColor || '#8B5CF6',
-      collectionLocation: order.collectionMethod || 'AT_LAB',
+      collectionLocation: order.collectionMode === 'HOME_COLLECTION' || order.collectionMethod === 'HOME_COLLECTION' ? 'HOME_COLLECTION' : 'AT_LAB',
       status: 'COLLECTED',
       testIds: spec.testIds || [],
       testNames: spec.tests || spec.testNames || [],
       volumeRequired: spec.volumeRequired || '2.5 mL',
       volumeCollected: spec.volumeCollected || spec.volumeRequired || '2.5 mL',
       collectedBy: requester?._id || null,
-      collectedByName: requester?.name || 'Lab Staff',
+      collectedByName: performerName,
       collectedAt: now,
       deskNumber,
       barcode: sampleId,
       labelPrintedAt: now,
-      notes: notes || spec.notes || '',
+      recollectionOfSampleId: isRecollection && latestRejectedSample ? latestRejectedSample._id : null,
+      notes: notes || spec.notes || (isRecollection ? `Recollection draw at ${deskNumber}` : ''),
       timeline: [
         {
-          action: 'SAMPLE_COLLECTED',
+          action: isRecollection ? 'SAMPLE_RECOLLECTED' : 'SAMPLE_COLLECTED',
           timestamp: now,
           actorId: requester?._id || null,
-          actorName: requester?.name || 'Lab Staff',
+          actorName: performerName,
           actorRole: requester?.role || 'LAB_TECHNICIAN',
-          notes: `Sample collected at ${deskNumber}. Container: ${spec.containerType}`
+          notes: `${isRecollection ? 'Replacement specimen' : 'Specimen'} collected at ${deskNumber}. Container: ${spec.containerType}`
         }
       ]
     });
@@ -4002,15 +4265,30 @@ const collectOrderSamples = async ({ orderId, specimens, deskNumber = 'Desk 1', 
     collectedSamples.push(sample);
   }
 
-
-  const performerName = requester?.name || requester?.fullName || `${requester?.firstName || ''} ${requester?.lastName || ''}`.trim() || 'Laboratory Staff';
-
-  // Update order status
+  // Atomically update canonical order status
+  const oldStatus = order.status;
   order.status = 'sample_collected';
   order.orderStatus = 'SAMPLE_COLLECTED';
   order.sampleStatus = 'SAMPLE_COLLECTED';
   order.sampleCollectedAt = now;
-  order.sampleStatusMessage = `Sample collected at ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  order.sampleCollectedBy = requester?._id || null;
+  order.sampleCollectedByName = performerName;
+  order.activeSampleId = collectedSamples[0]?.sampleId || '';
+  order.sampleStatusMessage = `Sample collected on ${now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}, ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+
+  if (!order.timeline) {
+    order.timeline = [];
+  }
+  order.timeline.push({
+    oldStatus,
+    newStatus: 'sample_collected',
+    action: isRecollection ? 'RESAMPLE_COLLECTED' : 'SAMPLE_COLLECTED',
+    performedBy: requester?._id || null,
+    performedByName: performerName,
+    performedAt: now,
+    notes: `Sample collected at ${deskNumber}. Sample ID(s): ${collectedSamples.map((s) => s.sampleId).join(', ')}`
+  });
+
   await order.save();
 
   // Complete any active queue token for this order
@@ -4021,12 +4299,13 @@ const collectOrderSamples = async ({ orderId, specimens, deskNumber = 'Desk 1', 
 
   await createAuditLog({
     actorUserId: requester?._id || null,
-    action: 'LAB_SAMPLES_COLLECTED',
+    action: isRecollection ? 'LAB_RESAMPLE_COLLECTED' : 'LAB_SAMPLES_COLLECTED',
     entity: 'LabOrder',
     entityId: order._id,
     metadata: {
       orderNumber: order.orderNumber,
-      sampleIds: collectedSamples.map((s) => s.sampleId)
+      sampleIds: collectedSamples.map((s) => s.sampleId),
+      isRecollection
     },
     ipAddress: requester?.ip || '127.0.0.1',
     userAgent: requester?.userAgent || 'System',
@@ -4049,6 +4328,8 @@ const rejectSample = async ({ sampleId, reason, notes = '', requester }) => {
   }
 
   const now = new Date();
+  const performerName = requester?.name || requester?.fullName || `${requester?.firstName || ''} ${requester?.lastName || ''}`.trim() || 'Laboratory Staff';
+
   sample.status = 'REJECTED';
   sample.rejectionReason = reason;
   sample.notes = [sample.notes, `Rejected: ${reason} - ${notes}`].filter(Boolean).join(' | ');
@@ -4056,18 +4337,37 @@ const rejectSample = async ({ sampleId, reason, notes = '', requester }) => {
     action: 'SAMPLE_REJECTED',
     timestamp: now,
     actorId: requester?._id || null,
-    actorName: requester?.name || 'Lab Staff',
+    actorName: performerName,
     actorRole: requester?.role || 'LAB_TECHNICIAN',
     notes: `Reason: ${reason}. Notes: ${notes}`
   });
   await sample.save();
 
-  // Update LabOrder to prompt recollection
-  await LabOrder.findByIdAndUpdate(sample.orderId, {
-    orderStatus: 'SAMPLE_RECOLLECTION_REQUIRED',
-    sampleStatus: 'SAMPLE_REJECTED',
-    sampleStatusMessage: `Recollection required: ${reason}`
-  });
+  // Update LabOrder to prompt recollection and retain full history
+  const order = await LabOrder.findById(sample.orderId);
+  if (order) {
+    const oldStatus = order.status;
+    order.status = 'recollection_required';
+    order.orderStatus = 'RECOLLECTION_REQUIRED';
+    order.sampleStatus = 'SAMPLE_REJECTED';
+    order.sampleStatusMessage = `Recollection required: ${reason}`;
+    order.recollectionCount = (order.recollectionCount || 0) + 1;
+
+    if (!order.timeline) {
+      order.timeline = [];
+    }
+    order.timeline.push({
+      oldStatus,
+      newStatus: 'recollection_required',
+      action: 'RECOLLECTION_REQUESTED',
+      performedBy: requester?._id || null,
+      performedByName: performerName,
+      performedAt: now,
+      notes: `Sample ${sample.sampleId} rejected: ${reason}. ${notes}`.trim()
+    });
+
+    await order.save();
+  }
 
   await createAuditLog({
     actorUserId: requester?._id || null,
@@ -4076,6 +4376,7 @@ const rejectSample = async ({ sampleId, reason, notes = '', requester }) => {
     entityId: sample._id,
     metadata: {
       sampleId: sample.sampleId,
+      orderNumber: sample.orderNumber,
       reason
     },
     ipAddress: requester?.ip || '127.0.0.1',
@@ -4098,6 +4399,7 @@ const recollectSample = async ({ sampleId, deskNumber = 'Desk 1', notes = '', re
   const now = new Date();
   const datePrefix = now.toISOString().split('T')[0].replace(/-/g, '');
   const newSampleId = `SMP-${datePrefix}-${Math.floor(1000 + Math.random() * 9000)}`;
+  const performerName = requester?.name || requester?.fullName || `${requester?.firstName || ''} ${requester?.lastName || ''}`.trim() || 'Laboratory Staff';
 
   const newSample = await LabSample.create({
     sampleId: newSampleId,
@@ -4118,7 +4420,7 @@ const recollectSample = async ({ sampleId, deskNumber = 'Desk 1', notes = '', re
     volumeRequired: originalSample.volumeRequired,
     volumeCollected: originalSample.volumeRequired,
     collectedBy: requester?._id || null,
-    collectedByName: requester?.name || 'Lab Staff',
+    collectedByName: performerName,
     collectedAt: now,
     deskNumber,
     barcode: newSampleId,
@@ -4130,20 +4432,55 @@ const recollectSample = async ({ sampleId, deskNumber = 'Desk 1', notes = '', re
         action: 'SAMPLE_RECOLLECTED',
         timestamp: now,
         actorId: requester?._id || null,
-        actorName: requester?.name || 'Lab Staff',
+        actorName: performerName,
         actorRole: requester?.role || 'LAB_TECHNICIAN',
-        notes: `Recollection for rejected sample ${originalSample.sampleId}`
+        notes: `Recollection replacement for rejected sample ${originalSample.sampleId}`
       }
     ]
   });
 
   // Update order status back to sample_collected
-  await LabOrder.findByIdAndUpdate(originalSample.orderId, {
-    status: 'sample_collected',
-    orderStatus: 'SAMPLE_COLLECTED',
-    sampleStatus: 'SAMPLE_COLLECTED',
-    sampleCollectedAt: now,
-    sampleStatusMessage: `Recollected at ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+  const order = await LabOrder.findById(originalSample.orderId);
+  if (order) {
+    const oldStatus = order.status;
+    order.status = 'sample_collected';
+    order.orderStatus = 'SAMPLE_COLLECTED';
+    order.sampleStatus = 'SAMPLE_COLLECTED';
+    order.sampleCollectedAt = now;
+    order.sampleCollectedBy = requester?._id || null;
+    order.sampleCollectedByName = performerName;
+    order.activeSampleId = newSample.sampleId;
+    order.sampleStatusMessage = `Replacement sample recollected at ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+
+    if (!order.timeline) {
+      order.timeline = [];
+    }
+    order.timeline.push({
+      oldStatus,
+      newStatus: 'sample_collected',
+      action: 'RESAMPLE_COLLECTED',
+      performedBy: requester?._id || null,
+      performedByName: performerName,
+      performedAt: now,
+      notes: `Replacement sample ${newSample.sampleId} drawn at ${deskNumber}.`
+    });
+
+    await order.save();
+  }
+
+  await createAuditLog({
+    actorUserId: requester?._id || null,
+    action: 'LAB_SAMPLE_RECOLLECTED',
+    entity: 'LabSample',
+    entityId: newSample._id,
+    metadata: {
+      newSampleId: newSample.sampleId,
+      originalSampleId: originalSample.sampleId,
+      orderNumber: originalSample.orderNumber
+    },
+    ipAddress: requester?.ip || '127.0.0.1',
+    userAgent: requester?.userAgent || 'System',
+    status: 'SUCCESS'
   });
 
   return newSample;
@@ -4266,10 +4603,167 @@ const receiveHomeCollectionAtLab = async ({ taskId, sampleCondition = 'GOOD', no
   return task;
 };
 
+/**
+ * Universal Verification Response Builder
+ * Constructs a rich verification payload for the collection desk verification screen
+ */
+const buildVerificationResponse = ({
+  type,
+  order,
+  patient,
+  laboratory,
+  sample,
+  token,
+  allSamples = [],
+  activeOrders = [],
+  requester
+}) => {
+  if (!order) {
+    return {
+      type,
+      sample,
+      token,
+      patient,
+      laboratory,
+      activeOrders
+    };
+  }
+
+  const patientObj = patient || order.patientId || order.guestPatient || {};
+  const patientName =
+    patientObj.fullName ||
+    `${patientObj.firstName || ''} ${patientObj.lastName || ''}`.trim() ||
+    patientObj.name ||
+    order.guestPatient?.fullName ||
+    'Walk-in Patient';
+  const uhid = patientObj.patientId || patientObj.uhid || order.patientId?.patientId || 'PAT-WALKIN';
+  const age = patientObj.age || order.patientId?.age || (order.guestPatient?.age ? `${order.guestPatient.age} yrs` : 'N/A');
+  const gender = patientObj.gender || order.patientId?.gender || order.guestPatient?.gender || 'N/A';
+  const phone = patientObj.phone || order.patientId?.phone || order.guestPatient?.phone || 'N/A';
+
+  const collectionMode = order.collectionMode || (order.collectionMethod === 'HOME_COLLECTION' ? 'HOME_COLLECTION' : 'AT_LABORATORY');
+  const scheduledDate = order.scheduledCollectionDate || order.collectionDate || order.createdAt;
+  const scheduledTimeSlot =
+    order.collectionSlot ||
+    (order.scheduledCollectionStartTime ? `${order.scheduledCollectionStartTime} - ${order.scheduledCollectionEndTime || ''}` : '10:00 AM - 12:00 PM');
+
+  const paymentStatus = (order.paymentStatus || 'PAID').toUpperCase();
+  const isPaid = ['PAID', 'COMPLETED', 'WAIVED', 'PAID_ONLINE', 'PAID_CASH'].includes(paymentStatus);
+  const isCancelled = order.status === 'cancelled' || order.orderStatus === 'CANCELLED';
+
+  const hasRejectedSample = allSamples.some((s) => s.status === 'REJECTED' || s.status === 'RECOLLECTION_REQUIRED');
+  const isRecollection = order.status === 'recollection_required' || order.orderStatus === 'RECOLLECTION_REQUIRED' || hasRejectedSample;
+  const latestRejectedSample = allSamples.find((s) => s.status === 'REJECTED' || s.status === 'RECOLLECTION_REQUIRED');
+  const activeCollectedSample = allSamples.find((s) => s.status === 'COLLECTED' || s.status === 'VERIFIED' || s.status === 'RECEIVED' || s.status === 'PROCESSING');
+
+  const isAlreadyCollected =
+    (order.status === 'sample_collected' ||
+      ['processing', 'in_processing', 'in_analysis', 'results_entry', 'ready_for_review', 'completed', 'report_ready'].includes(order.status)) &&
+    !isRecollection;
+
+  let validationStatus = 'READY_FOR_COLLECTION';
+  let validationMessage = 'Order verified. Ready for sample collection.';
+
+  if (isCancelled) {
+    validationStatus = 'ORDER_CANCELLED';
+    validationMessage = 'Order is cancelled. Cannot collect specimen.';
+  } else if (!isPaid && order.bookingSource === 'PATIENT_PORTAL') {
+    validationStatus = 'PAYMENT_PENDING';
+    validationMessage = 'Payment pending. Confirm payment before collecting specimen.';
+  } else if (isRecollection) {
+    validationStatus = 'RECOLLECTION_READY';
+    validationMessage = `Recollection Required: ${latestRejectedSample?.rejectionReason || 'Previous sample rejected/unsuitable'}. Ready to collect replacement sample.`;
+  } else if (isAlreadyCollected) {
+    validationStatus = 'ALREADY_COLLECTED';
+    validationMessage = `Sample already collected (${activeCollectedSample?.sampleId || 'Active Sample'}) on ${order.sampleCollectedAt ? new Date(order.sampleCollectedAt).toLocaleString() : 'earlier'}.`;
+  }
+
+  // Derive required specimens from tests
+  const tests = order.tests || [];
+  const specimenMap = new Map();
+  for (const t of tests) {
+    const specType = t.specimenType || 'Whole Blood';
+    const container =
+      specType.toLowerCase().includes('blood') || specType.toLowerCase().includes('cbc') || specType.toLowerCase().includes('edta')
+        ? 'EDTA Tube (Lavender)'
+        : specType.toLowerCase().includes('serum') || specType.toLowerCase().includes('lipid') || specType.toLowerCase().includes('liver')
+        ? 'SST Serum Separator (Gold/Yellow)'
+        : specType.toLowerCase().includes('urine')
+        ? 'Sterile Urine Container'
+        : specType.toLowerCase().includes('glucose') || specType.toLowerCase().includes('sugar')
+        ? 'Sodium Fluoride Tube (Grey)'
+        : 'Standard Specimen Container';
+    const color = container.includes('Lavender') ? '#8B5CF6' : container.includes('Gold') ? '#EAB308' : container.includes('Grey') ? '#94A3B8' : '#3B82F6';
+
+    if (!specimenMap.has(specType)) {
+      specimenMap.set(specType, {
+        specimenType: specType,
+        containerType: container,
+        containerColor: color,
+        volumeRequired: '2.5 mL',
+        testNames: [t.name || t.code]
+      });
+    } else {
+      specimenMap.get(specType).testNames.push(t.name || t.code);
+    }
+  }
+  const requiredSpecimens = Array.from(specimenMap.values());
+
+  return {
+    type: 'VERIFY_COLLECTION',
+    valid: !isCancelled,
+    validationStatus,
+    validationMessage,
+    order,
+    patient: {
+      _id: patientObj._id,
+      patientId: uhid,
+      uhid,
+      name: patientName,
+      fullName: patientName,
+      age,
+      gender,
+      phone
+    },
+    laboratory: laboratory || order.laboratoryId || { name: 'Radha Krishna Laboratory' },
+    collectionMode,
+    scheduledDate,
+    scheduledTimeSlot,
+    paymentStatus,
+    isPaid,
+    requiredSpecimens,
+    sampleHistory: allSamples,
+    isRecollection,
+    recollectionReason: latestRejectedSample?.rejectionReason || '',
+    activeSample: activeCollectedSample,
+    activeOrders
+  };
+};
+
 const universalScanLookup = async ({ code, clinicId, laboratoryId, requester }) => {
-  const cleanCode = String(code || '').trim();
+  let cleanCode = String(code || '').trim();
   if (!cleanCode) {
     throw new AppError('Scan code or query is required.', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  // 0. Parse JSON string if payload is a JSON string (e.g. from generated QR code)
+  if (cleanCode.startsWith('{') && cleanCode.endsWith('}')) {
+    try {
+      const parsed = JSON.parse(cleanCode);
+      if (parsed.orderNumber) {
+        cleanCode = parsed.orderNumber;
+      } else if (parsed.orderId) {
+        cleanCode = parsed.orderId;
+      } else if (parsed.collectionToken) {
+        cleanCode = parsed.collectionToken;
+      } else if (parsed.tokenId) {
+        cleanCode = parsed.tokenId;
+      } else if (parsed.sampleId) {
+        cleanCode = parsed.sampleId;
+      }
+    } catch (_) {
+      // Continue with string code
+    }
   }
 
   const filterClinic = clinicId ? { clinicId } : {};
@@ -4280,19 +4774,55 @@ const universalScanLookup = async ({ code, clinicId, laboratoryId, requester }) 
       $or: [{ sampleId: cleanCode }, { barcode: cleanCode }]
     })
       .populate('orderId')
-      .populate('patientId');
+      .populate('patientId')
+      .populate('laboratoryId');
 
     if (sample) {
-      return {
+      const order = sample.orderId
+        ? await LabOrder.findById(sample.orderId._id || sample.orderId)
+            .populate('patientId')
+            .populate('laboratoryId')
+            .populate('doctorId')
+            .lean()
+        : null;
+      const allSamples = order ? await LabSample.find({ orderId: order._id }).sort({ createdAt: -1 }).lean() : [sample];
+
+      return buildVerificationResponse({
         type: 'SAMPLE',
         sample,
-        order: sample.orderId,
-        patient: sample.patientId
-      };
+        order,
+        patient: sample.patientId || order?.patientId,
+        laboratory: sample.laboratoryId || order?.laboratoryId,
+        allSamples,
+        requester
+      });
     }
   }
 
-  // 2. Token Lookup
+  // 2. Collection Token or Queue Token Lookup
+  if (cleanCode.startsWith('TKN-COL-') || cleanCode.startsWith('COL-')) {
+    const order = await LabOrder.findOne({
+      ...filterClinic,
+      $or: [{ collectionToken: cleanCode }, { tokenNumber: cleanCode }, { orderNumber: cleanCode }]
+    })
+      .populate('patientId')
+      .populate('laboratoryId')
+      .populate('doctorId')
+      .lean();
+
+    if (order) {
+      const allSamples = await LabSample.find({ orderId: order._id }).sort({ createdAt: -1 }).lean();
+      return buildVerificationResponse({
+        type: 'COLLECTION_TOKEN',
+        order,
+        patient: order.patientId,
+        laboratory: order.laboratoryId,
+        allSamples,
+        requester
+      });
+    }
+  }
+
   if (cleanCode.startsWith('TKN-') || cleanCode.startsWith('A-') || cleanCode.startsWith('T-')) {
     const token = await LabToken.findOne({
       $or: [{ tokenId: cleanCode }, { tokenNumber: cleanCode }]
@@ -4301,30 +4831,52 @@ const universalScanLookup = async ({ code, clinicId, laboratoryId, requester }) 
       .populate('patientId');
 
     if (token) {
-      return {
+      const order = token.orderId
+        ? await LabOrder.findById(token.orderId._id || token.orderId)
+            .populate('patientId')
+            .populate('laboratoryId')
+            .populate('doctorId')
+            .lean()
+        : null;
+      const allSamples = order ? await LabSample.find({ orderId: order._id }).sort({ createdAt: -1 }).lean() : [];
+
+      return buildVerificationResponse({
         type: 'TOKEN',
         token,
-        order: token.orderId,
-        patient: token.patientId
-      };
+        order,
+        patient: token.patientId || order?.patientId,
+        laboratory: order?.laboratoryId,
+        allSamples,
+        requester
+      });
     }
   }
 
   // 3. Lab Order Number Lookup
-  if (cleanCode.startsWith('ORD-') || cleanCode.startsWith('LAB-')) {
+  if (cleanCode.startsWith('ORD-') || cleanCode.startsWith('LAB-') || mongoose.isValidObjectId(cleanCode)) {
     const order = await LabOrder.findOne({
       ...filterClinic,
-      $or: [{ orderNumber: cleanCode }, { _id: mongoose.isValidObjectId(cleanCode) ? cleanCode : null }]
+      $or: [
+        { orderNumber: cleanCode },
+        { collectionToken: cleanCode },
+        { _id: mongoose.isValidObjectId(cleanCode) ? cleanCode : null }
+      ]
     })
       .populate('patientId')
-      .populate('laboratoryId');
+      .populate('laboratoryId')
+      .populate('doctorId')
+      .lean();
 
     if (order) {
-      return {
+      const allSamples = await LabSample.find({ orderId: order._id }).sort({ createdAt: -1 }).lean();
+      return buildVerificationResponse({
         type: 'LAB_ORDER',
         order,
-        patient: order.patientId
-      };
+        patient: order.patientId,
+        laboratory: order.laboratoryId,
+        allSamples,
+        requester
+      });
     }
   }
 
@@ -4332,15 +4884,33 @@ const universalScanLookup = async ({ code, clinicId, laboratoryId, requester }) 
   if (cleanCode.startsWith('RX-') || mongoose.isValidObjectId(cleanCode)) {
     const prescription = await Prescription.findOne({
       ...filterClinic,
-      $or: [
-        { prescriptionNumber: cleanCode },
-        { _id: mongoose.isValidObjectId(cleanCode) ? cleanCode : null }
-      ]
+      $or: [{ prescriptionNumber: cleanCode }, { _id: mongoose.isValidObjectId(cleanCode) ? cleanCode : null }]
     })
       .populate('patientId')
       .populate('doctorId');
 
     if (prescription) {
+      const activeOrder = await LabOrder.findOne({
+        prescriptionId: prescription._id,
+        status: { $ne: 'cancelled' }
+      })
+        .populate('patientId')
+        .populate('laboratoryId')
+        .lean();
+
+      if (activeOrder) {
+        const allSamples = await LabSample.find({ orderId: activeOrder._id }).sort({ createdAt: -1 }).lean();
+        return buildVerificationResponse({
+          type: 'PRESCRIPTION',
+          prescription,
+          order: activeOrder,
+          patient: prescription.patientId,
+          laboratory: activeOrder.laboratoryId,
+          allSamples,
+          requester
+        });
+      }
+
       return {
         type: 'PRESCRIPTION',
         prescription,
@@ -4366,7 +4936,24 @@ const universalScanLookup = async ({ code, clinicId, laboratoryId, requester }) 
       status: { $ne: 'cancelled' }
     })
       .sort({ createdAt: -1 })
-      .limit(10);
+      .limit(10)
+      .populate('laboratoryId')
+      .lean();
+
+    const latestOrder = activeOrders[0] || null;
+    let allSamples = [];
+    if (latestOrder) {
+      allSamples = await LabSample.find({ orderId: latestOrder._id }).sort({ createdAt: -1 }).lean();
+      return buildVerificationResponse({
+        type: 'PATIENT',
+        patient,
+        order: latestOrder,
+        laboratory: latestOrder.laboratoryId,
+        allSamples,
+        activeOrders,
+        requester
+      });
+    }
 
     return {
       type: 'PATIENT',

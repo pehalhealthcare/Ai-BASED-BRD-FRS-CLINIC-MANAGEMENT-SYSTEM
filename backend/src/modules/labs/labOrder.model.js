@@ -323,8 +323,13 @@ const labOrderSchema = new mongoose.Schema(
     },
     collectionMethod: {
       type: String,
-      enum: ['AT_LAB', 'HOME_COLLECTION'],
+      enum: ['AT_LAB', 'AT_LABORATORY', 'HOME_COLLECTION'],
       default: 'AT_LAB'
+    },
+    collectionMode: {
+      type: String,
+      enum: ['AT_LABORATORY', 'AT_LAB', 'HOME_COLLECTION'],
+      default: 'AT_LABORATORY'
     },
     collectionAddress: {
       line1: { type: String, trim: true, default: '' },
@@ -337,6 +342,39 @@ const labOrderSchema = new mongoose.Schema(
       default: null
     },
     collectionSlot: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    scheduledCollectionDate: {
+      type: Date,
+      default: null
+    },
+    scheduledCollectionStartTime: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    scheduledCollectionEndTime: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    collectionToken: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    collectionQrPayload: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    recollectionCount: {
+      type: Number,
+      default: 0
+    },
+    activeSampleId: {
       type: String,
       trim: true,
       default: ''

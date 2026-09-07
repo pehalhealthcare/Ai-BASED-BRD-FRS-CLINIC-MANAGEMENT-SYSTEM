@@ -11,6 +11,7 @@ import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
 import { FullPageSpinner } from '../../components/ui/Spinner';
 import toast from 'react-hot-toast';
+import FloatingLabCart from './FloatingLabCart';
 
 export default function LabTestsPage() {
   const { user } = useAuth();
@@ -620,8 +621,8 @@ export default function LabTestsPage() {
                 </select>
               </div>
 
-              {/* Catalog Table */}
-              <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+              {/* Catalog Table with independent vertical scrolling */}
+              <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden max-h-[calc(100vh-340px)] min-h-[350px] overflow-y-auto overscroll-contain pr-1 pb-16 [scrollbar-width:thin]">
                 <table className="w-full text-left text-xs">
                   <thead>
                     <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-[10px] font-black uppercase text-slate-400 tracking-wider">
@@ -985,6 +986,23 @@ export default function LabTestsPage() {
           </div>
         </div>
       )}
+
+      {/* Floating Laboratory Cart Pill & Slide-Over Drawer */}
+      <FloatingLabCart
+        cartItems={selectedTests}
+        onRemoveItem={(itemId) => {
+          const found = selectedTests.find(t => String(t.id || t._id || t.investigationId) === String(itemId) || t.name === itemId || t.testName === itemId);
+          if (found) handleToggleTest(found);
+        }}
+        onClearCart={() => {
+          setSelectedTests([]);
+          setAppliedPackage(null);
+          toast.success('Laboratory cart cleared');
+        }}
+        onProceedToCheckout={() => {
+          setIsBooking(true);
+        }}
+      />
 
     </div>
   );

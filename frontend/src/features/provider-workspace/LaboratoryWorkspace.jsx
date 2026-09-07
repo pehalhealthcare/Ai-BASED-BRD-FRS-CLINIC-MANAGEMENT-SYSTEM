@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   TrendingUp, FlaskConical, ShoppingBag, Users, AlertTriangle, 
-  Search, Scan, RefreshCw, Barcode, Plus, Minus, Trash2, 
+  Search, Scan, RefreshCw, RotateCcw, Barcode, Plus, Minus, Trash2, 
   CreditCard, CheckCircle2, ChevronRight, Ban, Eye, FileText, 
   Printer, ArrowLeftRight, Activity, ArrowUpRight, DollarSign, Calendar,
   ChevronDown, LogOut, Layers, Settings, HelpCircle, FileBarChart, Truck, Heart, X, Check, Clock, AlertCircle,
@@ -17,6 +17,32 @@ import LabOrderFinalizationModal from '../labs/LabOrderFinalizationModal';
 import CreateLabOrderModal from '../labs/CreateLabOrderModal';
 import SampleCollectionDesk from './SampleCollectionDesk';
 import { getStatusTone, getStatusDisplayLabel } from '../labs/labStatusConstants';
+
+// Helper to normalize and match order status to frontend tab
+const matchOrderStatusToTab = (orderStatus, tabKey) => {
+  const s = String(orderStatus || '').toLowerCase().trim();
+  switch (tabKey) {
+    case 'ALL':
+      return true;
+    case 'ORDERED':
+      return ['ordered', 'confirmed', 'scheduled', 'awaiting_collection', 'sample_collection_pending', 'checked_in', 'called', 'collecting'].includes(s);
+    case 'SAMPLE_COLLECTED':
+    case 'COLLECTED':
+      return ['sample_collected', 'collected'].includes(s);
+    case 'PROCESSING':
+      return ['processing', 'in_processing', 'in_analysis', 'in_lab_testing'].includes(s);
+    case 'RESULTS_ENTRY':
+    case 'RESULTS':
+      return ['results_entry', 'result_entry', 'testing_complete', 'results_in_progress'].includes(s);
+    case 'REVIEW':
+    case 'READY_FOR_REVIEW':
+      return ['ready_for_review', 'review', 'under_review'].includes(s);
+    case 'COMPLETED':
+      return ['completed', 'finalized', 'report_ready', 'report_generated', 'report_available'].includes(s);
+    default:
+      return true;
+  }
+};
 
 const LaboratoryWorkspace = ({ tab: propTab, laboratoryId: propLaboratoryId }) => {
   const { user, logout } = useAuth();
@@ -77,6 +103,7 @@ const LaboratoryWorkspace = ({ tab: propTab, laboratoryId: propLaboratoryId }) =
   const [orderSearchQuery, setOrderSearchQuery] = useState('');
   const [orderStatusFilter, setOrderStatusFilter] = useState('ALL'); // 'ALL' | 'ORDERED' | 'PROCESSING' | 'REVIEW' | 'COMPLETED'
   const [orderSortBy, setOrderSortBy] = useState('latest');
+  const [isRefreshingOrders, setIsRefreshingOrders] = useState(false);
   const [isFinalizeModalOpen, setIsFinalizeModalOpen] = useState(false);
   const [showAmendDialog, setShowAmendDialog] = useState(false);
   const [amendReason, setAmendReason] = useState('');
@@ -408,10 +435,10 @@ const LaboratoryWorkspace = ({ tab: propTab, laboratoryId: propLaboratoryId }) =
       setAlerts(alertsData?.data || alertsData || []);
 
       // 4. Fetch Recent Orders & Completed Tests
-      const ordersData = await labApi.listOrders({ clinicId: targetClinicId, laboratoryId, limit: 20 });
+      const ordersData = await labApi.listOrders({ clinicId: targetClinicId, laboratoryId, limit: 100 });
       setOrders(ordersData?.data?.labOrders || ordersData?.labOrders || []);
 
-      const completedData = await labApi.listOrders({ clinicId: targetClinicId, laboratoryId, status: 'completed', limit: 15 });
+      const completedData = await labApi.listOrders({ clinicId: targetClinicId, laboratoryId, status: 'completed', limit: 50 });
       setCompletedTests(completedData?.data?.labOrders || completedData?.labOrders || []);
 
       // 5. Fetch Tests for dropdowns & inventory
@@ -426,6 +453,23 @@ const LaboratoryWorkspace = ({ tab: propTab, laboratoryId: propLaboratoryId }) =
       setError(err?.response?.data?.message || err.message || 'Unable to load laboratory metrics.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRefreshOrders = async () => {
+    if (isRefreshingOrders) return;
+    setIsRefreshingOrders(true);
+    try {
+      await loadDashboardData();
+      if (selectedOrder?._id) {
+        await loadOrderResultsData(selectedOrder._id);
+      }
+      toast.success('Laboratory orders refreshed');
+    } catch (err) {
+      console.error('Failed to refresh orders:', err);
+      toast.error('Unable to refresh laboratory orders. Please try again.');
+    } finally {
+      setIsRefreshingOrders(false);
     }
   };
 
@@ -646,21 +690,23 @@ const LaboratoryWorkspace = ({ tab: propTab, laboratoryId: propLaboratoryId }) =
   const filteredWorkOrders = useMemo(() => {
     return (orders || []).filter((ord) => {
       if (orderSearchQuery) {
-        const q = orderSearchQuery.toLowerCase();
+        const q = orderSearchQuery.toLowerCase().trim();
         const mNum = (ord.orderNumber || '').toLowerCase().includes(q);
-        const mPat = (ord.patientId?.fullName || ord.guestPatient?.fullName || '').toLowerCase().includes(q);
-        const mTests = (ord.tests || []).some((t) => (t.name || t.code || '').toLowerCase().includes(q));
-        if (!mNum && !mPat && !mTests) return false;
+        const mToken = (ord.tokenNumber || '').toLowerCase().includes(q);
+        const mSampleId = (ord.sampleId || ord.barcode || '').toLowerCase().includes(q);
+        const mPat = (
+          ord.patientId?.fullName ||
+          `${ord.patientId?.firstName || ''} ${ord.patientId?.lastName || ''}`.trim() ||
+          ord.guestPatient?.fullName ||
+          ord.patientName ||
+          ''
+        ).toLowerCase().includes(q);
+        const mUHID = (ord.patientId?.patientId || ord.patientId?.uhid || ord.uhid || '').toLowerCase().includes(q);
+        const mTests = (ord.tests || []).some((t) => (t.name || t.testName || t.code || '').toLowerCase().includes(q));
+        if (!mNum && !mToken && !mSampleId && !mPat && !mUHID && !mTests) return false;
       }
 
-      if (orderStatusFilter === 'ORDERED') return ['ordered', 'confirmed', 'scheduled', 'sample_collection_pending'].includes(ord.status);
-      if (orderStatusFilter === 'SAMPLE_COLLECTED') return ord.status === 'sample_collected';
-      if (orderStatusFilter === 'PROCESSING') return ['processing', 'in_processing', 'in_analysis'].includes(ord.status);
-      if (orderStatusFilter === 'RESULTS_ENTRY') return ord.status === 'results_entry';
-      if (orderStatusFilter === 'REVIEW') return ord.status === 'ready_for_review';
-      if (orderStatusFilter === 'COMPLETED') return ['completed', 'finalized', 'report_ready'].includes(ord.status);
-
-      return true;
+      return matchOrderStatusToTab(ord.status || ord.orderStatus, orderStatusFilter);
     }).sort((a, b) => {
       if (orderSortBy === 'oldest') {
         return new Date(a.orderedAt || a.createdAt) - new Date(b.orderedAt || b.createdAt);
@@ -672,12 +718,12 @@ const LaboratoryWorkspace = ({ tab: propTab, laboratoryId: propLaboratoryId }) =
   const orderTabCounts = useMemo(() => {
     return {
       all: (orders || []).length,
-      ordered: (orders || []).filter((o) => ['ordered', 'confirmed', 'scheduled', 'sample_collection_pending'].includes(o.status)).length,
-      collected: (orders || []).filter((o) => o.status === 'sample_collected').length,
-      processing: (orders || []).filter((o) => ['processing', 'in_processing', 'in_analysis'].includes(o.status)).length,
-      resultsEntry: (orders || []).filter((o) => o.status === 'results_entry').length,
-      review: (orders || []).filter((o) => o.status === 'ready_for_review').length,
-      completed: (orders || []).filter((o) => ['completed', 'finalized', 'report_ready'].includes(o.status)).length
+      ordered: (orders || []).filter((o) => matchOrderStatusToTab(o.status || o.orderStatus, 'ORDERED')).length,
+      collected: (orders || []).filter((o) => matchOrderStatusToTab(o.status || o.orderStatus, 'SAMPLE_COLLECTED')).length,
+      processing: (orders || []).filter((o) => matchOrderStatusToTab(o.status || o.orderStatus, 'PROCESSING')).length,
+      resultsEntry: (orders || []).filter((o) => matchOrderStatusToTab(o.status || o.orderStatus, 'RESULTS_ENTRY')).length,
+      review: (orders || []).filter((o) => matchOrderStatusToTab(o.status || o.orderStatus, 'REVIEW')).length,
+      completed: (orders || []).filter((o) => matchOrderStatusToTab(o.status || o.orderStatus, 'COMPLETED')).length
     };
   }, [orders]);
 
@@ -1106,13 +1152,25 @@ const LaboratoryWorkspace = ({ tab: propTab, laboratoryId: propLaboratoryId }) =
             <div className="p-5 border-b border-slate-100 bg-white">
               <div className="flex items-center justify-between gap-2">
                 <h2 className="text-sm font-black text-slate-900 tracking-tight">Diagnostic Work Orders</h2>
-                <button
-                  type="button"
-                  onClick={() => setIsCreateOrderModalOpen(true)}
-                  className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-xs transition cursor-pointer shrink-0"
-                >
-                  <Plus size={13} /> Create Order
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleRefreshOrders}
+                    disabled={isRefreshingOrders}
+                    title="Refresh laboratory orders"
+                    className="px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-2xs transition cursor-pointer disabled:opacity-50"
+                  >
+                    <RotateCcw size={13} className={isRefreshingOrders ? 'animate-spin text-purple-600' : 'text-slate-500'} />
+                    <span className="hidden sm:inline">{isRefreshingOrders ? 'Refreshing...' : 'Refresh'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsCreateOrderModalOpen(true)}
+                    className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-xs transition cursor-pointer shrink-0"
+                  >
+                    <Plus size={13} /> Create Order
+                  </button>
+                </div>
               </div>
 
               {/* Search Bar */}

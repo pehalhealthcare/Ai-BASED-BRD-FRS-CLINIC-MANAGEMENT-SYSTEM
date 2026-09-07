@@ -4,7 +4,7 @@ import {
   Calendar, Clock, MapPin, Phone, Building2, Droplets, CheckCircle2,
   AlertCircle, ChevronRight, Filter, Search, X, Eye, FileText,
   Download, ArrowUpDown, RefreshCw, Check, Home, User, ShieldCheck,
-  Activity, Sparkles, Tag, ChevronDown, ChevronUp, AlertTriangle, Printer
+  Activity, Sparkles, Tag, ChevronDown, ChevronUp, AlertTriangle, Printer, QrCode, Scan
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { labApi } from '../../lib/api';
@@ -40,6 +40,7 @@ export default function PatientLabOrdersView({
 
   // 3. Modal States
   const [selectedOrderForDetails, setSelectedOrderForDetails] = useState(null);
+  const [selectedOrderForQr, setSelectedOrderForQr] = useState(null);
   const [expandedPackageOrderIds, setExpandedPackageOrderIds] = useState(new Set());
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -536,7 +537,19 @@ export default function PatientLabOrdersView({
                           <div className="lg:col-span-2 flex flex-col items-end justify-center gap-3">
                             {renderStatusBadge(order)}
 
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap justify-end">
+                              {order.displayStatus !== 'CANCELLED' && order.activeStepIndex <= 2 && (
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedOrderForQr(order)}
+                                  className="px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-black text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                                  title="View Collection QR Code"
+                                >
+                                  <QrCode size={13} />
+                                  <span>Collection QR</span>
+                                </button>
+                              )}
+
                               {isReportReady ? (
                                 <button
                                   type="button"
@@ -667,23 +680,37 @@ export default function PatientLabOrdersView({
 
                               {/* Column 6: Action */}
                               <td className="py-4 pr-6 text-right align-middle">
-                                {isReportReady ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleViewReport(order)}
-                                    className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-xl transition shadow-xs whitespace-nowrap cursor-pointer"
-                                  >
-                                    View Report
-                                  </button>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    onClick={() => setSelectedOrderForDetails(order)}
-                                    className="px-3.5 py-1.5 border border-blue-600 text-blue-600 hover:bg-blue-50 font-black text-xs rounded-xl transition whitespace-nowrap"
-                                  >
-                                    View Details
-                                  </button>
-                                )}
+                                <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                                  {order.displayStatus !== 'CANCELLED' && order.activeStepIndex <= 2 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setSelectedOrderForQr(order)}
+                                      className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-bold text-xs rounded-xl transition flex items-center gap-1 cursor-pointer"
+                                      title="Show Collection QR Code"
+                                    >
+                                      <QrCode size={12} />
+                                      <span>QR</span>
+                                    </button>
+                                  )}
+
+                                  {isReportReady ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleViewReport(order)}
+                                      className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-xl transition shadow-xs whitespace-nowrap cursor-pointer"
+                                    >
+                                      View Report
+                                    </button>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => setSelectedOrderForDetails(order)}
+                                      className="px-3.5 py-1.5 border border-blue-600 text-blue-600 hover:bg-blue-50 font-black text-xs rounded-xl transition whitespace-nowrap"
+                                    >
+                                      View Details
+                                    </button>
+                                  )}
+                                </div>
                               </td>
 
                             </tr>
@@ -959,6 +986,99 @@ export default function PatientLabOrdersView({
               </button>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================ */}
+      {/* ── COLLECTION QR CODE MODAL ── */}
+      {/* ============================================================ */}
+      {selectedOrderForQr && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-scale-in text-center">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="text-left">
+                <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest block">
+                  Collection Verification QR
+                </span>
+                <h3 className="text-base font-black text-slate-900">
+                  {selectedOrderForQr.orderNumber}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedOrderForQr(null)}
+                className="p-1 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 transition cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* QR Code Container */}
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 inline-block mx-auto shadow-inner">
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=4&data=${encodeURIComponent(
+                  selectedOrderForQr.collectionQrPayload ||
+                  JSON.stringify({
+                    type: 'LAB_COLLECTION_QR',
+                    orderNumber: selectedOrderForQr.orderNumber,
+                    orderId: selectedOrderForQr._id,
+                    collectionToken: selectedOrderForQr.collectionToken || `TKN-COL-${selectedOrderForQr.orderNumber}`,
+                    clinicId: selectedOrderForQr.clinicId
+                  })
+                )}`}
+                alt="Collection QR Code"
+                className="w-48 h-48 rounded-xl mx-auto shadow-xs border border-white"
+              />
+            </div>
+
+            {/* Order Summary details */}
+            <div className="bg-slate-50 rounded-2xl p-4 text-left text-xs space-y-2 border border-slate-100">
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-bold">Patient Name:</span>
+                <span className="font-black text-slate-900">{patientName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-bold">Tests:</span>
+                <span className="font-bold text-slate-800 text-right max-w-[200px] truncate">
+                  {selectedOrderForQr.packageName || (selectedOrderForQr.tests || []).map((t) => t.name || t.testName).join(', ') || 'Diagnostic Tests'}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-bold">Laboratory:</span>
+                <span className="font-black text-slate-800">{labName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-bold">Collection Mode:</span>
+                <span className="font-black text-slate-800">
+                  {selectedOrderForQr.collectionMethod === 'HOME_COLLECTION' || selectedOrderForQr.collectionMode === 'HOME_COLLECTION'
+                    ? '🏠 Home Collection'
+                    : '🏥 At Laboratory Desk'}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-bold">Scheduled Time:</span>
+                <span className="font-bold text-slate-800">
+                  {formatOrderDate(selectedOrderForQr.collectionDate || selectedOrderForQr.scheduledCollectionDate || selectedOrderForQr.createdAt)} • {selectedOrderForQr.collectionSlot || '10:00 AM - 12:00 PM'}
+                </span>
+              </div>
+              <div className="flex justify-between border-t border-slate-200/80 pt-1.5">
+                <span className="text-slate-500 font-bold">Payment:</span>
+                <span className="font-black text-emerald-600">✓ Payment Completed</span>
+              </div>
+            </div>
+
+            <p className="text-[11px] text-slate-500 font-medium">
+              Show this QR code at the laboratory collection desk for swift patient verification and specimen labeling.
+            </p>
+
+            <button
+              type="button"
+              onClick={() => setSelectedOrderForQr(null)}
+              className="w-full py-2.5 bg-slate-900 hover:bg-black text-white font-black text-xs rounded-xl transition cursor-pointer"
+            >
+              Done
+            </button>
           </div>
         </div>
       )}
