@@ -435,7 +435,7 @@ const login = async ({ email, password, portal }, req) => {
     if (!user.clinicId) {
       throw new AppError('Staff user does not belong to any clinic.', HTTP_STATUS.FORBIDDEN);
     }
-    const staffClinic = await Clinic.findById(user.clinicId);
+    const staffClinic = await Clinic.findById(user.clinicId).populate('subscription.planId');
     if (!staffClinic || staffClinic.approvalStatus !== 'approved') {
       throw new AppError('Your clinic is not approved yet. Staff login is blocked.', HTTP_STATUS.FORBIDDEN);
     }
@@ -508,6 +508,7 @@ const login = async ({ email, password, portal }, req) => {
       approvalStatus: clinicDetails.approvalStatus,
       isOnboardingCompleted: clinicDetails.isOnboardingCompleted,
       subscription: clinicDetails.subscription,
+      trialFeatures: clinicDetails.trialFeatures || [],
       rejectionReason: clinicDetails.rejectionReason,
       rejectionComments: clinicDetails.rejectionComments,
       incorrectFields: clinicDetails.incorrectFields,
@@ -525,9 +526,17 @@ const login = async ({ email, password, portal }, req) => {
 
 const getCurrentUser = async (user) => {
   const sanitizedUser = sanitizeUser(user);
-  if (user.clinicId) {
+  let clinicId = user.clinicId;
+  if (!clinicId && user.providerId) {
+    const Provider = require('../providers/provider.model');
+    const provider = await Provider.findById(user.providerId);
+    if (provider?.clinicId) {
+      clinicId = provider.clinicId;
+    }
+  }
+  if (clinicId) {
     const Clinic = require('../clinics/clinic.model');
-    const clinicDetails = await Clinic.findById(user.clinicId).populate('subscription.planId');
+    const clinicDetails = await Clinic.findById(clinicId).populate('subscription.planId');
     if (clinicDetails) {
       sanitizedUser.clinic = {
         _id: clinicDetails._id,

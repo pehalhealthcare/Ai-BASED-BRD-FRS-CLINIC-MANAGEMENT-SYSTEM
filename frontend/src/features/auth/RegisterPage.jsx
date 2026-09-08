@@ -156,10 +156,10 @@ const RegisterPage = () => {
 
           <div className="mt-8 grid grid-cols-2 gap-3">
             {[
-              { n: '10K+', label: 'Patients managed' },
-              { n: '500+', label: 'Doctors onboarded' },
-              { n: '98%', label: 'Satisfaction rate' },
-              { n: '24/7', label: 'AI availability' },
+              { n: 'Smart EMR', label: 'Clinical Documentation' },
+              { n: 'AI Assist', label: 'Real-time Clinical Insights' },
+              { n: 'AES-256', label: 'End-to-End Encryption' },
+              { n: '24/7', label: 'Cloud Infrastructure' },
             ].map((s) => (
               <div key={s.n} className="p-4 rounded-xl bg-white/[0.04] border border-white/[0.06]">
                 <p className="text-2xl font-bold text-white">{s.n}</p>

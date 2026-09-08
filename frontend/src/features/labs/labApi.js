@@ -24,5 +24,9 @@ export const getGeneratedReportDocument = (orderId, params) => labApi.getGenerat
 export const downloadReportPdf = (orderId, params) => labApi.downloadReportPdf(orderId, params);
 export const verifyReport = (reportId) => labApi.verifyReport(reportId);
 export const logReportActivity = (orderId, payload) => labApi.logReportActivity(orderId, payload);
+export const startCollectionSession = (orderId, payload) => labApi.startCollectionSession(orderId, payload);
+export const verifyPatientForCollection = (orderId, payload) => labApi.verifyPatient(orderId, payload);
+export const getCollectionSession = (orderId, params) => labApi.getCollectionSession(orderId, params);
+export const collectOrderSamples = (orderId, payload) => labApi.collectOrderSamples(orderId, payload);
 
 export default labApi;

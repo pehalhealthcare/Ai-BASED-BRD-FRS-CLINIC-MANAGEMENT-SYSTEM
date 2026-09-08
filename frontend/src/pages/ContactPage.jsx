@@ -267,7 +267,7 @@ export default function ContactPage() {
           {/* Compliance Glass Pills */}
           <div className="flex flex-wrap items-center gap-3 pt-2 text-[9px] font-black text-slate-450 uppercase tracking-widest">
             <span className="px-3.5 py-2 bg-slate-900/55 border border-slate-850 rounded-full hover:border-emerald-500/40 hover:shadow-md transition-all cursor-default">✓ HIPAA Ready</span>
-            <span className="px-3.5 py-2 bg-slate-900/55 border border-slate-850 rounded-full hover:border-emerald-500/40 hover:shadow-md transition-all cursor-default">✓ ISO 27001</span>
+            <span className="px-3.5 py-2 bg-slate-900/55 border border-slate-850 rounded-full hover:border-emerald-500/40 hover:shadow-md transition-all cursor-default">✓ NABH Ready</span>
             <span className="px-3.5 py-2 bg-slate-900/55 border border-slate-850 rounded-full hover:border-emerald-500/40 hover:shadow-md transition-all cursor-default">✓ GDPR Ready</span>
             <span className="px-3.5 py-2 bg-slate-900/55 border border-slate-850 rounded-full hover:border-emerald-500/40 hover:shadow-md transition-all cursor-default">✓ AES-256 Encryption</span>
           </div>

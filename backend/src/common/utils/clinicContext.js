@@ -87,6 +87,14 @@ const resolveMissingClinicIdForUser = async (user) => {
     }
   }
 
+  if (user?.providerId) {
+    const Provider = require('../../modules/providers/provider.model');
+    const provider = await Provider.findById(user.providerId);
+    if (provider?.clinicId) {
+      return String(provider.clinicId);
+    }
+  }
+
   return findDefaultClinicId();
 };
 

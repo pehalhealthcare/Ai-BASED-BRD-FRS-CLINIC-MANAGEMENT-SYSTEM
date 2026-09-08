@@ -57,6 +57,16 @@ const SAMPLE_CONDITION = {
 
 const SAMPLE_CONDITIONS = Object.values(SAMPLE_CONDITION);
 
+const COLLECTION_STATUS = {
+  NOT_STARTED: 'NOT_STARTED',
+  READY: 'READY',
+  IN_PROGRESS: 'IN_PROGRESS',
+  COLLECTED: 'COLLECTED',
+  RECOLLECTION_REQUIRED: 'RECOLLECTION_REQUIRED'
+};
+
+const COLLECTION_STATUSES = Object.values(COLLECTION_STATUS);
+
 const ORDER_STATUS_TRANSITIONS = {
   ordered: ['scheduled', 'awaiting_collection', 'checked_in', 'sample_collected', 'cancelled'],
   confirmed: ['scheduled', 'awaiting_collection', 'checked_in', 'sample_collected', 'cancelled'],
@@ -82,7 +92,7 @@ const ORDER_STATUS_TRANSITIONS = {
 const ORDER_STATUS_CONFIG = {
   [LAB_ORDER_STATUS.ORDERED]: {
     label: 'Ordered',
-    tone: 'bg-slate-100 text-slate-700 border-slate-200',
+    tone: 'bg-blue-50 text-blue-700 border-blue-200',
     description: 'Order registered in system, awaiting patient arrival/collection scheduling',
     stepNumber: 1
   },
@@ -201,6 +211,8 @@ module.exports = {
   SAMPLE_STATUSES,
   SAMPLE_CONDITION,
   SAMPLE_CONDITIONS,
+  COLLECTION_STATUS,
+  COLLECTION_STATUSES,
   ORDER_STATUS_TRANSITIONS,
   ORDER_STATUS_CONFIG
 };

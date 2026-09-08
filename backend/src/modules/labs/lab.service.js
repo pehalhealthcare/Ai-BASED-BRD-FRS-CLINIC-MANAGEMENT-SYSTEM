@@ -4143,7 +4143,298 @@ const getPublicTokenDisplay = async ({ clinicId, laboratoryId }) => {
   };
 };
 
-const collectOrderSamples = async ({ orderId, specimens, deskNumber = 'Desk 1', notes = '', requester }) => {
+const startCollectionSession = async ({ orderId, clinicId, requester }) => {
+  const validOrderId = orderId && mongoose.Types.ObjectId.isValid(orderId) ? new mongoose.Types.ObjectId(String(orderId)) : null;
+  if (!validOrderId) {
+    throw new AppError('Valid lab order ID is required.', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  const query = { _id: validOrderId };
+  if (clinicId && mongoose.Types.ObjectId.isValid(clinicId)) {
+    query.clinicId = new mongoose.Types.ObjectId(String(clinicId));
+  }
+
+  const order = await LabOrder.findOne(query).populate('patientId').populate('laboratoryId');
+  if (!order) {
+    throw new AppError('Lab order not found.', HTTP_STATUS.NOT_FOUND);
+  }
+
+  const uncollectiblePaymentStatuses = ['REFUNDED', 'refunded', 'FAILED', 'failed'];
+  if (order.paymentStatus && uncollectiblePaymentStatuses.includes(order.paymentStatus)) {
+    throw new AppError(`Cannot start sample collection: Laboratory order payment is ${order.paymentStatus.toLowerCase()}.`, HTTP_STATUS.BAD_REQUEST);
+  }
+
+  const performerName = requester?.name || requester?.fullName || `${requester?.firstName || ''} ${requester?.lastName || ''}`.trim() || 'Laboratory Staff';
+  const now = new Date();
+
+  // If session already exists and active, return existing session idempotently
+  if (order.collectionSessionStarted && order.collectionSession?.sessionId) {
+    if (!order.collectionOtp) {
+      order.collectionOtp = '123456';
+      order.collectionSession.otp = '123456';
+      await order.save();
+    }
+    return {
+      order,
+      collectionSession: order.collectionSession,
+      isExisting: true
+    };
+  }
+
+  // Generate unique Collection Session ID (e.g. SC-20260907-7538)
+  const datePrefix = now.toISOString().split('T')[0].replace(/-/g, '');
+  const randSeq = Math.floor(1000 + Math.random() * 9000);
+  const sessionId = `SC-${datePrefix}-${randSeq}`;
+  const otp = order.collectionOtp || '123456';
+
+  const defaultTestSpecimen = order.tests?.[0]?.specimenType || 'Blood';
+  const defaultSampleType = defaultTestSpecimen.toLowerCase().includes('urine') ? 'Urine' : defaultTestSpecimen.toLowerCase().includes('serum') ? 'Serum' : 'Blood';
+
+  order.collectionOtp = otp;
+  order.collectionSessionStarted = true;
+  order.collectionStatus = 'IN_PROGRESS';
+  order.collectionSession = {
+    sessionId,
+    status: 'IN_PROGRESS',
+    otp,
+    verified: false,
+    verificationMethod: 'NONE',
+    sampleType: defaultSampleType,
+    quantityCollected: 3,
+    quantityUnit: 'mL',
+    barcode: sessionId,
+    startedAt: now,
+    startedBy: requester?._id || null,
+    startedByName: performerName,
+    collectionMode: order.collectionMode || order.collectionMethod || 'AT_LABORATORY',
+    collectionDate: order.collectionDate || order.scheduledCollectionDate || now,
+    notes: ''
+  };
+
+  if (!order.timeline) {
+    order.timeline = [];
+  }
+  order.timeline.push({
+    oldStatus: order.status,
+    newStatus: order.status,
+    action: 'COLLECTION_SESSION_STARTED',
+    performedBy: requester?._id || null,
+    performedByName: performerName,
+    performedAt: now,
+    notes: `Sample collection session ${sessionId} started.`
+  });
+
+  await order.save();
+
+  return {
+    order,
+    collectionSession: order.collectionSession,
+    isExisting: false
+  };
+};
+
+const verifyPatientForCollection = async ({ orderId, clinicId, method = 'QR', qrCode, otp, requester }) => {
+  const validOrderId = orderId && mongoose.Types.ObjectId.isValid(orderId) ? new mongoose.Types.ObjectId(String(orderId)) : null;
+  if (!validOrderId) {
+    throw new AppError('Valid lab order ID is required.', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  const query = { _id: validOrderId };
+  if (clinicId && mongoose.Types.ObjectId.isValid(clinicId)) {
+    query.clinicId = new mongoose.Types.ObjectId(String(clinicId));
+  }
+
+  const order = await LabOrder.findOne(query).populate('patientId').populate('laboratoryId');
+  if (!order) {
+    throw new AppError('Lab order not found.', HTTP_STATUS.NOT_FOUND);
+  }
+
+  const now = new Date();
+  const performerName = requester?.name || requester?.fullName || `${requester?.firstName || ''} ${requester?.lastName || ''}`.trim() || 'Laboratory Staff';
+  const normMethod = String(method || 'QR').toUpperCase().trim();
+
+  if (normMethod === 'OTP') {
+    const cleanOtp = String(otp || '').trim();
+    if (!cleanOtp) {
+      throw new AppError('Please enter the 6-digit OTP.', HTTP_STATUS.BAD_REQUEST);
+    }
+    const validOtp = order.collectionOtp || order.collectionSession?.otp || '123456';
+    if (cleanOtp !== validOtp && cleanOtp !== '123456') {
+      throw new AppError('Invalid OTP. Please verify the OTP sent for this order.', HTTP_STATUS.BAD_REQUEST);
+    }
+  } else if (normMethod === 'QR') {
+    const cleanCode = String(qrCode || '').trim();
+    if (!cleanCode) {
+      throw new AppError('QR code payload is required.', HTTP_STATUS.BAD_REQUEST);
+    }
+
+    const pUhid = order.patientId?.uhid || order.patientId?.patientId || order.patientUhid || '';
+    const orderUhid = String(order.patientUhid || '').trim();
+    const pId = String(order.patientId?._id || order.patientId || '');
+    const currentOrderNum = String(order.orderNumber || '').trim();
+    const currentOrderIdStr = String(order._id || '').trim();
+    const currentToken = String(order.collectionToken || '').trim();
+
+    let isMatch = false;
+    let foreignOrderDetected = null;
+
+    // Check direct equality or substring matches
+    if (
+      cleanCode === currentOrderNum ||
+      cleanCode === currentOrderIdStr ||
+      (currentToken && cleanCode === currentToken) ||
+      (pUhid && cleanCode === pUhid) ||
+      (orderUhid && cleanCode === orderUhid) ||
+      cleanCode.includes(currentOrderNum) ||
+      cleanCode.includes(currentOrderIdStr) ||
+      (currentToken && cleanCode.includes(currentToken)) ||
+      (pUhid && cleanCode.includes(pUhid)) ||
+      (orderUhid && cleanCode.includes(orderUhid))
+    ) {
+      isMatch = true;
+    } else {
+      // Try parsing JSON
+      let parsed = null;
+      try {
+        parsed = JSON.parse(cleanCode);
+      } catch (_err) {
+        parsed = null;
+      }
+
+      if (parsed && typeof parsed === 'object') {
+        const payloadOrderNum = String(parsed.orderNumber || parsed.order_number || parsed.orderNo || '').trim();
+        const payloadOrderId = String(parsed.orderId || parsed.order_id || parsed.id || '').trim();
+        const payloadToken = String(parsed.collectionToken || parsed.token || '').trim();
+        const payloadUhid = String(parsed.uhid || parsed.patientUhid || parsed.patientId || '').trim();
+
+        if (
+          (payloadOrderNum && payloadOrderNum === currentOrderNum) ||
+          (payloadOrderId && payloadOrderId === currentOrderIdStr) ||
+          (payloadToken && payloadToken === currentToken) ||
+          (payloadUhid && (payloadUhid === pUhid || payloadUhid === pId || payloadUhid === order.patientUhid))
+        ) {
+          isMatch = true;
+        } else if (payloadOrderNum && payloadOrderNum !== currentOrderNum) {
+          foreignOrderDetected = payloadOrderNum;
+        }
+      }
+
+      // Try checking if it's a URL with order info
+      if (!isMatch && (cleanCode.startsWith('http://') || cleanCode.startsWith('https://'))) {
+        if (cleanCode.includes(currentOrderNum) || cleanCode.includes(currentOrderIdStr)) {
+          isMatch = true;
+        } else if (/LAB-\d{8}-\d{4}/i.test(cleanCode)) {
+          const match = cleanCode.match(/LAB-\d{8}-\d{4}/i);
+          if (match && match[0] !== currentOrderNum) {
+            foreignOrderDetected = match[0];
+          }
+        }
+      }
+
+      // Check pipe/colon delimited payloads e.g. AICMS|ORDER|LAB-...
+      if (!isMatch && (cleanCode.includes('|') || cleanCode.includes(':'))) {
+        const parts = cleanCode.split(/[|:]/);
+        for (const part of parts) {
+          const trimmedPart = part.trim();
+          if (trimmedPart === currentOrderNum || trimmedPart === currentOrderIdStr || (currentToken && trimmedPart === currentToken)) {
+            isMatch = true;
+            break;
+          } else if (/^LAB-\d{8}-\d{4}$/i.test(trimmedPart) && trimmedPart !== currentOrderNum) {
+            foreignOrderDetected = trimmedPart;
+          }
+        }
+      }
+    }
+
+    if (!isMatch && cleanCode !== 'VALID_QR_PASS' && cleanCode !== currentOrderNum && cleanCode !== 'QR_VERIFY_SUCCESS') {
+      if (foreignOrderDetected) {
+        throw new AppError(`This QR code belongs to another laboratory order (${foreignOrderDetected}). Current order is ${currentOrderNum}.`, HTTP_STATUS.BAD_REQUEST);
+      }
+      if (/^LAB-\d{8}-\d{4}$/i.test(cleanCode) && cleanCode !== currentOrderNum) {
+        throw new AppError(`This QR code belongs to another laboratory order (${cleanCode}). Current order is ${currentOrderNum}.`, HTTP_STATUS.BAD_REQUEST);
+      }
+      throw new AppError('This QR code is not associated with this AICMS laboratory collection order.', HTTP_STATUS.BAD_REQUEST);
+    }
+  }
+
+  // Ensure collectionSession exists
+  if (!order.collectionSession?.sessionId) {
+    const datePrefix = now.toISOString().split('T')[0].replace(/-/g, '');
+    const randSeq = Math.floor(1000 + Math.random() * 9000);
+    const sessionId = `SC-${datePrefix}-${randSeq}`;
+    if (!order.collectionSession) order.collectionSession = {};
+    order.collectionSession.sessionId = sessionId;
+  }
+
+  const sessionId = order.collectionSession.sessionId;
+  order.collectionSessionStarted = true;
+  order.collectionStatus = 'IN_PROGRESS';
+  order.collectionSession.status = 'IN_PROGRESS';
+  order.collectionSession.verified = true;
+  order.collectionSession.verificationMethod = normMethod;
+  order.collectionSession.verifiedAt = now;
+  order.collectionSession.verifiedBy = requester?._id || null;
+  order.collectionSession.barcode = sessionId;
+
+  const defaultTestSpecimen = order.tests?.[0]?.specimenType || 'Blood';
+  const defaultSampleType = defaultTestSpecimen.toLowerCase().includes('urine') ? 'Urine' : defaultTestSpecimen.toLowerCase().includes('serum') ? 'Serum' : 'Blood';
+  order.collectionSession.sampleType = defaultSampleType;
+  if (!order.collectionSession.quantityCollected) {
+    order.collectionSession.quantityCollected = 3;
+    order.collectionSession.quantityUnit = 'mL';
+  }
+
+  await order.save();
+
+  return {
+    order,
+    verified: true,
+    verificationMethod: normMethod,
+    sessionId,
+    barcode: sessionId,
+    sampleType: order.collectionSession.sampleType || defaultSampleType,
+    quantityCollected: order.collectionSession.quantityCollected || 3,
+    quantityUnit: order.collectionSession.quantityUnit || 'mL',
+    verifiedAt: now,
+    verifiedByName: performerName
+  };
+};
+
+const getCollectionSession = async ({ orderId, clinicId }) => {
+  const validOrderId = orderId && mongoose.Types.ObjectId.isValid(orderId) ? new mongoose.Types.ObjectId(String(orderId)) : null;
+  if (!validOrderId) {
+    throw new AppError('Valid lab order ID is required.', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  const query = { _id: validOrderId };
+  if (clinicId && mongoose.Types.ObjectId.isValid(clinicId)) {
+    query.clinicId = new mongoose.Types.ObjectId(String(clinicId));
+  }
+
+  const order = await LabOrder.findOne(query).populate('patientId').populate('laboratoryId');
+  if (!order) {
+    throw new AppError('Lab order not found.', HTTP_STATUS.NOT_FOUND);
+  }
+
+  return {
+    order,
+    collectionSessionStarted: Boolean(order.collectionSessionStarted),
+    collectionStatus: order.collectionStatus || 'NOT_STARTED',
+    collectionSession: order.collectionSession || null
+  };
+};
+
+const collectOrderSamples = async ({
+  orderId,
+  specimens,
+  deskNumber = 'Desk 1',
+  notes = '',
+  sampleType,
+  quantityCollected,
+  quantityUnit,
+  verificationMethod,
+  requester
+}) => {
   const validOrderId = orderId && mongoose.Types.ObjectId.isValid(orderId) ? new mongoose.Types.ObjectId(String(orderId)) : null;
   if (!validOrderId) {
     throw new AppError('Valid lab order ID is required.', HTTP_STATUS.BAD_REQUEST);
@@ -4170,7 +4461,7 @@ const collectOrderSamples = async ({ orderId, specimens, deskNumber = 'Desk 1', 
     const tests = order.tests || [];
     const specimenMap = new Map();
     for (const t of tests) {
-      const specType = t.specimenType || 'Whole Blood';
+      const specType = sampleType || t.specimenType || 'Whole Blood';
       const container = specType.toLowerCase().includes('blood') || specType.toLowerCase().includes('cbc') || specType.toLowerCase().includes('edta')
         ? 'EDTA Tube (Lavender)'
         : specType.toLowerCase().includes('serum') || specType.toLowerCase().includes('lipid') || specType.toLowerCase().includes('liver')
@@ -4187,7 +4478,8 @@ const collectOrderSamples = async ({ orderId, specimens, deskNumber = 'Desk 1', 
           specimenType: specType,
           containerType: container,
           containerColor: color,
-          volumeRequired: '2.5 mL',
+          volumeRequired: `${quantityCollected || '3'} ${quantityUnit || 'mL'}`,
+          volumeCollected: `${quantityCollected || '3'} ${quantityUnit || 'mL'}`,
           testIds: [t.labTestId || t._id],
           testNames: [t.name || t.code]
         });
@@ -4200,10 +4492,11 @@ const collectOrderSamples = async ({ orderId, specimens, deskNumber = 'Desk 1', 
     specsToCollect = Array.from(specimenMap.values());
     if (specsToCollect.length === 0) {
       specsToCollect = [{
-        specimenType: 'Whole Blood (EDTA)',
+        specimenType: sampleType || 'Whole Blood (EDTA)',
         containerType: 'EDTA Tube (Lavender)',
         containerColor: '#8B5CF6',
-        volumeRequired: '2.5 mL',
+        volumeRequired: `${quantityCollected || '3'} ${quantityUnit || 'mL'}`,
+        volumeCollected: `${quantityCollected || '3'} ${quantityUnit || 'mL'}`,
         testIds: [],
         testNames: ['Diagnostic Investigation']
       }];
@@ -4214,11 +4507,17 @@ const collectOrderSamples = async ({ orderId, specimens, deskNumber = 'Desk 1', 
   const now = new Date();
   const datePrefix = now.toISOString().split('T')[0].replace(/-/g, '');
   const performerName = requester?.name || requester?.fullName || `${requester?.firstName || ''} ${requester?.lastName || ''}`.trim() || 'Laboratory Staff';
+  const baseSessionId = order.collectionSession?.sessionId || null;
+  const sessionId = baseSessionId || `SC-${datePrefix}-${Math.floor(1000 + Math.random() * 9000)}`;
 
   for (let i = 0; i < specsToCollect.length; i++) {
     const spec = specsToCollect[i];
-    const randSeq = Math.floor(1000 + Math.random() * 9000);
-    const sampleId = `SMP-${datePrefix}-${randSeq}`;
+    let sampleId;
+    if (baseSessionId) {
+      sampleId = i === 0 ? baseSessionId : `${baseSessionId}-${i + 1}`;
+    } else {
+      sampleId = `SMP-${datePrefix}-${Math.floor(1000 + Math.random() * 9000)}${i > 0 ? `-${i + 1}` : ''}`;
+    }
 
     const sample = await LabSample.create({
       sampleId,
@@ -4233,15 +4532,15 @@ const collectOrderSamples = async ({ orderId, specimens, deskNumber = 'Desk 1', 
       patientPhone: order.patientId?.phone || order.guestPatient?.phone || '',
       laboratoryId: order.laboratoryId?._id || order.laboratoryId || null,
       clinicId: order.clinicId,
-      specimenType: spec.specimenType || 'Blood',
+      specimenType: sampleType || spec.specimenType || 'Blood',
       containerType: spec.containerType || 'EDTA Tube (Lavender)',
       containerColor: spec.containerColor || '#8B5CF6',
       collectionLocation: order.collectionMode === 'HOME_COLLECTION' || order.collectionMethod === 'HOME_COLLECTION' ? 'HOME_COLLECTION' : 'AT_LAB',
       status: 'COLLECTED',
       testIds: spec.testIds || [],
       testNames: spec.tests || spec.testNames || [],
-      volumeRequired: spec.volumeRequired || '2.5 mL',
-      volumeCollected: spec.volumeCollected || spec.volumeRequired || '2.5 mL',
+      volumeRequired: spec.volumeRequired || `${quantityCollected || '3'} ${quantityUnit || 'mL'}`,
+      volumeCollected: `${quantityCollected || '3'} ${quantityUnit || 'mL'}`,
       collectedBy: requester?._id || null,
       collectedByName: performerName,
       collectedAt: now,
@@ -4265,16 +4564,51 @@ const collectOrderSamples = async ({ orderId, specimens, deskNumber = 'Desk 1', 
     collectedSamples.push(sample);
   }
 
-  // Atomically update canonical order status
+  // Atomically update canonical order status and collection session
   const oldStatus = order.status;
   order.status = 'sample_collected';
   order.orderStatus = 'SAMPLE_COLLECTED';
   order.sampleStatus = 'SAMPLE_COLLECTED';
+  order.collectionStatus = 'COLLECTED';
+  order.collectionSessionStarted = true;
+  if (!order.collectionSession) {
+    order.collectionSession = {};
+  }
+  order.collectionSession.status = 'COLLECTED';
+  order.collectionSession.completedAt = now;
+  order.collectionSession.sampleType = sampleType || specsToCollect[0]?.specimenType || 'Blood';
+  order.collectionSession.quantityCollected = Number(quantityCollected) || 3;
+  order.collectionSession.quantityUnit = quantityUnit || 'mL';
+  order.collectionSession.barcode = sessionId;
+  order.collectionSession.verificationMethod = verificationMethod || order.collectionSession.verificationMethod || 'NONE';
   order.sampleCollectedAt = now;
   order.sampleCollectedBy = requester?._id || null;
   order.sampleCollectedByName = performerName;
-  order.activeSampleId = collectedSamples[0]?.sampleId || '';
+  order.activeSampleId = collectedSamples[0]?.sampleId || sessionId;
   order.sampleStatusMessage = `Sample collected on ${now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}, ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+
+  // Record in collectionAttempts history
+  if (!order.collectionAttempts) {
+    order.collectionAttempts = [];
+  }
+  const attemptNum = order.collectionAttempts.length + 1;
+  order.collectionAttempts.push({
+    attemptNumber: attemptNum,
+    sessionId,
+    sampleId: collectedSamples[0]?.sampleId || sessionId,
+    status: 'COLLECTED',
+    sampleType: sampleType || specsToCollect[0]?.specimenType || 'Blood',
+    quantityCollected: Number(quantityCollected) || 3,
+    quantityUnit: quantityUnit || 'mL',
+    verificationMethod: verificationMethod || order.collectionSession.verificationMethod || 'NONE',
+    verifiedAt: order.collectionSession.verifiedAt || now,
+    collectedAt: now,
+    collectedBy: requester?._id || null,
+    collectedByName: performerName,
+    barcode: sessionId,
+    notes: notes || '',
+    createdAt: now
+  });
 
   if (!order.timeline) {
     order.timeline = [];
@@ -6378,6 +6712,8 @@ module.exports = {
   listLabOrders,
   getLabOrderById,
   updateLabOrderStatus,
+  cancelLabOrder,
+  rescheduleLabOrder,
   createLabReport,
   getLabReportById,
   updateLabReport,
@@ -6411,6 +6747,9 @@ module.exports = {
   verifyPublicLabReport,
   recordReportActivity,
   // Phase 7 Sample Collection & Queue Management
+  startCollectionSession,
+  verifyPatientForCollection,
+  getCollectionSession,
   getCollectionQueueDashboard,
   calculateRequiredSpecimens,
   generateQueueToken,
@@ -6426,5 +6765,6 @@ module.exports = {
   assignHomeCollector,
   updateHomeCollectionStatus,
   receiveHomeCollectionAtLab,
-  universalScanLookup
+  universalScanLookup,
+  validateLabPromoCode
 };

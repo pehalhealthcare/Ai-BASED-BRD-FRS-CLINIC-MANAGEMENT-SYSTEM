@@ -392,6 +392,27 @@ router.get(
 // PHASE 7: SAMPLE COLLECTION, TOKEN MANAGEMENT, HOME COLLECTION & SCAN ROUTES
 // ============================================================================
 
+router.post(
+  '/orders/:id/start-collection-session',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR, ROLES.LAB_TECHNICIAN, ROLES.LAB_OPERATOR, ROLES.RECEPTIONIST),
+  labController.startCollectionSession
+);
+
+router.post(
+  '/orders/:id/verify-patient',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR, ROLES.LAB_TECHNICIAN, ROLES.LAB_OPERATOR, ROLES.RECEPTIONIST),
+  labController.verifyPatientForCollection
+);
+
+router.get(
+  '/orders/:id/collection-session',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.DOCTOR, ROLES.LAB_TECHNICIAN, ROLES.LAB_OPERATOR, ROLES.RECEPTIONIST, ROLES.PATIENT),
+  labController.getCollectionSession
+);
+
 router.get(
   '/collection-queue',
   protect,

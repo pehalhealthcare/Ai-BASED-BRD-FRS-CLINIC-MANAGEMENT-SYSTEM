@@ -4,10 +4,11 @@ import {
   Calendar, Clock, MapPin, Phone, Building2, Droplets, CheckCircle2,
   AlertCircle, ChevronRight, Filter, Search, X, Eye, FileText,
   Download, ArrowUpDown, RefreshCw, Check, Home, User, ShieldCheck,
-  Activity, Sparkles, Tag, ChevronDown, ChevronUp, AlertTriangle, Printer, QrCode, Scan
+  Activity, Sparkles, Tag, ChevronDown, ChevronUp, AlertTriangle, Printer, QrCode, Scan, Loader2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { labApi } from '../../lib/api';
+import { downloadReportPdf } from '../labs/labApi';
 
 export default function PatientLabOrdersView({
   selectedClinic,
@@ -29,6 +30,7 @@ export default function PatientLabOrdersView({
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [downloadingId, setDownloadingId] = useState(null);
 
   // 2. Filter & Sort States
   const [searchQuery, setSearchQuery] = useState('');
@@ -41,6 +43,7 @@ export default function PatientLabOrdersView({
   // 3. Modal States
   const [selectedOrderForDetails, setSelectedOrderForDetails] = useState(null);
   const [selectedOrderForQr, setSelectedOrderForQr] = useState(null);
+  const [selectedOrderForToken, setSelectedOrderForToken] = useState(null);
   const [expandedPackageOrderIds, setExpandedPackageOrderIds] = useState(new Set());
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -180,6 +183,37 @@ export default function PatientLabOrdersView({
     }
   };
 
+  // Direct PDF Download Handler
+  const handleDownloadPdf = async (order) => {
+    const targetId = order?._id || order?.orderNumber;
+    if (!targetId) return;
+
+    setDownloadingId(targetId);
+    try {
+      const res = await downloadReportPdf(targetId, {
+        testCode: order.tests?.[0]?.code || undefined,
+        testId: order.tests?.[0]?._id || undefined
+      });
+
+      const blob = new Blob([res.data], { type: 'application/pdf' });
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      const orderNumber = order.orderNumber || 'LAB-REPORT';
+      const cleanTestName = (order.tests?.[0]?.name || order.packageName || 'Report').replace(/[^a-zA-Z0-9]/g, '_');
+      link.download = `${orderNumber}_${cleanTestName}_Report.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+      toast.success('Report PDF downloaded successfully.');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Unable to download report PDF. Please try again.');
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
   // Helper formatting functions
   const formatOrderDate = (dateVal) => {
     if (!dateVal) return '—';
@@ -208,6 +242,39 @@ export default function PatientLabOrdersView({
     }
   };
 
+  // Get progressive active step index (0 to 5)
+  const getActiveStepIndex = (order) => {
+    const ds = (order.displayStatus || order.orderStatus || order.status || '').toUpperCase();
+    if (ds === 'CANCELLED') return -1;
+    if (ds === 'COMPLETED' || ds === 'REPORT_AVAILABLE' || ds === 'REPORT_GENERATED' || Boolean(order.finalizedAt)) return 5;
+    if (ds === 'READY_FOR_REVIEW' || ds === 'RESULTS_ENTRY') return 4;
+    if (ds === 'PROCESSING' || ds === 'IN_LAB_TESTING') return 3;
+    if (ds === 'SAMPLE_COLLECTED') return 2;
+    if (ds === 'AWAITING_COLLECTION' || ds === 'CALLED' || ds === 'COLLECTING') return 1;
+    if (ds === 'ORDERED' || ds === 'ORDER_BOOKED' || ds === 'SCHEDULED' || ds === 'RECOLLECTION_REQUIRED') return 0;
+    if (order.activeStepIndex !== undefined) return order.activeStepIndex;
+    return 0;
+  };
+
+  // Render Source Badge
+  const getOrderSourceBadge = (order) => {
+    const isSelf = order.source === 'PATIENT_PORTAL' || order.source === 'PATIENT_BOOKED' || (!order.isWalkIn && order.source !== 'WALK_IN' && order.source !== 'LAB_CREATED');
+    if (isSelf) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 text-[9px] font-black uppercase tracking-wider rounded-md border border-blue-100">
+          <User size={10} />
+          Created by You
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-50 text-purple-700 text-[9px] font-black uppercase tracking-wider rounded-md border border-purple-100">
+        <Building2 size={10} />
+        Created at Laboratory
+      </span>
+    );
+  };
+
   // Render Status Badge
   const renderStatusBadge = (order) => {
     const ds = (order.displayStatus || order.orderStatus || order.status || '').toUpperCase();
@@ -215,27 +282,33 @@ export default function PatientLabOrdersView({
     if (ds === 'CANCELLED') {
       return <span className="px-3 py-1 bg-rose-100 text-rose-800 text-[10px] font-black uppercase tracking-wider rounded-xl">Cancelled</span>;
     }
+    if (ds === 'RECOLLECTION_REQUIRED') {
+      return <span className="px-3 py-1 bg-orange-100 text-orange-800 text-[10px] font-black uppercase tracking-wider rounded-xl border border-orange-200">Recollection Required</span>;
+    }
     if (ds === 'REPORT_AVAILABLE' || ds === 'COMPLETED') {
       return <span className="px-3 py-1 bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase tracking-wider rounded-xl">Report Available</span>;
     }
-    if (ds === 'REPORT_GENERATED') {
-      return <span className="px-3 py-1 bg-purple-100 text-purple-800 text-[10px] font-black uppercase tracking-wider rounded-xl">Report Generated</span>;
+    if (ds === 'READY_FOR_REVIEW') {
+      return <span className="px-3 py-1 bg-indigo-100 text-indigo-800 text-[10px] font-black uppercase tracking-wider rounded-xl">Ready for Review</span>;
     }
-    if (ds === 'IN_LAB_TESTING') {
-      return <span className="px-3 py-1 bg-blue-100 text-blue-800 text-[10px] font-black uppercase tracking-wider rounded-xl">In Lab Testing</span>;
+    if (ds === 'RESULTS_ENTRY' || ds === 'REPORT_GENERATED') {
+      return <span className="px-3 py-1 bg-purple-100 text-purple-800 text-[10px] font-black uppercase tracking-wider rounded-xl">Results Entry</span>;
+    }
+    if (ds === 'PROCESSING' || ds === 'IN_LAB_TESTING') {
+      return <span className="px-3 py-1 bg-blue-100 text-blue-800 text-[10px] font-black uppercase tracking-wider rounded-xl">Processing In Lab</span>;
     }
     if (ds === 'SAMPLE_COLLECTED') {
       return <span className="px-3 py-1 bg-teal-100 text-teal-800 text-[10px] font-black uppercase tracking-wider rounded-xl">Sample Collected</span>;
     }
-    if (ds === 'AWAITING_COLLECTION') {
+    if (ds === 'AWAITING_COLLECTION' || ds === 'CALLED' || ds === 'COLLECTING') {
       return <span className="px-3 py-1 bg-amber-100 text-amber-800 text-[10px] font-black uppercase tracking-wider rounded-xl">Awaiting Collection</span>;
     }
     return <span className="px-3 py-1 bg-amber-100 text-amber-800 text-[10px] font-black uppercase tracking-wider rounded-xl">Scheduled</span>;
   };
 
-  // 6-Step Home Timeline Definition
+  // 6-Step Progressive Timeline Definition
   const getHomeTimelineSteps = (order) => {
-    const activeIdx = order.activeStepIndex !== undefined ? order.activeStepIndex : 1;
+    const activeIdx = getActiveStepIndex(order);
     const bookedTime = formatOrderDateTime(order.orderedAt || order.createdAt);
     const scheduledSlot = order.collectionSlot || '10:00 AM - 12:00 PM';
     const scheduledDate = formatOrderDate(order.collectionDate || order.createdAt);
@@ -243,32 +316,32 @@ export default function PatientLabOrdersView({
     return [
       {
         id: 0,
-        title: 'Order Booked',
+        title: 'Ordered',
         time: bookedTime,
         status: activeIdx >= 0 ? 'completed' : 'pending'
       },
       {
         id: 1,
-        title: 'Collection Scheduled',
+        title: 'Scheduled',
         time: `${scheduledDate}\n${scheduledSlot}`,
         status: activeIdx >= 1 ? 'completed' : 'pending'
       },
       {
         id: 2,
-        title: 'Sample Collection',
+        title: 'Sample Collected',
         time: activeIdx >= 2 ? (order.sampleCollectedAt ? formatOrderDateTime(order.sampleCollectedAt) : 'Collected') : 'Pending',
         status: activeIdx >= 2 ? 'completed' : activeIdx === 1 ? 'current' : 'pending'
       },
       {
         id: 3,
-        title: 'In Lab Testing',
+        title: 'In Lab Processing',
         time: activeIdx >= 3 ? (activeIdx === 3 ? 'In Progress' : 'Completed') : 'Pending',
         status: activeIdx > 3 ? 'completed' : activeIdx === 3 ? 'current' : 'pending'
       },
       {
         id: 4,
-        title: 'Report Generated',
-        time: activeIdx >= 4 ? (order.reportGeneratedAt ? formatOrderDate(order.reportGeneratedAt) : 'Generated') : 'Pending',
+        title: 'Results & Review',
+        time: activeIdx >= 4 ? (activeIdx === 4 ? 'Under Review' : 'Verified') : 'Pending',
         status: activeIdx > 4 ? 'completed' : activeIdx === 4 ? 'current' : 'pending'
       },
       {
@@ -282,23 +355,24 @@ export default function PatientLabOrdersView({
 
   // Mini Stepper Icons for At-Lab Table
   const renderMiniStepper = (order) => {
-    const activeIdx = order.activeStepIndex !== undefined ? order.activeStepIndex : 1;
-    const isCancelled = order.displayStatus === 'CANCELLED';
+    const activeIdx = getActiveStepIndex(order);
+    const isCancelled = order.displayStatus === 'CANCELLED' || order.orderStatus === 'CANCELLED';
 
     if (isCancelled) {
-      return <span className="text-[11px] font-bold text-rose-500">Order Cancelled</span>;
+      return <span className="text-[11px] font-bold text-rose-500">Cancelled</span>;
     }
 
     const steps = [
       { id: 0, label: 'Booked' },
       { id: 1, label: 'Awaiting' },
       { id: 2, label: 'Collected' },
-      { id: 3, label: 'Testing' },
-      { id: 4, label: 'Report' }
+      { id: 3, label: 'Processing' },
+      { id: 4, label: 'Review' },
+      { id: 5, label: 'Report' }
     ];
 
     return (
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-1">
         {steps.map((s, idx) => {
           const isDone = activeIdx >= s.id;
           const isCurrent = activeIdx === s.id;
@@ -306,7 +380,7 @@ export default function PatientLabOrdersView({
             <React.Fragment key={s.id}>
               <div
                 title={`${s.label}: ${isDone ? 'Completed' : isCurrent ? 'In Progress' : 'Pending'}`}
-                className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black transition ${
+                className={`w-4.5 h-4.5 rounded-full flex items-center justify-center text-[8px] font-black transition ${
                   isDone
                     ? 'bg-emerald-100 text-emerald-700'
                     : isCurrent
@@ -314,10 +388,10 @@ export default function PatientLabOrdersView({
                     : 'bg-slate-100 text-slate-400'
                 }`}
               >
-                {isDone ? <Check size={11} className="stroke-[3]" /> : idx + 1}
+                {isDone ? <Check size={10} className="stroke-[3]" /> : idx + 1}
               </div>
               {idx < steps.length - 1 && (
-                <div className={`w-3 h-0.5 ${activeIdx > s.id ? 'bg-emerald-400' : 'bg-slate-200'}`} />
+                <div className={`w-2 h-0.5 ${activeIdx > s.id ? 'bg-emerald-400' : 'bg-slate-200'}`} />
               )}
             </React.Fragment>
           );
@@ -476,9 +550,12 @@ export default function PatientLabOrdersView({
                           
                           {/* Left Details (lg:col-span-3) */}
                           <div className="lg:col-span-3 space-y-2">
-                            <span className="text-xs font-black text-blue-600 block">
-                              {order.orderNumber}
-                            </span>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-xs font-black text-blue-600 block">
+                                {order.orderNumber}
+                              </span>
+                              {getOrderSourceBadge(order)}
+                            </div>
                             <h3 className="text-sm font-black text-slate-900 leading-snug">
                               {testTitle}
                             </h3>
@@ -538,7 +615,7 @@ export default function PatientLabOrdersView({
                             {renderStatusBadge(order)}
 
                             <div className="flex items-center gap-2 flex-wrap justify-end">
-                              {order.displayStatus !== 'CANCELLED' && order.activeStepIndex <= 2 && (
+                              {order.displayStatus !== 'CANCELLED' && getActiveStepIndex(order) <= 2 && (
                                 <button
                                   type="button"
                                   onClick={() => setSelectedOrderForQr(order)}
@@ -551,14 +628,29 @@ export default function PatientLabOrdersView({
                               )}
 
                               {isReportReady ? (
-                                <button
-                                  type="button"
-                                  onClick={() => handleViewReport(order)}
-                                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-xl transition shadow-xs flex items-center gap-1.5 cursor-pointer"
-                                >
-                                  <FileText size={13} />
-                                  <span>View Report</span>
-                                </button>
+                                <div className="flex items-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleViewReport(order)}
+                                    className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-xl transition shadow-xs flex items-center gap-1.5 cursor-pointer"
+                                  >
+                                    <FileText size={13} />
+                                    <span>View Report</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDownloadPdf(order)}
+                                    disabled={downloadingId === (order._id || order.orderNumber)}
+                                    className="p-2 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 font-black text-xs rounded-xl transition shadow-2xs flex items-center justify-center cursor-pointer"
+                                    title="Download PDF Report"
+                                  >
+                                    {downloadingId === (order._id || order.orderNumber) ? (
+                                      <Loader2 size={13} className="animate-spin text-blue-600" />
+                                    ) : (
+                                      <Download size={13} />
+                                    )}
+                                  </button>
+                                </div>
                               ) : (
                                 <button
                                   type="button"
@@ -620,18 +712,23 @@ export default function PatientLabOrdersView({
                         {atLabOrders.map((order) => {
                           const testTitle = order.packageName || (order.tests || []).map(t => t.name || t.testName).join(' + ') || 'Lab Test';
                           const isReportReady = order.displayStatus === 'REPORT_AVAILABLE' || !!order.report?.isAvailable;
-                          const hasToken = order.isToday && order.tokenNumber;
+                          const tokenVal = order.tokenNumber || (order.collectionToken ? `T-${order.collectionToken.slice(-3)}` : null);
 
                           return (
                             <tr key={order._id || order.orderNumber} className="hover:bg-slate-50/60 transition">
                               
                               {/* Column 1: Token */}
                               <td className="py-4 pl-6 align-middle">
-                                {hasToken ? (
-                                  <div className="inline-flex flex-col items-center justify-center px-3 py-1 bg-emerald-50 border border-emerald-200/80 rounded-xl text-center shadow-2xs">
-                                    <span className="text-xs font-black text-emerald-800">{order.tokenNumber}</span>
-                                    <span className="text-[9px] font-bold text-emerald-600">Today</span>
-                                  </div>
+                                {tokenVal ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => setSelectedOrderForToken(order)}
+                                    className="inline-flex flex-col items-center justify-center px-3 py-1 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 rounded-xl text-center shadow-2xs transition cursor-pointer"
+                                    title="Click to view printable token pass"
+                                  >
+                                    <span className="text-xs font-black text-emerald-800">{tokenVal}</span>
+                                    <span className="text-[9px] font-bold text-emerald-600">View Pass</span>
+                                  </button>
                                 ) : (
                                   <div className="text-slate-400 text-xs">
                                     <span className="font-bold block">—</span>
@@ -642,16 +739,19 @@ export default function PatientLabOrdersView({
 
                               {/* Column 2: Order Details */}
                               <td className="py-4 align-middle">
-                                <div className="space-y-0.5">
+                                <div className="space-y-1">
                                   <span className="text-xs font-black text-blue-600 block">
                                     {order.orderNumber}
                                   </span>
                                   <div className="font-black text-slate-900 max-w-[220px] truncate">
                                     {testTitle}
                                   </div>
-                                  <span className="inline-block px-1.5 py-0.2 bg-slate-100 text-slate-600 text-[9px] font-bold rounded">
-                                    At Laboratory
-                                  </span>
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="inline-block px-1.5 py-0.2 bg-slate-100 text-slate-600 text-[9px] font-bold rounded">
+                                      At Laboratory
+                                    </span>
+                                    {getOrderSourceBadge(order)}
+                                  </div>
                                 </div>
                               </td>
 
@@ -681,7 +781,7 @@ export default function PatientLabOrdersView({
                               {/* Column 6: Action */}
                               <td className="py-4 pr-6 text-right align-middle">
                                 <div className="flex items-center justify-end gap-1.5 flex-wrap">
-                                  {order.displayStatus !== 'CANCELLED' && order.activeStepIndex <= 2 && (
+                                  {order.displayStatus !== 'CANCELLED' && getActiveStepIndex(order) <= 2 && (
                                     <button
                                       type="button"
                                       onClick={() => setSelectedOrderForQr(order)}
@@ -693,14 +793,40 @@ export default function PatientLabOrdersView({
                                     </button>
                                   )}
 
-                                  {isReportReady ? (
+                                  {tokenVal && (
                                     <button
                                       type="button"
-                                      onClick={() => handleViewReport(order)}
-                                      className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-xl transition shadow-xs whitespace-nowrap cursor-pointer"
+                                      onClick={() => setSelectedOrderForToken(order)}
+                                      className="p-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-bold text-xs rounded-xl transition cursor-pointer"
+                                      title="Print Queue Token"
                                     >
-                                      View Report
+                                      <Printer size={13} />
                                     </button>
+                                  )}
+
+                                  {isReportReady ? (
+                                    <div className="flex items-center gap-1">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleViewReport(order)}
+                                        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-xl transition shadow-xs whitespace-nowrap cursor-pointer"
+                                      >
+                                        View Report
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDownloadPdf(order)}
+                                        disabled={downloadingId === (order._id || order.orderNumber)}
+                                        className="p-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 font-black text-xs rounded-xl transition shadow-2xs flex items-center justify-center cursor-pointer"
+                                        title="Download PDF Report"
+                                      >
+                                        {downloadingId === (order._id || order.orderNumber) ? (
+                                          <Loader2 size={13} className="animate-spin text-blue-600" />
+                                        ) : (
+                                          <Download size={13} />
+                                        )}
+                                      </button>
+                                    </div>
                                   ) : (
                                     <button
                                       type="button"
@@ -883,6 +1009,12 @@ export default function PatientLabOrdersView({
                 <span className="font-black text-slate-800">{labName}</span>
               </div>
               <div className="flex justify-between">
+                <span className="text-slate-500 font-bold">Source:</span>
+                <span className="font-black text-slate-800">
+                  {selectedOrderForDetails.source === 'WALK_IN' || selectedOrderForDetails.isWalkIn ? '🏥 Created at Laboratory' : '👤 Created by You'}
+                </span>
+              </div>
+              <div className="flex justify-between">
                 <span className="text-slate-500 font-bold">Collection Mode:</span>
                 <span className="font-black text-slate-800">
                   {selectedOrderForDetails.collectionMethod === 'HOME_COLLECTION' ? '🏠 Home Sample Collection' : '🏥 Laboratory Walk-in'}
@@ -951,7 +1083,7 @@ export default function PatientLabOrdersView({
 
             {/* Action Buttons */}
             <div className="flex gap-2 pt-2">
-              {selectedOrderForDetails.displayStatus !== 'CANCELLED' && selectedOrderForDetails.activeStepIndex < 3 && (
+              {selectedOrderForDetails.displayStatus !== 'CANCELLED' && getActiveStepIndex(selectedOrderForDetails) < 3 && (
                 <button
                   type="button"
                   onClick={() => handleCancelOrder(selectedOrderForDetails._id)}
@@ -1079,6 +1211,102 @@ export default function PatientLabOrdersView({
             >
               Done
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================ */}
+      {/* ── PRINTABLE TOKEN MODAL ── */}
+      {/* ============================================================ */}
+      {selectedOrderForToken && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-5 animate-scale-in">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="text-left">
+                <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest block">
+                  Laboratory Queue Token
+                </span>
+                <h3 className="text-base font-black text-slate-900">
+                  {selectedOrderForToken.orderNumber}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedOrderForToken(null)}
+                className="p-1 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 transition cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Printable Token Pass */}
+            <div className="bg-emerald-50/60 border-2 border-dashed border-emerald-300 rounded-3xl p-6 text-center space-y-4">
+              <div className="space-y-1">
+                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-800 block">
+                  {labName}
+                </span>
+                <p className="text-[11px] text-slate-500 font-medium">Sample Collection Desk Token</p>
+              </div>
+
+              <div className="py-3 px-6 bg-white rounded-2xl border border-emerald-200 inline-block shadow-xs">
+                <span className="text-3xl font-black text-emerald-700 tracking-wider">
+                  {selectedOrderForToken.tokenNumber || (selectedOrderForToken.collectionToken ? `T-${selectedOrderForToken.collectionToken.slice(-3)}` : 'T-026')}
+                </span>
+              </div>
+
+              <div className="bg-white rounded-2xl p-4 text-left text-xs space-y-2 border border-emerald-100">
+                <div className="flex justify-between">
+                  <span className="text-slate-500 font-bold">Patient:</span>
+                  <span className="font-black text-slate-900">{patientName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500 font-bold">Scheduled Date:</span>
+                  <span className="font-black text-slate-900">
+                    {formatOrderDate(selectedOrderForToken.collectionDate || selectedOrderForToken.scheduledCollectionDate || selectedOrderForToken.createdAt)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500 font-bold">Slot:</span>
+                  <span className="font-bold text-slate-800">{selectedOrderForToken.collectionSlot || '10:00 AM - 12:00 PM'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500 font-bold">Investigation:</span>
+                  <span className="font-bold text-slate-800 text-right max-w-[180px] truncate">
+                    {selectedOrderForToken.packageName || (selectedOrderForToken.tests || []).map(t => t.name || t.testName).join(', ') || 'Diagnostic Tests'}
+                  </span>
+                </div>
+                <div className="flex justify-between border-t border-slate-100 pt-1.5">
+                  <span className="text-slate-500 font-bold">Source:</span>
+                  <span className="font-bold text-slate-700">
+                    {selectedOrderForToken.source === 'WALK_IN' || selectedOrderForToken.isWalkIn ? 'Created at Laboratory' : 'Created by You'}
+                  </span>
+                </div>
+              </div>
+
+              <p className="text-[10px] text-emerald-800 font-semibold leading-relaxed">
+                Please present this token at the laboratory phlebotomy collection desk for prioritized sample draw.
+              </p>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl transition shadow-xs flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Printer size={14} />
+                <span>Print Token</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedOrderForToken(null)}
+                className="py-2.5 px-5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

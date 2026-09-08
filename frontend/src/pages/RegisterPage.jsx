@@ -389,13 +389,13 @@ const RegisterPage = () => {
             </div>
           </div>
 
-          {/* Stats Bar */}
+          {/* Platform Standards Bar */}
           <div className="border-t border-slate-100 mt-10 pt-6 grid grid-cols-2 sm:grid-cols-4 gap-4">
             {[
-              { label: 'Happy Patients', value: '50K+', icon: <Users size={14} className="text-teal-600" /> },
-              { label: 'Expert Doctors', value: '1K+', icon: <User size={14} className="text-blue-600" /> },
-              { label: 'Clinics & Hospitals', value: '500+', icon: <Building2 size={14} className="text-purple-600" /> },
-              { label: 'Secure & Safe', value: '100%', icon: <Shield size={14} className="text-emerald-600" /> }
+              { label: 'Security Standard', value: 'AES-256', icon: <Shield size={14} className="text-teal-600" /> },
+              { label: 'Compliance Ready', value: 'NABH', icon: <CheckCircle2 size={14} className="text-blue-600" /> },
+              { label: 'Role-Based Access', value: 'RBAC', icon: <Users size={14} className="text-purple-600" /> },
+              { label: 'Cloud Hosted', value: '24×7', icon: <Building2 size={14} className="text-emerald-600" /> }
             ].map((stat, idx) => (
               <div key={idx} className="text-center sm:text-left">
                 <div className="flex items-center justify-center sm:justify-start gap-1 text-slate-900 font-black text-lg">

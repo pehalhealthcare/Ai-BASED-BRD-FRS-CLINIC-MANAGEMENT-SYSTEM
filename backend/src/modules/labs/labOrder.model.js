@@ -149,6 +149,33 @@ const orderTimelineSchema = new mongoose.Schema(
   { _id: true }
 );
 
+const collectionAttemptSchema = new mongoose.Schema(
+  {
+    attemptNumber: { type: Number, default: 1 },
+    sessionId: { type: String, trim: true, default: '' },
+    sampleId: { type: String, trim: true, default: '' },
+    status: {
+      type: String,
+      enum: ['IN_PROGRESS', 'COLLECTED', 'REJECTED', 'RECOLLECTION_REQUIRED'],
+      default: 'IN_PROGRESS'
+    },
+    sampleType: { type: String, trim: true, default: 'Blood' },
+    quantityCollected: { type: Number, default: null },
+    quantityUnit: { type: String, trim: true, default: 'mL' },
+    verificationMethod: { type: String, enum: ['QR', 'OTP', 'MANUAL', 'NONE'], default: 'NONE' },
+    verifiedAt: { type: Date, default: null },
+    verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    collectedAt: { type: Date, default: null },
+    collectedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    collectedByName: { type: String, trim: true, default: '' },
+    barcode: { type: String, trim: true, default: '' },
+    notes: { type: String, trim: true, default: '' },
+    recollectionReason: { type: String, trim: true, default: '' },
+    createdAt: { type: Date, default: Date.now }
+  },
+  { _id: true }
+);
+
 const labOrderSchema = new mongoose.Schema(
   {
     clinicId: {
@@ -369,6 +396,48 @@ const labOrderSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: ''
+    },
+    collectionOtp: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    collectionSessionStarted: {
+      type: Boolean,
+      default: false
+    },
+    collectionStatus: {
+      type: String,
+      enum: ['NOT_STARTED', 'READY', 'IN_PROGRESS', 'COLLECTED', 'RECOLLECTION_REQUIRED'],
+      default: 'NOT_STARTED'
+    },
+    collectionSession: {
+      sessionId: { type: String, trim: true, default: '' },
+      status: {
+        type: String,
+        enum: ['NOT_STARTED', 'READY', 'IN_PROGRESS', 'COLLECTED', 'RECOLLECTION_REQUIRED'],
+        default: 'NOT_STARTED'
+      },
+      otp: { type: String, trim: true, default: '' },
+      verified: { type: Boolean, default: false },
+      verificationMethod: { type: String, enum: ['QR', 'OTP', 'MANUAL', 'NONE'], default: 'NONE' },
+      verifiedAt: { type: Date, default: null },
+      verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+      sampleType: { type: String, trim: true, default: 'Blood' },
+      quantityCollected: { type: Number, default: null },
+      quantityUnit: { type: String, trim: true, default: 'mL' },
+      barcode: { type: String, trim: true, default: '' },
+      startedAt: { type: Date, default: null },
+      startedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+      startedByName: { type: String, trim: true, default: '' },
+      collectionMode: { type: String, trim: true, default: 'AT_LABORATORY' },
+      collectionDate: { type: Date, default: null },
+      completedAt: { type: Date, default: null },
+      notes: { type: String, trim: true, default: '' }
+    },
+    collectionAttempts: {
+      type: [collectionAttemptSchema],
+      default: []
     },
     recollectionCount: {
       type: Number,

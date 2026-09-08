@@ -19,12 +19,14 @@ import {
   getOrderResults,
   initializeOrderResults,
   updateLabOrderStatus,
+  startCollectionSession,
+  getCollectionSession,
   amendOrder
 } from './labApi';
 
 import LabOrderFinalizationModal from './LabOrderFinalizationModal';
 import CreateLabOrderModal from './CreateLabOrderModal';
-import { getStatusTone, getStatusDisplayLabel } from './labStatusConstants';
+import { getStatusTone, getStatusDisplayLabel, getOrderTimelineSteps, getWorkflowStepIndex } from './labStatusConstants';
 
 // Helper to normalize and match order status to frontend tab
 const matchOrderStatusToTab = (orderStatus, tabKey) => {
@@ -84,6 +86,9 @@ const LabOrderDetailPage = () => {
   const [isFinalizeModalOpen, setIsFinalizeModalOpen] = useState(false);
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
   const [returnCorrectionReason, setReturnCorrectionReason] = useState('');
+  const [isRecollectModalOpen, setIsRecollectModalOpen] = useState(false);
+  const [recollectReason, setRecollectReason] = useState('Insufficient sample');
+  const [recollectNotes, setRecollectNotes] = useState('');
   const [isSubmittingTransition, setIsSubmittingTransition] = useState(false);
 
   // Missing parameters validation modal
@@ -325,7 +330,38 @@ const LabOrderDetailPage = () => {
     }
   };
 
-  // Step 1 -> 2: Confirm Sample Collected
+  // Start Sample Collection: Navigates to Sample Collection desk with selected order
+  const handleStartSampleCollection = async () => {
+    if (!order) return;
+    if (isPaymentPending) {
+      toast.error('Cannot start sample collection: Payment is pending / unpaid.');
+      return;
+    }
+    try {
+      // Create or retrieve session via API
+      const res = await startCollectionSession(order._id);
+      const sess = res?.data?.collectionSession || res?.collectionSession;
+      if (sess?.sessionId) {
+        setOrder(prev => prev ? ({ ...prev, collectionSessionStarted: true, collectionSession: sess, collectionStatus: 'IN_PROGRESS' }) : prev);
+      }
+      const labId = order.laboratoryId?._id || order.laboratoryId || user?.providerId || '';
+      toast.success(
+        order.collectionSessionStarted
+          ? `Opening Sample Collection for Order #${order.orderNumber}...`
+          : `Session started (${sess?.sessionId || 'SC-SESSION'}). Opening Collection Desk...`
+      );
+      if (labId) {
+        navigate(`/laboratory/${labId}/collection?orderId=${order._id}`);
+      } else {
+        navigate(`/sample-collection?orderId=${order._id}`);
+      }
+    } catch (err) {
+      console.error('Failed to start sample collection session:', err);
+      toast.error(err.response?.data?.message || 'Unable to start sample collection. Please try again.');
+    }
+  };
+
+  // Step 1 -> 2: Confirm Sample Collected (Desk fallback)
   const handleConfirmSampleCollected = () => {
     handleTransitionStatus('sample_collected', () => setIsCollectModalOpen(false));
   };
@@ -338,6 +374,31 @@ const LabOrderDetailPage = () => {
   // Step 3 -> 4: Confirm Processing Completed
   const handleConfirmCompleteProcessing = () => {
     handleTransitionStatus('results_entry', () => setIsCompleteProcessingModalOpen(false));
+  };
+
+  // Request Sample Recollection
+  const handleConfirmRecollection = async () => {
+    if (!recollectReason) {
+      toast.error('Please select a recollection reason.');
+      return;
+    }
+    setIsSubmittingTransition(true);
+    try {
+      await updateLabOrderStatus(order._id, {
+        status: 'recollection_required',
+        reason: recollectReason,
+        notes: recollectNotes.trim()
+      });
+      setIsRecollectModalOpen(false);
+      setRecollectNotes('');
+      toast.success('Recollection requested. Order returned to Sample Collection.');
+      await loadActiveOrder();
+      await loadOrdersList();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to request recollection.');
+    } finally {
+      setIsSubmittingTransition(false);
+    }
   };
 
   // Return Results for Correction
@@ -446,69 +507,8 @@ const LabOrderDetailPage = () => {
   const sampleCollectedOnDisplay = order?.sampleCollectedAt ? new Date(order.sampleCollectedAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
   const sampleCollectedByDisplay = order?.sampleCollectedByName || order?.activeSample?.collectedByName || (order?.status !== 'ordered' ? (user?.fullName || user?.name || '—') : '—');
 
-  // Stepper items
-  const steps = [
-    {
-      key: 'ordered',
-      stepNum: 1,
-      label: 'Ordered',
-      time: order?.orderedAt || order?.createdAt ? new Date(order.orderedAt || order.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '05 Sep',
-      subTime: order?.orderedAt || order?.createdAt ? new Date(order.orderedAt || order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '10:20 AM',
-      isDone: ['sample_collected', 'processing', 'in_processing', 'results_entry', 'ready_for_review', 'completed'].includes(order?.status),
-      isActive: order?.status === 'ordered',
-      isLocked: false
-    },
-    {
-      key: 'sample_collected',
-      stepNum: 2,
-      label: 'Sample Collected',
-      time: order?.sampleCollectedAt ? new Date(order.sampleCollectedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : 'Pending',
-      subTime: order?.sampleCollectedAt ? new Date(order.sampleCollectedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
-      isDone: ['processing', 'in_processing', 'results_entry', 'ready_for_review', 'completed'].includes(order?.status),
-      isActive: order?.status === 'sample_collected',
-      isLocked: false
-    },
-    {
-      key: 'processing',
-      stepNum: 3,
-      label: 'Processing',
-      time: order?.processingStartedAt ? new Date(order.processingStartedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : 'Pending',
-      subTime: order?.processingStartedAt ? new Date(order.processingStartedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
-      isDone: ['results_entry', 'ready_for_review', 'completed'].includes(order?.status),
-      isActive: ['processing', 'in_processing', 'in_analysis'].includes(order?.status),
-      isLocked: false
-    },
-    {
-      key: 'results_entry',
-      stepNum: 4,
-      label: 'Results Entry',
-      time: order?.resultsCompletedAt ? 'Entered' : 'Pending',
-      subTime: '',
-      isDone: ['ready_for_review', 'completed'].includes(order?.status),
-      isActive: order?.status === 'results_entry',
-      isLocked: ['ordered', 'sample_collected', 'processing', 'in_processing', 'in_analysis'].includes(order?.status)
-    },
-    {
-      key: 'ready_for_review',
-      stepNum: 5,
-      label: 'Ready for Review',
-      time: order?.status === 'ready_for_review' ? 'Submitted' : 'Pending',
-      subTime: '',
-      isDone: order?.status === 'completed',
-      isActive: order?.status === 'ready_for_review',
-      isLocked: !['ready_for_review', 'completed'].includes(order?.status)
-    },
-    {
-      key: 'completed',
-      stepNum: 6,
-      label: 'Completed',
-      time: order?.finalizedAt ? new Date(order.finalizedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : 'Pending',
-      subTime: '',
-      isDone: order?.status === 'completed',
-      isActive: false,
-      isLocked: order?.status !== 'completed'
-    }
-  ];
+  // Stepper items computed centrally from API order status
+  const steps = useMemo(() => getOrderTimelineSteps(order), [order]);
 
   if (loading && !order) {
     return <LoadingState label="Loading Diagnostic Work Orders..." />;
@@ -694,7 +694,20 @@ const LabOrderDetailPage = () => {
                       Tests: <span className="font-medium text-stone-800">{testNames || 'CBC'}</span>
                     </div>
 
-                    <div className="mt-2.5 flex items-center justify-between text-[10px] pt-1.5 border-t border-stone-100">
+                    <div className="mt-1.5 flex items-center justify-between text-[10px]">
+                      <span className="text-stone-500 font-medium">
+                        {ord.source === 'PATIENT_PORTAL' || ord.source === 'PATIENT_BOOKED' || ord.bookingSource === 'PATIENT_PORTAL'
+                          ? '👤 Created by Patient'
+                          : '🏥 Created at Laboratory'}
+                      </span>
+                      {ord.collectionMode === 'HOME_COLLECTION' || ord.collectionMethod === 'HOME_COLLECTION' ? (
+                        <span className="text-amber-700 font-bold bg-amber-50 border border-amber-200 rounded px-1.5 py-0.2">Home</span>
+                      ) : (
+                        <span className="text-blue-700 font-bold bg-blue-50 border border-blue-200 rounded px-1.5 py-0.2">Lab</span>
+                      )}
+                    </div>
+
+                    <div className="mt-2 flex items-center justify-between text-[10px] pt-1.5 border-t border-stone-100">
                       <span className="text-stone-400 capitalize">
                         Priority: <strong className={ord.priority === 'urgent' || ord.priority === 'stat' ? 'text-rose-600 font-bold' : 'text-stone-700'}>{ord.priority || 'Routine'}</strong>
                       </span>
@@ -743,8 +756,12 @@ const LabOrderDetailPage = () => {
                       <h2 className="text-base sm:text-lg font-extrabold text-stone-900 tracking-tight">
                         Order: {order?.orderNumber}
                       </h2>
-                      <span className="rounded-full bg-violet-100 px-2.5 py-0.5 text-[11px] font-extrabold text-violet-800">
-                        {getStatusDisplayLabel(order?.status)}
+                      <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-extrabold border ${
+                        order?.status === 'ordered'
+                          ? 'bg-blue-50 text-blue-700 border-blue-200'
+                          : 'bg-violet-100 text-violet-800 border-violet-200'
+                      }`}>
+                        ● {getStatusDisplayLabel(order?.status)}
                       </span>
                     </div>
                     <p className="mt-0.5 text-xs text-stone-600">
@@ -756,100 +773,193 @@ const LabOrderDetailPage = () => {
 
                   <div className="flex items-center gap-3 text-xs text-stone-600 flex-wrap">
                     <div>
+                      <span className="text-stone-400 text-[9px] font-bold uppercase block">Source</span>
+                      <span className="inline-flex items-center gap-1 font-bold text-stone-700 bg-stone-100 rounded px-1.5 py-0.5 text-[10px]">
+                        {order?.source === 'PATIENT_PORTAL' || order?.source === 'PATIENT_BOOKED' || order?.bookingSource === 'PATIENT_PORTAL'
+                          ? 'Created by Patient'
+                          : 'Created at Laboratory'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-stone-400 text-[9px] font-bold uppercase block">Collection</span>
+                      <span className="inline-flex items-center gap-1 font-bold text-stone-700 bg-stone-100 rounded px-1.5 py-0.5 text-[10px]">
+                        {order?.collectionMode === 'HOME_COLLECTION' || order?.collectionMethod === 'HOME_COLLECTION' ? 'Home Collection' : 'Lab Collection'}
+                      </span>
+                    </div>
+                    <div>
                       <span className="text-stone-400 text-[9px] font-bold uppercase block">Order Date</span>
                       <span className="font-bold text-stone-800 text-[11px]">{order?.orderedAt || order?.createdAt ? new Date(order.orderedAt || order.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</span>
                     </div>
                     <div>
                       <span className="text-stone-400 text-[9px] font-bold uppercase block">Payment</span>
-                      <span className="inline-flex items-center gap-1 font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-1.5 py-0.2 text-[10px]">
-                        <span>✓</span>
+                      <span className={`inline-flex items-center gap-1 font-bold rounded px-1.5 py-0.5 text-[10px] ${
+                        order?.paymentStatus === 'PAID' || order?.paymentStatus === 'paid'
+                          ? 'text-emerald-700 bg-emerald-50 border border-emerald-200'
+                          : 'text-amber-800 bg-amber-50 border border-amber-200'
+                      }`}>
+                        <span>{order?.paymentStatus === 'PAID' || order?.paymentStatus === 'paid' ? '✓' : '⚠️'}</span>
                         <span>{order?.paymentStatus || 'Paid'}</span>
                       </span>
                     </div>
-                <div>
-                  <span className="text-stone-400 text-[9px] font-bold uppercase block">Priority</span>
-                  <span className={`inline-flex items-center font-bold px-1.5 py-0.2 rounded text-[10px] ${
-                    order?.priority === 'urgent' || order?.priority === 'stat'
-                      ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                      : 'bg-stone-100 text-stone-700'
-                  }`}>
-                    {order?.priority ? order.priority.charAt(0).toUpperCase() + order.priority.slice(1) : 'Routine'}
-                  </span>
+                    <div>
+                      <span className="text-stone-400 text-[9px] font-bold uppercase block">Priority</span>
+                      <span className={`inline-flex items-center font-bold px-1.5 py-0.5 rounded text-[10px] ${
+                        order?.priority === 'urgent' || order?.priority === 'stat'
+                          ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                          : 'bg-stone-100 text-stone-700'
+                      }`}>
+                        {order?.priority ? order.priority.charAt(0).toUpperCase() + order.priority.slice(1) : 'Routine'}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
 
-            {/* 6-Step Horizontal Progress Stepper */}
-            <div className="grid grid-cols-6 gap-1.5 text-center text-xs">
-              {steps.map((step) => (
-                <div key={step.key} className="flex flex-col items-center">
-                  <div className={`flex h-7 w-7 items-center justify-center rounded-full font-bold text-xs transition-all ${
-                    step.isDone
-                      ? 'bg-emerald-600 text-white shadow-xs'
-                      : step.isActive
-                      ? 'bg-violet-600 text-white ring-3 ring-violet-200 shadow-xs'
-                      : step.isLocked
-                      ? 'border border-stone-200 bg-stone-100 text-stone-400'
-                      : 'border border-stone-300 bg-white text-stone-500'
-                  }`}>
-                    {step.isDone ? '✓' : step.isLocked ? '🔒' : step.stepNum}
+                {/* 6-Step Horizontal Progress Stepper */}
+                <div className="relative pt-1 pb-1">
+                  <div className="grid grid-cols-6 gap-1 text-center text-xs relative">
+                    {steps.map((step, idx) => {
+                      const hasLineAfter = idx < steps.length - 1;
+                      const isLineCompleted = step.isDone;
+
+                      return (
+                        <div key={step.key} className="relative flex flex-col items-center group">
+                          {/* Connector Line to Next Step */}
+                          {hasLineAfter && (
+                            <div
+                              className={`absolute top-3.5 left-[50%] right-[-50%] h-0.5 -z-0 transition-colors duration-300 ${
+                                isLineCompleted ? 'bg-emerald-500' : 'bg-stone-200'
+                              }`}
+                            />
+                          )}
+
+                          {/* Step Circle */}
+                          <div
+                            className={`relative z-10 flex h-7 w-7 items-center justify-center rounded-full font-extrabold text-xs transition-all ${
+                              step.isDone
+                                ? 'bg-emerald-600 text-white shadow-xs'
+                                : step.isActive
+                                ? 'bg-blue-600 text-white ring-4 ring-blue-100 border-2 border-blue-600 shadow-xs'
+                                : step.isLocked
+                                ? 'border border-stone-200 bg-stone-100 text-stone-400 font-medium'
+                                : 'border-2 border-stone-200 bg-white text-stone-400 font-bold'
+                            }`}
+                          >
+                            {step.isDone ? (
+                              <span className="text-xs font-black">✓</span>
+                            ) : step.isActive ? (
+                              <span>{step.stepNum}</span>
+                            ) : step.isLocked ? (
+                              <span className="text-[10px]">🔒</span>
+                            ) : (
+                              <span className="text-[11px] font-bold">{step.stepNum}</span>
+                            )}
+                          </div>
+
+                          {/* Step Label */}
+                          <span
+                            className={`mt-1.5 font-bold text-[10px] truncate max-w-full tracking-tight ${
+                              step.isActive
+                                ? 'text-blue-700 font-extrabold'
+                                : step.isDone
+                                ? 'text-stone-800'
+                                : 'text-stone-400 font-medium'
+                            }`}
+                          >
+                            {step.label}
+                          </span>
+
+                          {/* Step Subtitle (Date / Active / Pending / Locked) */}
+                          <span
+                            className={`text-[9px] truncate max-w-full font-semibold ${
+                              step.isActive
+                                ? 'text-blue-600 font-bold'
+                                : step.isDone
+                                ? 'text-stone-500'
+                                : 'text-stone-400 font-normal'
+                            }`}
+                          >
+                            {step.isActive
+                              ? (step.time && step.time !== 'Pending' ? step.time : 'Active')
+                              : step.isDone
+                              ? step.time
+                              : step.isLocked
+                              ? 'Locked'
+                              : 'Pending'}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Next Step Action Banner */}
+                <div className="rounded-2xl bg-violet-50/80 border border-violet-200/80 p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-violet-600 text-white font-bold text-sm shrink-0">
+                      🧪
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-extrabold text-violet-950">
+                        {order?.status === 'ordered' && 'Next Step: Sample Collection'}
+                        {order?.status === 'recollection_required' && 'Next Step: Sample Recollection Required'}
+                        {order?.status === 'sample_collected' && 'Next Step: Start Laboratory Processing'}
+                        {['processing', 'in_processing'].includes(order?.status) && 'Next Step: Complete Processing & Results Entry'}
+                        {order?.status === 'results_entry' && (overallProgress.isAllComplete ? 'Next Step: Submit for Review' : 'Next Step: Enter Test Results')}
+                        {order?.status === 'ready_for_review' && 'Next Step: Finalize & Complete Order'}
+                        {order?.status === 'completed' && 'Order Completed & Report Published'}
+                      </h3>
+                      <p className="text-[10px] text-violet-800 mt-0.5">
+                        {order?.status === 'ordered' && 'The order has been registered. Start sample collection workflow at desk.'}
+                        {order?.status === 'recollection_required' && 'Previous sample was rejected. Redraw required at Sample Collection Desk.'}
+                        {order?.status === 'sample_collected' && 'Sample collected. Move the sample into laboratory testing.'}
+                        {['processing', 'in_processing'].includes(order?.status) && 'Laboratory testing in progress. Complete processing to unlock results entry.'}
+                        {order?.status === 'results_entry' && (overallProgress.isAllComplete ? 'All parameter results entered. Submit results for review.' : `${overallProgress.completed} of ${overallProgress.total} parameters completed. Enter remaining parameters.`)}
+                        {order?.status === 'ready_for_review' && 'All results entered. Authorized staff can finalize and publish report.'}
+                        {order?.status === 'completed' && 'The official laboratory report is published and available.'}
+                      </p>
+                    </div>
                   </div>
 
-                  <span className={`mt-1 font-bold text-[10px] truncate max-w-full ${
-                    step.isActive ? 'text-violet-900 font-extrabold' : step.isDone ? 'text-stone-800' : 'text-stone-400'
-                  }`}>
-                    {step.label}
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            {/* Next Step Action Banner */}
-            <div className="rounded-2xl bg-violet-50/80 border border-violet-200/80 p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5">
-                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-violet-600 text-white font-bold text-sm shrink-0">
-                  🧪
-                </div>
-                <div>
-                  <h3 className="text-xs font-extrabold text-violet-950">
-                    {order?.status === 'ordered' && 'Next Step: Sample Collection'}
-                    {order?.status === 'sample_collected' && 'Next Step: Start Laboratory Processing'}
-                    {['processing', 'in_processing'].includes(order?.status) && 'Next Step: Complete Processing & Results Entry'}
-                    {order?.status === 'results_entry' && (overallProgress.isAllComplete ? 'Next Step: Submit for Review' : 'Next Step: Enter Test Results')}
-                    {order?.status === 'ready_for_review' && 'Next Step: Finalize & Complete Order'}
-                    {order?.status === 'completed' && 'Order Completed & Report Published'}
-                  </h3>
-                  <p className="text-[10px] text-violet-800 mt-0.5">
-                    {order?.status === 'ordered' && 'The order has been placed. Please collect the sample to proceed.'}
-                    {order?.status === 'sample_collected' && 'Sample collected. Move the sample into laboratory testing.'}
-                    {['processing', 'in_processing'].includes(order?.status) && 'Laboratory testing in progress. Complete processing to unlock results entry.'}
-                    {order?.status === 'results_entry' && (overallProgress.isAllComplete ? 'All parameter results entered. Submit results for review.' : `${overallProgress.completed} of ${overallProgress.total} parameters completed. Enter remaining parameters.`)}
-                    {order?.status === 'ready_for_review' && 'All results entered. Authorized staff can finalize and publish report.'}
-                    {order?.status === 'completed' && 'The official laboratory report is published and available.'}
-                  </p>
-                </div>
-              </div>
-
-              <div className="shrink-0 w-full sm:w-auto">
-                {['ordered', 'confirmed', 'scheduled', 'sample_collection_pending'].includes(order?.status) && (
-                  isCollectionEligible ? (
-                    <button
-                      type="button"
-                      disabled={isSubmittingTransition}
-                      onClick={() => setIsCollectModalOpen(true)}
-                      className="w-full sm:w-auto px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md shadow-violet-200 transition cursor-pointer"
-                      id="banner-collect-sample-btn"
-                    >
-                      <span>✓</span>
-                      <span>{isSubmittingTransition ? 'Saving...' : 'Mark Collected'}</span>
-                    </button>
-                  ) : (
-                    <div className="px-3 py-1.5 bg-amber-100 text-amber-900 border border-amber-300 font-bold rounded-xl text-xs flex items-center gap-1.5">
-                      <span>⚠️</span>
-                      <span>Payment Required</span>
-                    </div>
-                  )
-                )}
+                  <div className="shrink-0 w-full sm:w-auto">
+                    {['ordered', 'confirmed', 'scheduled', 'sample_collection_pending', 'awaiting_collection', 'recollection_required'].includes(order?.status) && (
+                      isCollectionEligible ? (
+                        order?.collectionSessionStarted ? (
+                          <div className="p-3 bg-blue-50/90 border border-blue-200 rounded-xl space-y-1 text-left">
+                            <div className="flex items-center gap-1.5 font-extrabold text-blue-900 text-xs">
+                              <span>🧪</span>
+                              <span>Sample Collection Started</span>
+                            </div>
+                            <p className="text-[10px] text-blue-800 font-medium">
+                              Collection session is ready for verification and sample collection.
+                            </p>
+                            <button
+                              type="button"
+                              onClick={handleStartSampleCollection}
+                              className="mt-1 w-full sm:w-auto px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md shadow-indigo-200 transition cursor-pointer"
+                              id="banner-continue-sample-collection-btn"
+                            >
+                              <span>Continue Sample Collection</span>
+                              <span>→</span>
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={handleStartSampleCollection}
+                            className="w-full sm:w-auto px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md shadow-violet-200 transition cursor-pointer"
+                            id="banner-start-sample-collection-btn"
+                          >
+                            <span>🧪</span>
+                            <span>Start Sample Collection</span>
+                          </button>
+                        )
+                      ) : (
+                        <div className="px-3 py-1.5 bg-amber-100 text-amber-900 border border-amber-300 font-bold rounded-xl text-xs flex items-center gap-1.5">
+                          <span>⚠️</span>
+                          <span>Payment Required</span>
+                        </div>
+                      )
+                    )}
 
                 {order?.status === 'sample_collected' && (
                   <button
@@ -1423,22 +1533,38 @@ const LabOrderDetailPage = () => {
               </h4>
 
               <div className="space-y-2">
-                {/* Action 1: Mark Sample Collected */}
-                {['ordered', 'confirmed', 'scheduled', 'sample_collection_pending'].includes(order?.status) ? (
+                {/* Action 1: Start / Continue Sample Collection */}
+                {['ordered', 'confirmed', 'scheduled', 'sample_collection_pending', 'awaiting_collection', 'recollection_required'].includes(order?.status) ? (
                   isCollectionEligible ? (
-                    <button
-                      type="button"
-                      disabled={isSubmittingTransition}
-                      onClick={() => setIsCollectModalOpen(true)}
-                      className="w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-bold bg-violet-600 text-white shadow-md shadow-violet-200 hover:bg-violet-700 cursor-pointer transition transform active:scale-98"
-                      id="action-collect-sample-btn"
-                    >
-                      <span className="flex items-center gap-1.5">
-                        <span>✓</span>
-                        <span>{isSubmittingTransition ? 'Saving...' : 'Mark Sample Collected'}</span>
-                      </span>
-                      <span>→</span>
-                    </button>
+                    order?.collectionSessionStarted ? (
+                      <button
+                        type="button"
+                        disabled={isSubmittingTransition}
+                        onClick={handleStartSampleCollection}
+                        className="w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-bold bg-indigo-600 text-white shadow-md shadow-indigo-200 hover:bg-indigo-700 cursor-pointer transition transform active:scale-98"
+                        id="action-continue-sample-collection-btn"
+                      >
+                        <span className="flex items-center gap-1.5">
+                          <span>🧪</span>
+                          <span>Continue Sample Collection</span>
+                        </span>
+                        <span>→</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={isSubmittingTransition}
+                        onClick={handleStartSampleCollection}
+                        className="w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-bold bg-violet-600 text-white shadow-md shadow-violet-200 hover:bg-violet-700 cursor-pointer transition transform active:scale-98"
+                        id="action-start-sample-collection-btn"
+                      >
+                        <span className="flex items-center gap-1.5">
+                          <span>🧪</span>
+                          <span>Start Sample Collection</span>
+                        </span>
+                        <span>→</span>
+                      </button>
+                    )
                   ) : (
                     <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs">
                       <div className="flex items-center justify-between font-bold">
@@ -1459,7 +1585,7 @@ const LabOrderDetailPage = () => {
                       <span>✓</span>
                       <span>Sample Collected</span>
                     </span>
-                    <span className="text-[10px] font-mono font-black">{order?.sampleId || 'Done'}</span>
+                    <span className="text-[10px] font-mono font-black">{sampleIdDisplay}</span>
                   </div>
                 )}
 
@@ -1659,6 +1785,25 @@ const LabOrderDetailPage = () => {
                     </span>
                     <span>→</span>
                   </Link>
+                )}
+
+                {/* Recollection Request Action (for post-collection stages) */}
+                {['sample_collected', 'processing', 'in_processing', 'in_analysis', 'results_entry', 'ready_for_review'].includes(order?.status) && (
+                  <div className="pt-2 border-t border-stone-100">
+                    <button
+                      type="button"
+                      disabled={isSubmittingTransition}
+                      onClick={() => setIsRecollectModalOpen(true)}
+                      className="w-full flex items-center justify-between p-2 rounded-xl text-xs font-bold border border-rose-300 bg-rose-50/70 text-rose-900 hover:bg-rose-100 cursor-pointer transition"
+                      id="action-request-recollection-btn"
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <span>⚠️</span>
+                        <span>Request Recollection</span>
+                      </span>
+                      <span>→</span>
+                    </button>
+                  </div>
                 )}
               </div>
             </article>
@@ -1988,6 +2133,85 @@ const LabOrderDetailPage = () => {
                 id="confirm-return-order-btn"
               >
                 {isSubmittingTransition ? 'Returning...' : 'Return for Correction'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* MODAL 5C: Request Recollection Modal                      */}
+      {/* ========================================================= */}
+      {isRecollectModalOpen && (
+        <div className="fixed top-16 right-0 bottom-0 left-0 z-40 flex items-center justify-center bg-stone-900/60 backdrop-blur-xs p-4 overflow-hidden animate-in fade-in">
+          <div className="w-full max-w-md max-h-[calc(100vh-5.5rem)] flex flex-col rounded-3xl bg-white p-6 shadow-2xl border border-rose-200 space-y-4 overflow-y-auto">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-rose-100 text-rose-700 text-lg font-bold">
+                ⚠️
+              </div>
+              <div>
+                <h3 className="text-base font-extrabold text-stone-900">Request Sample Recollection</h3>
+                <p className="text-xs text-stone-500">Order: {order?.orderNumber}</p>
+              </div>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block text-xs font-bold text-stone-700 mb-1">
+                  Recollection Reason <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  value={recollectReason}
+                  onChange={(e) => setRecollectReason(e.target.value)}
+                  className="w-full rounded-2xl border border-stone-200 bg-stone-50/70 p-2.5 text-xs font-semibold outline-none focus:border-rose-500 focus:bg-white focus:ring-2 focus:ring-rose-100"
+                >
+                  <option value="Insufficient sample">Insufficient sample volume</option>
+                  <option value="Hemolysed sample">Hemolysed sample</option>
+                  <option value="Clotted sample">Clotted sample</option>
+                  <option value="Improper container">Improper container used</option>
+                  <option value="Sample damaged">Sample damaged / leaking during transport</option>
+                  <option value="Incorrect specimen">Incorrect specimen type drawn</option>
+                  <option value="Other">Other reason (explain below)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-stone-700 mb-1">
+                  Staff Notes & Instructions
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="Provide instructions for phlebotomy staff during recollection..."
+                  value={recollectNotes}
+                  onChange={(e) => setRecollectNotes(e.target.value)}
+                  className="w-full rounded-2xl border border-stone-200 p-3 text-xs outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-100 transition shadow-2xs"
+                />
+              </div>
+
+              <div className="rounded-xl bg-amber-50 p-3 border border-amber-200 text-amber-900 text-[11px] space-y-1">
+                <p className="font-bold">Important Business Rule:</p>
+                <p>
+                  Order <strong>{order?.orderNumber}</strong> will be moved to <strong>RECOLLECTION_REQUIRED</strong> and sent back to the Sample Collection Desk. The Order ID will remain unchanged. A new sample collection attempt will be registered upon redraw.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsRecollectModalOpen(false)}
+                className="px-4 py-2 rounded-xl border border-stone-300 text-xs font-semibold text-stone-700 hover:bg-stone-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isSubmittingTransition || !recollectReason}
+                onClick={handleConfirmRecollection}
+                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl shadow-md shadow-rose-200 disabled:bg-stone-300 disabled:shadow-none cursor-pointer"
+                id="confirm-recollection-btn"
+              >
+                {isSubmittingTransition ? 'Submitting...' : 'Submit Recollection Request'}
               </button>
             </div>
           </div>

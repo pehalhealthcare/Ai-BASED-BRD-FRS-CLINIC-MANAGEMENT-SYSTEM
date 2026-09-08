@@ -911,13 +911,12 @@ const PatientAppointmentsPage = () => {
               {activeClinicTab === 'overview' && (
                 <div className="space-y-6">
                   {/* Stats Grid */}
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {[
-                      { val: `${selectedClinic.rating || '4.8'} ★`, label: `${selectedClinic.reviews || '128'} Reviews`, icon: <Star size={16} className="text-amber-500" /> },
-                      { val: '8+', label: 'Expert Doctors', icon: <User size={16} className="text-blue-400" /> },
-                      { val: '5', label: 'Specialties', icon: <Stethoscope size={16} className="text-purple-400" /> },
-                      { val: '12K+', label: 'Happy Patients', icon: <Heart size={16} className="text-rose-400" /> },
-                      { val: '98%', label: 'Patient Satisfaction', icon: <Activity size={16} className="text-emerald-400" /> }
+                      { val: `${selectedClinic.rating || '4.8'} ★`, label: `${selectedClinic.reviews || 'Verified'} Rating`, icon: <Star size={16} className="text-amber-500" /> },
+                      { val: 'Expert', label: 'Doctor Panel', icon: <User size={16} className="text-blue-400" /> },
+                      { val: 'Modern', label: 'Specialties', icon: <Stethoscope size={16} className="text-purple-400" /> },
+                      { val: 'Active', label: 'OPD Services', icon: <Activity size={16} className="text-emerald-400" /> }
                     ].map((st, i) => (
                       <div key={i} className="p-4 rounded-xl bg-[#060d18] border border-white/[0.06] flex flex-col items-center justify-center text-center space-y-1">
                         <div className="w-8 h-8 rounded-full bg-white/[0.04] flex items-center justify-center mb-1">{st.icon}</div>

@@ -291,12 +291,11 @@
       <text x="0" y="68" fill="#FFFFFF" font-family="'Inter', sans-serif" font-size="17" font-weight="700" text-anchor="middle">HIPAA Ready</text>
     </g>
 
-    <!-- Badge 2: ISO 27001 Certified -->
+    <!-- Badge 2: NABH Ready -->
     <g transform="translate(400, 40)">
       <circle cx="0" cy="0" r="34" fill="#00B96B" fill-opacity="0.08" stroke="#00B96B" stroke-opacity="0.2"/>
-      <circle cx="0" cy="0" r="13" stroke="#00B96B" stroke-width="3" fill="none"/>
-      <path d="M-6 -6 L6 6 M6 -6 L-6 6" stroke="#00B96B" stroke-width="2.5"/>
-      <text x="0" y="68" fill="#FFFFFF" font-family="'Inter', sans-serif" font-size="17" font-weight="700" text-anchor="middle">ISO 27001 Certified</text>
+      <path d="M-10 -12 L0 -16 L10 -12 V0 C10 8 0 14 0 14 C0 14 -10 8 -10 0 Z" stroke="#00B96B" stroke-width="2.5" fill="none"/>
+      <text x="0" y="68" fill="#FFFFFF" font-family="'Inter', sans-serif" font-size="17" font-weight="700" text-anchor="middle">NABH Ready</text>
     </g>
 
     <!-- Badge 3: End-to-End Encryption -->

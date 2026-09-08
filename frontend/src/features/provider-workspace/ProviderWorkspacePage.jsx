@@ -37,7 +37,7 @@ const ProviderWorkspacePage = ({ type: propType }) => {
   if (activeType === 'laboratory') {
     const finalLabId = laboratoryId || queryLabId || user?.providerId;
     if (finalLabId && (!laboratoryId || routeTab !== tab)) {
-      return <Navigate to={`/laboratory/${finalLabId}/${tab}`} replace />;
+      return <Navigate to={`/laboratory/${finalLabId}/${tab}${location.search || ''}`} replace />;
     }
     return <LaboratoryWorkspace tab={tab} user={user} laboratoryId={finalLabId} />;
   }

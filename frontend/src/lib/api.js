@@ -306,6 +306,9 @@ const labApi = {
   getSmartPackages: (params = {}) => extractData(apiClient.get('/labs/smart-packages', { params })),
   validatePromoCode: (payload) => extractData(apiClient.post('/labs/promo-codes/validate', payload)),
   // Phase 7 APIs
+  startCollectionSession: (orderId, payload = {}) => extractData(apiClient.post(`/labs/orders/${orderId}/start-collection-session`, payload)),
+  verifyPatient: (orderId, payload) => extractData(apiClient.post(`/labs/orders/${orderId}/verify-patient`, payload)),
+  getCollectionSession: (orderId, params = {}) => extractData(apiClient.get(`/labs/orders/${orderId}/collection-session`, { params })),
   getCollectionQueue: (params = {}) => extractData(apiClient.get('/labs/collection-queue', { params })),
   getRequiredSamples: (orderId, params = {}) => extractData(apiClient.get(`/labs/orders/${orderId}/required-samples`, { params })),
   generateToken: (payload) => extractData(apiClient.post('/labs/tokens/generate', payload)),

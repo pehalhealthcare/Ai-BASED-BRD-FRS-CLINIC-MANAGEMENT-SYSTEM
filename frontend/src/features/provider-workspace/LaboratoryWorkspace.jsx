@@ -16,7 +16,7 @@ import { getOrderResults, initializeOrderResults, updateLabOrderStatus, finalize
 import LabOrderFinalizationModal from '../labs/LabOrderFinalizationModal';
 import CreateLabOrderModal from '../labs/CreateLabOrderModal';
 import SampleCollectionDesk from './SampleCollectionDesk';
-import { getStatusTone, getStatusDisplayLabel } from '../labs/labStatusConstants';
+import { getStatusTone, getStatusDisplayLabel, getOrderTimelineSteps } from '../labs/labStatusConstants';
 
 // Helper to normalize and match order status to frontend tab
 const matchOrderStatusToTab = (orderStatus, tabKey) => {
@@ -1406,74 +1406,81 @@ const LaboratoryWorkspace = ({ tab: propTab, laboratoryId: propLaboratoryId }) =
                   </div>
 
                   {/* Horizontal 6-Stage Workflow Stepper */}
-                  <div className="mt-6 grid grid-cols-6 gap-2 border-t border-slate-100 pt-5 text-center text-xs">
-                    {[
-                      { 
-                        key: 'ordered', 
-                        label: 'Ordered', 
-                        done: ['sample_collected', 'processing', 'in_processing', 'results_entry', 'ready_for_review', 'completed'].includes(selectedOrder.status), 
-                        active: selectedOrder.status === 'ordered',
-                        time: new Date(selectedOrder.orderedAt || selectedOrder.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) 
-                      },
-                      { 
-                        key: 'sample_collected', 
-                        label: 'Sample Collected', 
-                        done: ['processing', 'in_processing', 'results_entry', 'ready_for_review', 'completed'].includes(selectedOrder.status),
-                        active: selectedOrder.status === 'sample_collected',
-                        time: selectedOrder.sampleCollectedAt ? new Date(selectedOrder.sampleCollectedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : 'Pending'
-                      },
-                      { 
-                        key: 'processing', 
-                        label: 'Processing', 
-                        done: ['results_entry', 'ready_for_review', 'completed'].includes(selectedOrder.status),
-                        active: ['processing', 'in_processing', 'in_analysis'].includes(selectedOrder.status),
-                        time: selectedOrder.processingStartedAt ? 'In Lab' : 'Pending'
-                      },
-                      { 
-                        key: 'results_entry', 
-                        label: 'Results Entry', 
-                        done: ['ready_for_review', 'completed'].includes(selectedOrder.status),
-                        active: selectedOrder.status === 'results_entry',
-                        locked: ['ordered', 'sample_collected', 'processing', 'in_processing', 'in_analysis'].includes(selectedOrder.status),
-                        sub: selectedOrder.status === 'results_entry' ? 'In Progress' : 'Locked 🔒'
-                      },
-                      { 
-                        key: 'ready_for_review', 
-                        label: 'Review', 
-                        done: selectedOrder.status === 'completed',
-                        active: selectedOrder.status === 'ready_for_review',
-                        locked: !['ready_for_review', 'completed'].includes(selectedOrder.status)
-                      },
-                      { 
-                        key: 'completed', 
-                        label: 'Completed', 
-                        done: selectedOrder.status === 'completed',
-                        active: false,
-                        locked: selectedOrder.status !== 'completed'
-                      }
-                    ].map((step, idx) => (
-                      <div key={idx} className="flex flex-col items-center">
-                        <div className={`flex h-7 w-7 items-center justify-center rounded-full font-black text-[11px] shadow-xs ${
-                          step.done
-                            ? 'bg-purple-600 text-white'
-                            : step.active
-                            ? 'border-2 border-purple-200 bg-purple-600 text-white animate-pulse'
-                            : step.locked
-                            ? 'border border-slate-200 bg-slate-100 text-slate-400'
-                            : 'border border-slate-200 bg-white text-slate-400'
-                        }`}>
-                          {step.done ? '✓' : step.locked ? '🔒' : idx + 1}
-                        </div>
-                        <span className={`mt-1.5 font-bold text-[10px] ${step.active ? 'text-purple-900 font-black' : step.done ? 'text-slate-800' : 'text-slate-400'}`}>
-                          {step.label}
-                        </span>
-                        {step.time ? (
-                          <span className="text-[9px] text-slate-400 font-semibold">{step.time}</span>
-                        ) : step.sub ? (
-                          <span className={`text-[9px] font-black ${step.active ? 'text-purple-600' : 'text-slate-400'}`}>{step.sub}</span>
-                        ) : null}
-                      </div>
-                    ))}
+                  <div className="mt-6 border-t border-slate-100 pt-5 relative">
+                    <div className="grid grid-cols-6 gap-2 text-center text-xs relative">
+                      {getOrderTimelineSteps(selectedOrder).map((step, idx, arr) => {
+                        const hasLineAfter = idx < arr.length - 1;
+                        const isLineCompleted = step.isDone;
+
+                        return (
+                          <div key={step.key} className="relative flex flex-col items-center group">
+                            {/* Connector Line to Next Step */}
+                            {hasLineAfter && (
+                              <div
+                                className={`absolute top-3.5 left-[50%] right-[-50%] h-0.5 -z-0 transition-colors duration-300 ${
+                                  isLineCompleted ? 'bg-emerald-500' : 'bg-slate-200'
+                                }`}
+                              />
+                            )}
+
+                            {/* Step Circle */}
+                            <div
+                              className={`relative z-10 flex h-7 w-7 items-center justify-center rounded-full font-black text-[11px] shadow-xs transition-all ${
+                                step.isDone
+                                  ? 'bg-emerald-600 text-white'
+                                  : step.isActive
+                                  ? 'bg-blue-600 text-white ring-4 ring-blue-100 border-2 border-blue-600 shadow-xs'
+                                  : step.isLocked
+                                  ? 'border border-slate-200 bg-slate-100 text-slate-400 font-medium'
+                                  : 'border-2 border-slate-200 bg-white text-slate-400 font-bold'
+                              }`}
+                            >
+                              {step.isDone ? (
+                                <span className="text-xs font-black">✓</span>
+                              ) : step.isActive ? (
+                                <span>{step.stepNum}</span>
+                              ) : step.isLocked ? (
+                                <span className="text-[10px]">🔒</span>
+                              ) : (
+                                <span>{step.stepNum}</span>
+                              )}
+                            </div>
+
+                            {/* Step Label */}
+                            <span
+                              className={`mt-1.5 font-bold text-[10px] truncate max-w-full tracking-tight ${
+                                step.isActive
+                                  ? 'text-blue-700 font-black'
+                                  : step.isDone
+                                  ? 'text-slate-800'
+                                  : 'text-slate-400'
+                              }`}
+                            >
+                              {step.label}
+                            </span>
+
+                            {/* Step Subtitle */}
+                            <span
+                              className={`text-[9px] truncate max-w-full font-semibold ${
+                                step.isActive
+                                  ? 'text-blue-600 font-black'
+                                  : step.isDone
+                                  ? 'text-slate-500'
+                                  : 'text-slate-400'
+                              }`}
+                            >
+                              {step.isActive
+                                ? (step.time && step.time !== 'Pending' ? step.time : 'Active')
+                                : step.isDone
+                                ? step.time
+                                : step.isLocked
+                                ? 'Locked'
+                                : 'Pending'}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </article>
 

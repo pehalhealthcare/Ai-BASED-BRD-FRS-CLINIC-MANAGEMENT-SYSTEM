@@ -19,6 +19,7 @@
     "clsx": "^2.1.1",
     "framer-motion": "^12.43.0",
     "html5-qrcode": "^2.3.8",
+    "jsqr": "^1.4.0",
     "leaflet-geosearch": "^4.4.0",
     "lucide-react": "^0.511.0",
     "react": "^18.3.1",

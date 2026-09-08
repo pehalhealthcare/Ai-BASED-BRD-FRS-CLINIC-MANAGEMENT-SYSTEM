@@ -427,12 +427,50 @@ const getPublicTokenDisplay = asyncHandler(async (req, res) => {
   return sendSuccess(res, 'Public token display loaded successfully', data);
 });
 
+const startCollectionSession = asyncHandler(async (req, res) => {
+  const result = await labService.startCollectionSession({
+    orderId: req.params.id || req.params.orderId,
+    clinicId: req.query.clinicId || req.body.clinicId,
+    requester: req.user
+  });
+  return sendSuccess(
+    res,
+    result.isExisting ? 'Existing collection session retrieved' : 'Sample collection session started successfully',
+    result,
+    result.isExisting ? 200 : 201
+  );
+});
+
+const verifyPatientForCollection = asyncHandler(async (req, res) => {
+  const result = await labService.verifyPatientForCollection({
+    orderId: req.params.id || req.params.orderId,
+    clinicId: req.query.clinicId || req.body.clinicId,
+    method: req.body.method,
+    qrCode: req.body.qrCode,
+    otp: req.body.otp,
+    requester: req.user
+  });
+  return sendSuccess(res, 'Patient verified successfully for sample collection', result, 200);
+});
+
+const getCollectionSession = asyncHandler(async (req, res) => {
+  const data = await labService.getCollectionSession({
+    orderId: req.params.id || req.params.orderId,
+    clinicId: req.query.clinicId
+  });
+  return sendSuccess(res, 'Collection session retrieved successfully', data);
+});
+
 const collectOrderSamples = asyncHandler(async (req, res) => {
   const data = await labService.collectOrderSamples({
-    orderId: req.params.orderId,
+    orderId: req.params.orderId || req.params.id,
     specimens: req.body.specimens || [],
     deskNumber: req.body.deskNumber,
     notes: req.body.notes,
+    sampleType: req.body.sampleType,
+    quantityCollected: req.body.quantityCollected,
+    quantityUnit: req.body.quantityUnit,
+    verificationMethod: req.body.verificationMethod,
     requester: req.user
   });
   return sendSuccess(res, 'Samples collected successfully and barcodes generated', data, 201);
@@ -702,6 +740,9 @@ module.exports = {
   getSmartPackageSuggestions,
   validatePromoCode,
   // Phase 7 Exports
+  startCollectionSession,
+  verifyPatientForCollection,
+  getCollectionSession,
   getCollectionQueue,
   calculateRequiredSpecimens,
   generateQueueToken,

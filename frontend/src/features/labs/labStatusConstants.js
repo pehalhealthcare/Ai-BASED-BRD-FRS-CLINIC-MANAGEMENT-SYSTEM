@@ -45,6 +45,16 @@ export const SAMPLE_STATUS = {
 
 export const SAMPLE_STATUSES = Object.values(SAMPLE_STATUS);
 
+export const COLLECTION_STATUS = {
+  NOT_STARTED: 'NOT_STARTED',
+  READY: 'READY',
+  IN_PROGRESS: 'IN_PROGRESS',
+  COLLECTED: 'COLLECTED',
+  RECOLLECTION_REQUIRED: 'RECOLLECTION_REQUIRED'
+};
+
+export const COLLECTION_STATUSES = Object.values(COLLECTION_STATUS);
+
 export const ORDER_STATUS_TRANSITIONS = {
   ordered: ['scheduled', 'awaiting_collection', 'checked_in', 'sample_collected', 'cancelled'],
   confirmed: ['scheduled', 'awaiting_collection', 'checked_in', 'sample_collected', 'cancelled'],
@@ -70,8 +80,8 @@ export const ORDER_STATUS_TRANSITIONS = {
 export const ORDER_STATUS_CONFIG = {
   [LAB_ORDER_STATUS.ORDERED]: {
     label: 'Ordered',
-    tone: 'bg-slate-100 text-slate-700 border-slate-200',
-    badgeClasses: 'bg-slate-100 text-slate-700 border-slate-200',
+    tone: 'bg-blue-50 text-blue-700 border-blue-200',
+    badgeClasses: 'bg-blue-50 text-blue-700 border-blue-200',
     description: 'Order registered in system, awaiting patient arrival/collection scheduling',
     stepNumber: 1
   },
@@ -278,6 +288,154 @@ export const getBadgeTone = (status = '') => {
     default:
       return 'neutral';
   }
+};
+
+/**
+ * Standardizes workflow progression step index from 1 to 6
+ * 1: ORDERED
+ * 2: SAMPLE_COLLECTED
+ * 3: PROCESSING
+ * 4: RESULTS_ENTRY
+ * 5: READY_FOR_REVIEW
+ * 6: COMPLETED
+ */
+export const getWorkflowStepIndex = (status = '') => {
+  const norm = String(status || '').toLowerCase().trim();
+  switch (norm) {
+    case 'ordered':
+    case 'order_booked':
+    case 'confirmed':
+    case 'scheduled':
+    case 'awaiting_collection':
+    case 'sample_collection_pending':
+    case 'recollection_required':
+      return 1;
+    case 'checked_in':
+    case 'called':
+    case 'collecting':
+    case 'sample_collected':
+    case 'collected':
+    case 'specimen_collected':
+      return 2;
+    case 'processing':
+    case 'in_processing':
+    case 'in_analysis':
+    case 'in_lab_testing':
+      return 3;
+    case 'results_entry':
+    case 'results_pending':
+    case 'in_entry':
+      return 4;
+    case 'ready_for_review':
+    case 'in_review':
+    case 'pending_review':
+      return 5;
+    case 'completed':
+    case 'finalized':
+    case 'report_ready':
+    case 'report_available':
+    case 'report_generated':
+      return 6;
+    default:
+      return 1;
+  }
+};
+
+/**
+ * Generates the unified 6-step timeline for an order
+ */
+export const getOrderTimelineSteps = (order = {}) => {
+  const rawStatus = order?.status || order?.orderStatus || 'ordered';
+  const activeStep = getWorkflowStepIndex(rawStatus);
+
+  const isCompleted = (stepNum) => activeStep > stepNum || (activeStep === 6 && stepNum === 6);
+  const isActive = (stepNum) => activeStep === stepNum && activeStep < 6;
+  const isLocked = (stepNum) => {
+    if (activeStep >= stepNum) return false;
+    return stepNum >= 4;
+  };
+
+  const orderedTime = order?.orderedAt || order?.createdAt;
+  const collectedTime = order?.sampleCollectedAt || order?.collectedAt;
+  const processingTime = order?.processingStartedAt;
+  const resultsTime = order?.resultsCompletedAt || order?.resultsEnteredAt;
+  const reviewTime = order?.readyForReviewAt;
+  const finalizedTime = order?.finalizedAt;
+
+  return [
+    {
+      key: 'ordered',
+      stepNum: 1,
+      label: 'Ordered',
+      time: orderedTime ? new Date(orderedTime).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '08 Sep',
+      subTime: orderedTime ? new Date(orderedTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
+      statusText: isCompleted(1) ? 'Completed' : isActive(1) ? 'Active' : 'Pending',
+      isDone: isCompleted(1),
+      isActive: isActive(1),
+      isLocked: false,
+      isPending: false
+    },
+    {
+      key: 'sample_collected',
+      stepNum: 2,
+      label: 'Sample Collected',
+      time: collectedTime ? new Date(collectedTime).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : 'Pending',
+      subTime: collectedTime ? new Date(collectedTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
+      statusText: isCompleted(2) ? 'Completed' : isActive(2) ? 'Active' : 'Pending',
+      isDone: isCompleted(2),
+      isActive: isActive(2),
+      isLocked: false,
+      isPending: activeStep < 2
+    },
+    {
+      key: 'processing',
+      stepNum: 3,
+      label: 'Processing',
+      time: processingTime ? new Date(processingTime).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : 'Pending',
+      subTime: processingTime ? new Date(processingTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
+      statusText: isCompleted(3) ? 'Completed' : isActive(3) ? 'Active' : 'Pending',
+      isDone: isCompleted(3),
+      isActive: isActive(3),
+      isLocked: false,
+      isPending: activeStep < 3
+    },
+    {
+      key: 'results_entry',
+      stepNum: 4,
+      label: 'Results Entry',
+      time: resultsTime ? 'Entered' : 'Pending',
+      subTime: '',
+      statusText: isCompleted(4) ? 'Completed' : isActive(4) ? 'Active' : isLocked(4) ? 'Locked' : 'Pending',
+      isDone: isCompleted(4),
+      isActive: isActive(4),
+      isLocked: isLocked(4),
+      isPending: activeStep < 4 && !isLocked(4)
+    },
+    {
+      key: 'ready_for_review',
+      stepNum: 5,
+      label: 'Ready for Review',
+      time: reviewTime ? 'Submitted' : 'Pending',
+      subTime: '',
+      statusText: isCompleted(5) ? 'Completed' : isActive(5) ? 'Active' : isLocked(5) ? 'Locked' : 'Pending',
+      isDone: isCompleted(5),
+      isActive: isActive(5),
+      isLocked: isLocked(5),
+      isPending: activeStep < 5 && !isLocked(5)
+    },
+    {
+      key: 'completed',
+      stepNum: 6,
+      label: 'Completed',
+      time: finalizedTime ? new Date(finalizedTime).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : 'Pending',
+      subTime: '',
+      statusText: isCompleted(6) ? 'Completed' : isLocked(6) ? 'Locked' : 'Pending',
+      isDone: isCompleted(6),
+      isActive: false,
+      isLocked: isLocked(6),
+      isPending: activeStep < 6 && !isLocked(6)
+    }
+  ];
 };
 
 

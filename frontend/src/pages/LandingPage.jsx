@@ -14,38 +14,13 @@ import dashboardIllustration from '../assets/dashboard_illustration.svg';
 import { subscriptionApi, faqApi } from '../lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 
-function CountUp({ end, duration = 1500 }) {
-  const [count, setCount] = useState(0);
-
-  useEffect(() => {
-    let target = parseFloat(end.replace(/[^\d.]/g, ''));
-    let suffix = end.replace(/[\d.]/g, '');
-    let isFloat = end.includes('.');
-    
-    let startTime = null;
-    let animationFrameId;
-
-    const animate = (timestamp) => {
-      if (!startTime) startTime = timestamp;
-      const progress = Math.min((timestamp - startTime) / duration, 1);
-      
-      let currentVal = progress * target;
-      if (isFloat) {
-        setCount(currentVal.toFixed(2) + suffix);
-      } else {
-        setCount(Math.floor(currentVal) + suffix);
-      }
-      
-      if (progress < 1) {
-        animationFrameId = requestAnimationFrame(animate);
-      }
-    };
-    animationFrameId = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(animationFrameId);
-  }, [end, duration]);
-
-  return <span>{count}</span>;
-}
+const NAV_SECTIONS = [
+  { id: 'features', label: 'Features', href: '#features' },
+  { id: 'ai-assistant', label: 'AI Modules', href: '#ai-assistant' },
+  { id: 'special-modules', label: 'Modules', href: '#special-modules' },
+  { id: 'pricing', label: 'Pricing', href: '#pricing' },
+  { id: 'security', label: 'Security', href: '#security' },
+];
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -276,6 +251,158 @@ export default function LandingPage() {
   const lastScrollY = useRef(0);
   const inactivityTimer = useRef(null);
   const isHoveringHeader = useRef(false);
+  const headerContainerRef = useRef(null);
+
+  // Active section scroll-spy state
+  const [activeSection, setActiveSection] = useState('');
+  const isClickScrollingRef = useRef(false);
+  const clickScrollTimeoutRef = useRef(null);
+
+  // Smooth scroll handler for both desktop and mobile
+  const handleNavClick = useCallback((e, sectionId, href) => {
+    if (e && e.preventDefault) e.preventDefault();
+    const targetId = sectionId === 'modules' ? 'special-modules' : (sectionId === 'ai-modules' ? 'ai-assistant' : sectionId);
+    const element = document.getElementById(targetId);
+
+    setActiveSection(targetId);
+    isClickScrollingRef.current = true;
+    if (clickScrollTimeoutRef.current) clearTimeout(clickScrollTimeoutRef.current);
+
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+      window.history.pushState(null, '', href);
+    }
+
+    if (isMobileMenuOpen) {
+      setIsMobileMenuOpen(false);
+    }
+
+    clickScrollTimeoutRef.current = setTimeout(() => {
+      isClickScrollingRef.current = false;
+    }, 850);
+  }, [isMobileMenuOpen]);
+
+  // Scroll spy effect using IntersectionObserver
+  useEffect(() => {
+    const sectionIds = ['features', 'special-modules', 'ai-assistant', 'pricing', 'security'];
+    const sectionElements = sectionIds
+      .map(id => document.getElementById(id))
+      .filter(Boolean);
+
+    if (sectionElements.length === 0) return;
+
+    const visibleRatios = new Map();
+
+    const observer = new IntersectionObserver((entries) => {
+      if (isClickScrollingRef.current) return;
+
+      entries.forEach(entry => {
+        visibleRatios.set(entry.target.id, entry.intersectionRatio);
+      });
+
+      // At top of page (Hero section)
+      if (window.scrollY < 150) {
+        setActiveSection(prev => (prev === '' ? prev : ''));
+        return;
+      }
+
+      // At bottom of page (Security / Footer)
+      if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 60) {
+        setActiveSection(prev => (prev === 'security' ? prev : 'security'));
+        return;
+      }
+
+      let bestSection = '';
+      let maxRatio = 0;
+
+      for (const [id, ratio] of visibleRatios.entries()) {
+        if (ratio > maxRatio && ratio > 0.08) {
+          maxRatio = ratio;
+          bestSection = id;
+        }
+      }
+
+      if (bestSection) {
+        setActiveSection(prev => (prev === bestSection ? prev : bestSection));
+      } else {
+        const headerOffset = 140;
+        for (const el of sectionElements) {
+          const rect = el.getBoundingClientRect();
+          if (rect.top <= headerOffset && rect.bottom > headerOffset) {
+            setActiveSection(prev => (prev === el.id ? prev : el.id));
+            break;
+          }
+        }
+      }
+    }, {
+      root: null,
+      rootMargin: '-100px 0px -40% 0px',
+      threshold: [0, 0.1, 0.2, 0.35, 0.5, 0.75, 1.0]
+    });
+
+    sectionElements.forEach(el => observer.observe(el));
+
+    // Handle direct hash navigation on page load
+    const hash = window.location.hash.replace('#', '');
+    if (hash) {
+      const targetId = hash === 'modules' ? 'special-modules' : (hash === 'ai-modules' ? 'ai-assistant' : hash);
+      const el = document.getElementById(targetId);
+      if (el) {
+        setActiveSection(targetId);
+        setTimeout(() => {
+          el.scrollIntoView({ behavior: 'smooth' });
+        }, 150);
+      }
+    }
+
+    const handleScrollEdge = () => {
+      if (isClickScrollingRef.current) return;
+      if (window.scrollY < 150) {
+        setActiveSection(prev => (prev === '' ? prev : ''));
+      } else if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 60) {
+        setActiveSection(prev => (prev === 'security' ? prev : 'security'));
+      }
+    };
+
+    window.addEventListener('scroll', handleScrollEdge, { passive: true });
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('scroll', handleScrollEdge);
+      if (clickScrollTimeoutRef.current) clearTimeout(clickScrollTimeoutRef.current);
+    };
+  }, []);
+
+  // Close mobile menu on outside click or Escape key or desktop resize
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && isMobileMenuOpen) {
+        setIsMobileMenuOpen(false);
+      }
+    };
+    const handleClickOutside = (e) => {
+      if (headerContainerRef.current && !headerContainerRef.current.contains(e.target)) {
+        setIsMobileMenuOpen(false);
+      }
+    };
+    const handleResize = () => {
+      if (window.innerWidth >= 1400 && isMobileMenuOpen) {
+        setIsMobileMenuOpen(false);
+      }
+    };
+
+    if (isMobileMenuOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [isMobileMenuOpen]);
 
   // Restart the 10-second auto-hide timer
   const resetInactivityTimer = useCallback(() => {
@@ -449,7 +576,6 @@ export default function LandingPage() {
     { label: 'NABH Ready', icon: <Shield size={18} className="text-green-600" /> },
     { label: 'HIPAA Ready', icon: <CheckCircle2 size={18} className="text-green-600" /> },
     { label: 'Cloud Hosted', icon: <Globe size={18} className="text-green-600" /> },
-    { label: 'ISO Certified', icon: <CheckCircle2 size={18} className="text-green-600" /> },
     { label: '24×7 Support', icon: <PhoneCall size={18} className="text-green-600" /> },
   ];
 
@@ -462,9 +588,10 @@ export default function LandingPage() {
 
       {/* ── STICKY GLASS NAVIGATION BAR ── */}
       <div 
-        className={`fixed top-4 left-0 right-0 z-50 w-full px-8 lg:px-16 transition-all duration-[400ms] ease-in-out ${showHeader ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        ref={headerContainerRef}
+        className={`fixed top-3 sm:top-4 left-0 right-0 z-50 w-full px-3 sm:px-6 lg:px-10 xl:px-12 transition-all duration-[400ms] ease-in-out ${showHeader || isMobileMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         style={{ 
-          transform: showHeader ? 'translate3d(0, 0, 0)' : 'translate3d(0, -120%, 0)', 
+          transform: (showHeader || isMobileMenuOpen) ? 'translate3d(0, 0, 0)' : 'translate3d(0, -120%, 0)', 
           willChange: 'transform, opacity' 
         }}
         onMouseEnter={() => {
@@ -474,87 +601,100 @@ export default function LandingPage() {
         }}
         onMouseLeave={() => {
           isHoveringHeader.current = false;
-          resetInactivityTimer();
+          if (!isMobileMenuOpen) resetInactivityTimer();
         }}
       >
-        <header className="max-w-[1720px] mx-auto bg-white/95 backdrop-blur-xl border border-slate-200/60 px-6 sm:px-10 h-[96px] rounded-full flex items-center justify-between shadow-lg shadow-slate-150/40 transition-all duration-200 relative">
-          {/* Logo with breathing room */}
-          <div className="flex items-center gap-3 shrink-0 select-none">
-            <PehalLogo variant="primary" height={58} />
-            <div className="h-8 w-[1.5px] bg-slate-200 mx-1 hidden sm:block" />
+        <header className="max-w-[1720px] mx-auto bg-white/95 backdrop-blur-xl border border-slate-200/70 px-4 sm:px-6 lg:px-8 h-[68px] sm:h-[76px] md:h-[84px] min-[1400px]:h-[92px] rounded-full flex items-center justify-between shadow-lg shadow-slate-200/50 transition-all duration-200 relative box-border">
+          {/* Logo & Branding */}
+          <Link to="/" className="flex items-center gap-2 sm:gap-3 shrink-0 select-none group focus:outline-none">
+            <div className="h-[38px] sm:h-[44px] md:h-[50px] min-[1400px]:h-[56px] flex items-center">
+              <PehalLogo variant="primary" className="h-[38px] sm:h-[44px] md:h-[50px] min-[1400px]:h-[56px] w-auto transition-transform duration-300 group-hover:scale-105" />
+            </div>
+            <div className="h-6 sm:h-8 w-[1.5px] bg-slate-200 mx-0.5 sm:mx-1 hidden sm:block" />
             <div className="flex flex-col justify-center leading-none">
-              <span className="text-[20px] font-black tracking-tight text-slate-900 flex items-center gap-1.5">
+              <span className="text-[17px] sm:text-[19px] min-[1400px]:text-[21px] font-black tracking-tight text-slate-900 flex items-center gap-1.5">
                 AICMS
-                <span className="text-[8px] font-extrabold uppercase tracking-widest bg-emerald-500/10 text-emerald-700 px-1.5 py-0.5 rounded-md hidden sm:inline">PRO</span>
+                <span className="text-[7.5px] sm:text-[8px] font-extrabold uppercase tracking-widest bg-emerald-500/10 text-emerald-700 px-1.5 py-0.5 rounded-md hidden sm:inline">PRO</span>
               </span>
-              <span className="text-[9.5px] font-bold text-slate-400 mt-1 uppercase tracking-[0.08em] hidden md:block">
+              <span className="text-[8.5px] sm:text-[9.5px] font-bold text-slate-400 mt-1 uppercase tracking-[0.08em] hidden lg:block">
                 AI Clinic Management System
               </span>
             </div>
-          </div>
+          </Link>
 
-          {/* Navigation Links - Luxurious Spacing */}
-          <nav className="hidden xl:flex items-center gap-12 text-[16px] font-semibold tracking-wide text-slate-655">
-            <a href="#features" className="relative group hover:text-green-600 transition-colors duration-200">
-              Features
-              <span className="absolute bottom-[-4px] left-0 w-0 h-[2px] bg-green-600 transition-all duration-300 group-hover:w-full" />
-            </a>
-            <a href="#ai-assistant" className="relative group hover:text-green-600 transition-colors duration-200">
-              AI Modules
-              <span className="absolute bottom-[-4px] left-0 w-0 h-[2px] bg-green-600 transition-all duration-300 group-hover:w-full" />
-            </a>
-            <a href="#special-modules" className="relative group hover:text-green-600 transition-colors duration-200">
-              Modules
-              <span className="absolute bottom-[-4px] left-0 w-0 h-[2px] bg-green-600 transition-all duration-300 group-hover:w-full" />
-            </a>
-            <a href="#pricing" className="relative group hover:text-green-600 transition-colors duration-200">
-              Pricing
-              <span className="absolute bottom-[-4px] left-0 w-0 h-[2px] bg-green-600 transition-all duration-300 group-hover:w-full" />
-            </a>
-            <a href="#security" className="relative group hover:text-green-600 transition-colors duration-200">
-              Security
-              <span className="absolute bottom-[-4px] left-0 w-0 h-[2px] bg-green-600 transition-all duration-300 group-hover:w-full" />
-            </a>
+          {/* Desktop Navigation Links - Shown on large desktop >= 1400px where there is plenty of room */}
+          <nav className="hidden min-[1400px]:flex items-center gap-7 min-[1550px]:gap-10 text-[15px] min-[1550px]:text-[16px] font-semibold tracking-wide text-slate-600">
+            {NAV_SECTIONS.map((item) => {
+              const isActive = activeSection === item.id;
+              return (
+                <a
+                  key={item.id}
+                  href={item.href}
+                  onClick={(e) => handleNavClick(e, item.id, item.href)}
+                  className={`relative py-1.5 transition-colors duration-200 cursor-pointer select-none group ${
+                    isActive ? 'text-green-600 font-bold' : 'text-slate-600 hover:text-green-600'
+                  }`}
+                >
+                  <span>{item.label}</span>
+                  {isActive ? (
+                    <motion.div
+                      layoutId="activeNavUnderline"
+                      className="absolute -bottom-0.5 left-0 right-0 h-[2.5px] bg-gradient-to-r from-green-500 to-emerald-600 rounded-full shadow-sm shadow-green-500/30"
+                      initial={false}
+                      transition={{
+                        type: 'spring',
+                        stiffness: 380,
+                        damping: 30
+                      }}
+                    />
+                  ) : (
+                    <span className="absolute -bottom-0.5 left-0 w-0 h-[2px] bg-green-600/70 transition-all duration-300 group-hover:w-full rounded-full" />
+                  )}
+                </a>
+              );
+            })}
           </nav>
 
-          {/* Action CTAs - Pill buttons, aligned text */}
-          <div className="flex items-center gap-3 shrink-0">
+          {/* Action CTAs & Controls */}
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            {/* Desktop Portal & Login Pill Buttons (>= 1400px) */}
             <Link 
               to="/login?type=patient" 
-              className="hidden xl:flex items-center justify-center gap-2 px-6 h-[50px] rounded-full text-slate-700 hover:text-green-600 text-[15px] font-semibold transition-all duration-300 border border-slate-200 bg-white/50 hover:bg-white hover:scale-[1.02] hover:shadow-md"
+              className="hidden min-[1400px]:flex items-center justify-center gap-1.5 px-4 min-[1550px]:px-5 h-[44px] min-[1550px]:h-[48px] rounded-full text-slate-700 hover:text-green-600 text-[13.5px] min-[1550px]:text-[14.5px] font-semibold transition-all duration-300 border border-slate-200/90 bg-white/70 hover:bg-white hover:scale-[1.02] hover:shadow-sm"
             >
               <User size={14} className="text-slate-400" /> Patient Portal
             </Link>
             <Link 
               to="/login?type=clinic" 
-              className="hidden xl:flex items-center justify-center gap-2 px-6 h-[50px] rounded-full text-slate-700 hover:text-green-600 text-[15px] font-semibold transition-all duration-300 border border-slate-200 bg-white/50 hover:bg-white hover:scale-[1.02] hover:shadow-md"
+              className="hidden min-[1400px]:flex items-center justify-center gap-1.5 px-4 min-[1550px]:px-5 h-[44px] min-[1550px]:h-[48px] rounded-full text-slate-700 hover:text-green-600 text-[13.5px] min-[1550px]:text-[14.5px] font-semibold transition-all duration-300 border border-slate-200/90 bg-white/70 hover:bg-white hover:scale-[1.02] hover:shadow-sm"
             >
               <Building2 size={14} className="text-slate-400" /> Clinic Login
             </Link>
             <Link 
               to="/login?type=staff" 
-              className="hidden xl:flex items-center justify-center gap-2 px-6 h-[50px] rounded-full text-slate-700 hover:text-green-600 text-[15px] font-semibold transition-all duration-300 border border-slate-200 bg-white/50 hover:bg-white hover:scale-[1.02] hover:shadow-md"
+              className="hidden min-[1400px]:flex items-center justify-center gap-1.5 px-4 min-[1550px]:px-5 h-[44px] min-[1550px]:h-[48px] rounded-full text-slate-700 hover:text-green-600 text-[13.5px] min-[1550px]:text-[14.5px] font-semibold transition-all duration-300 border border-slate-200/90 bg-white/70 hover:bg-white hover:scale-[1.02] hover:shadow-sm"
             >
               <LogIn size={14} className="text-slate-400" /> Staff Login
             </Link>
             
-            {/* Desktop & Tablet CTA Button */}
+            {/* Primary "Setup Your Clinic" CTA Button - Visible on Tablet and Desktop */}
             <button
               onClick={handleSetupClinicClick}
-              className="hidden md:flex items-center justify-center gap-2 px-8 h-[56px] rounded-[16px] bg-gradient-to-r from-green-500 to-green-600 hover:from-green-400 hover:to-green-500 text-white text-[18px] font-bold shadow-md shadow-green-500/20 hover:shadow-lg hover:shadow-green-500/30 hover:translate-y-[-2px] active:translate-y-[0px] active:scale-[0.98] transition-all duration-250 cursor-pointer focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 shrink-0"
+              className="hidden sm:flex items-center justify-center gap-2 px-5 sm:px-6 min-[1400px]:px-8 h-[44px] sm:h-[48px] min-[1400px]:h-[52px] rounded-full sm:rounded-[16px] bg-gradient-to-r from-green-500 to-green-600 hover:from-green-400 hover:to-green-500 text-white text-[14px] sm:text-[15px] min-[1400px]:text-[17px] font-bold shadow-md shadow-green-500/20 hover:shadow-lg hover:shadow-green-500/30 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] transition-all duration-250 cursor-pointer focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 shrink-0"
               aria-label="Setup Your Clinic"
             >
               Setup Your Clinic
             </button>
 
-            {/* Mobile/Tablet Hamburger Toggle Button */}
+            {/* Tablet & Mobile Hamburger Toggle Button (< 1400px) */}
             <button
               type="button"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="xl:hidden flex items-center justify-center w-12 h-12 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition"
+              className="min-[1400px]:hidden flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 rounded-full border border-slate-200/90 bg-white hover:bg-slate-50 text-slate-700 shadow-sm transition active:scale-95 focus:outline-none focus:ring-2 focus:ring-green-500"
               aria-label="Toggle navigation menu"
+              aria-expanded={isMobileMenuOpen}
             >
-              {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+              {isMobileMenuOpen ? <X size={20} className="text-slate-800" /> : <Menu size={20} className="text-slate-800" />}
             </button>
           </div>
 
@@ -562,33 +702,97 @@ export default function LandingPage() {
           <AnimatePresence>
             {isMobileMenuOpen && (
               <motion.div
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.2 }}
-                className="xl:hidden absolute top-[110px] left-0 right-0 bg-white/95 backdrop-blur-xl border border-slate-200/80 rounded-3xl p-6 shadow-xl flex flex-col gap-4 z-40 mx-4 sm:mx-8"
+                initial={{ opacity: 0, y: -12, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -12, scale: 0.98 }}
+                transition={{ duration: 0.22, ease: "easeOut" }}
+                className="min-[1400px]:hidden absolute top-[calc(100%+10px)] sm:top-[calc(100%+14px)] left-0 right-0 bg-white/98 backdrop-blur-2xl border border-slate-200/90 rounded-[28px] p-5 sm:p-7 shadow-2xl shadow-slate-900/15 flex flex-col gap-5 z-50 mx-1 sm:mx-2 max-h-[82vh] overflow-y-auto"
               >
-                <a href="#features" onClick={() => setIsMobileMenuOpen(false)} className="text-slate-700 hover:text-green-600 font-semibold py-2 border-b border-slate-100">Features</a>
-                <a href="#ai-assistant" onClick={() => setIsMobileMenuOpen(false)} className="text-slate-700 hover:text-green-600 font-semibold py-2 border-b border-slate-100">AI Modules</a>
-                <a href="#special-modules" onClick={() => setIsMobileMenuOpen(false)} className="text-slate-700 hover:text-green-600 font-semibold py-2 border-b border-slate-100">Modules</a>
-                <a href="#pricing" onClick={() => setIsMobileMenuOpen(false)} className="text-slate-700 hover:text-green-600 font-semibold py-2 border-b border-slate-100">Pricing</a>
-                <a href="#security" onClick={() => setIsMobileMenuOpen(false)} className="text-slate-700 hover:text-green-600 font-semibold py-2 border-b border-slate-100">Security</a>
-                
-                <Link to="/login?type=patient" onClick={() => setIsMobileMenuOpen(false)} className="text-slate-700 hover:text-green-600 font-semibold py-2 border-b border-slate-100 flex items-center gap-2"><User size={14} /> Patient Portal</Link>
-                <Link to="/login?type=clinic" onClick={() => setIsMobileMenuOpen(false)} className="text-slate-700 hover:text-green-600 font-semibold py-2 border-b border-slate-100 flex items-center gap-2"><Building2 size={14} /> Clinic Login</Link>
-                <Link to="/login?type=staff" onClick={() => setIsMobileMenuOpen(false)} className="text-slate-700 hover:text-green-600 font-semibold py-2 border-b border-slate-100 flex items-center gap-2"><LogIn size={14} /> Staff Login</Link>
+                {/* Section Links List */}
+                <div className="flex flex-col space-y-1">
+                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-3 py-1">
+                    Navigation
+                  </div>
+                  {NAV_SECTIONS.map((item) => {
+                    const isActive = activeSection === item.id;
+                    return (
+                      <a
+                        key={item.id}
+                        href={item.href}
+                        onClick={(e) => handleNavClick(e, item.id, item.href)}
+                        className={`px-3.5 py-2.5 rounded-xl transition-all duration-150 flex items-center justify-between group text-[15px] ${
+                          isActive
+                            ? 'bg-green-50 text-green-700 font-bold border-l-4 border-green-600 pl-3'
+                            : 'text-slate-700 hover:text-green-600 hover:bg-green-50/70 font-semibold'
+                        }`}
+                      >
+                        <span className="flex items-center gap-2">
+                          {item.label}
+                          {isActive && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-green-600 inline-block animate-pulse" />
+                          )}
+                        </span>
+                        <ChevronRight size={16} className={isActive ? 'text-green-600' : 'text-slate-300 group-hover:text-green-600 transition-colors'} />
+                      </a>
+                    );
+                  })}
+                </div>
 
-                {/* Mobile-only CTA */}
-                <button
-                  onClick={() => {
-                    setIsMobileMenuOpen(false);
-                    handleSetupClinicClick();
-                  }}
-                  className="md:hidden w-full py-4 rounded-[16px] bg-gradient-to-r from-green-500 to-green-650 hover:from-green-400 hover:to-green-550 text-white text-base font-bold shadow-md shadow-green-500/20 text-center cursor-pointer transition-all duration-200 mt-2"
-                  aria-label="Setup Your Clinic"
-                >
-                  Setup Your Clinic
-                </button>
+                {/* Portals & Logins Section */}
+                <div className="border-t border-slate-100 pt-4 flex flex-col space-y-2">
+                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-3 py-1">
+                    Portals &amp; Sign In
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <Link
+                      to="/login?type=patient"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex items-center gap-2.5 px-4 py-3 rounded-xl border border-slate-200/80 bg-slate-50/70 hover:bg-green-50/60 hover:border-green-300 text-slate-700 hover:text-green-700 font-semibold text-sm transition-all"
+                    >
+                      <User size={16} className="text-slate-400" />
+                      <span>Patient Portal</span>
+                    </Link>
+                    <Link
+                      to="/login?type=clinic"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex items-center gap-2.5 px-4 py-3 rounded-xl border border-slate-200/80 bg-slate-50/70 hover:bg-green-50/60 hover:border-green-300 text-slate-700 hover:text-green-700 font-semibold text-sm transition-all"
+                    >
+                      <Building2 size={16} className="text-slate-400" />
+                      <span>Clinic Login</span>
+                    </Link>
+                    <Link
+                      to="/login?type=staff"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex items-center gap-2.5 px-4 py-3 rounded-xl border border-slate-200/80 bg-slate-50/70 hover:bg-green-50/60 hover:border-green-300 text-slate-700 hover:text-green-700 font-semibold text-sm transition-all"
+                    >
+                      <LogIn size={16} className="text-slate-400" />
+                      <span>Staff Login</span>
+                    </Link>
+                  </div>
+                </div>
+
+                {/* Action CTAs */}
+                <div className="border-t border-slate-100 pt-3 flex flex-col sm:flex-row gap-2.5">
+                  <button
+                    onClick={() => {
+                      setIsMobileMenuOpen(false);
+                      handleSetupClinicClick();
+                    }}
+                    className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-green-500 to-green-600 hover:from-green-400 hover:to-green-550 text-white text-base font-bold shadow-md shadow-green-500/20 text-center cursor-pointer transition-all duration-200"
+                    aria-label="Setup Your Clinic"
+                  >
+                    Setup Your Clinic
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsMobileMenuOpen(false);
+                      handleGetStarted();
+                    }}
+                    className="w-full sm:w-auto py-3 px-5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-bold shadow-xs text-center transition"
+                  >
+                    Book Demo
+                  </button>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
@@ -596,43 +800,43 @@ export default function LandingPage() {
       </div>
 
       {/* ── HERO SECTION ── */}
-      <section className="relative pt-[200px] pb-28 px-8 lg:px-16 max-w-[1720px] mx-auto w-full min-h-[95vh] flex items-center">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-center w-full">
+      <section className="relative pt-[130px] sm:pt-[150px] md:pt-[170px] min-[1400px]:pt-[190px] pb-20 sm:pb-28 px-4 sm:px-8 lg:px-16 max-w-[1720px] mx-auto w-full min-h-[95vh] flex items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16 items-center w-full">
           
           {/* Left Text */}
-          <div className="lg:col-span-5 space-y-8 text-left">
+          <div className="lg:col-span-5 space-y-6 sm:space-y-8 text-left">
             <motion.div 
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="inline-flex items-center justify-center gap-2 bg-green-50/80 border border-green-150 rounded-full px-6 h-[42px] text-[12px] font-black text-green-700 uppercase tracking-wide shadow-sm"
+              className="inline-flex items-center justify-center gap-2 bg-green-50/80 border border-green-150 rounded-full px-4 sm:px-6 h-[38px] sm:h-[42px] text-[11px] sm:text-[12px] font-black text-green-700 uppercase tracking-wide shadow-sm"
             >
               <Sparkle className="w-4 h-4 text-green-600 animate-pulse shrink-0" /> India's Smartest AI Clinic Platform
             </motion.div>
 
-            <div className="space-y-4">
-              <h2 className="text-[13px] font-black text-slate-400 uppercase tracking-[0.22em] block">PEHAL HEALTHCARE • AI-CMS</h2>
-              <h1 className="text-7xl sm:text-[80px] font-extrabold text-slate-900 leading-[1.05] tracking-tight">
+            <div className="space-y-3 sm:space-y-4">
+              <h2 className="text-[11px] sm:text-[13px] font-black text-slate-400 uppercase tracking-[0.22em] block">PEHAL HEALTHCARE • AI-CMS</h2>
+              <h1 className="text-4xl sm:text-6xl lg:text-7xl xl:text-[80px] font-extrabold text-slate-900 leading-[1.05] tracking-tight">
                 Run Your Clinic <br />
                 <span className="bg-gradient-to-r from-green-500 to-emerald-650 bg-clip-text text-transparent">Smarter</span> with AI
               </h1>
             </div>
 
-            <p className="text-slate-500 leading-relaxed text-base max-w-[700px]">
+            <p className="text-slate-500 leading-relaxed text-sm sm:text-base max-w-[700px]">
               Modern clinic management platform powered by AI for appointments, EMR, pharmacy, laboratory, billing, telemedicine, inventory, and patient engagement.
             </p>
 
             {/* Enterprise size CTA buttons */}
-            <div className="flex flex-wrap items-center gap-4 pt-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 pt-2">
               <Link 
                 to="/register-clinic" 
-                className="flex items-center justify-center gap-2 h-[60px] min-w-[200px] px-8 rounded-[16px] bg-gradient-to-r from-green-500 to-green-700 text-white text-base font-bold shadow-lg shadow-green-500/25 hover:opacity-95 transition-all duration-300 hover:scale-[1.02] group"
+                className="flex items-center justify-center gap-2 h-[52px] sm:h-[60px] px-6 sm:px-8 rounded-[16px] bg-gradient-to-r from-green-500 to-green-700 text-white text-base font-bold shadow-lg shadow-green-500/25 hover:opacity-95 transition-all duration-300 hover:scale-[1.02] group"
               >
                 Start Free Trial 
                 <ArrowRight size={16} className="transition-transform duration-200 group-hover:translate-x-1" />
               </Link>
               <button 
                 onClick={handleGetStarted}
-                className="flex items-center justify-center gap-2 h-[60px] min-w-[200px] px-8 rounded-[16px] border border-slate-200 bg-white hover:bg-slate-50 text-slate-750 text-base font-bold shadow-sm transition-all duration-300 hover:scale-[1.02]"
+                className="flex items-center justify-center gap-2 h-[52px] sm:h-[60px] px-6 sm:px-8 rounded-[16px] border border-slate-200 bg-white hover:bg-slate-50 text-slate-750 text-base font-bold shadow-sm transition-all duration-300 hover:scale-[1.02]"
               >
                 Book Demo
               </button>
@@ -670,296 +874,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── TRUST BAR, METRICS & VECTOR LOGOS ── */}
-      <section className="pt-[120px] pb-[80px] px-8 lg:px-16 relative overflow-hidden" style={{
-        background: 'linear-gradient(135deg, #e8f8f2 0%, #f0faf6 25%, #eaf6fb 55%, #e6f4f9 80%, #f0fbf8 100%)'
-      }}>
-        {/* Large soft mint blob - top-left */}
-        <div className="absolute -top-40 -left-40 w-[700px] h-[700px] rounded-full pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(110,231,183,0.22) 0%, rgba(167,243,208,0.12) 40%, transparent 70%)' }} />
-        {/* Large soft cyan blob - bottom-right */}
-        <div className="absolute -bottom-40 -right-40 w-[700px] h-[700px] rounded-full pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(103,232,249,0.18) 0%, rgba(165,243,252,0.1) 40%, transparent 70%)' }} />
-        {/* Mint glow behind left logo cards */}
-        <div className="absolute top-[52%] left-[5%] w-[500px] h-[500px] rounded-full pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(52,211,153,0.08) 0%, transparent 65%)', filter: 'blur(60px)' }} />
-        {/* Cyan glow behind right logo cards */}
-        <div className="absolute top-[52%] right-[5%] w-[450px] h-[450px] rounded-full pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(34,211,238,0.07) 0%, transparent 65%)', filter: 'blur(60px)' }} />
-
-        {/* Healthcare hex-node pattern overlay (ultra-light, < 3%) */}
-        <div className="absolute inset-0 pointer-events-none" style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%2310b981' stroke-width='0.5' opacity='0.18'%3E%3Cpolygon points='40,4 70,20 70,56 40,72 10,56 10,20'/%3E%3Ccircle cx='40' cy='38' r='4'/%3E%3Cline x1='40' y1='20' x2='40' y2='34'/%3E%3Cline x1='40' y1='42' x2='40' y2='56'/%3E%3Cline x1='10' y1='20' x2='24' y2='33'/%3E%3Cline x1='70' y1='20' x2='56' y2='33'/%3E%3C/g%3E%3C/svg%3E")`,
-          backgroundSize: '80px 80px',
-          opacity: 0.022
-        }} />
-
-        {/* Floating sparkle particles — top-right */}
-        <div className="absolute top-[12%] right-[4%] pointer-events-none opacity-30">
-          <svg width="120" height="120" viewBox="0 0 120 120" fill="none">
-            <circle cx="20" cy="20" r="3" fill="#34d399" opacity="0.6"/>
-            <circle cx="60" cy="10" r="2" fill="#22d3ee" opacity="0.5"/>
-            <circle cx="100" cy="30" r="2.5" fill="#34d399" opacity="0.4"/>
-            <circle cx="40" cy="70" r="2" fill="#6ee7b7" opacity="0.5"/>
-            <circle cx="85" cy="80" r="3" fill="#22d3ee" opacity="0.4"/>
-            <circle cx="110" cy="60" r="1.5" fill="#34d399" opacity="0.6"/>
-          </svg>
-        </div>
-
-        {/* Floating sparkle particles — bottom-left */}
-        <div className="absolute bottom-[20%] left-[3%] pointer-events-none opacity-25">
-          <svg width="100" height="100" viewBox="0 0 100 100" fill="none">
-            <circle cx="15" cy="15" r="2.5" fill="#34d399" opacity="0.6"/>
-            <circle cx="50" cy="5" r="2" fill="#22d3ee" opacity="0.5"/>
-            <circle cx="80" cy="25" r="2" fill="#34d399" opacity="0.4"/>
-            <circle cx="30" cy="60" r="3" fill="#6ee7b7" opacity="0.5"/>
-            <circle cx="70" cy="75" r="2" fill="#22d3ee" opacity="0.4"/>
-          </svg>
-        </div>
-
-        {/* Decorative gradient ring — top-left corner */}
-        <div className="absolute top-[8%] left-[6%] w-[80px] h-[80px] rounded-full border-2 border-emerald-300/20 pointer-events-none" />
-        <div className="absolute top-[6%] left-[4%] w-[120px] h-[120px] rounded-full border border-cyan-300/10 pointer-events-none" />
-
-        <div className="max-w-[1600px] mx-auto relative z-10">
-
-          {/* Animated Statistics */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {[
-              { end: '500+', label: 'Clinics Onboarded', icon: <Building2 size={34} className="text-green-600" /> },
-              { end: '100K+', label: 'Patients Managed', icon: <Users size={34} className="text-green-600" /> },
-              { end: '120+', label: 'AI Modules Active', icon: <Sparkles size={34} className="text-green-600" /> },
-              { end: '99.99%', label: 'System Uptime', icon: <Activity size={34} className="text-green-600" /> }
-            ].map((stat, idx) => (
-              <div
-                key={idx}
-                className="flex flex-col items-center justify-between h-[260px] p-10 rounded-[28px] border border-white/80 bg-white/70 backdrop-blur-md shadow-sm hover:shadow-2xl hover:-translate-y-2 hover:border-green-500 transition-all duration-300 group"
-              >
-                <div className="w-[72px] h-[72px] rounded-full bg-gradient-to-tr from-green-50/90 to-emerald-100/60 border border-white flex items-center justify-center shadow-md relative group-hover:scale-110 transition-transform duration-300">
-                  <div className="absolute inset-0.5 rounded-full bg-white/70 backdrop-blur-sm flex items-center justify-center">
-                    {stat.icon}
-                  </div>
-                </div>
-                <div className="text-5xl sm:text-[62px] font-extrabold tracking-tight bg-gradient-to-r from-green-600 to-emerald-650 bg-clip-text text-transparent group-hover:scale-105 transition-transform duration-300 select-none">
-                  <CountUp end={stat.end} />
-                </div>
-                <div className="space-y-1.5 text-center select-none">
-                  <div className="text-[18px] font-semibold text-slate-500 tracking-wide">{stat.label}</div>
-                  <div className="w-[60px] h-[3px] bg-gradient-to-r from-green-500 to-emerald-500 rounded-full shadow-sm shadow-green-500/30 mx-auto mt-2 transition-all group-hover:w-[80px]" />
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Section Heading — 100px below KPI cards */}
-          <div className="text-center mt-[100px] space-y-[24px] max-w-4xl mx-auto">
-            <h3 className="text-4xl sm:text-[54px] font-extrabold text-slate-900 tracking-tight leading-tight max-w-[900px] mx-auto">
-              Trusted by Leading Healthcare Organizations
-            </h3>
-            <p className="text-slate-500 text-[18px] font-medium leading-relaxed max-w-[850px] mx-auto">
-              Serving modern clinics, multispecialty hospitals, diagnostic centers and healthcare enterprises across India.
-            </p>
-          </div>
-
-          {/* Hospital Logo Cards — 70px below heading */}
-          <div className="mt-[70px] grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
-            {[
-              {
-                name: 'Apollo Hospitals',
-                svg: (
-                  <svg className="w-full h-full" viewBox="0 0 180 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <g transform="translate(8, 8) scale(1.3)">
-                      <path d="M15,0 L3,5 L3,16 C3,26 15,33 15,33 C15,33 27,26 27,16 L27,5 L15,0 Z" fill="#005B94" />
-                      <polygon points="15,7 17.5,13 23.5,13 18.5,17 20.5,23 15,19.5 9.5,23 11.5,17 6.5,13 12.5,13" fill="#F8B12E" />
-                    </g>
-                    <text x="52" y="36" fontWeight="800" fontSize="22" letterSpacing="2" fontFamily="system-ui, sans-serif" fill="#005B94">Apollo</text>
-                    <text x="52" y="54" fontWeight="700" fontSize="11" letterSpacing="3" fontFamily="system-ui, sans-serif" fill="#4E6178">HOSPITALS</text>
-                  </svg>
-                )
-              },
-              {
-                name: 'Fortis Healthcare',
-                svg: (
-                  <svg className="w-full h-full" viewBox="0 0 180 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <g transform="translate(8, 10) scale(1.3)">
-                      <path d="M15,2 C7.8,2 2,7.8 2,15 C2,22.2 7.8,28 15,28 C22.2,28 28,22.2 28,15 C28,7.8 22.2,2 15,2 Z" fill="#128A54" />
-                      <path d="M15,8 L15,22 M8,15 L22,15" stroke="#D32F2F" strokeWidth="5" strokeLinecap="round" />
-                    </g>
-                    <text x="54" y="34" fontWeight="900" fontSize="23" letterSpacing="0.5" fontFamily="system-ui, sans-serif" fill="#128A54">Fortis</text>
-                    <text x="54" y="53" fontWeight="700" fontSize="10" letterSpacing="3.5" fontFamily="system-ui, sans-serif" fill="#4E6178">HEALTHCARE</text>
-                  </svg>
-                )
-              },
-              {
-                name: 'Manipal Hospitals',
-                svg: (
-                  <svg className="w-full h-full" viewBox="0 0 180 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <g transform="translate(8, 10) scale(1.25)">
-                      <path d="M15,2 C9.5,2 5,6.5 5,12 C5,17.5 9.5,22 15,22 C20.5,22 25,17.5 25,12 C25,6.5 20.5,2 15,2 Z" fill="#E86E25" />
-                      <path d="M15,9 C12.5,9 11,11.5 11,14 M15,9 C17.5,9 19,11.5 19,14" stroke="white" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-                    </g>
-                    <text x="52" y="35" fontWeight="900" fontSize="21" letterSpacing="0" fontFamily="system-ui, sans-serif" fill="#E86E25">manipal</text>
-                    <text x="52" y="53" fontWeight="700" fontSize="10" letterSpacing="4" fontFamily="system-ui, sans-serif" fill="#4E6178">HOSPITALS</text>
-                  </svg>
-                )
-              },
-              {
-                name: 'Medanta',
-                svg: (
-                  <svg className="w-full h-full" viewBox="0 0 180 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <g transform="translate(6, 18) scale(1.2)">
-                      <path d="M2,15 L9,15 L13,3 L18,27 L23,15 L30,15" stroke="#E63946" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-                      <circle cx="16" cy="15" r="3.5" fill="#E63946" />
-                    </g>
-                    <text x="50" y="35" fontWeight="900" fontSize="23" letterSpacing="0" fontFamily="system-ui, sans-serif" fill="#1C2D42">medanta</text>
-                    <text x="50" y="53" fontWeight="700" fontSize="10" letterSpacing="2" fontFamily="system-ui, sans-serif" fill="#E63946">THE MEDICITY</text>
-                  </svg>
-                )
-              },
-              {
-                name: "Rainbow Children's Hospitals",
-                svg: (
-                  <svg className="w-full h-full" viewBox="0 0 180 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <g transform="translate(6, 8) scale(1.3)">
-                      <path d="M4,24 C4,12 13,4 13,4 C13,4 22,12 22,24" stroke="#FF4D6D" strokeWidth="3.5" strokeLinecap="round" fill="none" />
-                      <path d="M7,26 C7,16 13,10 13,10 C13,10 19,16 19,26" stroke="#FF9F1C" strokeWidth="3.5" strokeLinecap="round" fill="none" />
-                      <path d="M10,27 C10,21 13,16 13,16 C13,16 16,21 16,27" stroke="#2EC4B6" strokeWidth="3.5" strokeLinecap="round" fill="none" />
-                    </g>
-                    <text x="44" y="32" fontWeight="900" fontSize="20" letterSpacing="0" fontFamily="system-ui, sans-serif" fill="#2A2B5F">Rainbow</text>
-                    <text x="44" y="50" fontWeight="700" fontSize="10" letterSpacing="1" fontFamily="system-ui, sans-serif" fill="#FF4D6D">Children's Hospital</text>
-                  </svg>
-                )
-              },
-              {
-                name: 'Aster DM Healthcare',
-                svg: (
-                  <svg className="w-full h-full" viewBox="0 0 180 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <g transform="translate(6, 8) scale(1.3)">
-                      <circle cx="15" cy="16" r="13" fill="#008080" />
-                      <path d="M15,9 L15,23 M8,16 L22,16 M10,11 L20,21 M10,21 L20,11" stroke="white" strokeWidth="2.2" strokeLinecap="round" />
-                    </g>
-                    <text x="50" y="32" fontWeight="900" fontSize="24" letterSpacing="0" fontFamily="system-ui, sans-serif" fill="#0E3A53">Aster</text>
-                    <text x="50" y="52" fontWeight="700" fontSize="10" letterSpacing="1.5" fontFamily="system-ui, sans-serif" fill="#008080">DM HEALTHCARE</text>
-                  </svg>
-                )
-              }
-            ].map((logo, idx) => (
-              <motion.div 
-                key={idx}
-                whileHover={{ scale: 1.04, translateY: -6 }}
-                className="w-full h-[140px] rounded-[20px] border border-white/90 bg-white shadow-md hover:border-green-400 hover:shadow-xl transition-all duration-250 cursor-pointer overflow-hidden flex items-center justify-center px-6 py-5"
-              >
-                {logo.svg}
-              </motion.div>
-            ))}
-          </div>
-
-          {/* Trust Badges — 70px below logo cards */}
-          <div className="mt-[70px] flex flex-wrap items-center justify-center gap-4">
-            {trustBadges.map((badge, idx) => (
-              <motion.div
-                key={idx}
-                whileHover={{ scale: 1.04, translateY: -3 }}
-                className="inline-flex items-center justify-center gap-3 h-[58px] px-7 rounded-full text-[15px] font-semibold border-2 bg-white border-slate-200/80 text-slate-700 hover:border-green-500 hover:text-green-700 hover:shadow-lg hover:shadow-green-500/10 shadow-sm transition-all duration-200 cursor-default"
-              >
-                {badge.icon}
-                <span>{badge.label}</span>
-              </motion.div>
-            ))}
-          </div>
-
-        </div>
-
-        {/* ── BOTTOM DECORATIVE LAYER ── */}
-
-        {/* Emerald glow behind badge area */}
-        <div className="absolute bottom-[80px] left-1/2 -translate-x-1/2 w-[800px] h-[220px] rounded-full pointer-events-none" style={{ background: 'radial-gradient(ellipse, rgba(52,211,153,0.06) 0%, transparent 70%)', filter: 'blur(50px)' }} />
-
-        {/* Bottom-left dot mesh */}
-        <div className="absolute bottom-0 left-0 w-[300px] h-[220px] pointer-events-none" style={{
-          backgroundImage: 'radial-gradient(circle, rgba(52,211,153,0.4) 1.5px, transparent 1.5px)',
-          backgroundSize: '22px 22px',
-          maskImage: 'radial-gradient(ellipse at bottom left, black 15%, transparent 70%)',
-          WebkitMaskImage: 'radial-gradient(ellipse at bottom left, black 15%, transparent 70%)',
-          opacity: 0.38
-        }} />
-
-        {/* Bottom-right dot mesh */}
-        <div className="absolute bottom-0 right-0 w-[300px] h-[220px] pointer-events-none" style={{
-          backgroundImage: 'radial-gradient(circle, rgba(103,232,249,0.4) 1.5px, transparent 1.5px)',
-          backgroundSize: '22px 22px',
-          maskImage: 'radial-gradient(ellipse at bottom right, black 15%, transparent 70%)',
-          WebkitMaskImage: 'radial-gradient(ellipse at bottom right, black 15%, transparent 70%)',
-          opacity: 0.38
-        }} />
-
-        {/* Floating sparkle particles — top-right edge */}
-        <div className="absolute top-[15%] right-[4%] pointer-events-none opacity-30">
-          <svg width="120" height="120" viewBox="0 0 120 120" fill="none">
-            <circle cx="20" cy="20" r="3" fill="#34d399" opacity="0.6"/>
-            <circle cx="60" cy="10" r="2" fill="#22d3ee" opacity="0.5"/>
-            <circle cx="100" cy="30" r="2.5" fill="#34d399" opacity="0.4"/>
-            <circle cx="40" cy="70" r="2" fill="#6ee7b7" opacity="0.5"/>
-            <circle cx="85" cy="80" r="3" fill="#22d3ee" opacity="0.4"/>
-            <circle cx="110" cy="60" r="1.5" fill="#34d399" opacity="0.6"/>
-            <circle cx="15" cy="95" r="2" fill="#6ee7b7" opacity="0.4"/>
-          </svg>
-        </div>
-
-        {/* Floating sparkle particles — center-left edge */}
-        <div className="absolute bottom-[25%] left-[3%] pointer-events-none opacity-25">
-          <svg width="100" height="100" viewBox="0 0 100 100" fill="none">
-            <circle cx="15" cy="15" r="2.5" fill="#34d399" opacity="0.6"/>
-            <circle cx="50" cy="5" r="2" fill="#22d3ee" opacity="0.5"/>
-            <circle cx="80" cy="25" r="2" fill="#34d399" opacity="0.4"/>
-            <circle cx="30" cy="60" r="3" fill="#6ee7b7" opacity="0.5"/>
-            <circle cx="70" cy="75" r="2" fill="#22d3ee" opacity="0.4"/>
-          </svg>
-        </div>
-
-        {/* Decorative gradient rings — top-left corner */}
-        <div className="absolute top-[8%] left-[6%] w-[80px] h-[80px] rounded-full border-2 border-emerald-300/20 pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(52,211,153,0.04) 0%, transparent 70%)' }} />
-        <div className="absolute top-[6%] left-[4%] w-[120px] h-[120px] rounded-full border border-cyan-300/10 pointer-events-none" />
-
-        {/* Flowing wave SVG — premium bottom decoration */}
-        <div className="absolute bottom-0 left-0 right-0 pointer-events-none overflow-hidden" style={{ height: '160px' }}>
-          <svg viewBox="0 0 1440 160" preserveAspectRatio="none" className="w-full h-full" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M0,80 C180,20 360,140 540,80 C720,20 900,130 1080,70 C1260,10 1380,100 1440,80 L1440,160 L0,160 Z"
-              fill="url(#waveGrad1)" opacity="0.25"/>
-            <path d="M0,100 C120,50 280,150 480,90 C680,30 860,140 1080,90 C1260,50 1380,120 1440,100 L1440,160 L0,160 Z"
-              fill="url(#waveGrad2)" opacity="0.18"/>
-            <path d="M0,120 C200,80 400,150 600,110 C800,70 1000,145 1200,110 C1300,93 1380,125 1440,115"
-              stroke="url(#waveStroke1)" strokeWidth="1.5" fill="none" opacity="0.5"/>
-            <path d="M0,140 C240,110 480,155 720,130 C960,108 1200,148 1440,130"
-              stroke="url(#waveStroke2)" strokeWidth="1" fill="none" opacity="0.35"/>
-            <defs>
-              <linearGradient id="waveGrad1" x1="0" y1="0" x2="1440" y2="0" gradientUnits="userSpaceOnUse">
-                <stop offset="0%" stopColor="#6ee7b7"/>
-                <stop offset="50%" stopColor="#67e8f9"/>
-                <stop offset="100%" stopColor="#a7f3d0"/>
-              </linearGradient>
-              <linearGradient id="waveGrad2" x1="0" y1="0" x2="1440" y2="0" gradientUnits="userSpaceOnUse">
-                <stop offset="0%" stopColor="#34d399"/>
-                <stop offset="60%" stopColor="#22d3ee"/>
-                <stop offset="100%" stopColor="#6ee7b7"/>
-              </linearGradient>
-              <linearGradient id="waveStroke1" x1="0" y1="0" x2="1440" y2="0" gradientUnits="userSpaceOnUse">
-                <stop offset="0%" stopColor="#34d399"/>
-                <stop offset="100%" stopColor="#06b6d4"/>
-              </linearGradient>
-              <linearGradient id="waveStroke2" x1="0" y1="0" x2="1440" y2="0" gradientUnits="userSpaceOnUse">
-                <stop offset="0%" stopColor="#6ee7b7"/>
-                <stop offset="100%" stopColor="#22d3ee"/>
-              </linearGradient>
-            </defs>
-          </svg>
-        </div>
-
-        {/* Gradient fade into next section */}
-        <div className="absolute bottom-0 left-0 right-0 h-[60px] pointer-events-none" style={{
-          background: 'linear-gradient(to bottom, transparent, rgba(255,255,255,0.65))'
-        }} />
-
-      </section>
-
       {/* ── FEATURE GRID — Premium Enterprise Redesign ── */}
-      <section id="features" className="pt-[120px] pb-[100px] px-8 lg:px-16 relative overflow-hidden" style={{
+      <section id="features" className="scroll-mt-24 sm:scroll-mt-28 md:scroll-mt-32 pt-20 lg:pt-28 pb-[100px] px-8 lg:px-16 relative overflow-hidden" style={{
         background: 'linear-gradient(150deg, #f0fdf8 0%, #f8fffc 20%, #eafbf7 45%, #f0fbff 70%, #edf9ff 100%)'
       }}>
 
@@ -1259,7 +1175,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── CUSTOM ROLE MODULES ── Premium Enterprise Redesign */}
-      <section id="special-modules" className="pt-[120px] pb-[100px] px-8 lg:px-16 relative overflow-hidden" style={{
+      <section id="special-modules" className="scroll-mt-24 sm:scroll-mt-28 md:scroll-mt-32 pt-[120px] pb-[100px] px-8 lg:px-16 relative overflow-hidden" style={{
         background: 'linear-gradient(150deg, #f0fdf8 0%, #f8fffc 22%, #eafbf7 48%, #f0fbff 72%, #edf9ff 100%)'
       }}>
 
@@ -1672,7 +1588,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── AI SHOWCASE (DARK GRADIENT CONSOLE) ── */}
-      <section id="ai-assistant" className="py-32 px-6 lg:px-16 bg-[#07111F] text-white relative overflow-hidden">
+      <section id="ai-assistant" className="scroll-mt-24 sm:scroll-mt-28 md:scroll-mt-32 py-32 px-6 lg:px-16 bg-[#07111F] text-white relative overflow-hidden">
         {/* Deep navy, midnight blue, emerald glow radial background mesh */}
         <div className="absolute inset-0 bg-gradient-to-b from-[#07111F] via-[#0B1324] to-[#081F1A] pointer-events-none" />
         
@@ -2680,7 +2596,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── PRICING PREVIEW ── */}
-      <section id="pricing" className="py-36 px-6 lg:px-16 bg-gradient-to-b from-white via-[#F0FDF4]/20 to-[#ECFDF5]/30 relative overflow-hidden">
+      <section id="pricing" className="scroll-mt-24 sm:scroll-mt-28 md:scroll-mt-32 py-36 px-6 lg:px-16 bg-gradient-to-b from-white via-[#F0FDF4]/20 to-[#ECFDF5]/30 relative overflow-hidden">
         {/* Decorative elements */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           <div className="absolute top-1/3 left-10 w-[500px] h-[500px] bg-emerald-500/5 rounded-full blur-[120px]" />
@@ -2909,7 +2825,7 @@ export default function LandingPage() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               {[
                 { val: '99.9%', label: 'Uptime SLA', icon: <Shield size={14} className="text-emerald-600" /> },
-                { val: '10K+', label: 'Clinics Trust Us', icon: <Users size={14} className="text-purple-600" /> },
+                { val: 'Role-Based', label: 'Access Control', icon: <Users size={14} className="text-purple-600" /> },
                 { val: 'Secure', label: 'Cloud Infra', icon: <Globe size={14} className="text-blue-600" /> },
                 { val: '7 Day', label: 'Free Trial', icon: <Sparkles size={14} className="text-amber-500" /> }
               ].map((stat, i) => (
@@ -3181,7 +3097,7 @@ export default function LandingPage() {
         {/* ========================================
             SECTION 1: ENTERPRISE SECURITY
             ======================================== */}
-        <section id="security" className="py-36 px-6 lg:px-16 relative z-10 max-w-[1600px] mx-auto">
+        <section id="security" className="scroll-mt-24 sm:scroll-mt-28 md:scroll-mt-32 py-36 px-6 lg:px-16 relative z-10 max-w-[1600px] mx-auto">
           <div className="text-center space-y-5 max-w-3xl mx-auto mb-20">
             {/* Badge */}
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-450 text-[11px] font-black uppercase tracking-widest shadow-sm">
@@ -3217,9 +3133,9 @@ export default function LandingPage() {
               },
               {
                 id: 'sec1',
-                title: 'ISO 27001 Certified',
-                desc: 'Adherence to internationally recognized information security compliance controls.',
-                badge: 'Certified',
+                title: 'NABH Ready',
+                desc: 'Structured clinical workflows aligned with hospital and clinic accreditations.',
+                badge: 'NABH Aligned',
                 icon: (
                   <svg className="w-12 h-12 text-teal-400" viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <path d="M50 15 L85 30 L85 70 L50 90 L15 70 L15 30 Z" />
@@ -3284,7 +3200,7 @@ export default function LandingPage() {
                   </div>
 
                   {/* Custom SVG Icon Container */}
-                  <div className="mb-6 inline-block bg-slate-950 p-4 rounded-2xl border border-slate-800 shadow-inner relative">
+                  <div className="mb-6 inline-block bg-slate-950 p-4 rounded-2xl border border-slate-850 shadow-inner relative">
                     {sec.icon}
                     {isHighlighted && (
                       <span className="absolute -inset-1 rounded-2xl bg-emerald-500/10 animate-ping pointer-events-none" />
@@ -3304,10 +3220,10 @@ export default function LandingPage() {
               ======================================== */}
           <div className="mt-24 max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6">
             {[
-              { val: '99.99%', desc: 'System Uptime' },
+              { val: '24×7', desc: 'High Availability' },
               { val: 'AES-256', desc: 'Encryption Standard' },
               { val: 'HIPAA', desc: 'Ready / Safeguard' },
-              { val: 'ISO 27001', desc: 'Security Certified' }
+              { val: 'NABH', desc: 'Standards Ready' }
             ].map((stat, idx) => (
               <motion.div
                 key={idx}
@@ -3432,7 +3348,7 @@ export default function LandingPage() {
             {/* Header Title with Green Accent Line */}
             <div className="text-center space-y-4">
               <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 select-none">
-                Trusted by Leading Clinics, Hospitals &amp; Healthcare Organizations
+                Built for Leading Clinics, Hospitals &amp; Healthcare Networks
               </p>
               <div className="w-12 h-0.5 bg-emerald-500 mx-auto rounded-full opacity-60" />
             </div>
@@ -3502,7 +3418,7 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* Optional Trust Badges (HIPAA, ISO, GDPR, AES-256) */}
+            {/* Optional Trust Badges (HIPAA, NABH, GDPR, AES-256) */}
             <div className="flex flex-wrap justify-center items-center gap-4 text-[10px] font-black text-slate-450 pt-2 uppercase tracking-wider select-none">
               <span className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900/40 border border-slate-850 rounded-full hover:border-emerald-500/35 transition-all">
                 <CheckCircle size={10} className="text-emerald-500" />
@@ -3510,7 +3426,7 @@ export default function LandingPage() {
               </span>
               <span className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900/40 border border-slate-850 rounded-full hover:border-emerald-500/35 transition-all">
                 <CheckCircle size={10} className="text-emerald-500" />
-                ISO 27001 Certified
+                NABH Ready
               </span>
               <span className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900/40 border border-slate-850 rounded-full hover:border-emerald-500/35 transition-all">
                 <CheckCircle size={10} className="text-emerald-500" />
@@ -3522,7 +3438,7 @@ export default function LandingPage() {
               </span>
               <span className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900/40 border border-slate-850 rounded-full hover:border-emerald-500/35 transition-all">
                 <CheckCircle size={10} className="text-emerald-500" />
-                99.99% Uptime
+                High Availability SLA
               </span>
             </div>
           </div>
@@ -3583,7 +3499,7 @@ export default function LandingPage() {
               <h5 className="text-xs font-bold text-white uppercase tracking-wider">Compliance</h5>
               <ul className="space-y-3 text-xs font-bold text-slate-500">
                 <li><a href="#" className="hover:text-white transition relative group">HIPAA Safeguards<span className="absolute bottom-0 left-0 w-0 h-[1.5px] bg-emerald-500 transition-all duration-300 group-hover:w-full" /></a></li>
-                <li><a href="#" className="hover:text-white transition relative group">ISO 27001<span className="absolute bottom-0 left-0 w-0 h-[1.5px] bg-emerald-500 transition-all duration-300 group-hover:w-full" /></a></li>
+                <li><a href="#" className="hover:text-white transition relative group">NABH Guidelines<span className="absolute bottom-0 left-0 w-0 h-[1.5px] bg-emerald-500 transition-all duration-300 group-hover:w-full" /></a></li>
                 <li><a href="#" className="hover:text-white transition relative group">Encryption Policies<span className="absolute bottom-0 left-0 w-0 h-[1.5px] bg-emerald-500 transition-all duration-300 group-hover:w-full" /></a></li>
               </ul>
             </div>
