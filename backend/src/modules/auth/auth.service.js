@@ -502,12 +502,36 @@ const login = async ({ email, password, portal }, req) => {
 
   const sanitizedUser = sanitizeUser(user);
   if (clinicDetails) {
+    let paymentStatus = 'NOT_SUBMITTED';
+    let latestPayment = null;
+    try {
+      const SubscriptionPayment = require('../payment/models/subscriptionPayment.model');
+      latestPayment = await SubscriptionPayment.findOne({ clinicId: clinicDetails._id }).sort({ createdAt: -1 });
+      if (clinicDetails.subscription?.status === 'Active' || latestPayment?.status === 'VERIFIED') {
+        paymentStatus = 'VERIFIED';
+      } else if (latestPayment?.status === 'PENDING_VERIFICATION' || latestPayment?.status === 'SUBMITTED') {
+        paymentStatus = 'PENDING_VERIFICATION';
+      } else if (latestPayment?.status === 'REJECTED' || latestPayment?.status === 'REPAYMENT_REQUIRED' || clinicDetails.subscription?.status === 'Rejected') {
+        paymentStatus = 'REJECTED';
+      }
+    } catch (err) {
+      // fallback
+    }
+
     sanitizedUser.clinic = {
       _id: clinicDetails._id,
       name: clinicDetails.name,
       approvalStatus: clinicDetails.approvalStatus,
       isOnboardingCompleted: clinicDetails.isOnboardingCompleted,
       subscription: clinicDetails.subscription,
+      paymentStatus,
+      latestPayment: latestPayment ? {
+        _id: latestPayment._id,
+        status: latestPayment.status,
+        utr: latestPayment.utr,
+        amount: latestPayment.amount,
+        createdAt: latestPayment.createdAt
+      } : null,
       trialFeatures: clinicDetails.trialFeatures || [],
       rejectionReason: clinicDetails.rejectionReason,
       rejectionComments: clinicDetails.rejectionComments,
@@ -538,12 +562,36 @@ const getCurrentUser = async (user) => {
     const Clinic = require('../clinics/clinic.model');
     const clinicDetails = await Clinic.findById(clinicId).populate('subscription.planId');
     if (clinicDetails) {
+      let paymentStatus = 'NOT_SUBMITTED';
+      let latestPayment = null;
+      try {
+        const SubscriptionPayment = require('../payment/models/subscriptionPayment.model');
+        latestPayment = await SubscriptionPayment.findOne({ clinicId: clinicDetails._id }).sort({ createdAt: -1 });
+        if (clinicDetails.subscription?.status === 'Active' || latestPayment?.status === 'VERIFIED') {
+          paymentStatus = 'VERIFIED';
+        } else if (latestPayment?.status === 'PENDING_VERIFICATION' || latestPayment?.status === 'SUBMITTED') {
+          paymentStatus = 'PENDING_VERIFICATION';
+        } else if (latestPayment?.status === 'REJECTED' || latestPayment?.status === 'REPAYMENT_REQUIRED' || clinicDetails.subscription?.status === 'Rejected') {
+          paymentStatus = 'REJECTED';
+        }
+      } catch (err) {
+        // fallback
+      }
+
       sanitizedUser.clinic = {
         _id: clinicDetails._id,
         name: clinicDetails.name,
         approvalStatus: clinicDetails.approvalStatus,
         isOnboardingCompleted: clinicDetails.isOnboardingCompleted,
         subscription: clinicDetails.subscription,
+        paymentStatus,
+        latestPayment: latestPayment ? {
+          _id: latestPayment._id,
+          status: latestPayment.status,
+          utr: latestPayment.utr,
+          amount: latestPayment.amount,
+          createdAt: latestPayment.createdAt
+        } : null,
         trialFeatures: clinicDetails.trialFeatures || [],
         rejectionReason: clinicDetails.rejectionReason,
         rejectionComments: clinicDetails.rejectionComments,

@@ -124,7 +124,14 @@ const clinicSchema = new mongoose.Schema(
     approvalStatus: {
       type: String,
       enum: ['pending_approval', 'approved', 'rejected', 'suspended'],
-      default: 'pending_approval'
+      default: 'pending_approval',
+      index: true
+    },
+    paymentStatus: {
+      type: String,
+      enum: ['NOT_PAID', 'PENDING_VERIFICATION', 'VERIFIED', 'REJECTED', 'FREE_TIER'],
+      default: 'NOT_PAID',
+      index: true
     },
     subscription: {
       planId: {
@@ -142,8 +149,21 @@ const clinicSchema = new mongoose.Schema(
       expiryDate: { type: Date, default: null },
       status: {
         type: String,
-        enum: ['Trial', 'Active', 'Pending Approval', 'Expired', 'Suspended', 'Cancelled'],
+        enum: ['Trial', 'Active', 'Pending Approval', 'Expired', 'Suspended', 'Cancelled', 'Free'],
         default: 'Pending Approval'
+      },
+      isFreeTier: {
+        type: Boolean,
+        default: false
+      },
+      freeTierAudit: {
+        assignedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+        assignedAt: { type: Date, default: null },
+        durationDays: { type: Number, default: 0 },
+        reason: { type: String, default: '' },
+        notes: { type: String, default: '' },
+        features: { type: [String], default: [] },
+        limits: { type: mongoose.Schema.Types.Mixed, default: {} }
       },
       autoRecharge: {
         type: Boolean,

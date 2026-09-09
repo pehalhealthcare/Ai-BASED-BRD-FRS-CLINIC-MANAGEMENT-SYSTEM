@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import useAuth from '../hooks/useAuth';
 import { authApi } from '../lib/api';
+import { getDefaultRouteForRole } from '../constants/routes';
 import {
   Shield, Lock, Mail, Users, Eye, EyeOff, Globe, Info, AlertCircle, X,
   Building2, Activity, Smartphone, ArrowRight,CheckCircle2 
@@ -35,8 +36,38 @@ const LoginPage = () => {
     if (typeParam) setActiveTab(typeParam);
   }, [typeParam]);
 
+  const getAdminDestination = (clinic) => {
+    if (!clinic) return '/clinic-setup/payment';
+    const { approvalStatus, subscription, isOnboardingCompleted, paymentStatus } = clinic;
+    if (paymentStatus === 'NOT_SUBMITTED' || paymentStatus === 'REJECTED') {
+      return '/clinic-setup/payment';
+    }
+    if (paymentStatus === 'PENDING_VERIFICATION') {
+      return '/clinic-setup/payment-status';
+    }
+    if (approvalStatus === 'pending_approval') {
+      return '/clinic-setup/payment-status';
+    }
+    if (approvalStatus === 'rejected') {
+      return '/clinic/corrections';
+    }
+    if (approvalStatus === 'suspended' || subscription?.status === 'Suspended') {
+      return '/clinic/suspended';
+    }
+    if (subscription?.status === 'Expired') {
+      return '/clinic/expired';
+    }
+    if (approvalStatus === 'approved' && !isOnboardingCompleted) {
+      return '/clinic/onboarding';
+    }
+    return '/dashboard';
+  };
+
   if (isAuthenticated && !loading) {
-    return <Navigate to={user?.role ? '/dashboard' : '/'} replace />;
+    if (user?.role === 'ADMIN') {
+      return <Navigate to={getAdminDestination(user?.clinic)} replace />;
+    }
+    return <Navigate to={getDefaultRouteForRole(user?.role, user)} replace />;
   }
 
   const handleSubmit = async (event) => {
@@ -54,7 +85,12 @@ const LoginPage = () => {
       const userRole = authData?.user?.role;
       const clinic = authData?.user?.clinic;
 
-      if (userRole === 'SUPER_ADMIN') { navigate('/super-admin/clinics', { replace: true }); return; }
+      if (userRole === 'SUPER_ADMIN') {
+        const fromPath = location.state?.from?.pathname;
+        const dest = fromPath && fromPath !== '/dashboard' ? fromPath : '/clinics';
+        navigate(dest, { replace: true });
+        return;
+      }
 
       if (activeTab === 'patient' && userRole !== 'PATIENT') {
         setError('This account is not registered as a Patient. Please sign in using the correct portal.');
@@ -73,16 +109,13 @@ const LoginPage = () => {
         setSubmitting(false); return;
       }
 
-      if (userRole === 'ADMIN' && clinic) {
-        const { approvalStatus, subscription, isOnboardingCompleted } = clinic;
-        if (approvalStatus === 'pending_approval') { navigate('/clinic/status', { replace: true }); return; }
-        if (approvalStatus === 'rejected') { navigate('/clinic/corrections', { replace: true }); return; }
-        if (approvalStatus === 'suspended' || subscription?.status === 'Suspended') { navigate('/clinic/suspended', { replace: true }); return; }
-        if (subscription?.status === 'Expired') { navigate('/clinic/expired', { replace: true }); return; }
-        if (approvalStatus === 'approved' && !isOnboardingCompleted) { navigate('/clinic/onboarding', { replace: true }); return; }
+      if (userRole === 'ADMIN') {
+        navigate(getAdminDestination(clinic), { replace: true });
+        return;
       }
 
-      navigate(location.state?.from?.pathname || '/dashboard', { replace: true });
+      const fallbackDestination = getDefaultRouteForRole(userRole, authData?.user);
+      navigate(location.state?.from?.pathname || fallbackDestination, { replace: true });
     } catch (loginError) {
       setError(loginError?.response?.data?.message || loginError?.message || 'Invalid email or password. Please try again.');
     } finally {

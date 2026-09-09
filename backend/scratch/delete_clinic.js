@@ -1,85 +1,104 @@
 const mongoose = require('mongoose');
-const { env } = require('../src/config/env');
+const { connectDB } = require('../src/config/database');
 
-const mongoUri = env.mongoMode === 'atlas' ? env.mongoUriAtlas : (env.mongoMode === 'local' ? env.mongoUriLocal : env.mongoUri);
+async function purgeClinic() {
+  await connectDB();
+  const clinicId = new mongoose.Types.ObjectId('6aa0715ba494c4f558f4c494');
+  const clinicIdStr = '6aa0715ba494c4f558f4c494';
+  const userId = new mongoose.Types.ObjectId('6aa0715ca494c4f558f4c496');
+  const userIdStr = '6aa0715ca494c4f558f4c496';
+  const email = 'bepivel476@fidhost.com';
 
-async function deleteClinic() {
-  await mongoose.connect(mongoUri);
-  console.log('Connected to MongoDB');
+  console.log(`Starting deletion for clinic: ${clinicIdStr} and user email: ${email}`);
 
-  try {
-    const User = mongoose.model('User', new mongoose.Schema({}, { strict: false }));
-    const Doctor = mongoose.model('Doctor', new mongoose.Schema({}, { strict: false }));
-    const Staff = mongoose.model('Staff', new mongoose.Schema({}, { strict: false }));
-    const Clinic = mongoose.model('Clinic', new mongoose.Schema({}, { strict: false }));
-    const Provider = mongoose.model('Provider', new mongoose.Schema({}, { strict: false }));
-    const EmailJob = mongoose.model('EmailJob', new mongoose.Schema({}, { strict: false }));
-    const ClinicOnboardingDraft = mongoose.model('ClinicOnboardingDraft', new mongoose.Schema({}, { strict: false }));
-    const OnboardingDraft = mongoose.model('OnboardingDraft', new mongoose.Schema({}, { strict: false }));
+  const collections = await mongoose.connection.db.listCollections().toArray();
+  const deletionSummary = [];
 
-    const ownerEmail = 'jewag12274@ittiv.com';
-    const ownerUser = await User.findOne({ email: ownerEmail });
-    
-    if (!ownerUser) {
-      console.log(`User ${ownerEmail} not found. Checking if clinic or drafts exist...`);
+  for (const colInfo of collections) {
+    const name = colInfo.name;
+    const c = mongoose.connection.db.collection(name);
+
+    // Build comprehensive match filter
+    const filter = {
+      $or: [
+        { _id: clinicId },
+        { _id: userId },
+        { clinicId: clinicId },
+        { clinicId: clinicIdStr },
+        { clinicIds: clinicId },
+        { clinicIds: clinicIdStr },
+        { 'clinics.clinicId': clinicId },
+        { 'clinics.clinicId': clinicIdStr },
+        { 'ownerDetails.email': { $regex: new RegExp(`^${email}$`, 'i') } },
+        { userId: userId },
+        { userId: userIdStr },
+        { adminId: userId },
+        { adminId: userIdStr },
+        { ownerId: userId },
+        { ownerId: userIdStr },
+        { createdBy: userId },
+        { createdBy: userIdStr },
+        { email: { $regex: new RegExp(`^${email}$`, 'i') } },
+        { clinicEmail: { $regex: new RegExp(`^${email}$`, 'i') } },
+        { adminEmail: { $regex: new RegExp(`^${email}$`, 'i') } },
+        { recipient: { $regex: new RegExp(`^${email}$`, 'i') } },
+        { 'contactInfo.email': { $regex: new RegExp(`^${email}$`, 'i') } },
+        { 'contact.email': { $regex: new RegExp(`^${email}$`, 'i') } }
+      ]
+    };
+
+    try {
+      const count = await c.countDocuments(filter);
+      if (count > 0) {
+        const deleteRes = await c.deleteMany(filter);
+        deletionSummary.push({
+          collection: name,
+          deletedCount: deleteRes.deletedCount
+        });
+        console.log(`Deleted ${deleteRes.deletedCount} document(s) from "${name}".`);
+      }
+    } catch (err) {
+      console.warn(`Error querying collection ${name}:`, err.message);
     }
-
-    const clinicId = ownerUser ? ownerUser.clinicId : null;
-
-    // 1. Delete Owner User
-    if (ownerUser) {
-      const uRes = await User.deleteOne({ _id: ownerUser._id });
-      console.log(`Deleted owner user ${ownerEmail}:`, uRes);
-    }
-
-    if (clinicId) {
-      console.log(`Wiping all records related to Clinic ID: ${clinicId}`);
-
-      // 2. Delete all Doctor profiles
-      const docRes = await Doctor.deleteMany({ clinicId });
-      console.log(`Deleted ${docRes.deletedCount} Doctor profiles.`);
-
-      // 3. Delete all Staff profiles
-      const staffRes = await Staff.deleteMany({ clinicId });
-      console.log(`Deleted ${staffRes.deletedCount} Staff profiles.`);
-
-      // 4. Delete all Users under this clinic
-      const usersRes = await User.deleteMany({ clinicId });
-      console.log(`Deleted ${usersRes.deletedCount} associated user accounts.`);
-
-      // 5. Delete all Healthcare Providers
-      const provRes = await Provider.deleteMany({ clinicId });
-      console.log(`Deleted ${provRes.deletedCount} Healthcare Providers.`);
-
-      // 6. Delete all branch clinics
-      const branchRes = await Clinic.deleteMany({ parentClinicId: clinicId });
-      console.log(`Deleted ${branchRes.deletedCount} branch clinics.`);
-
-      // 7. Delete all pending/sent email jobs
-      const emailRes = await EmailJob.deleteMany({ clinicId });
-      console.log(`Deleted ${emailRes.deletedCount} email jobs.`);
-
-      // 8. Delete ClinicOnboardingDraft
-      const cDraftRes = await ClinicOnboardingDraft.deleteMany({ clinicId });
-      console.log(`Deleted ${cDraftRes.deletedCount} clinic onboarding drafts.`);
-
-      // 9. Delete main Clinic
-      const clinicRes = await Clinic.deleteOne({ _id: clinicId });
-      console.log(`Deleted main clinic:`, clinicRes);
-    }
-
-    // 10. Delete any generic onboarding drafts for the owner email
-    const draftRes = await OnboardingDraft.deleteMany({ email: ownerEmail.toLowerCase() });
-    console.log(`Deleted ${draftRes.deletedCount} general onboarding drafts for ${ownerEmail}.`);
-
-    console.log('Cleanup finished successfully.');
-
-  } catch (err) {
-    console.error('Error during deletion:', err);
-  } finally {
-    await mongoose.disconnect();
-    console.log('Disconnected');
   }
+
+  // Also check if any other collection has references inside nested arrays or objects
+  console.log('\n--- Deletion Summary ---');
+  console.log(JSON.stringify(deletionSummary, null, 2));
+
+  // Verification step
+  console.log('\n--- Verification: Checking for any remaining traces ---');
+  let remainingCount = 0;
+  for (const colInfo of collections) {
+    const name = colInfo.name;
+    const c = mongoose.connection.db.collection(name);
+    try {
+      const cnt = await c.countDocuments({
+        $or: [
+          { _id: clinicId },
+          { _id: userId },
+          { clinicId: clinicId },
+          { clinicId: clinicIdStr },
+          { email: { $regex: new RegExp(`^${email}$`, 'i') } }
+        ]
+      });
+      if (cnt > 0) {
+        console.log(`WARNING: Collection ${name} still has ${cnt} document(s)!`);
+        remainingCount += cnt;
+      }
+    } catch (err) {}
+  }
+
+  if (remainingCount === 0) {
+    console.log('Verification SUCCESS: No records remain for this clinic or email.');
+  } else {
+    console.log(`Verification FAILED: ${remainingCount} records still present.`);
+  }
+
+  await mongoose.disconnect();
 }
 
-deleteClinic();
+purgeClinic().catch(err => {
+  console.error('Purge error:', err);
+  process.exit(1);
+});

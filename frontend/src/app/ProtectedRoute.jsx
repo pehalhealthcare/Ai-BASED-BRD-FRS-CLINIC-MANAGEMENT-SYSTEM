@@ -168,27 +168,62 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   const isPendingStaff = STAFF_ROLES.includes(user?.role) &&
     (['pending_profile', 'pending_approval', 're_edit', 'changes_requested', 'pending_invitation', 'otp_verification_pending', 'onboarding_in_progress'].includes(user?.approvalStatus) || !user?.hasAcceptedSlot);
 
-  const isOnboardingPending = user?.role === 'ADMIN' && user?.clinic && !user.clinic.isOnboardingCompleted;
+  // Clinic Admin Lifecycle & Onboarding Router Guard
+  if (user?.role === 'ADMIN' && user?.clinic) {
+    const { approvalStatus, subscription, isOnboardingCompleted, paymentStatus } = user.clinic;
+    const isFreeTier = paymentStatus === 'FREE_TIER' || subscription?.isFreeTier;
+    const isPaymentRequired = !isFreeTier && (paymentStatus === 'NOT_SUBMITTED' || paymentStatus === 'NOT_PAID' || paymentStatus === 'REJECTED');
+    const isPaymentPending = paymentStatus === 'PENDING_VERIFICATION';
+    const isApprovalPending = approvalStatus === 'pending_approval';
+    const isApproved = approvalStatus === 'approved';
+    const isRejected = approvalStatus === 'rejected';
+    const isSuspended = approvalStatus === 'suspended' || subscription?.status === 'Suspended';
+    const isExpired = subscription?.status === 'Expired';
 
-  if (isOnboardingPending && location.pathname !== '/clinic/onboarding') {
-    return <Navigate to="/clinic/onboarding" replace />;
-  }
+    const currentPath = location.pathname;
 
-  if (user?.role === 'ADMIN' && user?.clinic?.isOnboardingCompleted && location.pathname === '/clinic/onboarding') {
-    return <Navigate to="/clinic/dashboard" replace />;
-  }
-
-  // Clinic Subscription Expiration Guard
-  const isSubscriptionExpired = user?.role === 'ADMIN' && user?.clinic && (
-    user.clinic.subscription?.status === 'Expired'
-  );
-
-  if (isSubscriptionExpired && !['/clinic/expired', '/clinic/renewal', '/clinic/status'].includes(location.pathname)) {
-    return <Navigate to="/clinic/expired" replace />;
-  }
-
-  if (user?.role === 'ADMIN' && user?.clinic?.subscription?.status === 'Active' && location.pathname === '/clinic/expired') {
-    return <Navigate to="/clinic/dashboard" replace />;
+    // 1. Payment Required (Not submitted or rejected)
+    if (isPaymentRequired) {
+      if (!['/clinic/payment', '/clinic-setup/payment'].includes(currentPath)) {
+        return <Navigate to="/clinic-setup/payment" replace />;
+      }
+    }
+    // 2. Payment Pending Verification or Approval Pending
+    else if (isPaymentPending || (isApprovalPending && !isApproved)) {
+      if (!['/clinic/status', '/clinic-setup/payment-status'].includes(currentPath)) {
+        return <Navigate to="/clinic-setup/payment-status" replace />;
+      }
+    }
+    // 3. Clinic Details Correction / Rejected
+    else if (isRejected) {
+      if (currentPath !== '/clinic/corrections') {
+        return <Navigate to="/clinic/corrections" replace />;
+      }
+    }
+    // 4. Suspended
+    else if (isSuspended) {
+      if (currentPath !== '/clinic/suspended') {
+        return <Navigate to="/clinic/suspended" replace />;
+      }
+    }
+    // 5. Expired
+    else if (isExpired) {
+      if (!['/clinic/expired', '/clinic/renewal'].includes(currentPath)) {
+        return <Navigate to="/clinic/expired" replace />;
+      }
+    }
+    // 6. Approved & Onboarding Pending
+    else if (isApproved && !isOnboardingCompleted) {
+      if (!['/clinic/onboarding', '/clinic/setup'].includes(currentPath)) {
+        return <Navigate to="/clinic/onboarding" replace />;
+      }
+    }
+    // 7. Approved & Onboarding Completed
+    else if (isApproved && isOnboardingCompleted) {
+      if (['/clinic/onboarding', '/clinic/setup', '/clinic/payment', '/clinic-setup/payment', '/clinic/status', '/clinic-setup/payment-status'].includes(currentPath)) {
+        return <Navigate to="/dashboard" replace />;
+      }
+    }
   }
 
   if ((isPendingDoctor || isPendingStaff) && location.pathname !== '/dashboard') {

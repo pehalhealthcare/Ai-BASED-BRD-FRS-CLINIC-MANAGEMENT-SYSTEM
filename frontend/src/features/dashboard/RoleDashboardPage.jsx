@@ -7,6 +7,7 @@ import AdminDashboardPage from './admin/AdminDashboardPage';
 import DoctorDashboardPage from './DoctorDashboardPage';
 import ReceptionistOnboarding from '../receptionists/ReceptionistOnboarding';
 import ReceptionistDashboardPage from './ReceptionistDashboardPage';
+import SuperAdminDashboard from '../super-admin/SuperAdminDashboard';
 
 import DoctorOnboardingWizard from '../doctors/DoctorOnboardingWizard';
 import DoctorCorrectionRequired from '../doctors/DoctorCorrectionRequired';
@@ -15,6 +16,8 @@ import StaffOnboardingWizard from '../staff/StaffOnboardingWizard';
 import { useState, useEffect } from 'react';
 import { Clock, LogOut, Settings } from 'lucide-react';
 import LoadingState from '../../components/common/LoadingState';
+import { clinicApi } from '../../lib/api';
+import { evaluateClinicLifecycle } from '../../utils/clinicLifecycle';
 
 const STAFF_WIZARD_STATUSES = [
   'pending_profile',
@@ -30,6 +33,9 @@ const RoleDashboardPage = () => {
   const [forceWizard, setForceWizard] = useState(false);
   // Tracks whether we've verified the staff user's actual backend status
   const [staffStatusVerified, setStaffStatusVerified] = useState(false);
+  // Tracks clinic setup status for Admin role
+  const [adminClinicStatus, setAdminClinicStatus] = useState(null);
+  const [adminStatusChecked, setAdminStatusChecked] = useState(false);
 
   const isStaffRole = STAFF_ROLES.includes(user?.role);
 
@@ -40,6 +46,24 @@ const RoleDashboardPage = () => {
       refreshUser(true).finally(() => setStaffStatusVerified(true));
     } else {
       setStaffStatusVerified(true);
+    }
+
+    // For Admin users, check authoritative setup status
+    if (user?.role === ROLES.ADMIN) {
+      clinicApi.getSetupStatus()
+        .then((res) => {
+          if (res?.data) {
+            setAdminClinicStatus(res.data);
+          }
+        })
+        .catch((err) => {
+          console.warn('Could not load clinic setup status:', err);
+        })
+        .finally(() => {
+          setAdminStatusChecked(true);
+        });
+    } else {
+      setAdminStatusChecked(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -147,7 +171,27 @@ const RoleDashboardPage = () => {
     return <ReceptionistDashboardPage />;
   }
 
-  if ([ROLES.ADMIN, ROLES.SUPER_ADMIN].includes(user?.role)) {
+  if (user?.role === ROLES.SUPER_ADMIN) {
+    return <SuperAdminDashboard />;
+  }
+
+  if (user?.role === ROLES.ADMIN) {
+    if (!adminStatusChecked) {
+      return <LoadingState label="Verifying clinic setup status..." />;
+    }
+    if (adminClinicStatus) {
+      const evaluation = evaluateClinicLifecycle(adminClinicStatus);
+      if (!evaluation.isComplete && evaluation.targetRoute !== '/dashboard') {
+        return <Navigate to={evaluation.targetRoute} replace />;
+      }
+    } else if (user?.clinic) {
+      if (user.clinic.approvalStatus !== 'approved' || user.clinic.subscription?.status === 'Pending Approval') {
+        return <Navigate to="/clinic/status" replace />;
+      }
+      if (!user.clinic.isOnboardingCompleted) {
+        return <Navigate to="/clinic/onboarding" replace />;
+      }
+    }
     return <AdminDashboardPage />;
   }
 

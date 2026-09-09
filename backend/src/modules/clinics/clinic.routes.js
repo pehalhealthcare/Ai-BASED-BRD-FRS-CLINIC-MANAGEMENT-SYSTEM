@@ -21,6 +21,9 @@ router.get('/register/draft/:email', clinicController.getDraft);
 router.post('/register/send-otp', clinicController.sendOtp);
 router.post('/register/verify-otp', clinicController.verifyOtp);
 
+// Authoritative Clinic Setup & Lifecycle Status
+router.get('/setup-status', protect, clinicController.getSetupStatus);
+
 // Onboarding Draft Routes
 router.post('/onboarding/draft/save', protect, clinicController.saveOnboardingDraft);
 router.get('/onboarding/draft', protect, clinicController.getOnboardingDraft);
@@ -103,6 +106,13 @@ router.post(
   protect,
   authorize(ROLES.SUPER_ADMIN),
   clinicController.changeClinicPlan
+);
+
+router.post(
+  '/:id/assign-free-tier',
+  protect,
+  authorize(ROLES.SUPER_ADMIN),
+  clinicController.assignFreeTier
 );
 
 router.post(

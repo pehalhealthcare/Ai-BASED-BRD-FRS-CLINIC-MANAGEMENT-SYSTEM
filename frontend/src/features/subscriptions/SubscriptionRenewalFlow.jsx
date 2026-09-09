@@ -9,6 +9,7 @@ import {
 import useAuth from '../../hooks/useAuth';
 import { subscriptionApi } from '../../lib/api';
 import PehalLogo from '../../components/common/PehalLogo';
+import PaymentDetails from '../../components/common/PaymentDetails';
 
 /**
  * AICMS Subscription Renewal Flow
@@ -33,6 +34,7 @@ const SubscriptionRenewalFlow = ({ initialScreen = 'expired', onRestoreAccess })
 
   // Form State for Payment Screen
   const [selectedCardId, setSelectedCardId] = useState('saved-card-1');
+  const [paymentMethodTab, setPaymentMethodTab] = useState('upi');
   const [isAddingNewCard, setIsAddingNewCard] = useState(false);
   const [cardNumber, setCardNumber] = useState('');
   const [cardHolder, setCardHolder] = useState('');
@@ -443,137 +445,177 @@ const SubscriptionRenewalFlow = ({ initialScreen = 'expired', onRestoreAccess })
               </div>
             </div>
 
-            {/* Saved Cards */}
-            <div className="space-y-3 mb-6">
-              <div className="flex justify-between items-center">
-                <span className="text-xs font-black uppercase tracking-wider text-slate-400">Saved Cards</span>
-              </div>
-
-              <div
-                onClick={() => {
-                  setSelectedCardId('saved-card-1');
-                  setIsAddingNewCard(false);
-                }}
-                className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
-                  !isAddingNewCard && selectedCardId === 'saved-card-1'
-                    ? 'bg-[#172346] border-emerald-500/60 shadow-md shadow-emerald-500/5'
-                    : 'bg-[#172346]/40 border-slate-800/80 hover:bg-[#172346]/60'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <span className="px-2 py-0.5 rounded bg-blue-600/20 border border-blue-500/30 text-blue-400 font-black text-[10px] tracking-wider">
-                    VISA
-                  </span>
-                  <span className="text-xs font-mono font-bold text-slate-200">•••• •••• •••• 4242</span>
-                  <span className="text-[11px] text-slate-400">Expires 12/26</span>
-                </div>
-
-                <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
-                  !isAddingNewCard && selectedCardId === 'saved-card-1'
-                    ? 'border-emerald-400 bg-emerald-500'
-                    : 'border-slate-600 bg-transparent'
-                }`}>
-                  {!isAddingNewCard && selectedCardId === 'saved-card-1' && (
-                    <div className="w-1.5 h-1.5 rounded-full bg-slate-950" />
-                  )}
-                </div>
-              </div>
-
+            {/* Payment Method Switcher */}
+            <div className="flex items-center gap-2 p-1.5 bg-[#172346]/60 border border-slate-800 rounded-2xl mb-6">
               <button
                 type="button"
-                onClick={() => setIsAddingNewCard(!isAddingNewCard)}
-                className="text-xs text-emerald-400 hover:text-emerald-300 font-bold flex items-center gap-1.5 py-1 transition-colors cursor-pointer"
+                onClick={() => setPaymentMethodTab('upi')}
+                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+                  paymentMethodTab === 'upi'
+                    ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
+                    : 'text-slate-400 hover:text-white'
+                }`}
               >
-                + {isAddingNewCard ? 'Use Saved Card' : 'Add New Card'}
+                <span>⚡ UPI / Bank Transfer</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPaymentMethodTab('card')}
+                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+                  paymentMethodTab === 'card'
+                    ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <CreditCard size={14} />
+                <span>Credit / Debit Card</span>
               </button>
             </div>
 
-            {/* Card Details Form (Visible if Adding New Card or for reference) */}
-            {isAddingNewCard && (
-              <div className="space-y-4 mb-6 bg-[#172346]/40 border border-slate-800 p-4 rounded-2xl animate-fadeIn">
-                <span className="text-xs font-black uppercase tracking-wider text-slate-400 block mb-2">Card Details</span>
-
-                {/* Card Number */}
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-slate-300">Card Number</label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={cardNumber}
-                      onChange={handleCardNumberChange}
-                      placeholder="1234 5678 9012 3456"
-                      className="w-full bg-[#111A35] border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500 font-mono"
-                    />
-                    <CreditCard size={15} className="absolute right-3.5 top-3 text-slate-500" />
-                  </div>
-                </div>
-
-                {/* Card Holder */}
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-slate-300">Card Holder Name</label>
-                  <input
-                    type="text"
-                    value={cardHolder}
-                    onChange={(e) => setCardHolder(e.target.value)}
-                    placeholder="Enter name on card"
-                    className="w-full bg-[#111A35] border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500"
-                  />
-                </div>
-
-                {/* Expiry & CVV */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] font-bold text-slate-300">Expiry Date</label>
-                    <input
-                      type="text"
-                      value={expiryDate}
-                      onChange={handleExpiryChange}
-                      placeholder="MM / YY"
-                      className="w-full bg-[#111A35] border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500 font-mono"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between items-center">
-                      <label className="text-[11px] font-bold text-slate-300">CVV</label>
-                      <Info size={11} className="text-slate-500 cursor-help" />
-                    </div>
-                    <input
-                      type="password"
-                      maxLength={4}
-                      value={cvv}
-                      onChange={(e) => setCvv(e.target.value.replace(/\D/g, ''))}
-                      placeholder="123"
-                      className="w-full bg-[#111A35] border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500 font-mono"
-                    />
-                  </div>
-                </div>
-
-                {/* Save Card Checkbox */}
-                <label className="flex items-center gap-2 pt-2 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={saveCardForFuture}
-                    onChange={(e) => setSaveCardForFuture(e.target.checked)}
-                    className="w-4 h-4 rounded bg-slate-900 border-slate-700 text-emerald-500 focus:ring-0 cursor-pointer"
-                  />
-                  <span className="text-xs text-slate-300">Save this card for future payments</span>
-                </label>
+            {paymentMethodTab === 'upi' ? (
+              <div className="mb-6">
+                <PaymentDetails
+                  amount={pricing.totalAmount}
+                  planName={plan.name}
+                  onUtrSubmit={handleExecutePayment}
+                  submitting={isSubmittingPayment}
+                />
               </div>
+            ) : (
+              <>
+                {/* Saved Cards */}
+                <div className="space-y-3 mb-6">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-black uppercase tracking-wider text-slate-400">Saved Cards</span>
+                  </div>
+
+                  <div
+                    onClick={() => {
+                      setSelectedCardId('saved-card-1');
+                      setIsAddingNewCard(false);
+                    }}
+                    className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+                      !isAddingNewCard && selectedCardId === 'saved-card-1'
+                        ? 'bg-[#172346] border-emerald-500/60 shadow-md shadow-emerald-500/5'
+                        : 'bg-[#172346]/40 border-slate-800/80 hover:bg-[#172346]/60'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="px-2 py-0.5 rounded bg-blue-600/20 border border-blue-500/30 text-blue-400 font-black text-[10px] tracking-wider">
+                        VISA
+                      </span>
+                      <span className="text-xs font-mono font-bold text-slate-200">•••• •••• •••• 4242</span>
+                      <span className="text-[11px] text-slate-400">Expires 12/26</span>
+                    </div>
+
+                    <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                      !isAddingNewCard && selectedCardId === 'saved-card-1'
+                        ? 'border-emerald-400 bg-emerald-500'
+                        : 'border-slate-600 bg-transparent'
+                    }`}>
+                      {!isAddingNewCard && selectedCardId === 'saved-card-1' && (
+                        <div className="w-1.5 h-1.5 rounded-full bg-slate-950" />
+                      )}
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsAddingNewCard(!isAddingNewCard)}
+                    className="text-xs text-emerald-400 hover:text-emerald-300 font-bold flex items-center gap-1.5 py-1 transition-colors cursor-pointer"
+                  >
+                    + {isAddingNewCard ? 'Use Saved Card' : 'Add New Card'}
+                  </button>
+                </div>
+
+                {/* Card Details Form */}
+                {isAddingNewCard && (
+                  <div className="space-y-4 mb-6 bg-[#172346]/40 border border-slate-800 p-4 rounded-2xl animate-fadeIn">
+                    <span className="text-xs font-black uppercase tracking-wider text-slate-400 block mb-2">Card Details</span>
+
+                    {/* Card Number */}
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-bold text-slate-300">Card Number</label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={cardNumber}
+                          onChange={handleCardNumberChange}
+                          placeholder="1234 5678 9012 3456"
+                          className="w-full bg-[#111A35] border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500 font-mono"
+                        />
+                        <CreditCard size={15} className="absolute right-3.5 top-3 text-slate-500" />
+                      </div>
+                    </div>
+
+                    {/* Card Holder */}
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-bold text-slate-300">Card Holder Name</label>
+                      <input
+                        type="text"
+                        value={cardHolder}
+                        onChange={(e) => setCardHolder(e.target.value)}
+                        placeholder="Enter name on card"
+                        className="w-full bg-[#111A35] border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500"
+                      />
+                    </div>
+
+                    {/* Expiry & CVV */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <label className="text-[11px] font-bold text-slate-300">Expiry Date</label>
+                        <input
+                          type="text"
+                          value={expiryDate}
+                          onChange={handleExpiryChange}
+                          placeholder="MM / YY"
+                          className="w-full bg-[#111A35] border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500 font-mono"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between items-center">
+                          <label className="text-[11px] font-bold text-slate-300">CVV</label>
+                          <Info size={11} className="text-slate-500 cursor-help" />
+                        </div>
+                        <input
+                          type="password"
+                          maxLength={4}
+                          value={cvv}
+                          onChange={(e) => setCvv(e.target.value.replace(/\D/g, ''))}
+                          placeholder="123"
+                          className="w-full bg-[#111A35] border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500 font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Save Card Checkbox */}
+                    <label className="flex items-center gap-2 pt-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={saveCardForFuture}
+                        onChange={(e) => setSaveCardForFuture(e.target.checked)}
+                        className="w-4 h-4 rounded bg-slate-900 border-slate-700 text-emerald-500 focus:ring-0 cursor-pointer"
+                      />
+                      <span className="text-xs text-slate-300">Save this card for future payments</span>
+                    </label>
+                  </div>
+                )}
+
+                {/* Primary CTA */}
+                <button
+                  type="button"
+                  disabled={isSubmittingPayment}
+                  onClick={handleExecutePayment}
+                  className="w-full py-4 px-6 rounded-2xl bg-emerald-500 hover:bg-emerald-400 active:scale-[0.99] text-slate-950 text-base font-black shadow-lg shadow-emerald-500/20 transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  <Lock size={16} /> Pay {formatINR(pricing.totalAmount)}
+                </button>
+
+                <p className="text-[11px] text-slate-500 text-center mt-3 font-semibold">
+                  You will be redirected to our secure payment gateway
+                </p>
+              </>
             )}
-
-            {/* Primary CTA */}
-            <button
-              type="button"
-              disabled={isSubmittingPayment}
-              onClick={handleExecutePayment}
-              className="w-full py-4 px-6 rounded-2xl bg-emerald-500 hover:bg-emerald-400 active:scale-[0.99] text-slate-950 text-base font-black shadow-lg shadow-emerald-500/20 transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
-            >
-              <Lock size={16} /> Pay {formatINR(pricing.totalAmount)}
-            </button>
-
-            <p className="text-[11px] text-slate-500 text-center mt-3 font-semibold">
-              You will be redirected to our secure payment gateway
-            </p>
           </div>
         )}
 

@@ -58,8 +58,35 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const login = async (credentials) => {
-    const data = await authApi.login(credentials);
+  const setAuthSession = ({ user: nextUser, token: nextToken }) => {
+    applyAuthState({ nextToken, nextUser });
+  };
+
+  const login = async (credentialsOrUser, directToken) => {
+    // If called with already authenticated user & token
+    if (directToken && credentialsOrUser && typeof credentialsOrUser === 'object') {
+      applyAuthState({
+        nextToken: directToken,
+        nextUser: credentialsOrUser
+      });
+      return { user: credentialsOrUser, accessToken: directToken };
+    }
+    if (credentialsOrUser?.accessToken && credentialsOrUser?.user) {
+      applyAuthState({
+        nextToken: credentialsOrUser.accessToken,
+        nextUser: credentialsOrUser.user
+      });
+      return credentialsOrUser;
+    }
+    if (credentialsOrUser?.token && credentialsOrUser?.user) {
+      applyAuthState({
+        nextToken: credentialsOrUser.token,
+        nextUser: credentialsOrUser.user
+      });
+      return credentialsOrUser;
+    }
+
+    const data = await authApi.login(credentialsOrUser);
     applyAuthState({
       nextToken: data.accessToken,
       nextUser: data.user
@@ -112,6 +139,7 @@ export const AuthProvider = ({ children }) => {
       loading,
       isAuthenticated: Boolean(token),
       login,
+      setAuthSession,
       register,
       logout,
       refreshUser

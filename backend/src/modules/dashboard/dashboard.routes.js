@@ -88,6 +88,20 @@ router.get(
 );
 
 router.get(
+  '/super-admin/dashboard',
+  protect,
+  authorize(ROLES.SUPER_ADMIN),
+  dashboardController.getSuperAdminDashboard
+);
+
+router.get(
+  '/super-admin/search',
+  protect,
+  authorize(ROLES.SUPER_ADMIN),
+  dashboardController.searchSuperAdmin
+);
+
+router.get(
   '/doctor-status',
   protect,
   authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RECEPTIONIST),

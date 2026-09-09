@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { clinicApi, promoApi } from '../../lib/api';
+import useAuth from '../../hooks/useAuth';
+import toast from 'react-hot-toast';
 import {
   User, Mail, Phone, Lock, Calendar, MapPin,
   Check, ArrowRight, ArrowLeft, ShieldCheck,
@@ -71,6 +73,7 @@ const STEPS = [
 
 export default function ClinicRegister() {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [plans, setPlans] = useState([]);
   const [plansLoading, setPlansLoading] = useState(true);
@@ -142,6 +145,21 @@ export default function ClinicRegister() {
   const [otpError, setOtpError] = useState('');
   const [otpLoading, setOtpLoading] = useState(false);
   const [otpResent, setOtpResent] = useState(false);
+  const [otpSeconds, setOtpSeconds] = useState(300);
+  const [emailVerifiedMsg, setEmailVerifiedMsg] = useState(false);
+
+  // 5-minute countdown timer effect
+  useEffect(() => {
+    let timer = null;
+    if (showOtpModal && otpSeconds > 0) {
+      timer = setInterval(() => {
+        setOtpSeconds(prev => (prev > 0 ? prev - 1 : 0));
+      }, 1000);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [showOtpModal, otpSeconds]);
 
   const fetchPlans = useCallback(async () => {
     setPlansLoading(true);
@@ -382,7 +400,7 @@ export default function ClinicRegister() {
   const handleSubmit = async () => {
     setWizardError('');
     if (!hasAcceptedTerms) {
-      setWizardError('Please accept the registration terms & conditions.');
+      setWizardError('Please accept the registration terms & conditions to proceed to payment.');
       return;
     }
     try {
@@ -392,6 +410,7 @@ export default function ClinicRegister() {
       setOtpCode('');
       setOtpError('');
       setOtpResent(false);
+      setOtpSeconds(300); // 5 minutes countdown
     } catch (err) {
       setWizardError(err.response?.data?.message || 'Failed to send OTP verification. Please try again.');
     } finally {
@@ -400,14 +419,15 @@ export default function ClinicRegister() {
   };
 
   const handleVerifyAndRegister = async () => {
-    if (!otpCode.trim()) {
-      setOtpError('Please enter the verification code.');
+    if (!otpCode.trim() || otpCode.trim().length !== 6) {
+      setOtpError('Please enter the 6-digit verification code.');
       return;
     }
     try {
       setOtpLoading(true);
       setOtpError('');
-      await clinicApi.verifyOtp({ email: ownerForm.email, otp: otpCode });
+      await clinicApi.verifyOtp({ email: ownerForm.email, otp: otpCode.trim() });
+      setEmailVerifiedMsg(true);
 
       const payload = {
         ownerDetails: {
@@ -441,9 +461,28 @@ export default function ClinicRegister() {
           billingCycle
         }
       };
-      await clinicApi.submitRegistration(payload);
+
+      const res = await clinicApi.submitRegistration(payload);
       setShowOtpModal(false);
-      setSubmitSuccess(true);
+
+      const registeredUser = res.data?.user;
+      const token = res.data?.accessToken;
+      const registeredClinic = res.data?.clinic;
+
+      if (token && registeredUser && login) {
+        login(registeredUser, token);
+      }
+
+      toast.success('✓ Email verified & clinic registration created! Redirecting to payment...');
+
+      // Transition to subscription payment screen
+      navigate('/clinic-setup/payment', {
+        state: {
+          clinic: registeredClinic,
+          plan: activePlanObj,
+          billingCycle
+        }
+      });
     } catch (err) {
       setOtpError(err.response?.data?.message || 'Verification failed. Please check the code.');
     } finally {
@@ -457,8 +496,10 @@ export default function ClinicRegister() {
       setOtpError('');
       await clinicApi.sendOtp({ email: ownerForm.email });
       setOtpResent(true);
+      setOtpSeconds(300);
+      toast.success('Verification code resent.');
     } catch (err) {
-      setOtpError('Failed to resend code.');
+      setOtpError('Failed to resend code. Please try again.');
     } finally {
       setOtpLoading(false);
     }
@@ -1916,10 +1957,20 @@ export default function ClinicRegister() {
                 type="button"
                 onClick={handleSubmit}
                 disabled={isSubmitting}
-                className="flex items-center gap-1.5 px-5 py-2 text-white rounded-xl text-xs font-black shadow-md transition cursor-pointer"
+                className="flex items-center gap-1.5 px-6 py-2.5 text-white rounded-xl text-xs font-black shadow-md transition cursor-pointer"
                 style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)', boxShadow: '0 4px 14px rgba(22,163,74,0.25)' }}
               >
-                {isSubmitting ? 'Submitting...' : 'Verify & Submit'} <Check size={13} />
+                {isSubmitting ? (
+                  <>
+                    <RefreshCw size={13} className="animate-spin" />
+                    <span>Sending Code...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Proceed to Payment</span>
+                    <ArrowRight size={13} />
+                  </>
+                )}
               </button>
             )}
           </div>
@@ -1928,45 +1979,89 @@ export default function ClinicRegister() {
 
       {/* OTP Verification Modal */}
       {showOtpModal && (
-        <div className="fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl border border-slate-100 text-center space-y-6">
-            <div className="w-14 h-14 bg-green-50 text-green-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
+        <div className="fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 font-sans">
+          <div className="bg-white rounded-3xl max-w-md w-full p-7 sm:p-8 shadow-2xl border border-slate-100 text-center space-y-5 relative">
+            <button
+              type="button"
+              onClick={() => setShowOtpModal(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1.5 rounded-full hover:bg-slate-100 transition"
+            >
+              <X size={16} />
+            </button>
+
+            <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto shadow-inner">
               <ShieldCheck className="w-8 h-8" />
             </div>
-            <div className="space-y-1.5">
-              <h3 className="text-lg font-black text-slate-900">Email Verification</h3>
-              <p className="text-xs text-slate-400">We've sent a 6-digit security code to <strong className="text-slate-800">{ownerForm.email}</strong>.</p>
+
+            <div className="space-y-1">
+              <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600">Security Verification</span>
+              <h3 className="text-xl font-black text-slate-900">Verify Your Email</h3>
+              <p className="text-xs text-slate-400 font-medium">
+                We've sent a 6-digit code to <strong className="text-slate-800 font-bold">{ownerForm.email}</strong>.
+              </p>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-3">
               <input
                 type="text"
                 maxLength="6"
-                placeholder="0 0 0 0 0 0"
+                placeholder="000000"
                 value={otpCode}
                 onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
-                className="w-full text-center px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-green-600 text-lg font-black tracking-widest"
+                className="w-full text-center px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-emerald-600 text-2xl font-mono font-black tracking-[0.4em] text-slate-900 shadow-xs"
               />
               {otpError && <p className="text-xs text-rose-500 font-bold">{otpError}</p>}
-              {otpResent && <p className="text-xs text-green-600 font-bold">✓ Verification code resent successfully</p>}
+              {otpResent && <p className="text-xs text-emerald-600 font-bold">✓ New verification code sent!</p>}
+
+              <div className="flex items-center justify-between text-xs px-1">
+                <span className="text-slate-400 font-medium">
+                  {otpSeconds > 0 ? (
+                    <span className="text-slate-500 font-bold">
+                      Resend in {Math.floor(otpSeconds / 60)}:{String(otpSeconds % 60).padStart(2, '0')}
+                    </span>
+                  ) : (
+                    <span className="text-amber-600 font-bold">Code expired?</span>
+                  )}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowOtpModal(false);
+                    setCurrentStep(1);
+                  }}
+                  className="text-emerald-600 hover:text-emerald-700 font-bold text-[11px] underline cursor-pointer"
+                >
+                  Change Email
+                </button>
+              </div>
             </div>
 
             <div className="flex gap-3 pt-2">
               <button
                 type="button"
                 onClick={handleResendOtp}
-                disabled={otpLoading}
-                className="flex-1 py-3 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-2xl text-xs font-black transition cursor-pointer"
+                disabled={otpLoading || otpSeconds > 0}
+                className="flex-1 py-3 border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-transparent text-slate-700 rounded-xl text-xs font-black transition cursor-pointer"
               >
                 Resend Code
               </button>
               <button
                 type="button"
                 onClick={handleVerifyAndRegister}
-                disabled={otpLoading}
-                className="flex-1 py-3 bg-gradient-to-r from-green-500 to-green-700 hover:opacity-90 text-white rounded-2xl text-xs font-black shadow-md shadow-green-500/20 transition cursor-pointer"
+                disabled={otpLoading || otpCode.length < 6}
+                className="flex-1 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:opacity-95 disabled:opacity-50 text-white rounded-xl text-xs font-black shadow-md shadow-emerald-600/20 transition cursor-pointer flex items-center justify-center gap-1.5"
               >
-                {otpLoading ? 'Verifying...' : 'Verify & Register'}
+                {otpLoading ? (
+                  <>
+                    <RefreshCw size={13} className="animate-spin" />
+                    <span>Verifying...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Verify &amp; Continue</span>
+                    <ArrowRight size={13} />
+                  </>
+                )}
               </button>
             </div>
           </div>

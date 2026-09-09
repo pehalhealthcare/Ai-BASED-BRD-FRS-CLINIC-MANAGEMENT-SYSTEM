@@ -467,6 +467,7 @@ const clinicApi = {
   getDraft: (email) => extractData(apiClient.get(`/clinics/register/draft/${email}`)),
   sendOtp: (payload) => extractData(apiClient.post('/clinics/register/send-otp', payload)),
   verifyOtp: (payload) => extractData(apiClient.post('/clinics/register/verify-otp', payload)),
+  getSetupStatus: () => extractData(apiClient.get('/clinics/setup-status')),
   getPendingRequests: () => extractData(apiClient.get('/clinics/requests/pending')),
   approveRequest: (id) => extractData(apiClient.post(`/clinics/requests/${id}/approve`)),
   rejectRequest: (id, payload) => extractData(apiClient.post(`/clinics/requests/${id}/reject`, payload)),
@@ -478,6 +479,7 @@ const clinicApi = {
   suspendClinic: (id) => extractData(apiClient.post(`/clinics/${id}/suspend`)),
   activateClinic: (id) => extractData(apiClient.post(`/clinics/${id}/activate`)),
   changePlan: (id, payload) => extractData(apiClient.post(`/clinics/${id}/change-plan`, payload)),
+  assignFreeTier: (id, payload) => extractData(apiClient.post(`/clinics/${id}/assign-free-tier`, payload)),
   extendSubscription: (id, payload) => extractData(apiClient.post(`/clinics/${id}/extend`, payload)),
   resetPassword: (id, payload) => extractData(apiClient.post(`/clinics/${id}/reset-password`, payload)),
   deleteClinic: (id) => extractData(apiClient.delete(`/clinics/${id}`)),
@@ -689,6 +691,33 @@ const validationApi = {
   validatePhone: (params = {}) => extractData(apiClient.get('/validation/phone', { params }))
 };
 
+const paymentSettingsApi = {
+  getSettings: () => extractData(apiClient.get('/admin/payment-settings')),
+  updateSettings: (payload) => extractData(apiClient.put('/admin/payment-settings', payload)),
+  uploadQr: (payload) => extractData(apiClient.post('/admin/payment-settings/qr', payload)),
+  removeQr: () => extractData(apiClient.delete('/admin/payment-settings/qr')),
+  getActiveDetails: (params = {}) => extractData(apiClient.get('/payment-details', { params: sanitizeParams(params) }))
+};
+
+const subscriptionPaymentApi = {
+  // Clinic Admin: initiate payment attempt (fetches plan, price, dynamic QR)
+  initiatePayment: (payload) => extractData(apiClient.post('/payment/subscription/initiate', payload)),
+  // Clinic Admin: submit payment attempt (UTR/TxnID)
+  submitPayment: (payload) => extractData(apiClient.post('/payment/subscription/submit', payload)),
+  // Clinic Admin / Super Admin: get payment history for a clinic
+  getClinicPaymentHistory: (clinicId) => extractData(apiClient.get(`/payment/subscription/history/${clinicId}`)),
+  // Super Admin: list all payment submissions
+  listPayments: (params = {}) => extractData(apiClient.get('/admin/payments', { params: sanitizeParams(params) })),
+  // Super Admin: get single payment details
+  getPaymentById: (id) => extractData(apiClient.get(`/admin/payments/${id}`)),
+  // Super Admin: verify payment
+  verifyPayment: (id, payload = {}) => extractData(apiClient.post(`/admin/payments/${id}/verify`, payload)),
+  // Super Admin: reject payment with reason
+  rejectPayment: (id, payload) => extractData(apiClient.post(`/admin/payments/${id}/reject`, payload)),
+  // Clinic Setup & Payment lifecycle status
+  getSetupStatus: () => extractData(apiClient.get('/clinics/setup-status'))
+};
+
 export {
   apiClient,
   chatApi,
@@ -724,5 +753,7 @@ export {
   providersApi,
   procedureApi,
   faqApi,
-  validationApi
+  validationApi,
+  paymentSettingsApi,
+  subscriptionPaymentApi
 };

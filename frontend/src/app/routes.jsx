@@ -168,6 +168,7 @@ import LandingPage from '../pages/LandingPage';
 import ContactPage from '../pages/ContactPage';
 import ClinicRegister from '../features/clinics/ClinicRegister';
 import SuperAdminClinics from '../features/super-admin/SuperAdminClinics';
+import Clinic360Page from '../features/super-admin/Clinic360Page';
 import SuperAdminPlans from '../features/super-admin/SuperAdminPlans';
 import SuperAdminPromoCodes from '../features/super-admin/SuperAdminPromoCodes';
 import GlobalLabTestsPage from '../features/healthcare-catalog/GlobalLabTestsPage';
@@ -178,10 +179,14 @@ import UnitsPage from '../features/healthcare-catalog/UnitsPage';
 import ConditionsPage from '../features/healthcare-catalog/ConditionsPage';
 import CatalogueUpdatesPage from '../features/healthcare-catalog/CatalogueUpdatesPage';
 import ClinicStatusDashboard from '../features/clinics/ClinicStatusDashboard';
+import ClinicPaymentScreen from '../features/clinics/ClinicPaymentScreen';
 import ClinicCorrectionsPortal from '../features/clinics/ClinicCorrectionsPortal';
 import ClinicSuspendedExpired from '../features/clinics/ClinicSuspendedExpired';
 import DoctorOtpVerification from '../features/doctors/DoctorOtpVerification';
 import StaffOtpVerification from '../features/auth/StaffOtpVerification';
+import PaymentSettingsPage from '../features/settings/PaymentSettingsPage';
+import SuperAdminPaymentsPage from '../features/super-admin/SuperAdminPaymentsPage';
+import SuperAdminPaymentVerificationPage from '../features/super-admin/SuperAdminPaymentVerificationPage';
 
 const PremiumPlaceholderPage = ({ title }) => (
   <div className="p-8 bg-white rounded-3xl border border-slate-100 shadow-sm max-w-xl mx-auto my-12 text-center space-y-4">
@@ -235,9 +240,21 @@ export const router = createBrowserRouter([
     path: '/reports/verify/:reportId',
     element: <PublicReportVerificationPage />
   },
-  // Clinic Admin status portals (no sidebar – full-page)
+  // Clinic Admin status & payment portals (no sidebar – full-page)
+  {
+    path: '/clinic/payment',
+    element: protect(<ClinicPaymentScreen />, [ROLES.ADMIN])
+  },
+  {
+    path: '/clinic-setup/payment',
+    element: protect(<ClinicPaymentScreen />, [ROLES.ADMIN])
+  },
   {
     path: '/clinic/status',
+    element: protect(<ClinicStatusDashboard />, [ROLES.ADMIN])
+  },
+  {
+    path: '/clinic-setup/payment-status',
     element: protect(<ClinicStatusDashboard />, [ROLES.ADMIN])
   },
   {
@@ -316,8 +333,84 @@ export const router = createBrowserRouter([
         element: protect(<UsersAdminPage />, [ROLES.ADMIN])
       },
       {
+        path: 'clinics',
+        element: protect(<SuperAdminClinics />, [ROLES.SUPER_ADMIN])
+      },
+      {
+        path: 'clinics/:clinicId',
+        element: protect(<Clinic360Page />, [ROLES.SUPER_ADMIN])
+      },
+      {
+        path: 'plans',
+        element: protect(<SuperAdminPlans />, [ROLES.SUPER_ADMIN])
+      },
+      {
+        path: 'promo-codes',
+        element: protect(<SuperAdminPromoCodes />, [ROLES.SUPER_ADMIN])
+      },
+      {
+        path: 'global-lab-catalogue',
+        element: protect(<GlobalLabTestsPage />, [ROLES.SUPER_ADMIN])
+      },
+      {
+        path: 'global-lab-catalog',
+        element: protect(<GlobalLabTestsPage />, [ROLES.SUPER_ADMIN])
+      },
+      {
+        path: 'global-medicine-catalogue',
+        element: protect(<GlobalMedicinePage />, [ROLES.SUPER_ADMIN])
+      },
+      {
+        path: 'global-medicine-catalog',
+        element: protect(<GlobalMedicinePage />, [ROLES.SUPER_ADMIN])
+      },
+      {
+        path: 'settings',
+        element: protect(<PaymentSettingsPage />, [ROLES.SUPER_ADMIN])
+      },
+      {
+        path: 'settings/payment',
+        element: protect(<PaymentSettingsPage />, [ROLES.SUPER_ADMIN])
+      },
+      {
+        path: 'payments',
+        element: protect(<SuperAdminPaymentsPage />, [ROLES.SUPER_ADMIN])
+      },
+      {
+        path: 'payments/:id',
+        element: protect(<SuperAdminPaymentVerificationPage />, [ROLES.SUPER_ADMIN])
+      },
+      {
+        path: 'payments/verify/:id',
+        element: protect(<SuperAdminPaymentVerificationPage />, [ROLES.SUPER_ADMIN])
+      },
+      {
+        path: 'super-admin/payments',
+        element: protect(<SuperAdminPaymentsPage />, [ROLES.SUPER_ADMIN])
+      },
+      {
+        path: 'super-admin/payments/:id',
+        element: protect(<SuperAdminPaymentVerificationPage />, [ROLES.SUPER_ADMIN])
+      },
+      {
+        path: 'super-admin/payments/verify/:id',
+        element: protect(<SuperAdminPaymentVerificationPage />, [ROLES.SUPER_ADMIN])
+      },
+      {
+        path: 'super-admin/settings',
+        element: protect(<PaymentSettingsPage />, [ROLES.SUPER_ADMIN])
+      },
+      {
+        path: 'super-admin/settings/payment',
+        element: protect(<PaymentSettingsPage />, [ROLES.SUPER_ADMIN])
+      },
+      {
         path: 'super-admin/clinics',
         element: protect(<SuperAdminClinics />, [ROLES.SUPER_ADMIN])
+      },
+      {
+        path: 'super-admin/clinics/:clinicId',
+        element: protect(<Clinic360Page />, [ROLES.SUPER_ADMIN])
       },
       {
         path: 'super-admin/plans',

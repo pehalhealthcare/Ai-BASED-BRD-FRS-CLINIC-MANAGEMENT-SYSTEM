@@ -11,8 +11,7 @@ const DashboardPage = () => {
   const role = user?.role;
 
   if (role === ROLES.SUPER_ADMIN) {
-    window.location.href = '/super-admin/clinics';
-    return null;
+    return <Navigate to="/clinics" replace />;
   }
 
   if (role === ROLES.ADMIN) {

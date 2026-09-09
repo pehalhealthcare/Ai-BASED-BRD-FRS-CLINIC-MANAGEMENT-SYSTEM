@@ -7,7 +7,7 @@ import {
   Building2, Activity, CreditCard, Receipt, BarChart3, Package,
   Settings, ChevronDown, ChevronRight, ChevronLeft, X, Menu, Lock, User,
   ClipboardList, FlaskConical, Pill, FileText, Stethoscope, ShieldAlert,
-  Syringe
+  Shield, Syringe
 } from 'lucide-react';
 import { clinicApi, patientApi, providersApi } from '../../lib/api';
 import pehalLogo from '../../assets/pehal_logo.svg';
@@ -396,9 +396,10 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
 
     if (normRole === 'SUPER_ADMIN') {
       return [
-        { label: 'Clinics', path: '/super-admin/clinics', iconKey: 'Clinics' },
-        { label: 'Plans', path: '/super-admin/plans', iconKey: 'Plans' },
-        { label: 'Promo Codes', path: '/super-admin/promo-codes', iconKey: 'Promo Codes' },
+        { label: 'Dashboard', path: '/dashboard', iconKey: 'Dashboard' },
+        { label: 'Clinics', path: '/clinics', iconKey: 'Clinics' },
+        { label: 'Plans', path: '/plans', iconKey: 'Plans' },
+        { label: 'Promo Codes', path: '/promo-codes', iconKey: 'Promo Codes' },
         { 
           label: 'Global Lab Catalogue', 
           path: '/super-admin/healthcare-catalog/labs', 
@@ -413,7 +414,10 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
             { label: 'Catalogue Updates', path: '/super-admin/healthcare-catalog/updates' }
           ]
         },
-        { label: 'Global Medicine Catalog', path: '/super-admin/healthcare-catalog/medicines', iconKey: 'Global Medicine Catalog' }
+        { label: 'Global Medicine Catalog', path: '/super-admin/healthcare-catalog/medicines', iconKey: 'Global Medicine Catalog' },
+        { label: 'Payments', path: '/payments', iconKey: 'Payments' },
+        { label: 'Reports', path: '/dashboard/revenue', iconKey: 'Reports' },
+        { label: 'Settings', path: '/settings/payment', iconKey: 'Settings' }
       ];
     }
 
@@ -489,22 +493,29 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
     // Handle Super Admin Healthcare Catalog subItems / menu
     if (normRole === 'SUPER_ADMIN') {
       if (menuKey === 'globalLabCatalog' || label === 'Global Lab Catalogue') {
-        return pathname.startsWith('/super-admin/healthcare-catalog') && !pathname.includes('/medicines');
+        return (pathname.startsWith('/super-admin/healthcare-catalog') && !pathname.includes('/medicines')) ||
+               pathname === '/global-lab-catalogue' || pathname === '/global-lab-catalog';
       }
-      if (label === 'Global Medicine Catalog' || path === '/super-admin/healthcare-catalog/medicines') {
-        return pathname === '/super-admin/healthcare-catalog/medicines';
+      if (label === 'Global Medicine Catalog' || path === '/super-admin/healthcare-catalog/medicines' || path === '/global-medicine-catalogue') {
+        return pathname === '/super-admin/healthcare-catalog/medicines' || pathname === '/global-medicine-catalogue' || pathname === '/global-medicine-catalog';
       }
       if (path.startsWith('/super-admin/healthcare-catalog/')) {
         return pathname === path;
       }
-      if (label === 'Clinics' || path === '/super-admin/clinics') {
-        return pathname.startsWith('/super-admin/clinics') || pathname === '/admin/clinics-dashboard';
+      if (label === 'Clinics' || path === '/clinics' || path === '/super-admin/clinics') {
+        return pathname.startsWith('/super-admin/clinics') || pathname === '/clinics' || pathname.startsWith('/clinics/') || pathname === '/admin/clinics-dashboard';
       }
-      if (label === 'Plans' || path === '/super-admin/plans') {
-        return pathname.startsWith('/super-admin/plans');
+      if (label === 'Plans' || path === '/plans' || path === '/super-admin/plans') {
+        return pathname.startsWith('/super-admin/plans') || pathname === '/plans' || pathname.startsWith('/plans/');
       }
-      if (label === 'Promo Codes' || path === '/super-admin/promo-codes') {
-        return pathname.startsWith('/super-admin/promo-codes');
+      if (label === 'Promo Codes' || path === '/promo-codes' || path === '/super-admin/promo-codes') {
+        return pathname.startsWith('/super-admin/promo-codes') || pathname === '/promo-codes' || pathname.startsWith('/promo-codes/');
+      }
+      if (label === 'Payments' || path === '/payments' || path === '/super-admin/payments') {
+        return pathname.startsWith('/super-admin/payments') || pathname === '/payments' || pathname.startsWith('/payments/');
+      }
+      if (label === 'Settings' || path === '/settings/payment' || path === '/settings' || path.startsWith('/settings')) {
+        return pathname.startsWith('/settings') || pathname.startsWith('/admin/settings');
       }
     }
 
@@ -1675,7 +1686,7 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
           )
         ) : (
           <>
-            <div className="flex-1 overflow-y-auto px-4 py-2 space-y-1.5 [scrollbar-width:none]">
+            <div className={`px-4 py-2 space-y-1.5 [scrollbar-width:none] ${normRole === 'SUPER_ADMIN' ? 'flex-initial' : 'flex-1 overflow-y-auto'}`}>
               {menuItems.map((item, idx) => {
                 const active = isItemActive(item);
                 const isExpandable = !!item.subItems;
@@ -1760,6 +1771,22 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
                 );
               })}
 
+              {/* For Super Admin: Render role card cleanly close below navigation */}
+              {normRole === 'SUPER_ADMIN' && open && (
+                <div className="pt-6">
+                  <div className="bg-slate-50/90 border border-slate-150 rounded-2xl p-3.5 flex items-center gap-3.5 shadow-xs">
+                    <div className="w-10 h-10 shrink-0 rounded-xl bg-blue-50/80 flex items-center justify-center border border-blue-100 text-blue-600">
+                      <Shield size={18} />
+                    </div>
+                    <div className="min-w-0 flex-1 leading-none">
+                      <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">SYSTEM ROLE</span>
+                      <p className="text-xs font-black text-slate-900 mt-1 truncate">Super Admin</p>
+                      <p className="text-[9px] text-slate-400 font-semibold mt-1 truncate">Full Platform Access</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Quick Actions (For Receptionists) */}
               {role === 'RECEPTIONIST' && open && (
                 <div className="mt-6 pt-4 border-t border-slate-100 px-1">
@@ -1777,7 +1804,7 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
           </>
         )}
 
-        {open && (
+        {open && normRole !== 'SUPER_ADMIN' && (
           <div className="p-4 border-t border-slate-100 bg-white shrink-0 space-y-4">
             <div className="bg-slate-50 border border-slate-100 rounded-3xl p-4 flex gap-3.5 relative shadow-sm">
               <div className="w-[42px] h-[42px] shrink-0 rounded-2xl bg-emerald-50/60 flex items-center justify-center border border-emerald-100">

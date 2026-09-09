@@ -103,8 +103,19 @@ const getActivityFeed = asyncHandler(async (req, res) => {
 });
 
 const getSuperAdminOverview = asyncHandler(async (req, res) => {
-  const data = await dashboardService.getSuperAdminOverview({ requester: req.user });
+  const data = await dashboardService.getSuperAdminDashboardData({ query: req.query, requester: req.user });
   return sendSuccess(res, 'Super Admin Dashboard overview fetched successfully', data);
+});
+
+const getSuperAdminDashboard = asyncHandler(async (req, res) => {
+  const data = await dashboardService.getSuperAdminDashboardData({ query: req.query, requester: req.user });
+  return sendSuccess(res, 'Super Admin Dashboard data fetched successfully', data);
+});
+
+const searchSuperAdmin = asyncHandler(async (req, res) => {
+  const queryStr = req.query.q || req.query.search || '';
+  const data = await dashboardService.searchSuperAdminRecords(queryStr);
+  return sendSuccess(res, 'Search results fetched successfully', data);
 });
 
 const getDoctorStatus = asyncHandler(async (req, res) => {
@@ -155,6 +166,8 @@ module.exports = {
   getNoShowAnalytics,
   getActivityFeed,
   getSuperAdminOverview,
+  getSuperAdminDashboard,
+  searchSuperAdmin,
   getDoctorStatus,
   getBranchOverview,
   getStaffOverview,

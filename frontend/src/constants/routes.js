@@ -1,4 +1,4 @@
-import { ROLES } from './roles';
+import { ROLES } from './roles.js';
 
 export const ROUTES = {
   login: '/login',
@@ -33,9 +33,10 @@ export const ROUTES = {
   prescriptions: '/prescriptions',
   billing: '/billing',
   emergency: '/emergency',
-  superAdminClinics: '/super-admin/clinics',
-  superAdminPlans: '/super-admin/plans',
-  superAdminPromoCodes: '/super-admin/promo-codes',
+  clinics: '/clinics',
+  superAdminClinics: '/clinics',
+  superAdminPlans: '/plans',
+  superAdminPromoCodes: '/promo-codes',
   superAdminLabTests: '/super-admin/healthcare-catalog/labs',
   superAdminMedicines: '/super-admin/healthcare-catalog/medicines',
   adminClinicsDashboard: '/admin/clinics-dashboard',
@@ -53,6 +54,8 @@ export const ROUTES = {
   adminReports: '/admin/reports',
   adminSettings: '/admin/settings',
   adminProviders: '/admin/providers',
+  adminPaymentSettings: '/settings/payment',
+  settings: '/settings',
   chat: '/chat'
 };
 
@@ -64,17 +67,17 @@ export const NAV_ITEMS = [
   },
   {
     label: 'Clinics',
-    path: ROUTES.superAdminClinics,
+    path: '/clinics',
     roles: [ROLES.SUPER_ADMIN]
   },
   {
     label: 'Plans',
-    path: ROUTES.superAdminPlans,
+    path: '/plans',
     roles: [ROLES.SUPER_ADMIN]
   },
   {
     label: 'Promo Codes',
-    path: ROUTES.superAdminPromoCodes,
+    path: '/promo-codes',
     roles: [ROLES.SUPER_ADMIN]
   },
   {
@@ -85,6 +88,11 @@ export const NAV_ITEMS = [
   {
     label: 'Global Medicine Catalog',
     path: ROUTES.superAdminMedicines,
+    roles: [ROLES.SUPER_ADMIN]
+  },
+  {
+    label: 'Settings',
+    path: '/settings/payment',
     roles: [ROLES.SUPER_ADMIN]
   },
   {

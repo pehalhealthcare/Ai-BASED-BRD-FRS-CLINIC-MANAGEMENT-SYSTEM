@@ -33,6 +33,8 @@ const procedureRoutes = require('../modules/procedures/procedure.routes');
 const chatRoutes = require('../modules/chat/chat.routes');
 const supportRoutes = require('../modules/support/support.routes');
 const validationRoutes = require('../modules/validation/validation.routes');
+const { adminPaymentSettingsRouter, publicPaymentDetailsRouter } = require('../modules/payment/routes/paymentSettings.routes');
+const subscriptionPaymentRoutes = require('../modules/payment/routes/subscriptionPayment.routes');
 
 const router = Router();
 
@@ -81,6 +83,9 @@ router.use('/procedures', procedureRoutes);
 router.use('/chat', chatRoutes);
 router.use('/support', supportRoutes);
 router.use('/validation', validationRoutes);
+router.use('/admin/payment-settings', adminPaymentSettingsRouter);
+router.use('/payment-details', publicPaymentDetailsRouter);
+router.use('/', subscriptionPaymentRoutes);
 
 // In-memory FAQ database seeded with standard clinic questions
 let faqsDb = [

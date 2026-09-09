@@ -14,8 +14,8 @@ const { LabOrder } = require('../labs/labOrder.model');
 const mongoose = require('mongoose');
 const nodemailer = require('nodemailer');
 const { env } = require('../../config/env');
-const { logger } = require('../../common/utils/logger');
 const OnboardingOtp = require('./onboardingOtp.model');
+const Feedback = require('./feedback.model');
 
 const EventEmitter = require('events');
 class OnboardingEmitter extends EventEmitter {}
@@ -95,13 +95,53 @@ const listClinics = asyncHandler(async (req, res) => {
     .populate('specializations', 'name description isActive')
     .populate('subscription.planId')
     .sort({ createdAt: -1 }); // Newest registrations first
+
+  // Enrich with usage metrics for super admin
+  if (req.user?.role === ROLES.SUPER_ADMIN && clinics.length > 0) {
+    const clinicIds = clinics.map(c => c._id);
+    const [doctorCounts, patientCounts, staffCounts] = await Promise.all([
+      Doctor.aggregate([
+        { $match: { clinicId: { $in: clinicIds }, isActive: true } },
+        { $group: { _id: '$clinicId', count: { $sum: 1 } } }
+      ]),
+      Patient.aggregate([
+        { $match: { clinicId: { $in: clinicIds }, isActive: true } },
+        { $group: { _id: '$clinicId', count: { $sum: 1 } } }
+      ]),
+      User.aggregate([
+        { $match: { clinicId: { $in: clinicIds }, role: { $in: [ROLES.RECEPTIONIST, ROLES.LAB_TECHNICIAN, ROLES.PHARMACIST, ROLES.NURSE, ROLES.ADMIN, ROLES.STAFF, ROLES.CLINIC_MANAGER, ROLES.ACCOUNTANT] }, isActive: true } },
+        { $group: { _id: '$clinicId', count: { $sum: 1 } } }
+      ])
+    ]);
+
+    const docCountMap = Object.fromEntries(doctorCounts.map(d => [d._id.toString(), d.count]));
+    const patCountMap = Object.fromEntries(patientCounts.map(p => [p._id.toString(), p.count]));
+    const staffCountMap = Object.fromEntries(staffCounts.map(s => [s._id.toString(), s.count]));
+
+    const enrichedClinics = clinics.map(c => {
+      const cObj = c.toObject();
+      cObj.usage = {
+        doctorsCount: docCountMap[c._id.toString()] || 0,
+        patientsCount: patCountMap[c._id.toString()] || 0,
+        staffCount: staffCountMap[c._id.toString()] || 0
+      };
+      return cObj;
+    });
+
+    return sendSuccess(res, 'Clinics retrieved successfully', { clinics: enrichedClinics });
+  }
+
   return sendSuccess(res, 'Clinics retrieved successfully', { clinics });
 });
 
 const getClinicDetails = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  const clinic = await Clinic.findById(id).populate('specializations', 'name description isActive');
+  const clinic = await Clinic.findById(id)
+    .populate('specializations', 'name description isActive')
+    .populate('subscription.planId')
+    .populate('parentClinicId', 'name code');
+
   if (!clinic) {
     throw new AppError('Clinic not found', HTTP_STATUS.NOT_FOUND);
   }
@@ -121,27 +161,200 @@ const getClinicDetails = asyncHandler(async (req, res) => {
 
   // Fetch clinic manager email
   const managerUser = await User.findOne({ clinicId: clinic._id, role: ROLES.RECEPTIONIST }).select('email');
-  const clinicEmail = managerUser ? managerUser.email : 'N/A';
+  const clinicEmail = managerUser ? managerUser.email : (clinic.ownerDetails?.email || 'N/A');
 
   // 1. Doctors in this clinic
-  const doctors = await Doctor.find({ clinicId: clinic._id, isActive: true }).select('fullName specialization experienceYears phone email consultationFee followUpFee');
+  const [allDoctors, totalDoctorsCount, activeDoctorsCount] = await Promise.all([
+    Doctor.find({ clinicId: clinic._id })
+      .select('fullName specialization experienceYears phone email consultationFee followUpFee isActive createdAt')
+      .sort({ createdAt: -1 }),
+    Doctor.countDocuments({ clinicId: clinic._id }),
+    Doctor.countDocuments({ clinicId: clinic._id, isActive: true })
+  ]);
 
-  // 2. Patients registered in this clinic
-  const patients = await Patient.find({ clinicId: clinic._id, isActive: true }).select('fullName patientId email phone gender age');
+  // 2. Patients registered in this clinic (aggregates + sample)
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  let appointmentsCount = 0;
+  try {
+    const Appointment = mongoose.models.Appointment || mongoose.model('Appointment');
+    if (Appointment) {
+      appointmentsCount = await Appointment.countDocuments({ clinicId: clinic._id });
+    }
+  } catch (appErr) {
+    appointmentsCount = 0;
+  }
 
-  // 3. Follow-up tasks/patients
+  const [totalPatientsCount, activePatientsCount, newPatientsCount, samplePatients] = await Promise.all([
+    Patient.countDocuments({ clinicId: clinic._id }),
+    Patient.countDocuments({ clinicId: clinic._id, isActive: true }),
+    Patient.countDocuments({ clinicId: clinic._id, createdAt: { $gte: startOfMonth } }),
+    Patient.find({ clinicId: clinic._id, isActive: true })
+      .select('fullName patientId email phone gender age createdAt')
+      .sort({ createdAt: -1 })
+      .limit(15)
+  ]);
+
+  // 3. Staff members
+  const staffUsers = await User.find({
+    clinicId: clinic._id,
+    role: { $in: [ROLES.RECEPTIONIST, ROLES.LAB_TECHNICIAN, ROLES.PHARMACIST, ROLES.NURSE, ROLES.ADMIN, ROLES.STAFF, ROLES.CLINIC_MANAGER, ROLES.ACCOUNTANT] }
+  }).select('name email phone role isActive createdAt department designation');
+
+  const totalStaffCount = staffUsers.length;
+  const activeStaffCount = staffUsers.filter(s => s.isActive).length;
+
+  // 4. Healthcare providers (connected pharmacy, laboratory, imaging, etc.)
+  let healthcareProviders = [];
+  try {
+    const Provider = mongoose.models.Provider || require('../providers/provider.model');
+    const OnboardingDraft = mongoose.models.OnboardingDraft || require('./onboardingDraft.model');
+    const [providers, drafts] = await Promise.all([
+      Provider.find({ clinicId: clinic._id }),
+      OnboardingDraft.find({ clinicId: clinic._id })
+    ]);
+    const mappedProviders = providers.map(p => ({
+      _id: p._id,
+      providerId: p._id,
+      globalId: p.globalId,
+      name: p.name,
+      providerType: p.providerType,
+      providerSubtype: p.providerSubtype,
+      status: p.status || 'Active',
+      contactPerson: p.contactPerson,
+      phone: p.phone,
+      email: p.email,
+      address: p.address,
+      connectedDate: p.createdAt,
+      services: p.operationalSetup || {}
+    }));
+    const mappedDrafts = drafts.map(d => ({
+      _id: d._id,
+      providerId: d._id,
+      name: d.basicInfo?.name || 'New Provider Draft',
+      providerType: d.providerType,
+      providerSubtype: d.basicInfo?.providerSubtype || 'Internal',
+      status: d.status || 'Draft',
+      contactPerson: d.manager?.contactPerson,
+      phone: d.basicInfo?.phone,
+      email: d.basicInfo?.email,
+      connectedDate: d.createdAt,
+      services: d.operationalSetup || {}
+    }));
+    healthcareProviders = [...mappedProviders, ...mappedDrafts];
+  } catch (provErr) {
+    console.warn('Failed to load healthcare providers for clinic:', provErr.message);
+  }
+
+  // 5. Feedback summary (from real database records)
+  let feedbackData = {
+    overallRating: 0,
+    totalResponses: 0,
+    breakdown: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 },
+    percentages: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 },
+    recentFeedback: []
+  };
+
+  try {
+    const feedbackRecords = await Feedback.find({ clinicId: clinic._id })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    if (feedbackRecords && feedbackRecords.length > 0) {
+      const total = feedbackRecords.length;
+      const sum = feedbackRecords.reduce((acc, f) => acc + (Number(f.rating) || 0), 0);
+      const avg = total > 0 ? Number((sum / total).toFixed(1)) : 0;
+      const breakdown = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+
+      feedbackRecords.forEach((f) => {
+        const r = Math.min(5, Math.max(1, Math.round(f.rating || 0)));
+        if (breakdown[r] !== undefined) {
+          breakdown[r] += 1;
+        }
+      });
+
+      const percentages = {
+        5: total > 0 ? Math.round((breakdown[5] / total) * 100) : 0,
+        4: total > 0 ? Math.round((breakdown[4] / total) * 100) : 0,
+        3: total > 0 ? Math.round((breakdown[3] / total) * 100) : 0,
+        2: total > 0 ? Math.round((breakdown[2] / total) * 100) : 0,
+        1: total > 0 ? Math.round((breakdown[1] / total) * 100) : 0
+      };
+
+      feedbackData = {
+        overallRating: avg,
+        totalResponses: total,
+        breakdown,
+        percentages,
+        recentFeedback: feedbackRecords.slice(0, 10).map((f) => ({
+          _id: f._id,
+          patientName: f.patientName || 'Patient',
+          rating: f.rating,
+          comment: f.comment || '',
+          category: f.category || 'General',
+          date: f.createdAt
+        }))
+      };
+    }
+  } catch (fbErr) {
+    console.warn('Failed to load real feedback for clinic:', fbErr.message);
+  }
+
+  // 6. Support Tickets / Complaints
+  let complaints = [];
+  try {
+    const SupportTicket = mongoose.models.SupportTicket;
+    if (SupportTicket) {
+      complaints = await SupportTicket.find({
+        $or: [
+          { clinicName: new RegExp(`^${clinic.name}$`, 'i') },
+          { email: clinic.ownerDetails?.email || clinicEmail }
+        ]
+      }).sort({ createdAt: -1 });
+    }
+  } catch (compErr) {
+    console.warn('Failed to load complaints:', compErr.message);
+  }
+
+  // 7. Subscription History (Invoices & timeline)
+  let subscriptionHistory = [];
+  try {
+    const SubscriptionBilling = mongoose.models.SubscriptionBilling || require('../subscriptions/subscriptionBilling.model');
+    subscriptionHistory = await SubscriptionBilling.find({ clinicId: clinic._id })
+      .populate('planId', 'name priceMonthly priceYearly')
+      .sort({ createdAt: -1 });
+  } catch (subErr) {
+    console.warn('Failed to load subscription history:', subErr.message);
+  }
+
+  // 8. Recent Activity / Audit logs
+  let activity = [];
+  try {
+    const AuditLog = mongoose.models.AuditLog || require('../audit/audit.model');
+    activity = await AuditLog.find({
+      $or: [
+        { entityId: clinic._id },
+        { 'metadata.clinicId': clinic._id },
+        { entity: 'Clinic', entityId: clinic._id }
+      ]
+    }).sort({ createdAt: -1 }).limit(20);
+  } catch (actErr) {
+    console.warn('Failed to load audit logs:', actErr.message);
+  }
+
+  // 9. Follow-up tasks/patients
   const followUps = await FollowUpTask.find({ clinicId: clinic._id })
     .populate('patientId', 'fullName patientId email phone')
     .populate('doctorId', 'fullName specialization')
     .sort({ dueDate: 1 });
 
-  // 4. Pharmacy out of stock / unavailable items (totalStock = 0)
+  // 10. Pharmacy out of stock / unavailable items (totalStock = 0)
   const unavailableMedicines = await Medicine.find({ clinicId: clinic._id, totalStock: 0 }).select('code name genericName category form strength manufacturer reorderLevel');
 
-  // 5. Lab technicians
+  // 11. Lab technicians
   const labTechnicians = await User.find({ clinicId: clinic._id, role: ROLES.LAB_TECHNICIAN, isActive: true }).select('name email phone');
 
-  // 6. Recent Lab orders with creator details
+  // 12. Recent Lab orders with creator details
   const recentLabOrders = await LabOrder.find({ clinicId: clinic._id })
     .populate('patientId', 'fullName patientId')
     .populate('doctorId', 'fullName')
@@ -149,7 +362,7 @@ const getClinicDetails = asyncHandler(async (req, res) => {
     .sort({ createdAt: -1 })
     .limit(10);
 
-  // 7. Revenue Aggregates from Invoices
+  // 13. Revenue Aggregates from Invoices
   const revenueAggregate = await Invoice.aggregate([
     { $match: { clinicId: clinic._id } },
     {
@@ -168,19 +381,43 @@ const getClinicDetails = asyncHandler(async (req, res) => {
     .sort({ createdAt: -1 })
     .limit(10);
 
+  const isSuperAdmin = req.user?.role === ROLES.SUPER_ADMIN;
+
   return sendSuccess(res, 'Clinic details retrieved successfully', {
     clinic,
     clinicEmail,
-    doctors,
-    patients,
-    followUps,
+    doctors: isSuperAdmin ? [] : allDoctors,
+    doctorStats: {
+      total: totalDoctorsCount,
+      active: activeDoctorsCount,
+      inactive: Math.max(0, totalDoctorsCount - activeDoctorsCount)
+    },
+    patients: isSuperAdmin ? [] : samplePatients,
+    patientStats: {
+      total: totalPatientsCount,
+      active: activePatientsCount,
+      newThisMonth: newPatientsCount,
+      appointmentsCount
+    },
+    staff: isSuperAdmin ? [] : staffUsers,
+    staffStats: {
+      total: totalStaffCount,
+      active: activeStaffCount,
+      inactive: Math.max(0, totalStaffCount - activeStaffCount)
+    },
+    healthcareProviders,
+    feedback: feedbackData,
+    complaints,
+    subscriptionHistory,
+    activity,
+    followUps: isSuperAdmin ? [] : followUps,
     unavailableMedicines,
-    labTechnicians,
-    recentLabOrders,
+    labTechnicians: isSuperAdmin ? [] : labTechnicians,
+    recentLabOrders: isSuperAdmin ? [] : recentLabOrders,
     revenue: {
       totalRevenue,
       totalBilled,
-      recentInvoices
+      recentInvoices: isSuperAdmin ? [] : recentInvoices
     }
   });
 });
@@ -390,24 +627,119 @@ const submitRegistration = asyncHandler(async (req, res) => {
     }
   });
 
-  // Create Owner User account in 'pending_approval' status — activated only after Super Admin approves
-  await User.create({
+  const { generateAccessToken } = require('../auth/token.service');
+  const { sanitizeUser } = require('../../common/utils/sanitizeUser');
+
+  // Create Owner User account in 'pending_approval' status with isActive: true so they can login to view setup/payment status
+  const ownerUser = await User.create({
     name: ownerDetails.name,
     email,
     phone: ownerDetails.phone,
     password: hashedPassword, // already hashed
     role: ROLES.ADMIN,
     clinicId: clinic._id,
-    isActive: false,
+    isActive: true,
+    isEmailVerified: true,
     approvalStatus: 'pending_approval'
   });
 
-  return sendSuccess(res, 'Clinic registration submitted successfully. Awaiting Super Admin approval.', { clinic }, 201);
+  const accessToken = generateAccessToken(ownerUser);
+  const sanitizedUser = sanitizeUser(ownerUser);
+  sanitizedUser.clinic = {
+    _id: clinic._id,
+    name: clinic.name,
+    code: clinic.code,
+    approvalStatus: clinic.approvalStatus,
+    isOnboardingCompleted: clinic.isOnboardingCompleted || false,
+    subscription: clinic.subscription,
+    paymentStatus: 'NOT_SUBMITTED'
+  };
+
+  return sendSuccess(res, 'Clinic registration submitted successfully. Proceed to payment to complete verification.', {
+    clinic,
+    user: sanitizedUser,
+    accessToken
+  }, 201);
 });
 
 const getPendingRequests = asyncHandler(async (req, res) => {
-  const requests = await Clinic.find({ approvalStatus: 'pending_approval' }).populate('subscription.planId');
+  // Awaiting Approval queue: Only clinics with verified payment OR assigned Free Tier that are pending approval
+  const requests = await Clinic.find({
+    approvalStatus: 'pending_approval',
+    $or: [
+      { paymentStatus: 'VERIFIED' },
+      { paymentStatus: 'FREE_TIER' },
+      { 'subscription.isFreeTier': true }
+    ]
+  }).populate('subscription.planId');
+
   return sendSuccess(res, 'Pending clinic registrations retrieved successfully', { requests });
+});
+
+const assignFreeTier = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { planId, durationDays = 30, reason = 'Super Admin Grant', notes = '', features = [], limits = {} } = req.body;
+
+  const clinic = await Clinic.findById(id);
+  if (!clinic) {
+    throw new AppError('Clinic not found', HTTP_STATUS.NOT_FOUND);
+  }
+
+  const SubscriptionPlan = require('../subscriptions/subscriptionPlan.model');
+  let plan = null;
+  if (planId) {
+    plan = await SubscriptionPlan.findById(planId);
+  }
+  if (!plan) {
+    plan = await SubscriptionPlan.findOne({ priceMonthly: 0 }) || await SubscriptionPlan.findOne({ code: 'FREE' }) || await SubscriptionPlan.findOne({});
+  }
+
+  const startDate = new Date();
+  const dur = Number(durationDays) || 30;
+  const expiryDate = new Date(startDate.getTime() + dur * 24 * 60 * 60 * 1000);
+
+  clinic.subscription = clinic.subscription || {};
+  clinic.subscription.planId = plan?._id || clinic.subscription.planId;
+  clinic.subscription.billingCycle = 'monthly';
+  clinic.subscription.startDate = startDate;
+  clinic.subscription.renewalDate = expiryDate;
+  clinic.subscription.expiryDate = expiryDate;
+  clinic.subscription.status = 'Active';
+  clinic.subscription.isFreeTier = true;
+  clinic.subscription.freeTierAudit = {
+    assignedBy: req.user?._id || null,
+    assignedAt: new Date(),
+    durationDays: dur,
+    reason: String(reason).trim(),
+    notes: String(notes).trim(),
+    features: Array.isArray(features) && features.length ? features : (plan?.features || []),
+    limits: limits || plan?.limits || {}
+  };
+  clinic.paymentStatus = 'FREE_TIER';
+
+  await clinic.save();
+
+  try {
+    const AuditLog = require('../audit/auditLog.model');
+    if (AuditLog) {
+      await AuditLog.create({
+        actorUserId: req.user?._id,
+        action: 'FREE_TIER_ASSIGNED',
+        entity: 'Clinic',
+        entityId: clinic._id,
+        metadata: {
+          details: `Super Admin assigned Free Tier (${dur} days) to clinic ${clinic.name}. Reason: ${reason}`,
+          durationDays: dur,
+          expiryDate,
+          clinicId: clinic._id
+        }
+      });
+    }
+  } catch (logErr) {
+    console.warn('Failed to log free tier assignment audit:', logErr.message);
+  }
+
+  return sendSuccess(res, 'Free tier assigned successfully', { clinic });
 });
 
 const approveRequest = asyncHandler(async (req, res) => {
@@ -520,7 +852,14 @@ const rejectRequest = asyncHandler(async (req, res) => {
 const getSuperAdminStats = asyncHandler(async (req, res) => {
   const totalClinics = await Clinic.countDocuments();
   const activeClinics = await Clinic.countDocuments({ approvalStatus: 'approved', isActive: true });
-  const pendingClinics = await Clinic.countDocuments({ approvalStatus: 'pending_approval' });
+  const pendingClinics = await Clinic.countDocuments({
+    approvalStatus: 'pending_approval',
+    $or: [
+      { paymentStatus: 'VERIFIED' },
+      { paymentStatus: 'FREE_TIER' },
+      { 'subscription.isFreeTier': true }
+    ]
+  });
   const suspendedClinics = await Clinic.countDocuments({
     $or: [{ approvalStatus: 'suspended' }, { 'subscription.status': 'Suspended' }]
   });
@@ -2126,6 +2465,144 @@ const getHealthcareProviders = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * Get Authoritative Clinic Setup and Payment Lifecycle Status
+ * Used as source of truth for Clinic Admin routing, page guards, and login decisions
+ */
+const getSetupStatus = asyncHandler(async (req, res) => {
+  const userId = req.user?._id;
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new AppError('User not found', HTTP_STATUS.NOT_FOUND);
+  }
+
+  // Non-admin roles (Super Admin, Doctor, Receptionist, Patient, Staff) bypass clinic setup
+  if (user.role !== ROLES.ADMIN) {
+    return sendSuccess(res, 'Setup status retrieved', {
+      emailVerified: true,
+      setupStatus: 'SETUP_COMPLETED',
+      paymentStatus: 'VERIFIED',
+      approvalStatus: 'approved',
+      onboardingStatus: 'COMPLETED',
+      nextRequiredAction: 'DASHBOARD',
+      targetRoute: '/dashboard'
+    });
+  }
+
+  const clinicId = user.clinicId || (user.clinic && user.clinic._id);
+  if (!clinicId) {
+    return sendSuccess(res, 'Setup status retrieved', {
+      emailVerified: user.isEmailVerified || false,
+      setupStatus: 'SETUP_INCOMPLETE',
+      paymentStatus: 'NOT_SUBMITTED',
+      approvalStatus: 'pending_approval',
+      onboardingStatus: 'NOT_STARTED',
+      nextRequiredAction: 'SETUP',
+      targetRoute: '/set-your-clinic'
+    });
+  }
+
+  const clinic = await Clinic.findById(clinicId).populate('subscription.planId');
+  if (!clinic) {
+    return sendSuccess(res, 'Setup status retrieved', {
+      emailVerified: user.isEmailVerified || false,
+      setupStatus: 'SETUP_INCOMPLETE',
+      paymentStatus: 'NOT_SUBMITTED',
+      approvalStatus: 'pending_approval',
+      onboardingStatus: 'NOT_STARTED',
+      nextRequiredAction: 'SETUP',
+      targetRoute: '/set-your-clinic'
+    });
+  }
+
+  // Fetch payments for this clinic
+  const SubscriptionPayment = require('../payment/models/subscriptionPayment.model');
+  const payments = await SubscriptionPayment.find({ clinicId: clinic._id })
+    .populate('planId')
+    .sort({ createdAt: -1 });
+
+  const latestPayment = payments[0] || null;
+
+  // Determine email verification
+  const emailVerified = user.isEmailVerified || !!clinic.ownerDetails?.email || false;
+
+  // Determine payment status
+  let paymentStatus = 'NOT_SUBMITTED';
+  if (clinic.paymentStatus === 'FREE_TIER' || clinic.subscription?.isFreeTier) {
+    paymentStatus = 'FREE_TIER';
+  } else if (clinic.paymentStatus === 'VERIFIED' || latestPayment?.status === 'VERIFIED') {
+    paymentStatus = 'VERIFIED';
+  } else if (latestPayment?.status === 'PENDING_VERIFICATION' || latestPayment?.status === 'SUBMITTED') {
+    paymentStatus = 'PENDING_VERIFICATION';
+  } else if (latestPayment?.status === 'REJECTED' || latestPayment?.status === 'REPAYMENT_REQUIRED' || clinic.subscription?.status === 'Rejected') {
+    paymentStatus = 'REJECTED';
+  }
+
+  // Approval status
+  const approvalStatus = clinic.approvalStatus || 'pending_approval';
+
+  // Onboarding status
+  const onboardingStatus = clinic.isOnboardingCompleted ? 'COMPLETED' : 'IN_PROGRESS';
+
+  // State Decision Matrix:
+  // 1. Email not verified -> EMAIL_VERIFICATION (/set-your-clinic)
+  // 2. Email verified, no payment submitted -> PAYMENT (/clinic/payment)
+  // 3. Payment pending verification -> PAYMENT_VERIFICATION (/clinic/status)
+  // 4. Payment rejected / repayment required -> REPAYMENT (/clinic/payment)
+  // 5. Payment verified or Free Tier, approval pending -> APPROVAL (/clinic/status)
+  // 6. Approved, onboarding incomplete -> ONBOARDING (/clinic/onboarding)
+  // 7. Approved, onboarding completed -> DASHBOARD (/dashboard)
+  let nextRequiredAction = 'DASHBOARD';
+  let targetRoute = '/dashboard';
+
+  if (!emailVerified) {
+    nextRequiredAction = 'EMAIL_VERIFICATION';
+    targetRoute = '/set-your-clinic';
+  } else if (paymentStatus === 'NOT_SUBMITTED') {
+    nextRequiredAction = 'PAYMENT';
+    targetRoute = '/clinic/payment';
+  } else if (paymentStatus === 'PENDING_VERIFICATION') {
+    nextRequiredAction = 'PAYMENT_VERIFICATION';
+    targetRoute = '/clinic/status';
+  } else if (paymentStatus === 'REJECTED') {
+    nextRequiredAction = 'REPAYMENT';
+    targetRoute = '/clinic/payment';
+  } else if ((paymentStatus === 'VERIFIED' || paymentStatus === 'FREE_TIER') && approvalStatus !== 'approved') {
+    nextRequiredAction = 'APPROVAL';
+    targetRoute = '/clinic/status';
+  } else if (approvalStatus === 'approved' && !clinic.isOnboardingCompleted) {
+    nextRequiredAction = 'ONBOARDING';
+    targetRoute = '/clinic/onboarding';
+  } else if (approvalStatus === 'approved' && clinic.isOnboardingCompleted) {
+    nextRequiredAction = 'DASHBOARD';
+    targetRoute = '/dashboard';
+  } else {
+    nextRequiredAction = 'APPROVAL';
+    targetRoute = '/clinic/status';
+  }
+
+  return sendSuccess(res, 'Setup status retrieved successfully', {
+    emailVerified,
+    setupStatus: clinic ? 'SETUP_COMPLETED' : 'SETUP_INCOMPLETE',
+    paymentStatus,
+    approvalStatus,
+    onboardingStatus,
+    nextRequiredAction,
+    targetRoute,
+    clinic: {
+      _id: clinic._id,
+      name: clinic.name,
+      code: clinic.code,
+      approvalStatus: clinic.approvalStatus,
+      isOnboardingCompleted: clinic.isOnboardingCompleted || false,
+      subscription: clinic.subscription,
+      rejectionReason: clinic.rejectionReason || ''
+    },
+    latestPayment,
+    plan: clinic.subscription?.planId || latestPayment?.planId || null
+  });
+});
+
 module.exports = {
   getHealthcareProviders,
   getSubscriptionModules,
@@ -2138,6 +2615,7 @@ module.exports = {
   getPlans,
   submitRegistration,
   getPendingRequests,
+  assignFreeTier,
   approveRequest,
   rejectRequest,
   getSuperAdminStats,
@@ -2166,5 +2644,6 @@ module.exports = {
   getDraft,
   saveOnboardingDraft,
   getOnboardingDraft,
-  deleteOnboardingDraft
+  deleteOnboardingDraft,
+  getSetupStatus
 };
