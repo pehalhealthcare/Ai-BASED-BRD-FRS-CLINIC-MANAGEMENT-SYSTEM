@@ -199,7 +199,7 @@ const buildLabReportPdfDoc = async ({
     doc.fillColor(COLORS.primaryDark).fontSize(14).font("Helvetica-Bold")
       .text("AICMS", LEFT_X + 56, 19, { lineBreak: false });
     doc.fillColor(COLORS.primaryDark).fontSize(7.5).font("Helvetica-Bold")
-      .text("AI CLINIC MANAGEMENT SYSTEM", LEFT_X + 56, 33, { lineBreak: false });
+      .text("AI-CMS ENTERPRISE", LEFT_X + 56, 33, { lineBreak: false });
     doc.fillColor(COLORS.textMuted).fontSize(6.5).font("Helvetica")
       .text("Empowering Clinics. Enabling Better Care.", LEFT_X + 56, 42, { lineBreak: false });
 
@@ -326,7 +326,7 @@ const buildLabReportPdfDoc = async ({
     doc.fillColor(COLORS.primaryDark).fontSize(11).font("Helvetica-Bold")
       .text("AICMS", LEFT_X + 44, 20, { lineBreak: false });
     doc.fillColor(COLORS.textMuted).fontSize(6.5).font("Helvetica-Bold")
-      .text("AI CLINIC MANAGEMENT SYSTEM", LEFT_X + 44, 32, { lineBreak: false });
+      .text("AI-CMS ENTERPRISE", LEFT_X + 44, 32, { lineBreak: false });
 
     // Compact Clinic & Lab info
     doc.fillColor(COLORS.textSubtle).fontSize(7.5).font("Helvetica-Bold")

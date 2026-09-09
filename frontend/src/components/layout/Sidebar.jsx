@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -1631,20 +1631,10 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
 
               <div className="p-4 border-t border-slate-100 shrink-0 space-y-4">
                 {bottomCardInfo.isClickable ? (
-                  <div
-                    role="button"
-                    tabIndex={0}
+                  <Link
+                    to={bottomCardInfo.path}
                     onClick={() => {
-                      if (location.pathname !== bottomCardInfo.path) {
-                        navigate(bottomCardInfo.path);
-                      }
                       if (onNavigate) onNavigate(false);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        if (location.pathname !== bottomCardInfo.path) navigate(bottomCardInfo.path);
-                        if (onNavigate) onNavigate(false);
-                      }
                     }}
                     className={`group w-full text-left rounded-3xl p-3.5 flex items-center gap-3.5 relative transition-all duration-200 cursor-pointer select-none ${
                       location.pathname.startsWith('/clinic/subscription')
@@ -1681,7 +1671,7 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
                         {bottomCardInfo.subtitle}
                       </p>
                     </div>
-                  </div>
+                  </Link>
                 ) : (
                   <div className="bg-slate-50 border border-slate-100 rounded-3xl p-4 flex gap-3.5 relative shadow-sm">
                     <div className="w-[42px] h-[42px] shrink-0 rounded-2xl bg-emerald-50/60 flex items-center justify-center border border-emerald-100">
@@ -1887,20 +1877,10 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
         {open && normRole !== 'SUPER_ADMIN' && (
           <div className="p-4 border-t border-slate-100 bg-white shrink-0 space-y-4">
             {bottomCardInfo.isClickable ? (
-              <div
-                role="button"
-                tabIndex={0}
+              <Link
+                to={bottomCardInfo.path}
                 onClick={() => {
-                  if (location.pathname !== bottomCardInfo.path) {
-                    navigate(bottomCardInfo.path);
-                  }
                   if (onNavigate) onNavigate(false);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    if (location.pathname !== bottomCardInfo.path) navigate(bottomCardInfo.path);
-                    if (onNavigate) onNavigate(false);
-                  }
                 }}
                 className={`group w-full text-left rounded-3xl p-3.5 flex items-center gap-3.5 relative transition-all duration-200 cursor-pointer select-none ${
                   location.pathname.startsWith('/clinic/subscription')
@@ -1937,7 +1917,7 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
                     {bottomCardInfo.subtitle}
                   </p>
                 </div>
-              </div>
+              </Link>
             ) : (
               <div className="bg-slate-50 border border-slate-100 rounded-3xl p-4 flex gap-3.5 relative shadow-sm">
                 <div className="w-[42px] h-[42px] shrink-0 rounded-2xl bg-emerald-50/60 flex items-center justify-center border border-emerald-100">

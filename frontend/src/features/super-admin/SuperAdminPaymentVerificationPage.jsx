@@ -7,7 +7,8 @@ import {
   CheckCircle2, XCircle, FileText, User, Mail, Phone, MapPin,
   ExternalLink, Download, ArrowUpRight, Sparkles, RefreshCw,
   Globe, Shield, ChevronRight, Lock, MessageSquare, HelpCircle,
-  Package, DollarSign, Activity, FileCheck, Layers, Award
+  Package, DollarSign, Activity, FileCheck, Layers, Award,
+  ZoomIn, ZoomOut, RotateCw, Maximize2
 } from 'lucide-react';
 import { subscriptionPaymentApi } from '../../lib/api';
 import useAuth from '../../hooks/useAuth';
@@ -74,11 +75,94 @@ export default function SuperAdminPaymentVerificationPage() {
   const [selectedRejectReason, setSelectedRejectReason] = useState(REJECTION_REASONS[0]);
   const [customRejectReason, setCustomRejectReason] = useState('');
 
-  // Proof full-size preview modal
+  // Proof full-size preview modal & zoom controls
   const [showProofModal, setShowProofModal] = useState(false);
+  const [proofZoom, setProofZoom] = useState(1);
+  const [proofRotation, setProofRotation] = useState(0);
 
   // Copied feedback key
   const [copiedKey, setCopiedKey] = useState('');
+
+  const getProofFileType = (url) => {
+    if (!url || typeof url !== 'string') return 'none';
+    if (url.startsWith('data:image') || /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(url)) return 'image';
+    if (url.startsWith('data:application/pdf') || /\.pdf$/i.test(url) || url.includes('application/pdf')) return 'pdf';
+    return 'other';
+  };
+
+  const handleOpenFileInNewTab = (dataUrl, filename = 'payment_proof.pdf') => {
+    if (!dataUrl) return;
+    if (dataUrl.startsWith('http')) {
+      window.open(dataUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    if (dataUrl.startsWith('data:')) {
+      try {
+        const arr = dataUrl.split(',');
+        const mime = arr[0].match(/:(.*?);/)?.[1] || 'application/pdf';
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+          u8arr[n] = bstr.charCodeAt(n);
+        }
+        const blob = new Blob([u8arr], { type: mime });
+        const blobUrl = URL.createObjectURL(blob);
+        const newWin = window.open(blobUrl, '_blank');
+        if (!newWin) {
+          const a = document.createElement('a');
+          a.href = blobUrl;
+          a.target = '_blank';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        }
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+      } catch (e) {
+        window.open(dataUrl, '_blank');
+      }
+    }
+  };
+
+  const handleDownloadFile = (dataUrl, baseFilename = 'payment_proof') => {
+    if (!dataUrl) return;
+    const fileType = getProofFileType(dataUrl);
+    const ext = fileType === 'pdf' ? '.pdf' : '.png';
+    const finalName = `${baseFilename}_${payment?.utr || 'receipt'}${ext}`;
+
+    if (dataUrl.startsWith('data:')) {
+      try {
+        const arr = dataUrl.split(',');
+        const mime = arr[0].match(/:(.*?);/)?.[1] || 'application/octet-stream';
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+          u8arr[n] = bstr.charCodeAt(n);
+        }
+        const blob = new Blob([u8arr], { type: mime });
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = finalName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+        toast.success('Payment proof downloaded successfully');
+        return;
+      } catch (e) {
+        console.warn('Blob download fallback:', e);
+      }
+    }
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = finalName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    toast.success('Payment proof downloaded successfully');
+  };
 
   const loadPaymentData = async () => {
     setLoading(true);
@@ -864,34 +948,71 @@ export default function SuperAdminPaymentVerificationPage() {
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold text-slate-900">Payment Receipt / Proof</span>
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                          payment.paymentProofUrl ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'
+                          payment.paymentProofUrl
+                            ? (getProofFileType(payment.paymentProofUrl) === 'pdf' ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800')
+                            : 'bg-slate-200 text-slate-600'
                         }`}>
-                          {payment.paymentProofUrl ? 'Uploaded' : 'Not Uploaded'}
+                          {payment.paymentProofUrl ? (getProofFileType(payment.paymentProofUrl) === 'pdf' ? 'PDF Uploaded' : 'Image Uploaded') : 'Not Uploaded'}
                         </span>
                       </div>
 
                       {payment.paymentProofUrl ? (
-                        <div className="space-y-2">
-                          {payment.paymentProofUrl.startsWith('data:image') || payment.paymentProofUrl.endsWith('.png') || payment.paymentProofUrl.endsWith('.jpg') ? (
+                        <div className="space-y-2.5">
+                          {getProofFileType(payment.paymentProofUrl) === 'image' ? (
                             <img
                               src={payment.paymentProofUrl}
                               alt="Payment Proof"
-                              className="w-full h-36 object-contain rounded-xl bg-white border border-slate-200 cursor-pointer"
-                              onClick={() => setShowProofModal(true)}
+                              className="w-full h-40 object-contain rounded-xl bg-white border border-slate-200 cursor-pointer hover:opacity-95 transition"
+                              onClick={() => {
+                                setProofZoom(1);
+                                setProofRotation(0);
+                                setShowProofModal(true);
+                              }}
                             />
                           ) : (
-                            <div className="w-full h-36 rounded-xl bg-white border border-slate-200 flex flex-col items-center justify-center text-slate-400 gap-1.5">
-                              <FileText size={28} className="text-red-500" />
-                              <span className="text-xs font-bold text-slate-700">PDF Document</span>
+                            <div
+                              onClick={() => {
+                                setProofZoom(1);
+                                setProofRotation(0);
+                                setShowProofModal(true);
+                              }}
+                              className="w-full h-40 rounded-xl bg-white border border-slate-200 flex flex-col items-center justify-center text-slate-600 gap-1.5 cursor-pointer hover:bg-slate-50 transition"
+                            >
+                              <FileText size={36} className="text-rose-500" />
+                              <span className="text-xs font-bold text-slate-800">PDF Document Uploaded</span>
+                              <span className="text-[10px] text-slate-400 font-medium">Click to inspect / preview</span>
                             </div>
                           )}
-                          <button
-                            type="button"
-                            onClick={() => setShowProofModal(true)}
-                            className="w-full py-2 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 transition"
-                          >
-                            View Full Size
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setProofZoom(1);
+                                setProofRotation(0);
+                                setShowProofModal(true);
+                              }}
+                              className="flex-1 py-2 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 transition flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+                            >
+                              <Eye size={13} />
+                              <span>View Document</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenFileInNewTab(payment.paymentProofUrl, `payment_proof_${clinicName}`)}
+                              className="p-2 bg-white hover:bg-slate-100 border border-slate-200 text-slate-600 rounded-xl text-xs font-bold transition shadow-2xs cursor-pointer"
+                              title="Open in new browser tab"
+                            >
+                              <ExternalLink size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDownloadFile(payment.paymentProofUrl, `payment_proof_${clinicName}`)}
+                              className="p-2 bg-white hover:bg-slate-100 border border-slate-200 text-slate-600 rounded-xl text-xs font-bold transition shadow-2xs cursor-pointer"
+                              title="Download document"
+                            >
+                              <Download size={14} />
+                            </button>
+                          </div>
                         </div>
                       ) : (
                         <p className="text-xs text-slate-400 italic py-6 text-center">
@@ -1116,11 +1237,26 @@ export default function SuperAdminPaymentVerificationPage() {
             {/* Payment Proof Card */}
             <div className="bg-white rounded-3xl border border-slate-200/80 p-5 shadow-xs space-y-4">
               <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
-                <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">Payment Proof</h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">Payment Proof</h3>
+                  {payment.paymentProofUrl && (
+                    <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
+                      getProofFileType(payment.paymentProofUrl) === 'pdf'
+                        ? 'bg-rose-100 text-rose-800'
+                        : 'bg-emerald-100 text-emerald-800'
+                    }`}>
+                      {getProofFileType(payment.paymentProofUrl) === 'pdf' ? 'PDF' : 'IMAGE'}
+                    </span>
+                  )}
+                </div>
                 {payment.paymentProofUrl && (
                   <button
                     type="button"
-                    onClick={() => setShowProofModal(true)}
+                    onClick={() => {
+                      setProofZoom(1);
+                      setProofRotation(0);
+                      setShowProofModal(true);
+                    }}
                     className="text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 cursor-pointer"
                   >
                     <span>View</span>
@@ -1132,23 +1268,32 @@ export default function SuperAdminPaymentVerificationPage() {
               {payment.paymentProofUrl ? (
                 <div className="space-y-3">
                   <div
-                    onClick={() => setShowProofModal(true)}
+                    onClick={() => {
+                      setProofZoom(1);
+                      setProofRotation(0);
+                      setShowProofModal(true);
+                    }}
                     className="cursor-pointer group relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 flex items-center justify-center h-48"
                   >
-                    {payment.paymentProofUrl.startsWith('data:image') || payment.paymentProofUrl.endsWith('.png') || payment.paymentProofUrl.endsWith('.jpg') ? (
+                    {getProofFileType(payment.paymentProofUrl) === 'image' ? (
                       <img
                         src={payment.paymentProofUrl}
                         alt="Payment Receipt"
                         className="w-full h-full object-contain group-hover:scale-105 transition duration-200"
                       />
                     ) : (
-                      <div className="flex flex-col items-center gap-2 text-slate-500">
-                        <FileText size={36} className="text-red-500" />
-                        <span className="text-xs font-bold">PDF Document Uploaded</span>
+                      <div className="flex flex-col items-center gap-2 text-slate-600 p-4 text-center">
+                        <div className="w-14 h-14 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center shadow-xs">
+                          <FileText size={32} />
+                        </div>
+                        <div>
+                          <span className="text-xs font-black text-slate-900 block">PDF Receipt Uploaded</span>
+                          <span className="text-[10px] text-slate-400 font-medium block mt-0.5">Click to inspect / preview</span>
+                        </div>
                       </div>
                     )}
                     <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs font-bold gap-1.5">
-                      <Eye size={16} /> Click to expand
+                      <Eye size={16} /> Click to open document
                     </div>
                   </div>
                 </div>
@@ -1408,26 +1553,162 @@ export default function SuperAdminPaymentVerificationPage() {
       )}
 
       {/* ── MODAL 3: FULL-SIZE PROOF PREVIEW ── */}
-      {showProofModal && (
-        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowProofModal(false)}>
-          <div className="bg-white rounded-3xl p-5 max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <span className="text-xs font-black text-slate-900">Payment Receipt Preview (UTR: {payment.utr})</span>
+      {showProofModal && payment?.paymentProofUrl && (
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-5" onClick={() => setShowProofModal(false)}>
+          <div className="bg-white rounded-3xl p-5 sm:p-6 max-w-4xl w-full max-h-[92vh] flex flex-col shadow-2xl relative border border-slate-100 animate-in fade-in zoom-in-95 duration-150" onClick={(e) => e.stopPropagation()}>
+            
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 gap-2">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                  getProofFileType(payment.paymentProofUrl) === 'pdf' ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'
+                }`}>
+                  <FileText size={18} />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-black text-slate-900 truncate">Payment Proof Document</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                      getProofFileType(payment.paymentProofUrl) === 'pdf' ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'
+                    }`}>
+                      {getProofFileType(payment.paymentProofUrl) === 'pdf' ? 'PDF' : 'IMAGE'}
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-slate-400 font-mono block">
+                    UTR: {payment.utr} • Clinic: {clinicName}
+                  </span>
+                </div>
+              </div>
+
+              {/* Action Toolbar */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                {getProofFileType(payment.paymentProofUrl) === 'image' && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setProofZoom(z => Math.max(0.5, +(z - 0.25).toFixed(2)))}
+                      className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 transition cursor-pointer"
+                      title="Zoom Out"
+                    >
+                      <ZoomOut size={15} />
+                    </button>
+                    <span className="text-[11px] font-mono font-bold text-slate-500 w-10 text-center">
+                      {Math.round(proofZoom * 100)}%
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setProofZoom(z => Math.min(3, +(z + 0.25).toFixed(2)))}
+                      className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 transition cursor-pointer"
+                      title="Zoom In"
+                    >
+                      <ZoomIn size={15} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setProofRotation(r => (r + 90) % 360)}
+                      className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 transition cursor-pointer"
+                      title="Rotate"
+                    >
+                      <RotateCw size={15} />
+                    </button>
+                    <div className="h-5 w-px bg-slate-200 mx-1" />
+                  </>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => handleOpenFileInNewTab(payment.paymentProofUrl, `payment_proof_${payment.utr}`)}
+                  className="px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer"
+                  title="Open in new tab"
+                >
+                  <ExternalLink size={13} />
+                  <span className="hidden sm:inline">Open in Tab</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleDownloadFile(payment.paymentProofUrl, `payment_proof_${clinicName}`)}
+                  className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer"
+                  title="Download Document"
+                >
+                  <Download size={13} />
+                  <span className="hidden sm:inline">Download</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowProofModal(false)}
+                  className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+                  title="Close"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* Document Content View */}
+            <div className="flex-1 overflow-auto py-4 flex items-center justify-center bg-slate-100/70 rounded-2xl border border-slate-200/80 my-2 min-h-[450px]">
+              {getProofFileType(payment.paymentProofUrl) === 'image' ? (
+                <div className="overflow-auto max-h-[70vh] flex items-center justify-center p-2">
+                  <img
+                    src={payment.paymentProofUrl}
+                    alt="Receipt Full"
+                    style={{
+                      transform: `scale(${proofZoom}) rotate(${proofRotation}deg)`,
+                      transition: 'transform 0.2s ease-in-out'
+                    }}
+                    className="max-w-full max-h-[65vh] object-contain rounded-xl shadow-md select-none"
+                  />
+                </div>
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center">
+                  <object
+                    data={payment.paymentProofUrl}
+                    type="application/pdf"
+                    className="w-full h-[70vh] rounded-xl border-none"
+                  >
+                    <div className="p-8 text-center space-y-4">
+                      <FileText size={48} className="text-rose-500 mx-auto" />
+                      <div>
+                        <h4 className="text-sm font-bold text-slate-900">PDF Document Ready</h4>
+                        <p className="text-xs text-slate-500 mt-1">If your browser cannot preview the PDF inline, click below to open or download.</p>
+                      </div>
+                      <div className="flex items-center justify-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenFileInNewTab(payment.paymentProofUrl)}
+                          className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer"
+                        >
+                          <ExternalLink size={14} /> Open in Browser
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadFile(payment.paymentProofUrl)}
+                          className="px-4 py-2 bg-slate-800 text-white rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer"
+                        >
+                          <Download size={14} /> Download PDF
+                        </button>
+                      </div>
+                    </div>
+                  </object>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-between pt-2">
+              <span className="text-[11px] text-slate-400">
+                Please verify that the UTR and amount match bank records before completing verification.
+              </span>
               <button
                 type="button"
                 onClick={() => setShowProofModal(false)}
-                className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg"
+                className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition cursor-pointer"
               >
-                <X size={18} />
+                Close Preview
               </button>
             </div>
-            <div className="flex-1 overflow-auto py-4 flex items-center justify-center">
-              {payment.paymentProofUrl?.startsWith('data:image') || payment.paymentProofUrl?.endsWith('.png') || payment.paymentProofUrl?.endsWith('.jpg') ? (
-                <img src={payment.paymentProofUrl} alt="Receipt Full" className="max-w-full max-h-[70vh] object-contain rounded-xl" />
-              ) : (
-                <iframe src={payment.paymentProofUrl} title="Receipt PDF" className="w-full h-[70vh] rounded-xl border border-slate-200" />
-              )}
-            </div>
+
           </div>
         </div>
       )}

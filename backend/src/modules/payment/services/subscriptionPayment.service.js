@@ -24,7 +24,23 @@ const validateUtr = (utr) => {
 };
 
 const { generateDynamicUpiQr, getSanitizedActiveDetails } = require('./paymentSettings.service');
-const { uploadBase64 } = require('../../../common/utils/gridFsStorage.service');
+const { uploadBase64, downloadAsBase64 } = require('../../../common/utils/gridFsStorage.service');
+
+/**
+ * Resolves GridFS payment proof reference to base64 Data URI
+ */
+const resolvePaymentProof = async (payment) => {
+  if (!payment) return payment;
+  const pObj = payment.toObject ? payment.toObject() : { ...payment };
+  if (pObj.paymentProofUrl && typeof pObj.paymentProofUrl === 'string' && pObj.paymentProofUrl.startsWith('gridfs:')) {
+    try {
+      pObj.paymentProofUrl = await downloadAsBase64(pObj.paymentProofUrl);
+    } catch (err) {
+      logger.warn(`Failed to resolve payment proof GridFS file: ${err.message}`);
+    }
+  }
+  return pObj;
+};
 
 /**
  * Initiates a payment attempt for a clinic: validates plan, calculates authentic price,
@@ -67,7 +83,7 @@ const initiatePaymentAttempt = async ({ clinicId, planId, billingCycle = 'monthl
   });
 
   // Fetch complete payment attempts history for this clinic
-  const history = await SubscriptionPayment.find({ clinicId })
+  const rawHistory = await SubscriptionPayment.find({ clinicId })
     .sort({ attemptNumber: -1, createdAt: -1 })
     .populate('planId', 'name code price priceMonthly priceYearly')
     .populate('currentPlanId', 'name code price priceMonthly priceYearly')
@@ -75,6 +91,7 @@ const initiatePaymentAttempt = async ({ clinicId, planId, billingCycle = 'monthl
     .populate('verifiedBy', 'name email')
     .populate('rejectedBy', 'name email');
 
+  const history = await Promise.all(rawHistory.map(p => resolvePaymentProof(p)));
   const latestPayment = history[0] || null;
 
   return {
@@ -171,7 +188,9 @@ const submitPaymentAttempt = async ({
   let resolvedProofUrl = paymentProofUrl || '';
   if (resolvedProofUrl && typeof resolvedProofUrl === 'string' && resolvedProofUrl.startsWith('data:')) {
     try {
-      resolvedProofUrl = await uploadBase64(resolvedProofUrl, `payment_proof_${cleanUtr}.png`);
+      const isPdf = resolvedProofUrl.startsWith('data:application/pdf');
+      const ext = isPdf ? 'pdf' : 'png';
+      resolvedProofUrl = await uploadBase64(resolvedProofUrl, `payment_proof_${cleanUtr}.${ext}`);
     } catch (err) {
       console.warn('Failed to upload proof to GridFS, keeping raw proof data:', err.message);
     }
@@ -494,7 +513,7 @@ const listPayments = async (query = {}) => {
 
   const SubscriptionPlan = getSubscriptionPlanModel();
 
-  const [payments, totalCount] = await Promise.all([
+  const [rawPayments, totalCount] = await Promise.all([
     SubscriptionPayment.find(filter)
       .sort({ submittedAt: -1 })
       .skip(skip)
@@ -507,6 +526,8 @@ const listPayments = async (query = {}) => {
       .populate('rejectedBy', 'name email'),
     SubscriptionPayment.countDocuments(filter)
   ]);
+
+  const payments = await Promise.all(rawPayments.map(p => resolvePaymentProof(p)));
 
   // Aggregate pending count
   const pendingCount = await SubscriptionPayment.countDocuments({ status: 'PENDING_VERIFICATION' });
@@ -535,7 +556,7 @@ const listPayments = async (query = {}) => {
  */
 const getPaymentById = async (paymentId) => {
   const SubscriptionPlan = getSubscriptionPlanModel();
-  const payment = await SubscriptionPayment.findById(paymentId)
+  const rawPayment = await SubscriptionPayment.findById(paymentId)
     .populate({
       path: 'clinicId',
       populate: { path: 'subscription.planId' }
@@ -546,16 +567,16 @@ const getPaymentById = async (paymentId) => {
     .populate('verifiedBy', 'name email')
     .populate('rejectedBy', 'name email');
 
-  if (!payment) {
+  if (!rawPayment) {
     throw new AppError('Payment not found.', HTTP_STATUS.NOT_FOUND);
   }
 
-  const clinicId = payment.clinicId?._id || payment.clinicId;
+  const clinicId = rawPayment.clinicId?._id || rawPayment.clinicId;
 
   // Get other attempts for this clinic
-  const otherAttempts = await SubscriptionPayment.find({
+  const rawOtherAttempts = await SubscriptionPayment.find({
     clinicId,
-    _id: { $ne: payment._id }
+    _id: { $ne: rawPayment._id }
   })
     .sort({ attemptNumber: -1, createdAt: -1 })
     .populate('planId')
@@ -563,6 +584,9 @@ const getPaymentById = async (paymentId) => {
     .populate('requestedPlanId')
     .populate('verifiedBy', 'name email')
     .populate('rejectedBy', 'name email');
+
+  const payment = await resolvePaymentProof(rawPayment);
+  const otherAttempts = await Promise.all(rawOtherAttempts.map(att => resolvePaymentProof(att)));
 
   // Fetch related audit logs for Activity Log tab
   let auditLogs = [];
@@ -590,13 +614,15 @@ const getPaymentById = async (paymentId) => {
  */
 const getClinicPaymentHistory = async (clinicId) => {
   const SubscriptionPlan = getSubscriptionPlanModel();
-  const payments = await SubscriptionPayment.find({ clinicId })
+  const rawPayments = await SubscriptionPayment.find({ clinicId })
     .sort({ attemptNumber: -1, createdAt: -1 })
     .populate('planId', 'name code price priceMonthly priceYearly')
     .populate('currentPlanId', 'name code price priceMonthly priceYearly')
     .populate('requestedPlanId', 'name code price priceMonthly priceYearly')
     .populate('verifiedBy', 'name email')
     .populate('rejectedBy', 'name email');
+
+  const payments = await Promise.all(rawPayments.map(p => resolvePaymentProof(p)));
 
   const totalPaid = payments
     .filter(p => p.status === 'VERIFIED')

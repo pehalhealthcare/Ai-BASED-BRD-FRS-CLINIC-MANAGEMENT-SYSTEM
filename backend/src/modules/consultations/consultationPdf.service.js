@@ -143,7 +143,7 @@ const renderHeader = (doc, clinic, doctor, patient, consultation, qrBuffer, page
     doc.font(F.bold).fontSize(12).fillColor(C.primary);
     doc.text(clinic?.name || 'AICMS CLINIC', L + 34, top, { width: CW * 0.45, ...o });
     doc.font(F.bold).fontSize(7).fillColor(C.accent);
-    doc.text('AI CLINIC MANAGEMENT SYSTEM', L + 34, top + 13, { width: CW * 0.45, ...o });
+    doc.text('AI-CMS ENTERPRISE', L + 34, top + 13, { width: CW * 0.45, ...o });
 
     const addr = buildAddress(clinic?.address) || '123, HealthCare Avenue, Indirapuram, Ghaziabad, Uttar Pradesh - 201014';
     doc.font(F.regular).fontSize(6.5).fillColor(C.muted);

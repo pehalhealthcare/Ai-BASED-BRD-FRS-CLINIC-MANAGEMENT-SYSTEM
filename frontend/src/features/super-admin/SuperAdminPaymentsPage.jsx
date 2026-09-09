@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
   CreditCard, Search, RefreshCw, Check, X, Eye, Clock,
   Building2, CalendarDays, AlertTriangle, CheckCircle2,
   XCircle, ChevronLeft, ChevronRight, Loader2,
-  ArrowUpRight, FileText, ShieldCheck, ShieldX, Hash, User
+  ArrowUpRight, FileText, ShieldCheck, ShieldX, Hash, User, Sparkles
 } from 'lucide-react';
 import { subscriptionPaymentApi } from '../../lib/api';
 
@@ -190,135 +190,10 @@ const RejectModal = ({ payment, onClose, onConfirm, loading }) => {
   );
 };
 
-const DetailDrawer = ({ payment, onClose, onVerify, onReject }) => {
-  if (!payment) return null;
-  const clinicName = payment.clinicId?.name || payment.clinicName || 'Unknown Clinic';
-  const planName = payment.planId?.name || payment.planName || 'Unknown Plan';
-  return (
-    <div className="fixed inset-0 z-40 flex justify-end" onClick={onClose}>
-      <div className="w-full max-w-lg bg-white h-full shadow-2xl overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between z-10">
-          <div>
-            <h2 className="text-base font-bold text-slate-900">Payment Details</h2>
-            <p className="text-xs text-slate-500">Attempt #{payment.attemptNumber || 1}</p>
-          </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-500 transition">
-            <X size={18} />
-          </button>
-        </div>
-        <div className="p-6 space-y-5">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-sm shrink-0"
-              style={{ background: getAvatarColor(clinicName) }}>
-              {getInitials(clinicName)}
-            </div>
-            <div>
-              <p className="font-bold text-slate-900 text-sm">{clinicName}</p>
-              <p className="text-xs text-slate-500">Code: {payment.clinicId?.code || payment.clinicCode || '--'}</p>
-              {payment.clinicId?.email && <p className="text-xs text-slate-400">{payment.clinicId.email}</p>}
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <StatusBadge status={payment.status} />
-            <PaymentTypeBadge type={payment.paymentType} />
-          </div>
-          <div className="bg-slate-50 rounded-xl p-4 space-y-3 text-sm">
-            <div className="grid grid-cols-2 gap-3">
-              {payment.currentPlanId?.name && (
-                <div><p className="text-[10px] text-slate-400 uppercase tracking-wider mb-0.5">Current Plan</p><p className="font-semibold text-slate-700">{payment.currentPlanId.name}</p></div>
-              )}
-              <div><p className="text-[10px] text-slate-400 uppercase tracking-wider mb-0.5">{payment.currentPlanId ? 'Requested Plan' : 'Plan'}</p><p className="font-semibold text-slate-900">{payment.requestedPlanId?.name || planName}</p></div>
-              <div><p className="text-[10px] text-slate-400 uppercase tracking-wider mb-0.5">Cycle</p><p className="font-medium text-slate-700 capitalize">{payment.requestedBillingCycle || payment.billingCycle || '--'}</p></div>
-              <div><p className="text-[10px] text-slate-400 uppercase tracking-wider mb-0.5">Amount</p><p className="font-bold text-emerald-600 text-base">{fmt(payment.amount)}</p></div>
-              <div><p className="text-[10px] text-slate-400 uppercase tracking-wider mb-0.5">Currency</p><p className="font-medium text-slate-700">{payment.currency || 'INR'}</p></div>
-            </div>
-          </div>
-          <div className="space-y-3">
-            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Transaction Info</h4>
-            <div className="bg-white border border-slate-100 rounded-xl divide-y divide-slate-50">
-              <div className="flex items-center justify-between px-4 py-3">
-                <span className="text-xs text-slate-500 flex items-center gap-1.5"><Hash size={12}/>UTR / Reference</span>
-                <span className="font-mono text-xs font-bold text-slate-800 bg-slate-50 px-2 py-0.5 rounded-lg">{payment.utr || '--'}</span>
-              </div>
-              <div className="flex items-center justify-between px-4 py-3">
-                <span className="text-xs text-slate-500 flex items-center gap-1.5"><FileText size={12}/>Transaction ID</span>
-                <span className="font-mono text-xs text-slate-700">{payment.transactionId || '--'}</span>
-              </div>
-              <div className="flex items-center justify-between px-4 py-3">
-                <span className="text-xs text-slate-500 flex items-center gap-1.5"><CalendarDays size={12}/>Submitted</span>
-                <span className="text-xs text-slate-700">{fmtDate(payment.submittedAt || payment.createdAt)}</span>
-              </div>
-              {payment.verifiedAt && (
-                <div className="flex items-center justify-between px-4 py-3">
-                  <span className="text-xs text-slate-500 flex items-center gap-1.5"><CheckCircle2 size={12} className="text-emerald-500"/>Verified</span>
-                  <span className="text-xs text-slate-700">{fmtDate(payment.verifiedAt)}</span>
-                </div>
-              )}
-              {payment.verifiedBy && (
-                <div className="flex items-center justify-between px-4 py-3">
-                  <span className="text-xs text-slate-500 flex items-center gap-1.5"><User size={12}/>Verified By</span>
-                  <span className="text-xs font-medium text-slate-700">{payment.verifiedBy?.name || payment.verifiedBy}</span>
-                </div>
-              )}
-            </div>
-          </div>
-          {payment.rejectionReason && (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-              <p className="text-xs font-bold text-red-700 mb-1">Rejection Reason</p>
-              <p className="text-sm text-red-800">{payment.rejectionReason}</p>
-              {payment.rejectionNotes && <p className="text-xs text-red-600 mt-1">{payment.rejectionNotes}</p>}
-            </div>
-          )}
-          {payment.paymentProofUrl && (
-            <div>
-              <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Payment Proof</h4>
-              <a href={payment.paymentProofUrl} target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5 transition hover:bg-blue-100">
-                <FileText size={14} />View Payment Screenshot
-                <ArrowUpRight size={12} />
-              </a>
-            </div>
-          )}
-          <Link
-            to={`/payments/verify/${payment._id}`}
-            className="flex items-center justify-between text-sm font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 transition hover:bg-emerald-100"
-          >
-            <span className="flex items-center gap-2">
-              <ShieldCheck size={16} /> Open Verification Workspace
-            </span>
-            <ArrowUpRight size={14} />
-          </Link>
-          {payment.clinicId?._id && (
-            <Link
-              to={`/clinics/${payment.clinicId._id}`}
-              className="flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 transition hover:bg-slate-100">
-              <Building2 size={14} />View Clinic 360 deg
-              <ArrowUpRight size={12} />
-            </Link>
-          )}
-        </div>
-        {payment.status === 'PENDING_VERIFICATION' && (
-          <div className="sticky bottom-0 bg-white border-t border-slate-100 px-6 py-4 flex gap-3">
-            <button
-              onClick={() => onReject(payment)}
-              className="flex-1 py-2.5 rounded-xl border border-red-200 text-red-600 text-sm font-semibold hover:bg-red-50 transition flex items-center justify-center gap-2"
-            >
-              <XCircle size={14} />Reject
-            </button>
-            <button
-              onClick={() => onVerify(payment)}
-              className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition flex items-center justify-center gap-2"
-            >
-              <CheckCircle2 size={14} />Verify
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
+
 
 const SuperAdminPaymentsPage = () => {
+  const navigate = useNavigate();
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -331,7 +206,6 @@ const SuperAdminPaymentsPage = () => {
   const [verifyingPayment, setVerifyingPayment] = useState(null);
   const [rejectingPayment, setRejectingPayment] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
-  const [drawerPayment, setDrawerPayment] = useState(null);
   const [statusCounts, setStatusCounts] = useState({});
 
   const loadPayments = useCallback(async () => {
@@ -364,7 +238,6 @@ const SuperAdminPaymentsPage = () => {
       await subscriptionPaymentApi.verifyPayment(paymentId);
       toast.success('Payment verified! Clinic subscription has been activated.');
       setVerifyingPayment(null);
-      setDrawerPayment(null);
       loadPayments();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to verify payment.');
@@ -379,7 +252,6 @@ const SuperAdminPaymentsPage = () => {
       await subscriptionPaymentApi.rejectPayment(paymentId, payload);
       toast('Payment rejected. Clinic has been notified.');
       setRejectingPayment(null);
-      setDrawerPayment(null);
       loadPayments();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to reject payment.');
@@ -397,14 +269,6 @@ const SuperAdminPaymentsPage = () => {
       )}
       {rejectingPayment && (
         <RejectModal payment={rejectingPayment} onClose={() => setRejectingPayment(null)} onConfirm={handleRejectConfirm} loading={actionLoading} />
-      )}
-      {drawerPayment && (
-        <DetailDrawer
-          payment={drawerPayment}
-          onClose={() => setDrawerPayment(null)}
-          onVerify={p => { setDrawerPayment(null); setVerifyingPayment(p); }}
-          onReject={p => { setDrawerPayment(null); setRejectingPayment(p); }}
-        />
       )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
@@ -489,14 +353,21 @@ const SuperAdminPaymentsPage = () => {
                       const clinicCode = p.clinicId?.code || p.clinicCode || '';
                       const planName = p.planId?.name || p.planName || '--';
                       return (
-                        <tr key={p._id} className="hover:bg-slate-50/50 transition cursor-pointer" onClick={() => setDrawerPayment(p)}>
+                        <tr
+                          key={p._id}
+                          className="hover:bg-slate-50/70 transition cursor-pointer group"
+                          onClick={() => navigate(`/payments/verify/${p._id}`)}
+                        >
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2.5">
                               <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold shrink-0" style={{ background: getAvatarColor(clinicName) }}>
                                 {getInitials(clinicName)}
                               </div>
                               <div>
-                                <p className="font-semibold text-slate-900 text-xs leading-tight">{clinicName}</p>
+                                <p className="font-semibold text-slate-900 group-hover:text-emerald-600 transition text-xs leading-tight flex items-center gap-1">
+                                  {clinicName}
+                                  <ArrowUpRight size={11} className="opacity-0 group-hover:opacity-100 transition text-emerald-500" />
+                                </p>
                                 {clinicCode && <p className="text-[10px] text-slate-400">{clinicCode}</p>}
                               </div>
                             </div>
@@ -514,7 +385,13 @@ const SuperAdminPaymentsPage = () => {
                           <td className="px-4 py-3"><StatusBadge status={p.status} /></td>
                           <td className="px-4 py-3 text-right" onClick={e => e.stopPropagation()}>
                             <div className="flex items-center justify-end gap-1.5">
-                              <button onClick={() => setDrawerPayment(p)} className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition" title="View"><Eye size={13} /></button>
+                              <button
+                                onClick={() => navigate(`/payments/verify/${p._id}`)}
+                                className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 hover:text-emerald-600 transition"
+                                title="Open Verification Workspace"
+                              >
+                                <Eye size={13} />
+                              </button>
                               {p.status === 'PENDING_VERIFICATION' && (
                                 <>
                                   <button onClick={() => setVerifyingPayment(p)} className="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-700 text-xs font-bold hover:bg-emerald-200 transition flex items-center gap-1"><Check size={11} /> Verify</button>
