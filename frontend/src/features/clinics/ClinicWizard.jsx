@@ -1223,7 +1223,7 @@ export default function ClinicWizard() {
             <div className="h-5 w-[1px] bg-slate-200 mx-1.5" />
             <div>
               <span className="text-[11px] font-black text-slate-900 block leading-none">AICMS</span>
-              <span className="text-[8px] font-bold text-slate-400 block tracking-wider uppercase mt-0.5">AI Clinic Management System</span>
+              <span className="text-[8px] font-bold text-slate-400 block tracking-wider uppercase mt-0.5">AI-CMS Enterprise</span>
             </div>
           </div>
 

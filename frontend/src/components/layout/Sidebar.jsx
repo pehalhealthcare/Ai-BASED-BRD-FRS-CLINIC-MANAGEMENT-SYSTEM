@@ -9,7 +9,7 @@ import {
   ClipboardList, FlaskConical, Pill, FileText, Stethoscope, ShieldAlert,
   Shield, Syringe
 } from 'lucide-react';
-import { clinicApi, patientApi, providersApi } from '../../lib/api';
+import { clinicApi, patientApi, providersApi, subscriptionPaymentApi } from '../../lib/api';
 import pehalLogo from '../../assets/pehal_logo.svg';
 
 const ICON_MAP = {
@@ -26,7 +26,8 @@ const ICON_MAP = {
   'Payments': <Receipt size={20} />,
   'Reports': <BarChart3 size={20} />,
   'Reports & Analytics': <BarChart3 size={20} />,
-  'Subscription & Plan': <BarChart3 size={20} />,
+  'Subscription & Plan': <CreditCard size={20} />,
+  'Plan': <CreditCard size={20} />,
   'Inventory': <Package size={20} />,
   'Pharmacy': <Package size={20} />,
   'Laboratory': <FlaskConical size={20} />,
@@ -297,8 +298,20 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
     return getClinicTheme(selectedClinic?.name);
   }, [selectedClinic]);
 
-  const clinicName = user?.clinic?.name || "Ram's Dental Clinic";
-  const planName = user?.clinic?.subscription?.planId?.name || 'AI Premium Clinic';
+  const { data: clinicSetupData } = useQuery({
+    queryKey: ['clinicSetupStatus', user?.clinicId || user?.clinic?._id],
+    queryFn: () => subscriptionPaymentApi.getSetupStatus(),
+    enabled: normRole === 'ADMIN' || normRole === 'CLINIC_ADMIN' || !['DOCTOR', 'PATIENT', 'RECEPTIONIST', 'LAB_TECHNICIAN', 'LABORATORY OPERATOR', 'PHARMACIST', 'PHARMACY STORE OPERATOR', 'SUPER_ADMIN'].includes(normRole),
+    staleTime: 10000,
+    refetchOnWindowFocus: true
+  });
+
+  const clinicObj = clinicSetupData?.data?.clinic || clinicSetupData?.clinic || user?.clinic;
+  const clinicSubscription = clinicObj?.subscription;
+  const clinicName = clinicObj?.name || user?.clinic?.name || "Ram's Dental Clinic";
+  const planName = clinicSubscription?.planId?.name || clinicSubscription?.plan || clinicObj?.plan || user?.clinic?.subscription?.planId?.name || 'AI Premium Clinic';
+  const storageLimit = clinicSubscription?.limits?.storageGB ? `${clinicSubscription.limits.storageGB}GB` : (clinicSubscription?.planId?.features?.includes('advanced_reports') ? '200GB' : '200GB');
+  const storageUsed = '170GB';
 
   // Sidebar Menu options configuration for non-patient roles
   const menuItems = useMemo(() => {
@@ -517,6 +530,10 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
       if (label === 'Settings' || path === '/settings/payment' || path === '/settings' || path.startsWith('/settings')) {
         return pathname.startsWith('/settings') || pathname.startsWith('/admin/settings');
       }
+    }
+
+    if (label === 'Plan' || path === '/clinic/subscription' || path === '/admin/subscription') {
+      return pathname.startsWith('/clinic/subscription') || pathname.startsWith('/admin/subscription');
     }
 
     // Lab Orders matching: includes all nested routes
@@ -769,12 +786,15 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
       };
     }
     return {
-      title: 'Current Plan 👑',
-      subtitle: '170GB / 200GB Used',
+      title: 'CURRENT PLAN 👑',
+      subtitle: `${storageUsed} / ${storageLimit} Used`,
       name: planName,
-      icon: <Building2 size={20} className="text-emerald-500" />
+      icon: <Building2 size={20} className="text-emerald-500" />,
+      isClickable: true,
+      path: '/clinic/subscription',
+      isPending: clinicObj?.paymentStatus === 'PENDING_VERIFICATION' || user?.clinic?.paymentStatus === 'PENDING_VERIFICATION'
     };
-  }, [role, user, planName]);
+  }, [role, user, planName, storageLimit, storageUsed, clinicObj]);
 
   // Patient Sidebar content with dynamic context awareness
   const renderPatientSidebarContent = (isMobileOrOverlay = false) => {
@@ -1472,7 +1492,7 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
                   <img src={pehalLogo} alt="Pehal" className="h-10 w-auto" />
                   <div>
                     <h2 className="text-sm font-black text-slate-900 tracking-tight">AICMS</h2>
-                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block mt-0.5">AI Clinic Management</span>
+                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block mt-0.5">AI-CMS Enterprise</span>
                   </div>
                 </div>
                 <button 
@@ -1578,6 +1598,11 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
                                 {ICON_MAP[item.iconKey] || <LayoutGrid size={20} />}
                               </span>
                               <span>{item.label}</span>
+                              {item.badge && (
+                                <span className="ml-auto text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200 animate-pulse">
+                                  {item.badge}
+                                </span>
+                              )}
                             </NavLink>
                           )}
                         </div>
@@ -1605,16 +1630,70 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
               )}
 
               <div className="p-4 border-t border-slate-100 shrink-0 space-y-4">
-                <div className="bg-slate-50 border border-slate-100 rounded-3xl p-4 flex gap-3.5 relative shadow-sm">
-                  <div className="w-[42px] h-[42px] shrink-0 rounded-2xl bg-emerald-50/60 flex items-center justify-center border border-emerald-100">
-                    {bottomCardInfo.icon}
+                {bottomCardInfo.isClickable ? (
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => {
+                      if (location.pathname !== bottomCardInfo.path) {
+                        navigate(bottomCardInfo.path);
+                      }
+                      if (onNavigate) onNavigate(false);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        if (location.pathname !== bottomCardInfo.path) navigate(bottomCardInfo.path);
+                        if (onNavigate) onNavigate(false);
+                      }
+                    }}
+                    className={`group w-full text-left rounded-3xl p-3.5 flex items-center gap-3.5 relative transition-all duration-200 cursor-pointer select-none ${
+                      location.pathname.startsWith('/clinic/subscription')
+                        ? 'bg-emerald-50/90 border-2 border-emerald-500 shadow-sm'
+                        : 'bg-slate-50 hover:bg-slate-100/90 border border-slate-150 hover:border-emerald-300 hover:shadow-md hover:-translate-y-0.5'
+                    }`}
+                  >
+                    <div className={`w-[42px] h-[42px] shrink-0 rounded-2xl flex items-center justify-center border transition-all ${
+                      location.pathname.startsWith('/clinic/subscription')
+                        ? 'bg-emerald-500 text-white border-emerald-600 shadow-2xs'
+                        : 'bg-emerald-50/70 group-hover:bg-emerald-100/80 text-emerald-600 border-emerald-100'
+                    }`}>
+                      {bottomCardInfo.icon}
+                    </div>
+                    <div className="min-w-0 flex-1 leading-none">
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-[8px] font-black text-slate-400 group-hover:text-slate-600 uppercase tracking-widest flex items-center gap-1">
+                          {bottomCardInfo.title}
+                          {bottomCardInfo.isPending && (
+                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
+                          )}
+                        </span>
+                        <ChevronRight
+                          size={14}
+                          className={`text-slate-400 group-hover:text-emerald-600 group-hover:translate-x-0.5 transition-all shrink-0 ${
+                            location.pathname.startsWith('/clinic/subscription') ? 'text-emerald-600 translate-x-0.5' : ''
+                          }`}
+                        />
+                      </div>
+                      <p className="text-xs font-black text-slate-855 group-hover:text-emerald-950 mt-1 truncate">
+                        {bottomCardInfo.name}
+                      </p>
+                      <p className="text-[9px] text-slate-405 font-bold mt-1 truncate">
+                        {bottomCardInfo.subtitle}
+                      </p>
+                    </div>
                   </div>
-                  <div className="min-w-0 flex-1 leading-none">
-                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{bottomCardInfo.title}</span>
-                    <p className="text-xs font-black text-slate-855 mt-1 truncate">{bottomCardInfo.name}</p>
-                    <p className="text-[9px] text-slate-405 font-bold mt-1 truncate">{bottomCardInfo.subtitle}</p>
+                ) : (
+                  <div className="bg-slate-50 border border-slate-100 rounded-3xl p-4 flex gap-3.5 relative shadow-sm">
+                    <div className="w-[42px] h-[42px] shrink-0 rounded-2xl bg-emerald-50/60 flex items-center justify-center border border-emerald-100">
+                      {bottomCardInfo.icon}
+                    </div>
+                    <div className="min-w-0 flex-1 leading-none">
+                      <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{bottomCardInfo.title}</span>
+                      <p className="text-xs font-black text-slate-855 mt-1 truncate">{bottomCardInfo.name}</p>
+                      <p className="text-[9px] text-slate-405 font-bold mt-1 truncate">{bottomCardInfo.subtitle}</p>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
               <div className="p-4 bg-slate-50/75 border-t border-slate-150 flex items-center justify-between gap-3 shrink-0">
@@ -1642,7 +1721,7 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
             {open && (
               <div>
                 <p className="text-sm font-black text-slate-900 tracking-tight">AICMS</p>
-                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-1">AI CLINIC MANAGEMENT SYSTEM</p>
+                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-1">AI-CMS ENTERPRISE</p>
               </div>
             )}
           </div>
@@ -1685,91 +1764,93 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
             </div>
           )
         ) : (
-          <>
-            <div className={`px-4 py-2 space-y-1.5 [scrollbar-width:none] ${normRole === 'SUPER_ADMIN' ? 'flex-initial' : 'flex-1 overflow-y-auto'}`}>
-              {menuItems.map((item, idx) => {
-                const active = isItemActive(item);
-                const isExpandable = !!item.subItems;
-                const isExpanded = expandedMenus[item.menuKey];
-
-                return (
-                  <div key={idx} className="space-y-1">
-                    {open ? (
-                      isExpandable ? (
-                        <>
-                          <button
-                            onClick={() => toggleSubMenu(item.menuKey)}
-                            className={`w-full flex items-center justify-between px-3.5 h-[46px] rounded-2xl text-[13px] font-bold transition duration-150 ${
-                              active 
-                                ? (isLabContext ? 'bg-gradient-to-r from-purple-50/70 to-purple-50/20 text-slate-800 border-l-4 border-purple-500' : 'bg-gradient-to-r from-emerald-50/70 to-emerald-50/20 text-slate-800 border-l-4 border-emerald-500') 
-                                : `text-slate-500 hover:bg-slate-50 ${isLabContext ? 'hover:text-purple-650' : 'hover:text-emerald-650'}`
-                            }`}
-                          >
-                            <div className="flex items-center gap-3">
-                              <span className={active ? (isLabContext ? 'text-purple-500' : 'text-emerald-500') : 'text-slate-400'}>
-                                {ICON_MAP[item.iconKey] || <LayoutGrid size={20} />}
-                              </span>
-                              <span>{item.label}</span>
-                            </div>
-                            <ChevronRight size={14} className={`transform transition-transform text-slate-400 ${isExpanded ? 'rotate-90' : ''}`} />
-                          </button>
-                          <div className={`pl-9 space-y-1.5 overflow-hidden transition-all duration-300 ${isExpanded ? 'max-h-40 opacity-100 mt-1' : 'max-h-0 opacity-0 pointer-events-none'}`}>
-                            {item.subItems.map((sub, sIdx) => {
-                              const subActive = isItemActive(sub);
-                              return (
-                                <NavLink
-                                  key={sIdx}
-                                  to={sub.path}
-                                  className={`flex items-center gap-2 py-1.5 text-xs font-bold px-3 rounded-xl transition duration-150 ${
-                                    subActive 
-                                      ? (isLabContext ? 'bg-purple-50/50 text-purple-600' : 'bg-emerald-50/50 text-emerald-600') 
-                                      : `text-slate-450 hover:bg-slate-50/30 ${isLabContext ? 'hover:text-purple-655' : 'hover:text-emerald-655'}`
-                                  }`}
-                                >
-                                  <span className={`w-1.5 h-1.5 rounded-full ${subActive ? (isLabContext ? 'bg-purple-500' : 'bg-emerald-500') : 'bg-slate-350'}`} />
-                                  <span>{sub.label}</span>
-                                </NavLink>
-                              );
-                            })}
-                          </div>
-                        </>
-                      ) : (
-                        <NavLink
-                          to={item.path}
-                          className={`flex items-center gap-3 px-3.5 h-[46px] rounded-2xl text-[13px] font-bold transition duration-150 ${
-                            active
-                              ? (isLabContext ? 'bg-gradient-to-r from-purple-50/70 to-purple-50/20 text-slate-800 border-l-4 border-purple-500 shadow-sm' : 'bg-gradient-to-r from-emerald-50/70 to-emerald-50/20 text-slate-800 border-l-4 border-emerald-500 shadow-sm')
-                              : `text-slate-500 hover:bg-slate-50 ${isLabContext ? 'hover:text-purple-600' : 'hover:text-emerald-600'}`
-                          }`}
-                        >
-                          <span className={active ? (isLabContext ? 'text-purple-500' : 'text-emerald-500') : 'text-slate-400'}>
-                            {ICON_MAP[item.iconKey] || <LayoutGrid size={20} />}
-                          </span>
-                          <span>{item.label}</span>
-                        </NavLink>
-                      )
-                    ) : (
-                      <div className="relative group flex items-center justify-center">
-                        <NavLink
-                          to={item.path}
-                          className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${
+          <nav className="flex-1 overflow-y-auto px-3.5 py-2 space-y-1.5 [scrollbar-width:none]">
+            {menuItems.map((item, idx) => {
+              const active = isItemActive(item);
+              const isExpanded = expandedMenus[item.menuKey];
+              return (
+                <div key={idx}>
+                  {open ? (
+                    item.subItems ? (
+                      <>
+                        <button
+                          onClick={() => toggleSubMenu(item.menuKey)}
+                          className={`w-full flex items-center justify-between px-3.5 h-[46px] rounded-2xl text-[13px] font-bold transition duration-150 ${
                             active 
-                              ? (isLabContext ? 'bg-gradient-to-r from-purple-50/70 to-purple-50/20 text-slate-805 border-l-4 border-purple-500 shadow-sm' : 'bg-gradient-to-r from-emerald-50/70 to-emerald-50/20 text-slate-805 border-l-4 border-emerald-500 shadow-sm') 
-                              : (isLabContext ? 'text-slate-400 hover:bg-slate-50 hover:text-purple-555' : 'text-slate-400 hover:bg-slate-50 hover:text-emerald-555')
+                              ? (isLabContext ? 'bg-gradient-to-r from-purple-50/70 to-purple-50/20 text-slate-800 border-l-4 border-purple-500' : 'bg-gradient-to-r from-emerald-50/70 to-emerald-50/20 text-slate-800 border-l-4 border-emerald-500') 
+                              : `text-slate-500 hover:bg-slate-50 ${isLabContext ? 'hover:text-purple-650' : 'hover:text-emerald-650'}`
                           }`}
                         >
-                          <span className={active ? (isLabContext ? 'text-purple-500' : 'text-emerald-500') : 'text-slate-400'}>
-                            {ICON_MAP[item.iconKey] || <LayoutGrid size={20} />}
-                          </span>
-                        </NavLink>
-                        <div className="absolute left-16 bg-slate-900 text-white text-[10px] font-black px-2.5 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition duration-150 pointer-events-none whitespace-nowrap z-50">
-                          {item.label}
+                          <div className="flex items-center gap-3">
+                            <span className={active ? (isLabContext ? 'text-purple-500' : 'text-emerald-500') : 'text-slate-400'}>
+                              {ICON_MAP[item.iconKey] || <LayoutGrid size={20} />}
+                            </span>
+                            <span>{item.label}</span>
+                          </div>
+                          <ChevronRight size={14} className={`transform transition-transform text-slate-400 ${isExpanded ? 'rotate-90' : ''}`} />
+                        </button>
+                        <div className={`pl-9 space-y-1.5 overflow-hidden transition-all duration-300 ${isExpanded ? 'max-h-40 opacity-100 mt-1' : 'max-h-0 opacity-0 pointer-events-none'}`}>
+                          {item.subItems.map((sub, sIdx) => {
+                            const subActive = isItemActive(sub);
+                            return (
+                              <NavLink
+                                key={sIdx}
+                                to={sub.path}
+                                className={`flex items-center gap-2 py-1.5 text-xs font-bold px-3 rounded-xl transition duration-150 ${
+                                  subActive 
+                                    ? (isLabContext ? 'bg-purple-50/50 text-purple-600' : 'bg-emerald-50/50 text-emerald-600') 
+                                    : `text-slate-450 hover:bg-slate-50/30 ${isLabContext ? 'hover:text-purple-655' : 'hover:text-emerald-655'}`
+                                }`}
+                              >
+                                <span className={`w-1.5 h-1.5 rounded-full ${subActive ? (isLabContext ? 'bg-purple-500' : 'bg-emerald-500') : 'bg-slate-350'}`} />
+                                <span>{sub.label}</span>
+                              </NavLink>
+                            );
+                          })}
                         </div>
+                      </>
+                    ) : (
+                      <NavLink
+                        to={item.path}
+                        className={`flex items-center gap-3 px-3.5 h-[46px] rounded-2xl text-[13px] font-bold transition duration-150 ${
+                          active
+                            ? (isLabContext ? 'bg-gradient-to-r from-purple-50/70 to-purple-50/20 text-slate-800 border-l-4 border-purple-500 shadow-sm' : 'bg-gradient-to-r from-emerald-50/70 to-emerald-50/20 text-slate-800 border-l-4 border-emerald-500 shadow-sm')
+                            : `text-slate-500 hover:bg-slate-50 ${isLabContext ? 'hover:text-purple-600' : 'hover:text-emerald-600'}`
+                        }`}
+                      >
+                        <span className={active ? (isLabContext ? 'text-purple-500' : 'text-emerald-500') : 'text-slate-400'}>
+                          {ICON_MAP[item.iconKey] || <LayoutGrid size={20} />}
+                        </span>
+                        <span>{item.label}</span>
+                        {item.badge && (
+                          <span className="ml-auto text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200 animate-pulse">
+                            {item.badge}
+                          </span>
+                        )}
+                      </NavLink>
+                    )
+                  ) : (
+                    <div className="relative group flex items-center justify-center">
+                      <NavLink
+                        to={item.path}
+                        className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${
+                          active 
+                            ? (isLabContext ? 'bg-gradient-to-r from-purple-50/70 to-purple-50/20 text-slate-805 border-l-4 border-purple-500 shadow-sm' : 'bg-gradient-to-r from-emerald-50/70 to-emerald-50/20 text-slate-805 border-l-4 border-emerald-500 shadow-sm') 
+                            : (isLabContext ? 'text-slate-400 hover:bg-slate-50 hover:text-purple-555' : 'text-slate-400 hover:bg-slate-50 hover:text-emerald-555')
+                        }`}
+                      >
+                        <span className={active ? (isLabContext ? 'text-purple-500' : 'text-emerald-500') : 'text-slate-400'}>
+                          {ICON_MAP[item.iconKey] || <LayoutGrid size={20} />}
+                        </span>
+                      </NavLink>
+                      <div className="absolute left-16 bg-slate-900 text-white text-[10px] font-black px-2.5 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition duration-150 pointer-events-none whitespace-nowrap z-50">
+                        {item.label}
                       </div>
-                    )}
-                  </div>
-                );
-              })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
 
               {/* For Super Admin: Render role card cleanly close below navigation */}
               {normRole === 'SUPER_ADMIN' && open && (
@@ -1800,22 +1881,75 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
                   </button>
                 </div>
               )}
-            </div>
-          </>
+          </nav>
         )}
 
         {open && normRole !== 'SUPER_ADMIN' && (
           <div className="p-4 border-t border-slate-100 bg-white shrink-0 space-y-4">
-            <div className="bg-slate-50 border border-slate-100 rounded-3xl p-4 flex gap-3.5 relative shadow-sm">
-              <div className="w-[42px] h-[42px] shrink-0 rounded-2xl bg-emerald-50/60 flex items-center justify-center border border-emerald-100">
-                {bottomCardInfo.icon}
+            {bottomCardInfo.isClickable ? (
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => {
+                  if (location.pathname !== bottomCardInfo.path) {
+                    navigate(bottomCardInfo.path);
+                  }
+                  if (onNavigate) onNavigate(false);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    if (location.pathname !== bottomCardInfo.path) navigate(bottomCardInfo.path);
+                    if (onNavigate) onNavigate(false);
+                  }
+                }}
+                className={`group w-full text-left rounded-3xl p-3.5 flex items-center gap-3.5 relative transition-all duration-200 cursor-pointer select-none ${
+                  location.pathname.startsWith('/clinic/subscription')
+                    ? 'bg-emerald-50/90 border-2 border-emerald-500 shadow-sm ring-2 ring-emerald-500/20'
+                    : 'bg-slate-50 hover:bg-slate-100/90 border border-slate-150 hover:border-emerald-300 hover:shadow-md hover:-translate-y-0.5'
+                }`}
+              >
+                <div className={`w-[42px] h-[42px] shrink-0 rounded-2xl flex items-center justify-center border transition-all ${
+                  location.pathname.startsWith('/clinic/subscription')
+                    ? 'bg-emerald-500 text-white border-emerald-600 shadow-2xs'
+                    : 'bg-emerald-50/70 group-hover:bg-emerald-100/80 text-emerald-600 border-emerald-100'
+                }`}>
+                  {bottomCardInfo.icon}
+                </div>
+                <div className="min-w-0 flex-1 leading-none">
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="text-[8px] font-black text-slate-400 group-hover:text-slate-600 uppercase tracking-widest flex items-center gap-1">
+                      {bottomCardInfo.title}
+                      {bottomCardInfo.isPending && (
+                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
+                      )}
+                    </span>
+                    <ChevronRight
+                      size={14}
+                      className={`text-slate-400 group-hover:text-emerald-600 group-hover:translate-x-0.5 transition-all shrink-0 ${
+                        location.pathname.startsWith('/clinic/subscription') ? 'text-emerald-600 translate-x-0.5' : ''
+                      }`}
+                    />
+                  </div>
+                  <p className="text-xs font-black text-slate-850 group-hover:text-emerald-950 mt-1 truncate">
+                    {bottomCardInfo.name}
+                  </p>
+                  <p className="text-[9px] text-slate-400 font-bold mt-1 truncate">
+                    {bottomCardInfo.subtitle}
+                  </p>
+                </div>
               </div>
-              <div className="min-w-0 flex-1 leading-none">
-                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{bottomCardInfo.title}</span>
-                <p className="text-xs font-black text-slate-850 mt-1 truncate">{bottomCardInfo.name}</p>
-                <p className="text-[9px] text-slate-400 font-bold mt-1 truncate">{bottomCardInfo.subtitle}</p>
+            ) : (
+              <div className="bg-slate-50 border border-slate-100 rounded-3xl p-4 flex gap-3.5 relative shadow-sm">
+                <div className="w-[42px] h-[42px] shrink-0 rounded-2xl bg-emerald-50/60 flex items-center justify-center border border-emerald-100">
+                  {bottomCardInfo.icon}
+                </div>
+                <div className="min-w-0 flex-1 leading-none">
+                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{bottomCardInfo.title}</span>
+                  <p className="text-xs font-black text-slate-850 mt-1 truncate">{bottomCardInfo.name}</p>
+                  <p className="text-[9px] text-slate-400 font-bold mt-1 truncate">{bottomCardInfo.subtitle}</p>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         )}
       </aside>

@@ -617,7 +617,7 @@ export default function LandingPage() {
                 <span className="text-[7.5px] sm:text-[8px] font-extrabold uppercase tracking-widest bg-emerald-500/10 text-emerald-700 px-1.5 py-0.5 rounded-md hidden sm:inline">PRO</span>
               </span>
               <span className="text-[8.5px] sm:text-[9.5px] font-bold text-slate-400 mt-1 uppercase tracking-[0.08em] hidden lg:block">
-                AI Clinic Management System
+                AI-CMS Enterprise
               </span>
             </div>
           </Link>
@@ -3457,7 +3457,7 @@ export default function LandingPage() {
                 </div>
                 <div className="flex flex-col leading-none mt-1">
                   <span className="text-base font-black text-white tracking-tight">AICMS</span>
-                  <span className="text-[10px] font-bold text-slate-500 mt-1 uppercase tracking-[0.06em]">AI Clinic Management System</span>
+                  <span className="text-[10px] font-bold text-slate-500 mt-1 uppercase tracking-[0.06em]">AI-CMS Enterprise</span>
                 </div>
               </div>
               <p className="text-xs text-slate-500 leading-relaxed font-bold">

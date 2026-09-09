@@ -611,7 +611,7 @@ const LabReportViewPage = () => {
                       <div className="border-l border-stone-200 pl-3">
                         <div className="text-lg font-black text-stone-900 tracking-tight leading-none">AICMS</div>
                         <div className="text-[9px] font-bold text-stone-800 tracking-wider uppercase mt-0.5">
-                          AI CLINIC MANAGEMENT SYSTEM
+                          AI-CMS ENTERPRISE
                         </div>
                         <div className="text-[8px] text-stone-400">
                           Empowering Clinics. Enabling Better Care.

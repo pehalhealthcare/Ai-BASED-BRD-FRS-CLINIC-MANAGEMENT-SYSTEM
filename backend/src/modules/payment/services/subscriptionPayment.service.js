@@ -56,9 +56,12 @@ const initiatePaymentAttempt = async ({ clinicId, planId, billingCycle = 'monthl
     payableAmount = plan.price?.monthly ?? plan.priceMonthly ?? plan.price ?? 9999;
   }
 
+  const gstAmount = Math.round(payableAmount * 0.18);
+  const totalPayable = payableAmount + gstAmount;
+
   // Get active sanitized payment settings and dynamic QR for this amount
   const paymentDetails = await getSanitizedActiveDetails({
-    amount: payableAmount,
+    amount: totalPayable,
     clinicCode: clinic.code,
     planName: plan.name
   });
@@ -67,6 +70,8 @@ const initiatePaymentAttempt = async ({ clinicId, planId, billingCycle = 'monthl
   const history = await SubscriptionPayment.find({ clinicId })
     .sort({ attemptNumber: -1, createdAt: -1 })
     .populate('planId', 'name code price priceMonthly priceYearly')
+    .populate('currentPlanId', 'name code price priceMonthly priceYearly')
+    .populate('requestedPlanId', 'name code price priceMonthly priceYearly')
     .populate('verifiedBy', 'name email')
     .populate('rejectedBy', 'name email');
 
@@ -80,14 +85,18 @@ const initiatePaymentAttempt = async ({ clinicId, planId, billingCycle = 'monthl
       paymentStatus: clinic.paymentStatus,
       approvalStatus: clinic.approvalStatus,
       rejectionReason: clinic.rejectionReason,
-      rejectionComments: clinic.rejectionComments
+      rejectionComments: clinic.rejectionComments,
+      subscription: clinic.subscription
     },
     plan: {
       _id: plan._id,
       name: plan.name,
       code: plan.code,
       billingCycle,
-      amount: payableAmount
+      baseAmount: payableAmount,
+      gst: gstAmount,
+      amount: totalPayable,
+      totalAmount: totalPayable
     },
     paymentDetails,
     latestPayment,
@@ -105,6 +114,7 @@ const submitPaymentAttempt = async ({
   utr,
   transactionId = '',
   paymentProofUrl = '',
+  paymentType,
   ipAddress = '',
   userAgent = '',
   metadata = {}
@@ -154,6 +164,9 @@ const submitPaymentAttempt = async ({
     payableAmount = plan.price?.monthly ?? plan.priceMonthly ?? plan.price ?? 9999;
   }
 
+  const gstAmount = Math.round(payableAmount * 0.18);
+  const totalPayable = payableAmount + gstAmount;
+
   // 4. Handle Payment Proof storage (GridFS if base64 data URI)
   let resolvedProofUrl = paymentProofUrl || '';
   if (resolvedProofUrl && typeof resolvedProofUrl === 'string' && resolvedProofUrl.startsWith('data:')) {
@@ -164,9 +177,37 @@ const submitPaymentAttempt = async ({
     }
   }
 
-  // 5. Calculate attempt number for this clinic
+  // 5. Calculate attempt number and payment type for this clinic
   const priorAttemptsCount = await SubscriptionPayment.countDocuments({ clinicId });
   const attemptNumber = priorAttemptsCount + 1;
+  const isExistingApprovedClinic = clinic.approvalStatus === 'approved' || clinic.isOnboardingCompleted;
+  const isCurrentlyActive = clinic.subscription?.status === 'Active' && (!clinic.subscription.expiryDate || new Date(clinic.subscription.expiryDate) > new Date());
+  
+  let resolvedPaymentType = paymentType;
+  if (!resolvedPaymentType) {
+    if (isCurrentlyActive) {
+      resolvedPaymentType = 'PLAN_UPGRADE';
+    } else if (isExistingApprovedClinic || clinic.subscription?.status === 'Expired') {
+      resolvedPaymentType = 'RENEWAL';
+    } else {
+      resolvedPaymentType = 'INITIAL';
+    }
+  }
+
+  // Prevent duplicate active pending upgrade requests
+  if (resolvedPaymentType === 'PLAN_UPGRADE' || resolvedPaymentType === 'UPGRADE') {
+    const existingPending = await SubscriptionPayment.findOne({
+      clinicId,
+      status: 'PENDING_VERIFICATION',
+      paymentType: { $in: ['PLAN_UPGRADE', 'UPGRADE', 'PLAN_CHANGE'] }
+    });
+    if (existingPending) {
+      throw new AppError(
+        'A plan change payment is already pending verification. Please wait for the administrator to verify.',
+        HTTP_STATUS.CONFLICT
+      );
+    }
+  }
 
   // 6. Fetch active payment settings version snapshot
   const activeSettings = await PaymentSettings.findOne({ isActive: true });
@@ -175,12 +216,20 @@ const submitPaymentAttempt = async ({
   // 7. Generate Transaction ID if missing
   const cleanTxnId = transactionId ? transactionId.trim() : `TXN${Date.now()}${Math.floor(100 + Math.random() * 900)}`;
 
-  // 8. Create Payment Attempt
+  // 8. Create Payment Attempt (PENDING_VERIFICATION)
   const paymentAttempt = await SubscriptionPayment.create({
     clinicId,
+    subscriptionId: clinic.subscription?._id || null,
     planId: plan._id,
+    currentPlanId: clinic.subscription?.planId || null,
+    requestedPlanId: plan._id,
+    paymentType: resolvedPaymentType,
     billingCycle,
-    amount: payableAmount,
+    currentBillingCycle: clinic.subscription?.billingCycle || 'monthly',
+    requestedBillingCycle: billingCycle,
+    amount: totalPayable,
+    gst: gstAmount,
+    totalAmount: totalPayable,
     currency: 'INR',
     utr: cleanUtr,
     transactionId: cleanTxnId,
@@ -194,34 +243,54 @@ const submitPaymentAttempt = async ({
     metadata
   });
 
-  // 9. Update Clinic Subscription & clear any prior rejection notes
-  clinic.subscription = clinic.subscription || {};
-  clinic.subscription.planId = plan._id;
-  clinic.subscription.billingCycle = billingCycle;
-  clinic.subscription.status = 'Pending Approval';
-  clinic.paymentStatus = 'PENDING_VERIFICATION';
-  clinic.rejectionReason = '';
-  clinic.rejectionComments = '';
-  if (clinic.approvalStatus === 'rejected') {
-    clinic.approvalStatus = 'pending_approval';
+  // 9. Update Clinic state safely
+  // If it's an UPGRADE, do NOT change the current active plan or deactivate the clinic subscription!
+  if (resolvedPaymentType === 'PLAN_UPGRADE' || resolvedPaymentType === 'UPGRADE') {
+    await Clinic.updateOne(
+      { _id: clinicId },
+      {
+        $set: {
+          paymentStatus: 'PENDING_VERIFICATION',
+          rejectionReason: '',
+          rejectionComments: ''
+        }
+      }
+    );
+  } else {
+    const clinicUpdate = {
+      paymentStatus: 'PENDING_VERIFICATION',
+      rejectionReason: '',
+      rejectionComments: '',
+      'subscription.planId': plan._id,
+      'subscription.billingCycle': billingCycle
+    };
+
+    if (clinic.approvalStatus === 'rejected') {
+      clinicUpdate.approvalStatus = 'pending_approval';
+      clinicUpdate['subscription.status'] = 'Pending Approval';
+    } else if (!isExistingApprovedClinic) {
+      clinicUpdate['subscription.status'] = 'Pending Approval';
+    }
+
+    await Clinic.updateOne({ _id: clinicId }, { $set: clinicUpdate });
   }
-  await clinic.save();
 
   // 10. Write audit log
   await AuditLog.create({
     actorUserId: clinic._id,
-    action: 'SUBSCRIPTION_PAYMENT_SUBMITTED',
+    action: resolvedPaymentType === 'PLAN_UPGRADE' ? 'SUBSCRIPTION_UPGRADE_SUBMITTED' : 'SUBSCRIPTION_PAYMENT_SUBMITTED',
     entity: 'SubscriptionPayment',
     entityId: paymentAttempt._id,
     metadata: {
-      details: `Payment attempt #${attemptNumber} submitted with UTR ${cleanUtr} for plan ${plan.name} (₹${payableAmount})`,
+      details: `${resolvedPaymentType} payment attempt #${attemptNumber} submitted with UTR ${cleanUtr} for plan ${plan.name} (₹${totalPayable})`,
       utr: cleanUtr,
-      amount: payableAmount,
+      amount: totalPayable,
+      paymentType: resolvedPaymentType,
       attemptNumber
     }
   });
 
-  logger.info(`[Payment] Payment attempt #${attemptNumber} submitted for clinic ${clinic.name} (${cleanUtr})`);
+  logger.info(`[Payment] ${resolvedPaymentType} attempt #${attemptNumber} submitted for clinic ${clinic.name} (${cleanUtr})`);
 
   return paymentAttempt;
 };
@@ -248,8 +317,11 @@ const verifyPaymentAttempt = async (paymentId, superAdminUser, { notes = '' } = 
     throw new AppError('Associated clinic not found.', HTTP_STATUS.NOT_FOUND);
   }
 
+  const targetPlanId = payment.requestedPlanId || payment.planId;
+  const targetBillingCycle = payment.requestedBillingCycle || payment.billingCycle || 'monthly';
+
   const SubscriptionPlan = getSubscriptionPlanModel();
-  const plan = await SubscriptionPlan.findById(payment.planId);
+  const plan = await SubscriptionPlan.findById(targetPlanId);
 
   // 1. Mark payment verified
   payment.status = 'VERIFIED';
@@ -263,34 +335,37 @@ const verifyPaymentAttempt = async (paymentId, superAdminUser, { notes = '' } = 
 
   // 2. Calculate subscription dates
   const startDate = new Date();
-  const durationDays = payment.billingCycle === 'yearly' ? 365 : 30;
+  const durationDays = targetBillingCycle === 'yearly' ? 365 : 30;
   const expiryDate = new Date(startDate.getTime() + durationDays * 24 * 60 * 60 * 1000);
 
-  // 3. Update Clinic Subscription & Payment Status (Decoupled from Clinic Approval)
-  clinic.subscription = clinic.subscription || {};
-  clinic.subscription.planId = payment.planId;
-  clinic.subscription.billingCycle = payment.billingCycle;
-  clinic.subscription.startDate = startDate;
-  clinic.subscription.renewalDate = expiryDate;
-  clinic.subscription.expiryDate = expiryDate;
-  clinic.subscription.status = 'Active';
-  clinic.paymentStatus = 'VERIFIED';
-
-  // Do NOT automatically approve clinic upon payment verification.
-  // Clinic remains in 'pending_approval' until Super Admin conducts clinic approval review.
-  await clinic.save();
+  // 3. Update Clinic Subscription & Payment Status safely using updateOne
+  await Clinic.updateOne(
+    { _id: payment.clinicId },
+    {
+      $set: {
+        paymentStatus: 'VERIFIED',
+        'subscription.planId': targetPlanId,
+        'subscription.billingCycle': targetBillingCycle,
+        'subscription.startDate': startDate,
+        'subscription.renewalDate': expiryDate,
+        'subscription.expiryDate': expiryDate,
+        'subscription.status': 'Active'
+      }
+    }
+  );
 
   // 5. Audit Log
   await AuditLog.create({
     actorUserId: superAdminUser?._id,
-    action: 'SUBSCRIPTION_PAYMENT_VERIFIED',
+    action: payment.paymentType === 'PLAN_UPGRADE' ? 'SUBSCRIPTION_UPGRADE_VERIFIED' : 'SUBSCRIPTION_PAYMENT_VERIFIED',
     entity: 'SubscriptionPayment',
     entityId: payment._id,
     metadata: {
-      details: `Verified payment attempt #${payment.attemptNumber} (UTR: ${payment.utr}) for clinic ${clinic.name}. Payment verified; clinic awaiting approval.`,
+      details: `Verified payment attempt #${payment.attemptNumber} (UTR: ${payment.utr}) for clinic ${clinic.name}. Subscription activated with plan ${plan?.name || targetPlanId}.`,
       utr: payment.utr,
       amount: payment.amount,
-      clinicId: clinic._id
+      clinicId: clinic._id,
+      paymentType: payment.paymentType
     }
   });
 
@@ -322,7 +397,7 @@ const rejectPaymentAttempt = async (paymentId, superAdminUser, { reason, notes =
   const cleanReason = String(reason).trim();
   const cleanNotes = String(notes || '').trim();
 
-  // 1. Mark payment as REJECTED / REPAYMENT_REQUIRED
+  // 1. Mark payment as REJECTED
   payment.status = 'REJECTED';
   payment.rejectionReason = cleanReason;
   payment.rejectionNotes = cleanNotes;
@@ -330,17 +405,17 @@ const rejectPaymentAttempt = async (paymentId, superAdminUser, { reason, notes =
   payment.rejectedBy = superAdminUser?._id || null;
   await payment.save();
 
-  // 2. Update Clinic state to reflect Repayment Required
-  const clinic = await Clinic.findById(payment.clinicId);
-  if (clinic) {
-    clinic.paymentStatus = 'REJECTED';
-    clinic.rejectionReason = `Payment Rejected: ${cleanReason}`;
-    if (cleanNotes) clinic.rejectionComments = cleanNotes;
-    if (clinic.subscription) {
-      clinic.subscription.status = 'Pending Approval';
+  // 2. Update Clinic state safely using updateOne
+  await Clinic.updateOne(
+    { _id: payment.clinicId },
+    {
+      $set: {
+        paymentStatus: 'REJECTED',
+        rejectionReason: `Payment Rejected: ${cleanReason}`,
+        rejectionComments: cleanNotes
+      }
     }
-    await clinic.save();
-  }
+  );
 
   // 3. Audit Log
   await AuditLog.create({
@@ -349,7 +424,7 @@ const rejectPaymentAttempt = async (paymentId, superAdminUser, { reason, notes =
     entity: 'SubscriptionPayment',
     entityId: payment._id,
     metadata: {
-      details: `Rejected payment attempt #${payment.attemptNumber} (UTR: ${payment.utr}). Reason: ${cleanReason}. Repayment Required.`,
+      details: `Rejected payment attempt #${payment.attemptNumber} (UTR: ${payment.utr}). Reason: ${cleanReason}.`,
       utr: payment.utr,
       reason: cleanReason,
       notes: cleanNotes
@@ -358,7 +433,8 @@ const rejectPaymentAttempt = async (paymentId, superAdminUser, { reason, notes =
 
   logger.info(`[Payment] Super Admin rejected payment ${payment._id}. Reason: ${cleanReason}`);
 
-  return { payment, clinic };
+  const updatedClinic = await Clinic.findById(payment.clinicId);
+  return { payment, clinic: updatedClinic };
 };
 
 /**
@@ -424,7 +500,9 @@ const listPayments = async (query = {}) => {
       .skip(skip)
       .limit(limitNum)
       .populate('clinicId', 'name code image phone ownerDetails approvalStatus isActive subscription')
-      .populate('planId', 'name code price priceMonthly priceYearly')
+      .populate('planId', 'name code price priceMonthly priceYearly features limits')
+      .populate('currentPlanId', 'name code price priceMonthly priceYearly features limits')
+      .populate('requestedPlanId', 'name code price priceMonthly priceYearly features limits')
       .populate('verifiedBy', 'name email')
       .populate('rejectedBy', 'name email'),
     SubscriptionPayment.countDocuments(filter)
@@ -463,6 +541,8 @@ const getPaymentById = async (paymentId) => {
       populate: { path: 'subscription.planId' }
     })
     .populate('planId')
+    .populate('currentPlanId')
+    .populate('requestedPlanId')
     .populate('verifiedBy', 'name email')
     .populate('rejectedBy', 'name email');
 
@@ -479,6 +559,8 @@ const getPaymentById = async (paymentId) => {
   })
     .sort({ attemptNumber: -1, createdAt: -1 })
     .populate('planId')
+    .populate('currentPlanId')
+    .populate('requestedPlanId')
     .populate('verifiedBy', 'name email')
     .populate('rejectedBy', 'name email');
 
@@ -510,7 +592,9 @@ const getClinicPaymentHistory = async (clinicId) => {
   const SubscriptionPlan = getSubscriptionPlanModel();
   const payments = await SubscriptionPayment.find({ clinicId })
     .sort({ attemptNumber: -1, createdAt: -1 })
-    .populate('planId', 'name code price')
+    .populate('planId', 'name code price priceMonthly priceYearly')
+    .populate('currentPlanId', 'name code price priceMonthly priceYearly')
+    .populate('requestedPlanId', 'name code price priceMonthly priceYearly')
     .populate('verifiedBy', 'name email')
     .populate('rejectedBy', 'name email');
 

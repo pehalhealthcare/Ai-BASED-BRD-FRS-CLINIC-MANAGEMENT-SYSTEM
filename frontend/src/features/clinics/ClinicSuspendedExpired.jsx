@@ -19,9 +19,9 @@ const ClinicSuspendedExpired = ({ mode = 'suspended' }) => {
     navigate('/login', { replace: true });
   };
 
-  // If the clinic subscription is expired, render the comprehensive 8-screen Renewal Flow
+  // If the clinic subscription is expired, render the Renewal Flow (Starting at Subscription Expired Screen 0)
   if (!isSuspended) {
-    return <SubscriptionRenewalFlow initialScreen="expired" />;
+    return <SubscriptionRenewalFlow initialScreen="subscription_expired" />;
   }
 
   return (

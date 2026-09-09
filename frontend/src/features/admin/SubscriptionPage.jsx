@@ -1,21 +1,36 @@
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import {
   Check, Star, Zap, Crown, Building2, ArrowUpRight,
   Users, Database, Shield, Activity, ChevronRight, CreditCard,
-  Clock, CheckCircle2, AlertCircle, Sparkles, Package, RefreshCw
+  Clock, CheckCircle2, AlertCircle, Sparkles, Package, RefreshCw,
+  Copy, UploadCloud, Trash2, ArrowRight, ShieldCheck, XCircle,
+  HelpCircle, Eye, FileText, CheckCircle, Info, ArrowLeft,
+  DollarSign, Calendar, Lock, AlertTriangle
 } from 'lucide-react';
-import { subscriptionApi, clinicApi, apiClient } from '../../lib/api';
-import useAuth from '../../hooks/useAuth';
 import toast from 'react-hot-toast';
-import LoadingState from '../../components/common/LoadingState';
+import useAuth from '../../hooks/useAuth';
+import {
+  subscriptionApi,
+  subscriptionPaymentApi,
+  paymentSettingsApi,
+  clinicApi,
+  apiClient
+} from '../../lib/api';
 import PageHeader from '../../components/layout/PageHeader';
+import LoadingState from '../../components/common/LoadingState';
 
 /* ─── Helpers ─────────────────────────────────────────── */
 const fmt = (n) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n || 0);
+
 const fmtNum = (n) => new Intl.NumberFormat('en-IN').format(n || 0);
 
-/* ─── Plan icon map ────────────────────────────────────── */
+const fmtDate = (d) => {
+  if (!d) return '--';
+  return new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+
 const PLAN_ICONS = {
   0: Zap,
   1: Star,
@@ -23,274 +38,392 @@ const PLAN_ICONS = {
   3: Building2,
 };
 
-const PLAN_COLORS = [
-  { grad: 'from-slate-50 to-slate-100', ring: 'border-slate-200', btn: 'border border-slate-300 text-slate-700 hover:bg-slate-50', icon: '#64748b', accent: '#6366f1' },
-  { grad: 'from-indigo-50 to-purple-50', ring: 'border-indigo-400 ring-2 ring-indigo-200', btn: 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-200', icon: '#6366f1', accent: '#6366f1' },
-  { grad: 'from-amber-50 to-orange-50', ring: 'border-amber-300', btn: 'border border-amber-400 text-amber-700 hover:bg-amber-50', icon: '#f59e0b', accent: '#f59e0b' },
-  { grad: 'from-slate-800 to-slate-900', ring: 'border-slate-700', btn: 'border border-slate-400 text-slate-300 hover:bg-slate-700', icon: '#94a3b8', accent: '#94a3b8' },
-];
-
-const TABS = ['Plans & Pricing', 'My Subscription', 'Requested Premium Features', 'Billing History', 'Payment Methods'];
-
-/* ─── Progress Bar ─────────────────────────────────────── */
-const ProgressBar = ({ value, max, color = '#6366f1' }) => {
-  const pct = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0;
-  return (
-    <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-      <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: color }} />
-    </div>
-  );
+const PLAN_RANKS = {
+  'STARTER': 1,
+  'PROFESSIONAL': 2,
+  'PREMIUM': 3,
+  'ENTERPRISE': 4
 };
 
-/* ─── Feature check item ───────────────────────────────── */
-const Feature = ({ text, dark = false, color = '#6366f1' }) => (
+const TABS = ['My Subscription', 'Available Plans', 'Billing & Payment History'];
+
+/* ─── Feature Check Component ───────────────────────────── */
+const FeatureItem = ({ text, highlighted = false }) => (
   <div className="flex items-start gap-2">
-    <CheckCircle2 size={13} style={{ color }} className="mt-0.5 shrink-0" />
-    <span className={`text-xs leading-relaxed ${dark ? 'text-slate-300' : 'text-slate-600'}`}>{text}</span>
+    <CheckCircle2 size={14} className={`mt-0.5 shrink-0 ${highlighted ? 'text-indigo-600' : 'text-emerald-500'}`} />
+    <span className="text-xs text-slate-600 leading-relaxed font-medium">{text}</span>
   </div>
 );
 
-/* ════════════════════════════════════════════════════════
-   MAIN PAGE
-════════════════════════════════════════════════════════ */
-const SubscriptionPage = () => {
-  const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('Plans & Pricing');
-  const [plans, setPlans]         = useState([]);
+export default function SubscriptionPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { user, refreshUser } = useAuth();
+
+  const [activeTab, setActiveTab] = useState('My Subscription');
+  const [loading, setLoading] = useState(true);
+  const [plans, setPlans] = useState([]);
   const [clinicData, setClinicData] = useState(null);
-  const [featureRequests, setFeatureRequests] = useState([]);
-  const [loading, setLoading]     = useState(true);
+  const [paymentHistory, setPaymentHistory] = useState([]);
+  const [latestPayment, setLatestPayment] = useState(null);
+  const [paymentSettings, setPaymentSettings] = useState(null);
 
-  // Upgrade Plan state hooks
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const [selectedTargetPlan, setSelectedTargetPlan] = useState(null);
-  const [targetBillingCycle, setTargetBillingCycle] = useState('monthly');
-  const [upgradePreview, setUpgradePreview] = useState(null);
-  const [loadingPreview, setLoadingPreview] = useState(false);
-  const [cardName, setCardName] = useState('');
-  const [cardNumber, setCardNumber] = useState('');
-  const [cardExpiry, setCardExpiry] = useState('');
-  const [cardCvv, setCardCvv] = useState('');
-  const [processingPayment, setProcessingPayment] = useState(false);
+  // Upgrade Modal & Flow States
+  // Flow steps: 'SELECT_PLAN' | 'REVIEW_SUMMARY' | 'PAYMENT' | 'VERIFICATION_PENDING' | 'SUCCESS_CONGRATULATIONS' | 'REJECTED'
+  const [flowStep, setFlowStep] = useState(null); // null when modal closed
+  const [selectedPlanForUpgrade, setSelectedPlanForUpgrade] = useState(null);
+  const [selectedCycle, setSelectedCycle] = useState('monthly'); // 'monthly' | 'yearly'
+  
+  // Payment Form States
+  const [utr, setUtr] = useState('');
+  const [transactionId, setTransactionId] = useState('');
+  const [proofFile, setProofFile] = useState(null);
+  const [proofPreview, setProofPreview] = useState('');
+  const [proofBase64, setProofBase64] = useState('');
+  const [submittingPayment, setSubmittingPayment] = useState(false);
+  const [copiedKey, setCopiedKey] = useState('');
+  const fileInputRef = useRef(null);
 
-  const handleChoosePlan = async (plan) => {
-    const PLAN_RANKS = {
-      'STARTER': 1,
-      'PROFESSIONAL': 2,
-      'PREMIUM': 3,
-      'ENTERPRISE': 4
-    };
-    const currentCode = currentPlan?.code || 'STARTER';
-    const currentRank = PLAN_RANKS[currentCode] || 1;
-    const targetRank = PLAN_RANKS[plan.code] || 1;
+  // Dynamic QR / pricing from initiation
+  const [initiationData, setInitiationData] = useState(null);
+  const [loadingInitiation, setLoadingInitiation] = useState(false);
 
-    if (targetRank < currentRank) {
-      toast.error("Currently you can't downgrade the plan");
-      return;
-    }
-
-    setSelectedTargetPlan(plan);
-    setTargetBillingCycle('monthly');
-    setLoadingPreview(true);
-    setUpgradePreview(null);
-    setShowUpgradeModal(true);
-
+  // Load clinic & subscription data
+  const loadData = useCallback(async (isPoll = false) => {
+    if (!isPoll) setLoading(true);
     try {
-      const backendPlan = plans.find(p => p.code === plan.code);
-      if (!backendPlan) {
-        throw new Error('Selected plan option not registered in backend catalog.');
-      }
-      const res = await apiClient.post('/subscriptions/upgrade/preview', {
-        targetPlanId: backendPlan._id,
-        billingCycle: 'monthly'
-      });
-      setUpgradePreview(res.data?.data || res.data || null);
-    } catch (err) {
-      toast.error(err.response?.data?.message || err.message || 'Upgrade preview failed.');
-      setShowUpgradeModal(false);
-    } finally {
-      setLoadingPreview(false);
-    }
-  };
-
-  const handlePreviewUpgradeForCycle = async (cycle) => {
-    if (!selectedTargetPlan) return;
-    setTargetBillingCycle(cycle);
-    setLoadingPreview(true);
-    setUpgradePreview(null);
-    try {
-      const backendPlan = plans.find(p => p.code === selectedTargetPlan.code);
-      if (!backendPlan) {
-        throw new Error('Plan not registered in catalog.');
-      }
-      const res = await apiClient.post('/subscriptions/upgrade/preview', {
-        targetPlanId: backendPlan._id,
-        billingCycle: cycle
-      });
-      setUpgradePreview(res.data?.data || res.data || null);
-    } catch (err) {
-      toast.error(err.response?.data?.message || err.message || 'Upgrade preview failed.');
-    } finally {
-      setLoadingPreview(false);
-    }
-  };
-
-  const handleConfirmUpgrade = async (e) => {
-    e.preventDefault();
-    if (!selectedTargetPlan) return;
-    if (!cardName || !cardNumber || !cardExpiry || !cardCvv) {
-      toast.error('Please enter complete credit card billing details.');
-      return;
-    }
-
-    setProcessingPayment(true);
-    try {
-      const backendPlan = plans.find(p => p.code === selectedTargetPlan.code);
-      if (!backendPlan) {
-        throw new Error('Plan not registered in catalog.');
-      }
-      const res = await apiClient.post('/subscriptions/upgrade', {
-        targetPlanId: backendPlan._id,
-        billingCycle: targetBillingCycle,
-        paymentMethod: {
-          last4: cardNumber.slice(-4),
-          brand: 'Visa',
-          token: `TOK_${Date.now()}`
-        }
-      });
-
-      if (res.data?.success) {
-        toast.success('Subscription plan upgraded successfully!');
-        setShowUpgradeModal(false);
-        setSelectedTargetPlan(null);
-        setUpgradePreview(null);
-        setCardName('');
-        setCardNumber('');
-        setCardExpiry('');
-        setCardCvv('');
-        window.location.reload(); // Refresh the app context for updated role limits
-      }
-    } catch (err) {
-      toast.error(err.response?.data?.message || err.message || 'Subscription upgrade payment failed.');
-    } finally {
-      setProcessingPayment(false);
-    }
-  };
-
-
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [plansRes, clinicRes, reqsRes] = await Promise.allSettled([
+      const [plansRes, setupRes, settingsRes] = await Promise.allSettled([
         subscriptionApi.getPublicPlans(),
-        user?.clinicId ? clinicApi.getOnboardingFlow(user.clinicId) : Promise.resolve(null),
-        user?.clinicId ? apiClient.get('/clinics/features/requests') : Promise.resolve(null),
+        clinicApi.getSetupStatus(),
+        paymentSettingsApi.getActiveDetails()
       ]);
+
+      let loadedPlans = [];
       if (plansRes.status === 'fulfilled') {
-        setPlans(plansRes.value?.data?.plans || plansRes.value?.plans || []);
+        const pData = plansRes.value?.data || plansRes.value;
+        loadedPlans = Array.isArray(pData) ? pData : (pData?.plans || []);
+        setPlans(loadedPlans);
       }
-      if (clinicRes.status === 'fulfilled' && clinicRes.value) {
-        setClinicData(clinicRes.value?.data || clinicRes.value || null);
+
+      let currentClinic = null;
+      if (setupRes.status === 'fulfilled' && setupRes.value?.data?.clinic) {
+        currentClinic = setupRes.value.data.clinic;
+        setClinicData(currentClinic);
+      } else if (user?.clinic) {
+        currentClinic = user.clinic;
+        setClinicData(currentClinic);
       }
-      if (reqsRes.status === 'fulfilled' && reqsRes.value) {
-        setFeatureRequests(reqsRes.value?.data?.requests || reqsRes.value?.requests || []);
+
+      if (settingsRes.status === 'fulfilled') {
+        setPaymentSettings(settingsRes.value?.data?.paymentDetails || settingsRes.value?.paymentDetails || null);
       }
-    } catch(e) {
-      // silently fail — show static data
+
+      const clinicId = currentClinic?._id || user?.clinicId;
+      if (clinicId) {
+        try {
+          const histRes = await subscriptionPaymentApi.getClinicPaymentHistory(clinicId);
+          const histData = histRes.data || histRes;
+          const paymentsList = histData.payments || [];
+          setPaymentHistory(paymentsList);
+          
+          const latest = paymentsList[0] || null;
+          setLatestPayment(latest);
+
+          // Handle automatic status detection
+          if (latest) {
+            const isUpgradePayment = latest.paymentType === 'PLAN_UPGRADE' || latest.paymentType === 'UPGRADE' || latest.paymentType === 'PLAN_CHANGE';
+            
+            if (latest.status === 'PENDING_VERIFICATION') {
+              if (isUpgradePayment && flowStep === 'PAYMENT') {
+                setFlowStep('VERIFICATION_PENDING');
+              }
+            } else if (latest.status === 'VERIFIED') {
+              // If we were on pending verification screen and now it's verified, show Congratulations!
+              if (flowStep === 'VERIFICATION_PENDING') {
+                setFlowStep('SUCCESS_CONGRATULATIONS');
+                if (refreshUser) refreshUser(true).catch(() => {});
+              }
+            } else if (latest.status === 'REJECTED' || latest.status === 'REPAYMENT_REQUIRED') {
+              if (flowStep === 'VERIFICATION_PENDING') {
+                setFlowStep('REJECTED');
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('Failed to load clinic payment history:', e);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load subscription page data:', err);
     } finally {
-      setLoading(false);
+      if (!isPoll) setLoading(false);
     }
-  }, [user?.clinicId]);
+  }, [user?.clinicId, user?.clinic, flowStep, refreshUser]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
-  /* Current subscription from user object */
-  const currentPlan = user?.clinic?.subscription?.planId || {};
-  const subscription = user?.clinic?.subscription || {};
-  const expiryFormatted = subscription.expiryDate
-    ? new Date(subscription.expiryDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
-    : '25 Dec 2025';
-  const planName = currentPlan?.name || 'AI Professional Clinic';
+  // Polling for status updates when payment verification is pending
+  useEffect(() => {
+    const isPending = (latestPayment?.status === 'PENDING_VERIFICATION' && (latestPayment?.paymentType === 'PLAN_UPGRADE' || latestPayment?.paymentType === 'UPGRADE')) ||
+                      flowStep === 'VERIFICATION_PENDING' ||
+                      clinicData?.paymentStatus === 'PENDING_VERIFICATION';
 
-  /* Merge real plans with fallback display data */
-  const displayPlans = useMemo(() => {
-    const fallback = [
-      {
-        _id: 'starter', name: 'AI Starter Clinic', subtitle: 'Single Doctor Clinic',
-        priceYearly: 1499, code: 'STARTER',
-        features: ['Patient Registration','Appointment Management','Billing & Invoices','Prescription & Basic EMR','Daily Reports','Staff Login (2 Users)','500 Patient Records','Cloud Backup','Email Support'],
-        isCurrent: planName.toLowerCase().includes('starter'),
-      },
-      {
-        _id: 'professional', name: 'AI Professional Clinic', subtitle: '1+ Two-Three Doctors',
-        priceYearly: 2999, code: 'PROFESSIONAL',
-        features: ['AI Appointment Scheduling','Doctor Calendar','Multi Doctor Management','WhatsApp Integration','Inventory & Pharmacy','Lab Module','Digital Prescription','Unlimited Patients','Analytics Dashboard','Role-Based Access','Up to 10 Users'],
-        isCurrent: planName.toLowerCase().includes('professional'),
-        isPopular: true,
-        prefix: 'Everything in Starter, plus:',
-      },
-      {
-        _id: 'premium', name: 'AI Premium Clinic', subtitle: '2+ (5-15) Doctors Multi Speciality Clinic',
-        priceYearly: 5999, code: 'PREMIUM',
-        features: ['AI Symptom Checker','AI Consultation Assistant','Voice-to-Text','AI Prescription Suggestions','AI Lab Recommendation','AI Patient Risk Scoring','Referral Management','Advanced Analytics','Priority Support','Up to 25 Users'],
-        isCurrent: planName.toLowerCase().includes('premium'),
-        prefix: 'Everything in Professional, plus:',
-      },
-      {
-        _id: 'enterprise', name: 'Enterprise Clinic', subtitle: '15+ Doctors / Multi Branch',
-        priceYearly: null, code: 'ENTERPRISE',
-        features: ['Multi-Branch Management','Custom Integrations','Dedicated Account Manager','Advanced Security','SLA & Uptime Guarantee','Custom Reports','Unlimited Users','On-Premise Deployment (Optional)'],
-        isCurrent: planName.toLowerCase().includes('enterprise'),
-        prefix: 'Everything in Premium, plus:',
-      },
-    ];
+    if (!isPending) return;
 
-    // Merge real API plans if available
-    if (plans.length > 0) {
-      return plans.map((p, i) => ({
-        ...p,
-        subtitle: p.limits?.maxDoctors ? `Up to ${p.limits.maxDoctors} Doctors` : fallback[i]?.subtitle || '',
-        isPopular: i === 1,
-        isCurrent: p.name === planName || p.code === (currentPlan?.code || ''),
-        prefix: i > 0 ? fallback[i]?.prefix : undefined,
-      }));
+    const intervalId = setInterval(() => {
+      loadData(true);
+    }, 4000);
+
+    return () => clearInterval(intervalId);
+  }, [latestPayment?.status, latestPayment?.paymentType, flowStep, clinicData?.paymentStatus, loadData]);
+
+  // Handle URL sub-routes if any
+  useEffect(() => {
+    if (location.pathname.includes('/upgrade')) {
+      handleOpenUpgrade();
+    } else if (location.pathname.includes('/payment-verification')) {
+      setFlowStep('VERIFICATION_PENDING');
     }
-    return fallback;
-  }, [plans, planName, currentPlan]);
+  }, [location.pathname]);
 
-  /* Usage stats from clinic / user */
-  const usage = useMemo(() => {
-    const maxUsers    = currentPlan?.limits?.maxDoctors || 10;
-    const maxPatients = currentPlan?.limits?.maxPatients || null;
-    const currentUsers    = (user?.clinic?.doctorCount || 0) + (user?.clinic?.staffCount || 0) || 7;
-    const currentPatients = user?.clinic?.patientCount || 18452;
-    const storageGB   = 45.6;
-    const storageMax  = 200;
-    return { maxUsers, maxPatients, currentUsers, currentPatients, storageGB, storageMax };
-  }, [currentPlan, user]);
+  /* ── Current Subscription Data ── */
+  const clinic = clinicData || user?.clinic || {};
+  const currentSub = clinic.subscription || {};
+  const currentPlan = currentSub.planId || {};
+  const currentPlanName = currentPlan.name || 'AI Starter Clinic';
+  const currentPlanCode = (currentPlan.code || 'STARTER').toUpperCase();
+  const currentBillingCycle = currentSub.billingCycle || 'monthly';
+  const isCurrentlyMonthly = currentBillingCycle.toLowerCase() === 'monthly';
+  const currentPlanPrice = isCurrentlyMonthly 
+    ? (currentPlan.priceMonthly || currentPlan.price || 999) 
+    : (currentPlan.priceYearly || (currentPlan.price || 999) * 10);
 
-  if (loading) return <LoadingState label="Loading subscription data..." />;
+  const startDateFormatted = fmtDate(currentSub.startDate || clinic.createdAt);
+  const expiryDateFormatted = fmtDate(currentSub.expiryDate || currentSub.renewalDate);
+  const renewalDateFormatted = fmtDate(currentSub.renewalDate || currentSub.expiryDate);
+
+  const isPendingUpgrade = latestPayment?.status === 'PENDING_VERIFICATION' && 
+    (latestPayment?.paymentType === 'PLAN_UPGRADE' || latestPayment?.paymentType === 'UPGRADE' || latestPayment?.paymentType === 'PLAN_CHANGE');
+
+  const pendingPlanName = latestPayment?.requestedPlanId?.name || latestPayment?.planId?.name || 'Upgraded Plan';
+  const pendingCycle = latestPayment?.requestedBillingCycle || latestPayment?.billingCycle || 'yearly';
+
+  // Derived higher plans
+  const currentRank = PLAN_RANKS[currentPlanCode] || 1;
+
+  const eligibleUpgradePlans = useMemo(() => {
+    return plans.filter(p => {
+      const pCode = (p.code || '').toUpperCase();
+      const pRank = PLAN_RANKS[pCode] || 2;
+      return pRank > currentRank;
+    });
+  }, [plans, currentRank]);
+
+  // Handle Copy helper
+  const handleCopy = (text, key, label) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    setCopiedKey(key);
+    toast.success(`${label} copied to clipboard!`);
+    setTimeout(() => setCopiedKey(''), 2500);
+  };
+
+  // Open Upgrade Plan selector
+  const handleOpenUpgrade = (preselectedPlan = null) => {
+    const target = preselectedPlan || eligibleUpgradePlans[0] || plans.find(p => (PLAN_RANKS[(p.code || '').toUpperCase()] || 0) > currentRank) || null;
+    setSelectedPlanForUpgrade(target);
+    setSelectedCycle(currentBillingCycle === 'yearly' ? 'yearly' : 'monthly');
+    setFlowStep('SELECT_PLAN');
+  };
+
+  // Switch to Yearly shortcut on current plan
+  const handleSwitchToYearlyCurrentPlan = () => {
+    const matchingPlan = plans.find(p => String(p._id) === String(currentPlan._id || currentPlan.id)) || currentPlan;
+    setSelectedPlanForUpgrade(matchingPlan);
+    setSelectedCycle('yearly');
+    setFlowStep('REVIEW_SUMMARY');
+  };
+
+  // Move from Plan selection to Review Summary
+  const handleProceedToReview = (plan, cycle) => {
+    setSelectedPlanForUpgrade(plan);
+    setSelectedCycle(cycle);
+    setFlowStep('REVIEW_SUMMARY');
+  };
+
+  // Move from Review Summary to Payment Screen & Initiate dynamic QR with backend calculation
+  const handleProceedToPayment = async () => {
+    if (!selectedPlanForUpgrade?._id && !selectedPlanForUpgrade?.id) {
+      toast.error('Please select a target plan.');
+      return;
+    }
+
+    const targetPlanId = selectedPlanForUpgrade._id || selectedPlanForUpgrade.id;
+    const clinicId = clinic._id || user?.clinicId;
+
+    setLoadingInitiation(true);
+    try {
+      const initRes = await subscriptionPaymentApi.initiatePayment({
+        clinicId,
+        planId: targetPlanId,
+        billingCycle: selectedCycle
+      });
+
+      const data = initRes.data || initRes;
+      setInitiationData(data);
+      if (data.paymentDetails) {
+        setPaymentSettings(data.paymentDetails);
+      }
+      setFlowStep('PAYMENT');
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || 'Failed to initialize payment calculation.');
+    } finally {
+      setLoadingInitiation(false);
+    }
+  };
+
+  // Handle Proof File Upload
+  const handleProofChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file (PNG, JPG, JPEG).');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size must be under 5MB.');
+      return;
+    }
+
+    setProofFile(file);
+    const reader = new FileReader();
+    reader.onload = () => {
+      setProofPreview(reader.result);
+      setProofBase64(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Submit Upgrade Payment
+  const handleSubmitPayment = async (e) => {
+    e?.preventDefault();
+    if (!utr || !utr.trim()) {
+      toast.error('Please enter a valid UTR / Transaction Reference Number.');
+      return;
+    }
+
+    const cleanUtr = utr.trim().toUpperCase();
+    if (cleanUtr.length < 6) {
+      toast.error('UTR / Reference number must be at least 6 alphanumeric characters.');
+      return;
+    }
+
+    const targetPlanId = selectedPlanForUpgrade?._id || selectedPlanForUpgrade?.id || initiationData?.plan?._id;
+    const clinicId = clinic._id || user?.clinicId;
+
+    setSubmittingPayment(true);
+    try {
+      const res = await subscriptionPaymentApi.submitPayment({
+        clinicId,
+        planId: targetPlanId,
+        billingCycle: selectedCycle,
+        paymentType: 'PLAN_UPGRADE',
+        utr: cleanUtr,
+        transactionId: transactionId.trim(),
+        paymentProofUrl: proofBase64 || ''
+      });
+
+      if (res.success || res.status === 201 || res.data) {
+        toast.success('Payment submitted successfully! Awaiting verification.');
+        setFlowStep('VERIFICATION_PENDING');
+        await loadData(true);
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || 'Payment submission failed. Please check UTR or contact support.');
+    } finally {
+      setSubmittingPayment(false);
+    }
+  };
+
+  // Calculated Pricing breakdown for review
+  const calculatedReview = useMemo(() => {
+    if (!selectedPlanForUpgrade) return null;
+    const isYearly = selectedCycle === 'yearly';
+    
+    let basePrice = isYearly 
+      ? (selectedPlanForUpgrade.priceYearly ?? (selectedPlanForUpgrade.priceMonthly ? selectedPlanForUpgrade.priceMonthly * 10 : (selectedPlanForUpgrade.price || 9999) * 10))
+      : (selectedPlanForUpgrade.priceMonthly ?? selectedPlanForUpgrade.price ?? 9999);
+
+    const gst = Math.round(basePrice * 0.18);
+    const total = basePrice + gst;
+
+    let savings = 0;
+    if (isYearly) {
+      const monthlyEquivAnnual = (selectedPlanForUpgrade.priceMonthly || (selectedPlanForUpgrade.price || 999)) * 12;
+      savings = Math.max(0, monthlyEquivAnnual - basePrice);
+    }
+
+    return { basePrice, gst, total, savings };
+  }, [selectedPlanForUpgrade, selectedCycle]);
+
+  if (loading && !clinicData) {
+    return <LoadingState label="Loading clinic subscription details..." />;
+  }
 
   return (
-    <div className="space-y-6 p-1">
-
-      {/* ── Header ─────────────────────────────────────────── */}
+    <div className="space-y-6 p-1 max-w-[1600px] mx-auto">
+      
+      {/* ── Page Header ─────────────────────────────────────── */}
       <PageHeader
-        eyebrow="Admin Panel"
+        eyebrow="Clinic Subscription Management"
         title="Subscription & Plan"
-        description="Manage your subscription, billing and choose the best plan for your clinic."
+        description="View your active subscription details, explore higher tier plans, or switch to annual billing with exclusive savings."
       />
 
-      {/* ── Tabs ────────────────────────────────────────────── */}
-      <div className="flex items-center gap-1 border-b border-slate-100 pb-0">
-        {TABS.map(tab => (
+      {/* ── Pending Upgrade Notification Banner ─────────────── */}
+      {isPendingUpgrade && (
+        <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-300 rounded-3xl p-5 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-amber-500/20 text-amber-700 flex items-center justify-center shrink-0">
+              <Clock size={22} className="animate-pulse" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-black text-slate-900">Plan Upgrade Under Verification</h3>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800 border border-amber-200">
+                  Pending Verification
+                </span>
+              </div>
+              <p className="text-xs text-slate-600 mt-0.5">
+                Requested upgrade to <strong>{pendingPlanName}</strong> ({pendingCycle} billing). Your current plan remains active while under administrator review.
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => setFlowStep('VERIFICATION_PENDING')}
+            className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-xs shrink-0 cursor-pointer"
+          >
+            <span>View Verification Status</span>
+            <ChevronRight size={14} />
+          </button>
+        </div>
+      )}
+
+      {/* ── Tab Navigation ──────────────────────────────────── */}
+      <div className="flex items-center gap-2 border-b border-slate-200/80 pb-0 overflow-x-auto">
+        {TABS.map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`px-5 py-2.5 text-sm font-bold cursor-pointer transition border-b-2 -mb-px ${
+            className={`px-5 py-3 text-xs font-extrabold cursor-pointer transition border-b-2 -mb-px whitespace-nowrap ${
               activeTab === tab
-                ? 'text-indigo-600 border-indigo-600'
-                : 'text-slate-500 border-transparent hover:text-slate-700'
+                ? 'text-emerald-600 border-emerald-600 bg-emerald-50/40 rounded-t-xl'
+                : 'text-slate-500 border-transparent hover:text-slate-800'
             }`}
           >
             {tab}
@@ -299,350 +432,437 @@ const SubscriptionPage = () => {
       </div>
 
       {/* ══════════════════════════════════════════════════════
-          TAB: Plans & Pricing
+          TAB 1: MY SUBSCRIPTION OVERVIEW
       ══════════════════════════════════════════════════════ */}
-      {activeTab === 'Plans & Pricing' && (
+      {activeTab === 'My Subscription' && (
         <div className="space-y-6">
+          
+          {/* Top Hero Cards: Active Plan + Key Metrics */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+            
+            {/* 1. Main Current Subscription Card */}
+            <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-200/90 shadow-xs p-6 sm:p-8 flex flex-col justify-between relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-50/50 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
+              
+              <div className="space-y-6 relative z-10">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 block mb-1">
+                      Current Subscription
+                    </span>
+                    <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+                      {currentPlanName}
+                    </h2>
+                    <p className="text-xs text-slate-500 mt-1 font-medium">
+                      {isCurrentlyMonthly ? 'Billed Monthly' : 'Billed Annually'} • High Performance ClinicOS
+                    </p>
+                  </div>
 
-          {/* Plan Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
-            {displayPlans.map((plan, idx) => {
-              const cfg  = PLAN_COLORS[idx] || PLAN_COLORS[0];
-              const Icon = PLAN_ICONS[idx] || Star;
-              const isDark = idx === 3;
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                      Active
+                    </span>
+                  </div>
+                </div>
+
+                {/* Price Display */}
+                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-5 flex flex-wrap items-center justify-between gap-4">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase text-slate-400 block">Current Rate</span>
+                    <p className="text-2xl font-black text-slate-900 mt-0.5">
+                      {fmt(currentPlanPrice)}
+                      <span className="text-xs font-semibold text-slate-500 ml-1">
+                        / {isCurrentlyMonthly ? 'month' : 'year'}
+                      </span>
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3">
+                    {/* Switch to yearly button if currently monthly */}
+                    {isCurrentlyMonthly && (
+                      <button
+                        onClick={handleSwitchToYearlyCurrentPlan}
+                        className="px-4 py-2.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                      >
+                        <Sparkles size={14} className="text-indigo-600" />
+                        <span>Switch to Yearly (Save 17%+)</span>
+                      </button>
+                    )}
+
+                    {/* Upgrade Plan button */}
+                    <button
+                      onClick={() => handleOpenUpgrade()}
+                      className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black transition flex items-center gap-1.5 shadow-md shadow-emerald-600/20 cursor-pointer"
+                    >
+                      <Crown size={14} />
+                      <span>{isCurrentlyMonthly ? 'Upgrade Plan' : 'Change Plan'}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Key Lifecycle Dates Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+                  <div className="bg-white border border-slate-150 rounded-2xl p-4 shadow-2xs">
+                    <span className="text-[10px] font-bold uppercase text-slate-400 block">Start Date</span>
+                    <span className="text-xs font-bold text-slate-800 block mt-1">{startDateFormatted}</span>
+                  </div>
+
+                  <div className="bg-white border border-slate-150 rounded-2xl p-4 shadow-2xs">
+                    <span className="text-[10px] font-bold uppercase text-slate-400 block">Next Renewal</span>
+                    <span className="text-xs font-bold text-slate-800 block mt-1">{renewalDateFormatted}</span>
+                  </div>
+
+                  <div className="bg-white border border-slate-150 rounded-2xl p-4 shadow-2xs">
+                    <span className="text-[10px] font-bold uppercase text-slate-400 block">Subscription Expiry</span>
+                    <span className="text-xs font-bold text-slate-800 block mt-1">{expiryDateFormatted}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer Note */}
+              <div className="mt-6 pt-4 border-t border-slate-100 text-[11px] text-slate-400 flex items-center gap-1.5">
+                <ShieldCheck size={14} className="text-emerald-600 shrink-0" />
+                <span>Encrypted medical grade multi-tenant HIPAA isolation included.</span>
+              </div>
+            </div>
+
+            {/* 2. Upgrade Promotion Card */}
+            <div className="bg-gradient-to-br from-slate-900 via-slate-850 to-indigo-950 text-white rounded-3xl p-6 sm:p-7 shadow-lg flex flex-col justify-between relative overflow-hidden">
+              <div className="space-y-4 relative z-10">
+                <div className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center border border-white/10 text-amber-400">
+                  <Crown size={20} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black tracking-tight">Expand Your Practice</h3>
+                  <p className="text-xs text-slate-300 mt-1 leading-relaxed">
+                    Unlock AI consultation assistants, multi-doctor scheduling, integrated pharmacy, and advanced analytics.
+                  </p>
+                </div>
+
+                <div className="space-y-2 text-xs text-slate-200">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 size={13} className="text-emerald-400 shrink-0" />
+                    <span>Instant activation upon verification</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 size={13} className="text-emerald-400 shrink-0" />
+                    <span>Existing patient data stays untouched</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 size={13} className="text-emerald-400 shrink-0" />
+                    <span>Unified direct bank / UPI payment</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-6 relative z-10">
+                <button
+                  onClick={() => handleOpenUpgrade()}
+                  className="w-full py-3 rounded-2xl bg-white hover:bg-slate-100 text-slate-950 font-black text-xs transition shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <span>Explore Higher Plans</span>
+                  <ArrowRight size={14} />
+                </button>
+              </div>
+            </div>
+
+          </div>
+
+          {/* Plan Usage & Resource Limits */}
+          <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xs p-6 sm:p-8 space-y-5">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div>
+                <h3 className="text-base font-black text-slate-900">Plan Usage & Limits</h3>
+                <p className="text-xs text-slate-400 mt-0.5">Real-time resource allocation and storage utilization for {currentPlanName}</p>
+              </div>
+              <span className="px-3 py-1 rounded-full text-xs font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
+                85% Total Capacity
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              {/* Storage */}
+              <div className="bg-slate-50/80 border border-slate-150 rounded-2xl p-4.5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-slate-700 font-bold text-xs">
+                    <Database size={16} className="text-emerald-600" />
+                    <span>Cloud Medical Storage</span>
+                  </div>
+                  <span className="text-xs font-black text-slate-900">85% Used</span>
+                </div>
+                <div>
+                  <div className="flex justify-between text-[11px] text-slate-500 font-semibold mb-1.5">
+                    <span>170 GB Used</span>
+                    <span>200 GB Limit</span>
+                  </div>
+                  <div className="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
+                    <div className="h-full bg-emerald-500 rounded-full transition-all duration-500" style={{ width: '85%' }} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Doctors Allocation */}
+              <div className="bg-slate-50/80 border border-slate-150 rounded-2xl p-4.5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-slate-700 font-bold text-xs">
+                    <Users size={16} className="text-indigo-600" />
+                    <span>Doctor Accounts</span>
+                  </div>
+                  <span className="text-xs font-black text-slate-900">Active</span>
+                </div>
+                <div>
+                  <div className="flex justify-between text-[11px] text-slate-500 font-semibold mb-1.5">
+                    <span>Multi-Speciality Roster</span>
+                    <span>{currentPlan?.limits?.maxDoctors ? `${currentPlan.limits.maxDoctors} Doctors` : 'Unlimited'}</span>
+                  </div>
+                  <div className="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
+                    <div className="h-full bg-indigo-500 rounded-full transition-all duration-500" style={{ width: '60%' }} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Monthly Patients */}
+              <div className="bg-slate-50/80 border border-slate-150 rounded-2xl p-4.5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-slate-700 font-bold text-xs">
+                    <Activity size={16} className="text-purple-600" />
+                    <span>Monthly Consultations</span>
+                  </div>
+                  <span className="text-xs font-black text-slate-900">Unrestricted</span>
+                </div>
+                <div>
+                  <div className="flex justify-between text-[11px] text-slate-500 font-semibold mb-1.5">
+                    <span>High Volume Ready</span>
+                    <span>{currentPlan?.limits?.maxPatients ? `${currentPlan.limits.maxPatients} / mo` : 'Unlimited'}</span>
+                  </div>
+                  <div className="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
+                    <div className="h-full bg-purple-500 rounded-full transition-all duration-500" style={{ width: '45%' }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Features Included in Current Plan */}
+          <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xs p-6 sm:p-8 space-y-5">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div>
+                <h3 className="text-base font-black text-slate-900">Features Included in Current Plan</h3>
+                <p className="text-xs text-slate-400 mt-0.5">Your clinic currently has access to these active modules</p>
+              </div>
+              <span className="text-xs font-bold text-slate-500">
+                {currentPlanName}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+              {(currentPlan?.features || [
+                'Patient Management',
+                'Appointment Scheduling',
+                'Billing & Invoicing',
+                'Digital Prescriptions',
+                'Multi-Doctor Roster',
+                'Pharmacy Integration',
+                'Laboratory Test Management',
+                'Financial Analytics'
+              ]).map((feat, idx) => (
+                <div key={idx} className="bg-slate-50 border border-slate-150/80 rounded-2xl p-3.5 flex items-start gap-2.5">
+                  <CheckCircle2 size={15} className="text-emerald-600 shrink-0 mt-0.5" />
+                  <span className="text-xs font-bold text-slate-700 capitalize">
+                    {String(feat).replace(/_/g, ' ')}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════
+          TAB 2: AVAILABLE PLANS & PRICING
+      ══════════════════════════════════════════════════════ */}
+      {activeTab === 'Available Plans' && (
+        <div className="space-y-6">
+          <div className="text-center max-w-xl mx-auto space-y-2 py-2">
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900">Choose Your Subscription Plan</h2>
+            <p className="text-xs text-slate-500 font-medium">
+              Dynamically configured plans from Super Admin. Current plan is marked below.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+            {plans.map((plan, idx) => {
+              const pCode = (plan.code || '').toUpperCase();
+              const isCurrent = pCode === currentPlanCode || String(plan._id) === String(currentPlan._id || currentPlan.id);
+              const pRank = PLAN_RANKS[pCode] || (idx + 1);
+              const isHigher = pRank > currentRank;
+              const Icon = PLAN_ICONS[idx % 4] || Star;
+              const isPopular = idx === 1 || pCode === 'PROFESSIONAL';
+
+              const monthlyPrice = plan.priceMonthly ?? plan.price ?? 999;
+              const yearlyPrice = plan.priceYearly ?? (monthlyPrice * 10);
+
               return (
                 <div
                   key={plan._id || idx}
-                  className={`relative rounded-2xl border p-6 flex flex-col gap-4 bg-gradient-to-b ${cfg.grad} ${cfg.ring} transition hover:shadow-lg h-full`}
+                  className={`relative rounded-3xl border p-6 flex flex-col justify-between transition-all duration-200 ${
+                    isCurrent
+                      ? 'bg-emerald-50/30 border-emerald-300 ring-2 ring-emerald-500/20 shadow-sm'
+                      : isPopular
+                      ? 'bg-gradient-to-b from-indigo-50/50 to-white border-indigo-200 shadow-md ring-1 ring-indigo-300'
+                      : 'bg-white border-slate-200 shadow-xs hover:shadow-md'
+                  }`}
                 >
-                  {plan.isPopular && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
-                      <span className="bg-indigo-600 text-white text-[10px] font-extrabold px-3 py-1 rounded-full shadow-md">
-                        Most Popular
-                      </span>
-                    </div>
-                  )}
-                  {plan.isCurrent && !plan.isPopular && (
-                    <div className="absolute -top-3 left-4">
-                      <span className="bg-emerald-500 text-white text-[10px] font-extrabold px-3 py-1 rounded-full">
-                        Current
+                  {isCurrent && (
+                    <div className="absolute -top-3 left-6">
+                      <span className="bg-emerald-600 text-white text-[10px] font-black px-3 py-1 rounded-full shadow-xs">
+                        Current Plan
                       </span>
                     </div>
                   )}
 
-                  <div>
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-3" style={{ background: cfg.icon + '22' }}>
-                      <Icon size={18} style={{ color: cfg.icon }} />
+                  {isPopular && !isCurrent && (
+                    <div className="absolute -top-3 right-6">
+                      <span className="bg-indigo-600 text-white text-[10px] font-black px-3 py-1 rounded-full shadow-xs flex items-center gap-1">
+                        <Sparkles size={10} /> Most Popular
+                      </span>
                     </div>
-                    <p className={`text-base font-black leading-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                      {plan.name}
-                    </p>
-                    <p className={`text-[11px] mt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                      {plan.subtitle}
-                    </p>
-                  </div>
+                  )}
 
-                  <div>
-                    {plan.priceYearly !== null ? (
-                      <>
-                        <p className={`text-2xl font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                          {fmt(plan.priceYearly)}
-                          <span className={`text-sm font-semibold ml-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>/month</span>
-                        </p>
-                        <p className={`text-[11px] mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Billed annually</p>
-                      </>
-                    ) : (
-                      <>
-                        <p className={`text-xl font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>Custom Pricing</p>
-                        <p className={`text-[11px] mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>
-                          For large clinics and hospital chains
-                        </p>
-                      </>
-                    )}
-                  </div>
+                  <div className="space-y-4">
+                    <div className="w-10 h-10 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-700">
+                      <Icon size={20} />
+                    </div>
 
-                  <div className="space-y-1.5 flex-1 max-h-[190px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
-                    {plan.prefix && (
-                      <p className={`text-[10px] font-extrabold uppercase tracking-wider mb-2 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                        {plan.prefix}
+                    <div>
+                      <h3 className="text-lg font-black text-slate-900">{plan.name}</h3>
+                      <p className="text-xs text-slate-400 mt-0.5">{plan.limits?.maxDoctors ? `Up to ${plan.limits.maxDoctors} Doctors` : 'Enterprise Grade'}</p>
+                    </div>
+
+                    <div className="border-t border-slate-100 pt-3">
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-2xl font-black text-slate-900">{fmt(monthlyPrice)}</span>
+                        <span className="text-xs font-semibold text-slate-400">/ month</span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-1">
+                        or {fmt(yearlyPrice)} / year (Save 17%+)
                       </p>
-                    )}
-                    {(plan.features || []).map((f, fi) => (
-                      <Feature key={fi} text={f} dark={isDark} color={cfg.accent} />
-                    ))}
+                    </div>
+
+                    <div className="space-y-2 pt-2">
+                      <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block">Included Features</span>
+                      {(plan.features || ['Patient Records', 'Appointments', 'Billing', 'EMR']).slice(0, 7).map((feat, fIdx) => (
+                        <FeatureItem key={fIdx} text={String(feat).replace(/_/g, ' ')} highlighted={isPopular} />
+                      ))}
+                    </div>
                   </div>
 
-                  <button
-                    onClick={() => !plan.isCurrent && plan.priceYearly !== null && handleChoosePlan(plan)}
-                    className={`w-full py-2.5 rounded-xl text-sm font-bold transition cursor-pointer ${cfg.btn} ${plan.isCurrent ? 'opacity-100' : ''}`}
-                  >
-                    {plan.isCurrent ? 'Current Plan' : plan.priceYearly === null ? 'Contact Sales' : 'Choose Plan'}
-                  </button>
+                  <div className="pt-6 border-t border-slate-100 mt-4">
+                    {isCurrent ? (
+                      <div className="w-full py-2.5 rounded-2xl bg-emerald-100 text-emerald-800 text-xs font-black text-center">
+                        Active Plan
+                      </div>
+                    ) : isHigher ? (
+                      <button
+                        onClick={() => handleProceedToReview(plan, 'monthly')}
+                        className={`w-full py-3 rounded-2xl text-xs font-black transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                          isPopular
+                            ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20'
+                            : 'bg-slate-900 hover:bg-slate-800 text-white shadow-xs'
+                        }`}
+                      >
+                        <Crown size={14} />
+                        <span>Upgrade to {plan.name}</span>
+                      </button>
+                    ) : (
+                      <div className="w-full py-2.5 rounded-2xl bg-slate-100 text-slate-400 text-xs font-bold text-center">
+                        Lower Tier Plan
+                      </div>
+                    )}
+                  </div>
                 </div>
               );
             })}
           </div>
-
-          {/* Current Subscription + Usage + Why Upgrade */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-
-            {/* Current Subscription */}
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-4">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm font-bold text-slate-800">Current Subscription</p>
-                  <p className="text-xs text-slate-400 mt-0.5">{planName}</p>
-                </div>
-                <span className="bg-emerald-50 text-emerald-700 text-[10px] font-extrabold px-2.5 py-1 rounded-full border border-emerald-200">
-                  Active
-                </span>
-              </div>
-
-              <div className="space-y-2.5">
-                {[
-                  ['Plan Status',      'Active'],
-                  ['Billing Cycle',    subscription.billingCycle || 'Annual'],
-                  ['Current Period',   `${subscription.startDate ? new Date(subscription.startDate).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) : '25 Dec 2024'} – ${expiryFormatted}`],
-                  ['Next Billing Date', expiryFormatted],
-                  ['Users',            `${usage.currentUsers} / ${usage.maxUsers} Users`],
-                  ['Patient Records',  `${fmtNum(usage.currentPatients)} / ${usage.maxPatients ? fmtNum(usage.maxPatients) : 'Unlimited'}`],
-                  ['Storage Used',     `${usage.storageGB} GB / ${usage.storageMax} GB`],
-                ].map(([k, v]) => (
-                  <div key={k} className="flex justify-between text-xs">
-                    <span className="text-slate-500">{k}</span>
-                    <span className={`font-semibold ${k === 'Plan Status' ? 'text-emerald-600' : 'text-slate-700'}`}>{v}</span>
-                  </div>
-                ))}
-              </div>
-
-              <button className="w-full py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-700 hover:bg-slate-50 transition cursor-pointer">
-                Manage Subscription
-              </button>
-            </div>
-
-            {/* Usage Overview */}
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-5">
-              <p className="text-sm font-bold text-slate-800">Usage Overview</p>
-
-              {[
-                {
-                  icon: Users,        label: 'Users',           iconColor: '#6366f1', iconBg: '#eef2ff',
-                  current: usage.currentUsers,  max: usage.maxUsers, unit: 'Users',
-                  pctLabel: `${usage.currentUsers} / ${usage.maxUsers} Users`,
-                  barPct: pct => pct, color: '#6366f1',
-                },
-                {
-                  icon: Package,     label: 'Patient Records', iconColor: '#10b981', iconBg: '#ecfdf5',
-                  current: usage.currentPatients, max: usage.maxPatients || usage.currentPatients,
-                  unit: '', pctLabel: `${fmtNum(usage.currentPatients)} / Unlimited`,
-                  color: '#10b981',
-                },
-                {
-                  icon: Database,    label: 'Storage',          iconColor: '#f59e0b', iconBg: '#fffbeb',
-                  current: usage.storageGB,  max: usage.storageMax,
-                  unit: 'GB', pctLabel: `${usage.storageGB} GB / ${usage.storageMax} GB`,
-                  color: '#f59e0b',
-                },
-              ].map((row, i) => {
-                const Icon = row.icon;
-                const pctVal = row.max > 0 ? Math.min(100, Math.round((row.current / row.max) * 100)) : 0;
-                return (
-                  <div key={i} className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: row.iconBg }}>
-                          <Icon size={13} style={{ color: row.iconColor }} />
-                        </div>
-                        <span className="text-xs font-semibold text-slate-700">{row.label}</span>
-                      </div>
-                      <span className="text-xs font-bold text-slate-600">{row.pctLabel}</span>
-                    </div>
-                    <ProgressBar value={row.current} max={row.max} color={row.color} />
-                    <p className="text-[10px] text-slate-400 text-right">{pctVal}%</p>
-                  </div>
-                );
-              })}
-
-              <button className="text-xs text-indigo-600 font-bold hover:underline flex items-center gap-1 cursor-pointer">
-                View Usage Details <ArrowUpRight size={11} />
-              </button>
-            </div>
-
-            {/* Why Upgrade */}
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-4">
-              <p className="text-sm font-bold text-slate-800">Why Upgrade?</p>
-
-              <div className="space-y-4">
-                {[
-                  { icon: '⚡', label: 'Increase Efficiency', desc: 'Automate appointments, billing and reports with AI.', color: 'bg-indigo-50 text-indigo-600' },
-                  { icon: '❤️', label: 'Improve Patient Experience', desc: 'Faster service, digital prescriptions, and follow-ups.', color: 'bg-rose-50 text-rose-500' },
-                  { icon: '📊', label: 'Advanced Analytics', desc: 'Deep insights and grow your clinic.', color: 'bg-amber-50 text-amber-600' },
-                  { icon: '📈', label: 'Scalable Solution', desc: 'Add more users, branches and features as you grow.', color: 'bg-emerald-50 text-emerald-600' },
-                ].map((item, i) => (
-                  <div key={i} className="flex items-start gap-3">
-                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm shrink-0 ${item.color}`}>
-                      {item.icon}
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-slate-800">{item.label}</p>
-                      <p className="text-[11px] text-slate-500 mt-0.5">{item.desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <button className="w-full py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-700 hover:bg-slate-50 transition cursor-pointer flex items-center justify-center gap-2">
-                Compare All Features <ArrowUpRight size={13} />
-              </button>
-            </div>
-          </div>
-
-          {/* Help Footer */}
-          <div className="bg-indigo-50 rounded-2xl border border-indigo-100 p-5 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">🎯</span>
-              <div>
-                <p className="text-sm font-bold text-slate-800">Need help choosing the right plan?</p>
-                <p className="text-xs text-slate-500 mt-0.5">Our team is here to help you choose the perfect plan for your clinic.</p>
-              </div>
-            </div>
-            <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-bold hover:bg-indigo-700 transition cursor-pointer shadow-md shadow-indigo-200">
-              <CreditCard size={14} />
-              Contact Support
-            </button>
-          </div>
         </div>
       )}
 
       {/* ══════════════════════════════════════════════════════
-          TAB: My Subscription
+          TAB 3: BILLING & PAYMENT HISTORY
       ══════════════════════════════════════════════════════ */}
-      {activeTab === 'My Subscription' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <p className="text-base font-black text-slate-900">{planName}</p>
-              <span className="bg-emerald-50 text-emerald-700 text-xs font-bold px-3 py-1 rounded-full border border-emerald-200">Active</span>
-            </div>
-            <div className="space-y-2.5 text-sm">
-              {[
-                ['Plan Status',      <span className="text-emerald-600 font-bold">Active</span>],
-                ['Billing Cycle',    subscription.billingCycle || 'Annual'],
-                ['Next Billing',     expiryFormatted],
-                ['Users',            `${usage.currentUsers} / ${usage.maxUsers}`],
-                ['Storage',          `${usage.storageGB} GB / ${usage.storageMax} GB`],
-              ].map(([k, v]) => (
-                <div key={k} className="flex justify-between">
-                  <span className="text-slate-500">{k}</span>
-                  <span className="font-semibold text-slate-700">{v}</span>
-                </div>
-              ))}
-            </div>
-            <button className="w-full py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-bold hover:bg-indigo-700 transition cursor-pointer shadow">
-              Manage Subscription
-            </button>
+      {activeTab === 'Billing & Payment History' && (
+        <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xs p-6 sm:p-8 space-y-5">
+          <div>
+            <h3 className="text-base font-black text-slate-900">Subscription &amp; Payment History</h3>
+            <p className="text-xs text-slate-400 mt-0.5">Detailed record of all subscription payments and plan changes</p>
           </div>
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-            <p className="text-sm font-bold text-slate-800 mb-4">Plan Features</p>
-            <div className="space-y-2">
-              {(currentPlan?.features || ['Patient Management','Billing','Appointments','Pharmacy','Laboratory','Analytics','Multi-Doctor Support']).map((f, i) => (
-                <Feature key={i} text={f} />
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* ══════════════════════════════════════════════════════
-          TAB: Billing History
-      ══════════════════════════════════════════════════════ */}
-      {activeTab === 'Billing History' && (
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-          <p className="text-sm font-bold text-slate-800 mb-4">Billing History</p>
           <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
+            <table className="w-full text-xs">
               <thead>
-                <tr className="border-b border-slate-100">
-                  {['Invoice','Plan','Date','Amount','Status'].map(h => (
-                    <th key={h} className="pb-3 text-xs font-bold text-slate-400 uppercase tracking-wider text-left pr-6">{h}</th>
-                  ))}
+                <tr className="border-b border-slate-150 text-slate-400 font-bold uppercase tracking-wider text-left bg-slate-50/50">
+                  <th className="py-3 px-4">Plan</th>
+                  <th className="py-3 px-4">Type</th>
+                  <th className="py-3 px-4">Cycle</th>
+                  <th className="py-3 px-4">Amount</th>
+                  <th className="py-3 px-4">UTR / Ref</th>
+                  <th className="py-3 px-4">Submitted Date</th>
+                  <th className="py-3 px-4 text-right">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-50">
-                {[
-                  { inv: 'INV-2024-001', plan: planName, date: '25 Dec 2024', amount: fmt(currentPlan?.priceYearly || 2999), status: 'Paid' },
-                  { inv: 'INV-2023-001', plan: planName, date: '25 Dec 2023', amount: fmt(currentPlan?.priceYearly || 2999), status: 'Paid' },
-                ].map((row, i) => (
-                  <tr key={i} className="hover:bg-slate-50 transition">
-                    <td className="py-3 pr-6 text-indigo-600 font-bold">{row.inv}</td>
-                    <td className="py-3 pr-6 text-slate-700">{row.plan}</td>
-                    <td className="py-3 pr-6 text-slate-500">{row.date}</td>
-                    <td className="py-3 pr-6 font-bold text-slate-800">{row.amount}</td>
-                    <td className="py-3">
-                      <span className="bg-emerald-50 text-emerald-700 text-xs font-bold px-2.5 py-1 rounded-full">{row.status}</span>
+              <tbody className="divide-y divide-slate-100">
+                {paymentHistory.length === 0 ? (
+                  <tr>
+                    <td colSpan="7" className="py-8 text-center text-slate-400">
+                      No payment records found.
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* ══════════════════════════════════════════════════════
-          TAB: Requested Premium Features
-      ══════════════════════════════════════════════════════ */}
-      {activeTab === 'Requested Premium Features' && (
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden p-6 space-y-4">
-          <div>
-            <h3 className="text-base font-black text-slate-900">Requested Premium Features</h3>
-            <p className="text-xs text-slate-400 mt-1">Review AI features requested by your clinical staff and upgrade your subscription plan to unlock them.</p>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase tracking-wider">
-                  <th className="py-3 px-4">Requested By</th>
-                  <th className="py-3 px-4">Requested Feature</th>
-                  <th className="py-3 px-4">Requested On</th>
-                  <th className="py-3 px-4">Recommendation</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {featureRequests.length === 0 ? (
-                  <tr>
-                    <td colSpan="5" className="py-8 text-center text-slate-400">No premium feature requests submitted.</td>
-                  </tr>
                 ) : (
-                  featureRequests.map((req) => (
-                    <tr key={req._id} className="hover:bg-slate-50/50 transition">
-                      <td className="py-4.5 px-4 font-semibold text-slate-700">
-                        <div>
-                          <p className="text-xs font-bold text-slate-800">{req.doctorName}</p>
-                          <p className="text-[10px] text-slate-400">{req.doctorEmail}</p>
-                        </div>
-                      </td>
-                      <td className="py-4.5 px-4 font-bold text-violet-600">{req.featureName}</td>
-                      <td className="py-4.5 px-4 text-slate-500">
-                        {new Date(req.requestedOn).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                      </td>
-                      <td className="py-4.5 px-4 text-slate-700">
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-violet-50 text-violet-600 border border-violet-100">
-                          Upgrade to {req.recommendedPlan}
-                        </span>
-                      </td>
-                      <td className="py-4.5 px-4 text-right">
-                        <button
-                          onClick={() => setActiveTab('Plans & Pricing')}
-                          className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition shadow-sm cursor-pointer"
-                        >
-                          Upgrade Plan
-                        </button>
-                      </td>
-                    </tr>
-                  ))
+                  paymentHistory.map((p) => {
+                    const isVerified = p.status === 'VERIFIED';
+                    const isRejected = p.status === 'REJECTED';
+                    return (
+                      <tr key={p._id} className="hover:bg-slate-50/50 transition">
+                        <td className="py-3.5 px-4 font-black text-slate-900">
+                          {p.requestedPlanId?.name || p.planId?.name || currentPlanName}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            p.paymentType === 'PLAN_UPGRADE' || p.paymentType === 'UPGRADE'
+                              ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                              : 'bg-slate-100 text-slate-700'
+                          }`}>
+                            {p.paymentType || 'RENEWAL'}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 capitalize font-semibold text-slate-700">
+                          {p.requestedBillingCycle || p.billingCycle || 'monthly'}
+                        </td>
+                        <td className="py-3.5 px-4 font-black text-slate-900">
+                          {fmt(p.amount)}
+                        </td>
+                        <td className="py-3.5 px-4 font-mono font-bold text-slate-600">
+                          {p.utr || '--'}
+                        </td>
+                        <td className="py-3.5 px-4 text-slate-500">
+                          {fmtDate(p.submittedAt || p.createdAt)}
+                        </td>
+                        <td className="py-3.5 px-4 text-right">
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black ${
+                            isVerified 
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              : isRejected
+                              ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                              : 'bg-amber-50 text-amber-700 border border-amber-200'
+                          }`}>
+                            {isVerified ? 'Verified' : isRejected ? 'Rejected' : 'Pending Verification'}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -651,190 +871,622 @@ const SubscriptionPage = () => {
       )}
 
       {/* ══════════════════════════════════════════════════════
-          TAB: Payment Methods
+          MODAL 1: DYNAMIC PLAN SELECTION MODAL
       ══════════════════════════════════════════════════════ */}
-      {activeTab === 'Payment Methods' && (
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 max-w-xl">
-          <p className="text-sm font-bold text-slate-800 mb-4">Saved Payment Methods</p>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between p-4 rounded-xl border border-slate-200 bg-slate-50">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-7 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
-                  <CreditCard size={14} className="text-white" />
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-slate-800">•••• •••• •••• 4242</p>
-                  <p className="text-xs text-slate-400">Expires 12/26</p>
-                </div>
-              </div>
-              <span className="bg-indigo-50 text-indigo-700 text-[10px] font-extrabold px-2.5 py-1 rounded-full">Default</span>
-            </div>
-          </div>
-          <button className="mt-4 flex items-center gap-2 text-sm font-bold text-indigo-600 hover:underline cursor-pointer">
-            <span className="text-lg leading-none">+</span> Add Payment Method
-          </button>
-        </div>
-      )}
-      {/* Upgrade Plan Checkout Modal */}
-      {showUpgradeModal && selectedTargetPlan && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-4xl w-full border border-slate-100 shadow-2xl p-6 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-8 items-start relative max-h-[90vh] overflow-y-auto text-slate-800">
-            
-            {/* Close Button */}
-            <button 
-              onClick={() => {
-                setShowUpgradeModal(false);
-                setSelectedTargetPlan(null);
-                setUpgradePreview(null);
-              }}
-              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-650 hover:bg-slate-50 rounded-full transition"
-            >
-              <Check className="rotate-45" size={18} />
-            </button>
-
-            {/* Left side: select billing cycle */}
-            <div className="space-y-6">
+      {flowStep === 'SELECT_PLAN' && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4" onClick={() => setFlowStep(null)}>
+          <div className="bg-white rounded-3xl max-w-4xl w-full border border-slate-100 shadow-2xl p-6 sm:p-8 space-y-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <div>
-                <h4 className="text-lg font-black text-slate-900">Upgrade to {selectedTargetPlan.name}</h4>
-                <p className="text-xs text-slate-500 mt-1">Select your preferred billing cycle to apply prorated credits.</p>
+                <h3 className="text-lg font-black text-slate-900">Choose Your Upgrade Plan</h3>
+                <p className="text-xs text-slate-500 mt-0.5">Select a higher tier plan or change your billing frequency</p>
               </div>
+              <button onClick={() => setFlowStep(null)} className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-50 transition cursor-pointer">
+                ✕
+              </button>
+            </div>
 
-              {/* Cycle selection toggle */}
-              <div className="flex p-1 rounded-xl bg-slate-100 text-[10px] font-bold text-slate-600 gap-1 w-fit">
-                {['monthly', 'yearly'].map((cycle) => (
-                  <button 
-                    key={cycle}
-                    type="button"
-                    onClick={() => handlePreviewUpgradeForCycle(cycle)}
-                    className={`px-3 py-1.5 rounded-lg transition uppercase ${
-                      targetBillingCycle === cycle ? 'bg-white text-slate-950 font-black shadow-sm' : 'hover:bg-white/50'
+            {/* Cycle Toggle */}
+            <div className="flex justify-center">
+              <div className="bg-slate-100 p-1 rounded-2xl flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setSelectedCycle('monthly')}
+                  className={`px-4 py-2 rounded-xl text-xs font-black transition cursor-pointer ${
+                    selectedCycle === 'monthly' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  Monthly Billing
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedCycle('yearly')}
+                  className={`px-4 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5 ${
+                    selectedCycle === 'yearly' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <Sparkles size={12} />
+                  <span>Yearly Billing (Save 17%+)</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Plans Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {plans.map((plan, idx) => {
+                const pCode = (plan.code || '').toUpperCase();
+                const isCurrent = pCode === currentPlanCode;
+                const pRank = PLAN_RANKS[pCode] || (idx + 1);
+                const isHigher = pRank > currentRank;
+                const isSelected = selectedPlanForUpgrade?._id === plan._id || selectedPlanForUpgrade?.id === plan.id;
+                
+                const monthlyP = plan.priceMonthly ?? plan.price ?? 999;
+                const yearlyP = plan.priceYearly ?? (monthlyP * 10);
+                const activeP = selectedCycle === 'yearly' ? yearlyP : monthlyP;
+
+                return (
+                  <div
+                    key={plan._id || idx}
+                    className={`rounded-2xl border p-5 flex flex-col justify-between transition-all ${
+                      isCurrent
+                        ? 'bg-slate-50 border-slate-200 opacity-80'
+                        : isSelected
+                        ? 'bg-emerald-50/50 border-emerald-400 ring-2 ring-emerald-400/20 shadow-sm'
+                        : 'bg-white border-slate-200 hover:border-slate-300 shadow-2xs'
                     }`}
                   >
-                    {cycle}
-                  </button>
-                ))}
-              </div>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black text-slate-900">{plan.name}</span>
+                        {isCurrent && (
+                          <span className="text-[9px] font-bold px-2 py-0.5 bg-slate-200 text-slate-700 rounded-full">
+                            Current Plan
+                          </span>
+                        )}
+                      </div>
 
-              {/* Core Limits Summary */}
-              <div className="space-y-3 bg-indigo-50/30 border border-indigo-50/50 p-4 rounded-2xl">
-                <p className="text-[10px] font-black uppercase text-indigo-700 tracking-wider">Plan Highlights</p>
-                <div className="space-y-2 text-xs font-semibold text-slate-600">
-                  <p>✓ Premium clinic features unlocked immediately</p>
-                  <p>✓ Prorated credit applied automatically from remaining period</p>
-                  <p>✓ Cloud backup & HIPAA data isolation included</p>
-                </div>
-              </div>
-            </div>
+                      <div className="text-xl font-black text-slate-900">
+                        {fmt(activeP)}
+                        <span className="text-[11px] font-normal text-slate-400 ml-1">/ {selectedCycle}</span>
+                      </div>
 
-            {/* Right side: prorated math and checkout form */}
-            <div className="bg-slate-50 p-6 rounded-3xl space-y-6 border border-slate-100">
-              <p className="text-xs font-extrabold uppercase text-slate-400 tracking-wider">Upgrade checkout summary</p>
-
-              {loadingPreview && (
-                <div className="flex justify-center p-4 text-slate-400 gap-2 items-center text-xs">
-                  <RefreshCw size={14} className="animate-spin text-indigo-600" />
-                  <span>Calculating prorated discount...</span>
-                </div>
-              )}
-
-              {upgradePreview && (
-                <div className="space-y-4">
-                  
-                  {/* Prorated breakdown */}
-                  <div className="space-y-2 text-xs border-b border-slate-200 pb-4">
-                    <div className="flex justify-between items-center text-slate-500 font-semibold">
-                      <span>New Plan Price</span>
-                      <span className="font-bold text-slate-800">₹{upgradePreview.selectedPlanPrice}</span>
+                      <div className="space-y-1.5 text-xs text-slate-600 pt-2 border-t border-slate-100">
+                        {(plan.features || []).slice(0, 5).map((f, fi) => (
+                          <div key={fi} className="flex items-center gap-1.5 text-[11px]">
+                            <Check size={12} className="text-emerald-500 shrink-0" />
+                            <span>{String(f).replace(/_/g, ' ')}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <div className="flex justify-between items-center text-emerald-600 font-semibold">
-                      <span>Unused Credit (Prorated)</span>
-                      <span className="font-black">- ₹{upgradePreview.currentPlanCredit}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-slate-500 font-semibold">
-                      <span>Credit Applied</span>
-                      <span className="font-bold text-slate-800">₹{upgradePreview.creditApplied}</span>
-                    </div>
-                    <div className="h-px bg-slate-200 my-1" />
-                    <div className="flex justify-between items-center font-black text-slate-900 text-sm pt-1">
-                      <span>Final Payable Amount</span>
-                      <span className="text-indigo-600">₹{upgradePreview.finalPayableAmount}</span>
+
+                    <div className="pt-4 mt-3">
+                      {isCurrent ? (
+                        <button disabled className="w-full py-2 rounded-xl bg-slate-100 text-slate-400 text-xs font-bold">
+                          Current Plan
+                        </button>
+                      ) : isHigher ? (
+                        <button
+                          onClick={() => handleProceedToReview(plan, selectedCycle)}
+                          className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black transition cursor-pointer shadow-xs"
+                        >
+                          Select Plan
+                        </button>
+                      ) : (
+                        <button disabled className="w-full py-2 rounded-xl bg-slate-100 text-slate-400 text-xs font-bold">
+                          Lower Tier
+                        </button>
+                      )}
                     </div>
                   </div>
-
-                  {/* Payment form */}
-                  <form onSubmit={handleConfirmUpgrade} className="space-y-3.5">
-                    <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Debit / Credit card</p>
-                    
-                    <label className="grid gap-1.5 text-[10px] font-bold text-slate-700">
-                      Cardholder Name
-                      <input 
-                        type="text" 
-                        value={cardName}
-                        onChange={(e) => setCardName(e.target.value)}
-                        placeholder="John Doe"
-                        className="rounded-xl border border-slate-200 p-3 text-xs bg-white focus:border-indigo-500 outline-none transition"
-                        required
-                      />
-                    </label>
-
-                    <label className="grid gap-1.5 text-[10px] font-bold text-slate-700">
-                      Card Number
-                      <input 
-                        type="text" 
-                        value={cardNumber}
-                        onChange={(e) => setCardNumber(e.target.value)}
-                        placeholder="4111 2222 3333 4444"
-                        className="rounded-xl border border-slate-200 p-3 text-xs bg-white focus:border-indigo-500 outline-none transition"
-                        required
-                      />
-                    </label>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <label className="grid gap-1.5 text-[10px] font-bold text-slate-700">
-                        Expiry Date
-                        <input 
-                          type="text" 
-                          value={cardExpiry}
-                          onChange={(e) => setCardExpiry(e.target.value)}
-                          placeholder="MM/YY"
-                          className="rounded-xl border border-slate-200 p-3 text-xs bg-white focus:border-indigo-500 outline-none transition"
-                          required
-                        />
-                      </label>
-                      <label className="grid gap-1.5 text-[10px] font-bold text-slate-700">
-                        CVV
-                        <input 
-                          type="password" 
-                          value={cardCvv}
-                          onChange={(e) => setCardCvv(e.target.value)}
-                          placeholder="•••"
-                          className="rounded-xl border border-slate-200 p-3 text-xs bg-white focus:border-indigo-500 outline-none transition"
-                          required
-                        />
-                      </label>
-                    </div>
-
-                    <button 
-                      type="submit"
-                      disabled={processingPayment}
-                      className="w-full py-3 bg-indigo-650 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition flex items-center justify-center gap-1.5 shadow"
-                    >
-                      {processingPayment ? (
-                        <span>Processing payment...</span>
-                      ) : (
-                        <span>Pay & Upgrade Now</span>
-                      )}
-                    </button>
-                  </form>
-                </div>
-              )}
+                );
+              })}
             </div>
-
           </div>
         </div>
       )}
+
+      {/* ══════════════════════════════════════════════════════
+          MODAL 2: PLAN CHANGE SUMMARY REVIEW MODAL
+      ══════════════════════════════════════════════════════ */}
+      {flowStep === 'REVIEW_SUMMARY' && calculatedReview && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4" onClick={() => setFlowStep(null)}>
+          <div className="bg-white rounded-3xl max-w-lg w-full border border-slate-100 shadow-2xl p-6 sm:p-8 space-y-6 text-slate-800" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="text-base font-black text-slate-900">Review Your Plan Change</h3>
+                <p className="text-xs text-slate-400 mt-0.5">Please verify the subscription upgrade parameters</p>
+              </div>
+              <button onClick={() => setFlowStep(null)} className="p-1.5 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-50 transition cursor-pointer">
+                ✕
+              </button>
+            </div>
+
+            {/* Comparison Cards */}
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5">
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Current Plan</span>
+                <span className="font-black text-slate-800 text-sm block mt-0.5">{currentPlanName}</span>
+                <span className="text-[10px] text-slate-500 capitalize">{currentBillingCycle} Billing</span>
+              </div>
+
+              <div className="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-3.5">
+                <span className="text-[10px] uppercase font-bold text-emerald-700 block">New Plan</span>
+                <span className="font-black text-emerald-900 text-sm block mt-0.5">{selectedPlanForUpgrade?.name}</span>
+                <span className="text-[10px] text-emerald-700 capitalize font-bold">{selectedCycle} Billing</span>
+              </div>
+            </div>
+
+            {/* Price Calculations */}
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2.5 text-xs">
+              <div className="flex justify-between text-slate-600">
+                <span>Plan Price ({selectedCycle})</span>
+                <span className="font-bold text-slate-800">{fmt(calculatedReview.basePrice)}</span>
+              </div>
+
+              {calculatedReview.savings > 0 && (
+                <div className="flex justify-between text-emerald-600 font-bold">
+                  <span>Yearly Discount Savings</span>
+                  <span>- {fmt(calculatedReview.savings)}</span>
+                </div>
+              )}
+
+              <div className="flex justify-between text-slate-600">
+                <span>GST (18% Statutory)</span>
+                <span className="font-bold text-slate-800">{fmt(calculatedReview.gst)}</span>
+              </div>
+
+              <div className="border-t border-slate-200 pt-2.5 flex justify-between items-center text-sm font-black text-slate-900">
+                <span>Total Payable Amount</span>
+                <span className="text-emerald-600 text-base">{fmt(calculatedReview.total)}</span>
+              </div>
+            </div>
+
+            {/* Critical Note */}
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 flex items-start gap-2.5 text-xs text-amber-800">
+              <Info size={16} className="text-amber-600 shrink-0 mt-0.5" />
+              <p className="leading-relaxed">
+                <strong>Effective After Payment Verification:</strong> Your new plan will become active only after payment verification by the AICMS administrator.
+              </p>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setFlowStep('SELECT_PLAN')}
+                className="flex-1 py-3 rounded-2xl border border-slate-200 text-slate-700 text-xs font-bold hover:bg-slate-50 transition cursor-pointer"
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                onClick={handleProceedToPayment}
+                disabled={loadingInitiation}
+                className="flex-1 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black transition flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/20 cursor-pointer disabled:opacity-60"
+              >
+                {loadingInitiation ? <RefreshCw size={14} className="animate-spin" /> : <ArrowRight size={14} />}
+                <span>Proceed to Payment</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════
+          MODAL 3: INTEGRATED DYNAMIC QR PAYMENT MODAL
+      ══════════════════════════════════════════════════════ */}
+      {flowStep === 'PAYMENT' && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4" onClick={() => setFlowStep(null)}>
+          <div className="bg-white rounded-3xl max-w-2xl w-full border border-slate-100 shadow-2xl p-6 sm:p-8 space-y-6 max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-black text-slate-900">Subscription Upgrade Payment</h3>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                    Plan Upgrade
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5">{clinic.name} • {selectedPlanForUpgrade?.name} ({selectedCycle})</p>
+              </div>
+              <button onClick={() => setFlowStep(null)} className="p-1.5 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-50 transition cursor-pointer">
+                ✕
+              </button>
+            </div>
+
+            {/* Dynamic QR & Bank Details Section */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-center">
+              
+              {/* Left: Dynamic QR */}
+              <div className="bg-slate-50 border border-slate-200 rounded-3xl p-5 flex flex-col items-center text-center space-y-3">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Scan &amp; Pay via UPI</span>
+                
+                <div className="p-3 bg-white border border-slate-200 rounded-2xl shadow-xs">
+                  {initiationData?.paymentDetails?.dynamicQrDataUri || paymentSettings?.dynamicQrDataUri || paymentSettings?.qrCodeUrl ? (
+                    <img
+                      src={initiationData?.paymentDetails?.dynamicQrDataUri || paymentSettings?.dynamicQrDataUri || paymentSettings?.qrCodeUrl}
+                      alt="UPI Payment QR"
+                      className="w-44 h-44 object-contain"
+                    />
+                  ) : (
+                    <div className="w-44 h-44 flex flex-col items-center justify-center text-slate-400 gap-2">
+                      <CreditCard size={32} />
+                      <span className="text-[10px]">Payment QR</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="text-center">
+                  <span className="text-xs font-black text-slate-900">
+                    Amount: {fmt(initiationData?.plan?.amount || calculatedReview?.total)}
+                  </span>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Amount is auto-configured in QR code</p>
+                </div>
+              </div>
+
+              {/* Right: Bank Transfer Info */}
+              <div className="space-y-3 text-xs">
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2.5">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">
+                    Super Admin Bank Details
+                  </span>
+
+                  <div>
+                    <span className="text-[10px] text-slate-400 block">Account Name</span>
+                    <span className="font-bold text-slate-800">{paymentSettings?.accountName || 'PehalHealthcare Technologies Pvt Ltd'}</span>
+                  </div>
+
+                  <div>
+                    <span className="text-[10px] text-slate-400 block">Bank Name</span>
+                    <span className="font-bold text-slate-800">{paymentSettings?.bankName || 'Kotak Mahindra Bank'}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] text-slate-400 block">Account Number</span>
+                      <span className="font-mono font-bold text-slate-900">{paymentSettings?.accountNumber || '8512060314'}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleCopy(paymentSettings?.accountNumber || '8512060314', 'acc', 'Account Number')}
+                      className="p-1.5 text-slate-400 hover:text-slate-700 rounded transition"
+                    >
+                      <Copy size={13} />
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] text-slate-400 block">IFSC Code</span>
+                      <span className="font-mono font-bold text-slate-900">{paymentSettings?.ifscCode || 'KKBK0000181'}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleCopy(paymentSettings?.ifscCode || 'KKBK0000181', 'ifsc', 'IFSC')}
+                      className="p-1.5 text-slate-400 hover:text-slate-700 rounded transition"
+                    >
+                      <Copy size={13} />
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1 border-t border-slate-200">
+                    <div>
+                      <span className="text-[10px] text-slate-400 block">UPI ID</span>
+                      <span className="font-mono font-bold text-indigo-700">{paymentSettings?.upiId || '8130916134@kotak'}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleCopy(paymentSettings?.upiId || '8130916134@kotak', 'upi', 'UPI ID')}
+                      className="p-1.5 text-slate-400 hover:text-slate-700 rounded transition"
+                    >
+                      <Copy size={13} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Payment Submission Form */}
+            <form onSubmit={handleSubmitPayment} className="space-y-4 pt-2 border-t border-slate-100">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    UTR / Transaction Reference Number <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={utr}
+                    onChange={(e) => setUtr(e.target.value)}
+                    placeholder="e.g. 425316789012"
+                    className="w-full px-3.5 py-2.5 text-xs font-mono font-bold uppercase rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-1">Found in your UPI or banking receipt</p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Transaction ID <span className="text-slate-400">(optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={transactionId}
+                    onChange={(e) => setTransactionId(e.target.value)}
+                    placeholder="e.g. TXN987654"
+                    className="w-full px-3.5 py-2.5 text-xs font-mono rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition"
+                  />
+                </div>
+              </div>
+
+              {/* Payment Proof Upload */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Upload Payment Screenshot <span className="text-slate-400">(optional)</span>
+                </label>
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="border-2 border-dashed border-slate-200 hover:border-emerald-400 rounded-2xl p-4 text-center cursor-pointer transition bg-slate-50/50 hover:bg-emerald-50/20 flex flex-col items-center justify-center gap-1.5"
+                >
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleProofChange}
+                    accept="image/*"
+                    className="hidden"
+                  />
+                  {proofPreview ? (
+                    <div className="flex items-center gap-3">
+                      <img src={proofPreview} alt="Proof" className="w-12 h-12 object-cover rounded-xl border border-slate-200" />
+                      <span className="text-xs font-bold text-slate-700">{proofFile?.name}</span>
+                    </div>
+                  ) : (
+                    <>
+                      <UploadCloud size={20} className="text-slate-400" />
+                      <span className="text-xs font-bold text-slate-600">Click to upload payment screenshot</span>
+                      <span className="text-[10px] text-slate-400">PNG, JPG up to 5MB</span>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Submit Buttons */}
+              <div className="flex gap-3 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setFlowStep('REVIEW_SUMMARY')}
+                  className="flex-1 py-3 rounded-2xl border border-slate-200 text-slate-700 text-xs font-bold hover:bg-slate-50 transition cursor-pointer"
+                >
+                  Back
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingPayment || !utr}
+                  className="flex-2 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black transition flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 cursor-pointer disabled:opacity-60"
+                >
+                  {submittingPayment ? <RefreshCw size={14} className="animate-spin" /> : <ShieldCheck size={14} />}
+                  <span>{submittingPayment ? 'Submitting Payment...' : 'Submit Payment Attempt'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════
+          MODAL 4: PAYMENT VERIFICATION PENDING MODAL / VIEW
+      ══════════════════════════════════════════════════════ */}
+      {flowStep === 'VERIFICATION_PENDING' && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full border border-slate-100 shadow-2xl p-6 sm:p-8 space-y-6 text-center text-slate-800">
+            
+            <div className="w-14 h-14 rounded-3xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto shadow-xs">
+              <Clock size={28} className="animate-pulse" />
+            </div>
+
+            <div className="space-y-1">
+              <h3 className="text-lg font-black text-slate-900">Payment Submitted Successfully!</h3>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                Your plan upgrade request has been submitted and is currently under verification.
+              </p>
+            </div>
+
+            {/* Upgrade Summary Box */}
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs space-y-2.5 text-left">
+              <div className="flex justify-between">
+                <span className="text-slate-500">Current Plan</span>
+                <span className="font-bold text-slate-800">{currentPlanName} (Active)</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Requested Plan</span>
+                <span className="font-black text-indigo-900">{pendingPlanName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Billing Cycle</span>
+                <span className="font-bold text-slate-800 capitalize">{pendingCycle}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Amount Paid</span>
+                <span className="font-bold text-emerald-600">{fmt(latestPayment?.amount || calculatedReview?.total)}</span>
+              </div>
+              <div className="flex justify-between items-center pt-2 border-t border-slate-200">
+                <span className="text-slate-500">Payment Status</span>
+                <span className="inline-flex items-center gap-1 font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full text-[10px]">
+                  ● Pending Verification
+                </span>
+              </div>
+            </div>
+
+            {/* 4-Step Progress Tracker */}
+            <div className="space-y-2 pt-2">
+              <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block text-left">
+                Progress Tracker
+              </span>
+
+              <div className="grid grid-cols-4 gap-2 text-center text-[10px] font-bold">
+                <div className="flex flex-col items-center gap-1 text-emerald-600">
+                  <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center">✓</div>
+                  <span>Plan Selected</span>
+                </div>
+                <div className="flex flex-col items-center gap-1 text-emerald-600">
+                  <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center">✓</div>
+                  <span>Payment Submitted</span>
+                </div>
+                <div className="flex flex-col items-center gap-1 text-amber-600">
+                  <div className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center animate-pulse">●</div>
+                  <span>Payment Verification</span>
+                </div>
+                <div className="flex flex-col items-center gap-1 text-slate-400">
+                  <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center">○</div>
+                  <span>Plan Activation</span>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-500 bg-slate-50 rounded-xl p-3 border border-slate-150">
+              Your new plan will be activated after the payment is verified by the AICMS administrator.
+            </p>
+
+            <button
+              onClick={() => setFlowStep(null)}
+              className="w-full py-3 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition cursor-pointer"
+            >
+              Continue to Subscription Dashboard
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════
+          MODAL 5: CONGRATULATIONS SUCCESS MODAL
+      ══════════════════════════════════════════════════════ */}
+      {flowStep === 'SUCCESS_CONGRATULATIONS' && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full border border-slate-100 shadow-2xl p-6 sm:p-8 space-y-6 text-center text-slate-800">
+            
+            <div className="w-16 h-16 rounded-3xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center mx-auto shadow-sm">
+              <Sparkles size={32} />
+            </div>
+
+            <div className="space-y-1">
+              <h3 className="text-xl font-black text-slate-900">🎉 Congratulations!</h3>
+              <p className="text-xs text-slate-500">
+                Your subscription has been successfully upgraded!
+              </p>
+            </div>
+
+            <div className="bg-gradient-to-b from-emerald-50/50 to-white border border-emerald-200 rounded-3xl p-5 space-y-2">
+              <span className="text-[10px] font-black uppercase text-emerald-700 tracking-wider">You are now on</span>
+              <h4 className="text-lg font-black text-slate-900">{clinic.subscription?.planId?.name || pendingPlanName}</h4>
+              <p className="text-xs font-bold text-slate-700 capitalize">
+                {clinic.subscription?.billingCycle || pendingCycle} Billing • {fmt(currentPlanPrice)}
+              </p>
+              <p className="text-[11px] text-emerald-600 font-bold pt-1">
+                Your new plan is now active.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-2 text-xs font-bold text-slate-700 text-left bg-slate-50 p-4 rounded-2xl border border-slate-150">
+              <div className="flex items-center gap-2 text-emerald-700">
+                <CheckCircle2 size={14} />
+                <span>Payment Verified by Super Admin</span>
+              </div>
+              <div className="flex items-center gap-2 text-emerald-700">
+                <CheckCircle2 size={14} />
+                <span>Plan Activated with updated dates</span>
+              </div>
+              <div className="flex items-center gap-2 text-emerald-700">
+                <CheckCircle2 size={14} />
+                <span>New features and limits unlocked</span>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setFlowStep(null);
+                  navigate('/clinic/dashboard');
+                }}
+                className="flex-1 py-3 rounded-2xl border border-slate-200 text-slate-700 text-xs font-bold hover:bg-slate-50 transition cursor-pointer"
+              >
+                Go to Dashboard
+              </button>
+              <button
+                onClick={() => {
+                  setFlowStep(null);
+                  setActiveTab('My Subscription');
+                }}
+                className="flex-1 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black transition cursor-pointer shadow-md shadow-emerald-600/20"
+              >
+                View Subscription
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════
+          MODAL 6: REJECTED UPGRADE MODAL
+      ══════════════════════════════════════════════════════ */}
+      {flowStep === 'REJECTED' && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full border border-slate-100 shadow-2xl p-6 sm:p-8 space-y-6 text-center text-slate-800">
+            
+            <div className="w-14 h-14 rounded-3xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center mx-auto shadow-xs">
+              <XCircle size={28} />
+            </div>
+
+            <div className="space-y-1">
+              <h3 className="text-lg font-black text-slate-900">Payment Verification Failed</h3>
+              <p className="text-xs text-slate-500">
+                Your subscription upgrade could not be verified.
+              </p>
+            </div>
+
+            <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 text-xs text-left space-y-1.5 text-rose-900">
+              <span className="text-[10px] uppercase font-bold text-rose-700 block">Rejection Reason:</span>
+              <p className="font-bold">{latestPayment?.rejectionReason || clinic.rejectionReason || 'Invalid UTR or transaction could not be reconciled.'}</p>
+              {latestPayment?.rejectionNotes && (
+                <p className="text-[11px] text-rose-700 mt-1">{latestPayment.rejectionNotes}</p>
+              )}
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 text-xs text-left space-y-1">
+              <div className="flex justify-between">
+                <span className="text-slate-500">Current Plan</span>
+                <span className="font-bold text-slate-800">{currentPlanName} (Active)</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Requested Plan</span>
+                <span className="font-bold text-slate-800">{pendingPlanName}</span>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setFlowStep(null)}
+                className="flex-1 py-3 rounded-2xl border border-slate-200 text-slate-700 text-xs font-bold hover:bg-slate-50 transition cursor-pointer"
+              >
+                Back to Subscription
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setUtr('');
+                  setTransactionId('');
+                  setProofBase64('');
+                  setProofPreview('');
+                  setFlowStep('PAYMENT');
+                }}
+                className="flex-1 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black transition cursor-pointer shadow-md shadow-emerald-600/20"
+              >
+                Try Payment Again
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
-};
-
-export default SubscriptionPage;
+}

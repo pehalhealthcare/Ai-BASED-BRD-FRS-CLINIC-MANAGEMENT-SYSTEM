@@ -18,7 +18,32 @@ const subscriptionPaymentSchema = new mongoose.Schema(
       ref: 'SubscriptionPlan',
       required: true
     },
+    currentPlanId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'SubscriptionPlan',
+      default: null
+    },
+    requestedPlanId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'SubscriptionPlan',
+      default: null
+    },
+    paymentType: {
+      type: String,
+      enum: ['INITIAL', 'RENEWAL', 'UPGRADE', 'PLAN_UPGRADE', 'PLAN_CHANGE'],
+      default: 'RENEWAL'
+    },
     billingCycle: {
+      type: String,
+      enum: ['monthly', 'yearly'],
+      default: 'monthly'
+    },
+    currentBillingCycle: {
+      type: String,
+      enum: ['monthly', 'yearly'],
+      default: 'monthly'
+    },
+    requestedBillingCycle: {
       type: String,
       enum: ['monthly', 'yearly'],
       default: 'monthly'
@@ -26,6 +51,16 @@ const subscriptionPaymentSchema = new mongoose.Schema(
     amount: {
       type: Number,
       required: true,
+      min: 0
+    },
+    gst: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    totalAmount: {
+      type: Number,
+      default: 0,
       min: 0
     },
     currency: {

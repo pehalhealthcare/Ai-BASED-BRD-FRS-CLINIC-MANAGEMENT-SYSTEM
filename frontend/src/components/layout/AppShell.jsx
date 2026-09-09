@@ -6,7 +6,7 @@ const AppShell = () => {
       <header className="border-b border-stone-200/80 bg-white/80 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-700">AI Clinic Management System</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-700">AI-CMS Enterprise</p>
             <h1 className="mt-2 text-2xl font-semibold text-stone-900">AI-CMS Auth Foundation</h1>
           </div>
           <div className="rounded-full bg-emerald-100 px-4 py-2 text-sm font-semibold text-emerald-700">Phase 2</div>

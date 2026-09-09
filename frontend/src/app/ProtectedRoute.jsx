@@ -172,44 +172,44 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   if (user?.role === 'ADMIN' && user?.clinic) {
     const { approvalStatus, subscription, isOnboardingCompleted, paymentStatus } = user.clinic;
     const isFreeTier = paymentStatus === 'FREE_TIER' || subscription?.isFreeTier;
-    const isPaymentRequired = !isFreeTier && (paymentStatus === 'NOT_SUBMITTED' || paymentStatus === 'NOT_PAID' || paymentStatus === 'REJECTED');
-    const isPaymentPending = paymentStatus === 'PENDING_VERIFICATION';
-    const isApprovalPending = approvalStatus === 'pending_approval';
     const isApproved = approvalStatus === 'approved';
+    const isPaymentRequired = !isApproved && !isFreeTier && (paymentStatus === 'NOT_SUBMITTED' || paymentStatus === 'NOT_PAID' || paymentStatus === 'REJECTED');
+    const isPaymentPending = !isApproved && paymentStatus === 'PENDING_VERIFICATION';
+    const isApprovalPending = approvalStatus === 'pending_approval';
     const isRejected = approvalStatus === 'rejected';
     const isSuspended = approvalStatus === 'suspended' || subscription?.status === 'Suspended';
     const isExpired = subscription?.status === 'Expired';
 
     const currentPath = location.pathname;
 
-    // 1. Payment Required (Not submitted or rejected)
-    if (isPaymentRequired) {
+    // 1. Suspended
+    if (isSuspended) {
+      if (currentPath !== '/clinic/suspended') {
+        return <Navigate to="/clinic/suspended" replace />;
+      }
+    }
+    // 2. Expired
+    else if (isExpired) {
+      if (!['/clinic/expired', '/clinic/renewal'].includes(currentPath)) {
+        return <Navigate to="/clinic/expired" replace />;
+      }
+    }
+    // 3. Payment Required (Not submitted or rejected)
+    else if (isPaymentRequired) {
       if (!['/clinic/payment', '/clinic-setup/payment'].includes(currentPath)) {
         return <Navigate to="/clinic-setup/payment" replace />;
       }
     }
-    // 2. Payment Pending Verification or Approval Pending
+    // 4. Payment Pending Verification or Approval Pending
     else if (isPaymentPending || (isApprovalPending && !isApproved)) {
       if (!['/clinic/status', '/clinic-setup/payment-status'].includes(currentPath)) {
         return <Navigate to="/clinic-setup/payment-status" replace />;
       }
     }
-    // 3. Clinic Details Correction / Rejected
+    // 5. Clinic Details Correction / Rejected
     else if (isRejected) {
       if (currentPath !== '/clinic/corrections') {
         return <Navigate to="/clinic/corrections" replace />;
-      }
-    }
-    // 4. Suspended
-    else if (isSuspended) {
-      if (currentPath !== '/clinic/suspended') {
-        return <Navigate to="/clinic/suspended" replace />;
-      }
-    }
-    // 5. Expired
-    else if (isExpired) {
-      if (!['/clinic/expired', '/clinic/renewal'].includes(currentPath)) {
-        return <Navigate to="/clinic/expired" replace />;
       }
     }
     // 6. Approved & Onboarding Pending
@@ -220,7 +220,7 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
     }
     // 7. Approved & Onboarding Completed
     else if (isApproved && isOnboardingCompleted) {
-      if (['/clinic/onboarding', '/clinic/setup', '/clinic/payment', '/clinic-setup/payment', '/clinic/status', '/clinic-setup/payment-status'].includes(currentPath)) {
+      if (['/clinic/onboarding', '/clinic/setup', '/clinic/payment', '/clinic-setup/payment', '/clinic/status', '/clinic-setup/payment-status', '/clinic/expired', '/clinic/renewal'].includes(currentPath)) {
         return <Navigate to="/dashboard" replace />;
       }
     }

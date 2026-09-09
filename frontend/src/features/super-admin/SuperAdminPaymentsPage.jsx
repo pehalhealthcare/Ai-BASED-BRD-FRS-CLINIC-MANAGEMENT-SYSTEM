@@ -60,8 +60,36 @@ const StatusBadge = ({ status }) => {
   );
 };
 
+const PaymentTypeBadge = ({ type }) => {
+  if (type === 'PLAN_UPGRADE' || type === 'UPGRADE' || type === 'PLAN_CHANGE') {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-200">
+        <Sparkles size={10} className="text-indigo-500" />
+        PLAN UPGRADE
+      </span>
+    );
+  }
+  if (type === 'RENEWAL') {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
+        <RefreshCw size={10} className="text-emerald-500" />
+        RENEWAL
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-100 text-slate-700 border border-slate-200">
+      INITIAL
+    </span>
+  );
+};
+
 const VerifyModal = ({ payment, onClose, onConfirm, loading }) => {
   if (!payment) return null;
+  const isUpgrade = payment.paymentType === 'PLAN_UPGRADE' || payment.paymentType === 'UPGRADE';
+  const currentPlanName = payment.currentPlanId?.name || payment.clinicId?.subscription?.planId?.name;
+  const requestedPlanName = payment.requestedPlanId?.name || payment.planId?.name || payment.planName || '--';
+
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 border border-slate-100" onClick={e => e.stopPropagation()}>
@@ -71,12 +99,17 @@ const VerifyModal = ({ payment, onClose, onConfirm, loading }) => {
           </div>
           <div>
             <h3 className="text-base font-bold text-slate-900">Verify Payment</h3>
-            <p className="text-xs text-slate-500">This will activate the clinic subscription</p>
+            <p className="text-xs text-slate-500">{isUpgrade ? 'This will activate the requested plan upgrade' : 'This will activate the clinic subscription'}</p>
           </div>
         </div>
         <div className="bg-slate-50 rounded-xl p-4 space-y-2 text-sm mb-5">
           <div className="flex justify-between"><span className="text-slate-500">Clinic</span><span className="font-semibold text-slate-900">{payment.clinicId?.name || payment.clinicName || '--'}</span></div>
-          <div className="flex justify-between"><span className="text-slate-500">Plan</span><span className="font-medium text-slate-800">{payment.planId?.name || payment.planName || '--'}</span></div>
+          <div className="flex justify-between"><span className="text-slate-500">Payment Type</span><PaymentTypeBadge type={payment.paymentType} /></div>
+          {isUpgrade && currentPlanName && (
+            <div className="flex justify-between"><span className="text-slate-500">Current Plan</span><span className="font-medium text-slate-700">{currentPlanName}</span></div>
+          )}
+          <div className="flex justify-between"><span className="text-slate-500">{isUpgrade ? 'Requested Plan' : 'Plan'}</span><span className="font-bold text-slate-900">{requestedPlanName}</span></div>
+          <div className="flex justify-between"><span className="text-slate-500">Billing Cycle</span><span className="font-medium text-slate-800 capitalize">{payment.requestedBillingCycle || payment.billingCycle || '--'}</span></div>
           <div className="flex justify-between"><span className="text-slate-500">Amount</span><span className="font-bold text-emerald-600">{fmt(payment.amount)}</span></div>
           <div className="flex justify-between"><span className="text-slate-500">UTR / Ref</span><span className="font-mono text-xs text-slate-700">{payment.utr || '--'}</span></div>
           <div className="flex justify-between"><span className="text-slate-500">Submitted</span><span className="text-slate-700">{fmtDate(payment.submittedAt || payment.createdAt)}</span></div>
@@ -185,11 +218,17 @@ const DetailDrawer = ({ payment, onClose, onVerify, onReject }) => {
               {payment.clinicId?.email && <p className="text-xs text-slate-400">{payment.clinicId.email}</p>}
             </div>
           </div>
-          <StatusBadge status={payment.status} />
+          <div className="flex items-center gap-2">
+            <StatusBadge status={payment.status} />
+            <PaymentTypeBadge type={payment.paymentType} />
+          </div>
           <div className="bg-slate-50 rounded-xl p-4 space-y-3 text-sm">
             <div className="grid grid-cols-2 gap-3">
-              <div><p className="text-[10px] text-slate-400 uppercase tracking-wider mb-0.5">Plan</p><p className="font-semibold text-slate-900">{planName}</p></div>
-              <div><p className="text-[10px] text-slate-400 uppercase tracking-wider mb-0.5">Cycle</p><p className="font-medium text-slate-700 capitalize">{payment.billingCycle || '--'}</p></div>
+              {payment.currentPlanId?.name && (
+                <div><p className="text-[10px] text-slate-400 uppercase tracking-wider mb-0.5">Current Plan</p><p className="font-semibold text-slate-700">{payment.currentPlanId.name}</p></div>
+              )}
+              <div><p className="text-[10px] text-slate-400 uppercase tracking-wider mb-0.5">{payment.currentPlanId ? 'Requested Plan' : 'Plan'}</p><p className="font-semibold text-slate-900">{payment.requestedPlanId?.name || planName}</p></div>
+              <div><p className="text-[10px] text-slate-400 uppercase tracking-wider mb-0.5">Cycle</p><p className="font-medium text-slate-700 capitalize">{payment.requestedBillingCycle || payment.billingCycle || '--'}</p></div>
               <div><p className="text-[10px] text-slate-400 uppercase tracking-wider mb-0.5">Amount</p><p className="font-bold text-emerald-600 text-base">{fmt(payment.amount)}</p></div>
               <div><p className="text-[10px] text-slate-400 uppercase tracking-wider mb-0.5">Currency</p><p className="font-medium text-slate-700">{payment.currency || 'INR'}</p></div>
             </div>
@@ -463,8 +502,11 @@ const SuperAdminPaymentsPage = () => {
                             </div>
                           </td>
                           <td className="px-4 py-3">
-                            <p className="text-xs font-medium text-slate-800">{planName}</p>
-                            <p className="text-[10px] text-slate-400 capitalize">{p.billingCycle || '--'}</p>
+                            <p className="text-xs font-medium text-slate-800">{p.requestedPlanId?.name || planName}</p>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span className="text-[10px] text-slate-400 capitalize">{p.requestedBillingCycle || p.billingCycle || '--'}</span>
+                              <PaymentTypeBadge type={p.paymentType} />
+                            </div>
                           </td>
                           <td className="px-4 py-3"><span className="font-bold text-emerald-600">{fmt(p.amount)}</span></td>
                           <td className="px-4 py-3"><span className="font-mono text-xs bg-slate-100 px-2 py-0.5 rounded-lg text-slate-700">{p.utr || '--'}</span></td>

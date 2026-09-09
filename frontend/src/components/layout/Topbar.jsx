@@ -124,7 +124,7 @@ const Topbar = ({ title, currentUser, sidebarOpen, onToggleSidebar, onLogout }) 
   }, []);
 
   const handleLogoutClick = () => {
-    if (window.confirm('Are you sure you want to logout from the AI Clinic Management System?')) {
+    if (window.confirm('Are you sure you want to logout from AI-CMS Enterprise?')) {
       onLogout();
     }
   };
@@ -156,7 +156,7 @@ const Topbar = ({ title, currentUser, sidebarOpen, onToggleSidebar, onLogout }) 
           <img src={pehalLogo} alt="Pehal" className="h-8 object-contain shrink-0" />
           <div className="leading-none shrink-0 text-left">
             <p className="text-[14px] font-black text-slate-955 tracking-tight">AICMS</p>
-            <p className="text-[8px] font-black text-slate-455 uppercase tracking-widest mt-0.5">AI Clinic Management</p>
+            <p className="text-[8px] font-black text-slate-455 uppercase tracking-widest mt-0.5">AI-CMS Enterprise</p>
           </div>
         </div>
 

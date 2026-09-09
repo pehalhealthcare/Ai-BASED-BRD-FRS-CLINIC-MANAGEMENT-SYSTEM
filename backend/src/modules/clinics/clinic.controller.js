@@ -2530,7 +2530,15 @@ const getSetupStatus = asyncHandler(async (req, res) => {
   let paymentStatus = 'NOT_SUBMITTED';
   if (clinic.paymentStatus === 'FREE_TIER' || clinic.subscription?.isFreeTier) {
     paymentStatus = 'FREE_TIER';
-  } else if (clinic.paymentStatus === 'VERIFIED' || latestPayment?.status === 'VERIFIED') {
+  } else if (
+    clinic.paymentStatus === 'VERIFIED' ||
+    clinic.subscription?.status === 'Active' ||
+    clinic.subscription?.status === 'Expired' ||
+    clinic.subscription?.status === 'Suspended' ||
+    clinic.subscription?.status === 'Trial' ||
+    clinic.approvalStatus === 'approved' ||
+    latestPayment?.status === 'VERIFIED'
+  ) {
     paymentStatus = 'VERIFIED';
   } else if (latestPayment?.status === 'PENDING_VERIFICATION' || latestPayment?.status === 'SUBMITTED') {
     paymentStatus = 'PENDING_VERIFICATION';
@@ -2545,17 +2553,25 @@ const getSetupStatus = asyncHandler(async (req, res) => {
   const onboardingStatus = clinic.isOnboardingCompleted ? 'COMPLETED' : 'IN_PROGRESS';
 
   // State Decision Matrix:
-  // 1. Email not verified -> EMAIL_VERIFICATION (/set-your-clinic)
-  // 2. Email verified, no payment submitted -> PAYMENT (/clinic/payment)
-  // 3. Payment pending verification -> PAYMENT_VERIFICATION (/clinic/status)
-  // 4. Payment rejected / repayment required -> REPAYMENT (/clinic/payment)
-  // 5. Payment verified or Free Tier, approval pending -> APPROVAL (/clinic/status)
-  // 6. Approved, onboarding incomplete -> ONBOARDING (/clinic/onboarding)
-  // 7. Approved, onboarding completed -> DASHBOARD (/dashboard)
+  // 1. Suspended -> /clinic/suspended
+  // 2. Expired -> /clinic/expired
+  // 3. Email not verified -> EMAIL_VERIFICATION (/set-your-clinic)
+  // 4. Email verified, no payment submitted -> PAYMENT (/clinic/payment)
+  // 5. Payment pending verification -> PAYMENT_VERIFICATION (/clinic/status)
+  // 6. Payment rejected / repayment required -> REPAYMENT (/clinic/payment)
+  // 7. Payment verified or Free Tier, approval pending -> APPROVAL (/clinic/status)
+  // 8. Approved, onboarding incomplete -> ONBOARDING (/clinic/onboarding)
+  // 9. Approved, onboarding completed -> DASHBOARD (/dashboard)
   let nextRequiredAction = 'DASHBOARD';
   let targetRoute = '/dashboard';
 
-  if (!emailVerified) {
+  if (clinic.approvalStatus === 'suspended' || clinic.subscription?.status === 'Suspended') {
+    nextRequiredAction = 'SUSPENDED';
+    targetRoute = '/clinic/suspended';
+  } else if (clinic.subscription?.status === 'Expired') {
+    nextRequiredAction = 'EXPIRED';
+    targetRoute = '/clinic/expired';
+  } else if (!emailVerified) {
     nextRequiredAction = 'EMAIL_VERIFICATION';
     targetRoute = '/set-your-clinic';
   } else if (paymentStatus === 'NOT_SUBMITTED') {

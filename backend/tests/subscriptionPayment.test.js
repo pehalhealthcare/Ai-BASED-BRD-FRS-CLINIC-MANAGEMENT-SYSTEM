@@ -50,7 +50,7 @@ describe('Subscription Payment & Verification Lifecycle', () => {
     expect(res.status).toBe(201);
     expect(res.body.success).toBe(true);
     expect(res.body.data.payment.utr).toBe('UTR9384756201');
-    expect(res.body.data.payment.amount).toBe(9999);
+    expect(res.body.data.payment.amount).toBe(11799); // 9999 + 18% GST
     expect(res.body.data.payment.attemptNumber).toBe(1);
     expect(res.body.data.payment.status).toBe('PENDING_VERIFICATION');
   });
@@ -229,5 +229,96 @@ describe('Subscription Payment & Verification Lifecycle', () => {
       .set(getAuthHeaders(clinicAdmin.token));
 
     expect(res.status).toBe(403);
+  });
+
+  it('9. Plan Upgrade: Active clinic submits upgrade -> subscription remains active on current plan while pending', async () => {
+    // 1. Set clinic to Active status with testPlan (Monthly)
+    await Clinic.updateOne(
+      { _id: testClinic._id },
+      {
+        $set: {
+          'subscription.planId': testPlan._id,
+          'subscription.billingCycle': 'monthly',
+          'subscription.status': 'Active',
+          'subscription.startDate': new Date(),
+          'subscription.expiryDate': new Date(Date.now() + 25 * 24 * 60 * 60 * 1000)
+        }
+      }
+    );
+
+    // 2. Create a higher plan
+    const proPlan = await SubscriptionPlan.create({
+      name: `Pro Enterprise ${Date.now()}`,
+      code: `PRO${Date.now()}`,
+      price: 19999,
+      priceMonthly: 19999,
+      priceYearly: 199990,
+      features: ['Pro Features']
+    });
+
+    // 3. Submit upgrade to yearly
+    const submitRes = await request(app)
+      .post('/api/v1/subscription/submit')
+      .set(getAuthHeaders(clinicAdmin.token))
+      .send({
+        clinicId: testClinic._id,
+        planId: proPlan._id,
+        billingCycle: 'yearly',
+        paymentType: 'PLAN_UPGRADE',
+        utr: 'UTRUPGRADE9988'
+      });
+
+    expect(submitRes.status).toBe(201);
+    expect(submitRes.body.data.payment.paymentType).toBe('PLAN_UPGRADE');
+    expect(submitRes.body.data.payment.currentPlanId.toString()).toBe(testPlan._id.toString());
+    expect(submitRes.body.data.payment.requestedPlanId.toString()).toBe(proPlan._id.toString());
+    expect(submitRes.body.data.payment.requestedBillingCycle).toBe('yearly');
+
+    // 4. Verify clinic subscription was NOT modified before verification
+    const freshClinic = await Clinic.findById(testClinic._id);
+    expect(freshClinic.subscription.planId.toString()).toBe(testPlan._id.toString());
+    expect(freshClinic.subscription.billingCycle).toBe('monthly');
+    expect(freshClinic.subscription.status).toBe('Active');
+    expect(freshClinic.paymentStatus).toBe('PENDING_VERIFICATION');
+  });
+
+  it('10. Super Admin verifies Plan Upgrade -> atomically activates the requested plan & cycle', async () => {
+    const proPlan = await SubscriptionPlan.create({
+      name: `Pro Tier ${Date.now()}`,
+      code: `PROT${Date.now()}`,
+      price: 24999,
+      priceMonthly: 24999,
+      priceYearly: 249990,
+      features: ['Pro Tier Features']
+    });
+
+    const submitRes = await request(app)
+      .post('/api/v1/subscription/submit')
+      .set(getAuthHeaders(clinicAdmin.token))
+      .send({
+        clinicId: testClinic._id,
+        planId: proPlan._id,
+        billingCycle: 'yearly',
+        paymentType: 'PLAN_UPGRADE',
+        utr: 'UTRUPGRADEVERIFY1'
+      });
+
+    const paymentId = submitRes.body.data.payment._id;
+
+    const verifyRes = await request(app)
+      .post(`/api/v1/admin/payments/${paymentId}/verify`)
+      .set(getAuthHeaders(superAdmin.token))
+      .send({ notes: 'Upgraded to Pro Tier Yearly verified' });
+
+    expect(verifyRes.status).toBe(200);
+
+    const verifiedPayment = await SubscriptionPayment.findById(paymentId);
+    expect(verifiedPayment.status).toBe('VERIFIED');
+
+    const updatedClinic = await Clinic.findById(testClinic._id);
+    expect(updatedClinic.subscription.planId.toString()).toBe(proPlan._id.toString());
+    expect(updatedClinic.subscription.billingCycle).toBe('yearly');
+    expect(updatedClinic.subscription.status).toBe('Active');
+    expect(updatedClinic.paymentStatus).toBe('VERIFIED');
   });
 });

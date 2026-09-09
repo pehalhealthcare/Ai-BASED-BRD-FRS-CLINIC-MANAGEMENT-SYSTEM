@@ -7,6 +7,10 @@ const userRepository = require('../users/user.repository');
 const { findDefaultClinicId } = require('../../common/utils/clinicContext');
 const { generateAccessToken } = require('./token.service');
 
+// Ensure dependent models are registered for populate queries
+require('../subscriptions/subscriptionPlan.model');
+require('../clinics/clinic.model');
+
 const register = async (payload, req) => {
   const requestedRole = payload.role || ROLES.PATIENT;
 
@@ -507,7 +511,17 @@ const login = async ({ email, password, portal }, req) => {
     try {
       const SubscriptionPayment = require('../payment/models/subscriptionPayment.model');
       latestPayment = await SubscriptionPayment.findOne({ clinicId: clinicDetails._id }).sort({ createdAt: -1 });
-      if (clinicDetails.subscription?.status === 'Active' || latestPayment?.status === 'VERIFIED') {
+      if (clinicDetails.paymentStatus === 'FREE_TIER' || clinicDetails.subscription?.isFreeTier) {
+        paymentStatus = 'FREE_TIER';
+      } else if (
+        clinicDetails.paymentStatus === 'VERIFIED' ||
+        clinicDetails.subscription?.status === 'Active' ||
+        clinicDetails.subscription?.status === 'Expired' ||
+        clinicDetails.subscription?.status === 'Suspended' ||
+        clinicDetails.subscription?.status === 'Trial' ||
+        clinicDetails.approvalStatus === 'approved' ||
+        latestPayment?.status === 'VERIFIED'
+      ) {
         paymentStatus = 'VERIFIED';
       } else if (latestPayment?.status === 'PENDING_VERIFICATION' || latestPayment?.status === 'SUBMITTED') {
         paymentStatus = 'PENDING_VERIFICATION';
@@ -567,7 +581,17 @@ const getCurrentUser = async (user) => {
       try {
         const SubscriptionPayment = require('../payment/models/subscriptionPayment.model');
         latestPayment = await SubscriptionPayment.findOne({ clinicId: clinicDetails._id }).sort({ createdAt: -1 });
-        if (clinicDetails.subscription?.status === 'Active' || latestPayment?.status === 'VERIFIED') {
+        if (clinicDetails.paymentStatus === 'FREE_TIER' || clinicDetails.subscription?.isFreeTier) {
+          paymentStatus = 'FREE_TIER';
+        } else if (
+          clinicDetails.paymentStatus === 'VERIFIED' ||
+          clinicDetails.subscription?.status === 'Active' ||
+          clinicDetails.subscription?.status === 'Expired' ||
+          clinicDetails.subscription?.status === 'Suspended' ||
+          clinicDetails.subscription?.status === 'Trial' ||
+          clinicDetails.approvalStatus === 'approved' ||
+          latestPayment?.status === 'VERIFIED'
+        ) {
           paymentStatus = 'VERIFIED';
         } else if (latestPayment?.status === 'PENDING_VERIFICATION' || latestPayment?.status === 'SUBMITTED') {
           paymentStatus = 'PENDING_VERIFICATION';

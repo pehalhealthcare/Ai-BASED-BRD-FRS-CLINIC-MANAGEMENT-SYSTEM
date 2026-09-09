@@ -39,10 +39,18 @@ const LoginPage = () => {
   const getAdminDestination = (clinic) => {
     if (!clinic) return '/clinic-setup/payment';
     const { approvalStatus, subscription, isOnboardingCompleted, paymentStatus } = clinic;
-    if (paymentStatus === 'NOT_SUBMITTED' || paymentStatus === 'REJECTED') {
+    const isApproved = approvalStatus === 'approved';
+
+    if (approvalStatus === 'suspended' || subscription?.status === 'Suspended') {
+      return '/clinic/suspended';
+    }
+    if (subscription?.status === 'Expired') {
+      return '/clinic/expired';
+    }
+    if (!isApproved && (paymentStatus === 'NOT_SUBMITTED' || paymentStatus === 'REJECTED')) {
       return '/clinic-setup/payment';
     }
-    if (paymentStatus === 'PENDING_VERIFICATION') {
+    if (!isApproved && paymentStatus === 'PENDING_VERIFICATION') {
       return '/clinic-setup/payment-status';
     }
     if (approvalStatus === 'pending_approval') {
@@ -51,13 +59,7 @@ const LoginPage = () => {
     if (approvalStatus === 'rejected') {
       return '/clinic/corrections';
     }
-    if (approvalStatus === 'suspended' || subscription?.status === 'Suspended') {
-      return '/clinic/suspended';
-    }
-    if (subscription?.status === 'Expired') {
-      return '/clinic/expired';
-    }
-    if (approvalStatus === 'approved' && !isOnboardingCompleted) {
+    if (isApproved && !isOnboardingCompleted) {
       return '/clinic/onboarding';
     }
     return '/dashboard';

@@ -111,7 +111,7 @@ const GlobalLoader = () => {
             <span className="w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center text-white text-xs font-black shadow-sm">P</span>
             <span className="text-sm font-black text-slate-800 tracking-tight">PEHAL</span>
           </div>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">AI Clinic Management System</p>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">AI-CMS Enterprise</p>
         </div>
 
         {/* Animated Page Icon Ring */}

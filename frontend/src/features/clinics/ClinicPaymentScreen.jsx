@@ -68,17 +68,25 @@ export default function ClinicPaymentScreen() {
     setLoading(true);
     setError('');
     try {
-      // If user already has a pending or verified payment, redirect to status
+      // If user already has a pending or verified payment, or expired/suspended/approved status, redirect accordingly
       try {
         const setupRes = await clinicApi.getSetupStatus();
         if (setupRes?.data) {
-          const { paymentStatus, approvalStatus } = setupRes.data;
-          if (paymentStatus === 'PENDING_VERIFICATION') {
-            navigate('/clinic-setup/payment-status', { replace: true });
+          const { paymentStatus, approvalStatus, clinic: stClinic } = setupRes.data;
+          if (stClinic?.subscription?.status === 'Suspended' || approvalStatus === 'suspended') {
+            navigate('/clinic/suspended', { replace: true });
             return;
           }
-          if (approvalStatus === 'approved' && setupRes.data.clinic?.isOnboardingCompleted) {
+          if (stClinic?.subscription?.status === 'Expired') {
+            navigate('/clinic/expired', { replace: true });
+            return;
+          }
+          if (approvalStatus === 'approved' && stClinic?.isOnboardingCompleted) {
             navigate('/dashboard', { replace: true });
+            return;
+          }
+          if (paymentStatus === 'PENDING_VERIFICATION') {
+            navigate('/clinic-setup/payment-status', { replace: true });
             return;
           }
         }
@@ -284,7 +292,7 @@ export default function ClinicPaymentScreen() {
             <div className="h-6 w-[1px] bg-slate-200 mx-1" />
             <div>
               <span className="text-xs font-black text-slate-900 block leading-tight tracking-tight">AICMS</span>
-              <span className="text-[9px] font-bold text-slate-400 block tracking-wider uppercase mt-0.5">AI CLINIC MANAGEMENT SYSTEM</span>
+              <span className="text-[9px] font-bold text-slate-400 block tracking-wider uppercase mt-0.5">AI-CMS ENTERPRISE</span>
             </div>
           </div>
 

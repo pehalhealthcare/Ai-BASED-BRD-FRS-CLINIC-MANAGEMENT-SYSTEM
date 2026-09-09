@@ -611,10 +611,33 @@ export default function SuperAdminPaymentVerificationPage() {
                       <CreditCard size={16} className="text-emerald-600" />
                       Payment Transaction Details
                     </h3>
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-slate-100 text-slate-700">
-                      Attempt #{payment.attemptNumber || 1}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      {(payment.paymentType === 'PLAN_UPGRADE' || payment.paymentType === 'UPGRADE') && (
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-indigo-50 text-indigo-700 border border-indigo-200">
+                          PLAN UPGRADE
+                        </span>
+                      )}
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-slate-100 text-slate-700">
+                        Attempt #{payment.attemptNumber || 1}
+                      </span>
+                    </div>
                   </div>
+
+                  {(payment.paymentType === 'PLAN_UPGRADE' || payment.paymentType === 'UPGRADE') && (
+                    <div className="bg-indigo-50/70 border border-indigo-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                      <div>
+                        <span className="text-[10px] font-black uppercase text-indigo-700 tracking-wider block">Subscription Plan Upgrade Request</span>
+                        <p className="font-bold text-slate-800 mt-0.5">
+                          Current: <span className="font-semibold text-slate-600">{payment.currentPlanId?.name || clinic.subscription?.planId?.name || 'Active Plan'}</span> ({payment.currentBillingCycle || clinic.subscription?.billingCycle || 'monthly'}) 
+                          &nbsp;→&nbsp; 
+                          Requested: <span className="font-black text-indigo-900">{payment.requestedPlanId?.name || plan.name}</span> ({payment.requestedBillingCycle || payment.billingCycle || 'monthly'})
+                        </p>
+                      </div>
+                      <span className="px-3 py-1 bg-white border border-indigo-200 text-indigo-700 rounded-xl font-bold text-xs shrink-0">
+                        Verifying activates new plan
+                      </span>
+                    </div>
+                  )}
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-xs">
                     <div>

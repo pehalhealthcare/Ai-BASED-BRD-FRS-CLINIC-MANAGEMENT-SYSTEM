@@ -44,9 +44,9 @@ const validateAccountNumber = (accNo) => {
 
 /**
  * Generates a dynamic amount-encoded UPI payment QR code as a base64 Data URI string.
- * When scanned in GPay / PhonePe / Paytm / BHIM, the amount is pre-filled automatically!
+ * Encodes pa, pn, am, cu, tn, and unique tr for pre-filled amount in Paytm / PhonePe / GPay / BHIM.
  */
-const generateDynamicUpiQr = async ({ amount, clinicCode = '', planName = '', upiId, payeeName }) => {
+const generateDynamicUpiQr = async ({ amount, clinicCode = '', planName = '', upiId, payeeName, transactionRef, note }) => {
   try {
     let resolvedUpi = upiId;
     let resolvedPayee = payeeName;
@@ -60,14 +60,20 @@ const generateDynamicUpiQr = async ({ amount, clinicCode = '', planName = '', up
 
     const numAmount = Number(amount || 0);
     const amountStr = numAmount > 0 ? numAmount.toFixed(2) : '';
-    const note = `AICMS - ${planName || 'Clinic Subscription'} ${clinicCode ? `(${clinicCode})` : ''}`.trim();
+    const dateStamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const randPart = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const resolvedRef = transactionRef || `AICMS-REN-${dateStamp}-${randPart}`;
+    const resolvedNote = note || `AICMS Subscription Renewal ${planName ? `(${planName})` : ''} ${clinicCode ? `[${clinicCode}]` : ''}`.trim();
 
     let upiPayload = `upi://pay?pa=${encodeURIComponent(resolvedUpi)}&pn=${encodeURIComponent(resolvedPayee)}&cu=INR`;
     if (amountStr) {
       upiPayload += `&am=${encodeURIComponent(amountStr)}`;
     }
-    if (note) {
-      upiPayload += `&tn=${encodeURIComponent(note)}`;
+    if (resolvedNote) {
+      upiPayload += `&tn=${encodeURIComponent(resolvedNote)}`;
+    }
+    if (resolvedRef) {
+      upiPayload += `&tr=${encodeURIComponent(resolvedRef)}`;
     }
 
     const qrDataUri = await QRCode.toDataURL(upiPayload, {
@@ -85,7 +91,8 @@ const generateDynamicUpiQr = async ({ amount, clinicCode = '', planName = '', up
       upiPayload,
       amount: numAmount,
       upiId: resolvedUpi,
-      payeeName: resolvedPayee
+      payeeName: resolvedPayee,
+      transactionRef: resolvedRef
     };
   } catch (err) {
     console.warn('Failed to generate dynamic UPI QR code Data URI:', err.message);
@@ -504,7 +511,9 @@ const getSanitizedActiveDetails = async (options = {}) => {
       clinicCode: options.clinicCode || '',
       planName: options.planName || '',
       upiId: decrypted.upiId,
-      payeeName: decrypted.accountName
+      payeeName: decrypted.accountName,
+      transactionRef: options.transactionRef,
+      note: options.note
     });
   }
 
@@ -520,7 +529,10 @@ const getSanitizedActiveDetails = async (options = {}) => {
     supportPhone: decrypted.supportPhone,
     qrCodeUrl: decrypted.qrCodeUrl || '',
     dynamicQr: dynamicQr ? dynamicQr.qrDataUri : null,
+    dynamicQrDataUri: dynamicQr ? dynamicQr.qrDataUri : null,
     upiPayload: dynamicQr ? dynamicQr.upiPayload : `upi://pay?pa=${encodeURIComponent(decrypted.upiId)}&pn=${encodeURIComponent(decrypted.accountName)}&cu=INR`,
+    transactionRef: dynamicQr ? dynamicQr.transactionRef : null,
+    amount: dynamicQr ? dynamicQr.amount : (Number(options.amount) || 0),
     qrCodeMetadata: decrypted.qrCodeMetadata ? {
       fileName: decrypted.qrCodeMetadata.fileName,
       fileSize: decrypted.qrCodeMetadata.fileSize,

@@ -509,6 +509,30 @@ export const router = createBrowserRouter([
         element: protect(<SubscriptionPage />, [ROLES.ADMIN])
       },
       {
+        path: 'clinic/subscription',
+        element: protect(<SubscriptionPage />, [ROLES.ADMIN])
+      },
+      {
+        path: 'clinic/subscription/upgrade',
+        element: protect(<SubscriptionPage />, [ROLES.ADMIN])
+      },
+      {
+        path: 'clinic/subscription/change',
+        element: protect(<SubscriptionPage />, [ROLES.ADMIN])
+      },
+      {
+        path: 'clinic/subscription/payment',
+        element: protect(<SubscriptionPage />, [ROLES.ADMIN])
+      },
+      {
+        path: 'clinic/subscription/payment-verification',
+        element: protect(<SubscriptionPage />, [ROLES.ADMIN])
+      },
+      {
+        path: 'clinic/subscription/upgrade-success',
+        element: protect(<SubscriptionPage />, [ROLES.ADMIN])
+      },
+      {
         path: 'admin/departments',
         element: protect(<DepartmentsPage />, [ROLES.ADMIN])
       },
