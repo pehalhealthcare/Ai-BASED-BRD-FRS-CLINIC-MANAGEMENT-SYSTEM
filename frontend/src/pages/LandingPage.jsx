@@ -3530,124 +3530,37 @@ export default function LandingPage() {
               </div>
             </div>
           </motion.div>
+        </section>
 
-          {/* ========================================
-              SOCIAL PROOF SECTION (ENTERPRISE TRUST STRIP)
-              ======================================== */}
-          <div className="mt-28 space-y-10 relative">
-            {/* Inline CSS styling for pure CSS hardware-accelerated marquee */}
-            <style dangerouslySetInnerHTML={{__html: `
-              @keyframes marquee-loop {
-                0% { transform: translate3d(0, 0, 0); }
-                100% { transform: translate3d(-50%, 0, 0); }
-              }
-              .marquee-track {
-                display: flex;
-                width: max-content;
-                animation: marquee-loop 35s linear infinite;
-                will-change: transform;
-              }
-              .marquee-container:hover .marquee-track {
-                animation-play-state: paused;
-              }
-            `}} />
+        {/* ========================================
+            SECTION: ENTERPRISE TRUST & COMPLIANCE (DIRECTLY ABOVE FOOTER)
+            ======================================== */}
+        <section className="pt-16 pb-20 sm:pt-20 sm:pb-24 px-6 lg:px-16 relative z-10 max-w-[1400px] mx-auto text-center border-t border-slate-850/70">
+          {/* Header Title with Green/Teal Accent Line */}
+          <div className="space-y-3.5 mb-8 sm:mb-10">
+            <h4 className="text-xs sm:text-sm md:text-[15px] font-black uppercase tracking-[0.2em] text-slate-300 max-w-3xl mx-auto leading-relaxed select-none">
+              Built for Leading Clinics, Hospitals &amp; Healthcare Networks
+            </h4>
+            <div className="w-14 sm:w-16 h-[2px] bg-gradient-to-r from-emerald-500 to-teal-400 mx-auto rounded-full opacity-80" />
+          </div>
 
-            {/* Header Title with Green Accent Line */}
-            <div className="text-center space-y-4">
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 select-none">
-                Built for Leading Clinics, Hospitals &amp; Healthcare Networks
-              </p>
-              <div className="w-12 h-0.5 bg-emerald-500 mx-auto rounded-full opacity-60" />
-            </div>
-
-            {/* Premium Glass Container for Logos */}
-            <div className="max-w-6xl mx-auto rounded-[32px] bg-slate-900/30 border border-slate-850 p-8 shadow-inner backdrop-blur-xl relative overflow-hidden marquee-container">
-              {/* Subtle background nodes overlay */}
-              <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-5">
-                <svg className="w-full h-full" viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="0.5">
-                  <circle cx="20" cy="50" r="10" />
-                  <circle cx="80" cy="50" r="10" />
-                  <path d="M20 50 H80" strokeDasharray="2,2" />
-                </svg>
+          {/* Outlined Trust & Compliance Badges */}
+          <div className="flex flex-wrap justify-center items-center gap-3 sm:gap-4 max-w-4xl mx-auto">
+            {[
+              'HIPAA READY',
+              'NABH READY',
+              'GDPR READY',
+              'AES-256 ENCRYPTION',
+              'HIGH AVAILABILITY SLA'
+            ].map((badge, idx) => (
+              <div 
+                key={idx} 
+                className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-full bg-slate-900/60 border border-slate-750/70 hover:border-emerald-500/50 transition-all duration-300 text-xs sm:text-[13px] font-bold text-slate-200 tracking-wider shadow-sm hover:scale-[1.02] cursor-default select-none group"
+              >
+                <CheckCircle2 size={15} className="text-emerald-400 group-hover:scale-110 transition-transform shrink-0" />
+                <span>{badge}</span>
               </div>
-
-              {/* Loop Track wrapper */}
-              <div className="overflow-hidden relative w-full flex">
-                <div className="marquee-track gap-16 items-center">
-                  {/* First instances of 10 hospital SVGs */}
-                  {[
-                    { name: 'Apollo Hospitals', icon: <path d="M12 2 L22 6 V15 C22 20 12 25 12 25 C12 25 2 20 2 15 V6 Z" fill="none" stroke="currentColor" strokeWidth="2" /> },
-                    { name: 'Max Healthcare', icon: <path d="M12 2 L22 12 L12 22 L2 12 Z" stroke="currentColor" strokeWidth="2" /> },
-                    { name: 'Fortis Healthcare', icon: <path d="M12 2 V22 M2 12 H22" stroke="currentColor" strokeWidth="2" /> },
-                    { name: 'Narayana Health', icon: <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" /> },
-                    { name: 'Manipal Hospitals', icon: <path d="M6 12 A6 6 0 1 1 18 12 A6 6 0 1 1 6 12" stroke="currentColor" strokeWidth="2" /> },
-                    { name: 'Cloudnine Hospitals', icon: <path d="M4 12 C4 8 12 4 12 4 C12 4 20 8 20 12 C20 16 12 20 12 20 C12 20 4 16 4 12 Z" stroke="currentColor" strokeWidth="2" /> },
-                    { name: 'Aster DM', icon: <path d="M12 2 L12 22 M2 12 H22 M5 5 L19 19 M5 19 L19 5" stroke="currentColor" strokeWidth="2" /> },
-                    { name: 'Medanta', icon: <path d="M4 12 H20 M12 4 V20" stroke="currentColor" strokeWidth="2" /> },
-                    { name: 'Yashoda Hospitals', icon: <path d="M2 12 C12 2 12 22 22 12" stroke="currentColor" strokeWidth="2" /> },
-                    { name: 'CARE Hospitals', icon: <path d="M12 21 C12 21 2 14 2 8 C2 4.5 5 2.5 8 2.5 C10.5 2.5 12 4.5 12 4.5 C12 4.5 13.5 2.5 16 2.5 C19 2.5 22 4.5 22 8 C22 14 12 21 12 21 Z" stroke="currentColor" strokeWidth="2" /> }
-                  ].map((h, i) => (
-                    <div 
-                      key={`h1-${i}`}
-                      className="flex items-center gap-2.5 text-slate-400 hover:text-white transition-all duration-300 transform hover:-translate-y-1.5 hover:scale-105 cursor-pointer opacity-70 hover:opacity-100 select-none group shrink-0"
-                    >
-                      <svg className="w-6 h-6 text-slate-400 group-hover:text-emerald-400 transition-colors" viewBox="0 0 24 24" fill="none">
-                        {h.icon}
-                      </svg>
-                      <span className="text-[11px] font-black uppercase tracking-wider">{h.name}</span>
-                    </div>
-                  ))}
-
-                  {/* Duplicate list for seamless infinite loop */}
-                  {[
-                    { name: 'Apollo Hospitals', icon: <path d="M12 2 L22 6 V15 C22 20 12 25 12 25 C12 25 2 20 2 15 V6 Z" fill="none" stroke="currentColor" strokeWidth="2" /> },
-                    { name: 'Max Healthcare', icon: <path d="M12 2 L22 12 L12 22 L2 12 Z" stroke="currentColor" strokeWidth="2" /> },
-                    { name: 'Fortis Healthcare', icon: <path d="M12 2 V22 M2 12 H22" stroke="currentColor" strokeWidth="2" /> },
-                    { name: 'Narayana Health', icon: <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" /> },
-                    { name: 'Manipal Hospitals', icon: <path d="M6 12 A6 6 0 1 1 18 12 A6 6 0 1 1 6 12" stroke="currentColor" strokeWidth="2" /> },
-                    { name: 'Cloudnine Hospitals', icon: <path d="M4 12 C4 8 12 4 12 4 C12 4 20 8 20 12 C20 16 12 20 12 20 C12 20 4 16 4 12 Z" stroke="currentColor" strokeWidth="2" /> },
-                    { name: 'Aster DM', icon: <path d="M12 2 L12 22 M2 12 H22 M5 5 L19 19 M5 19 L19 5" stroke="currentColor" strokeWidth="2" /> },
-                    { name: 'Medanta', icon: <path d="M4 12 H20 M12 4 V20" stroke="currentColor" strokeWidth="2" /> },
-                    { name: 'Yashoda Hospitals', icon: <path d="M2 12 C12 2 12 22 22 12" stroke="currentColor" strokeWidth="2" /> },
-                    { name: 'CARE Hospitals', icon: <path d="M12 21 C12 21 2 14 2 8 C2 4.5 5 2.5 8 2.5 C10.5 2.5 12 4.5 12 4.5 C12 4.5 13.5 2.5 16 2.5 C19 2.5 22 4.5 22 8 C22 14 12 21 12 21 Z" stroke="currentColor" strokeWidth="2" /> }
-                  ].map((h, i) => (
-                    <div 
-                      key={`h2-${i}`}
-                      className="flex items-center gap-2.5 text-slate-400 hover:text-white transition-all duration-300 transform hover:-translate-y-1.5 hover:scale-105 cursor-pointer opacity-70 hover:opacity-100 select-none group shrink-0"
-                    >
-                      <svg className="w-6 h-6 text-slate-400 group-hover:text-emerald-400 transition-colors" viewBox="0 0 24 24" fill="none">
-                        {h.icon}
-                      </svg>
-                      <span className="text-[11px] font-black uppercase tracking-wider">{h.name}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Optional Trust Badges (HIPAA, NABH, GDPR, AES-256) */}
-            <div className="flex flex-wrap justify-center items-center gap-4 text-[10px] font-black text-slate-450 pt-2 uppercase tracking-wider select-none">
-              <span className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900/40 border border-slate-850 rounded-full hover:border-emerald-500/35 transition-all">
-                <CheckCircle size={10} className="text-emerald-500" />
-                HIPAA Ready
-              </span>
-              <span className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900/40 border border-slate-850 rounded-full hover:border-emerald-500/35 transition-all">
-                <CheckCircle size={10} className="text-emerald-500" />
-                NABH Ready
-              </span>
-              <span className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900/40 border border-slate-850 rounded-full hover:border-emerald-500/35 transition-all">
-                <CheckCircle size={10} className="text-emerald-500" />
-                GDPR Ready
-              </span>
-              <span className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900/40 border border-slate-850 rounded-full hover:border-emerald-500/35 transition-all">
-                <CheckCircle size={10} className="text-emerald-500" />
-                AES-256 Encryption
-              </span>
-              <span className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900/40 border border-slate-850 rounded-full hover:border-emerald-500/35 transition-all">
-                <CheckCircle size={10} className="text-emerald-500" />
-                High Availability SLA
-              </span>
-            </div>
+            ))}
           </div>
         </section>
 
