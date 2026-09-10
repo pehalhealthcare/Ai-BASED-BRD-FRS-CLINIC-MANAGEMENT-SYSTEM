@@ -52,9 +52,15 @@ const authApi = {
   login: (payload) => extractData(apiClient.post('/auth/login', payload)),
   resetPassword: (payload) => extractData(apiClient.post('/auth/reset-password', payload)),
   verifyFirstLoginOtp: (payload) => extractData(apiClient.post('/auth/verify-first-login-otp', payload)),
+  sendLoginOtp: (payload) => extractData(apiClient.post('/auth/send-otp', payload)),
+  verifyLoginOtp: (payload) => extractData(apiClient.post('/auth/verify-otp', payload)),
+  sendClinicAdminOtp: (payload) => extractData(apiClient.post('/auth/clinic-admin/send-otp', payload)),
+  verifyClinicAdminOtp: (payload) => extractData(apiClient.post('/auth/clinic-admin/verify-otp', payload)),
   me: () => extractData(apiClient.get('/auth/me')),
   logout: () => extractData(apiClient.post('/auth/logout'))
 };
+
+
 
 const userApi = {
   list: (params = {}) => extractData(apiClient.get('/users', { params })),

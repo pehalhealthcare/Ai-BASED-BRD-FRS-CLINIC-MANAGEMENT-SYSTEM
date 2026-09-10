@@ -70,8 +70,30 @@ const resetPasswordSchema = z.object({
   })
 });
 
+const sendLoginOtpSchema = z.object({
+  body: z.object({
+    email: emailSchema,
+    portal: z.string().trim().optional()
+  })
+});
+
+const verifyLoginOtpSchema = z.object({
+  body: z.object({
+    email: emailSchema,
+    otp: z.string().trim().length(6, 'OTP must be a 6-digit code').regex(/^\d{6}$/, 'OTP must contain only digits'),
+    portal: z.string().trim().optional()
+  })
+});
+
+const sendClinicAdminOtpSchema = sendLoginOtpSchema;
+const verifyClinicAdminOtpSchema = verifyLoginOtpSchema;
+
 module.exports = {
   registerSchema,
   loginSchema,
-  resetPasswordSchema
+  resetPasswordSchema,
+  sendClinicAdminOtpSchema,
+  verifyClinicAdminOtpSchema,
+  sendLoginOtpSchema,
+  verifyLoginOtpSchema
 };

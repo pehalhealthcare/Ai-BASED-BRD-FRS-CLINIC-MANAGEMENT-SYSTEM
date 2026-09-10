@@ -21,11 +21,18 @@ const createUser = (payload) =>
 
 const findByEmail = (email, options = {}) => {
   const normalized = normalizeEmail(email);
+  const phoneDigits = typeof email === 'string' ? email.replace(/\D/g, '') : '';
+  const phoneVariations = [normalized];
+  if (phoneDigits.length >= 10) {
+    const last10 = phoneDigits.slice(-10);
+    phoneVariations.push(last10, `+91${last10}`, `91${last10}`);
+  }
+
   const query = User.findOne(
     buildBaseFilter({
       $or: [
         { email: normalized },
-        { phone: normalized }
+        { phone: { $in: phoneVariations } }
       ]
     })
   );

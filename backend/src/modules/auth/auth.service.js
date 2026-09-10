@@ -6,6 +6,7 @@ const { logAuthEvent } = require('../audit/audit.service');
 const userRepository = require('../users/user.repository');
 const { findDefaultClinicId } = require('../../common/utils/clinicContext');
 const { generateAccessToken } = require('./token.service');
+const { logger } = require('../../common/utils/logger');
 
 // Ensure dependent models are registered for populate queries
 require('../subscriptions/subscriptionPlan.model');
@@ -244,14 +245,21 @@ const register = async (payload, req) => {
 };
 
 const login = async ({ email, password, portal }, req) => {
+  const isEmail = typeof email === 'string' && email.includes('@');
   const user = await userRepository.findByEmail(email, { includePassword: true });
+
+  if (process.env.NODE_ENV !== 'production') {
+    logger.info(
+      `\nLOGIN DIAGNOSTIC\n----------------------------\nidentifierReceived: ${Boolean(email)}\nidentifierType: ${isEmail ? 'email' : 'mobile'}\nnormalizedIdentifier: ${Boolean(email)}\nuserFound: ${Boolean(user)}\nuserId: ${user ? user._id : 'N/A'}\ndetectedRole: ${user ? user.role : 'N/A'}\nrequestedPortal: ${portal || 'auto'}\npasswordHashExists: ${Boolean(user?.password)}\naccountActive: ${Boolean(user?.isActive)}\n----------------------------\n`
+    );
+  }
 
   if (!user) {
     await logAuthEvent({
       action: 'USER_LOGIN_FAILED',
       status: 'FAILURE',
       req,
-      metadata: { email, reason: 'USER_NOT_FOUND' }
+      metadata: { email, reason: 'USER_NOT_FOUND', portal }
     });
 
     throw new AppError('Invalid email or password', HTTP_STATUS.UNAUTHORIZED);
@@ -265,7 +273,7 @@ const login = async ({ email, password, portal }, req) => {
       action: 'USER_LOGIN_FAILED',
       status: 'FAILURE',
       req,
-      metadata: { email, reason: 'INVALID_PASSWORD' }
+      metadata: { email, reason: 'INVALID_PASSWORD', portal }
     });
 
     throw new AppError('Invalid email or password', HTTP_STATUS.UNAUTHORIZED);
@@ -715,11 +723,482 @@ const verifyFirstLoginOtp = async ({ email, otp, newPassword }) => {
   };
 };
 
+const validatePortalAccess = (user, portal) => {
+  const { STAFF_ROLES } = require('../../common/constants/roles');
+  const isSuperAdmin = user.role === ROLES.SUPER_ADMIN;
+  const isClinicAdmin = user.role === ROLES.ADMIN;
+  const isPatient = user.role === ROLES.PATIENT;
+  const isStaff = user.role === ROLES.DOCTOR || STAFF_ROLES.includes(user.role);
+
+  if (!portal || isSuperAdmin) {
+    return { allowed: true };
+  }
+
+  if (portal === 'patient') {
+    if (!isPatient) {
+      return {
+        allowed: false,
+        denialReason: 'ROLE_MISMATCH_PATIENT',
+        errorMessage: 'This account is not registered as a Patient. Please sign in using the correct portal.'
+      };
+    }
+  } else if (portal === 'staff') {
+    if (isPatient) {
+      return {
+        allowed: false,
+        denialReason: 'ROLE_MISMATCH_STAFF_IS_PATIENT',
+        errorMessage: 'This account is not authorized for the Staff Portal. Please use the Patient Sign In page.'
+      };
+    } else if (isClinicAdmin) {
+      return {
+        allowed: false,
+        denialReason: 'ROLE_MISMATCH_STAFF_IS_ADMIN',
+        errorMessage: 'This account belongs to a Clinic Administrator. Please use the Clinic Portal Login.'
+      };
+    } else if (!isStaff) {
+      return {
+        allowed: false,
+        denialReason: 'ROLE_MISMATCH_STAFF',
+        errorMessage: 'This account is not authorized for the Staff Portal. Please use the correct portal.'
+      };
+    }
+  } else if (portal === 'clinic') {
+    if (isPatient) {
+      return {
+        allowed: false,
+        denialReason: 'ROLE_MISMATCH_CLINIC_IS_PATIENT',
+        errorMessage: 'This account is not a Clinic Administrator. Please use Patient Sign In.'
+      };
+    } else if (isStaff) {
+      return {
+        allowed: false,
+        denialReason: 'ROLE_MISMATCH_CLINIC_IS_STAFF',
+        errorMessage: 'This account belongs to Clinic Staff. Please use Staff Sign In.'
+      };
+    } else if (!isClinicAdmin) {
+      return {
+        allowed: false,
+        denialReason: 'ROLE_MISMATCH_CLINIC',
+        errorMessage: 'This account is not a Clinic Administrator. Please use the correct portal.'
+      };
+    }
+  }
+
+  return { allowed: true };
+};
+
+const buildAuthSessionForUser = async (user, req, authMethod = 'PASSWORD') => {
+  const { STAFF_ROLES } = require('../../common/constants/roles');
+  const Clinic = require('../clinics/clinic.model');
+  let clinicDetails = null;
+  let staffObj = null;
+
+  if (user.role === ROLES.ADMIN) {
+    if (user.clinicId) {
+      clinicDetails = await Clinic.findById(user.clinicId).populate('subscription.planId');
+    }
+  } else if (user.role !== ROLES.SUPER_ADMIN && user.role !== ROLES.PATIENT) {
+    // This is staff (DOCTOR, RECEPTIONIST, PHARMACIST, etc.)
+    if (!user.clinicId) {
+      throw new AppError('Staff user does not belong to any clinic.', HTTP_STATUS.FORBIDDEN);
+    }
+    const staffClinic = await Clinic.findById(user.clinicId).populate('subscription.planId');
+    if (!staffClinic || staffClinic.approvalStatus !== 'approved') {
+      throw new AppError('Your clinic is not approved yet. Staff login is blocked.', HTTP_STATUS.FORBIDDEN);
+    }
+    clinicDetails = staffClinic;
+    if (staffClinic.subscription?.status === 'Suspended' || staffClinic.approvalStatus === 'suspended') {
+      throw new AppError('Your clinic account is suspended. Staff login is blocked.', HTTP_STATUS.FORBIDDEN);
+    }
+    if (staffClinic.subscription?.status === 'Expired') {
+      throw new AppError('Your clinic subscription is expired. Staff login is blocked.', HTTP_STATUS.FORBIDDEN);
+    }
+    const Staff = require('../staff/staff.model');
+    staffObj = await Staff.findOne({ userId: user._id });
+    if (staffObj && staffObj.creationSource === 'CLINIC_SETUP' && staffObj.invitationStatus !== 'Active') {
+      const allowedOnboardingStatuses = ['pending_onboarding', 'onboarding_in_progress', 'pending_profile', 'approved'];
+      if (!allowedOnboardingStatuses.includes(user.approvalStatus)) {
+        throw new AppError('Your account is not active yet. Please complete onboarding and accept your employment offer.', HTTP_STATUS.FORBIDDEN);
+      }
+    }
+  }
+
+  const isBypassedRole = user.role === ROLES.ADMIN;
+  if (!isBypassedRole) {
+    const isOnboardingOrPending = [
+      'pending_profile',
+      'pending_onboarding',
+      'onboarding_in_progress',
+      'pending_approval',
+      're_edit',
+      'changes_requested'
+    ].includes(user.approvalStatus) || (user.approvalStatus === 'approved' && staffObj && staffObj.invitationStatus === 'Offer Pending');
+
+    if (!isOnboardingOrPending && (!user.isActive || user.deletedAt || user.approvalStatus === 'rejected')) {
+      await logAuthEvent({
+        actorUserId: user._id,
+        action: 'USER_LOGIN_FAILED',
+        status: 'FAILURE',
+        req,
+        metadata: { email: user.email, reason: 'ACCOUNT_INACTIVE_OR_REJECTED' }
+      });
+
+      throw new AppError('Your account is inactive or rejected. Please contact support.', HTTP_STATUS.FORBIDDEN);
+    }
+  } else {
+    if (!user.isActive || user.deletedAt) {
+      throw new AppError('User account is inactive', HTTP_STATUS.FORBIDDEN);
+    }
+  }
+
+  user.lastLoginAt = new Date();
+  user.isEmailVerified = true;
+  await user.save({ validateBeforeSave: false });
+
+  const { ensureUserClinicContext } = require('../../common/utils/clinicContext');
+  await ensureUserClinicContext(user);
+
+  await logAuthEvent({
+    actorUserId: user._id,
+    action: 'USER_LOGIN_SUCCESS',
+    status: 'SUCCESS',
+    req,
+    metadata: { email: user.email, method: authMethod }
+  });
+
+  const sanitizedUser = sanitizeUser(user);
+  if (clinicDetails) {
+    let paymentStatus = 'NOT_SUBMITTED';
+    let latestPayment = null;
+    try {
+      const SubscriptionPayment = require('../payment/models/subscriptionPayment.model');
+      latestPayment = await SubscriptionPayment.findOne({ clinicId: clinicDetails._id }).sort({ createdAt: -1 });
+      if (clinicDetails.paymentStatus === 'FREE_TIER' || clinicDetails.subscription?.isFreeTier) {
+        paymentStatus = 'FREE_TIER';
+      } else if (
+        clinicDetails.paymentStatus === 'VERIFIED' ||
+        clinicDetails.subscription?.status === 'Active' ||
+        clinicDetails.subscription?.status === 'Expired' ||
+        clinicDetails.subscription?.status === 'Suspended' ||
+        clinicDetails.subscription?.status === 'Trial' ||
+        clinicDetails.approvalStatus === 'approved' ||
+        latestPayment?.status === 'VERIFIED'
+      ) {
+        paymentStatus = 'VERIFIED';
+      } else if (latestPayment?.status === 'PENDING_VERIFICATION' || latestPayment?.status === 'SUBMITTED') {
+        paymentStatus = 'PENDING_VERIFICATION';
+      } else if (latestPayment?.status === 'REJECTED' || latestPayment?.status === 'REPAYMENT_REQUIRED' || clinicDetails.subscription?.status === 'Rejected') {
+        paymentStatus = 'REJECTED';
+      }
+    } catch (_err) {
+      // fallback
+    }
+
+    sanitizedUser.clinic = {
+      _id: clinicDetails._id,
+      name: clinicDetails.name,
+      approvalStatus: clinicDetails.approvalStatus,
+      isOnboardingCompleted: clinicDetails.isOnboardingCompleted,
+      subscription: clinicDetails.subscription,
+      paymentStatus,
+      latestPayment: latestPayment ? {
+        _id: latestPayment._id,
+        status: latestPayment.status,
+        utr: latestPayment.utr,
+        amount: latestPayment.amount,
+        createdAt: latestPayment.createdAt
+      } : null,
+      trialFeatures: clinicDetails.trialFeatures || [],
+      rejectionReason: clinicDetails.rejectionReason,
+      rejectionComments: clinicDetails.rejectionComments,
+      incorrectFields: clinicDetails.incorrectFields,
+      requestedDocuments: clinicDetails.requestedDocuments,
+      refundStatus: clinicDetails.refundStatus,
+      refundReason: clinicDetails.refundReason
+    };
+  }
+
+  return {
+    user: sanitizedUser,
+    accessToken: generateAccessToken(user)
+  };
+};
+
+const sendLoginOtp = async ({ email, portal }, req) => {
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  if (!normalizedEmail) {
+    throw new AppError('Please enter a valid email address.', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  const User = require('../users/user.model');
+  const user = await User.findOne({ email: normalizedEmail });
+
+  if (!user) {
+    await logAuthEvent({
+      action: 'LOGIN_OTP_REQUEST_FAILED',
+      status: 'FAILURE',
+      req,
+      metadata: { email: normalizedEmail, reason: 'USER_NOT_FOUND', portal }
+    });
+    throw new AppError('No registered account found with this email address.', HTTP_STATUS.NOT_FOUND);
+  }
+
+  const portalCheck = validatePortalAccess(user, portal);
+  if (!portalCheck.allowed) {
+    await logAuthEvent({
+      actorUserId: user._id,
+      action: 'LOGIN_OTP_REQUEST_FAILED',
+      status: 'FAILURE',
+      req,
+      metadata: { email: normalizedEmail, reason: portalCheck.denialReason, portal, roleDetected: user.role }
+    });
+    throw new AppError(portalCheck.errorMessage, HTTP_STATUS.FORBIDDEN);
+  }
+
+  if (!user.isActive || user.deletedAt) {
+    throw new AppError('Your account is inactive or disabled. Please contact support.', HTTP_STATUS.FORBIDDEN);
+  }
+
+  const AuthOtp = require('./authOtp.model');
+  const existingOtp = await AuthOtp.findOne({
+    email: normalizedEmail,
+    purpose: { $in: ['LOGIN_OTP', 'CLINIC_ADMIN_LOGIN'] }
+  });
+
+  if (existingOtp && existingOtp.lastResendAt) {
+    const elapsedMs = Date.now() - new Date(existingOtp.lastResendAt).getTime();
+    if (elapsedMs < 30000) {
+      const waitSec = Math.ceil((30000 - elapsedMs) / 1000);
+      throw new AppError(`Please wait ${waitSec} seconds before requesting a new OTP.`, HTTP_STATUS.TOO_MANY_REQUESTS);
+    }
+  }
+
+  // Invalidate previous OTPs
+  await AuthOtp.deleteMany({
+    email: normalizedEmail,
+    purpose: { $in: ['LOGIN_OTP', 'CLINIC_ADMIN_LOGIN'] }
+  });
+
+  const crypto = require('crypto');
+  const bcrypt = require('bcryptjs');
+  const otp = crypto.randomInt(100000, 1000000).toString();
+  const otpHash = await bcrypt.hash(otp, 10);
+  const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+
+  await AuthOtp.create({
+    userId: user._id,
+    email: normalizedEmail,
+    otpHash,
+    purpose: 'LOGIN_OTP',
+    attempts: 0,
+    maxAttempts: 5,
+    lastResendAt: new Date(),
+    resendCount: existingOtp ? (existingOtp.resendCount || 0) + 1 : 1,
+    expiresAt
+  });
+
+  const nodemailer = require('nodemailer');
+  const { env } = require('../../config/env');
+  const { logger } = require('../../common/utils/logger');
+  const { generateOtpEmail, BRAND } = require('../../common/utils/emailTemplate');
+
+  const emailData = generateOtpEmail({
+    otp,
+    portal,
+    userRole: user.role,
+    expiresInMinutes: 5
+  });
+
+  const isSmtpConfigured =
+    Boolean(env.emailHost) &&
+    Boolean(env.emailUser) &&
+    Boolean(env.emailPass) &&
+    !String(env.emailUser).includes('your_smtp') &&
+    !String(env.emailPass).includes('your_smtp') &&
+    env.emailHost !== 'smtp.mailtrap.io' &&
+    !env.enableMockNotifications;
+
+  if (!isSmtpConfigured) {
+    logger.warn('[auth:otp] SMTP credentials not configured or mock mode enabled, logging OTP to console.');
+    console.info('\n=======================================');
+    console.info(`[LOGIN OTP] To: ${normalizedEmail} (${user.role}) [${portal || 'auto'}]`);
+    console.info(`[LOGIN OTP] Brand: ${BRAND.company} - ${BRAND.product}`);
+    console.info(`[LOGIN OTP] Code: ${otp}`);
+    console.info(`[LOGIN OTP] Subject: ${emailData.subject}`);
+    console.info(`[LOGIN OTP] Expires: 5 minutes`);
+    console.info('=======================================\n');
+  } else {
+    try {
+      const transporter = nodemailer.createTransport({
+        host: env.emailHost,
+        port: env.emailPort || 587,
+        secure: Boolean(env.emailSecure),
+        connectionTimeout: 5000,
+        greetingTimeout: 5000,
+        socketTimeout: 5000,
+        auth: {
+          user: env.emailUser,
+          pass: env.emailPass
+        }
+      });
+      await transporter.sendMail({
+        from: env.emailFrom || `"${BRAND.company} - ${BRAND.product}" <noreply@aicms.local>`,
+        to: normalizedEmail,
+        subject: emailData.subject,
+        text: emailData.text,
+        html: emailData.html,
+        attachments: emailData.attachments
+      });
+      logger.info(`[auth:otp] Branded email sent successfully to ${normalizedEmail}`);
+    } catch (mailError) {
+      logger.error('[auth:otp] Failed to send email via SMTP', mailError);
+      if (env.isDevelopment) {
+        logger.warn('[auth:otp] Development fallback: logged OTP to console due to SMTP failure.');
+        console.info('\n=======================================');
+        console.info(`[LOGIN OTP DEV FALLBACK] To: ${normalizedEmail} (${user.role}) [${portal || 'auto'}]`);
+        console.info(`[LOGIN OTP DEV FALLBACK] Brand: ${BRAND.company} - ${BRAND.product}`);
+        console.info(`[LOGIN OTP DEV FALLBACK] Code: ${otp}`);
+        console.info(`[LOGIN OTP DEV FALLBACK] Subject: ${emailData.subject}`);
+        console.info(`[LOGIN OTP DEV FALLBACK] Expires: 5 minutes`);
+        console.info('=======================================\n');
+      } else {
+        throw new AppError("We couldn't send the OTP right now. Please try again.", HTTP_STATUS.INTERNAL_SERVER_ERROR);
+      }
+    }
+  }
+
+  await logAuthEvent({
+    actorUserId: user._id,
+    action: 'LOGIN_OTP_SENT',
+    status: 'SUCCESS',
+    req,
+    metadata: { email: normalizedEmail, portal }
+  });
+
+  return {
+    message: "We've sent a 6-digit verification code to your registered email address."
+  };
+};
+
+const verifyLoginOtp = async ({ email, otp, portal }, req) => {
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  const normalizedOtp = String(otp || '').trim();
+
+  if (!normalizedEmail || !normalizedOtp) {
+    throw new AppError('Email and OTP code are required.', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  const AuthOtp = require('./authOtp.model');
+  const record = await AuthOtp.findOne({
+    email: normalizedEmail,
+    purpose: { $in: ['LOGIN_OTP', 'CLINIC_ADMIN_LOGIN'] }
+  }).sort({ createdAt: -1 });
+
+  if (!record || !record.expiresAt || new Date(record.expiresAt).getTime() < Date.now()) {
+    if (record) {
+      await AuthOtp.deleteMany({
+        email: normalizedEmail,
+        purpose: { $in: ['LOGIN_OTP', 'CLINIC_ADMIN_LOGIN'] }
+      });
+    }
+    await logAuthEvent({
+      action: 'LOGIN_OTP_VERIFY_FAILED',
+      status: 'FAILURE',
+      req,
+      metadata: { email: normalizedEmail, reason: 'OTP_EXPIRED_OR_NOT_FOUND', portal }
+    });
+    throw new AppError('This OTP has expired. Please request a new OTP.', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  if (record.attempts >= record.maxAttempts) {
+    await AuthOtp.deleteMany({
+      email: normalizedEmail,
+      purpose: { $in: ['LOGIN_OTP', 'CLINIC_ADMIN_LOGIN'] }
+    });
+    await logAuthEvent({
+      action: 'LOGIN_OTP_VERIFY_FAILED',
+      status: 'FAILURE',
+      req,
+      metadata: { email: normalizedEmail, reason: 'MAX_ATTEMPTS_EXCEEDED', portal }
+    });
+    throw new AppError('Too many verification attempts. Please request a new OTP.', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  const bcrypt = require('bcryptjs');
+  const isMatch = await bcrypt.compare(normalizedOtp, record.otpHash);
+
+  if (!isMatch) {
+    record.attempts = (record.attempts || 0) + 1;
+    await record.save();
+
+    await logAuthEvent({
+      action: 'LOGIN_OTP_VERIFY_FAILED',
+      status: 'FAILURE',
+      req,
+      metadata: { email: normalizedEmail, reason: 'INVALID_CODE', attempt: record.attempts, portal }
+    });
+
+    if (record.attempts >= record.maxAttempts) {
+      await AuthOtp.deleteMany({
+        email: normalizedEmail,
+        purpose: { $in: ['LOGIN_OTP', 'CLINIC_ADMIN_LOGIN'] }
+      });
+      throw new AppError('Too many verification attempts. Please request a new OTP.', HTTP_STATUS.BAD_REQUEST);
+    }
+
+    throw new AppError('The OTP you entered is incorrect. Please try again.', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  // Single use: purge all OTP records for this email immediately
+  await AuthOtp.deleteMany({
+    email: normalizedEmail,
+    purpose: { $in: ['LOGIN_OTP', 'CLINIC_ADMIN_LOGIN'] }
+  });
+
+  const User = require('../users/user.model');
+  const user = await User.findOne({ email: normalizedEmail });
+
+  if (!user) {
+    throw new AppError('No registered account found with this email address.', HTTP_STATUS.NOT_FOUND);
+  }
+
+  const portalCheck = validatePortalAccess(user, portal);
+  if (!portalCheck.allowed) {
+    await logAuthEvent({
+      actorUserId: user._id,
+      action: 'LOGIN_OTP_PORTAL_DENIED',
+      status: 'FAILURE',
+      req,
+      metadata: { email: normalizedEmail, reason: portalCheck.denialReason, portal, roleDetected: user.role }
+    });
+    throw new AppError(portalCheck.errorMessage, HTTP_STATUS.FORBIDDEN);
+  }
+
+  await logAuthEvent({
+    actorUserId: user._id,
+    action: 'LOGIN_OTP_VERIFY_SUCCESS',
+    status: 'SUCCESS',
+    req,
+    metadata: { email: normalizedEmail, portal }
+  });
+
+  return buildAuthSessionForUser(user, req, 'EMAIL_OTP');
+};
+
+const sendClinicAdminOtp = async (payload, req) => sendLoginOtp({ ...payload, portal: 'clinic' }, req);
+const verifyClinicAdminOtp = async (payload, req) => verifyLoginOtp({ ...payload, portal: 'clinic' }, req);
+
 module.exports = {
   register,
   login,
   getCurrentUser,
   logout,
   resetPassword,
-  verifyFirstLoginOtp
+  verifyFirstLoginOtp,
+  sendLoginOtp,
+  verifyLoginOtp,
+  sendClinicAdminOtp,
+  verifyClinicAdminOtp
 };
+
+

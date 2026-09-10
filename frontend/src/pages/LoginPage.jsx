@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import useAuth from '../hooks/useAuth';
 import { authApi } from '../lib/api';
 import { getDefaultRouteForRole } from '../constants/routes';
 import {
   Shield, Lock, Mail, Users, Eye, EyeOff, Globe, Info, AlertCircle, X,
-  Building2, Activity, Smartphone, ArrowRight,CheckCircle2 
+  Building2, Activity, Smartphone, ArrowRight, ArrowLeft, CheckCircle2, RotateCw, Edit3
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -24,17 +24,37 @@ const LoginPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberDevice, setRememberDevice] = useState(true);
 
-  const [mode, setMode] = useState('login');
+  // Authentication Method: 'password' | 'otp'
+  const [authMethod, setAuthMethod] = useState('password');
+  // OTP Steps: 'email' | 'otp'
+  const [otpStep, setOtpStep] = useState('email');
+  const [otpEmail, setOtpEmail] = useState('');
+  const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const otpInputRefs = useRef([]);
+
+  const [mode, setMode] = useState('login'); // 'login' | 'forgot_password'
   const [resetForm, setResetForm] = useState({ email: '', password: '', confirmPassword: '' });
   const [resetError, setResetError] = useState('');
   const [resetSuccess, setResetSuccess] = useState('');
   const [resetSubmitting, setResetSubmitting] = useState(false);
-  const [rememberDevice, setRememberDevice] = useState(true);
 
   useEffect(() => {
     if (typeParam) setActiveTab(typeParam);
   }, [typeParam]);
+
+  // Resend cooldown timer
+  useEffect(() => {
+    let timer;
+    if (resendCooldown > 0) {
+      timer = setInterval(() => {
+        setResendCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
 
   const getAdminDestination = (clinic) => {
     if (!clinic) return '/clinic-setup/payment';
@@ -72,28 +92,41 @@ const LoginPage = () => {
     return <Navigate to={getDefaultRouteForRole(user?.role, user)} replace />;
   }
 
-  const handleSubmit = async (event) => {
+  const handleSuccessfulAuth = (authData) => {
+    const userRole = authData?.user?.role;
+    const clinic = authData?.user?.clinic;
+
+    if (userRole === 'SUPER_ADMIN') {
+      const fromPath = location.state?.from?.pathname;
+      const dest = fromPath && fromPath !== '/dashboard' ? fromPath : '/clinics';
+      navigate(dest, { replace: true });
+      return;
+    }
+
+    if (userRole === 'ADMIN') {
+      navigate(getAdminDestination(clinic), { replace: true });
+      return;
+    }
+
+    const fallbackDestination = getDefaultRouteForRole(userRole, authData?.user);
+    navigate(location.state?.from?.pathname || fallbackDestination, { replace: true });
+  };
+
+  // 1. Password Login Handler
+  const handlePasswordSubmit = async (event) => {
     event.preventDefault();
     setSubmitting(true);
     setError('');
 
     try {
-      const authData = await login({ ...form, portal: activeTab });
+      const authData = await login({ email: form.email.trim(), password: form.password, portal: activeTab });
       if (authData?.requiresOtp) {
         const route = authData.role === 'DOCTOR' ? '/doctor-verify-otp' : '/staff-verify-otp';
         navigate(route, { state: { email: authData.email }, replace: true });
         return;
       }
+
       const userRole = authData?.user?.role;
-      const clinic = authData?.user?.clinic;
-
-      if (userRole === 'SUPER_ADMIN') {
-        const fromPath = location.state?.from?.pathname;
-        const dest = fromPath && fromPath !== '/dashboard' ? fromPath : '/clinics';
-        navigate(dest, { replace: true });
-        return;
-      }
-
       if (activeTab === 'patient' && userRole !== 'PATIENT') {
         setError('This account is not registered as a Patient. Please sign in using the correct portal.');
         setSubmitting(false); return;
@@ -111,13 +144,7 @@ const LoginPage = () => {
         setSubmitting(false); return;
       }
 
-      if (userRole === 'ADMIN') {
-        navigate(getAdminDestination(clinic), { replace: true });
-        return;
-      }
-
-      const fallbackDestination = getDefaultRouteForRole(userRole, authData?.user);
-      navigate(location.state?.from?.pathname || fallbackDestination, { replace: true });
+      handleSuccessfulAuth(authData);
     } catch (loginError) {
       setError(loginError?.response?.data?.message || loginError?.message || 'Invalid email or password. Please try again.');
     } finally {
@@ -125,6 +152,122 @@ const LoginPage = () => {
     }
   };
 
+  // 2. OTP Login: Step 1 - Send OTP
+  const handleSendOtp = async (event) => {
+    if (event) event.preventDefault();
+    setError('');
+
+    const targetEmail = otpEmail.trim().toLowerCase();
+    if (!targetEmail) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const response = await authApi.sendLoginOtp({
+        email: targetEmail,
+        portal: activeTab
+      });
+      toast.success(response?.message || 'Verification code sent to your email!');
+      setOtpStep('otp');
+      setResendCooldown(30);
+      setOtpDigits(['', '', '', '', '', '']);
+      setTimeout(() => {
+        if (otpInputRefs.current[0]) {
+          otpInputRefs.current[0].focus();
+        }
+      }, 100);
+    } catch (err) {
+      setError(err?.response?.data?.message || err?.message || "We couldn't send the OTP right now. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // 3. OTP Login: Step 2 - Verify OTP & Login
+  const handleVerifyOtp = async (event) => {
+    if (event) event.preventDefault();
+    setError('');
+
+    const otpString = otpDigits.join('').trim();
+    if (otpString.length !== 6) {
+      setError('Please enter the complete 6-digit verification code.');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const response = await authApi.verifyLoginOtp({
+        email: otpEmail.trim().toLowerCase(),
+        otp: otpString,
+        portal: activeTab
+      });
+
+      const authData = response?.data || response;
+      await login(authData);
+      toast.success('Login successful!');
+      handleSuccessfulAuth(authData);
+    } catch (err) {
+      setError(err?.response?.data?.message || err?.message || 'The OTP you entered is incorrect. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // OTP digit handling
+  const handleOtpDigitChange = (index, value) => {
+    const digit = value.replace(/\D/g, '').slice(-1);
+    const newDigits = [...otpDigits];
+    newDigits[index] = digit;
+    setOtpDigits(newDigits);
+    setError('');
+
+    if (digit && index < 5) {
+      if (otpInputRefs.current[index + 1]) {
+        otpInputRefs.current[index + 1].focus();
+      }
+    }
+  };
+
+  const handleOtpKeyDown = (index, event) => {
+    if (event.key === 'Backspace') {
+      if (!otpDigits[index] && index > 0) {
+        const newDigits = [...otpDigits];
+        newDigits[index - 1] = '';
+        setOtpDigits(newDigits);
+        if (otpInputRefs.current[index - 1]) {
+          otpInputRefs.current[index - 1].focus();
+        }
+      }
+    } else if (event.key === 'ArrowLeft' && index > 0) {
+      if (otpInputRefs.current[index - 1]) {
+        otpInputRefs.current[index - 1].focus();
+      }
+    } else if (event.key === 'ArrowRight' && index < 5) {
+      if (otpInputRefs.current[index + 1]) {
+        otpInputRefs.current[index + 1].focus();
+      }
+    }
+  };
+
+  const handleOtpPaste = (event) => {
+    event.preventDefault();
+    const pasteData = event.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+    if (pasteData) {
+      const newDigits = [...otpDigits];
+      for (let i = 0; i < 6; i++) {
+        newDigits[i] = pasteData[i] || '';
+      }
+      setOtpDigits(newDigits);
+      const targetIndex = Math.min(pasteData.length, 5);
+      if (otpInputRefs.current[targetIndex]) {
+        otpInputRefs.current[targetIndex].focus();
+      }
+    }
+  };
+
+  // Forgot password submit handler
   const handleResetSubmit = async (event) => {
     event.preventDefault();
     setResetSubmitting(true);
@@ -150,21 +293,45 @@ const LoginPage = () => {
 
   const portalConfig = {
     clinic: {
-      title: 'Welcome back,\nClinic Administrator',
-      sub: 'Manage your clinics, staff, operations and business from one secure platform.',
+      title:
+        authMethod === 'otp' && otpStep === 'otp'
+          ? 'Verify your email'
+          : authMethod === 'otp'
+          ? 'Login using OTP'
+          : 'Welcome back,\nClinic Administrator',
+      sub:
+        authMethod === 'otp' && otpStep === 'otp'
+          ? `We've sent a 6-digit verification code to ${otpEmail || 'your registered email address'}.`
+          : 'Manage your clinics, staff, operations and business from one secure platform.',
       btn: 'Login as Clinic Admin',
       forgotTitle: 'Reset Clinic Admin Password',
     },
     staff: {
-      title: 'Welcome back,\nDoctor & Staff',
-      sub: 'Access your assigned clinic workspace securely.',
+      title:
+        authMethod === 'otp' && otpStep === 'otp'
+          ? 'Verify your email'
+          : authMethod === 'otp'
+          ? 'Login using OTP'
+          : 'Welcome back,\nDoctor & Staff',
+      sub:
+        authMethod === 'otp' && otpStep === 'otp'
+          ? `We've sent a 6-digit verification code to ${otpEmail || 'your registered email address'}.`
+          : 'Access your assigned clinic workspace securely.',
       btn: 'Login as Doctor / Staff',
       infoCard: 'Doctor and Staff accounts are provisioned by your clinic administrator.',
       forgotTitle: 'Reset Doctor / Staff Password',
     },
     patient: {
-      title: 'Welcome back,\nPatient',
-      sub: 'Access appointments, prescriptions and reports securely.',
+      title:
+        authMethod === 'otp' && otpStep === 'otp'
+          ? 'Verify your email'
+          : authMethod === 'otp'
+          ? 'Login using OTP'
+          : 'Welcome back,\nPatient',
+      sub:
+        authMethod === 'otp' && otpStep === 'otp'
+          ? `We've sent a 6-digit verification code to ${otpEmail || 'your registered email address'}.`
+          : 'Access appointments, prescriptions and reports securely.',
       btn: 'Login as Patient',
       infoCard: 'Patient accounts are securely created by your healthcare provider. Please contact your clinic if you do not have login credentials.',
       forgotTitle: 'Reset Patient Password',
@@ -236,7 +403,13 @@ const LoginPage = () => {
                   <button
                     key={tab.key}
                     type="button"
-                    onClick={() => { setActiveTab(tab.key); setError(''); }}
+                    onClick={() => {
+                      setActiveTab(tab.key);
+                      setError('');
+                      setAuthMethod('password');
+                      setOtpStep('email');
+                      setOtpDigits(['', '', '', '', '', '']);
+                    }}
                     className="flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-black transition-all duration-300"
                     style={{
                       borderRadius: '999px',
@@ -288,16 +461,392 @@ const LoginPage = () => {
               </div>
             )}
 
-            {/* ── FORM ── */}
-            {mode === 'login' ? (
-              <form onSubmit={handleSubmit} className="space-y-6">
+            {/* ── FORMS ROUTING ── */}
+            {mode === 'forgot_password' ? (
+              /* ════════ FORGOT PASSWORD FORM ════════ */
+              <form onSubmit={handleResetSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1.5">Email Address</label>
+                  <div className="relative">
+                    <Mail size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="email"
+                      value={resetForm.email}
+                      onChange={(e) => setResetForm({ ...resetForm, email: e.target.value })}
+                      placeholder="Enter your email"
+                      required
+                      className="w-full text-sm text-gray-800 placeholder-gray-400 font-medium bg-white transition"
+                      style={{ paddingLeft: '40px', paddingRight: '16px', height: '56px', border: '1.5px solid #E5E7EB', borderRadius: '14px', outline: 'none' }}
+                      onFocus={(e) => { e.target.style.borderColor = '#00B96B'; e.target.style.boxShadow = '0 0 0 3px rgba(0,185,107,0.1)'; }}
+                      onBlur={(e) => { e.target.style.borderColor = '#E5E7EB'; e.target.style.boxShadow = 'none'; }}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1.5">New Password</label>
+                  <div className="relative">
+                    <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="password"
+                      value={resetForm.password}
+                      onChange={(e) => setResetForm({ ...resetForm, password: e.target.value })}
+                      placeholder="Enter new password"
+                      required
+                      className="w-full text-sm text-gray-800 placeholder-gray-400 font-medium bg-white transition"
+                      style={{ paddingLeft: '40px', paddingRight: '16px', height: '56px', border: '1.5px solid #E5E7EB', borderRadius: '14px', outline: 'none' }}
+                      onFocus={(e) => { e.target.style.borderColor = '#00B96B'; e.target.style.boxShadow = '0 0 0 3px rgba(0,185,107,0.1)'; }}
+                      onBlur={(e) => { e.target.style.borderColor = '#E5E7EB'; e.target.style.boxShadow = 'none'; }}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1.5">Confirm Password</label>
+                  <div className="relative">
+                    <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="password"
+                      value={resetForm.confirmPassword}
+                      onChange={(e) => setResetForm({ ...resetForm, confirmPassword: e.target.value })}
+                      placeholder="Confirm new password"
+                      required
+                      className="w-full text-sm text-gray-800 placeholder-gray-400 font-medium bg-white transition"
+                      style={{ paddingLeft: '40px', paddingRight: '16px', height: '56px', border: '1.5px solid #E5E7EB', borderRadius: '14px', outline: 'none' }}
+                      onFocus={(e) => { e.target.style.borderColor = '#00B96B'; e.target.style.boxShadow = '0 0 0 3px rgba(0,185,107,0.1)'; }}
+                      onBlur={(e) => { e.target.style.borderColor = '#E5E7EB'; e.target.style.boxShadow = 'none'; }}
+                    />
+                  </div>
+                </div>
+
+                {resetError && (
+                  <div className="flex items-start gap-3" style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '12px', padding: '14px 16px', color: '#dc2626' }}>
+                    <AlertCircle size={15} className="shrink-0 mt-0.5" />
+                    <span className="text-xs font-semibold">{resetError}</span>
+                  </div>
+                )}
+                {resetSuccess && (
+                  <div className="flex items-start gap-3" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '12px', padding: '14px 16px', color: '#15803d' }}>
+                    <CheckCircle2 size={15} className="shrink-0 mt-0.5" />
+                    <span className="text-xs font-semibold">{resetSuccess}</span>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={resetSubmitting}
+                  className="w-full flex items-center justify-center gap-2 text-sm font-black text-white"
+                  style={{ background: '#00B96B', borderRadius: '14px', height: '56px', boxShadow: '0 4px 14px rgba(0,185,107,0.3)', cursor: 'pointer' }}
+                >
+                  {resetSubmitting ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> : 'Reset Password'}
+                </button>
+
+                <p className="text-center text-xs text-gray-500 font-semibold">
+                  Remember your password?{' '}
+                  <button
+                    type="button"
+                    onClick={() => { setMode('login'); setError(''); setResetError(''); setResetSuccess(''); }}
+                    className="font-bold"
+                    style={{ color: '#00B96B' }}
+                  >
+                    Sign in here
+                  </button>
+                </p>
+              </form>
+            ) : authMethod === 'otp' ? (
+              /* ════════ UNIVERSAL OTP LOGIN VIEW ════════ */
+              <div className="space-y-6">
+                {otpStep === 'email' ? (
+                  /* ── Step 1: Registered Email Entry ── */
+                  <form onSubmit={handleSendOtp} className="space-y-6">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-2">Registered Email Address</label>
+                      <div className="relative">
+                        <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <input
+                          type="email"
+                          value={otpEmail}
+                          onChange={(e) => {
+                            setOtpEmail(e.target.value);
+                            setError('');
+                          }}
+                          placeholder="Enter your registered email address"
+                          required
+                          autoFocus
+                          className="w-full text-sm text-gray-800 placeholder-gray-400 font-medium bg-white transition"
+                          style={{
+                            paddingLeft: '44px',
+                            paddingRight: '16px',
+                            height: '56px',
+                            border: '1.5px solid #E5E7EB',
+                            borderRadius: '14px',
+                            outline: 'none',
+                          }}
+                          onFocus={(e) => {
+                            e.target.style.borderColor = '#00B96B';
+                            e.target.style.boxShadow = '0 0 0 3px rgba(0,185,107,0.1)';
+                          }}
+                          onBlur={(e) => {
+                            e.target.style.borderColor = '#E5E7EB';
+                            e.target.style.boxShadow = 'none';
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Primary Send OTP Button */}
+                    <button
+                      type="submit"
+                      disabled={submitting}
+                      className="w-full flex items-center justify-center gap-2 text-sm font-black text-white transition-all duration-300"
+                      style={{
+                        background: submitting ? '#86efac' : 'linear-gradient(to right, #00B96B, #05403A)',
+                        borderRadius: '14px',
+                        height: '56px',
+                        boxShadow: '0 4px 14px rgba(0,185,107,0.25)',
+                        cursor: submitting ? 'not-allowed' : 'pointer',
+                      }}
+                    >
+                      {submitting ? (
+                        <span className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                      ) : (
+                        <>
+                          <Mail size={16} />
+                          Send OTP
+                        </>
+                      )}
+                    </button>
+
+                    {/* Security Help Text */}
+                    <p className="text-xs text-gray-500 text-center font-medium">
+                      We'll send a one-time verification code to your registered email address.
+                    </p>
+
+                    {/* Divider & Switch back to Password */}
+                    <div className="pt-2 text-center">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAuthMethod('password');
+                          setError('');
+                        }}
+                        className="text-xs font-bold text-gray-600 hover:text-gray-900 transition flex items-center justify-center gap-1.5 mx-auto"
+                      >
+                        <ArrowLeft size={14} /> Login with Password
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  /* ── Step 2: 6-Digit OTP Verification Screen ── */
+                  <form onSubmit={handleVerifyOtp} className="space-y-6">
+                    {/* Display user email with change button */}
+                    <div className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
+                      <div className="flex items-center gap-2.5 overflow-hidden">
+                        <Mail size={15} className="text-gray-500 shrink-0" />
+                        <span className="text-xs font-bold text-gray-800 truncate">{otpEmail}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOtpStep('email');
+                          setOtpDigits(['', '', '', '', '', '']);
+                          setError('');
+                        }}
+                        className="text-xs font-bold text-[#00B96B] hover:underline shrink-0 flex items-center gap-1"
+                      >
+                        <Edit3 size={12} />
+                        Change email
+                      </button>
+                    </div>
+
+                    {/* 6 Digit Input Boxes */}
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-3 text-center">
+                        Enter the 6-digit OTP sent to your email
+                      </label>
+                      <div className="flex justify-center items-center gap-2 sm:gap-3" onPaste={handleOtpPaste}>
+                        {otpDigits.map((digit, index) => (
+                          <input
+                            key={index}
+                            id={`login-otp-${index}`}
+                            ref={(el) => (otpInputRefs.current[index] = el)}
+                            type="text"
+                            inputMode="numeric"
+                            maxLength={1}
+                            value={digit}
+                            onChange={(e) => handleOtpDigitChange(index, e.target.value)}
+                            onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                            className="w-12 h-14 sm:w-14 sm:h-16 text-center text-xl font-black text-gray-900 bg-white border-2 rounded-xl outline-none transition"
+                            style={{
+                              borderColor: digit ? '#00B96B' : '#E5E7EB',
+                              boxShadow: digit ? '0 0 0 3px rgba(0,185,107,0.15)' : 'none',
+                            }}
+                            onFocus={(e) => {
+                              e.target.style.borderColor = '#00B96B';
+                              e.target.style.boxShadow = '0 0 0 3px rgba(0,185,107,0.15)';
+                            }}
+                            onBlur={(e) => {
+                              if (!digit) {
+                                e.target.style.borderColor = '#E5E7EB';
+                                e.target.style.boxShadow = 'none';
+                              }
+                            }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Verify & Login Button */}
+                    <button
+                      type="submit"
+                      disabled={submitting || otpDigits.join('').length !== 6}
+                      className="w-full flex items-center justify-center gap-2 text-sm font-black text-white transition-all duration-300"
+                      style={{
+                        background: (submitting || otpDigits.join('').length !== 6)
+                          ? '#86efac'
+                          : 'linear-gradient(to right, #00B96B, #05403A)',
+                        borderRadius: '14px',
+                        height: '56px',
+                        boxShadow: '0 4px 14px rgba(0,185,107,0.25)',
+                        cursor: (submitting || otpDigits.join('').length !== 6) ? 'not-allowed' : 'pointer',
+                      }}
+                    >
+                      {submitting ? (
+                        <span className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                      ) : (
+                        <>
+                          <Lock size={15} />
+                          Verify & Login
+                        </>
+                      )}
+                    </button>
+
+                    {/* Resend OTP Section */}
+                    <div className="text-center text-xs text-gray-500 font-medium">
+                      Didn't receive the code?{' '}
+                      {resendCooldown > 0 ? (
+                        <span className="font-bold text-gray-400">
+                          Resend OTP in {resendCooldown}s
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={handleSendOtp}
+                          disabled={submitting}
+                          className="font-bold text-[#00B96B] hover:underline cursor-pointer inline-flex items-center gap-1"
+                        >
+                          <RotateCw size={12} className={submitting ? 'animate-spin' : ''} />
+                          Resend OTP
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Switch back to Password */}
+                    <div className="pt-2 text-center">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAuthMethod('password');
+                          setOtpStep('email');
+                          setOtpDigits(['', '', '', '', '', '']);
+                          setError('');
+                        }}
+                        className="text-xs font-bold text-gray-600 hover:text-gray-900 transition flex items-center justify-center gap-1.5 mx-auto"
+                      >
+                        <ArrowLeft size={14} /> Login with Password
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {/* Role-specific Info/Security Cards */}
+                {activeTab === 'clinic' ? (
+                  <div
+                    className="flex items-start gap-3"
+                    style={{
+                      background: '#f0fdf4',
+                      border: '1px solid #bbf7d0',
+                      borderRadius: '16px',
+                      padding: '14px 16px',
+                    }}
+                  >
+                    <Shield size={15} className="text-green-600 shrink-0 mt-0.5" />
+                    <p className="text-xs font-semibold text-gray-600 leading-relaxed">
+                      Enterprise-grade encryption protects your organization and patient data.
+                    </p>
+                  </div>
+                ) : (
+                  info.infoCard && (
+                    <div
+                      className="flex items-start gap-3"
+                      style={{
+                        background: '#f9fafb',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '16px',
+                        padding: '14px 16px',
+                      }}
+                    >
+                      <Info size={15} className="text-gray-400 shrink-0 mt-0.5" />
+                      <p className="text-xs font-semibold text-gray-500 leading-relaxed">
+                        {info.infoCard}
+                      </p>
+                    </div>
+                  )
+                )}
+
+                {/* Setup Clinic CTA — only for clinic tab */}
+                {activeTab === 'clinic' && (
+                  <div
+                    className="flex items-center justify-between shadow-sm"
+                    style={{
+                      border: '1.5px solid #E5E7EB',
+                      borderRadius: '18px',
+                      padding: '16px 20px',
+                      background: '#ffffff',
+                    }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="flex items-center justify-center shrink-0"
+                        style={{
+                          width: '42px',
+                          height: '42px',
+                          background: '#f0fdf4',
+                          border: '1px solid #bbf7d0',
+                          borderRadius: '10px',
+                        }}
+                      >
+                        <Building2 size={18} className="text-green-600" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-black text-green-700 mb-0.5">Don't have a clinic yet?</p>
+                        <p className="text-[11px] text-gray-500 font-medium">Set up your clinic in minutes and start managing your healthcare operations.</p>
+                      </div>
+                    </div>
+                    <Link
+                      to="/set-your-clinic"
+                      className="shrink-0 flex items-center gap-1 text-xs font-bold transition ml-3 hover:opacity-80"
+                      style={{
+                        color: '#00B96B',
+                        border: '1.5px solid #00B96B',
+                        borderRadius: '10px',
+                        padding: '8px 14px',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      Setup Your Clinic <ArrowRight size={12} />
+                    </Link>
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* ════════ PASSWORD LOGIN VIEW (All Roles) ════════ */
+              <form onSubmit={handlePasswordSubmit} className="space-y-6">
                 {/* Email */}
                 <div>
                   <label className="block text-xs font-bold text-gray-700 mb-2">Email or Mobile</label>
                   <div className="relative">
                     <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
                     <input
-                      type="email"
+                      type="text"
                       value={form.email}
                       onChange={(e) => setForm({ ...form, email: e.target.value })}
                       placeholder="Enter your email or mobile number"
@@ -396,17 +945,20 @@ const LoginPage = () => {
                   )}
                 </button>
 
-                {/* Divider */}
+                {/* OTP Login Option for all roles */}
                 <div className="flex items-center gap-3 py-1">
                   <span className="h-px bg-gray-200 flex-1" />
-                  <span className="text-xs font-semibold text-gray-400">or login with</span>
+                  <span className="text-xs font-semibold text-gray-400">or</span>
                   <span className="h-px bg-gray-200 flex-1" />
                 </div>
 
-                {/* OTP Button */}
                 <button
                   type="button"
-                  onClick={() => toast('OTP login coming soon')}
+                  onClick={() => {
+                    setAuthMethod('otp');
+                    setOtpStep('email');
+                    setError('');
+                  }}
                   className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-gray-700 bg-white transition hover:bg-gray-50"
                   style={{
                     border: '1.5px solid #E5E7EB',
@@ -419,23 +971,7 @@ const LoginPage = () => {
                   Login using OTP
                 </button>
 
-                {/* SSO Button */}
-                <button
-                  type="button"
-                  onClick={() => toast('SSO coming soon')}
-                  className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-gray-700 bg-white transition hover:bg-gray-50"
-                  style={{
-                    border: '1.5px solid #E5E7EB',
-                    borderRadius: '14px',
-                    height: '56px',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <Shield size={15} className="text-gray-500" />
-                  Continue with Single Sign-On (SSO)
-                </button>
-
-                {/* Info / Security Card */}
+                {/* Role-specific Info/Security Cards */}
                 {activeTab === 'clinic' ? (
                   <div
                     className="flex items-start gap-3"
@@ -514,95 +1050,6 @@ const LoginPage = () => {
                     </Link>
                   </div>
                 )}
-              </form>
-            ) : (
-              /* ── FORGOT PASSWORD FORM ── */
-              <form onSubmit={handleResetSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1.5">Email Address</label>
-                  <div className="relative">
-                    <Mail size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <input
-                      type="email"
-                      value={resetForm.email}
-                      onChange={(e) => setResetForm({ ...resetForm, email: e.target.value })}
-                      placeholder="Enter your email"
-                      required
-                      className="w-full text-sm text-gray-800 placeholder-gray-400 font-medium bg-white transition"
-                      style={{ paddingLeft: '40px', paddingRight: '16px', height: '56px', border: '1.5px solid #E5E7EB', borderRadius: '14px', outline: 'none' }}
-                      onFocus={(e) => { e.target.style.borderColor = '#00B96B'; e.target.style.boxShadow = '0 0 0 3px rgba(0,185,107,0.1)'; }}
-                      onBlur={(e) => { e.target.style.borderColor = '#E5E7EB'; e.target.style.boxShadow = 'none'; }}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1.5">New Password</label>
-                  <div className="relative">
-                    <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <input
-                      type="password"
-                      value={resetForm.password}
-                      onChange={(e) => setResetForm({ ...resetForm, password: e.target.value })}
-                      placeholder="Enter new password"
-                      required
-                      className="w-full text-sm text-gray-800 placeholder-gray-400 font-medium bg-white transition"
-                      style={{ paddingLeft: '40px', paddingRight: '16px', height: '56px', border: '1.5px solid #E5E7EB', borderRadius: '14px', outline: 'none' }}
-                      onFocus={(e) => { e.target.style.borderColor = '#00B96B'; e.target.style.boxShadow = '0 0 0 3px rgba(0,185,107,0.1)'; }}
-                      onBlur={(e) => { e.target.style.borderColor = '#E5E7EB'; e.target.style.boxShadow = 'none'; }}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1.5">Confirm Password</label>
-                  <div className="relative">
-                    <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <input
-                      type="password"
-                      value={resetForm.confirmPassword}
-                      onChange={(e) => setResetForm({ ...resetForm, confirmPassword: e.target.value })}
-                      placeholder="Confirm new password"
-                      required
-                      className="w-full text-sm text-gray-800 placeholder-gray-400 font-medium bg-white transition"
-                      style={{ paddingLeft: '40px', paddingRight: '16px', height: '56px', border: '1.5px solid #E5E7EB', borderRadius: '14px', outline: 'none' }}
-                      onFocus={(e) => { e.target.style.borderColor = '#00B96B'; e.target.style.boxShadow = '0 0 0 3px rgba(0,185,107,0.1)'; }}
-                      onBlur={(e) => { e.target.style.borderColor = '#E5E7EB'; e.target.style.boxShadow = 'none'; }}
-                    />
-                  </div>
-                </div>
-
-                {resetError && (
-                  <div className="flex items-start gap-3" style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '12px', padding: '14px 16px', color: '#dc2626' }}>
-                    <AlertCircle size={15} className="shrink-0 mt-0.5" />
-                    <span className="text-xs font-semibold">{resetError}</span>
-                  </div>
-                )}
-                {resetSuccess && (
-                  <div className="flex items-start gap-3" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '12px', padding: '14px 16px', color: '#15803d' }}>
-                    <CheckCircle2 size={15} className="shrink-0 mt-0.5" />
-                    <span className="text-xs font-semibold">{resetSuccess}</span>
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={resetSubmitting}
-                  className="w-full flex items-center justify-center gap-2 text-sm font-black text-white"
-                  style={{ background: '#00B96B', borderRadius: '14px', height: '56px', boxShadow: '0 4px 14px rgba(0,185,107,0.3)', cursor: 'pointer' }}
-                >
-                  {resetSubmitting ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> : 'Reset Password'}
-                </button>
-
-                <p className="text-center text-xs text-gray-500 font-semibold">
-                  Remember your password?{' '}
-                  <button
-                    type="button"
-                    onClick={() => { setMode('login'); setError(''); setResetError(''); setResetSuccess(''); }}
-                    className="font-bold"
-                    style={{ color: '#00B96B' }}
-                  >
-                    Sign in here
-                  </button>
-                </p>
               </form>
             )}
           </div>

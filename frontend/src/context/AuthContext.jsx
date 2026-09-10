@@ -71,6 +71,8 @@ export const AuthProvider = ({ children }) => {
       });
       return { user: credentialsOrUser, accessToken: directToken };
     }
+
+    // Direct { accessToken, user }
     if (credentialsOrUser?.accessToken && credentialsOrUser?.user) {
       applyAuthState({
         nextToken: credentialsOrUser.accessToken,
@@ -78,6 +80,17 @@ export const AuthProvider = ({ children }) => {
       });
       return credentialsOrUser;
     }
+
+    // Nested { data: { accessToken, user } }
+    if (credentialsOrUser?.data?.accessToken && credentialsOrUser?.data?.user) {
+      applyAuthState({
+        nextToken: credentialsOrUser.data.accessToken,
+        nextUser: credentialsOrUser.data.user
+      });
+      return credentialsOrUser.data;
+    }
+
+    // Direct { token, user }
     if (credentialsOrUser?.token && credentialsOrUser?.user) {
       applyAuthState({
         nextToken: credentialsOrUser.token,
@@ -86,9 +99,18 @@ export const AuthProvider = ({ children }) => {
       return credentialsOrUser;
     }
 
+    // Nested { data: { token, user } }
+    if (credentialsOrUser?.data?.token && credentialsOrUser?.data?.user) {
+      applyAuthState({
+        nextToken: credentialsOrUser.data.token,
+        nextUser: credentialsOrUser.data.user
+      });
+      return credentialsOrUser.data;
+    }
+
     const data = await authApi.login(credentialsOrUser);
     applyAuthState({
-      nextToken: data.accessToken,
+      nextToken: data.accessToken || data.token,
       nextUser: data.user
     });
     return data;

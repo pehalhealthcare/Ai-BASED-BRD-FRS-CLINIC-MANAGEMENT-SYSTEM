@@ -32,11 +32,37 @@ const verifyFirstLoginOtp = asyncHandler(async (req, res) => {
   return sendSuccess(res, 'OTP verified and password updated successfully', data);
 });
 
+const sendLoginOtp = asyncHandler(async (req, res) => {
+  const data = await authService.sendLoginOtp(req.body, req);
+  return sendSuccess(res, data.message || 'OTP sent successfully', data);
+});
+
+const verifyLoginOtp = asyncHandler(async (req, res) => {
+  const data = await authService.verifyLoginOtp(req.body, req);
+  return sendSuccess(res, 'Login successful', data);
+});
+
+const sendClinicAdminOtp = asyncHandler(async (req, res) => {
+  const data = await authService.sendClinicAdminOtp(req.body, req);
+  return sendSuccess(res, data.message || 'OTP sent successfully', data);
+});
+
+const verifyClinicAdminOtp = asyncHandler(async (req, res) => {
+  const data = await authService.verifyClinicAdminOtp(req.body, req);
+  return sendSuccess(res, 'Login successful', data);
+});
+
 module.exports = {
   register,
   login,
   me,
   logout,
   resetPassword,
-  verifyFirstLoginOtp
+  verifyFirstLoginOtp,
+  sendLoginOtp,
+  verifyLoginOtp,
+  sendClinicAdminOtp,
+  verifyClinicAdminOtp
 };
+
+
