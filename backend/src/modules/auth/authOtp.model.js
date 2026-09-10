@@ -23,6 +23,10 @@ const authOtpSchema = new mongoose.Schema(
       enum: ['LOGIN_OTP', 'CLINIC_ADMIN_LOGIN', 'PASSWORD_RESET'],
       default: 'LOGIN_OTP'
     },
+    pendingPasswordHash: {
+      type: String,
+      default: null
+    },
     attempts: {
       type: Number,
       default: 0

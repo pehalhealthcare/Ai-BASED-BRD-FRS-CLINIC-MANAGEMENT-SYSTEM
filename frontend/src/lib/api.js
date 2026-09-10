@@ -50,6 +50,8 @@ const sanitizeParams = (params = {}) =>
 const authApi = {
   register: (payload) => extractData(apiClient.post('/auth/register', payload)),
   login: (payload) => extractData(apiClient.post('/auth/login', payload)),
+  requestPasswordReset: (payload) => extractData(apiClient.post('/auth/password-reset/request', payload)),
+  verifyPasswordReset: (payload) => extractData(apiClient.post('/auth/password-reset/verify', payload)),
   resetPassword: (payload) => extractData(apiClient.post('/auth/reset-password', payload)),
   verifyFirstLoginOtp: (payload) => extractData(apiClient.post('/auth/verify-first-login-otp', payload)),
   sendLoginOtp: (payload) => extractData(apiClient.post('/auth/send-otp', payload)),

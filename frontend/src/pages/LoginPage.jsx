@@ -36,16 +36,22 @@ const LoginPage = () => {
   const otpInputRefs = useRef([]);
 
   const [mode, setMode] = useState('login'); // 'login' | 'forgot_password'
+  const [resetStep, setResetStep] = useState('request'); // 'request' | 'verify' | 'success'
   const [resetForm, setResetForm] = useState({ email: '', password: '', confirmPassword: '' });
+  const [resetOtpDigits, setResetOtpDigits] = useState(['', '', '', '', '', '']);
+  const [resetCooldown, setResetCooldown] = useState(0);
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [showResetConfirmPassword, setShowResetConfirmPassword] = useState(false);
   const [resetError, setResetError] = useState('');
   const [resetSuccess, setResetSuccess] = useState('');
   const [resetSubmitting, setResetSubmitting] = useState(false);
+  const resetOtpInputRefs = useRef([]);
 
   useEffect(() => {
     if (typeParam) setActiveTab(typeParam);
   }, [typeParam]);
 
-  // Resend cooldown timer
+  // Resend cooldown timer for Login OTP
   useEffect(() => {
     let timer;
     if (resendCooldown > 0) {
@@ -55,6 +61,17 @@ const LoginPage = () => {
     }
     return () => clearInterval(timer);
   }, [resendCooldown]);
+
+  // Resend cooldown timer for Password Reset OTP
+  useEffect(() => {
+    let timer;
+    if (resetCooldown > 0) {
+      timer = setInterval(() => {
+        setResetCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [resetCooldown]);
 
   const getAdminDestination = (clinic) => {
     if (!clinic) return '/clinic-setup/payment';
@@ -267,27 +284,166 @@ const LoginPage = () => {
     }
   };
 
-  // Forgot password submit handler
-  const handleResetSubmit = async (event) => {
-    event.preventDefault();
-    setResetSubmitting(true);
+  // ════════ PASSWORD RESET HANDLERS (Two-Step Flow) ════════
+  // Step 1: Request Password Reset & Send OTP (No DB password change yet!)
+  const handleResetRequestSubmit = async (event) => {
+    if (event) event.preventDefault();
     setResetError('');
     setResetSuccess('');
 
-    if (resetForm.password !== resetForm.confirmPassword) {
-      setResetError('Passwords do not match.');
-      setResetSubmitting(false);
+    const targetEmail = resetForm.email.trim().toLowerCase();
+    if (!targetEmail) {
+      setResetError('Please enter your email address.');
       return;
     }
 
+    if (!resetForm.password || resetForm.password.length < 6) {
+      setResetError('Password must be at least 6 characters long.');
+      return;
+    }
+
+    if (resetForm.password !== resetForm.confirmPassword) {
+      setResetError('Passwords do not match.');
+      return;
+    }
+
+    setResetSubmitting(true);
     try {
-      await authApi.resetPassword({ email: resetForm.email, password: resetForm.password });
-      setResetSuccess('Password has been reset successfully. You can now sign in.');
-      setResetForm({ email: '', password: '', confirmPassword: '' });
+      const response = await authApi.requestPasswordReset({
+        email: targetEmail,
+        password: resetForm.password,
+        portal: activeTab
+      });
+
+      toast.success(response?.message || 'Verification code sent to your email!');
+      setResetStep('verify');
+      setResetCooldown(30);
+      setResetOtpDigits(['', '', '', '', '', '']);
+      setTimeout(() => {
+        if (resetOtpInputRefs.current[0]) {
+          resetOtpInputRefs.current[0].focus();
+        }
+      }, 100);
     } catch (err) {
-      setResetError(err.response?.data?.message || err.message || 'Failed to reset password.');
+      setResetError(err.response?.data?.message || err.message || 'Failed to send password reset code.');
     } finally {
       setResetSubmitting(false);
+    }
+  };
+
+  // Step 2: Resend Password Reset OTP
+  const handleResendResetOtp = async () => {
+    setResetError('');
+    setResetSubmitting(true);
+    try {
+      const response = await authApi.requestPasswordReset({
+        email: resetForm.email.trim().toLowerCase(),
+        password: resetForm.password,
+        portal: activeTab
+      });
+      toast.success(response?.message || 'New verification code sent!');
+      setResetCooldown(30);
+      setResetOtpDigits(['', '', '', '', '', '']);
+      if (resetOtpInputRefs.current[0]) {
+        resetOtpInputRefs.current[0].focus();
+      }
+    } catch (err) {
+      setResetError(err.response?.data?.message || err.message || 'Failed to resend verification code.');
+    } finally {
+      setResetSubmitting(false);
+    }
+  };
+
+  // Step 3: Verify OTP & Change Password
+  const handleResetVerifySubmit = async (event) => {
+    if (event) event.preventDefault();
+    setResetError('');
+
+    const otpString = resetOtpDigits.join('').trim();
+    if (otpString.length !== 6) {
+      setResetError('Please enter the complete 6-digit verification code.');
+      return;
+    }
+
+    setResetSubmitting(true);
+    try {
+      const response = await authApi.verifyPasswordReset({
+        email: resetForm.email.trim().toLowerCase(),
+        otp: otpString,
+        portal: activeTab
+      });
+
+      toast.success(response?.message || 'Password updated successfully!');
+      setResetStep('success');
+      setResetSuccess(response?.message || 'Your password has been updated successfully.');
+    } catch (err) {
+      setResetError(err.response?.data?.message || err.message || 'The OTP you entered is incorrect. Please try again.');
+    } finally {
+      setResetSubmitting(false);
+    }
+  };
+
+  const handleResetReturnToLogin = () => {
+    if (resetForm.email) {
+      setForm((prev) => ({ ...prev, email: resetForm.email }));
+    }
+    setMode('login');
+    setResetStep('request');
+    setResetForm({ email: '', password: '', confirmPassword: '' });
+    setResetOtpDigits(['', '', '', '', '', '']);
+    setResetError('');
+    setResetSuccess('');
+    setError('');
+  };
+
+  const handleResetOtpDigitChange = (index, value) => {
+    const digit = value.replace(/\D/g, '').slice(-1);
+    const newDigits = [...resetOtpDigits];
+    newDigits[index] = digit;
+    setResetOtpDigits(newDigits);
+    setResetError('');
+
+    if (digit && index < 5) {
+      if (resetOtpInputRefs.current[index + 1]) {
+        resetOtpInputRefs.current[index + 1].focus();
+      }
+    }
+  };
+
+  const handleResetOtpKeyDown = (index, event) => {
+    if (event.key === 'Backspace') {
+      if (!resetOtpDigits[index] && index > 0) {
+        const newDigits = [...resetOtpDigits];
+        newDigits[index - 1] = '';
+        setResetOtpDigits(newDigits);
+        if (resetOtpInputRefs.current[index - 1]) {
+          resetOtpInputRefs.current[index - 1].focus();
+        }
+      }
+    } else if (event.key === 'ArrowLeft' && index > 0) {
+      if (resetOtpInputRefs.current[index - 1]) {
+        resetOtpInputRefs.current[index - 1].focus();
+      }
+    } else if (event.key === 'ArrowRight' && index < 5) {
+      if (resetOtpInputRefs.current[index + 1]) {
+        resetOtpInputRefs.current[index + 1].focus();
+      }
+    }
+  };
+
+  const handleResetOtpPaste = (event) => {
+    event.preventDefault();
+    const pasteData = event.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+    if (pasteData) {
+      const newDigits = [...resetOtpDigits];
+      for (let i = 0; i < 6; i++) {
+        newDigits[i] = pasteData[i] || '';
+      }
+      setResetOtpDigits(newDigits);
+      const targetIndex = Math.min(pasteData.length, 5);
+      if (resetOtpInputRefs.current[targetIndex]) {
+        resetOtpInputRefs.current[targetIndex].focus();
+      }
     }
   };
 
@@ -431,15 +587,27 @@ const LoginPage = () => {
                 className="font-black text-gray-900 leading-tight whitespace-pre-line"
                 style={{ fontSize: '32px', marginBottom: '8px' }}
               >
-                {mode === 'login' ? info.title : info.forgotTitle}
+                {mode === 'login'
+                  ? info.title
+                  : resetStep === 'verify'
+                  ? 'Verify Your Email'
+                  : resetStep === 'success'
+                  ? 'Password Reset Successful'
+                  : info.forgotTitle || 'Reset Your Password'}
               </h1>
               <p className="text-sm text-gray-500 leading-relaxed">
-                {mode === 'login' ? info.sub : 'Please enter your email and confirm your new password below.'}
+                {mode === 'login'
+                  ? info.sub
+                  : resetStep === 'verify'
+                  ? `We've sent a 6-digit verification code to your registered email address.`
+                  : resetStep === 'success'
+                  ? 'Your password has been updated successfully.'
+                  : "Enter your registered email and create a new password. We'll verify your email before changing your password."}
               </p>
             </div>
 
-            {/* Inline Error Alert */}
-            {error && (
+            {/* Inline Error Alert for Login */}
+            {error && mode === 'login' && (
               <div
                 className="flex items-start gap-3 mb-4 relative"
                 style={{
@@ -463,94 +631,298 @@ const LoginPage = () => {
 
             {/* ── FORMS ROUTING ── */}
             {mode === 'forgot_password' ? (
-              /* ════════ FORGOT PASSWORD FORM ════════ */
-              <form onSubmit={handleResetSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1.5">Email Address</label>
-                  <div className="relative">
-                    <Mail size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <input
-                      type="email"
-                      value={resetForm.email}
-                      onChange={(e) => setResetForm({ ...resetForm, email: e.target.value })}
-                      placeholder="Enter your email"
-                      required
-                      className="w-full text-sm text-gray-800 placeholder-gray-400 font-medium bg-white transition"
-                      style={{ paddingLeft: '40px', paddingRight: '16px', height: '56px', border: '1.5px solid #E5E7EB', borderRadius: '14px', outline: 'none' }}
-                      onFocus={(e) => { e.target.style.borderColor = '#00B96B'; e.target.style.boxShadow = '0 0 0 3px rgba(0,185,107,0.1)'; }}
-                      onBlur={(e) => { e.target.style.borderColor = '#E5E7EB'; e.target.style.boxShadow = 'none'; }}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1.5">New Password</label>
-                  <div className="relative">
-                    <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <input
-                      type="password"
-                      value={resetForm.password}
-                      onChange={(e) => setResetForm({ ...resetForm, password: e.target.value })}
-                      placeholder="Enter new password"
-                      required
-                      className="w-full text-sm text-gray-800 placeholder-gray-400 font-medium bg-white transition"
-                      style={{ paddingLeft: '40px', paddingRight: '16px', height: '56px', border: '1.5px solid #E5E7EB', borderRadius: '14px', outline: 'none' }}
-                      onFocus={(e) => { e.target.style.borderColor = '#00B96B'; e.target.style.boxShadow = '0 0 0 3px rgba(0,185,107,0.1)'; }}
-                      onBlur={(e) => { e.target.style.borderColor = '#E5E7EB'; e.target.style.boxShadow = 'none'; }}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1.5">Confirm Password</label>
-                  <div className="relative">
-                    <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <input
-                      type="password"
-                      value={resetForm.confirmPassword}
-                      onChange={(e) => setResetForm({ ...resetForm, confirmPassword: e.target.value })}
-                      placeholder="Confirm new password"
-                      required
-                      className="w-full text-sm text-gray-800 placeholder-gray-400 font-medium bg-white transition"
-                      style={{ paddingLeft: '40px', paddingRight: '16px', height: '56px', border: '1.5px solid #E5E7EB', borderRadius: '14px', outline: 'none' }}
-                      onFocus={(e) => { e.target.style.borderColor = '#00B96B'; e.target.style.boxShadow = '0 0 0 3px rgba(0,185,107,0.1)'; }}
-                      onBlur={(e) => { e.target.style.borderColor = '#E5E7EB'; e.target.style.boxShadow = 'none'; }}
-                    />
-                  </div>
-                </div>
+              /* ════════ SECURE TWO-STEP FORGOT PASSWORD FLOW ════════ */
+              <div className="space-y-6">
+                {resetStep === 'request' ? (
+                  /* ── Step 1: Email + New Password + Confirm ── */
+                  <form onSubmit={handleResetRequestSubmit} className="space-y-4">
+                    {/* Email Input */}
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1.5">Email Address</label>
+                      <div className="relative">
+                        <Mail size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <input
+                          type="email"
+                          value={resetForm.email}
+                          onChange={(e) => {
+                            setResetForm({ ...resetForm, email: e.target.value });
+                            setResetError('');
+                          }}
+                          placeholder="Enter your registered email address"
+                          required
+                          className="w-full text-sm text-gray-800 placeholder-gray-400 font-medium bg-white transition"
+                          style={{ paddingLeft: '40px', paddingRight: '16px', height: '56px', border: '1.5px solid #E5E7EB', borderRadius: '14px', outline: 'none' }}
+                          onFocus={(e) => { e.target.style.borderColor = '#00B96B'; e.target.style.boxShadow = '0 0 0 3px rgba(0,185,107,0.1)'; }}
+                          onBlur={(e) => { e.target.style.borderColor = '#E5E7EB'; e.target.style.boxShadow = 'none'; }}
+                        />
+                      </div>
+                    </div>
 
-                {resetError && (
-                  <div className="flex items-start gap-3" style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '12px', padding: '14px 16px', color: '#dc2626' }}>
-                    <AlertCircle size={15} className="shrink-0 mt-0.5" />
-                    <span className="text-xs font-semibold">{resetError}</span>
+                    {/* New Password */}
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1.5">New Password</label>
+                      <div className="relative">
+                        <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <input
+                          type={showResetPassword ? 'text' : 'password'}
+                          value={resetForm.password}
+                          onChange={(e) => {
+                            setResetForm({ ...resetForm, password: e.target.value });
+                            setResetError('');
+                          }}
+                          placeholder="Enter new password (min. 6 characters)"
+                          required
+                          className="w-full text-sm text-gray-800 placeholder-gray-400 font-medium bg-white transition"
+                          style={{ paddingLeft: '40px', paddingRight: '60px', height: '56px', border: '1.5px solid #E5E7EB', borderRadius: '14px', outline: 'none' }}
+                          onFocus={(e) => { e.target.style.borderColor = '#00B96B'; e.target.style.boxShadow = '0 0 0 3px rgba(0,185,107,0.1)'; }}
+                          onBlur={(e) => { e.target.style.borderColor = '#E5E7EB'; e.target.style.boxShadow = 'none'; }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowResetPassword(!showResetPassword)}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1 text-xs font-bold text-gray-400 hover:text-gray-600 transition cursor-pointer"
+                        >
+                          {showResetPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                          {showResetPassword ? 'Hide' : 'Show'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Confirm Password */}
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1.5">Confirm Password</label>
+                      <div className="relative">
+                        <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <input
+                          type={showResetConfirmPassword ? 'text' : 'password'}
+                          value={resetForm.confirmPassword}
+                          onChange={(e) => {
+                            setResetForm({ ...resetForm, confirmPassword: e.target.value });
+                            setResetError('');
+                          }}
+                          placeholder="Confirm your new password"
+                          required
+                          className="w-full text-sm text-gray-800 placeholder-gray-400 font-medium bg-white transition"
+                          style={{ paddingLeft: '40px', paddingRight: '60px', height: '56px', border: '1.5px solid #E5E7EB', borderRadius: '14px', outline: 'none' }}
+                          onFocus={(e) => { e.target.style.borderColor = '#00B96B'; e.target.style.boxShadow = '0 0 0 3px rgba(0,185,107,0.1)'; }}
+                          onBlur={(e) => { e.target.style.borderColor = '#E5E7EB'; e.target.style.boxShadow = 'none'; }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowResetConfirmPassword(!showResetConfirmPassword)}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1 text-xs font-bold text-gray-400 hover:text-gray-600 transition cursor-pointer"
+                        >
+                          {showResetConfirmPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                          {showResetConfirmPassword ? 'Hide' : 'Show'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Inline Error Alert */}
+                    {resetError && (
+                      <div className="flex items-start gap-3 relative" style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '12px', padding: '14px 16px', color: '#dc2626' }}>
+                        <AlertCircle size={15} className="shrink-0 mt-0.5" />
+                        <span className="text-xs font-semibold pr-6">{resetError}</span>
+                        <button onClick={() => setResetError('')} className="absolute right-3 top-3 text-red-300 hover:text-red-500 transition">
+                          <X size={14} />
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Continue & Verify Email Button */}
+                    <button
+                      type="submit"
+                      disabled={resetSubmitting}
+                      className="w-full flex items-center justify-center gap-2 text-sm font-black text-white transition-all duration-300"
+                      style={{
+                        background: resetSubmitting ? '#86efac' : 'linear-gradient(to right, #00B96B, #05403A)',
+                        borderRadius: '14px',
+                        height: '56px',
+                        boxShadow: '0 4px 14px rgba(0,185,107,0.25)',
+                        cursor: resetSubmitting ? 'not-allowed' : 'pointer'
+                      }}
+                    >
+                      {resetSubmitting ? (
+                        <span className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                      ) : (
+                        <>
+                          <Mail size={16} />
+                          Continue & Verify Email
+                        </>
+                      )}
+                    </button>
+
+                    <p className="text-center text-xs text-gray-500 font-semibold pt-1">
+                      Remember your password?{' '}
+                      <button
+                        type="button"
+                        onClick={handleResetReturnToLogin}
+                        className="font-bold cursor-pointer"
+                        style={{ color: '#00B96B' }}
+                      >
+                        Sign in here
+                      </button>
+                    </p>
+                  </form>
+                ) : resetStep === 'verify' ? (
+                  /* ── Step 2: 6-Digit OTP Verification Screen ── */
+                  <form onSubmit={handleResetVerifySubmit} className="space-y-6">
+                    {/* Display user email with change button */}
+                    <div className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
+                      <div className="flex items-center gap-2.5 overflow-hidden">
+                        <Mail size={15} className="text-gray-500 shrink-0" />
+                        <span className="text-xs font-bold text-gray-800 truncate">{resetForm.email}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setResetStep('request');
+                          setResetOtpDigits(['', '', '', '', '', '']);
+                          setResetError('');
+                        }}
+                        className="text-xs font-bold text-[#00B96B] hover:underline shrink-0 flex items-center gap-1 cursor-pointer"
+                      >
+                        <Edit3 size={12} />
+                        Change email
+                      </button>
+                    </div>
+
+                    {/* 6 Digit Input Boxes */}
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-3 text-center">
+                        Enter the 6-digit verification code sent to your email
+                      </label>
+                      <div className="flex justify-center items-center gap-2 sm:gap-3" onPaste={handleResetOtpPaste}>
+                        {resetOtpDigits.map((digit, index) => (
+                          <input
+                            key={index}
+                            id={`reset-otp-${index}`}
+                            ref={(el) => (resetOtpInputRefs.current[index] = el)}
+                            type="text"
+                            inputMode="numeric"
+                            maxLength={1}
+                            value={digit}
+                            onChange={(e) => handleResetOtpDigitChange(index, e.target.value)}
+                            onKeyDown={(e) => handleResetOtpKeyDown(index, e)}
+                            className="w-12 h-14 sm:w-14 sm:h-16 text-center text-xl font-black text-gray-900 bg-white border-2 rounded-xl outline-none transition"
+                            style={{
+                              borderColor: digit ? '#00B96B' : '#E5E7EB',
+                              boxShadow: digit ? '0 0 0 3px rgba(0,185,107,0.15)' : 'none',
+                            }}
+                            onFocus={(e) => {
+                              e.target.style.borderColor = '#00B96B';
+                              e.target.style.boxShadow = '0 0 0 3px rgba(0,185,107,0.15)';
+                            }}
+                            onBlur={(e) => {
+                              if (!digit) {
+                                e.target.style.borderColor = '#E5E7EB';
+                                e.target.style.boxShadow = 'none';
+                              }
+                            }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Inline Error Alert */}
+                    {resetError && (
+                      <div className="flex items-start gap-3 relative" style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '12px', padding: '14px 16px', color: '#dc2626' }}>
+                        <AlertCircle size={15} className="shrink-0 mt-0.5" />
+                        <span className="text-xs font-semibold pr-6">{resetError}</span>
+                        <button onClick={() => setResetError('')} className="absolute right-3 top-3 text-red-300 hover:text-red-500 transition">
+                          <X size={14} />
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Verify & Reset Password Button */}
+                    <button
+                      type="submit"
+                      disabled={resetSubmitting || resetOtpDigits.join('').length !== 6}
+                      className="w-full flex items-center justify-center gap-2 text-sm font-black text-white transition-all duration-300"
+                      style={{
+                        background: (resetSubmitting || resetOtpDigits.join('').length !== 6)
+                          ? '#86efac'
+                          : 'linear-gradient(to right, #00B96B, #05403A)',
+                        borderRadius: '14px',
+                        height: '56px',
+                        boxShadow: '0 4px 14px rgba(0,185,107,0.25)',
+                        cursor: (resetSubmitting || resetOtpDigits.join('').length !== 6) ? 'not-allowed' : 'pointer',
+                      }}
+                    >
+                      {resetSubmitting ? (
+                        <span className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                      ) : (
+                        <>
+                          <Lock size={15} />
+                          Verify & Reset Password
+                        </>
+                      )}
+                    </button>
+
+                    {/* Resend OTP Section */}
+                    <div className="text-center text-xs text-gray-500 font-medium">
+                      Didn't receive the code?{' '}
+                      {resetCooldown > 0 ? (
+                        <span className="font-bold text-gray-400">
+                          Resend OTP in {resetCooldown}s
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={handleResendResetOtp}
+                          disabled={resetSubmitting}
+                          className="font-bold text-[#00B96B] hover:underline cursor-pointer inline-flex items-center gap-1"
+                        >
+                          <RotateCw size={12} className={resetSubmitting ? 'animate-spin' : ''} />
+                          Resend OTP
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Switch back to Login */}
+                    <div className="pt-2 text-center">
+                      <button
+                        type="button"
+                        onClick={handleResetReturnToLogin}
+                        className="text-xs font-bold text-gray-600 hover:text-gray-900 transition flex items-center justify-center gap-1.5 mx-auto cursor-pointer"
+                      >
+                        <ArrowLeft size={14} /> Back to Sign In
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  /* ── Step 3: Password Reset Successful Screen ── */
+                  <div className="space-y-6 text-center py-4">
+                    <div className="w-16 h-16 bg-green-50 border-2 border-green-200 rounded-full flex items-center justify-center mx-auto text-[#00B96B]">
+                      <CheckCircle2 size={36} />
+                    </div>
+
+                    <div>
+                      <h2 className="text-lg font-black text-gray-900 mb-1">Password Updated Successfully</h2>
+                      <p className="text-xs text-gray-500 leading-relaxed max-w-sm mx-auto">
+                        Your account password has been updated. You can now sign in using your new credentials.
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleResetReturnToLogin}
+                      className="w-full flex items-center justify-center gap-2 text-sm font-black text-white transition-all duration-300"
+                      style={{
+                        background: 'linear-gradient(to right, #00B96B, #05403A)',
+                        borderRadius: '14px',
+                        height: '56px',
+                        boxShadow: '0 4px 14px rgba(0,185,107,0.25)',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <ArrowRight size={16} />
+                      Sign In
+                    </button>
                   </div>
                 )}
-                {resetSuccess && (
-                  <div className="flex items-start gap-3" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '12px', padding: '14px 16px', color: '#15803d' }}>
-                    <CheckCircle2 size={15} className="shrink-0 mt-0.5" />
-                    <span className="text-xs font-semibold">{resetSuccess}</span>
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={resetSubmitting}
-                  className="w-full flex items-center justify-center gap-2 text-sm font-black text-white"
-                  style={{ background: '#00B96B', borderRadius: '14px', height: '56px', boxShadow: '0 4px 14px rgba(0,185,107,0.3)', cursor: 'pointer' }}
-                >
-                  {resetSubmitting ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> : 'Reset Password'}
-                </button>
-
-                <p className="text-center text-xs text-gray-500 font-semibold">
-                  Remember your password?{' '}
-                  <button
-                    type="button"
-                    onClick={() => { setMode('login'); setError(''); setResetError(''); setResetSuccess(''); }}
-                    className="font-bold"
-                    style={{ color: '#00B96B' }}
-                  >
-                    Sign in here
-                  </button>
-                </p>
-              </form>
+              </div>
             ) : authMethod === 'otp' ? (
               /* ════════ UNIVERSAL OTP LOGIN VIEW ════════ */
               <div className="space-y-6">

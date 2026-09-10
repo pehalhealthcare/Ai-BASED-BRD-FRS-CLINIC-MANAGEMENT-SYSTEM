@@ -641,37 +641,246 @@ const logout = () => ({
   message: 'Logout successful'
 });
 
-const resetPassword = async (payload, req) => {
-  const { email, password } = payload;
-
-  const User = require('../users/user.model');
-  const user = await User.findOne({ email: email.toLowerCase() });
-
-  if (!user) {
-    throw new AppError('User not found with this email address', HTTP_STATUS.NOT_FOUND);
+const requestPasswordReset = async ({ email, password, portal }, req) => {
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  if (!normalizedEmail) {
+    throw new AppError('Email address is required.', HTTP_STATUS.BAD_REQUEST);
+  }
+  if (!password) {
+    throw new AppError('New password is required.', HTTP_STATUS.BAD_REQUEST);
   }
 
-  // TODO: FUTURE SECURITY INTEGRATION
-  // ---------------------------------
-  // At this point in a production environment, before allowing a password reset,
-  // you must verify the user's identity. For example:
-  // 1. Verify a one-time OTP sent to their registered phone number/email.
-  // 2. Validate a cryptographically secure token sent via a password reset email.
-  // 3. Perform security questions or MFA verification.
-  // 4. Ensure the request is within a valid time window and has not been expired/revoked.
+  const user = await userRepository.findByEmail(normalizedEmail);
 
-  user.password = password;
-  await user.save();
+  if (!user) {
+    await logAuthEvent({
+      action: 'PASSWORD_RESET_REQUEST_FAILED',
+      status: 'FAILURE',
+      req,
+      metadata: { email: normalizedEmail, reason: 'USER_NOT_FOUND', portal }
+    });
+
+    throw new AppError('No account found with this email address.', HTTP_STATUS.NOT_FOUND);
+  }
+
+  const AuthOtp = require('./authOtp.model');
+  const bcrypt = require('bcryptjs');
+
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  const otpHash = await bcrypt.hash(otp, 10);
+  const pendingPasswordHash = await bcrypt.hash(password, 10);
+  const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+
+  // Invalidate any previous password reset requests for this email
+  await AuthOtp.deleteMany({
+    email: normalizedEmail,
+    purpose: 'PASSWORD_RESET'
+  });
+
+  await AuthOtp.create({
+    userId: user._id,
+    email: normalizedEmail,
+    otpHash,
+    pendingPasswordHash,
+    purpose: 'PASSWORD_RESET',
+    attempts: 0,
+    maxAttempts: 5,
+    lastResendAt: new Date(),
+    expiresAt
+  });
+
+  const nodemailer = require('nodemailer');
+  const { env } = require('../../config/env');
+  const { generateOtpEmail, BRAND } = require('../../common/utils/emailTemplate');
+
+  const emailData = generateOtpEmail({
+    otp,
+    portal,
+    userRole: user.role,
+    purpose: 'PASSWORD_RESET',
+    expiresInMinutes: 5
+  });
+
+  const isSmtpConfigured =
+    Boolean(env.emailHost) &&
+    Boolean(env.emailUser) &&
+    Boolean(env.emailPass) &&
+    !String(env.emailUser).includes('your_smtp') &&
+    !String(env.emailPass).includes('your_smtp') &&
+    env.emailHost !== 'smtp.mailtrap.io' &&
+    !env.enableMockNotifications;
+
+  if (!isSmtpConfigured) {
+    logger.warn('[auth:password-reset] SMTP credentials not configured or mock mode enabled, logging OTP to console.');
+    console.info('\n=======================================');
+    console.info(`[PASSWORD RESET OTP] To: ${normalizedEmail} (${user.role}) [${portal || 'auto'}]`);
+    console.info(`[PASSWORD RESET OTP] Brand: ${BRAND.company} - ${BRAND.product}`);
+    console.info(`[PASSWORD RESET OTP] Code: ${otp}`);
+    console.info(`[PASSWORD RESET OTP] Subject: ${emailData.subject}`);
+    console.info(`[PASSWORD RESET OTP] Expires: 5 minutes`);
+    console.info('=======================================\n');
+  } else {
+    try {
+      const transporter = nodemailer.createTransport({
+        host: env.emailHost,
+        port: env.emailPort,
+        secure: env.emailSecure,
+        auth: {
+          user: env.emailUser,
+          pass: env.emailPass
+        },
+        tls: { rejectUnauthorized: false },
+        connectionTimeout: 5000,
+        socketTimeout: 5000
+      });
+
+      await transporter.sendMail({
+        from: env.emailFrom || `"${BRAND.company}" <${env.emailUser}>`,
+        to: normalizedEmail,
+        subject: emailData.subject,
+        text: emailData.text,
+        html: emailData.html,
+        attachments: emailData.attachments
+      });
+
+      logger.info(`[auth:password-reset] Branded password reset email sent successfully to ${normalizedEmail}`);
+    } catch (mailError) {
+      logger.error('[auth:password-reset] Failed to send email via SMTP', mailError);
+      console.info('\n=======================================');
+      console.info(`[PASSWORD RESET OTP DEV FALLBACK] To: ${normalizedEmail} (${user.role}) [${portal || 'auto'}]`);
+      console.info(`[PASSWORD RESET OTP DEV FALLBACK] Brand: ${BRAND.company} - ${BRAND.product}`);
+      console.info(`[PASSWORD RESET OTP DEV FALLBACK] Code: ${otp}`);
+      console.info(`[PASSWORD RESET OTP DEV FALLBACK] Subject: ${emailData.subject}`);
+      console.info(`[PASSWORD RESET OTP DEV FALLBACK] Expires: 5 minutes`);
+      console.info('=======================================\n');
+    }
+  }
 
   await logAuthEvent({
     actorUserId: user._id,
-    action: 'USER_PASSWORD_RESET',
+    action: 'PASSWORD_RESET_OTP_SENT',
     status: 'SUCCESS',
     req,
-    metadata: { email }
+    metadata: { email: normalizedEmail, portal }
   });
 
-  return { message: 'Password updated successfully' };
+  return {
+    message: "We've sent a 6-digit verification code to your registered email address."
+  };
+};
+
+const verifyPasswordReset = async ({ email, otp, portal }, req) => {
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  const normalizedOtp = String(otp || '').trim();
+
+  if (!normalizedEmail || !normalizedOtp) {
+    throw new AppError('Email and OTP code are required.', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  const AuthOtp = require('./authOtp.model');
+  const record = await AuthOtp.findOne({
+    email: normalizedEmail,
+    purpose: 'PASSWORD_RESET'
+  }).sort({ createdAt: -1 });
+
+  if (!record || !record.expiresAt || new Date(record.expiresAt).getTime() < Date.now()) {
+    if (record) {
+      await AuthOtp.deleteMany({
+        email: normalizedEmail,
+        purpose: 'PASSWORD_RESET'
+      });
+    }
+    await logAuthEvent({
+      action: 'PASSWORD_RESET_VERIFY_FAILED',
+      status: 'FAILURE',
+      req,
+      metadata: { email: normalizedEmail, reason: 'OTP_EXPIRED_OR_NOT_FOUND', portal }
+    });
+    throw new AppError('This OTP has expired or is invalid. Please request a new OTP.', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  if (record.attempts >= (record.maxAttempts || 5)) {
+    await AuthOtp.deleteMany({
+      email: normalizedEmail,
+      purpose: 'PASSWORD_RESET'
+    });
+    await logAuthEvent({
+      action: 'PASSWORD_RESET_VERIFY_FAILED',
+      status: 'FAILURE',
+      req,
+      metadata: { email: normalizedEmail, reason: 'MAX_ATTEMPTS_EXCEEDED', portal }
+    });
+    throw new AppError('Too many verification attempts. Please request a new OTP.', HTTP_STATUS.TOO_MANY_REQUESTS);
+  }
+
+  const bcrypt = require('bcryptjs');
+  const isMatch = await bcrypt.compare(normalizedOtp, record.otpHash);
+
+  if (!isMatch) {
+    record.attempts = (record.attempts || 0) + 1;
+    await record.save();
+
+    await logAuthEvent({
+      action: 'PASSWORD_RESET_VERIFY_FAILED',
+      status: 'FAILURE',
+      req,
+      metadata: {
+        email: normalizedEmail,
+        reason: 'INVALID_OTP',
+        attempts: record.attempts,
+        maxAttempts: record.maxAttempts,
+        portal
+      }
+    });
+
+    const remaining = (record.maxAttempts || 5) - record.attempts;
+    if (remaining <= 0) {
+      await AuthOtp.deleteMany({ email: normalizedEmail, purpose: 'PASSWORD_RESET' });
+      throw new AppError('Too many verification attempts. Please request a new OTP.', HTTP_STATUS.TOO_MANY_REQUESTS);
+    }
+
+    throw new AppError(`The OTP you entered is incorrect. Please try again. (${remaining} attempts remaining)`, HTTP_STATUS.BAD_REQUEST);
+  }
+
+  // OTP is verified! Now update the user's password using the pendingPasswordHash
+  const User = require('../users/user.model');
+  const user = await User.findById(record.userId).select('+password');
+
+  if (!user) {
+    throw new AppError('User account not found.', HTTP_STATUS.NOT_FOUND);
+  }
+
+  if (!record.pendingPasswordHash) {
+    throw new AppError('No pending password change transaction found. Please request a new OTP.', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  user.password = record.pendingPasswordHash;
+  await user.save({ validateBeforeSave: false });
+
+  // Invalidate all password reset OTPs for this email (single-use)
+  await AuthOtp.deleteMany({
+    email: normalizedEmail,
+    purpose: 'PASSWORD_RESET'
+  });
+
+  await logAuthEvent({
+    actorUserId: user._id,
+    action: 'USER_PASSWORD_RESET_SUCCESS',
+    status: 'SUCCESS',
+    req,
+    metadata: { email: normalizedEmail, portal }
+  });
+
+  return {
+    message: 'Your password has been updated successfully.'
+  };
+};
+
+const resetPassword = async (payload, req) => {
+  if (payload.otp) {
+    return verifyPasswordReset(payload, req);
+  }
+  return requestPasswordReset(payload, req);
 };
 
 const verifyFirstLoginOtp = async ({ email, otp, newPassword }) => {
@@ -1194,6 +1403,8 @@ module.exports = {
   getCurrentUser,
   logout,
   resetPassword,
+  requestPasswordReset,
+  verifyPasswordReset,
   verifyFirstLoginOtp,
   sendLoginOtp,
   verifyLoginOtp,

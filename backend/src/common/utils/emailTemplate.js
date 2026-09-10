@@ -50,10 +50,11 @@ const getLogoAttachment = () => {
  * @param {number} [options.expiresInMinutes=5]
  * @returns {{ subject: string, text: string, html: string, attachments: Array }}
  */
-const generateOtpEmail = ({ otp, portal, userRole, expiresInMinutes = 5 }) => {
+const generateOtpEmail = ({ otp, portal, userRole, purpose = 'LOGIN', expiresInMinutes = 5 }) => {
   let portalTitle = 'Account';
   let portalContext = 'AI-CMS Enterprise account';
 
+  const isPasswordReset = purpose === 'PASSWORD_RESET';
   const roleUpper = String(userRole || '').toUpperCase();
   const portalLower = String(portal || '').toLowerCase();
 
@@ -77,10 +78,35 @@ const generateOtpEmail = ({ otp, portal, userRole, expiresInMinutes = 5 }) => {
     portalContext = 'AI-CMS Enterprise Patient Portal';
   }
 
-  const subject = `Your AI-CMS Enterprise Login OTP`;
+  const subject = isPasswordReset
+    ? `Your AI-CMS Enterprise Password Reset OTP`
+    : `Your AI-CMS Enterprise Login OTP`;
   const currentYear = new Date().getFullYear();
 
-  const text = `Your AI-CMS Enterprise Login OTP
+  const text = isPasswordReset
+    ? `Your AI-CMS Enterprise Password Reset OTP
+
+Hello,
+
+We received a request to reset your ${portalContext} password.
+
+Use the verification code below to confirm your request and update your password:
+
+${otp}
+
+⏱ This code expires in ${expiresInMinutes} minutes.
+
+For your security, never share this verification code with anyone.
+
+If you did not request a password reset, you can safely ignore this email. Your password will NOT be changed unless this verification code is entered.
+
+---
+${BRAND.company}
+${BRAND.product}
+${BRAND.description}
+This is an automated message. Please do not reply to this email.
+© ${currentYear} ${BRAND.company}. All rights reserved.`
+    : `Your AI-CMS Enterprise Login OTP
 
 Hello,
 
@@ -164,15 +190,15 @@ This is an automated message. Please do not reply to this email.
                 <!-- Portal Badge / Title -->
                 <tr>
                   <td style="padding-bottom: 8px;">
-                    <div style="display: inline-block; background-color: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 999px; padding: 4px 12px; font-size: 11px; font-weight: 700; color: #047857; text-transform: uppercase; letter-spacing: 0.5px;">
-                      ${portalTitle}
+                    <div style="display: inline-block; background-color: ${isPasswordReset ? '#FEF3C7' : '#ECFDF5'}; border: 1px solid ${isPasswordReset ? '#FDE68A' : '#A7F3D0'}; border-radius: 999px; padding: 4px 12px; font-size: 11px; font-weight: 700; color: ${isPasswordReset ? '#B45309' : '#047857'}; text-transform: uppercase; letter-spacing: 0.5px;">
+                      ${isPasswordReset ? '🔐 PASSWORD RESET' : portalTitle}
                     </div>
                   </td>
                 </tr>
                 <tr>
                   <td style="padding-bottom: 16px;">
                     <h1 style="margin: 0; font-size: 22px; font-weight: 800; color: #0F172A; letter-spacing: -0.4px; line-height: 1.3;">
-                      Your Login Verification Code
+                      ${isPasswordReset ? 'Your Password Reset Code' : 'Your Login Verification Code'}
                     </h1>
                   </td>
                 </tr>
@@ -182,7 +208,9 @@ This is an automated message. Please do not reply to this email.
                   <td style="padding-bottom: 24px; font-size: 14px; line-height: 1.6; color: #475569;">
                     <p style="margin: 0 0 12px 0;">Hello,</p>
                     <p style="margin: 0;">
-                      You requested to sign in to your <strong>${portalContext}</strong>. Use the verification code below to complete your sign-in:
+                      ${isPasswordReset
+                        ? `We received a request to reset your <strong>${portalContext}</strong> password. Use the verification code below to verify your email and complete your password update:`
+                        : `You requested to sign in to your <strong>${portalContext}</strong>. Use the verification code below to complete your sign-in:`}
                     </p>
                   </td>
                 </tr>
@@ -215,7 +243,9 @@ This is an automated message. Please do not reply to this email.
                       For your security, never share this verification code with anyone.
                     </p>
                     <p style="margin: 0;">
-                      If you did not request this code, you can safely ignore this email. Someone may have entered your email address by mistake. Your account credentials and data remain secure.
+                      ${isPasswordReset
+                        ? 'If you did not request a password reset, you can safely ignore this email. Your password will NOT be changed unless this verification code is entered.'
+                        : 'If you did not request this code, you can safely ignore this email. Someone may have entered your email address by mistake. Your account credentials and data remain secure.'}
                     </p>
                   </td>
                 </tr>
