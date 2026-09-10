@@ -4,8 +4,8 @@ import {
   Building2, User, Sparkles, Shield, Database,
   Users, ArrowRight, Activity, Calendar, 
   FileText, Pill, FlaskConical, CreditCard,
-  Plus, CheckCircle, Star, LogIn, Sparkle, CheckCircle2, ChevronRight, Check, Package, Crown, Zap, HelpCircle, Linkedin, Twitter, Facebook, Instagram, Github,
-  Laptop, Tablet, Smartphone, Eye, ArrowUpRight, CheckSquare, XCircle, Stethoscope, AlertTriangle, MessageSquare, PhoneCall, ShieldAlert, Globe, Menu, X
+  Plus, CheckCircle, Star, LogIn, Sparkle, CheckCircle2, ChevronRight, ChevronDown, Check, Package, Crown, Zap, HelpCircle, Linkedin, Twitter, Facebook, Instagram, Github,
+  Laptop, Tablet, Smartphone, Eye, ArrowUpRight, CheckSquare, XCircle, Stethoscope, AlertTriangle, MessageSquare, PhoneCall, ShieldAlert, Globe, Menu, X, Brain, Tag, Rocket
 } from 'lucide-react';
 import useAuth from '../hooks/useAuth';
 import { getDefaultRouteForRole } from '../constants/routes';
@@ -22,6 +22,42 @@ const NAV_SECTIONS = [
   { id: 'security', label: 'Security', href: '#security' },
 ];
 
+const NAV_SUBMENUS = {
+  features: [
+    { title: 'AI Appointment Scheduling', desc: 'Smart automated queue & calendar flows' },
+    { title: 'Digital EMR & Records', desc: 'Secure timelines, consults, and clinical notes' },
+    { title: 'Online Pharmacy & Billing', desc: 'Paperless invoices & multi-channel billing' },
+    { title: 'Laboratory Management', desc: 'Diagnostic catalogs & structured PDF reports' },
+    { title: 'Inventory Control', desc: 'Automated expiry alerts & restock prediction' },
+    { title: 'Multi Branch Operations', desc: 'Centralized corporate multi-clinic control' },
+  ],
+  'ai-assistant': [
+    { title: 'Real-Time Consultation AI', desc: 'Voice-to-text consult transcription' },
+    { title: 'Smart EMR Auto-Fill', desc: 'Automated symptom & diagnosis structured notes' },
+    { title: 'Voice-to-Prescription', desc: 'Speech-driven medication formatting' },
+    { title: 'Drug Interaction Warnings', desc: 'Real-time contraindication safety alerts' },
+  ],
+  'special-modules': [
+    { title: 'Doctor Module', desc: 'Clinical charts, smart Rx & vitals history' },
+    { title: 'Receptionist Desk', desc: 'Walk-ins, live token queues & schedule sync' },
+    { title: 'Patient Portal', desc: 'Online booking, digital prescriptions & lab records' },
+    { title: 'Pharmacy Operator', desc: 'QR prescription dispensing & stock control' },
+    { title: 'Laboratory Operator', desc: 'Barcoded samples & direct PDF reports' },
+    { title: 'Clinic Administrator', desc: 'Staff roles, revenue analytics & branch config' },
+  ],
+};
+
+const getNavIcon = (id) => {
+  switch (id) {
+    case 'features': return <Sparkles size={18} className="text-emerald-600" />;
+    case 'ai-assistant': return <Brain size={18} className="text-emerald-600" />;
+    case 'special-modules': return <Package size={18} className="text-emerald-600" />;
+    case 'pricing': return <Tag size={18} className="text-emerald-600" />;
+    case 'security': return <Shield size={18} className="text-emerald-600" />;
+    default: return <Sparkles size={18} className="text-emerald-600" />;
+  }
+};
+
 export default function LandingPage() {
   const navigate = useNavigate();
   const { isAuthenticated, user } = useAuth();
@@ -30,6 +66,12 @@ export default function LandingPage() {
   const [activeModuleTab, setActiveModuleTab] = useState('doctor');
   const [showHeader, setShowHeader] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [expandedSubmenu, setExpandedSubmenu] = useState(null);
+
+  const toggleSubmenu = (sectionId, e) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    setExpandedSubmenu(prev => (prev === sectionId ? null : sectionId));
+  };
 
   const handleSetupClinicClick = () => {
     if (!isAuthenticated) {
@@ -261,26 +303,42 @@ export default function LandingPage() {
   // Smooth scroll handler for both desktop and mobile
   const handleNavClick = useCallback((e, sectionId, href) => {
     if (e && e.preventDefault) e.preventDefault();
-    const targetId = sectionId === 'modules' ? 'special-modules' : (sectionId === 'ai-modules' ? 'ai-assistant' : sectionId);
-    const element = document.getElementById(targetId);
+    
+    // Close mobile menu immediately so closing animation starts
+    setIsMobileMenuOpen(false);
+
+    const targetId = sectionId === 'modules' ? 'special-modules' 
+                   : sectionId === 'ai-modules' ? 'ai-assistant' 
+                   : sectionId;
 
     setActiveSection(targetId);
     isClickScrollingRef.current = true;
     if (clickScrollTimeoutRef.current) clearTimeout(clickScrollTimeoutRef.current);
 
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
+    if (href) {
       window.history.pushState(null, '', href);
     }
 
-    if (isMobileMenuOpen) {
-      setIsMobileMenuOpen(false);
-    }
+    // Smoothly scroll to target element with proper offset accounting for sticky header
+    const performScroll = () => {
+      const element = document.getElementById(targetId);
+      if (element) {
+        const yOffset = -90;
+        const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
+        window.scrollTo({
+          top: Math.max(0, y),
+          behavior: 'smooth'
+        });
+      }
+    };
+
+    // Execute with a slight tick to let layout adjust after menu state update
+    setTimeout(performScroll, 40);
 
     clickScrollTimeoutRef.current = setTimeout(() => {
       isClickScrollingRef.current = false;
     }, 850);
-  }, [isMobileMenuOpen]);
+  }, []);
 
   // Scroll spy effect using IntersectionObserver
   useEffect(() => {
@@ -373,15 +431,10 @@ export default function LandingPage() {
     };
   }, []);
 
-  // Close mobile menu on outside click or Escape key or desktop resize
+  // Close mobile menu on Escape key or desktop resize
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape' && isMobileMenuOpen) {
-        setIsMobileMenuOpen(false);
-      }
-    };
-    const handleClickOutside = (e) => {
-      if (headerContainerRef.current && !headerContainerRef.current.contains(e.target)) {
         setIsMobileMenuOpen(false);
       }
     };
@@ -393,13 +446,11 @@ export default function LandingPage() {
 
     if (isMobileMenuOpen) {
       document.addEventListener('keydown', handleKeyDown);
-      document.addEventListener('mousedown', handleClickOutside);
     }
     window.addEventListener('resize', handleResize);
 
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
-      document.removeEventListener('mousedown', handleClickOutside);
       window.removeEventListener('resize', handleResize);
     };
   }, [isMobileMenuOpen]);
@@ -586,7 +637,7 @@ export default function LandingPage() {
       <div className="absolute top-0 left-1/4 w-[900px] h-[900px] bg-green-500/5 rounded-full blur-[150px] pointer-events-none" />
       <div className="absolute top-[800px] right-1/4 w-[800px] h-[800px] bg-emerald-500/5 rounded-full blur-[130px] pointer-events-none" />
 
-      {/* ── STICKY GLASS NAVIGATION BAR ── */}
+      {/* ── STICKY GLASS NAVIGATION BAR & INTEGRATED SLIDE-DOWN DROPDOWN ── */}
       <div 
         ref={headerContainerRef}
         className={`fixed top-3 sm:top-4 left-0 right-0 z-50 w-full px-3 sm:px-6 lg:px-10 xl:px-12 transition-all duration-[400ms] ease-in-out ${showHeader || isMobileMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
@@ -604,195 +655,351 @@ export default function LandingPage() {
           if (!isMobileMenuOpen) resetInactivityTimer();
         }}
       >
-        <header className="max-w-[1720px] mx-auto bg-white/95 backdrop-blur-xl border border-slate-200/70 px-4 sm:px-6 lg:px-8 h-[68px] sm:h-[76px] md:h-[84px] min-[1400px]:h-[92px] rounded-full flex items-center justify-between shadow-lg shadow-slate-200/50 transition-all duration-200 relative box-border">
-          {/* Logo & Branding */}
-          <Link to="/" className="flex items-center gap-2 sm:gap-3 shrink-0 select-none group focus:outline-none">
-            <div className="h-[38px] sm:h-[44px] md:h-[50px] min-[1400px]:h-[56px] flex items-center">
-              <PehalLogo variant="primary" className="h-[38px] sm:h-[44px] md:h-[50px] min-[1400px]:h-[56px] w-auto transition-transform duration-300 group-hover:scale-105" />
+        <header className={`max-w-[1720px] mx-auto bg-white/95 backdrop-blur-xl border border-slate-200/80 transition-all duration-300 relative box-border overflow-hidden ${
+          isMobileMenuOpen 
+            ? 'rounded-[28px] sm:rounded-[36px] shadow-2xl shadow-slate-900/15' 
+            : 'rounded-full shadow-lg shadow-slate-200/50'
+        }`}>
+          {/* Header Bar Row */}
+          <div className="px-4 sm:px-6 lg:px-8 h-[68px] sm:h-[76px] md:h-[84px] min-[1400px]:h-[92px] flex items-center justify-between">
+            {/* Logo & Branding */}
+            <Link to="/" className="flex items-center gap-2 sm:gap-3 shrink-0 select-none group focus:outline-none">
+              <div className="h-[38px] sm:h-[44px] md:h-[50px] min-[1400px]:h-[56px] flex items-center">
+                <PehalLogo variant="primary" className="h-[38px] sm:h-[44px] md:h-[50px] min-[1400px]:h-[56px] w-auto transition-transform duration-300 group-hover:scale-105" />
+              </div>
+              <div className="h-6 sm:h-8 w-[1.5px] bg-slate-200 mx-0.5 sm:mx-1 hidden sm:block" />
+              <div className="flex flex-col justify-center leading-none">
+                <span className="text-[17px] sm:text-[19px] min-[1400px]:text-[21px] font-black tracking-tight text-slate-900 flex items-center gap-1.5">
+                  AICMS
+                  <span className="text-[7.5px] sm:text-[8px] font-extrabold uppercase tracking-widest bg-emerald-500/10 text-emerald-700 px-1.5 py-0.5 rounded-md hidden sm:inline">PRO</span>
+                </span>
+                <span className="text-[8.5px] sm:text-[9.5px] font-bold text-slate-400 mt-1 uppercase tracking-[0.08em] hidden lg:block">
+                  AI-CMS Enterprise
+                </span>
+              </div>
+            </Link>
+
+            {/* Desktop Navigation Links - Shown on large desktop >= 1400px where there is plenty of room */}
+            <nav className="hidden min-[1400px]:flex items-center gap-7 min-[1550px]:gap-10 text-[15px] min-[1550px]:text-[16px] font-semibold tracking-wide text-slate-600">
+              {NAV_SECTIONS.map((item) => {
+                const isActive = activeSection === item.id;
+                return (
+                  <a
+                    key={item.id}
+                    href={item.href}
+                    onClick={(e) => handleNavClick(e, item.id, item.href)}
+                    className={`relative py-1.5 transition-colors duration-200 cursor-pointer select-none group ${
+                      isActive ? 'text-green-600 font-bold' : 'text-slate-600 hover:text-green-600'
+                    }`}
+                  >
+                    <span>{item.label}</span>
+                    {isActive ? (
+                      <motion.div
+                        layoutId="activeNavUnderline"
+                        className="absolute -bottom-0.5 left-0 right-0 h-[2.5px] bg-gradient-to-r from-green-500 to-emerald-600 rounded-full shadow-sm shadow-green-500/30"
+                        initial={false}
+                        transition={{
+                          type: 'spring',
+                          stiffness: 380,
+                          damping: 30
+                        }}
+                      />
+                    ) : (
+                      <span className="absolute -bottom-0.5 left-0 w-0 h-[2px] bg-green-600/70 transition-all duration-300 group-hover:w-full rounded-full" />
+                    )}
+                  </a>
+                );
+              })}
+            </nav>
+
+            {/* Action CTAs & Controls */}
+            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+              {/* Desktop Portal & Login Pill Buttons (>= 1400px) */}
+              <Link 
+                to="/login?type=patient" 
+                className="hidden min-[1400px]:flex items-center justify-center gap-1.5 px-4 min-[1550px]:px-5 h-[44px] min-[1550px]:h-[48px] rounded-full text-slate-700 hover:text-green-600 text-[13.5px] min-[1550px]:text-[14.5px] font-semibold transition-all duration-300 border border-slate-200/90 bg-white/70 hover:bg-white hover:scale-[1.02] hover:shadow-sm"
+              >
+                <User size={14} className="text-slate-400" /> Patient Portal
+              </Link>
+              <Link 
+                to="/login?type=clinic" 
+                className="hidden min-[1400px]:flex items-center justify-center gap-1.5 px-4 min-[1550px]:px-5 h-[44px] min-[1550px]:h-[48px] rounded-full text-slate-700 hover:text-green-600 text-[13.5px] min-[1550px]:text-[14.5px] font-semibold transition-all duration-300 border border-slate-200/90 bg-white/70 hover:bg-white hover:scale-[1.02] hover:shadow-sm"
+              >
+                <Building2 size={14} className="text-slate-400" /> Clinic Login
+              </Link>
+              <Link 
+                to="/login?type=staff" 
+                className="hidden min-[1400px]:flex items-center justify-center gap-1.5 px-4 min-[1550px]:px-5 h-[44px] min-[1550px]:h-[48px] rounded-full text-slate-700 hover:text-green-600 text-[13.5px] min-[1550px]:text-[14.5px] font-semibold transition-all duration-300 border border-slate-200/90 bg-white/70 hover:bg-white hover:scale-[1.02] hover:shadow-sm"
+              >
+                <LogIn size={14} className="text-slate-400" /> Staff Login
+              </Link>
+              
+              {/* Primary "Setup Your Clinic" CTA Button - Visible on Tablet and Desktop */}
+              <button
+                onClick={handleSetupClinicClick}
+                className="hidden sm:flex items-center justify-center gap-2 px-5 sm:px-6 min-[1400px]:px-8 h-[44px] sm:h-[48px] min-[1400px]:h-[52px] rounded-full sm:rounded-[16px] bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white text-[14px] sm:text-[15px] min-[1400px]:text-[17px] font-bold shadow-md shadow-emerald-600/20 hover:shadow-lg hover:shadow-emerald-600/30 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] transition-all duration-250 cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 shrink-0"
+                aria-label="Setup Your Clinic"
+              >
+                Setup Your Clinic
+              </button>
+
+              {/* Tablet & Mobile Hamburger Toggle Button (< 1400px) */}
+              <button
+                type="button"
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="min-[1400px]:hidden relative flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 rounded-full border border-slate-200/90 bg-white hover:bg-slate-50 text-slate-700 shadow-sm transition active:scale-95 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer overflow-hidden shrink-0"
+                aria-label={isMobileMenuOpen ? "Close navigation" : "Open navigation"}
+                aria-expanded={isMobileMenuOpen}
+                aria-controls="mobile-nav-dropdown"
+              >
+                <div className="relative w-5 h-5 flex items-center justify-center pointer-events-none">
+                  <Menu 
+                    size={20} 
+                    className={`absolute text-slate-800 transition-all duration-200 ease-out ${
+                      isMobileMenuOpen ? 'opacity-0 rotate-90 scale-75' : 'opacity-100 rotate-0 scale-100'
+                    }`} 
+                  />
+                  <X 
+                    size={20} 
+                    className={`absolute text-slate-800 transition-all duration-200 ease-out ${
+                      isMobileMenuOpen ? 'opacity-100 rotate-0 scale-100' : 'opacity-0 -rotate-90 scale-75'
+                    }`} 
+                  />
+                </div>
+              </button>
             </div>
-            <div className="h-6 sm:h-8 w-[1.5px] bg-slate-200 mx-0.5 sm:mx-1 hidden sm:block" />
-            <div className="flex flex-col justify-center leading-none">
-              <span className="text-[17px] sm:text-[19px] min-[1400px]:text-[21px] font-black tracking-tight text-slate-900 flex items-center gap-1.5">
-                AICMS
-                <span className="text-[7.5px] sm:text-[8px] font-extrabold uppercase tracking-widest bg-emerald-500/10 text-emerald-700 px-1.5 py-0.5 rounded-md hidden sm:inline">PRO</span>
-              </span>
-              <span className="text-[8.5px] sm:text-[9.5px] font-bold text-slate-400 mt-1 uppercase tracking-[0.08em] hidden lg:block">
-                AI-CMS Enterprise
-              </span>
-            </div>
-          </Link>
-
-          {/* Desktop Navigation Links - Shown on large desktop >= 1400px where there is plenty of room */}
-          <nav className="hidden min-[1400px]:flex items-center gap-7 min-[1550px]:gap-10 text-[15px] min-[1550px]:text-[16px] font-semibold tracking-wide text-slate-600">
-            {NAV_SECTIONS.map((item) => {
-              const isActive = activeSection === item.id;
-              return (
-                <a
-                  key={item.id}
-                  href={item.href}
-                  onClick={(e) => handleNavClick(e, item.id, item.href)}
-                  className={`relative py-1.5 transition-colors duration-200 cursor-pointer select-none group ${
-                    isActive ? 'text-green-600 font-bold' : 'text-slate-600 hover:text-green-600'
-                  }`}
-                >
-                  <span>{item.label}</span>
-                  {isActive ? (
-                    <motion.div
-                      layoutId="activeNavUnderline"
-                      className="absolute -bottom-0.5 left-0 right-0 h-[2.5px] bg-gradient-to-r from-green-500 to-emerald-600 rounded-full shadow-sm shadow-green-500/30"
-                      initial={false}
-                      transition={{
-                        type: 'spring',
-                        stiffness: 380,
-                        damping: 30
-                      }}
-                    />
-                  ) : (
-                    <span className="absolute -bottom-0.5 left-0 w-0 h-[2px] bg-green-600/70 transition-all duration-300 group-hover:w-full rounded-full" />
-                  )}
-                </a>
-              );
-            })}
-          </nav>
-
-          {/* Action CTAs & Controls */}
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            {/* Desktop Portal & Login Pill Buttons (>= 1400px) */}
-            <Link 
-              to="/login?type=patient" 
-              className="hidden min-[1400px]:flex items-center justify-center gap-1.5 px-4 min-[1550px]:px-5 h-[44px] min-[1550px]:h-[48px] rounded-full text-slate-700 hover:text-green-600 text-[13.5px] min-[1550px]:text-[14.5px] font-semibold transition-all duration-300 border border-slate-200/90 bg-white/70 hover:bg-white hover:scale-[1.02] hover:shadow-sm"
-            >
-              <User size={14} className="text-slate-400" /> Patient Portal
-            </Link>
-            <Link 
-              to="/login?type=clinic" 
-              className="hidden min-[1400px]:flex items-center justify-center gap-1.5 px-4 min-[1550px]:px-5 h-[44px] min-[1550px]:h-[48px] rounded-full text-slate-700 hover:text-green-600 text-[13.5px] min-[1550px]:text-[14.5px] font-semibold transition-all duration-300 border border-slate-200/90 bg-white/70 hover:bg-white hover:scale-[1.02] hover:shadow-sm"
-            >
-              <Building2 size={14} className="text-slate-400" /> Clinic Login
-            </Link>
-            <Link 
-              to="/login?type=staff" 
-              className="hidden min-[1400px]:flex items-center justify-center gap-1.5 px-4 min-[1550px]:px-5 h-[44px] min-[1550px]:h-[48px] rounded-full text-slate-700 hover:text-green-600 text-[13.5px] min-[1550px]:text-[14.5px] font-semibold transition-all duration-300 border border-slate-200/90 bg-white/70 hover:bg-white hover:scale-[1.02] hover:shadow-sm"
-            >
-              <LogIn size={14} className="text-slate-400" /> Staff Login
-            </Link>
-            
-            {/* Primary "Setup Your Clinic" CTA Button - Visible on Tablet and Desktop */}
-            <button
-              onClick={handleSetupClinicClick}
-              className="hidden sm:flex items-center justify-center gap-2 px-5 sm:px-6 min-[1400px]:px-8 h-[44px] sm:h-[48px] min-[1400px]:h-[52px] rounded-full sm:rounded-[16px] bg-gradient-to-r from-green-500 to-green-600 hover:from-green-400 hover:to-green-500 text-white text-[14px] sm:text-[15px] min-[1400px]:text-[17px] font-bold shadow-md shadow-green-500/20 hover:shadow-lg hover:shadow-green-500/30 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] transition-all duration-250 cursor-pointer focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 shrink-0"
-              aria-label="Setup Your Clinic"
-            >
-              Setup Your Clinic
-            </button>
-
-            {/* Tablet & Mobile Hamburger Toggle Button (< 1400px) */}
-            <button
-              type="button"
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="min-[1400px]:hidden flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 rounded-full border border-slate-200/90 bg-white hover:bg-slate-50 text-slate-700 shadow-sm transition active:scale-95 focus:outline-none focus:ring-2 focus:ring-green-500"
-              aria-label="Toggle navigation menu"
-              aria-expanded={isMobileMenuOpen}
-            >
-              {isMobileMenuOpen ? <X size={20} className="text-slate-800" /> : <Menu size={20} className="text-slate-800" />}
-            </button>
           </div>
 
-          {/* Mobile & Tablet Dropdown Navigation Overlay */}
-          <AnimatePresence>
+          {/* ── EXPANDABLE SLIDE-DOWN DROPDOWN CONTENT (ATTACHED DIRECTLY TO HEADER) ── */}
+          <AnimatePresence initial={false}>
             {isMobileMenuOpen && (
               <motion.div
-                initial={{ opacity: 0, y: -12, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -12, scale: 0.98 }}
-                transition={{ duration: 0.22, ease: "easeOut" }}
-                className="min-[1400px]:hidden absolute top-[calc(100%+10px)] sm:top-[calc(100%+14px)] left-0 right-0 bg-white/98 backdrop-blur-2xl border border-slate-200/90 rounded-[28px] p-5 sm:p-7 shadow-2xl shadow-slate-900/15 flex flex-col gap-5 z-50 mx-1 sm:mx-2 max-h-[82vh] overflow-y-auto"
+                id="mobile-nav-dropdown"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ 
+                  height: 'auto', 
+                  opacity: 1,
+                  transition: {
+                    height: { duration: 0.28, ease: [0.16, 1, 0.3, 1] },
+                    opacity: { duration: 0.2, ease: 'easeOut' }
+                  }
+                }}
+                exit={{ 
+                  height: 0, 
+                  opacity: 0,
+                  transition: {
+                    height: { duration: 0.24, ease: [0.16, 1, 0.3, 1] },
+                    opacity: { duration: 0.16, ease: 'easeIn' }
+                  }
+                }}
+                className="min-[1400px]:hidden border-t border-slate-100/90 overflow-hidden"
               >
-                {/* Section Links List */}
-                <div className="flex flex-col space-y-1">
-                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-3 py-1">
-                    Navigation
+                <motion.div 
+                  initial={{ y: -6 }}
+                  animate={{ y: 0 }}
+                  exit={{ y: -6 }}
+                  transition={{ duration: 0.26, ease: [0.16, 1, 0.3, 1] }}
+                  className="overflow-y-auto max-h-[calc(100dvh-6.5rem)] px-4 sm:px-6 md:px-8 py-3.5 sm:py-5 space-y-4 sm:space-y-5 box-border"
+                >
+                  {/* 1. Main Navigation Rows with circular badge icons & right chevrons matching reference UI */}
+                  <div className="divide-y divide-slate-100/90 rounded-2xl bg-white border border-slate-100/80 overflow-hidden shadow-2xs">
+                    {NAV_SECTIONS.map((item) => {
+                      const isActive = activeSection === item.id;
+                      const subitems = NAV_SUBMENUS[item.id];
+                      const isExpanded = expandedSubmenu === item.id;
+
+                      return (
+                        <div key={item.id} className="transition-colors group min-w-0">
+                          <div
+                            className={`flex items-center justify-between p-3 sm:p-3.5 transition-all ${
+                              isActive ? 'bg-emerald-50/60' : 'hover:bg-slate-50/80'
+                            }`}
+                          >
+                            <a
+                              href={item.href}
+                              onClick={(e) => {
+                                setIsMobileMenuOpen(false);
+                                handleNavClick(e, item.id, item.href);
+                              }}
+                              className="flex-1 flex items-center gap-3 text-slate-800 cursor-pointer select-none min-w-0"
+                            >
+                              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100/70 shadow-2xs">
+                                {getNavIcon(item.id)}
+                              </div>
+                              <span className={`text-[14.5px] sm:text-[15.5px] font-bold tracking-tight truncate ${isActive ? 'text-emerald-700 font-extrabold' : 'text-slate-850'}`}>
+                                {item.label}
+                              </span>
+                              {isActive && (
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 inline-block animate-pulse shrink-0" />
+                              )}
+                            </a>
+
+                            {subitems ? (
+                              <button
+                                type="button"
+                                onClick={(e) => toggleSubmenu(item.id, e)}
+                                className="p-1.5 rounded-xl hover:bg-black/5 text-slate-400 hover:text-emerald-600 transition cursor-pointer shrink-0 ml-1"
+                                aria-label={`Toggle ${item.label} sub-items`}
+                                aria-expanded={isExpanded}
+                              >
+                                <ChevronDown
+                                  size={18}
+                                  className={`transition-transform duration-200 ${isExpanded ? 'rotate-180 text-emerald-600' : ''}`}
+                                />
+                              </button>
+                            ) : (
+                              <a
+                                href={item.href}
+                                onClick={(e) => {
+                                  setIsMobileMenuOpen(false);
+                                  handleNavClick(e, item.id, item.href);
+                                }}
+                                className="p-1.5 text-slate-400 hover:text-emerald-600 shrink-0 ml-1"
+                              >
+                                <ChevronRight size={18} />
+                              </a>
+                            )}
+                          </div>
+
+                          {/* Expandable Submenu Accordion */}
+                          <AnimatePresence>
+                            {subitems && isExpanded && (
+                              <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                exit={{ opacity: 0, height: 0 }}
+                                transition={{ duration: 0.2 }}
+                                className="overflow-hidden bg-slate-50/60 border-t border-slate-100 px-3 sm:px-4 py-2 space-y-1.5 min-w-0"
+                              >
+                                {subitems.map((sub, idx) => (
+                                  <a
+                                    key={idx}
+                                    href={item.href}
+                                    onClick={(e) => {
+                                      setIsMobileMenuOpen(false);
+                                      handleNavClick(e, item.id, item.href);
+                                    }}
+                                    className="flex flex-col px-3 py-2 rounded-xl bg-white hover:bg-emerald-50 hover:border-emerald-200 border border-slate-150/70 transition group cursor-pointer min-w-0 shadow-2xs"
+                                  >
+                                    <span className="text-[12.5px] sm:text-[13px] font-bold text-slate-800 group-hover:text-emerald-700 flex items-center gap-1.5 truncate">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                                      <span className="truncate">{sub.title}</span>
+                                    </span>
+                                    <span className="text-[10.5px] sm:text-[11px] text-slate-500 group-hover:text-slate-600 mt-0.5 truncate">
+                                      {sub.desc}
+                                    </span>
+                                  </a>
+                                ))}
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      );
+                    })}
                   </div>
-                  {NAV_SECTIONS.map((item) => {
-                    const isActive = activeSection === item.id;
-                    return (
-                      <a
-                        key={item.id}
-                        href={item.href}
-                        onClick={(e) => handleNavClick(e, item.id, item.href)}
-                        className={`px-3.5 py-2.5 rounded-xl transition-all duration-150 flex items-center justify-between group text-[15px] ${
-                          isActive
-                            ? 'bg-green-50 text-green-700 font-bold border-l-4 border-green-600 pl-3'
-                            : 'text-slate-700 hover:text-green-600 hover:bg-green-50/70 font-semibold'
-                        }`}
+
+                  {/* 2. PORTALS & SIGN IN Section matching reference UI */}
+                  <div className="space-y-2 min-w-0">
+                    <div className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-slate-400 px-1">
+                      Portals &amp; Sign In
+                    </div>
+                    <div className="grid grid-cols-1 min-[540px]:grid-cols-3 gap-2 sm:gap-2.5 w-full min-w-0">
+                      <Link
+                        to="/login?type=patient"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className="flex items-center gap-3 p-2.5 sm:p-3 rounded-2xl border border-slate-200/90 bg-white hover:bg-emerald-50/80 hover:border-emerald-300 text-slate-700 hover:text-emerald-700 font-semibold text-sm transition-all shadow-2xs group min-w-0 overflow-hidden"
                       >
-                        <span className="flex items-center gap-2">
-                          {item.label}
-                          {isActive && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-green-600 inline-block animate-pulse" />
-                          )}
-                        </span>
-                        <ChevronRight size={16} className={isActive ? 'text-green-600' : 'text-slate-300 group-hover:text-green-600 transition-colors'} />
-                      </a>
-                    );
-                  })}
-                </div>
+                        <div className="w-8 h-8 rounded-xl bg-emerald-50 group-hover:bg-emerald-100 flex items-center justify-center text-emerald-600 transition-colors shrink-0">
+                          <User size={16} />
+                        </div>
+                        <div className="flex flex-col leading-tight min-w-0 overflow-hidden">
+                          <span className="text-xs sm:text-[13px] font-bold text-slate-800 group-hover:text-emerald-800 truncate">Patient Portal</span>
+                          <span className="text-[10px] text-slate-400 truncate mt-0.5">Book &amp; View Rx</span>
+                        </div>
+                      </Link>
 
-                {/* Portals & Logins Section */}
-                <div className="border-t border-slate-100 pt-4 flex flex-col space-y-2">
-                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-3 py-1">
-                    Portals &amp; Sign In
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    <Link
-                      to="/login?type=patient"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className="flex items-center gap-2.5 px-4 py-3 rounded-xl border border-slate-200/80 bg-slate-50/70 hover:bg-green-50/60 hover:border-green-300 text-slate-700 hover:text-green-700 font-semibold text-sm transition-all"
-                    >
-                      <User size={16} className="text-slate-400" />
-                      <span>Patient Portal</span>
-                    </Link>
-                    <Link
-                      to="/login?type=clinic"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className="flex items-center gap-2.5 px-4 py-3 rounded-xl border border-slate-200/80 bg-slate-50/70 hover:bg-green-50/60 hover:border-green-300 text-slate-700 hover:text-green-700 font-semibold text-sm transition-all"
-                    >
-                      <Building2 size={16} className="text-slate-400" />
-                      <span>Clinic Login</span>
-                    </Link>
-                    <Link
-                      to="/login?type=staff"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className="flex items-center gap-2.5 px-4 py-3 rounded-xl border border-slate-200/80 bg-slate-50/70 hover:bg-green-50/60 hover:border-green-300 text-slate-700 hover:text-green-700 font-semibold text-sm transition-all"
-                    >
-                      <LogIn size={16} className="text-slate-400" />
-                      <span>Staff Login</span>
-                    </Link>
-                  </div>
-                </div>
+                      <Link
+                        to="/login?type=clinic"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className="flex items-center gap-3 p-2.5 sm:p-3 rounded-2xl border border-slate-200/90 bg-white hover:bg-emerald-50/80 hover:border-emerald-300 text-slate-700 hover:text-emerald-700 font-semibold text-sm transition-all shadow-2xs group min-w-0 overflow-hidden"
+                      >
+                        <div className="w-8 h-8 rounded-xl bg-emerald-50 group-hover:bg-emerald-100 flex items-center justify-center text-emerald-600 transition-colors shrink-0">
+                          <Building2 size={16} />
+                        </div>
+                        <div className="flex flex-col leading-tight min-w-0 overflow-hidden">
+                          <span className="text-xs sm:text-[13px] font-bold text-slate-800 group-hover:text-emerald-800 truncate">Clinic Login</span>
+                          <span className="text-[10px] text-slate-400 truncate mt-0.5">Admin &amp; Ops</span>
+                        </div>
+                      </Link>
 
-                {/* Action CTAs */}
-                <div className="border-t border-slate-100 pt-3 flex flex-col sm:flex-row gap-2.5">
-                  <button
-                    onClick={() => {
-                      setIsMobileMenuOpen(false);
-                      handleSetupClinicClick();
-                    }}
-                    className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-green-500 to-green-600 hover:from-green-400 hover:to-green-550 text-white text-base font-bold shadow-md shadow-green-500/20 text-center cursor-pointer transition-all duration-200"
-                    aria-label="Setup Your Clinic"
-                  >
-                    Setup Your Clinic
-                  </button>
-                  <button
-                    onClick={() => {
-                      setIsMobileMenuOpen(false);
-                      handleGetStarted();
-                    }}
-                    className="w-full sm:w-auto py-3 px-5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-bold shadow-xs text-center transition"
-                  >
-                    Book Demo
-                  </button>
-                </div>
+                      <Link
+                        to="/login?type=staff"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className="flex items-center gap-3 p-2.5 sm:p-3 rounded-2xl border border-slate-200/90 bg-white hover:bg-emerald-50/80 hover:border-emerald-300 text-slate-700 hover:text-emerald-700 font-semibold text-sm transition-all shadow-2xs group min-w-0 overflow-hidden"
+                      >
+                        <div className="w-8 h-8 rounded-xl bg-emerald-50 group-hover:bg-emerald-100 flex items-center justify-center text-emerald-600 transition-colors shrink-0">
+                          <LogIn size={16} />
+                        </div>
+                        <div className="flex flex-col leading-tight min-w-0 overflow-hidden">
+                          <span className="text-xs sm:text-[13px] font-bold text-slate-800 group-hover:text-emerald-800 truncate">Staff Login</span>
+                          <span className="text-[10px] text-slate-400 truncate mt-0.5">Doctor &amp; Staff</span>
+                        </div>
+                      </Link>
+                    </div>
+                  </div>
+
+                  {/* 3. Action Buttons matching reference UI */}
+                  <div className="space-y-2 pt-1 min-w-0">
+                    <button
+                      onClick={() => {
+                        setIsMobileMenuOpen(false);
+                        handleSetupClinicClick();
+                      }}
+                      className="w-full flex items-center justify-center gap-2 py-3 sm:py-3.5 px-6 rounded-2xl bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white text-[14.5px] sm:text-[15.5px] font-bold shadow-md shadow-emerald-600/20 transition-all duration-200 active:scale-[0.99] cursor-pointer min-w-0"
+                      aria-label="Setup Your Clinic"
+                    >
+                      <Rocket size={17} className="text-white shrink-0" />
+                      <span>Setup Your Clinic</span>
+                      <ArrowRight size={15} className="text-white shrink-0" />
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setIsMobileMenuOpen(false);
+                        handleGetStarted();
+                      }}
+                      className="w-full flex items-center justify-center gap-2 py-2.5 sm:py-3 px-6 rounded-2xl border border-slate-200/90 bg-white hover:bg-slate-50 text-slate-800 text-sm sm:text-[14.5px] font-bold shadow-2xs transition-all duration-200 active:scale-[0.99] cursor-pointer min-w-0"
+                    >
+                      <Calendar size={16} className="text-slate-500 shrink-0" />
+                      <span>Book Demo</span>
+                    </button>
+                  </div>
+
+                  {/* 4. Micro Trust Footer matching reference UI */}
+                  <div className="pt-2 sm:pt-3 pb-1 border-t border-slate-100 flex flex-col items-center gap-1.5 min-w-0">
+                    <span className="text-[11px] font-semibold text-slate-400 tracking-wide text-center">
+                      Healthcare Simplified. Powered by AI.
+                    </span>
+                    <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 text-[10.5px] font-bold text-slate-500">
+                      <span className="flex items-center gap-1">
+                        <CheckCircle2 size={13} className="text-emerald-600" />
+                        Secure
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <CheckCircle2 size={13} className="text-emerald-600" />
+                        Reliable
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <CheckCircle2 size={13} className="text-emerald-600" />
+                        Scalable
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <CheckCircle2 size={13} className="text-emerald-600" />
+                        Future Ready
+                      </span>
+                    </div>
+                  </div>
+                </motion.div>
               </motion.div>
             )}
           </AnimatePresence>
