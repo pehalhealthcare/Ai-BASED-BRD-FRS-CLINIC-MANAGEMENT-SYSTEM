@@ -167,7 +167,7 @@ export default function Header({
                   </span>
                 </div>
                 <span className="text-[10px] sm:text-[11px] font-medium text-slate-500 hidden md:inline-block tracking-tight mt-0.5 whitespace-nowrap">
-                  AI Clinic Management System
+                  AI-CMS Enterprise
                 </span>
               </div>
             </Link>

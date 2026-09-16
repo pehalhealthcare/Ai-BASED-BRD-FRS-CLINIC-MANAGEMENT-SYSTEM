@@ -79,7 +79,7 @@ export default function Footer() {
                   AI-CMS
                 </span>
                 <span className="text-[11px] font-medium text-slate-500">
-                  AI Clinic Management System
+                  AI-CMS Enterprise
                 </span>
               </div>
             </Link>
