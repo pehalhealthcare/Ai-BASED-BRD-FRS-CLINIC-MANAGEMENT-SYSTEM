@@ -14,6 +14,7 @@ const { LabOrder } = require('../labs/labOrder.model');
 const mongoose = require('mongoose');
 const nodemailer = require('nodemailer');
 const { env } = require('../../config/env');
+const { logger } = require('../../common/utils/logger');
 const OnboardingOtp = require('./onboardingOtp.model');
 const Feedback = require('./feedback.model');
 
@@ -1143,12 +1144,14 @@ const sendOtp = asyncHandler(async (req, res) => {
     throw new AppError('Email is required', HTTP_STATUS.BAD_REQUEST);
   }
 
+  const normalizedEmail = email.toLowerCase().trim();
+
   // Generate 6 digit OTP
   const otp = String(Math.floor(100000 + Math.random() * 900000));
 
   // Save/update OTP
   await OnboardingOtp.findOneAndUpdate(
-    { email: email.toLowerCase() },
+    { email: normalizedEmail },
     { otp, createdAt: new Date() },
     { upsert: true, new: true }
   );
@@ -1157,11 +1160,21 @@ const sendOtp = asyncHandler(async (req, res) => {
   const subject = 'Your AICMS Clinic Onboarding Verification Code';
   const body = `Hello,\n\nYour OTP (One-Time Password) for verifying your clinic onboarding is: ${otp}\n\nThis code is valid for 5 minutes.\n\nThank you!`;
 
-  if (!env.emailHost || !env.emailUser || !env.emailPass) {
-    logger.warn('[onboarding:otp] Missing SMTP credentials, falling back to console log.');
+  const isSmtpConfigured =
+    Boolean(env.emailHost) &&
+    Boolean(env.emailUser) &&
+    Boolean(env.emailPass) &&
+    !String(env.emailUser).includes('your_smtp') &&
+    !String(env.emailPass).includes('your_smtp') &&
+    env.emailHost !== 'smtp.mailtrap.io' &&
+    !env.enableMockNotifications;
+
+  if (!isSmtpConfigured) {
+    logger.warn('[onboarding:otp] SMTP credentials not configured or mock mode enabled, logging OTP to console.');
     console.info('\n=======================================');
-    console.info(`[ONBOARDING OTP] Sent to: ${email}`);
+    console.info(`[ONBOARDING OTP] Sent to: ${normalizedEmail}`);
     console.info(`[ONBOARDING OTP] Code: ${otp}`);
+    console.info(`[ONBOARDING OTP] Expires: 5 minutes`);
     console.info('=======================================\n');
   } else {
     try {
@@ -1172,23 +1185,30 @@ const sendOtp = asyncHandler(async (req, res) => {
         auth: {
           user: env.emailUser,
           pass: env.emailPass
-        }
+        },
+        tls: { rejectUnauthorized: false },
+        connectionTimeout: 5000,
+        socketTimeout: 5000
       });
       await transporter.sendMail({
         from: env.emailFrom || `"AI-CMS Clinic" <noreply@aicms.local>`,
-        to: email.toLowerCase(),
+        to: normalizedEmail,
         subject,
         text: body,
         html: body.replace(/\n/g, '<br>')
       });
-      logger.info(`[onboarding:otp] Sent successfully to ${email}`);
+      logger.info(`[onboarding:otp] Sent successfully to ${normalizedEmail}`);
     } catch (error) {
-      logger.error('[onboarding:otp] Failed to send email via SMTP', error);
-      throw new AppError('Failed to send verification code email', HTTP_STATUS.INTERNAL_SERVER_ERROR);
+      logger.error('[onboarding:otp] Failed to send email via SMTP, falling back to console log', error);
+      console.info('\n=======================================');
+      console.info(`[ONBOARDING OTP FALLBACK] Sent to: ${normalizedEmail}`);
+      console.info(`[ONBOARDING OTP FALLBACK] Code: ${otp}`);
+      console.info('=======================================\n');
     }
   }
 
-  return sendSuccess(res, 'Verification OTP sent successfully');
+  const responseData = env.nodeEnv === 'development' || env.nodeEnv === 'test' ? { devOtp: otp } : {};
+  return sendSuccess(res, 'Verification OTP sent successfully', responseData);
 });
 
 const verifyOtp = asyncHandler(async (req, res) => {

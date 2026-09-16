@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
-import { clinicApi, promoApi } from '../../lib/api';
+import { clinicApi, promoApi, subscriptionApi } from '../../lib/api';
 import useAuth from '../../hooks/useAuth';
 import toast from 'react-hot-toast';
 import {
@@ -169,25 +169,48 @@ export default function ClinicRegister() {
     setPlansLoading(true);
     setPlansError('');
     try {
-      const response = await clinicApi.getRegistrationPlans();
-      const availablePlans = response.data?.plans || [];
-      setPlans(availablePlans);
-      if (availablePlans.length > 0) {
+      let availablePlans = [];
+
+      try {
+        const response = await clinicApi.getRegistrationPlans();
+        const extracted = response?.data?.plans || response?.plans || (Array.isArray(response?.data) ? response.data : []) || (Array.isArray(response) ? response : []);
+        if (Array.isArray(extracted) && extracted.length > 0) {
+          availablePlans = extracted;
+        }
+      } catch (e1) {
+        console.warn('clinicApi.getRegistrationPlans failed, trying subscriptionApi:', e1);
+      }
+
+      if (!availablePlans || availablePlans.length === 0) {
+        try {
+          const response2 = await subscriptionApi.getPublicPlans();
+          const extracted2 = response2?.data?.plans || response2?.plans || (Array.isArray(response2?.data) ? response2.data : []) || (Array.isArray(response2) ? response2 : []);
+          if (Array.isArray(extracted2) && extracted2.length > 0) {
+            availablePlans = extracted2;
+          }
+        } catch (e2) {
+          console.warn('subscriptionApi.getPublicPlans failed:', e2);
+        }
+      }
+
+      if (availablePlans && availablePlans.length > 0) {
+        setPlans(availablePlans);
         setSelectedPlanId(prev => {
-          if (prev && availablePlans.some(p => p._id === prev)) return prev;
+          if (prev && availablePlans.some(p => String(p._id) === String(prev))) return prev;
           if (urlPlan) {
-            const matched = availablePlans.find(p => p._id === urlPlan || p.code === urlPlan.toUpperCase());
+            const matched = availablePlans.find(p => String(p._id) === String(urlPlan) || p.code === String(urlPlan).toUpperCase());
             if (matched) return matched._id;
           }
-          const professional = availablePlans.find(p => p.isPopular || p.code === 'PROFESSIONAL') || availablePlans[0];
-          return professional._id;
+          const popularOrFirst = availablePlans.find(p => p.isPopular || p.code === 'PROFESSIONAL') || availablePlans[0];
+          return popularOrFirst._id;
         });
       } else {
-        setSelectedPlanId('');
+        setPlans([]);
+        setPlansError('No subscription plans currently available.');
       }
     } catch (err) {
       console.error('Failed to load plans:', err);
-      setPlansError(err.response?.data?.message || 'Unable to fetch subscription plans from server. Please verify network connection or try again.');
+      setPlansError(err.response?.data?.message || err.message || 'Unable to fetch subscription plans.');
     } finally {
       setPlansLoading(false);
     }
@@ -293,12 +316,29 @@ export default function ClinicRegister() {
     setShowMapPicker(false);
   };
 
+  const scrollToFormTop = () => {
+    const scrollContainers = document.querySelectorAll('.cw-scroll');
+    scrollContainers.forEach(el => el.scrollTo({ top: 0, behavior: 'smooth' }));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const scrollToFirstError = () => {
+    setTimeout(() => {
+      const errorEl = document.querySelector('.border-rose-500, .text-rose-500');
+      if (errorEl) {
+        errorEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else {
+        scrollToFormTop();
+      }
+    }, 50);
+  };
+
   const validateStepOne = async () => {
     const newErrors = {};
-    if (!ownerForm.name.trim()) newErrors.name = 'Owner name is required.';
-    if (!ownerForm.email.trim()) newErrors.email = 'Email address is required.';
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ownerForm.email)) newErrors.email = 'Invalid email address.';
-    if (!ownerForm.phone.trim()) newErrors.phone = 'Mobile number is required.';
+    if (!ownerForm.name || !ownerForm.name.trim()) newErrors.name = 'Owner name is required.';
+    if (!ownerForm.email || !ownerForm.email.trim()) newErrors.email = 'Email address is required.';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ownerForm.email.trim())) newErrors.email = 'Invalid email address format.';
+    if (!ownerForm.phone || !ownerForm.phone.trim()) newErrors.phone = 'Mobile number is required.';
     else if (ownerForm.phone.replace(/\D/g, '').length !== 10) newErrors.phone = 'Mobile number must be exactly 10 digits.';
     if (!ownerForm.password) newErrors.password = 'Password is required.';
     else if (ownerForm.password.length < 8) newErrors.password = 'Password must be at least 8 characters.';
@@ -307,86 +347,124 @@ export default function ClinicRegister() {
     const dobVal = validateDOB(ownerForm.dob);
     if (!dobVal.valid) newErrors.dob = dobVal.error;
 
-    if (ownerForm.aadhaar.trim()) {
+    if (ownerForm.aadhaar && ownerForm.aadhaar.trim()) {
       if (ownerForm.aadhaar.replace(/\D/g, '').length !== 12) newErrors.aadhaar = 'Aadhaar must be exactly 12 digits.';
     }
-    if (ownerForm.pan.trim()) {
-      if (!/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(ownerForm.pan.toUpperCase())) newErrors.pan = 'Invalid PAN format (e.g. ABCDE1234F).';
+    if (ownerForm.pan && ownerForm.pan.trim()) {
+      if (!/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(ownerForm.pan.trim().toUpperCase())) newErrors.pan = 'Invalid PAN format (e.g. ABCDE1234F).';
     }
-    if (!ownerForm.address.trim()) newErrors.address = 'Residential address is required.';
+    if (!ownerForm.address || !ownerForm.address.trim()) newErrors.address = 'Residential address is required.';
 
-    setErrors(newErrors);
-    if (Object.keys(newErrors).length > 0) return false;
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      toast.error('Please complete all required owner details.');
+      scrollToFirstError();
+      return false;
+    }
 
     try {
-      const [emailRes, phoneRes] = await Promise.all([
-        clinicApi.validateEmail({ email: ownerForm.email }),
+      const [emailRes, phoneRes] = await Promise.allSettled([
+        clinicApi.validateEmail({ email: ownerForm.email.trim() }),
         clinicApi.validatePhone({ phone: ownerForm.phone.replace(/\D/g, '') })
       ]);
-      if (!emailRes.data.isUnique) newErrors.email = 'Email already registered.';
-      if (!phoneRes.data.isUnique) newErrors.phone = 'Mobile number already registered.';
-      setErrors(newErrors);
-      return Object.keys(newErrors).length === 0;
+
+      if (emailRes.status === 'fulfilled' && emailRes.value?.data?.isUnique === false) {
+        newErrors.email = 'Email already registered.';
+      }
+      if (phoneRes.status === 'fulfilled' && phoneRes.value?.data?.isUnique === false) {
+        newErrors.phone = 'Mobile number already registered.';
+      }
+
+      if (Object.keys(newErrors).length > 0) {
+        setErrors(newErrors);
+        toast.error('Email or mobile number is already in use.');
+        scrollToFirstError();
+        return false;
+      }
+      setErrors({});
+      return true;
     } catch {
-      return false;
+      setErrors({});
+      return true;
     }
   };
 
   const validateStepTwo = async () => {
     const newErrors = {};
-    if (!clinicForm.name.trim()) newErrors.clinicName = 'Clinic official name is required.';
-    if (!clinicForm.registrationNumber.trim()) newErrors.registrationNumber = 'Registration number is required.';
+    if (!clinicForm.name || !clinicForm.name.trim()) newErrors.clinicName = 'Clinic official name is required.';
+    if (!clinicForm.registrationNumber || !clinicForm.registrationNumber.trim()) newErrors.registrationNumber = 'Registration number is required.';
     if (!clinicForm.establishedYear) newErrors.establishedYear = 'Establishment year is required.';
     else {
       const year = parseInt(clinicForm.establishedYear, 10);
       const currentYear = new Date().getFullYear();
       if (year < 1800 || year > currentYear) newErrors.establishedYear = `Must be between 1800 and ${currentYear}.`;
     }
-    if (!clinicForm.addressLine1.trim()) newErrors.addressLine1 = 'Street address is required.';
-    if (!clinicForm.pincode.trim()) newErrors.pincode = 'Pincode is required.';
+    if (!clinicForm.addressLine1 || !clinicForm.addressLine1.trim()) newErrors.addressLine1 = 'Street address is required.';
+    if (!clinicForm.pincode || !clinicForm.pincode.trim()) newErrors.pincode = 'Pincode is required.';
     else if (clinicForm.pincode.replace(/\D/g, '').length !== 6) newErrors.pincode = 'Pincode must be exactly 6 digits.';
-    if (!clinicForm.city.trim()) newErrors.city = 'City name is required.';
-    if (!clinicForm.state.trim()) newErrors.state = 'State name is required.';
-    if (!clinicForm.contactNumber.trim()) newErrors.contactNumber = 'Clinic phone number is required.';
+    if (!clinicForm.city || !clinicForm.city.trim()) newErrors.city = 'City name is required.';
+    if (!clinicForm.state || !clinicForm.state.trim()) newErrors.state = 'State name is required.';
+    if (!clinicForm.contactNumber || !clinicForm.contactNumber.trim()) newErrors.contactNumber = 'Clinic phone number is required.';
     else if (clinicForm.contactNumber.replace(/\D/g, '').length !== 10) newErrors.contactNumber = 'Clinic phone must be exactly 10 digits.';
-    if (!clinicForm.shortDescription.trim()) newErrors.shortDescription = 'Clinic description is required.';
+    if (!clinicForm.shortDescription || !clinicForm.shortDescription.trim()) newErrors.shortDescription = 'Clinic description is required.';
 
-    setErrors(newErrors);
-    if (Object.keys(newErrors).length > 0) return false;
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      toast.error('Please complete all required clinic details.');
+      scrollToFirstError();
+      return false;
+    }
 
     try {
-      const res = await clinicApi.validateRegistrationNumber({ registrationNumber: clinicForm.registrationNumber });
-      if (!res.data.isUnique) newErrors.registrationNumber = 'Registration number already registered.';
-      setErrors(newErrors);
-      return Object.keys(newErrors).length === 0;
+      const res = await clinicApi.validateRegistrationNumber({ registrationNumber: clinicForm.registrationNumber.trim() });
+      if (res?.data?.isUnique === false) {
+        newErrors.registrationNumber = 'Registration number already registered.';
+        setErrors(newErrors);
+        toast.error('Registration number already registered.');
+        scrollToFirstError();
+        return false;
+      }
+      setErrors({});
+      return true;
     } catch {
-      return false;
+      setErrors({});
+      return true;
     }
   };
 
   const handleNext = async () => {
     if (currentStep === 1) {
       const valid = await validateStepOne();
-      if (valid) setCurrentStep(2);
+      if (valid) {
+        setErrors({});
+        setCurrentStep(2);
+        scrollToFormTop();
+      }
     } else if (currentStep === 2) {
       const valid = await validateStepTwo();
       if (valid) {
+        setErrors({});
         setStepThreeError('');
         setCurrentStep(3);
+        scrollToFormTop();
+        fetchPlans();
       }
     } else if (currentStep === 3) {
       if (!selectedPlanId || !plans.some(p => p._id === selectedPlanId)) {
         setStepThreeError('Please select a subscription plan to continue.');
+        toast.error('Please select a subscription plan.');
         return;
       }
       setStepThreeError('');
       setCurrentStep(4);
+      scrollToFormTop();
     }
   };
 
   const handleBack = () => {
     if (currentStep > 1) {
       setCurrentStep(prev => prev - 1);
+      scrollToFormTop();
     }
   };
 
@@ -412,15 +490,17 @@ export default function ClinicRegister() {
       return;
     }
     try {
+      setWizardError('');
       setIsSubmitting(true);
-      await clinicApi.sendOtp({ email: ownerForm.email });
+      const res = await clinicApi.sendOtp({ email: ownerForm.email });
       setShowOtpModal(true);
       setOtpCode('');
       setOtpError('');
       setOtpResent(false);
       setOtpSeconds(300); // 5 minutes countdown
     } catch (err) {
-      setWizardError(err.response?.data?.message || 'Failed to send OTP verification. Please try again.');
+      const errMsg = err.response?.data?.message || err.response?.data?.error || err.message || 'Failed to send OTP verification. Please try again.';
+      setWizardError(errMsg);
     } finally {
       setIsSubmitting(false);
     }

@@ -1002,6 +1002,7 @@ export default function ClinicWizard() {
     }
 
     try {
+      setWizardError('');
       setIsSubmitting(true);
       await clinicApi.sendOtp({ email: ownerForm.email });
       setShowOtpModal(true);
@@ -1009,7 +1010,8 @@ export default function ClinicWizard() {
       setOtpError('');
       setOtpResent(false);
     } catch (err) {
-      setWizardError(err.response?.data?.message || 'Failed to send verification code. Please try again.');
+      const errMsg = err.response?.data?.message || err.response?.data?.error || err.message || 'Failed to send verification code. Please try again.';
+      setWizardError(errMsg);
     } finally {
       setIsSubmitting(false);
     }
