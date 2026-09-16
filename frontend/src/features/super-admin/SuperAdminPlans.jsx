@@ -49,6 +49,10 @@ const EMPTY_PLAN = {
   displayOrder: 0,
   limits: { maxDoctors: null, maxStaff: null, maxPatients: null, maxBranches: null },
   isActive: true,
+  isPopular: false,
+  isEnterprise: false,
+  badge: '',
+  ctaText: ''
 };
 
 const planIcon = (name = '') => {
@@ -110,7 +114,11 @@ const SuperAdminPlans = () => {
       ...plan,
       description: plan.description || '',
       features: [...(plan.features || [])],
-      limits: { ...plan.limits }
+      limits: { ...plan.limits },
+      isPopular: !!plan.isPopular,
+      isEnterprise: !!plan.isEnterprise,
+      badge: plan.badge || '',
+      ctaText: plan.ctaText || ''
     });
     setIsNew(false);
     setError('');
@@ -250,8 +258,20 @@ const SuperAdminPlans = () => {
                       {planIcon(plan.name)}
                     </div>
                     <div>
-                      <h3 className="font-black text-slate-900 text-lg">{plan.name}</h3>
-                      <p className="text-xs text-slate-400 font-mono">{plan.code}</p>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-black text-slate-900 text-lg">{plan.name}</h3>
+                        {plan.isPopular && (
+                          <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-extrabold uppercase tracking-tight">
+                            {plan.badge || 'POPULAR'}
+                          </span>
+                        )}
+                        {plan.isEnterprise && (
+                          <span className="px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 text-[10px] font-extrabold uppercase tracking-tight">
+                            ENTERPRISE
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-400 font-mono">Order: #{plan.displayOrder ?? 0} • {plan.code}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -416,14 +436,59 @@ const SuperAdminPlans = () => {
                 </div>
               </div>
 
-              {/* Active Toggle */}
+              {/* Active, Popular & Enterprise Flags */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl">
+                  <div>
+                    <p className="font-bold text-slate-800 text-sm">Active</p>
+                    <p className="text-xs text-slate-400">Published on public pricing & register wizard.</p>
+                  </div>
+                  <button type="button" onClick={() => setEditingPlan(p => ({ ...p, isActive: !p.isActive }))} className="focus:outline-none">
+                    {editingPlan.isActive ? <ToggleRight className="w-8 h-8 text-emerald-500" /> : <ToggleLeft className="w-8 h-8 text-slate-300" />}
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl">
+                  <div>
+                    <p className="font-bold text-slate-800 text-sm">Most Popular</p>
+                    <p className="text-xs text-slate-400">Highlights card with special badge & border.</p>
+                  </div>
+                  <button type="button" onClick={() => setEditingPlan(p => ({ ...p, isPopular: !p.isPopular }))} className="focus:outline-none">
+                    {editingPlan.isPopular ? <ToggleRight className="w-8 h-8 text-blue-600" /> : <ToggleLeft className="w-8 h-8 text-slate-300" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Custom Badge & CTA Text */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1.5">Custom Badge Label (Optional)</label>
+                  <input
+                    value={editingPlan.badge || ''}
+                    onChange={e => setEditingPlan(p => ({ ...p, badge: e.target.value }))}
+                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500"
+                    placeholder="e.g. MOST POPULAR or BEST VALUE"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1.5">Button Text (CTA)</label>
+                  <input
+                    value={editingPlan.ctaText || ''}
+                    onChange={e => setEditingPlan(p => ({ ...p, ctaText: e.target.value }))}
+                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500"
+                    placeholder="e.g. Get Started, Start Trial, Contact Sales"
+                  />
+                </div>
+              </div>
+
+              {/* Enterprise / Custom Pricing Toggle */}
               <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl">
                 <div>
-                  <p className="font-bold text-slate-800 text-sm">Active</p>
-                  <p className="text-xs text-slate-400">Inactive plans won't appear in the registration wizard.</p>
+                  <p className="font-bold text-slate-800 text-sm">Custom / Enterprise Pricing</p>
+                  <p className="text-xs text-slate-400">Displays 'Custom Pricing' instead of standard numeric rate.</p>
                 </div>
-                <button onClick={() => setEditingPlan(p => ({ ...p, isActive: !p.isActive }))} className="focus:outline-none">
-                  {editingPlan.isActive ? <ToggleRight className="w-8 h-8 text-emerald-500" /> : <ToggleLeft className="w-8 h-8 text-slate-300" />}
+                <button type="button" onClick={() => setEditingPlan(p => ({ ...p, isEnterprise: !p.isEnterprise }))} className="focus:outline-none">
+                  {editingPlan.isEnterprise ? <ToggleRight className="w-8 h-8 text-indigo-600" /> : <ToggleLeft className="w-8 h-8 text-slate-300" />}
                 </button>
               </div>
 

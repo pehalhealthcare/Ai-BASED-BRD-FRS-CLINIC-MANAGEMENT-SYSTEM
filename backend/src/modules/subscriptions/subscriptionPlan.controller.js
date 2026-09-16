@@ -6,19 +6,35 @@ const SubscriptionPlan = require('./subscriptionPlan.model');
 
 // Get all plans for public registration (active, not archived, ordered)
 const getPublicPlans = asyncHandler(async (req, res) => {
-  const plans = await SubscriptionPlan.find({ isActive: true, isArchived: { $ne: true } }).sort({ displayOrder: 1 });
+  const plans = await SubscriptionPlan.find({ isActive: true, isArchived: { $ne: true } })
+    .sort({ displayOrder: 1, priceMonthly: 1 });
   return sendSuccess(res, 'Active plans retrieved successfully', { plans });
 });
 
 // Get all plans for Super Admin (including inactive & archived)
 const getAllPlans = asyncHandler(async (req, res) => {
-  const plans = await SubscriptionPlan.find().sort({ displayOrder: 1 });
+  const plans = await SubscriptionPlan.find().sort({ displayOrder: 1, priceMonthly: 1 });
   return sendSuccess(res, 'All subscription plans retrieved successfully', { plans });
 });
 
 // Create a new subscription plan
 const createPlan = asyncHandler(async (req, res) => {
-  const { name, code, description, priceMonthly, priceYearly, features, trialPeriodDays, displayOrder, limits } = req.body;
+  const { 
+    name, 
+    code, 
+    description, 
+    priceMonthly, 
+    priceYearly, 
+    features, 
+    trialPeriodDays, 
+    displayOrder, 
+    limits, 
+    isActive, 
+    isPopular, 
+    isEnterprise, 
+    badge, 
+    ctaText 
+  } = req.body;
 
   if (!name || !code) {
     throw new AppError('Name and Code are required fields.', HTTP_STATUS.BAD_REQUEST);
@@ -39,7 +55,11 @@ const createPlan = asyncHandler(async (req, res) => {
     trialPeriodDays: trialPeriodDays || 0,
     displayOrder: displayOrder || 0,
     limits: limits || { maxDoctors: null, maxStaff: null, maxPatients: null, maxBranches: 0 },
-    isActive: true
+    isActive: isActive !== undefined ? isActive : true,
+    isPopular: !!isPopular,
+    isEnterprise: !!isEnterprise,
+    badge: badge || null,
+    ctaText: ctaText || ''
   });
 
   return sendSuccess(res, 'Subscription plan created successfully', { plan }, 201);
@@ -48,7 +68,22 @@ const createPlan = asyncHandler(async (req, res) => {
 // Update a plan
 const updatePlan = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { name, code, description, priceMonthly, priceYearly, features, trialPeriodDays, displayOrder, limits, isActive } = req.body;
+  const { 
+    name, 
+    code, 
+    description, 
+    priceMonthly, 
+    priceYearly, 
+    features, 
+    trialPeriodDays, 
+    displayOrder, 
+    limits, 
+    isActive, 
+    isPopular, 
+    isEnterprise, 
+    badge, 
+    ctaText 
+  } = req.body;
 
   const plan = await SubscriptionPlan.findById(id);
   if (!plan) {
@@ -64,6 +99,10 @@ const updatePlan = asyncHandler(async (req, res) => {
   if (displayOrder !== undefined) plan.displayOrder = displayOrder;
   if (limits !== undefined) plan.limits = limits;
   if (isActive !== undefined) plan.isActive = isActive;
+  if (isPopular !== undefined) plan.isPopular = isPopular;
+  if (isEnterprise !== undefined) plan.isEnterprise = isEnterprise;
+  if (badge !== undefined) plan.badge = badge;
+  if (ctaText !== undefined) plan.ctaText = ctaText;
 
   await plan.save();
 
@@ -96,6 +135,10 @@ const duplicatePlan = asyncHandler(async (req, res) => {
     trialPeriodDays: original.trialPeriodDays,
     displayOrder: original.displayOrder + 1,
     limits: original.limits,
+    isPopular: false,
+    isEnterprise: original.isEnterprise || false,
+    badge: original.badge || null,
+    ctaText: original.ctaText || '',
     isActive: false // Default to inactive so Super Admin can customize before publishing
   });
 

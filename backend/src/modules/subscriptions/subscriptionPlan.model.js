@@ -56,6 +56,24 @@ const subscriptionPlanSchema = new mongoose.Schema(
     isActive: {
       type: Boolean,
       default: true
+    },
+    isPopular: {
+      type: Boolean,
+      default: false
+    },
+    isEnterprise: {
+      type: Boolean,
+      default: false
+    },
+    badge: {
+      type: String,
+      default: null,
+      trim: true
+    },
+    ctaText: {
+      type: String,
+      default: '',
+      trim: true
     }
   },
   {

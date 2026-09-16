@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { clinicApi, promoApi } from '../../lib/api';
 import useAuth from '../../hooks/useAuth';
 import toast from 'react-hot-toast';
@@ -73,13 +73,17 @@ const STEPS = [
 
 export default function ClinicRegister() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const urlPlan = searchParams.get('plan');
+  const urlBilling = searchParams.get('billing');
+
   const { login } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [plans, setPlans] = useState([]);
   const [plansLoading, setPlansLoading] = useState(true);
   const [plansError, setPlansError] = useState('');
   const [stepThreeError, setStepThreeError] = useState('');
-  const [billingCycle, setBillingCycle] = useState('monthly');
+  const [billingCycle, setBillingCycle] = useState(urlBilling === 'yearly' ? 'yearly' : 'monthly');
   const [promoCode, setPromoCode] = useState('');
   const [promoApplied, setPromoApplied] = useState(false);
   const [promoError, setPromoError] = useState('');
@@ -171,7 +175,11 @@ export default function ClinicRegister() {
       if (availablePlans.length > 0) {
         setSelectedPlanId(prev => {
           if (prev && availablePlans.some(p => p._id === prev)) return prev;
-          const professional = availablePlans.find(p => p.code === 'PROFESSIONAL') || availablePlans[0];
+          if (urlPlan) {
+            const matched = availablePlans.find(p => p._id === urlPlan || p.code === urlPlan.toUpperCase());
+            if (matched) return matched._id;
+          }
+          const professional = availablePlans.find(p => p.isPopular || p.code === 'PROFESSIONAL') || availablePlans[0];
           return professional._id;
         });
       } else {
@@ -183,7 +191,7 @@ export default function ClinicRegister() {
     } finally {
       setPlansLoading(false);
     }
-  }, []);
+  }, [urlPlan]);
 
   useEffect(() => {
     fetchPlans();
