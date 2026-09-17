@@ -36,19 +36,19 @@ export default function Footer() {
     {
       title: 'Resources',
       links: [
-        { label: 'Blog', href: '#hero' },
+        { label: 'Book a Demo', href: '/book-demo' },
+        { label: 'Contact Support', href: '/contact-support' },
+        { label: 'Help Center', href: '/contact-support' },
         { label: 'Case Studies', href: '#hero' },
-        { label: 'Help Center', href: '#hero' },
-        { label: 'Webinars', href: '#hero' },
       ],
     },
     {
       title: 'Company',
       links: [
         { label: 'About Us', href: '#hero' },
+        { label: 'Contact Support', href: '/contact-support' },
+        { label: 'Book a Demo', href: '/book-demo' },
         { label: 'Careers', href: '#hero' },
-        { label: 'Contact', href: '#hero' },
-        { label: 'Partners', href: '#hero' },
       ],
     },
   ];
@@ -99,12 +99,21 @@ export default function Footer() {
                 <ul className="flex flex-col gap-2.5">
                   {group.links.map((link) => (
                     <li key={link.label}>
-                      <a
-                        href={link.href}
-                        className="text-xs sm:text-[13px] text-slate-600 hover:text-blue-600 transition-colors"
-                      >
-                        {link.label}
-                      </a>
+                      {link.href.startsWith('/') ? (
+                        <Link
+                          to={link.href}
+                          className="text-xs sm:text-[13px] text-slate-600 hover:text-blue-600 transition-colors"
+                        >
+                          {link.label}
+                        </Link>
+                      ) : (
+                        <a
+                          href={link.href}
+                          className="text-xs sm:text-[13px] text-slate-600 hover:text-blue-600 transition-colors"
+                        >
+                          {link.label}
+                        </a>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -141,12 +150,21 @@ export default function Footer() {
                       >
                         {group.links.map((link) => (
                           <li key={link.label}>
-                            <a
-                              href={link.href}
-                              className="text-xs text-slate-600 hover:text-blue-600 block py-1"
-                            >
-                              {link.label}
-                            </a>
+                            {link.href.startsWith('/') ? (
+                              <Link
+                                to={link.href}
+                                className="text-xs text-slate-600 hover:text-blue-600 block py-1"
+                              >
+                                {link.label}
+                              </Link>
+                            ) : (
+                              <a
+                                href={link.href}
+                                className="text-xs text-slate-600 hover:text-blue-600 block py-1"
+                              >
+                                {link.label}
+                              </a>
+                            )}
                           </li>
                         ))}
                       </motion.ul>

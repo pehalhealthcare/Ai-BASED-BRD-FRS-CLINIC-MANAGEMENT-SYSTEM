@@ -166,6 +166,7 @@ import SubscriptionPage from '../features/admin/SubscriptionPage';
 import PatientAppointmentsPage from '../features/patients/PatientAppointmentsPage';
 import LandingPage from '../pages/LandingPage';
 import ContactPage from '../pages/ContactPage';
+import BookDemoPage from '../pages/BookDemoPage';
 import ClinicRegister from '../features/clinics/ClinicRegister';
 import SuperAdminClinics from '../features/super-admin/SuperAdminClinics';
 import Clinic360Page from '../features/super-admin/Clinic360Page';
@@ -216,6 +217,10 @@ export const router = createBrowserRouter([
     element: <ContactPage />
   },
   {
+    path: '/contact-support',
+    element: <ContactPage />
+  },
+  {
     path: '/set-your-clinic',
     element: <ClinicRegister />
   },
@@ -225,7 +230,7 @@ export const router = createBrowserRouter([
   },
   {
     path: '/book-demo',
-    element: <ClinicRegister />
+    element: <BookDemoPage />
   },
   {
     path: '/login',
