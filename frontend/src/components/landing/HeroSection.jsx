@@ -8,7 +8,6 @@ export default function HeroSection({ onSetupClinic, onWatchVideo }) {
     'No credit card required',
     'Quick setup',
     'HIPAA-ready',
-    'Trusted by 1,000+',
   ];
 
   return (
