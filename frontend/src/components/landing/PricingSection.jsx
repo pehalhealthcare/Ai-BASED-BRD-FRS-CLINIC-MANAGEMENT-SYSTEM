@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { 
   Check, Sparkles, ArrowRight, ShieldCheck, Zap, 
-  ChevronLeft, ChevronRight, User, Building2, Crown, 
+  User, Building2, Crown, 
   Building, CalendarCheck, AlertCircle, RefreshCw, Layers 
 } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -44,11 +44,8 @@ const FEATURE_LABELS = {
 
 const formatFeatureText = (feat) => {
   if (!feat || typeof feat !== 'string') return '';
-  // If it matches a key in FEATURE_LABELS, return the label
   if (FEATURE_LABELS[feat]) return FEATURE_LABELS[feat];
-  // If it's already a descriptive phrase with spaces, return as is
   if (feat.includes(' ')) return feat;
-  // Replace underscores and capitalize words
   return feat.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 };
 
@@ -57,10 +54,12 @@ export default function PricingSection({ onSelectPlan, isAuthenticated = false }
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(true);
+  
   const scrollRef = useRef(null);
+  const isDownRef = useRef(false);
+  const startXRef = useRef(0);
+  const scrollLeftRef = useRef(0);
+  const isDraggingRef = useRef(false);
 
   // Fetch real active plans from the database via backend public API
   const fetchPlans = useCallback(async () => {
@@ -95,60 +94,80 @@ export default function PricingSection({ onSelectPlan, isAuthenticated = false }
     fetchPlans();
   }, [fetchPlans]);
 
-  // Scroll tracking to update indicators & arrow buttons
-  const handleScroll = () => {
-    if (!scrollRef.current) return;
-    const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
-    setCanScrollLeft(scrollLeft > 10);
-    setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10);
-
-    const cards = scrollRef.current.children;
-    if (cards && cards.length > 0) {
-      const firstCard = cards[0];
-      const secondCard = cards[1];
-      const cardStep = secondCard && firstCard ? (secondCard.offsetLeft - firstCard.offsetLeft) : (firstCard.offsetWidth + 20);
-      const idx = Math.round(scrollLeft / (cardStep || 320));
-      setActiveIndex(Math.max(0, Math.min(idx, plans.length - 1)));
-    }
-  };
-
+  // Enhanced mouse wheel listener: allows vertical mouse wheel to scroll horizontally across plans on desktop, while preserving inner vertical scrolling for feature lists
   useEffect(() => {
-    handleScroll();
-    window.addEventListener('resize', handleScroll);
-    return () => window.removeEventListener('resize', handleScroll);
-  }, [plans]);
+    const el = scrollRef.current;
+    if (!el) return;
 
-  const scrollByDirection = (direction) => {
+    const handleWheel = (e) => {
+      // If trackpad horizontal scroll or Shift+wheel is already firing deltaX, let native handle it
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+        return;
+      }
+
+      // If user is hovering over an inner vertical feature list with overflow, let it scroll vertically
+      const scrollableChild = e.target.closest('.custom-scrollbar, ul');
+      if (scrollableChild && scrollableChild.scrollHeight > scrollableChild.clientHeight) {
+        const atTop = scrollableChild.scrollTop <= 0 && e.deltaY < 0;
+        const atBottom = Math.ceil(scrollableChild.scrollTop + scrollableChild.clientHeight) >= scrollableChild.scrollHeight && e.deltaY > 0;
+        if (!atTop && !atBottom) {
+          return;
+        }
+      }
+
+      if (e.deltaY !== 0) {
+        e.preventDefault();
+        el.scrollBy({ left: e.deltaY, behavior: 'auto' });
+      }
+    };
+
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => {
+      el.removeEventListener('wheel', handleWheel);
+    };
+  }, [loading, plans]);
+
+  // Mouse Drag to Scroll handlers
+  const handleMouseDown = (e) => {
+    // If clicking on an interactive inner element (buttons, links, inputs, feature lists), skip outer drag
+    if (e.target.closest('ul') || e.target.closest('button') || e.target.closest('a') || e.target.closest('input')) {
+      return;
+    }
     if (!scrollRef.current) return;
-    const cards = scrollRef.current.children;
-    const firstCard = cards?.[0];
-    const secondCard = cards?.[1];
-    const scrollAmount = secondCard && firstCard 
-      ? (secondCard.offsetLeft - firstCard.offsetLeft) 
-      : (firstCard ? firstCard.offsetWidth + 20 : 340);
-
-    scrollRef.current.scrollBy({
-      left: direction === 'left' ? -scrollAmount : scrollAmount,
-      behavior: 'smooth'
-    });
+    isDownRef.current = true;
+    isDraggingRef.current = false;
+    startXRef.current = e.pageX - scrollRef.current.offsetLeft;
+    scrollLeftRef.current = scrollRef.current.scrollLeft;
   };
 
-  const scrollToPlan = (idx) => {
+  const handleMouseMove = (e) => {
+    if (!isDownRef.current || !scrollRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - scrollRef.current.offsetLeft;
+    const walk = (x - startXRef.current) * 1.5;
+    if (Math.abs(walk) > 6) {
+      isDraggingRef.current = true;
+    }
+    scrollRef.current.scrollLeft = scrollLeftRef.current - walk;
+  };
+
+  const handleMouseUpOrLeave = () => {
+    isDownRef.current = false;
+    setTimeout(() => {
+      isDraggingRef.current = false;
+    }, 60);
+  };
+
+  // Keyboard navigation on the carousel
+  const handleKeyDown = (e) => {
     if (!scrollRef.current) return;
-    const cards = scrollRef.current.children;
-    if (cards && cards[idx]) {
-      cards[idx].scrollIntoView({
-        behavior: 'smooth',
-        block: 'nearest',
-        inline: 'start'
-      });
-    } else {
-      const firstCard = cards?.[0];
-      const scrollAmount = firstCard ? firstCard.offsetWidth + 20 : 340;
-      scrollRef.current.scrollTo({
-        left: idx * scrollAmount,
-        behavior: 'smooth'
-      });
+    const step = scrollRef.current.clientWidth * 0.45 || 380;
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      scrollRef.current.scrollBy({ left: -step, behavior: 'smooth' });
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      scrollRef.current.scrollBy({ left: step, behavior: 'smooth' });
     }
   };
 
@@ -166,13 +185,14 @@ export default function PricingSection({ onSelectPlan, isAuthenticated = false }
   }, [plans]);
 
   const handlePlanClick = (plan) => {
+    if (isDraggingRef.current) return; // Prevent triggering click during mouse drag
     if (onSelectPlan) {
       onSelectPlan(plan, billingCycle);
     }
   };
 
   // Helper to render plan top icon based on plan metadata
-  const renderPlanIcon = (plan, index) => {
+  const renderPlanIcon = (plan) => {
     const code = (plan.code || '').toUpperCase();
     const name = (plan.name || '').toLowerCase();
 
@@ -215,7 +235,7 @@ export default function PricingSection({ onSelectPlan, isAuthenticated = false }
       <div className="absolute top-10 right-0 translate-x-1/4 w-[700px] h-[700px] bg-gradient-to-bl from-blue-50/80 via-indigo-50/30 to-transparent rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[900px] h-[300px] bg-blue-50/30 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="max-w-[1520px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 relative z-10 w-full">
+      <div className="max-w-[1520px] mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full">
         
         {/* Section Header */}
         <div className="text-center max-w-3xl mx-auto mb-10 sm:mb-12">
@@ -289,9 +309,9 @@ export default function PricingSection({ onSelectPlan, isAuthenticated = false }
 
         {/* ── LOADING SKELETON STATE ── */}
         {loading && (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 animate-pulse">
-            {[1, 2, 3, 4].map((n) => (
-              <div key={n} className="bg-slate-50/80 rounded-3xl p-7 border border-slate-100 h-[520px] flex flex-col justify-between">
+          <div className="flex justify-center gap-6 overflow-hidden animate-pulse px-4 py-6">
+            {[1, 2].map((n) => (
+              <div key={n} className="bg-slate-50/80 rounded-3xl p-7 border border-slate-100 h-[520px] w-full max-w-[480px] flex flex-col justify-between shrink-0">
                 <div>
                   <div className="w-12 h-12 rounded-2xl bg-slate-200/80 mb-4" />
                   <div className="h-6 w-3/4 bg-slate-200/80 rounded-lg mb-2" />
@@ -344,41 +364,22 @@ export default function PricingSection({ onSelectPlan, isAuthenticated = false }
           </div>
         )}
 
-        {/* ── DYNAMIC PRICING CAROUSEL / HORIZONTAL ROW (FROM DATABASE) ── */}
+        {/* ── TRUE USER-SCROLLABLE 2-CARD HORIZONTAL CAROUSEL WITH PARTIAL PEEK ── */}
         {!loading && !error && plans.length > 0 && (
-          <div className="pricing-carousel-container relative">
+          <div className="pricing-carousel-wrapper relative mx-auto">
             
-            {/* Left Arrow Button */}
-            <button
-              type="button"
-              onClick={() => scrollByDirection('left')}
-              disabled={!canScrollLeft}
-              className={`pricing-arrow-btn pricing-arrow-left ${
-                canScrollLeft ? 'opacity-100 hover:scale-105 active:scale-95' : 'opacity-30 cursor-not-allowed'
-              }`}
-              aria-label="Scroll left"
-            >
-              <ChevronLeft size={20} strokeWidth={2.5} />
-            </button>
-
-            {/* Right Arrow Button */}
-            <button
-              type="button"
-              onClick={() => scrollByDirection('right')}
-              disabled={!canScrollRight}
-              className={`pricing-arrow-btn pricing-arrow-right ${
-                canScrollRight ? 'opacity-100 hover:scale-105 active:scale-95' : 'opacity-30 cursor-not-allowed'
-              }`}
-              aria-label="Scroll right"
-            >
-              <ChevronRight size={20} strokeWidth={2.5} />
-            </button>
-
-            {/* ── HORIZONTAL SCROLL TRACK ── */}
+            {/* ── HORIZONTAL SCROLL TRACK (SWIPEABLE / DRAGGABLE / ACCESSIBLE) ── */}
             <div 
               ref={scrollRef}
-              onScroll={handleScroll}
-              className="pricing-scroll-track"
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUpOrLeave}
+              onMouseLeave={handleMouseUpOrLeave}
+              onKeyDown={handleKeyDown}
+              tabIndex={0}
+              role="region"
+              aria-label="Pricing plans carousel. Scroll horizontally, swipe, or use arrow keys to view all plans."
+              className="pricing-scroll-track focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded-3xl"
             >
               {plans.map((plan, index) => {
                 const isPopular = !!plan.isPopular || plan.badge === 'MOST POPULAR';
@@ -403,7 +404,7 @@ export default function PricingSection({ onSelectPlan, isAuthenticated = false }
                 return (
                   <div
                     key={plan._id || plan.code || index}
-                    className="pricing-card-item group"
+                    className="pricing-card-item group shrink-0"
                   >
                     <div className={`relative rounded-3xl p-6 sm:p-7 flex flex-col justify-between h-full transition-all duration-300 bg-white ${
                       isPopular
@@ -421,7 +422,7 @@ export default function PricingSection({ onSelectPlan, isAuthenticated = false }
                       <div>
                         {/* Top Plan Icon */}
                         <div className="mb-4">
-                          {renderPlanIcon(plan, index)}
+                          {renderPlanIcon(plan)}
                         </div>
 
                         {/* Plan Name */}
@@ -482,7 +483,11 @@ export default function PricingSection({ onSelectPlan, isAuthenticated = false }
                           </div>
                           
                           {/* Real Features from Backend */}
-                          <ul className="flex flex-col gap-2.5 max-h-[220px] overflow-y-auto pr-1.5 custom-scrollbar text-xs sm:text-[13px] text-slate-700">
+                          <ul 
+                            className="flex flex-col gap-2.5 max-h-[220px] overflow-y-auto pr-1.5 custom-scrollbar text-xs sm:text-[13px] text-slate-700 select-text"
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onTouchStart={(e) => e.stopPropagation()}
+                          >
                             {Array.isArray(plan.features) && plan.features.length > 0 ? (
                               plan.features.map((feature, fIdx) => (
                                 <li key={fIdx} className="flex items-center gap-2.5 leading-snug">
@@ -501,6 +506,13 @@ export default function PricingSection({ onSelectPlan, isAuthenticated = false }
                       <button
                         type="button"
                         onClick={() => handlePlanClick(plan)}
+                        onFocus={(e) => {
+                          e.currentTarget.closest('.pricing-card-item')?.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'nearest',
+                            inline: 'center'
+                          });
+                        }}
                         className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl font-bold text-xs sm:text-sm transition-all duration-200 active:scale-95 cursor-pointer mt-4 ${
                           isPopular
                             ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/25 hover:shadow-blue-600/35'
@@ -515,23 +527,6 @@ export default function PricingSection({ onSelectPlan, isAuthenticated = false }
                 );
               })}
             </div>
-
-            {/* ── PAGINATION DOTS (CLICKABLE TO NAVIGATE) ── */}
-            {plans.length > 1 && (
-              <div className="pricing-scroll-controls flex justify-center mt-8">
-                <div className="pricing-scroll-dots flex items-center gap-2">
-                  {plans.map((_, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => scrollToPlan(i)}
-                      className={`pricing-dot-btn ${activeIndex === i ? 'active' : ''}`}
-                      aria-label={`Go to plan ${i + 1}`}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
 
           </div>
         )}

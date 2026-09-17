@@ -2173,181 +2173,134 @@ body {
   position: relative;
 }
 
-/* Arrow Navigation Buttons */
-.pricing-arrow-btn {
-  width: 44px;
-  height: 44px;
-  border-radius: 9999px;
-  background-color: #ffffff;
-  border: 1px solid #e2e8f0;
-  color: #475569;
-  box-shadow: 0 4px 14px 0 rgba(0, 0, 0, 0.08);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 20;
-  cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+/* ==========================================================================
+   PRICING SECTION HORIZONTAL CAROUSEL
+   2 Full Cards Centered + Visible Partial Peeking Cards (True User-Scrollable)
+   ========================================================================== */
+
+.pricing-carousel-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 1160px;
+  margin-inline: auto;
+  overflow: hidden; /* Clips carousel cards so they don't bleed outside container */
+  padding-block: 8px;
 }
 
-.pricing-arrow-btn:hover:not(:disabled) {
-  color: #2563eb;
-  border-color: #bfdbfe;
-  background-color: #ffffff;
-  box-shadow: 0 8px 24px 0 rgba(37, 99, 235, 0.18);
-}
-
-.pricing-arrow-left {
-  left: -16px;
-}
-
-.pricing-arrow-right {
-  right: -16px;
-}
-
-@media (min-width: 1400px) {
-  .pricing-arrow-left {
-    left: -22px;
-  }
-  .pricing-arrow-right {
-    right: -22px;
-  }
-}
-
-@media (max-width: 767px) {
-  .pricing-arrow-btn {
-    display: none;
-  }
-}
-
-/* Horizontal scroll track for pricing cards */
+/* Horizontal scroll track (grab to drag, swipe, mouse wheel, trackpad) */
 .pricing-scroll-track {
   display: flex;
   flex-direction: row;
   flex-wrap: nowrap;
-  gap: 20px;
+  gap: 24px;
   width: 100%;
   box-sizing: border-box;
   align-items: stretch;
-  padding: 16px 2px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+  cursor: grab;
+  user-select: none;
+  padding-block: 16px;
+  scroll-behavior: smooth;
 }
 
-/* Desktop (>= 1280px): ALL 4 CARDS IN ONE ROW */
-@media (min-width: 1280px) {
-  .pricing-scroll-track {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 20px;
-    overflow: visible;
-    padding-top: 16px;
-    padding-bottom: 8px;
-  }
+.pricing-scroll-track:active {
+  cursor: grabbing;
 }
 
-/* Tablet / Medium screens (768px - 1279px): Horizontal carousel, 2 cards visible */
-@media (min-width: 768px) and (max-width: 1279px) {
-  .pricing-scroll-track {
-    overflow-x: auto;
-    overflow-y: hidden;
-    scroll-snap-type: x mandatory;
-    -webkit-overflow-scrolling: touch;
-    scroll-padding-left: 12px;
-    padding-inline: 6px;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-  }
-
-  .pricing-scroll-track::-webkit-scrollbar {
-    display: none;
-  }
+.pricing-scroll-track::-webkit-scrollbar {
+  display: none; /* Chrome/Safari/Opera */
+  width: 0;
+  height: 0;
 }
 
-/* Mobile (< 768px): Horizontal swipeable carousel, 1 card with peeking */
-@media (max-width: 767px) {
-  .pricing-scroll-track {
-    overflow-x: auto;
-    overflow-y: hidden;
-    scroll-snap-type: x mandatory;
-    -webkit-overflow-scrolling: touch;
-    scroll-padding-left: 16px;
-    padding-inline: 16px;
-    gap: 16px;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-  }
-
-  .pricing-scroll-track::-webkit-scrollbar {
-    display: none;
-  }
-}
-
-/* Card sizing per breakpoint */
+/* Individual pricing card container */
 .pricing-card-item {
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
   justify-content: stretch;
-  height: 100%;
+  height: auto;
+  min-height: 100%;
+  flex-shrink: 0;
 }
 
-@media (min-width: 1280px) {
-  .pricing-card-item {
-    width: 100%;
-    min-width: 0;
+/* ─────────────────────────────────────────────────────────────
+   DESKTOP (>= 1024px): Exactly 2 Full Cards Centered + Visible Partial Peek
+   Formula:
+   - Container max-width: 1160px
+   - Gap between cards: 24px
+   - Track padding-inline: 60px (leaving 1040px in center)
+   - Card width = (1040px - 24px) / 2 = 508px
+   - Card 0 & Card 1 fill the 1040px center area
+   - Card 2 starts at 60px + 1040px + 24px = 1124px, peeking 36px on the right
+   ───────────────────────────────────────────────────────────── */
+@media (min-width: 1024px) {
+  .pricing-carousel-wrapper {
+    max-width: 1160px;
   }
-}
 
-@media (min-width: 768px) and (max-width: 1279px) {
+  .pricing-scroll-track {
+    gap: 24px;
+    padding-inline: 60px;
+    scroll-padding-inline: 60px;
+  }
+
   .pricing-card-item {
-    flex: 0 0 calc(50% - 10px);
-    min-width: 310px;
-    max-width: 380px;
+    flex: 0 0 calc((100% - 144px) / 2);
+    width: calc((100% - 144px) / 2);
+    min-width: 420px;
+    max-width: 490px;
     scroll-snap-align: start;
   }
 }
 
-@media (max-width: 767px) {
+/* ─────────────────────────────────────────────────────────────
+   TABLET (768px to 1023px): ~1.5 to 2 Cards Visible with Peeking
+   ───────────────────────────────────────────────────────────── */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .pricing-carousel-wrapper {
+    max-width: 100%;
+  }
+
+  .pricing-scroll-track {
+    gap: 20px;
+    padding-inline: 36px;
+    scroll-padding-inline: 36px;
+  }
+
   .pricing-card-item {
-    flex: 0 0 calc(88vw - 16px);
-    width: calc(88vw - 16px);
-    max-width: 360px;
-    scroll-snap-align: center;
+    flex: 0 0 min(420px, calc(58vw - 20px));
+    width: min(420px, calc(58vw - 20px));
+    min-width: 340px;
+    scroll-snap-align: start;
   }
 }
 
-/* Scroll indicator dots */
-.pricing-scroll-controls {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
+/* ─────────────────────────────────────────────────────────────
+   MOBILE (< 768px): 1 Full Card + Small Peek of Next Card (~40-60px)
+   ───────────────────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  .pricing-carousel-wrapper {
+    max-width: 100%;
+    padding-block: 6px;
+  }
 
-.pricing-scroll-dots {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
+  .pricing-scroll-track {
+    gap: 16px;
+    padding-inline: 20px;
+    scroll-padding-inline: 20px;
+  }
 
-.pricing-dot-btn {
-  width: 8px;
-  height: 8px;
-  border-radius: 9999px;
-  background-color: #cbd5e1;
-  transition: all 0.25s ease;
-  border: none;
-  padding: 0;
-  cursor: pointer;
+  .pricing-card-item {
+    flex: 0 0 calc(100% - 56px);
+    width: calc(100% - 56px);
+    max-width: 360px;
+    scroll-snap-align: start;
+  }
 }
-
-.pricing-dot-btn:hover {
-  background-color: #94a3b8;
-}
-
-.pricing-dot-btn.active {
-  width: 28px;
-  background-color: #2563eb;
-  border-radius: 9999px;
-}
+
