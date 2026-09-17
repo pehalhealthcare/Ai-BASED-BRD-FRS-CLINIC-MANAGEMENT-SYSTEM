@@ -1399,10 +1399,10 @@ export default function ClinicWizard() {
                 <span className="text-[10px] text-slate-400 mt-0.5 block leading-relaxed">We're here to help you set up your clinic.</span>
               </div>
               <div className="grid grid-cols-2 gap-2 text-[10px] font-bold text-slate-600">
-                <a href="#" className="flex items-center gap-1.5 py-2 justify-center bg-white border border-slate-200 rounded-xl hover:text-green-600 hover:border-green-200 transition"><MessageSquare size={11} /> Live Chat</a>
-                <a href="#" className="flex items-center gap-1.5 py-2 justify-center bg-white border border-slate-200 rounded-xl hover:text-green-600 hover:border-green-200 transition"><Calendar size={11} /> Book Demo</a>
-                <a href="#" className="flex items-center gap-1.5 py-2 justify-center bg-white border border-slate-200 rounded-xl hover:text-green-600 hover:border-green-200 transition"><FileText size={11} /> Documentation</a>
-                <a href="#" className="flex items-center gap-1.5 py-2 justify-center bg-white border border-slate-200 rounded-xl hover:text-green-600 hover:border-green-200 transition"><Play size={11} /> Video Guide</a>
+                <Link to={'/contact-support'} className="flex items-center gap-1.5 py-2 justify-center bg-white border border-slate-200 rounded-xl hover:text-green-600 hover:border-green-200 transition"><MessageSquare size={11} /> Customer Support</Link>
+                <Link to={'/book-demo'} className="flex items-center gap-1.5 py-2 justify-center bg-white border border-slate-200 rounded-xl hover:text-green-600 hover:border-green-200 transition"><Calendar size={11} /> Book Demo</Link>
+                {/* <a href="#" className="flex items-center gap-1.5 py-2 justify-center bg-white border border-slate-200 rounded-xl hover:text-green-600 hover:border-green-200 transition"><FileText size={11} /> Documentation</a> */}
+                {/* <a href="#" className="flex items-center gap-1.5 py-2 justify-center bg-white border border-slate-200 rounded-xl hover:text-green-600 hover:border-green-200 transition"><Play size={11} /> Video Guide</a> */}
               </div>
             </div>
           </div>
