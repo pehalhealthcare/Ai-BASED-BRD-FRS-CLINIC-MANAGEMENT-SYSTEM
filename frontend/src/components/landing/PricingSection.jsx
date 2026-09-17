@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Check, Sparkles, ArrowRight, ShieldCheck, Zap, 
-  User, Building2, Crown, 
+  User, Building2, Crown, Calendar, Headphones,
   Building, CalendarCheck, AlertCircle, RefreshCw, Layers 
 } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -50,6 +51,7 @@ const formatFeatureText = (feat) => {
 };
 
 export default function PricingSection({ onSelectPlan, isAuthenticated = false }) {
+  const navigate = useNavigate();
   const [billingCycle, setBillingCycle] = useState('monthly'); // 'monthly' | 'yearly'
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -530,6 +532,53 @@ export default function PricingSection({ onSelectPlan, isAuthenticated = false }
 
           </div>
         )}
+
+        {/* ── SECTION 1 & 2: DEDICATED ASSISTANCE & TROUBLESHOOTING ── */}
+        <div className="mt-12 sm:mt-14 w-full flex flex-col items-center space-y-6 sm:space-y-8">
+          
+          {/* Section 1: Plan Selection Assistance Card */}
+          <div className="w-full max-w-3xl 2xl:max-w-4xl mx-auto rounded-3xl p-6 sm:p-8 2xl:p-10 bg-gradient-to-r from-blue-50/70 via-indigo-50/40 to-blue-50/70 border border-blue-100/90 shadow-sm text-center">
+            <h3 className="text-xl sm:text-2xl 2xl:text-3xl font-extrabold text-slate-900 tracking-tight mb-2">
+              Not sure which plan is right for you?
+            </h3>
+            <p className="text-xs sm:text-sm 2xl:text-base text-slate-600 font-normal max-w-lg mx-auto mb-6 leading-relaxed">
+              Talk to our team and get help choosing the right AI-CMS plan for your clinic.
+            </p>
+            <div className="flex justify-center w-full">
+              <button
+                type="button"
+                onClick={() => navigate('/book-demo')}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-7 sm:px-9 py-3 sm:py-3.5 rounded-full bg-white hover:bg-blue-50/90 active:bg-blue-100/80 border-2 border-[#0070F3] hover:border-blue-600 text-[#0070F3] hover:text-blue-700 font-bold text-xs sm:text-sm 2xl:text-base min-h-[48px] sm:min-h-[52px] shadow-sm hover:shadow-md hover:shadow-blue-500/15 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+              >
+                <Calendar size={18} className="text-[#0070F3] shrink-0" />
+                <span>Book a Demo</span>
+                <ArrowRight size={17} className="text-[#0070F3] shrink-0" />
+              </button>
+            </div>
+          </div>
+
+          {/* Section 2: Setup Troubleshooting Row */}
+          <div className="w-full max-w-2xl mx-auto text-center px-4">
+            <h4 className="text-sm sm:text-base 2xl:text-lg font-bold text-slate-800 tracking-tight mb-1.5">
+              Having trouble setting up your clinic?
+            </h4>
+            <p className="text-xs sm:text-[13px] 2xl:text-sm text-slate-500 font-medium max-w-md mx-auto mb-3.5 leading-relaxed">
+              Facing an error or need help completing your clinic setup? Our support team is here to help.
+            </p>
+            <div className="flex justify-center w-full">
+              <button
+                type="button"
+                onClick={() => navigate('/contact-support')}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 sm:px-7 py-2.5 sm:py-3 rounded-full bg-white hover:bg-slate-50 active:bg-slate-100 border border-slate-200/90 hover:border-blue-300 text-[#0070F3] hover:text-blue-700 font-semibold text-xs sm:text-[13px] 2xl:text-sm min-h-[44px] sm:min-h-[48px] shadow-2xs hover:shadow-xs transition-all duration-200 cursor-pointer"
+              >
+                <Headphones size={15} className="text-[#0070F3] shrink-0" />
+                <span>Contact Support</span>
+                <ArrowRight size={14} className="text-[#0070F3] shrink-0" />
+              </button>
+            </div>
+          </div>
+
+        </div>
 
         {/* Factual Guarantee / Benefits Footer Row */}
         <div className="mt-12 text-center flex flex-wrap items-center justify-center gap-6 sm:gap-10 text-xs sm:text-sm text-slate-600 font-medium">
