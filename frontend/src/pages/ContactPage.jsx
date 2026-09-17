@@ -84,17 +84,19 @@ export default function ContactPage() {
     setErrorMessage('');
 
     try {
-      const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/support`, {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        email: formData.email,
-        phone: formData.phone,
-        clinicName: formData.clinicName,
+      const apiBase = import.meta.env.VITE_API_BASE_URL || '/api/v1';
+      const response = await axios.post(`${apiBase}/support`, {
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        email: formData.email.trim(),
+        phone: formData.phone.trim(),
+        clinicName: formData.clinicName.trim(),
         role: formData.role,
         department: formData.department,
         priority: formData.priority,
-        subject: formData.subject,
-        message: formData.message
+        subject: formData.subject.trim(),
+        message: formData.message.trim(),
+        agree: formData.agree
       });
 
       if (response.data?.success) {
@@ -658,7 +660,7 @@ export default function ContactPage() {
                   className="w-full sm:flex-1 min-h-[52px] py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-emerald-700/10 hover:shadow-emerald-700/20 disabled:bg-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-emerald-500/60 focus:ring-offset-1 focus:ring-offset-slate-950"
                 >
                   {status === 'loading' ? (
-                    <span>Sending Ticket...</span>
+                    <span>Sending...</span>
                   ) : (
                     <>
                       <span>Send Message</span>

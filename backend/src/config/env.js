@@ -47,6 +47,7 @@ const envSchema = z.object({
   EMAIL_USER: z.string().optional(),
   EMAIL_PASS: z.string().optional(),
   EMAIL_FROM: z.string().optional(),
+  EMAIL_TO: z.string().optional(),
   RAZORPAY_KEY_ID: z.string().optional(),
   RAZORPAY_KEY_SECRET: z.string().optional(),
   ENABLE_MOCK_NOTIFICATIONS: z.preprocess((value) => {
@@ -118,6 +119,7 @@ const env = {
   emailUser: parsedEnv.EMAIL_USER,
   emailPass: parsedEnv.EMAIL_PASS,
   emailFrom: parsedEnv.EMAIL_FROM,
+  emailTo: parsedEnv.EMAIL_TO || parsedEnv.EMAIL_USER || 'pehalhealthcare@gmail.com',
   razorpayKeyId: parsedEnv.RAZORPAY_KEY_ID,
   razorpayKeySecret: parsedEnv.RAZORPAY_KEY_SECRET,
   isDevelopment: parsedEnv.NODE_ENV === 'development',

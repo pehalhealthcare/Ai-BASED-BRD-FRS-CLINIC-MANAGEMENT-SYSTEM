@@ -186,43 +186,37 @@ export default function BookDemoPage() {
     });
 
     const payload = {
-      firstName: formData.fullName.split(' ')[0] || formData.fullName,
-      lastName: formData.fullName.split(' ').slice(1).join(' ') || 'Doctor',
-      email: formData.email,
-      phone: formData.phone,
-      clinicName: formData.clinicName,
-      role: `Clinic Head (${formData.doctorsCount})`,
-      department: 'Book a Demo Request',
-      priority: 'High',
-      subject: `PEHAL Demo Booking: ${formattedDate} at ${selectedTimeSlot.label}`,
-      message: `Demo Session Scheduled for ${formattedDate} at ${selectedTimeSlot.label}.\nClinic: ${formData.clinicName}\nTeam: ${formData.doctorsCount}\nInterest Areas: ${formData.topics || 'All Modules'}`
+      fullName: formData.fullName.trim(),
+      email: formData.email.trim(),
+      phone: formData.phone.trim(),
+      clinicName: formData.clinicName.trim(),
+      doctorsCount: formData.doctorsCount,
+      selectedDate: formattedDate,
+      selectedTime: selectedTimeSlot.label,
+      topics: formData.topics.trim(),
+      agree: formData.agree
     };
 
     try {
-      const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL || '/api/v1'}/support`, payload);
+      const apiBase = import.meta.env.VITE_API_BASE_URL || '/api/v1';
+      const response = await axios.post(`${apiBase}/support/demo`, payload);
       
-      if (response.data?.success || response.status === 200 || response.status === 201) {
+      if (response.data?.success) {
         setStatus('success');
         setSuccessData({
-          bookingId: response.data?.ticketId || `DEMO-${Date.now().toString().slice(-6)}`,
+          bookingId: response.data.ticketId,
           dateText: formattedDate,
           timeText: selectedTimeSlot.label,
           fullName: formData.fullName,
           clinicName: formData.clinicName
         });
       } else {
-        throw new Error(response.data?.message || 'Demo submission failed');
+        throw new Error(response.data?.message || 'Demo scheduling failed');
       }
     } catch (err) {
-      console.warn('Demo booking submission fallback:', err);
-      setStatus('success');
-      setSuccessData({
-        bookingId: `DEMO-${Math.floor(100000 + Math.random() * 900000)}`,
-        dateText: formattedDate,
-        timeText: selectedTimeSlot.label,
-        fullName: formData.fullName,
-        clinicName: formData.clinicName
-      });
+      console.error('Demo booking error:', err);
+      setStatus('error');
+      setErrorMessage(err.response?.data?.message || err.message || 'Failed to schedule demo. Please check your connection and try again.');
     }
   };
 
@@ -233,6 +227,19 @@ export default function BookDemoPage() {
       <header className="w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-12 py-5 sm:py-6 flex items-center justify-between relative z-30">
         <Link to="/" className="flex items-center gap-2 hover:opacity-90 transition-opacity">
           <PehalLogo variant="primary" height={36} />
+          <div className="flex flex-col justify-center leading-none shrink-0">
+                <div className="flex items-center gap-1.5 whitespace-nowrap">
+                  <span className="text-base sm:text-xl lg:text-[22px] font-black tracking-tight text-slate-900 leading-none">
+                    AI-CMS
+                  </span>
+                  <span className="text-[8.5px] sm:text-[9.5px] lg:text-[10px] font-black uppercase tracking-wider bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-1.5 sm:px-2 py-0.5 rounded-full shadow-xs leading-none">
+                    PRO
+                  </span>
+                </div>
+                <span className="text-[10px] sm:text-[11px] font-medium text-slate-500 hidden md:inline-block tracking-tight mt-0.5 whitespace-nowrap">
+                  AI-CMS Enterprise
+                </span>
+              </div>
         </Link>
         <button 
           type="button"
@@ -826,7 +833,7 @@ export default function BookDemoPage() {
       {/* 🛡️ Footer */}
       <footer className="w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-12 py-5 text-xs text-slate-500 border-t border-slate-200/80 mt-6 relative z-20 flex flex-col sm:flex-row items-center justify-between gap-3">
         <div>
-          © 2025 PEHAL Healthcare. All rights reserved. | Powered by AI
+          © 2025 PEHAL Healthcare AI-CMS Enterprise. All rights reserved. | Powered by AI
         </div>
         <div className="flex items-center gap-1.5 text-slate-600 font-medium">
           <span>Technology for a Healthier Tomorrow</span>
