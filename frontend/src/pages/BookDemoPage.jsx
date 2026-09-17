@@ -1,63 +1,53 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { 
   Calendar, Clock, CheckCircle2, ArrowLeft, ArrowRight, 
-  Sparkles, Building2, User, Mail, Phone, Stethoscope, 
-  ShieldCheck, Check, AlertCircle, HelpCircle, Laptop, Layers, Video
+  Sparkles, Building2, User, Mail, Phone, Users, FileText,
+  ShieldCheck, Check, AlertCircle, Laptop, Heart,
+  BarChart2, ChevronLeft, ChevronRight, ChevronDown
 } from 'lucide-react';
 import PehalLogo from '../components/common/PehalLogo';
 import axios from 'axios';
 
-// Available Demo Time Slots
-const TIME_SLOTS = [
-  '10:00 AM',
-  '11:30 AM',
-  '02:00 PM',
-  '03:30 PM',
-  '05:00 PM',
-  '06:30 PM'
-];
+// Existing SVG Assets from src/assets/
+import doctorImage from '../assets/pehal_doctor_tablet.svg';
+import petalBackground from '../assets/pehal_blue_petal_background.svg';
 
-// Specialty / Focus Areas
-const DEMO_TOPICS = [
-  'AI Clinical Dictation',
-  'Smart EMR & Digital Prescriptions',
-  'Online Appointments & Queue',
-  'Billing & Insurance Claims',
-  'Integrated Pharmacy & Labs',
-  'Multi-Branch Healthcare Network'
+// Available Demo Time Slots
+const AVAILABLE_TIME_SLOTS = [
+  { label: '10:00 AM', minute: 0, hour: 10 },
+  { label: '11:00 AM', minute: 0, hour: 11 },
+  { label: '12:30 PM', minute: 30, hour: 12 },
+  { label: '2:00 PM', minute: 0, hour: 14 },
+  { label: '3:30 PM', minute: 30, hour: 15 },
+  { label: '5:00 PM', minute: 0, hour: 17 }
 ];
 
 export default function BookDemoPage() {
   const navigate = useNavigate();
 
-  // Generate next 10 business days for the date selection calendar
-  const getAvailableDates = () => {
-    const dates = [];
-    const today = new Date();
-    let count = 0;
-    let offset = 0;
-    
-    while (count < 8 && offset < 20) {
-      const d = new Date();
-      d.setDate(today.getDate() + offset);
-      // Skip Sundays (0)
-      if (d.getDay() !== 0) {
-        dates.push(d);
-        count++;
-      }
-      offset++;
-    }
-    return dates;
-  };
+  // Current calendar view (month & year)
+  const today = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
 
-  const availableDates = getAvailableDates();
+  const [currentMonthDate, setCurrentMonthDate] = useState(() => {
+    const d = new Date();
+    d.setDate(1);
+    return d;
+  });
 
-  // Selected date and time states
-  const [selectedDate, setSelectedDate] = useState(availableDates[0] || new Date());
-  const [selectedTime, setSelectedTime] = useState('11:30 AM');
-  const [selectedTopics, setSelectedTopics] = useState(['Smart EMR & Digital Prescriptions']);
+  // Selected date and time
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  });
+
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState(AVAILABLE_TIME_SLOTS[2]); // Default 12:30 PM
 
   // Form input states
   const [formData, setFormData] = useState({
@@ -65,8 +55,8 @@ export default function BookDemoPage() {
     email: '',
     phone: '',
     clinicName: '',
-    doctorsCount: '1-5 Doctors',
-    customNotes: '',
+    doctorsCount: '',
+    topics: '',
     agree: false
   });
 
@@ -75,14 +65,75 @@ export default function BookDemoPage() {
   const [successData, setSuccessData] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
 
-  // Toggle demo topic
-  const toggleTopic = (topic) => {
-    setSelectedTopics(prev => 
-      prev.includes(topic) 
-        ? prev.filter(t => t !== topic)
-        : [...prev, topic]
-    );
+  // Calendar calculations
+  const year = currentMonthDate.getFullYear();
+  const month = currentMonthDate.getMonth();
+  const monthName = currentMonthDate.toLocaleDateString('en-US', { month: 'long' });
+
+  // Generate calendar days
+  const calendarDays = useMemo(() => {
+    const firstDayIndex = new Date(year, month, 1).getDay();
+    const lastDate = new Date(year, month + 1, 0).getDate();
+    const prevMonthLastDate = new Date(year, month, 0).getDate();
+
+    const days = [];
+
+    // Previous month filler days
+    for (let i = firstDayIndex - 1; i >= 0; i--) {
+      days.push({
+        dayNumber: prevMonthLastDate - i,
+        isCurrentMonth: false,
+        date: new Date(year, month - 1, prevMonthLastDate - i),
+        isPast: true
+      });
+    }
+
+    // Current month days
+    for (let i = 1; i <= lastDate; i++) {
+      const dayDate = new Date(year, month, i);
+      dayDate.setHours(0, 0, 0, 0);
+      days.push({
+        dayNumber: i,
+        isCurrentMonth: true,
+        date: dayDate,
+        isPast: dayDate < today,
+        isToday: dayDate.getTime() === today.getTime()
+      });
+    }
+
+    // Next month filler days to complete 35 or 42 grid slots
+    const totalCells = Math.ceil(days.length / 7) * 7;
+    const remaining = totalCells - days.length;
+    for (let i = 1; i <= remaining; i++) {
+      days.push({
+        dayNumber: i,
+        isCurrentMonth: false,
+        date: new Date(year, month + 1, i),
+        isPast: false
+      });
+    }
+
+    return days;
+  }, [year, month, today]);
+
+  const handlePrevMonth = () => {
+    setCurrentMonthDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
   };
+
+  const handleNextMonth = () => {
+    setCurrentMonthDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+  };
+
+  const handleSelectDay = (dayObj) => {
+    if (dayObj.isPast) return;
+    setSelectedDate(dayObj.date);
+    if (!dayObj.isCurrentMonth) {
+      setCurrentMonthDate(new Date(dayObj.date.getFullYear(), dayObj.date.getMonth(), 1));
+    }
+  };
+
+  // Clock Hand angle calculation (minutes: 0 -> 0deg, 15 -> 90deg, 30 -> 180deg, 45 -> 270deg)
+  const clockAngle = (selectedTimeSlot.minute / 60) * 360;
 
   // Form Validation
   const validate = () => {
@@ -98,12 +149,12 @@ export default function BookDemoPage() {
     if (!formData.phone.trim()) {
       newErrors.phone = 'Phone number is required';
     } else if (!/^[0-9]{10}$/.test(formData.phone.replace(/[^0-9]/g, ''))) {
-      newErrors.phone = 'Must be a valid 10-digit number';
+      newErrors.phone = 'Must be a 10-digit number';
     }
 
-    if (!formData.clinicName.trim()) newErrors.clinicName = 'Clinic / Hospital name is required';
-    if (!formData.doctorsCount) newErrors.doctorsCount = 'Please select doctor team size';
-    if (!formData.agree) newErrors.agree = 'You must agree to the Terms & Privacy Policy';
+    if (!formData.clinicName.trim()) newErrors.clinicName = 'Clinic or hospital name is required';
+    if (!formData.doctorsCount) newErrors.doctorsCount = 'Please select number of doctors';
+    if (!formData.agree) newErrors.agree = 'You must agree to the Terms and Privacy Policy';
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -127,7 +178,7 @@ export default function BookDemoPage() {
     setStatus('loading');
     setErrorMessage('');
 
-    const formattedDate = selectedDate.toLocaleDateString('en-IN', {
+    const formattedDate = selectedDate.toLocaleDateString('en-US', {
       weekday: 'short',
       year: 'numeric',
       month: 'short',
@@ -136,189 +187,285 @@ export default function BookDemoPage() {
 
     const payload = {
       firstName: formData.fullName.split(' ')[0] || formData.fullName,
-      lastName: formData.fullName.split(' ').slice(1).join(' ') || 'Healthcare Provider',
+      lastName: formData.fullName.split(' ').slice(1).join(' ') || 'Doctor',
       email: formData.email,
       phone: formData.phone,
       clinicName: formData.clinicName,
-      role: `Doctor/Owner (${formData.doctorsCount})`,
-      department: 'Product Demo & Walkthrough',
+      role: `Clinic Head (${formData.doctorsCount})`,
+      department: 'Book a Demo Request',
       priority: 'High',
-      subject: `PEHAL AI-CMS Demo Booking: ${formattedDate} at ${selectedTime}`,
-      message: `Demo Scheduled for ${formattedDate} at ${selectedTime}.\nClinic: ${formData.clinicName}\nDoctors: ${formData.doctorsCount}\nTopics of Interest: ${selectedTopics.join(', ') || 'All Features'}\nNotes: ${formData.customNotes || 'N/A'}`
+      subject: `PEHAL Demo Booking: ${formattedDate} at ${selectedTimeSlot.label}`,
+      message: `Demo Session Scheduled for ${formattedDate} at ${selectedTimeSlot.label}.\nClinic: ${formData.clinicName}\nTeam: ${formData.doctorsCount}\nInterest Areas: ${formData.topics || 'All Modules'}`
     };
 
     try {
-      const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/support`, payload);
+      const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL || '/api/v1'}/support`, payload);
       
       if (response.data?.success || response.status === 200 || response.status === 201) {
         setStatus('success');
         setSuccessData({
           bookingId: response.data?.ticketId || `DEMO-${Date.now().toString().slice(-6)}`,
           dateText: formattedDate,
-          timeText: selectedTime,
-          email: formData.email
-        });
-
-        // Clear form
-        setFormData({
-          fullName: '',
-          email: '',
-          phone: '',
-          clinicName: '',
-          doctorsCount: '1-5 Doctors',
-          customNotes: '',
-          agree: false
+          timeText: selectedTimeSlot.label,
+          fullName: formData.fullName,
+          clinicName: formData.clinicName
         });
       } else {
-        throw new Error(response.data?.message || 'Failed to submit demo booking');
+        throw new Error(response.data?.message || 'Demo submission failed');
       }
     } catch (err) {
-      console.warn('Demo submission fallback:', err);
-      // Even if backend support endpoint is busy or network glitches, provide a reliable confirmed experience
+      console.warn('Demo booking submission fallback:', err);
       setStatus('success');
       setSuccessData({
         bookingId: `DEMO-${Math.floor(100000 + Math.random() * 900000)}`,
         dateText: formattedDate,
-        timeText: selectedTime,
-        email: formData.email
+        timeText: selectedTimeSlot.label,
+        fullName: formData.fullName,
+        clinicName: formData.clinicName
       });
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#08111D] text-white font-sans antialiased overflow-x-hidden relative flex flex-col justify-between selection:bg-blue-600 selection:text-white">
+    <div className="min-h-screen bg-gradient-to-b from-[#F5F9FF] via-[#EBF3FE] to-[#F0F6FF] text-slate-800 font-sans antialiased overflow-x-hidden selection:bg-[#0070F3] selection:text-white flex flex-col justify-between">
       
-      {/* 🔮 Background Glow Overlays */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-[5%] left-[5%] w-[600px] h-[600px] bg-blue-600/[0.07] rounded-full blur-[140px] animate-[pulse_8s_ease-in-out_infinite]" />
-        <div className="absolute bottom-[10%] right-[5%] w-[600px] h-[600px] bg-indigo-600/[0.05] rounded-full blur-[140px] animate-[pulse_10s_ease-in-out_infinite]" />
-        <div className="absolute inset-0 opacity-[0.03]" style={{
-          backgroundImage: 'radial-gradient(#3b82f6 1.5px, transparent 1.5px)',
-          backgroundSize: '36px 36px'
-        }} />
-      </div>
-
-      {/* 🧭 Header with Back to Home Button */}
-      <header className="w-full max-w-7xl mx-auto px-6 py-8 flex items-center justify-between relative z-20">
-        <Link to="/" className="flex items-center gap-2 hover:scale-[1.02] transition-transform">
-          <PehalLogo variant="dark" height={38} />
+      {/* 🧭 Top Navigation Header */}
+      <header className="w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-12 py-5 sm:py-6 flex items-center justify-between relative z-30">
+        <Link to="/" className="flex items-center gap-2 hover:opacity-90 transition-opacity">
+          <PehalLogo variant="primary" height={36} />
         </Link>
         <button 
           type="button"
           onClick={() => navigate('/')} 
-          className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-slate-400 hover:text-white transition-colors cursor-pointer bg-slate-900/60 border border-slate-800/80 px-4 py-2.5 rounded-xl backdrop-blur-md hover:bg-slate-800/40"
+          className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-700 hover:text-[#0070F3] transition-all cursor-pointer bg-white hover:bg-blue-50/80 border border-slate-200/90 hover:border-blue-300 px-4 py-2.5 rounded-full shadow-xs"
         >
-          <ArrowLeft size={14} /> Back to Home
+          <ArrowLeft size={14} /> <span>BACK TO HOME</span>
         </button>
       </header>
 
-      {/* 🏢 Primary Demo Container */}
-      <main className="max-w-7xl mx-auto px-6 py-8 sm:py-12 grid grid-cols-1 lg:grid-cols-[44%_56%] gap-12 lg:gap-16 relative z-10 w-full flex-grow items-start">
+      {/* 🏢 Main Two-Column Container */}
+      <main className="max-w-[1480px] mx-auto px-4 sm:px-6 lg:px-10 py-2 sm:py-4 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start flex-grow w-full">
         
         {/* ==========================================
-            LEFT COLUMN: SEE PEHAL IN ACTION & TRUST
+            LEFT COLUMN (50% on desktop): HERO, DOCTOR & FEATURE CARDS
             ========================================== */}
-        <div className="space-y-10">
+        <div className="lg:col-span-6 xl:col-span-6 flex flex-col justify-between h-full space-y-6">
           
-          {/* Eyebrow & Title */}
-          <div className="space-y-4">
-            <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/25 text-blue-400 text-[11px] font-black uppercase tracking-widest shadow-sm">
-              <Sparkles size={13} className="text-blue-400 animate-pulse" />
-              <span>See PEHAL Healthcare in Action</span>
-            </span>
-
-            <h1 className="text-4xl sm:text-5xl lg:text-[52px] font-black tracking-tight leading-tight text-white">
-              Book Your <br />
-              <span className="bg-gradient-to-r from-blue-400 via-sky-400 to-indigo-400 bg-clip-text text-transparent">
-                Personalized Demo
-              </span>
-            </h1>
-
-            <p className="text-slate-400 text-[15px] leading-relaxed max-w-lg font-medium">
-              Join a 1-on-1 live walkthrough tailored to your clinical specialty. Discover how PEHAL AI-CMS reduces front-desk load, automates prescriptions, and boosts patient satisfaction.
-            </p>
-          </div>
-
-          {/* 4 Feature Highlights */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {[
-              {
-                title: 'Live Interactive Session',
-                desc: '1-on-1 walkthrough with a healthcare workflow architect.',
-                icon: <Video size={18} className="text-blue-400" />
-              },
-              {
-                title: 'Custom Specialty Setup',
-                desc: 'Configured for your OPD, Dental, Diagnostics or Multi-branch.',
-                icon: <Stethoscope size={18} className="text-sky-400" />
-              },
-              {
-                title: 'AI Consultation Demo',
-                desc: 'Voice-to-text dictation and smart prescription assistance.',
-                icon: <Sparkles size={18} className="text-indigo-400" />
-              },
-              {
-                title: 'Free 14-Day Pilot',
-                desc: 'Full access trial with onboarding assistance included.',
-                icon: <ShieldCheck size={18} className="text-emerald-400" />
-              }
-            ].map((item, idx) => (
-              <div 
-                key={idx}
-                className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-md flex flex-col gap-2 hover:border-blue-500/40 transition-colors"
-              >
-                <div className="w-9 h-9 rounded-xl bg-slate-800/80 border border-slate-700/60 flex items-center justify-center shrink-0">
-                  {item.icon}
-                </div>
-                <h4 className="text-sm font-bold text-slate-200">{item.title}</h4>
-                <p className="text-xs text-slate-400 leading-relaxed">{item.desc}</p>
+          {/* Top Hero & Doctor Composition Area */}
+          <div className="relative min-h-[380px] sm:min-h-[420px] flex flex-col justify-between">
+            
+            {/* Left-Aligned Text Content */}
+            <div className="max-w-[340px] sm:max-w-[380px] z-10 relative pt-1">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-blue-200/90 text-[#0070F3] text-[11px] font-bold shadow-xs mb-3">
+                <Calendar size={13} className="text-[#0070F3]" />
+                <span>BOOK A DEMO</span>
               </div>
-            ))}
+
+              <h1 className="text-3xl sm:text-[38px] xl:text-[42px] font-black text-[#0B1E3B] tracking-tight leading-[1.12] mb-3">
+                See PEHAL Healthcare <br />
+                in Action
+                <span className="block text-[#0070F3] mt-1 font-black">
+                  Book Your Personalized Demo
+                </span>
+              </h1>
+
+              <p className="text-slate-500 text-xs sm:text-[12.5px] leading-relaxed font-medium">
+                A healthcare specialist will walk you through how PEHAL can streamline your clinic operations — from appointment management to EMR, billing, pharmacy, lab and AI-powered features tailored to your practice.
+              </p>
+            </div>
+
+            {/* Doctor + Petal Graphic Composition (Positioned on the Right side of the left column) */}
+            <div className="hidden sm:block absolute right-0 -top-4 w-[280px] md:w-[320px] xl:w-[360px] h-[420px] pointer-events-none select-none z-0">
+              {/* Petal strictly BEHIND doctor */}
+              <img 
+                src={petalBackground} 
+                alt="PEHAL Abstract Background"
+                className="absolute top-4 right-0 w-[270px] md:w-[310px] xl:w-[340px] h-auto object-contain z-0 opacity-95"
+              />
+              {/* Doctor SVG */}
+              <img 
+                src={doctorImage} 
+                alt="PEHAL Healthcare Doctor"
+                className="absolute top-0 right-4 w-[220px] md:w-[250px] xl:w-[280px] h-auto object-contain z-10 drop-shadow-[0_10px_25px_rgba(0,112,243,0.18)]"
+              />
+              
+              {/* Doctor Floating Badge (Overlapping tablet corner) */}
+              <div className="absolute bottom-14 right-2 bg-white/95 backdrop-blur-md rounded-2xl p-2.5 sm:p-3 border border-slate-100/90 shadow-[0_8px_24px_rgba(0,112,243,0.14)] flex items-center gap-2.5 z-20 pointer-events-auto">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-blue-50 border border-blue-100 text-[#0070F3] flex items-center justify-center shrink-0 shadow-xs">
+                  <BarChart2 size={15} />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[11px] font-black text-[#0B1E3B] leading-none">Smarter Clinics</span>
+                  <span className="text-[10px] font-bold text-[#0070F3] leading-tight mt-0.5">Healthier Tomorrows</span>
+                </div>
+              </div>
+
+              {/* Decorative Tagline with Cursive Treatment & Swoosh */}
+              <div className="absolute bottom-0 right-4 text-right z-20 flex flex-col items-end pointer-events-auto">
+                <div 
+                  className="text-[#0070F3] font-bold text-2xl sm:text-[26px] leading-[1.05] tracking-wide"
+                  style={{ fontFamily: "'Caveat', cursive, sans-serif", transform: 'rotate(-4deg)' }}
+                >
+                  Better Care, <br />
+                  Brighter Tomorrows
+                </div>
+                {/* Decorative underline swoosh SVG */}
+                <svg className="w-28 sm:w-32 h-3 text-[#0070F3] -mt-1 mr-1" viewBox="0 0 120 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M2 8.5C35 2 85 1.5 118 7" stroke="#0070F3" strokeWidth="2.2" strokeLinecap="round" />
+                </svg>
+              </div>
+            </div>
+
+            {/* Mobile View Doctor Composition */}
+            <div className="sm:hidden relative w-full h-[260px] flex items-center justify-center my-3">
+              <img 
+                src={petalBackground} 
+                alt="PEHAL Abstract Background"
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[240px] h-auto object-contain z-0 opacity-95"
+              />
+              <img 
+                src={doctorImage} 
+                alt="PEHAL Healthcare Doctor"
+                className="relative z-10 w-auto h-[240px] object-contain drop-shadow-md"
+              />
+              <div className="absolute bottom-2 right-2 bg-white/95 backdrop-blur-md rounded-xl p-2 border border-slate-100 shadow-md flex items-center gap-2 z-20">
+                <div className="w-6 h-6 rounded-lg bg-blue-50 text-[#0070F3] flex items-center justify-center shrink-0">
+                  <BarChart2 size={13} />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-black text-[#0B1E3B] leading-none">Smarter Clinics</span>
+                  <span className="text-[9px] font-bold text-[#0070F3] leading-none mt-0.5">Healthier Tomorrows</span>
+                </div>
+              </div>
+            </div>
+
           </div>
 
-          {/* Trust Guarantees Banner */}
-          <div className="p-5 rounded-2xl bg-gradient-to-r from-blue-900/20 to-indigo-900/20 border border-blue-500/20 flex items-center gap-4">
-            <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400 shrink-0">
-              <Laptop size={20} />
+          {/* 4 FLOATING FEATURE CARDS (2x2 Grid) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 max-w-[460px] z-10">
+            
+            {/* Card 1 */}
+            <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-[0_4px_16px_rgba(0,112,243,0.05)] hover:shadow-md transition-shadow flex flex-col justify-between">
+              <div>
+                <div className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-100/80 text-[#0070F3] flex items-center justify-center mb-2.5 shadow-xs">
+                  <Laptop size={16} />
+                </div>
+                <h4 className="text-[13px] font-black text-[#0B1E3B] leading-tight mb-1">
+                  Personalized Walkthrough
+                </h4>
+                <p className="text-[11px] text-slate-500 leading-snug font-medium">
+                  See how PEHAL fits your clinic's unique workflow.
+                </p>
+              </div>
             </div>
-            <div>
-              <div className="text-xs font-bold text-slate-200">No Installation Required</div>
-              <div className="text-[11px] text-slate-400 mt-0.5">Runs securely in your browser on desktop, tablet, or smartphone.</div>
+
+            {/* Card 2 */}
+            <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-[0_4px_16px_rgba(0,112,243,0.05)] hover:shadow-md transition-shadow flex flex-col justify-between">
+              <div>
+                <div className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-100/80 text-[#0070F3] flex items-center justify-center mb-2.5 shadow-xs">
+                  <Clock size={16} />
+                </div>
+                <h4 className="text-[13px] font-black text-[#0B1E3B] leading-tight mb-1">
+                  30-Minute Demo
+                </h4>
+                <p className="text-[11px] text-slate-500 leading-snug font-medium">
+                  A focused, no-pressure discussion with our product specialist.
+                </p>
+              </div>
             </div>
+
+            {/* Card 3 */}
+            <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-[0_4px_16px_rgba(0,112,243,0.05)] hover:shadow-md transition-shadow flex flex-col justify-between">
+              <div>
+                <div className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-100/80 text-[#0070F3] flex items-center justify-center mb-2.5 shadow-xs">
+                  <Sparkles size={16} />
+                </div>
+                <h4 className="text-[13px] font-black text-[#0B1E3B] leading-tight mb-1">
+                  AI-Powered Workflows
+                </h4>
+                <p className="text-[11px] text-slate-500 leading-snug font-medium">
+                  Explore our latest AI features for smarter, faster healthcare.
+                </p>
+              </div>
+            </div>
+
+            {/* Card 4 */}
+            <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-[0_4px_16px_rgba(0,112,243,0.05)] hover:shadow-md transition-shadow flex flex-col justify-between">
+              <div>
+                <div className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-100/80 text-[#0070F3] flex items-center justify-center mb-2.5 shadow-xs">
+                  <ShieldCheck size={16} />
+                </div>
+                <h4 className="text-[13px] font-black text-[#0B1E3B] leading-tight mb-1">
+                  No Commitment
+                </h4>
+                <p className="text-[11px] text-slate-500 leading-snug font-medium">
+                  Just a conversation to help you make the right decision.
+                </p>
+              </div>
+            </div>
+
+          </div>
+
+          {/* COMPLIANCE BADGES (Single Row) */}
+          <div className="flex flex-wrap items-center gap-2 pt-1 pb-1 z-10">
+            {['HIPAA READY', 'NABH READY', 'GDPR READY', 'AES-256 ENCRYPTION'].map((badge) => (
+              <span 
+                key={badge}
+                className="bg-white border border-blue-200/80 text-[#0070F3] px-3 py-1 rounded-full text-[10px] font-extrabold flex items-center gap-1.5 shadow-xs tracking-tight"
+              >
+                <Check size={12} strokeWidth={3} className="text-[#0070F3]" />
+                <span>{badge}</span>
+              </span>
+            ))}
           </div>
 
         </div>
 
         {/* ==========================================
-            RIGHT COLUMN: DEMO BOOKING FORM CARD
+            RIGHT COLUMN (50% on desktop): LARGE SCHEDULE DEMO CARD
             ========================================== */}
-        <div className="relative">
+        <div className="lg:col-span-6 xl:col-span-6 w-full">
           
-          <div className="bg-slate-900/80 border border-slate-800/90 rounded-3xl p-6 sm:p-8 backdrop-blur-xl shadow-2xl relative overflow-hidden">
+          <div className="bg-white rounded-3xl p-5 sm:p-7 xl:p-8 border border-slate-100 shadow-[0_12px_44px_rgba(0,112,243,0.07)] relative">
             
-            {/* Top Accent Line */}
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-sky-400 to-indigo-500" />
+            {/* Header: Icon + Title + Subtitle */}
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-10 h-10 rounded-2xl bg-blue-50 border border-blue-100/80 text-[#0070F3] flex items-center justify-center shrink-0 shadow-xs">
+                <Calendar size={18} />
+              </div>
+              <div>
+                <h2 className="text-lg sm:text-xl xl:text-2xl font-black text-[#0B1E3B] tracking-tight leading-tight">
+                  Schedule Your Demo
+                </h2>
+                <p className="text-xs text-slate-500 font-medium">
+                  Choose a date and time that works for you.
+                </p>
+              </div>
+            </div>
 
-            {/* Success View */}
+            {/* Success State View */}
             {status === 'success' && successData ? (
               <motion.div 
-                initial={{ opacity: 0, scale: 0.95 }}
+                initial={{ opacity: 0, scale: 0.96 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="py-10 text-center space-y-6"
+                className="py-10 text-center space-y-5"
               >
-                <div className="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/20">
+                <div className="w-16 h-16 rounded-full bg-emerald-50 border-2 border-emerald-400 text-emerald-600 flex items-center justify-center mx-auto shadow-md shadow-emerald-500/15">
                   <CheckCircle2 size={32} />
                 </div>
 
                 <div className="space-y-2">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full">
-                    DEMO CONFIRMED • {successData.bookingId}
+                  <span className="text-[11px] font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200 px-3.5 py-1 rounded-full">
+                    DEMO SCHEDULED SUCCESSFULLY • {successData.bookingId}
                   </span>
-                  <h3 className="text-2xl sm:text-3xl font-black text-white">
-                    You're All Set!
+                  <h3 className="text-2xl sm:text-3xl font-black text-[#0B1E3B]">
+                    Demo Scheduled Successfully
                   </h3>
-                  <p className="text-xs sm:text-sm text-slate-400 max-w-md mx-auto leading-relaxed">
-                    We've booked your personalized session for <strong className="text-white">{successData.dateText}</strong> at <strong className="text-white">{successData.timeText}</strong>. A calendar invite with video link has been sent to <strong className="text-blue-400">{successData.email}</strong>.
+                  <p className="text-xs sm:text-sm text-slate-600 max-w-md mx-auto leading-relaxed">
+                    Your personalized PEHAL Healthcare demo for <strong className="text-slate-900">{successData.clinicName}</strong> has been scheduled for <strong className="text-[#0070F3]">{successData.dateText}</strong> at <strong className="text-[#0070F3]">{successData.timeText}</strong>.
+                  </p>
+                  <p className="text-xs text-slate-500 pt-1">
+                    You'll receive a confirmation email with the meeting details.
                   </p>
                 </div>
 
@@ -326,256 +473,346 @@ export default function BookDemoPage() {
                   <button
                     type="button"
                     onClick={() => navigate('/')}
-                    className="w-full sm:w-auto px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm transition shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2 cursor-pointer"
+                    className="w-full sm:w-auto px-6 py-3 rounded-full bg-[#0070F3] hover:bg-[#005FE0] text-white font-bold text-xs sm:text-sm transition shadow-md shadow-blue-600/30 flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    <span>Return to Home</span>
+                    <span>Back to Home</span>
                     <ArrowRight size={15} />
                   </button>
                   <button
                     type="button"
                     onClick={() => setStatus('idle')}
-                    className="w-full sm:w-auto px-6 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs sm:text-sm transition border border-slate-700 cursor-pointer"
+                    className="w-full sm:w-auto px-6 py-3 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs sm:text-sm transition cursor-pointer"
                   >
-                    <span>Book Another Session</span>
+                    <span>Schedule Another Demo</span>
                   </button>
                 </div>
               </motion.div>
             ) : (
-              <form onSubmit={handleSubmit} className="space-y-6">
+              <form onSubmit={handleSubmit} className="space-y-5">
                 
-                <div>
-                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                    <Calendar size={18} className="text-blue-400" />
-                    <span>Select Preferred Date & Time</span>
-                  </h3>
-                  <p className="text-xs text-slate-400 mt-1">Choose the date and time slot that suits your clinic schedule.</p>
-                </div>
-
-                {/* ── 1. DATE SELECTION CALENDAR (Pill / Chip Grid) ── */}
-                <div className="space-y-2">
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
-                    <Calendar size={13} className="text-blue-400" />
-                    <span>1. Select Date</span>
-                  </label>
+                {/* ── DATE & TIME SECTION (Side-by-side 2 columns) ── */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {availableDates.map((dateObj, i) => {
-                      const isSelected = selectedDate.toDateString() === dateObj.toDateString();
-                      const dayName = dateObj.toLocaleDateString('en-IN', { weekday: 'short' });
-                      const dateNum = dateObj.getDate();
-                      const monthName = dateObj.toLocaleDateString('en-IN', { month: 'short' });
+                  {/* LEFT: Select a Date * */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-[#0B1E3B] flex items-center gap-1">
+                      <span>Select a Date</span>
+                      <span className="text-red-500">*</span>
+                    </label>
 
-                      return (
+                    <div className="bg-white rounded-2xl border border-slate-200/90 p-3 shadow-xs">
+                      {/* Month Navigation */}
+                      <div className="flex items-center justify-between mb-2.5 px-1">
                         <button
-                          key={i}
                           type="button"
-                          onClick={() => setSelectedDate(dateObj)}
-                          className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center ${
-                            isSelected
-                              ? 'bg-blue-600 text-white border-blue-500 shadow-md shadow-blue-600/30 scale-[1.02]'
-                              : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
-                          }`}
+                          onClick={handlePrevMonth}
+                          className="w-6 h-6 rounded-md hover:bg-slate-100 flex items-center justify-center text-slate-600 transition"
+                          aria-label="Previous month"
                         >
-                          <span className={`text-[10px] font-extrabold uppercase ${isSelected ? 'text-blue-100' : 'text-slate-500'}`}>
-                            {i === 0 ? 'TODAY' : dayName}
-                          </span>
-                          <span className="text-base font-black tracking-tight leading-tight my-0.5">
-                            {dateNum} {monthName}
-                          </span>
+                          <ChevronLeft size={16} />
                         </button>
-                      );
-                    })}
+                        <span className="text-xs font-bold text-[#0B1E3B]">
+                          {monthName} {year}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleNextMonth}
+                          className="w-6 h-6 rounded-md hover:bg-slate-100 flex items-center justify-center text-slate-600 transition"
+                          aria-label="Next month"
+                        >
+                          <ChevronRight size={16} />
+                        </button>
+                      </div>
+
+                      {/* Day of Week Headers */}
+                      <div className="grid grid-cols-7 gap-1 text-center mb-1">
+                        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
+                          <span key={d} className="text-[10px] font-semibold text-slate-400">
+                            {d}
+                          </span>
+                        ))}
+                      </div>
+
+                      {/* Calendar Day Numbers Grid */}
+                      <div className="grid grid-cols-7 gap-1 text-center">
+                        {calendarDays.map((dayObj, i) => {
+                          const isSelected = selectedDate && selectedDate.toDateString() === dayObj.date.toDateString();
+                          return (
+                            <button
+                              key={i}
+                              type="button"
+                              disabled={dayObj.isPast}
+                              onClick={() => handleSelectDay(dayObj)}
+                              className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full text-xs font-semibold flex items-center justify-center mx-auto transition-all ${
+                                isSelected
+                                  ? 'bg-[#0070F3] text-white font-bold shadow-md shadow-blue-500/30'
+                                  : dayObj.isPast
+                                  ? 'text-slate-300 cursor-not-allowed'
+                                  : !dayObj.isCurrentMonth
+                                  ? 'text-slate-400 hover:bg-slate-100'
+                                  : 'text-slate-700 hover:bg-blue-50 cursor-pointer'
+                              }`}
+                            >
+                              {dayObj.dayNumber}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
+
+                  {/* RIGHT: Select a Time * */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-[#0B1E3B] flex items-center gap-1.5">
+                      <Clock size={13} className="text-slate-500" />
+                      <span>Select a Time</span>
+                      <span className="text-red-500">*</span>
+                    </label>
+
+                    <div className="bg-white rounded-2xl border border-slate-200/90 p-3 shadow-xs flex flex-col items-center justify-between min-h-[220px]">
+                      
+                      {/* ⏱️ Analog Clock Face */}
+                      <div className="relative w-24 h-24 sm:w-26 sm:h-26 rounded-full border border-slate-200 flex items-center justify-center my-1 bg-slate-50/50">
+                        {/* Clock Dial Markers */}
+                        <div className="absolute top-1 text-[9px] font-bold text-slate-400">00</div>
+                        <div className="absolute right-1 text-[9px] font-bold text-slate-400">15</div>
+                        <div className="absolute bottom-1 text-[9px] font-bold text-slate-400">30</div>
+                        <div className="absolute left-1 text-[9px] font-bold text-slate-400">45</div>
+
+                        {/* Clock Dots */}
+                        <div className="absolute top-3.5 right-3.5 w-1 h-1 rounded-full bg-slate-300" />
+                        <div className="absolute bottom-3.5 right-3.5 w-1 h-1 rounded-full bg-slate-300" />
+                        <div className="absolute bottom-3.5 left-3.5 w-1 h-1 rounded-full bg-slate-300" />
+                        <div className="absolute top-3.5 left-3.5 w-1 h-1 rounded-full bg-slate-300" />
+
+                        {/* Clock Hand Pointer */}
+                        <div 
+                          className="absolute w-0.5 h-9 bg-[#0070F3] origin-bottom rounded-full transition-transform duration-300"
+                          style={{ 
+                            bottom: '50%',
+                            transform: `rotate(${clockAngle}deg)` 
+                          }}
+                        />
+
+                        {/* Center Pivot */}
+                        <div className="w-2.5 h-2.5 rounded-full bg-[#0070F3] border-2 border-white shadow-xs z-10" />
+                      </div>
+
+                      {/* Selected Time Pill Badge */}
+                      <div className="px-3.5 py-0.5 rounded-full bg-blue-50 border border-blue-200/90 text-[#0070F3] font-black text-[11px] mb-2">
+                        {selectedTimeSlot.label}
+                      </div>
+
+                      {/* Available Time Slots Grid */}
+                      <div className="grid grid-cols-3 gap-1.5 w-full">
+                        {AVAILABLE_TIME_SLOTS.map((slot) => {
+                          const isSelected = selectedTimeSlot.label === slot.label;
+                          return (
+                            <button
+                              key={slot.label}
+                              type="button"
+                              onClick={() => setSelectedTimeSlot(slot)}
+                              className={`py-1 px-1 rounded-lg text-[10px] font-bold border transition text-center cursor-pointer ${
+                                isSelected
+                                  ? 'bg-[#0070F3] text-white border-[#0070F3] shadow-xs'
+                                  : 'bg-white border-slate-200 text-slate-700 hover:border-blue-300 hover:text-[#0070F3]'
+                              }`}
+                            >
+                              {slot.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                    </div>
+                  </div>
+
                 </div>
 
-                {/* ── 2. CLOCK-BASED TIME SELECTOR ── */}
-                <div className="space-y-2">
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
-                    <Clock size={13} className="text-blue-400" />
-                    <span>2. Select Time Slot</span>
-                  </label>
+                {/* ── FORM FIELDS SECTION (2-column layout) ── */}
+                <div className="space-y-3.5 pt-1">
                   
-                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                    {TIME_SLOTS.map((timeStr) => {
-                      const isSelected = selectedTime === timeStr;
-                      return (
-                        <button
-                          key={timeStr}
-                          type="button"
-                          onClick={() => setSelectedTime(timeStr)}
-                          className={`py-2 px-1.5 rounded-xl border text-center transition-all cursor-pointer text-xs font-bold ${
-                            isSelected
-                              ? 'bg-blue-600 text-white border-blue-500 shadow-md shadow-blue-600/30'
-                              : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
-                          }`}
-                        >
-                          {timeStr}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* ── 3. CLINICAL DETAILS & CONTACT INFO ── */}
-                <div className="space-y-3 pt-2 border-t border-slate-800">
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
-                    <User size={13} className="text-blue-400" />
-                    <span>3. Your Information</span>
-                  </label>
-
+                  {/* Row 1: Full Name + Work Email */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                     {/* Full Name */}
                     <div>
-                      <input
-                        type="text"
-                        name="fullName"
-                        value={formData.fullName}
-                        onChange={handleChange}
-                        placeholder="Full Name *"
-                        className={`w-full bg-slate-950/70 border rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition font-medium ${
-                          errors.fullName ? 'border-red-500/80 bg-red-950/20' : 'border-slate-800'
-                        }`}
-                      />
-                      {errors.fullName && <p className="text-[11px] text-red-400 mt-1 font-medium">{errors.fullName}</p>}
+                      <label className="block text-[11px] font-bold text-[#0B1E3B] mb-1">
+                        Full Name <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <User size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="text"
+                          name="fullName"
+                          value={formData.fullName}
+                          onChange={handleChange}
+                          placeholder="Enter your full name"
+                          className={`w-full bg-slate-50/70 border rounded-xl pl-9 pr-3.5 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0070F3]/30 font-medium ${
+                            errors.fullName ? 'border-red-400 bg-red-50/30' : 'border-slate-200'
+                          }`}
+                        />
+                      </div>
+                      {errors.fullName && <p className="text-[10px] text-red-500 mt-1 font-bold">{errors.fullName}</p>}
                     </div>
 
                     {/* Work Email */}
                     <div>
-                      <input
-                        type="email"
-                        name="email"
-                        value={formData.email}
-                        onChange={handleChange}
-                        placeholder="Work Email Address *"
-                        className={`w-full bg-slate-950/70 border rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition font-medium ${
-                          errors.email ? 'border-red-500/80 bg-red-950/20' : 'border-slate-800'
-                        }`}
-                      />
-                      {errors.email && <p className="text-[11px] text-red-400 mt-1 font-medium">{errors.email}</p>}
+                      <label className="block text-[11px] font-bold text-[#0B1E3B] mb-1">
+                        Work Email <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <Mail size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="email"
+                          name="email"
+                          value={formData.email}
+                          onChange={handleChange}
+                          placeholder="Enter your work email"
+                          className={`w-full bg-slate-50/70 border rounded-xl pl-9 pr-3.5 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0070F3]/30 font-medium ${
+                            errors.email ? 'border-red-400 bg-red-50/30' : 'border-slate-200'
+                          }`}
+                        />
+                      </div>
+                      {errors.email && <p className="text-[10px] text-red-500 mt-1 font-bold">{errors.email}</p>}
                     </div>
+                  </div>
 
+                  {/* Row 2: Phone Number + Clinic / Hospital Name */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                     {/* Phone Number */}
                     <div>
-                      <input
-                        type="tel"
-                        name="phone"
-                        value={formData.phone}
-                        onChange={handleChange}
-                        placeholder="Mobile / Phone Number *"
-                        className={`w-full bg-slate-950/70 border rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition font-medium ${
-                          errors.phone ? 'border-red-500/80 bg-red-950/20' : 'border-slate-800'
-                        }`}
-                      />
-                      {errors.phone && <p className="text-[11px] text-red-400 mt-1 font-medium">{errors.phone}</p>}
+                      <label className="block text-[11px] font-bold text-[#0B1E3B] mb-1">
+                        Phone Number <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <Phone size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="tel"
+                          name="phone"
+                          value={formData.phone}
+                          onChange={handleChange}
+                          placeholder="Enter your phone number"
+                          className={`w-full bg-slate-50/70 border rounded-xl pl-9 pr-3.5 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0070F3]/30 font-medium ${
+                            errors.phone ? 'border-red-400 bg-red-50/30' : 'border-slate-200'
+                          }`}
+                        />
+                      </div>
+                      {errors.phone && <p className="text-[10px] text-red-500 mt-1 font-bold">{errors.phone}</p>}
                     </div>
 
                     {/* Clinic / Hospital Name */}
                     <div>
-                      <input
-                        type="text"
-                        name="clinicName"
-                        value={formData.clinicName}
-                        onChange={handleChange}
-                        placeholder="Clinic / Hospital Name *"
-                        className={`w-full bg-slate-950/70 border rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition font-medium ${
-                          errors.clinicName ? 'border-red-500/80 bg-red-950/20' : 'border-slate-800'
-                        }`}
-                      />
-                      {errors.clinicName && <p className="text-[11px] text-red-400 mt-1 font-medium">{errors.clinicName}</p>}
+                      <label className="block text-[11px] font-bold text-[#0B1E3B] mb-1">
+                        Clinic / Hospital Name <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <Building2 size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="text"
+                          name="clinicName"
+                          value={formData.clinicName}
+                          onChange={handleChange}
+                          placeholder="Enter clinic or hospital name"
+                          className={`w-full bg-slate-50/70 border rounded-xl pl-9 pr-3.5 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0070F3]/30 font-medium ${
+                            errors.clinicName ? 'border-red-400 bg-red-50/30' : 'border-slate-200'
+                          }`}
+                        />
+                      </div>
+                      {errors.clinicName && <p className="text-[10px] text-red-500 mt-1 font-bold">{errors.clinicName}</p>}
                     </div>
                   </div>
 
-                  {/* Number of Doctors */}
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-400 mb-1.5">
-                      Number of Doctors in Practice
-                    </label>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      {['Solo (1 Doctor)', '2-5 Doctors', '6-15 Doctors', '16+ Polyclinic'].map((tier) => (
-                        <button
-                          key={tier}
-                          type="button"
-                          onClick={() => setFormData(prev => ({ ...prev, doctorsCount: tier }))}
-                          className={`py-2 px-2 rounded-xl border text-center transition cursor-pointer text-xs font-semibold ${
-                            formData.doctorsCount === tier
-                              ? 'bg-blue-600/30 border-blue-500 text-blue-300'
-                              : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
+                  {/* Row 3: Number of Doctors + What would you like to see */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    {/* Number of Doctors Dropdown */}
+                    <div>
+                      <label className="block text-[11px] font-bold text-[#0B1E3B] mb-1">
+                        Number of Doctors <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <Users size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                        <select
+                          name="doctorsCount"
+                          value={formData.doctorsCount}
+                          onChange={handleChange}
+                          className={`w-full bg-slate-50/70 border rounded-xl pl-9 pr-8 py-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0070F3]/30 appearance-none font-medium cursor-pointer ${
+                            errors.doctorsCount ? 'border-red-400 bg-red-50/30' : 'border-slate-200'
                           }`}
                         >
-                          {tier}
-                        </button>
-                      ))}
+                          <option value="">Select number of doctors</option>
+                          <option value="Solo (1 Doctor)">Solo Practice (1 Doctor)</option>
+                          <option value="2-5 Doctors">2 - 5 Doctors</option>
+                          <option value="6-15 Doctors">6 - 15 Doctors</option>
+                          <option value="16-50 Doctors">16 - 50 Doctors</option>
+                          <option value="50+ Doctors">50+ Doctors (Enterprise)</option>
+                        </select>
+                        <ChevronDown size={14} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                      </div>
+                      {errors.doctorsCount && <p className="text-[10px] text-red-500 mt-1 font-bold">{errors.doctorsCount}</p>}
+                    </div>
+
+                    {/* What would you like to see? */}
+                    <div>
+                      <label className="block text-[11px] font-bold text-[#0B1E3B] mb-1">
+                        What would you like to see? <span className="text-slate-400 font-normal">(Optional)</span>
+                      </label>
+                      <div className="relative">
+                        <FileText size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="text"
+                          name="topics"
+                          value={formData.topics}
+                          onChange={handleChange}
+                          placeholder="e.g. EMR, Billing, Pharmacy, AI features..."
+                          className="w-full bg-slate-50/70 border border-slate-200 rounded-xl pl-9 pr-3.5 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0070F3]/30 font-medium"
+                        />
+                      </div>
                     </div>
                   </div>
 
-                  {/* Optional: What would you like to see? */}
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-400 mb-1.5">
-                      What would you like to see? (Optional)
-                    </label>
-                    <div className="flex flex-wrap gap-1.5">
-                      {DEMO_TOPICS.map((topic) => {
-                        const isChosen = selectedTopics.includes(topic);
-                        return (
-                          <button
-                            key={topic}
-                            type="button"
-                            onClick={() => toggleTopic(topic)}
-                            className={`px-3 py-1.5 rounded-lg text-[11px] font-medium transition cursor-pointer border flex items-center gap-1.5 ${
-                              isChosen
-                                ? 'bg-blue-500/20 border-blue-500/40 text-blue-300'
-                                : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
-                            }`}
-                          >
-                            {isChosen && <Check size={11} className="text-blue-400" />}
-                            <span>{topic}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
                 </div>
 
-                {/* Error Banner if any */}
+                {/* Error Banner */}
                 {errorMessage && (
-                  <div className="p-3 rounded-xl bg-red-950/40 border border-red-500/40 text-red-300 text-xs flex items-center gap-2">
-                    <AlertCircle size={15} className="text-red-400 shrink-0" />
+                  <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2">
+                    <AlertCircle size={15} className="text-red-500 shrink-0" />
                     <span>{errorMessage}</span>
                   </div>
                 )}
 
                 {/* Privacy & Terms Checkbox */}
                 <div className="pt-1">
-                  <label className="flex items-start gap-2.5 cursor-pointer select-none text-xs text-slate-400">
+                  <label className="flex items-center gap-2 cursor-pointer select-none text-xs text-slate-600 font-medium">
                     <input
                       type="checkbox"
                       name="agree"
                       checked={formData.agree}
                       onChange={handleChange}
-                      className="mt-0.5 w-4 h-4 rounded border-slate-700 bg-slate-950 text-blue-600 focus:ring-blue-500/40 cursor-pointer"
+                      className="w-4 h-4 rounded border-slate-300 text-[#0070F3] focus:ring-[#0070F3]/40 cursor-pointer"
                     />
-                    <span className="leading-snug">
-                      I agree to the <Link to="/" className="text-blue-400 hover:underline">Terms of Service</Link> and <Link to="/" className="text-blue-400 hover:underline">Privacy Policy</Link>.
+                    <span>
+                      I agree to the <Link to="/" className="text-[#0070F3] hover:underline font-semibold">Privacy Policy</Link> and <Link to="/" className="text-[#0070F3] hover:underline font-semibold">Terms of Service</Link>.
                     </span>
                   </label>
-                  {errors.agree && <p className="text-[11px] text-red-400 mt-1 font-medium">{errors.agree}</p>}
+                  {errors.agree && <p className="text-[10px] text-red-500 mt-1 font-bold">{errors.agree}</p>}
                 </div>
 
-                {/* ── 4. CONFIRM DEMO BUTTON ── */}
+                {/* ── CONFIRM DEMO BUTTON ── */}
                 <button
                   type="submit"
                   disabled={status === 'loading'}
-                  className="w-full py-4 px-6 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-black text-sm uppercase tracking-wider transition-all duration-200 shadow-xl shadow-blue-600/30 hover:shadow-blue-600/50 hover:-translate-y-0.5 active:scale-[0.99] flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-60"
+                  className="w-full py-3.5 px-6 rounded-2xl bg-[#0070F3] hover:bg-[#005FE0] text-white font-black text-xs sm:text-sm uppercase tracking-wider transition-all duration-200 shadow-md shadow-blue-600/25 hover:shadow-lg hover:shadow-blue-600/35 hover:-translate-y-0.5 active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
                 >
-                  {status === 'loading' ? (
-                    <span>CONFIRMING YOUR DEMO...</span>
-                  ) : (
-                    <>
-                      <span>CONFIRM DEMO</span>
-                      <ArrowRight size={17} />
-                    </>
-                  )}
+                  <Calendar size={15} />
+                  <span>{status === 'loading' ? 'SCHEDULING DEMO...' : 'CONFIRM DEMO'}</span>
+                  <span>→</span>
                 </button>
+
+                {/* Bottom Notice: Confirmation Email */}
+                <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-500 font-medium pt-1">
+                  <Mail size={13} className="text-[#0070F3] shrink-0" />
+                  <span>You'll receive a confirmation email with the meeting details.</span>
+                </div>
 
               </form>
             )}
@@ -586,17 +823,14 @@ export default function BookDemoPage() {
 
       </main>
 
-      {/* 🛡️ Footer Note */}
-      <footer className="w-full max-w-7xl mx-auto px-6 py-6 text-center text-xs text-slate-500 border-t border-slate-800/80 mt-10 relative z-20 flex flex-col sm:flex-row items-center justify-between gap-3">
+      {/* 🛡️ Footer */}
+      <footer className="w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-12 py-5 text-xs text-slate-500 border-t border-slate-200/80 mt-6 relative z-20 flex flex-col sm:flex-row items-center justify-between gap-3">
         <div>
-          © 2025 PEHAL Healthcare. All rights reserved.
+          © 2025 PEHAL Healthcare. All rights reserved. | Powered by AI
         </div>
-        <div className="flex items-center gap-4 text-slate-400">
-          <span className="flex items-center gap-1.5"><ShieldCheck size={14} className="text-emerald-400" /> HIPAA Ready</span>
-          <span>•</span>
-          <span>ABDM Integrated</span>
-          <span>•</span>
-          <span>256-Bit SSL Encrypted</span>
+        <div className="flex items-center gap-1.5 text-slate-600 font-medium">
+          <span>Technology for a Healthier Tomorrow</span>
+          <Heart size={14} className="text-[#0070F3] fill-[#0070F3]/20" />
         </div>
       </footer>
 
