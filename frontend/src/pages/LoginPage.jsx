@@ -601,9 +601,9 @@ const LoginPage = () => {
           <section className="flex-[1.1] h-full max-h-full relative flex flex-col justify-between min-h-0 overflow-visible">
 
             {/* ── TOP-LEFT CONTENT: Kicker + Heading + Subtitle + Script ── */}
-            <div className="relative shrink-0 pt-2 lg:pt-4 xl:pt-6 z-20 max-w-[340px] lg:max-w-[380px] xl:max-w-[420px]">
+            <div className="relative shrink-0 pt-2 lg:pt-4 xl:pt-6 z-20 max-w-[340px] lg:max-w-[380px] xl:max-w-[400px]">
               {/* Pill badge */}
-              <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-[#E0F2FE] border border-[#BAE6FD] text-[#0284C7] text-[11px] xl:text-xs font-bold tracking-wide mb-2.5 shadow-xs">
+              <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-[#E0F2FE] border border-[#BAE6FD] text-[#0284C7] text-[11px] xl:text-xs font-bold tracking-wide mb-2.5 shadow-xs whitespace-nowrap">
                 <span>Better Care</span>
                 <span className="w-1.5 h-1.5 rounded-full bg-[#0284C7]" />
                 <span>Smarter Clinics</span>
@@ -611,13 +611,13 @@ const LoginPage = () => {
                 <span>Healthier Communities</span>
               </div>
 
-              <h1 className="text-3xl sm:text-4xl lg:text-[42px] xl:text-[50px] font-black tracking-tight leading-[1.08] mb-2.5">
+              <h1 className="text-3xl sm:text-4xl lg:text-[40px] xl:text-[48px] font-black tracking-tight leading-[1.08] mb-2.5">
                 <span className="text-[#071B3A]">Welcome to</span><br />
                 <span className="text-[#0070F3]">PEHAL</span><br />
                 <span className="text-[#071B3A]">Healthcare</span>
               </h1>
 
-              <p className="text-xs sm:text-[13px] lg:text-sm text-[#64748B] font-medium leading-relaxed max-w-[320px] xl:max-w-[360px] mb-3">
+              <p className="text-xs sm:text-[13px] lg:text-sm text-[#64748B] font-medium leading-relaxed max-w-[240px] lg:max-w-[260px] xl:max-w-[280px] mb-3">
                 Manage your clinic, staff, patients and operations in one secure platform.
               </p>
 
@@ -636,9 +636,9 @@ const LoginPage = () => {
             <div
               className="absolute pointer-events-none select-none flex items-end justify-center"
               style={{
-                right: '4%',
+                right: '0%',
                 bottom: '0%',
-                width: '86%',
+                width: '78%',
                 height: '100%',
                 maxHeight: '780px',
                 zIndex: 3,
@@ -657,9 +657,9 @@ const LoginPage = () => {
             <div
               className="absolute pointer-events-none select-none flex items-end justify-end"
               style={{
-                right: '5%',
+                right: '0%',
                 bottom: '0%',
-                width: '84%',
+                width: '76%',
                 height: '100%',
                 maxHeight: '780px',
                 zIndex: 5,
@@ -677,8 +677,8 @@ const LoginPage = () => {
             <div
               className="absolute bottom-0 left-[0%] pointer-events-none select-none flex items-end"
               style={{
-                width: '64%',
-                maxWidth: '620px',
+                width: '62%',
+                maxWidth: '600px',
                 height: '52%',
                 zIndex: 12,
               }}
