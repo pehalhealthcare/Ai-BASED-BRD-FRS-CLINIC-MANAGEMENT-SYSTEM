@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import DataTable from '../../components/common/DataTable';
@@ -54,7 +54,7 @@ const AppointmentListPage = () => {
   }
 
   if (error) {
-    return <ErrorState title="Appointments unavailable" description={error} action={<button className="rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white" onClick={() => loadAppointments(pagination.page)}>Retry</button>} />;
+    return <ErrorState title="Appointments unavailable" description={error} action={<button className="rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white" onClick={() => loadAppointments(pagination.page)}>Retry</button>} />;
   }
 
   const columns = [
@@ -97,7 +97,7 @@ const AppointmentListPage = () => {
             📹 Video Consultation
           </span>
         ) : (
-          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
+          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 border border-blue-200">
             🧑⚕️ Walk-In
           </span>
         )
@@ -128,7 +128,7 @@ const AppointmentListPage = () => {
     <section className="grid gap-6">
       <div className="flex flex-col gap-4 rounded-3xl border border-stone-200 bg-white p-6 shadow-lg shadow-stone-200/40 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">Appointments</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-700">Appointments</p>
           <h2 className="mt-2 text-2xl font-semibold text-stone-900">Appointment queue</h2>
           <p className="mt-2 text-sm text-stone-600">Track booked, confirmed, and completed appointments across the clinic.</p>
         </div>
@@ -136,15 +136,15 @@ const AppointmentListPage = () => {
           <Link className="rounded-2xl border border-stone-300 px-4 py-3 text-sm font-semibold text-stone-700 hover:bg-stone-50" to="/appointments/calendar">
             Calendar view
           </Link>
-          <Link className="rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700" to="/appointments/new">
+          <Link className="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700" to="/appointments/new">
             Create appointment
           </Link>
         </div>
       </div>
       <div className="grid gap-3 rounded-3xl border border-stone-200 bg-white p-5 shadow-lg shadow-stone-200/40 md:grid-cols-4">
-        <input type="date" value={filters.date} onChange={(event) => setFilters((current) => ({ ...current, date: event.target.value }))} className="rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" />
+        <input type="date" value={filters.date} onChange={(event) => setFilters((current) => ({ ...current, date: event.target.value }))} className="rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
         
-        <select value={filters.doctorId} onChange={(event) => setFilters((current) => ({ ...current, doctorId: event.target.value }))} className="rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100">
+        <select value={filters.doctorId} onChange={(event) => setFilters((current) => ({ ...current, doctorId: event.target.value }))} className="rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
           <option value="">All doctors</option>
           {doctors.map((doctor) => (
             <option key={doctor._id} value={doctor._id}>
@@ -153,7 +153,7 @@ const AppointmentListPage = () => {
           ))}
         </select>
 
-        <select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))} className="rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100">
+        <select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))} className="rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
           <option value="">All statuses</option>
           {['booked', 'confirmed', 'checked_in', 'in_consultation', 'completed', 'cancelled', 'no_show', 'rescheduled'].map((status) => (
             <option key={status} value={status}>
@@ -162,7 +162,7 @@ const AppointmentListPage = () => {
           ))}
         </select>
 
-        <select value={filters.consultationMode} onChange={(event) => setFilters((current) => ({ ...current, consultationMode: event.target.value }))} className="rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100">
+        <select value={filters.consultationMode} onChange={(event) => setFilters((current) => ({ ...current, consultationMode: event.target.value }))} className="rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
           <option value="">All Consultation Modes</option>
           <option value="WALK_IN">Walk-In Consultation</option>
           <option value="ONLINE">Online Video Consultation</option>

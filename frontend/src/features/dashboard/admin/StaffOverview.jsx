@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 
 const ROLE_LABELS = {
   receptionist: 'Receptionist',
@@ -17,7 +17,7 @@ const ROLE_LABELS = {
 
 const ROLE_COLORS = {
   receptionist: 'bg-blue-500',
-  pharmacist: 'bg-emerald-500',
+  pharmacist: 'bg-blue-500',
   lab_technician: 'bg-violet-500',
   nurse: 'bg-rose-500',
   manager: 'bg-amber-500',
@@ -52,7 +52,7 @@ const DonutChart = ({ total, present, onLeave, busy, onBreak }) => {
         {presentPct > 0 && (
           <circle
             cx="45" cy="45" r={radius} fill="none"
-            stroke="#10b981" strokeWidth="10"
+            stroke="#2563EB" strokeWidth="10"
             strokeDasharray={`${presentPct * circumference} ${circumference}`}
             strokeDashoffset={-presentOffset}
             strokeLinecap="round"
@@ -154,9 +154,9 @@ const StaffOverview = ({ staff, loading, fetchNextPage, hasNextPage, isFetchingN
                   </div>
                 </div>
                 <span className={`text-[8px] font-black px-2 py-0.5 rounded-full flex items-center gap-1 ${
-                  isOnline ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-50 text-slate-400'
+                  isOnline ? 'bg-blue-50 text-blue-600' : 'bg-slate-50 text-slate-400'
                 }`}>
-                  <span className={`w-1 h-1 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+                  <span className={`w-1 h-1 rounded-full ${isOnline ? 'bg-blue-500 animate-pulse' : 'bg-slate-400'}`} />
                   {isOnline ? 'Online' : 'Offline'}
                 </span>
               </div>

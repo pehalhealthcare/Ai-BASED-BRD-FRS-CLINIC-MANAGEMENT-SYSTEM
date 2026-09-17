@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+﻿import { useState, useMemo } from 'react';
 import { 
   Search, ShieldAlert, Heart, Calendar, Clock, MapPin, CheckCircle, 
   ChevronRight, Plus, Trash2, Printer, Mail, Share2, AlertTriangle, 
@@ -247,7 +247,7 @@ export default function EmergencyPage() {
             <p className="text-2xl font-black text-white mt-1.5">{stats.admitted}</p>
             <p className="text-[9px] text-slate-400 mt-1 font-semibold">Patients</p>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center">
             <Building size={18} />
           </div>
         </div>
@@ -627,7 +627,7 @@ export default function EmergencyPage() {
                   { name: 'Level 1 - Critical', bg: 'bg-[#ef4444] border-red-600 text-white' },
                   { name: 'Level 2 - High', bg: 'bg-amber-650 border-amber-700 text-white' },
                   { name: 'Level 3 - Moderate', bg: 'bg-yellow-500 border-yellow-600 text-slate-950' },
-                  { name: 'Level 4 - Low', bg: 'bg-emerald-600 border-emerald-700 text-white' }
+                  { name: 'Level 4 - Low', bg: 'bg-blue-600 border-blue-700 text-white' }
                 ].map(level => (
                   <button
                     key={level.name}
@@ -861,7 +861,7 @@ export default function EmergencyPage() {
                   <td className="py-3.5 px-4 font-semibold text-slate-400">{c.department}</td>
                   <td className="py-3.5 px-4 text-slate-350">{c.assignedTo}</td>
                   <td className="py-3.5 px-4">
-                    <span className={`inline-block px-2.5 py-0.5 rounded-lg text-[9px] font-black uppercase border ${c.status === 'Under Treatment' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20 animate-pulse' : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'}`}>
+                    <span className={`inline-block px-2.5 py-0.5 rounded-lg text-[9px] font-black uppercase border ${c.status === 'Under Treatment' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20 animate-pulse' : 'bg-blue-500/10 text-blue-500 border-blue-500/20'}`}>
                       {c.status}
                     </span>
                   </td>

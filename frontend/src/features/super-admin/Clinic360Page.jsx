@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+﻿import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { clinicApi, subscriptionPaymentApi } from '../../lib/api';
 import {
@@ -205,8 +205,8 @@ const Clinic360Page = () => {
       );
     }
     return (
-      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-        <span className="w-2 h-2 rounded-full bg-emerald-500" />
+      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
+        <span className="w-2 h-2 rounded-full bg-blue-500" />
         Active
       </span>
     );
@@ -440,7 +440,7 @@ const Clinic360Page = () => {
 
             {/* Left: Avatar & Meta */}
             <div className="flex items-start sm:items-center gap-4 min-w-0">
-              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-black text-xl sm:text-2xl shrink-0 shadow-inner">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-blue-100 text-blue-800 flex items-center justify-center font-black text-xl sm:text-2xl shrink-0 shadow-inner">
                 {getInitials(clinic.name)}
               </div>
 
@@ -481,8 +481,8 @@ const Clinic360Page = () => {
                 </div>
                 <div>
                   <span className="block text-[10px] text-slate-400 uppercase font-bold">Status</span>
-                  <span className="font-bold text-emerald-600 flex items-center gap-1 mt-0.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  <span className="font-bold text-blue-600 flex items-center gap-1 mt-0.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
                     {clinic.subscription?.status || 'Active'}
                   </span>
                 </div>
@@ -502,15 +502,15 @@ const Clinic360Page = () => {
                       : '--'}
                   </span>
                   {daysRemaining !== null && (
-                    <span className="text-[10px] text-emerald-600 font-bold ml-1">
+                    <span className="text-[10px] text-blue-600 font-bold ml-1">
                       {daysRemaining > 0 ? `in ${daysRemaining} days` : 'Expired'}
                     </span>
                   )}
                 </div>
                 <div>
                   <span className="block text-[10px] text-slate-400 uppercase font-bold">Auto Renewal</span>
-                  <span className="font-bold text-emerald-700 flex items-center gap-1 mt-0.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  <span className="font-bold text-blue-700 flex items-center gap-1 mt-0.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
                     {clinic.subscription?.autoRecharge ? 'Enabled' : 'Enabled'}
                   </span>
                 </div>
@@ -532,7 +532,7 @@ const Clinic360Page = () => {
                     setNewPlanCycle(clinic.subscription?.billingCycle || 'monthly');
                     setShowPlanModal(true);
                   }}
-                  className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-[#00B96B] hover:bg-[#00A25D] text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-500/20 transition-all"
+                  className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-[#00B96B] hover:bg-[#00A25D] text-white rounded-xl text-xs font-bold shadow-md shadow-blue-500/20 transition-all"
                 >
                   <CreditCard size={14} />
                   <span>Manage Subscription</span>
@@ -666,7 +666,7 @@ const Clinic360Page = () => {
                       Awaiting Super Admin Review
                     </span>
                     {(clinic.paymentStatus === 'VERIFIED' || clinic.subscription?.isFreeTier) ? (
-                      <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                      <span className="inline-flex items-center gap-1 text-xs font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">
                         <CheckCircle2 size={12} /> Payment Verified
                       </span>
                     ) : (
@@ -702,7 +702,7 @@ const Clinic360Page = () => {
                   <button
                     onClick={handleApproveClinic}
                     disabled={approvalSubmitting}
-                    className="px-5 py-2 bg-[#00B96B] hover:bg-[#00A25D] text-white text-xs font-bold rounded-xl shadow-md shadow-emerald-500/20 transition disabled:opacity-50 flex items-center gap-1.5"
+                    className="px-5 py-2 bg-[#00B96B] hover:bg-[#00A25D] text-white text-xs font-bold rounded-xl shadow-md shadow-blue-500/20 transition disabled:opacity-50 flex items-center gap-1.5"
                   >
                     <CheckCircle2 size={14} />
                     {approvalSubmitting ? 'Approving...' : 'Approve Clinic'}
@@ -726,7 +726,7 @@ const Clinic360Page = () => {
                     <Stethoscope size={20} />
                   </div>
                 </div>
-                <div className="text-xs font-semibold text-emerald-600 mt-3 pt-2">
+                <div className="text-xs font-semibold text-blue-600 mt-3 pt-2">
                   {doctorStats.active} active
                 </div>
               </div>
@@ -740,11 +740,11 @@ const Clinic360Page = () => {
                       {patientStats.total.toLocaleString()}
                     </div>
                   </div>
-                  <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100">
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100">
                     <Users size={20} />
                   </div>
                 </div>
-                <div className="text-xs font-semibold text-emerald-600 mt-3 pt-2">
+                <div className="text-xs font-semibold text-blue-600 mt-3 pt-2">
                   {patientStats.active.toLocaleString()} active
                 </div>
               </div>
@@ -796,8 +796,8 @@ const Clinic360Page = () => {
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Subscription Status</span>
-                    <span className="inline-flex items-center gap-1 text-[11px] font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Active
+                    <span className="inline-flex items-center gap-1 text-[11px] font-black text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500" /> Active
                     </span>
                   </div>
                   <h3 className="text-xl font-black text-slate-900">
@@ -806,7 +806,7 @@ const Clinic360Page = () => {
                   <p className="text-xs text-slate-500 font-medium mt-1">
                     Expires on {clinic.subscription?.expiryDate ? new Date(clinic.subscription.expiryDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '--'}
                     {daysRemaining !== null && (
-                      <span className="text-emerald-700 font-bold ml-1">in {daysRemaining} days</span>
+                      <span className="text-blue-700 font-bold ml-1">in {daysRemaining} days</span>
                     )}
                   </p>
                   <div className="flex items-center gap-3 mt-4">
@@ -829,19 +829,19 @@ const Clinic360Page = () => {
                   </div>
                 </div>
 
-                <div className="hidden sm:flex items-center justify-center p-4 bg-emerald-50/60 rounded-2xl border border-emerald-100/80 shrink-0">
+                <div className="hidden sm:flex items-center justify-center p-4 bg-blue-50/60 rounded-2xl border border-blue-100/80 shrink-0">
                   <ShieldCheck size={48} className="text-[#00B96B]" />
                 </div>
               </div>
 
               {/* All Good / Alert Card */}
-              <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-2xl sm:rounded-3xl p-5 sm:p-6 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+              <div className="bg-blue-50/70 border border-blue-200/80 rounded-2xl sm:rounded-3xl p-5 sm:p-6 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-sm">
                   <Check size={24} strokeWidth={3} />
                 </div>
                 <div>
-                  <h4 className="text-sm font-black text-emerald-900">All good!</h4>
-                  <p className="text-xs text-emerald-800/80 font-medium mt-0.5 leading-relaxed">
+                  <h4 className="text-sm font-black text-blue-900">All good!</h4>
+                  <p className="text-xs text-blue-800/80 font-medium mt-0.5 leading-relaxed">
                     This clinic's subscription is active and platform services are operational. No action required at this time.
                   </p>
                 </div>
@@ -873,15 +873,15 @@ const Clinic360Page = () => {
                       <div key={i} className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/70 border border-slate-100">
                         <div className="flex items-center gap-2.5">
                           <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-600 shrink-0">
-                            {prov.providerType?.toLowerCase().includes('pharmacy') ? <Pill size={16} className="text-blue-600" /> : <FlaskConical size={16} className="text-emerald-600" />}
+                            {prov.providerType?.toLowerCase().includes('pharmacy') ? <Pill size={16} className="text-blue-600" /> : <FlaskConical size={16} className="text-blue-600" />}
                           </div>
                           <div>
                             <div className="text-xs font-bold text-slate-800 truncate max-w-[120px]">{prov.name}</div>
                             <div className="text-[10px] text-slate-400 capitalize">{prov.providerType || 'Provider'}</div>
                           </div>
                         </div>
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Active
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md">
+                          <span className="w-1.5 h-1.5 rounded-full bg-blue-500" /> Active
                         </span>
                       </div>
                     ))
@@ -935,7 +935,7 @@ const Clinic360Page = () => {
                             <span>{r}★</span>
                             <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                               <div
-                                className="h-full bg-emerald-500 rounded-full transition-all duration-300"
+                                className="h-full bg-blue-500 rounded-full transition-all duration-300"
                                 style={{ width: `${pct}%` }}
                               />
                             </div>
@@ -973,7 +973,7 @@ const Clinic360Page = () => {
                 <div className="space-y-2">
                   {complaints.length === 0 ? (
                     <div className="py-6 text-center text-slate-400 text-xs">
-                      <CheckCircle2 size={24} className="mx-auto mb-1 text-emerald-400" />
+                      <CheckCircle2 size={24} className="mx-auto mb-1 text-blue-400" />
                       No open complaints
                     </div>
                   ) : (
@@ -1010,21 +1010,21 @@ const Clinic360Page = () => {
 
                 <div className="space-y-3 text-xs">
                   <div className="flex items-start gap-2.5">
-                    <CheckCircle2 size={16} className="text-emerald-500 shrink-0 mt-0.5" />
+                    <CheckCircle2 size={16} className="text-blue-500 shrink-0 mt-0.5" />
                     <div>
                       <div className="font-bold text-slate-800">New staff member registered</div>
                       <div className="text-[10px] text-slate-400">Today, 10:24 AM</div>
                     </div>
                   </div>
                   <div className="flex items-start gap-2.5">
-                    <CheckCircle2 size={16} className="text-emerald-500 shrink-0 mt-0.5" />
+                    <CheckCircle2 size={16} className="text-blue-500 shrink-0 mt-0.5" />
                     <div>
                       <div className="font-bold text-slate-800">Subscription renewed</div>
                       <div className="text-[10px] text-slate-400">Yesterday, 4:12 PM</div>
                     </div>
                   </div>
                   <div className="flex items-start gap-2.5">
-                    <CheckCircle2 size={16} className="text-emerald-500 shrink-0 mt-0.5" />
+                    <CheckCircle2 size={16} className="text-blue-500 shrink-0 mt-0.5" />
                     <div>
                       <div className="font-bold text-slate-800">Provider connected</div>
                       <div className="text-[10px] text-slate-400">03 Sep, 11:08 AM</div>
@@ -1064,7 +1064,7 @@ const Clinic360Page = () => {
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-3">
                         <div className="w-12 h-12 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center font-bold text-base shrink-0 border border-teal-100">
-                          {prov.providerType?.toLowerCase().includes('pharmacy') ? <Pill size={22} className="text-blue-600" /> : <FlaskConical size={22} className="text-emerald-600" />}
+                          {prov.providerType?.toLowerCase().includes('pharmacy') ? <Pill size={22} className="text-blue-600" /> : <FlaskConical size={22} className="text-blue-600" />}
                         </div>
                         <div>
                           <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">{prov.providerType || 'Healthcare Provider'}</span>
@@ -1072,8 +1072,8 @@ const Clinic360Page = () => {
                         </div>
                       </div>
 
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 shrink-0">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Connected
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200 shrink-0">
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500" /> Connected
                       </span>
                     </div>
 
@@ -1159,7 +1159,7 @@ const Clinic360Page = () => {
                           <span className="w-6 text-slate-500 font-bold">{star}★</span>
                           <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
                             <div
-                              className="h-full bg-emerald-500 rounded-full transition-all duration-300"
+                              className="h-full bg-blue-500 rounded-full transition-all duration-300"
                               style={{ width: `${pct}%` }}
                             />
                           </div>
@@ -1189,7 +1189,7 @@ const Clinic360Page = () => {
                         <div key={item._id || idx} className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs">
                           <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
-                              <div className="w-7 h-7 rounded-full bg-emerald-50 text-emerald-700 font-bold text-xs flex items-center justify-center">
+                              <div className="w-7 h-7 rounded-full bg-blue-50 text-blue-700 font-bold text-xs flex items-center justify-center">
                                 {(item.patientName || 'P')[0].toUpperCase()}
                               </div>
                               <div>
@@ -1255,7 +1255,7 @@ const Clinic360Page = () => {
 
             {filteredComplaints.length === 0 ? (
               <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 max-w-md mx-auto space-y-3">
-                <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto">
+                <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto">
                   <CheckCircle size={24} />
                 </div>
                 <h4 className="text-base font-black text-slate-800">No complaints</h4>
@@ -1335,7 +1335,7 @@ const Clinic360Page = () => {
                   Full multi-tenant healthcare enterprise system with AI modules & unlimited patient charts.
                 </p>
                 <div className="flex flex-wrap items-center gap-4 text-xs font-semibold text-slate-600 pt-2">
-                  <div>Status: <span className="text-emerald-600 font-bold">{clinic.subscription?.status || 'Active'}</span></div>
+                  <div>Status: <span className="text-blue-600 font-bold">{clinic.subscription?.status || 'Active'}</span></div>
                   <div>&bull;</div>
                   <div>Cycle: <span className="capitalize">{clinic.subscription?.billingCycle || 'Monthly'}</span></div>
                   <div>&bull;</div>
@@ -1361,7 +1361,7 @@ const Clinic360Page = () => {
                     setNewPlanCycle(clinic.subscription?.billingCycle || 'monthly');
                     setShowPlanModal(true);
                   }}
-                  className="px-4 py-2.5 bg-[#00B96B] hover:bg-[#00A25D] text-white text-xs font-bold rounded-xl shadow-md shadow-emerald-500/20 transition"
+                  className="px-4 py-2.5 bg-[#00B96B] hover:bg-[#00A25D] text-white text-xs font-bold rounded-xl shadow-md shadow-blue-500/20 transition"
                 >
                   Change Plan
                 </button>
@@ -1407,7 +1407,7 @@ const Clinic360Page = () => {
                             {new Date(sub.paymentDate || sub.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                           </td>
                           <td className="px-4 py-3.5">
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md">
                               Completed
                             </span>
                           </td>
@@ -1441,7 +1441,7 @@ const Clinic360Page = () => {
           const fmtDt = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) : '--';
           const STATUS_META = {
             PENDING_VERIFICATION: { label: 'Pending', bg: 'bg-amber-50 text-amber-700 border-amber-200' },
-            VERIFIED: { label: 'Verified', bg: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+            VERIFIED: { label: 'Verified', bg: 'bg-blue-50 text-blue-700 border-blue-200' },
             REJECTED: { label: 'Rejected', bg: 'bg-red-50 text-red-700 border-red-200' },
             REPAYMENT_REQUIRED: { label: 'Repayment Required', bg: 'bg-purple-50 text-purple-700 border-purple-200' },
             SUBMITTED: { label: 'Submitted', bg: 'bg-blue-50 text-blue-700 border-blue-200' },
@@ -1472,7 +1472,7 @@ const Clinic360Page = () => {
 
               {paymentsLoading ? (
                 <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
-                  <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                  <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
                   <p className="text-sm text-slate-500">Loading payment history...</p>
                 </div>
               ) : paymentsError ? (
@@ -1510,7 +1510,7 @@ const Clinic360Page = () => {
                               <tr
                                 key={p._id || i}
                                 onClick={() => setSelectedPayment(isSelected ? null : p)}
-                                className={`hover:bg-slate-50/50 transition cursor-pointer ${isSelected ? 'bg-emerald-50/50 ring-1 ring-inset ring-emerald-200' : ''}`}
+                                className={`hover:bg-slate-50/50 transition cursor-pointer ${isSelected ? 'bg-blue-50/50 ring-1 ring-inset ring-blue-200' : ''}`}
                               >
                                 <td className="px-4 py-3">
                                   <span className="text-xs font-bold text-slate-500">#{p.attemptNumber || (i + 1)}</span>
@@ -1520,7 +1520,7 @@ const Clinic360Page = () => {
                                   <p className="text-[10px] text-slate-400 capitalize">{p.billingCycle || '--'}</p>
                                 </td>
                                 <td className="px-3 py-3">
-                                  <span className="text-xs font-bold text-emerald-600">{fmtAmt(p.amount)}</span>
+                                  <span className="text-xs font-bold text-blue-600">{fmtAmt(p.amount)}</span>
                                 </td>
                                 <td className="px-3 py-3">
                                   <span className="font-mono text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-700">{p.utr || '--'}</span>
@@ -1552,7 +1552,7 @@ const Clinic360Page = () => {
                             <div className="flex justify-between"><span className="text-xs text-slate-500">Attempt</span><span className="text-xs font-bold text-slate-900">#{selectedPayment.attemptNumber || 1}</span></div>
                             <div className="flex justify-between"><span className="text-xs text-slate-500">Plan</span><span className="text-xs font-semibold">{selectedPayment.planId?.name || selectedPayment.planName || '--'}</span></div>
                             <div className="flex justify-between"><span className="text-xs text-slate-500">Cycle</span><span className="text-xs text-slate-700 capitalize">{selectedPayment.billingCycle || '--'}</span></div>
-                            <div className="flex justify-between"><span className="text-xs text-slate-500">Amount</span><span className="text-xs font-bold text-emerald-600">{fmtAmt(selectedPayment.amount)}</span></div>
+                            <div className="flex justify-between"><span className="text-xs text-slate-500">Amount</span><span className="text-xs font-bold text-blue-600">{fmtAmt(selectedPayment.amount)}</span></div>
                           </div>
                           <div className="bg-slate-50 rounded-xl p-3 space-y-2">
                             <div className="flex justify-between items-start gap-2"><span className="text-xs text-slate-500 shrink-0">UTR / Ref</span><span className="font-mono text-[10px] font-bold text-slate-800 text-right break-all">{selectedPayment.utr || '--'}</span></div>
@@ -1591,7 +1591,7 @@ const Clinic360Page = () => {
                                 }
                               }}
                               disabled={paymentActionLoading}
-                              className="flex-1 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition flex items-center justify-center gap-1 disabled:opacity-60"
+                              className="flex-1 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 transition flex items-center justify-center gap-1 disabled:opacity-60"
                             >
                               <Check size={12} /> Verify
                             </button>
@@ -1650,7 +1650,7 @@ const Clinic360Page = () => {
               <div className="bg-white rounded-2xl border border-slate-200/80 p-5 space-y-4">
                 {activityLogs.map((log) => (
                   <div key={log._id} className="flex items-start gap-3 p-3 rounded-xl hover:bg-slate-50 border border-slate-100 transition">
-                    <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
+                    <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 mt-0.5">
                       <CheckCircle2 size={16} />
                     </div>
                     <div className="min-w-0 flex-1">

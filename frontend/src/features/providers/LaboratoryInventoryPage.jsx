@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Plus, Search, Package, AlertTriangle, Clock, TrendingUp, IndianRupee,
@@ -36,12 +36,12 @@ const getConsumableStatus = (item) => {
 };
 
 const STATUS_CONFIG = {
-  in:       { label: 'In Stock',      cls: 'bg-emerald-50 text-emerald-700 border border-emerald-200' },
+  in:       { label: 'In Stock',      cls: 'bg-blue-50 text-blue-700 border border-blue-200' },
   low:      { label: 'Low Stock',     cls: 'bg-amber-50 text-amber-700 border border-amber-200' },
   out:      { label: 'Out of Stock',  cls: 'bg-rose-50 text-rose-700 border border-rose-200' },
   expiring: { label: 'Expiring Soon', cls: 'bg-orange-50 text-orange-700 border border-orange-200' },
   expired:  { label: 'Expired',       cls: 'bg-red-50 text-red-700 border border-red-200' },
-  active:   { label: 'Active',        cls: 'bg-emerald-50 text-emerald-700 border border-emerald-200' },
+  active:   { label: 'Active',        cls: 'bg-blue-50 text-blue-700 border border-blue-200' },
 };
 
 const CAT_CFG = {
@@ -461,7 +461,7 @@ const LaboratoryInventoryPage = () => {
                     {provider.providerCode || `LAB-${provider._id?.slice(-6)?.toUpperCase()}`}
                   </span>
                   <span className={`text-xs font-bold px-2.5 py-1 rounded-lg ${
-                    provider.status === 'Active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
+                    provider.status === 'Active' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'
                   }`}>{provider.status || 'Active'}</span>
                 </div>
               )}
@@ -505,8 +505,8 @@ const LaboratoryInventoryPage = () => {
         <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4">
           <KpiCard loading={statsLoading} icon={Package} iconBg="bg-blue-100 text-blue-600"
             value={stats?.totalConsumables ?? 0} label="Total Items" sub="All inventory items" />
-          <KpiCard loading={statsLoading} icon={IndianRupee} iconBg="bg-emerald-100 text-emerald-600"
-            value={fmt(stats?.totalValue)} label="Total Value" sub="Current stock value" valueColor="text-emerald-700" />
+          <KpiCard loading={statsLoading} icon={IndianRupee} iconBg="bg-blue-100 text-blue-600"
+            value={fmt(stats?.totalValue)} label="Total Value" sub="Current stock value" valueColor="text-blue-700" />
           <KpiCard loading={statsLoading} icon={AlertTriangle} iconBg="bg-amber-100 text-amber-600"
             value={stats?.lowStock ?? 0} label="Low Stock Items" sub="Items need attention"
             valueColor={(stats?.lowStock ?? 0) > 0 ? 'text-amber-600' : 'text-slate-800'} />

@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { labApi } from '../../lib/api';
 import LabTestSearchPanel from './LabTestSearchPanel';
 import SmartPrescriptionSearch from './SmartPrescriptionSearch';
 
-const FIELD_CLASS = 'w-full rounded-xl border border-slate-600/40 bg-slate-800/50 px-3 py-2 text-xs text-slate-200 outline-none transition-all focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/10 placeholder:text-slate-500';
-const SELECT_CLASS = 'w-full rounded-xl border border-slate-600/40 bg-slate-800/50 px-3 py-2 text-xs text-slate-200 outline-none transition-all focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/10 cursor-pointer';
+const FIELD_CLASS = 'w-full rounded-xl border border-slate-600/40 bg-slate-800/50 px-3 py-2 text-xs text-slate-200 outline-none transition-all focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/10 placeholder:text-slate-500';
+const SELECT_CLASS = 'w-full rounded-xl border border-slate-600/40 bg-slate-800/50 px-3 py-2 text-xs text-slate-200 outline-none transition-all focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/10 cursor-pointer';
 
 const routeOptions = ['oral', 'topical', 'injection', 'inhalation', 'other'];
 
@@ -143,7 +143,7 @@ export default function PrescriptionInConsultation({
       <div className="cons-section">
         <div className="flex items-center justify-between px-4 py-3 bg-slate-800/20 border-b border-slate-700/30">
           <div className="flex items-center gap-2">
-            <span className="flex items-center justify-center w-5 h-5 rounded bg-emerald-500/20 text-emerald-400 text-[10px] font-bold">4</span>
+            <span className="flex items-center justify-center w-5 h-5 rounded bg-blue-500/20 text-blue-400 text-[10px] font-bold">4</span>
             <span className="text-sm font-semibold text-slate-200">Prescription Builder</span>
           </div>
           <div className="flex items-center gap-3">
@@ -279,7 +279,7 @@ export default function PrescriptionInConsultation({
                         type="checkbox"
                         checked={med.isSubstituteAllowed !== false}
                         onChange={(e) => handleMedicineChange(idx, 'isSubstituteAllowed', e.target.checked)}
-                        className="rounded bg-slate-800 border-slate-700 text-emerald-500 focus:ring-0"
+                        className="rounded bg-slate-800 border-slate-700 text-blue-500 focus:ring-0"
                       />
                       Sub Allowed
                     </label>
@@ -302,7 +302,7 @@ export default function PrescriptionInConsultation({
             <button
               type="button"
               onClick={() => setIsSearchPanelOpen(true)}
-              className="flex items-center gap-1 text-xs text-emerald-400 hover:text-emerald-300 transition-colors font-semibold"
+              className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 transition-colors font-semibold"
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
               Search & Offer Tests

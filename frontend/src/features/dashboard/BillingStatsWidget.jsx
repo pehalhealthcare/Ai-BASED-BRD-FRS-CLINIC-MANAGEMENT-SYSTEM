@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import EmptyState from '../../components/common/EmptyState';
@@ -54,7 +54,7 @@ const BillingStatsWidget = () => {
     <section className="grid gap-4 rounded-3xl border border-stone-200 bg-white p-6 shadow-lg shadow-stone-200/40">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">Billing</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">Billing</p>
           <h2 className="mt-2 text-2xl font-semibold text-stone-900">Revenue snapshot</h2>
         </div>
         <Link className="rounded-2xl border border-stone-300 px-4 py-3 text-sm font-semibold text-stone-700 hover:bg-stone-50" to="/billing">

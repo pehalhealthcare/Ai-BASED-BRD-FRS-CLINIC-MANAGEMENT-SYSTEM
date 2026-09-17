@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+﻿import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   X,
   Search,
@@ -955,7 +955,7 @@ export default function CreateLabOrderModal({
                 <span className="font-extrabold text-xl text-amber-300">
                   ₹ {totalAmount}
                 </span>
-                <span className="text-[10px] text-emerald-300 block font-bold">
+                <span className="text-[10px] text-blue-300 block font-bold">
                   ● Status: Ordered (Initial)
                 </span>
               </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Lock, Sparkles, Check, RefreshCw, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { apiClient } from '../lib/api';
@@ -143,7 +143,7 @@ const PremiumFeaturePlaceholder = ({ featureCode, featureName, description, onRe
     <div className="relative overflow-hidden bg-slate-900/50 border border-slate-800 rounded-3xl p-6 flex flex-col items-center justify-center text-center space-y-6 min-h-[300px] backdrop-blur-md text-slate-100">
       
       {/* Decorative gradient blurs */}
-      <div className="absolute -right-10 -top-10 w-28 h-28 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
+      <div className="absolute -right-10 -top-10 w-28 h-28 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
       <div className="absolute -left-10 -bottom-10 w-28 h-28 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none" />
 
       <div className="w-12 h-12 bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/35 rounded-2xl flex items-center justify-center text-amber-400 shadow-md">
@@ -199,7 +199,7 @@ const PremiumFeaturePlaceholder = ({ featureCode, featureName, description, onRe
           className={`relative z-10 px-5 py-2.5 rounded-xl text-xs font-black tracking-wide transition flex items-center gap-1.5 shadow-lg ${
             requested
               ? 'bg-slate-800 text-slate-400 border border-slate-700 cursor-default'
-              : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:opacity-95 text-white shadow-emerald-950/20'
+              : 'bg-gradient-to-r from-blue-600 to-teal-600 hover:opacity-95 text-white shadow-blue-950/20'
           }`}
         >
           {requested ? (
@@ -285,7 +285,7 @@ const PremiumFeaturePlaceholder = ({ featureCode, featureName, description, onRe
                       <span>New Plan Price</span>
                       <span className="font-bold text-slate-800">₹{upgradePreview.selectedPlanPrice}</span>
                     </div>
-                    <div className="flex justify-between items-center text-emerald-600 font-semibold">
+                    <div className="flex justify-between items-center text-blue-600 font-semibold">
                       <span>Unused Credit (Prorated)</span>
                       <span className="font-black">- ₹{upgradePreview.currentPlanCredit}</span>
                     </div>

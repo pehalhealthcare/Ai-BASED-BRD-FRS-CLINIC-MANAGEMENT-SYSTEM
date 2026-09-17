@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 import EmptyState from '../../components/common/EmptyState';
@@ -162,7 +162,7 @@ const AppointmentCreatePage = () => {
             <Link className="rounded-2xl border border-stone-300 px-4 py-3 text-sm font-semibold text-stone-700 hover:bg-stone-50" to="/patients/new">
               Create patient
             </Link>
-            <Link className="rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700" to="/doctors/new">
+            <Link className="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700" to="/doctors/new">
               Create doctor
             </Link>
           </div>
@@ -175,11 +175,11 @@ const AppointmentCreatePage = () => {
     <section className="grid gap-6">
       <div className="flex flex-col gap-3 rounded-3xl border border-stone-200 bg-white p-6 shadow-lg shadow-stone-200/40 md:flex-row md:items-center md:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">Appointments</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-700">Appointments</p>
           <h2 className="mt-2 text-2xl font-semibold text-stone-900">Book appointment</h2>
           <p className="mt-2 text-sm text-stone-600">Use doctor availability and live slot checks to avoid double booking.</p>
         </div>
-        <Link className="text-sm font-semibold text-emerald-700 hover:text-emerald-800" to="/appointments">
+        <Link className="text-sm font-semibold text-blue-700 hover:text-blue-800" to="/appointments">
           Back to appointments
         </Link>
       </div>

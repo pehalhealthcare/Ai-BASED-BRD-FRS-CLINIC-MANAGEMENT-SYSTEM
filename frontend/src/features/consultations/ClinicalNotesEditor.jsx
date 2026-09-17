@@ -1,11 +1,11 @@
-const TextareaField = ({ label, icon, value, onChange, rows = 4, placeholder }) => (
+﻿const TextareaField = ({ label, icon, value, onChange, rows = 4, placeholder }) => (
   <label className="group grid gap-2 text-sm font-medium text-stone-700 dark:text-stone-300">
     <span className="flex items-center gap-2">
       {icon && <span className="text-base">{icon}</span>}
       {label}
     </span>
     <textarea
-      className="w-full rounded-2xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800/50 px-4 py-3 text-sm text-stone-800 dark:text-stone-200 outline-none transition-all duration-200 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:focus:ring-emerald-900/30 placeholder:text-stone-400 dark:placeholder:text-stone-500 resize-y"
+      className="w-full rounded-2xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800/50 px-4 py-3 text-sm text-stone-800 dark:text-stone-200 outline-none transition-all duration-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 placeholder:text-stone-400 dark:placeholder:text-stone-500 resize-y"
       rows={rows}
       value={value || ''}
       onChange={onChange}

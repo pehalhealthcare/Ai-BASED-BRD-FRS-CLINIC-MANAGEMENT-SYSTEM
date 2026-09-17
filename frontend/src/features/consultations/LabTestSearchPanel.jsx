@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Search, X, Sparkles, AlertCircle, ArrowLeft, Trash2, Check } from 'lucide-react';
 import { labApi } from '../../lib/api';
 
@@ -296,19 +296,19 @@ export default function LabTestSearchPanel({
           <div className="pt-5 border-t border-slate-800/50">
             <p className="text-[10px] font-bold text-violet-400 uppercase tracking-wider mb-3">Consultation Progress</p>
             <div className="space-y-2 text-xs">
-              <div className="flex items-center justify-between text-emerald-400">
+              <div className="flex items-center justify-between text-blue-400">
                 <span>Chief Complaint</span>
                 <span className="flex items-center gap-1 font-semibold">Completed <span>✓</span></span>
               </div>
-              <div className="flex items-center justify-between text-emerald-400">
+              <div className="flex items-center justify-between text-blue-400">
                 <span>Symptoms</span>
                 <span className="flex items-center gap-1 font-semibold">Completed <span>✓</span></span>
               </div>
-              <div className="flex items-center justify-between text-emerald-400">
+              <div className="flex items-center justify-between text-blue-400">
                 <span>Vitals</span>
                 <span className="flex items-center gap-1 font-semibold">Completed <span>✓</span></span>
               </div>
-              <div className="flex items-center justify-between text-emerald-400">
+              <div className="flex items-center justify-between text-blue-400">
                 <span>Diagnosis</span>
                 <span className="flex items-center gap-1 font-semibold">Completed <span>✓</span></span>
               </div>
@@ -408,7 +408,7 @@ export default function LabTestSearchPanel({
           {/* Offered at Organization */}
           <div className="space-y-3">
             <div className="flex items-center gap-2">
-              <span className="w-4 h-4 rounded bg-emerald-500/20 text-emerald-400 font-extrabold text-[9px] flex items-center justify-center">2</span>
+              <span className="w-4 h-4 rounded bg-blue-500/20 text-blue-400 font-extrabold text-[9px] flex items-center justify-center">2</span>
               <h3 className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">Lab Tests Offered at Your Organization</h3>
             </div>
             
@@ -456,7 +456,7 @@ export default function LabTestSearchPanel({
                         <td className="p-4 text-slate-300">2-4 hrs</td>
                         <td className="p-4 text-slate-200 font-semibold">{t.price ? `₹${t.price.toFixed(2)}` : '₹250.00'}</td>
                         <td className="p-4">
-                          <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-bold">Routine</span>
+                          <span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[9px] font-bold">Routine</span>
                         </td>
                         <td className="p-4 text-center">
                           <button
@@ -529,7 +529,7 @@ export default function LabTestSearchPanel({
                         <td className="p-4 text-slate-300">{t.tat}</td>
                         <td className="p-4 text-slate-200 font-semibold">₹{t.price.toFixed(2)}</td>
                         <td className="p-4">
-                          <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-bold">Routine</span>
+                          <span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[9px] font-bold">Routine</span>
                         </td>
                         <td className="p-4 text-center">
                           <button
@@ -628,7 +628,7 @@ export default function LabTestSearchPanel({
                   </div>
                   <div>
                     <span className="text-slate-500 font-medium">Price</span>
-                    <p className="text-emerald-400 font-bold mt-0.5">₹{hoveredOrSelectedTest.price ? hoveredOrSelectedTest.price.toFixed(2) : '250.00'}</p>
+                    <p className="text-blue-400 font-bold mt-0.5">₹{hoveredOrSelectedTest.price ? hoveredOrSelectedTest.price.toFixed(2) : '250.00'}</p>
                   </div>
                 </div>
 
@@ -692,7 +692,7 @@ export default function LabTestSearchPanel({
           </button>
           <button
             onClick={handleConfirm}
-            className="px-5 py-2.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 rounded-xl shadow-lg shadow-emerald-600/10 flex items-center gap-1.5 transition"
+            className="px-5 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-xl shadow-lg shadow-blue-600/10 flex items-center gap-1.5 transition"
           >
             <Check className="w-4 h-4" />
             Add {selectedTests.length} {selectedTests.length === 1 ? 'Test' : 'Tests'} to Consultation

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import {
   ShoppingCart, X, Trash2, ArrowRight, FlaskConical,
   CheckCircle2, Sparkles, ChevronRight, Droplet, Clock
@@ -56,13 +56,13 @@ export default function FloatingLabCart({
             className="group relative flex items-center justify-between gap-4 sm:gap-6 px-4 sm:px-5 py-3.5 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-indigo-500/40 text-white rounded-2xl shadow-2xl shadow-indigo-950/60 hover:shadow-indigo-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 cursor-pointer ring-4 ring-indigo-500/10 focus:outline-none focus:ring-4 focus:ring-indigo-400"
           >
             {/* Pulsing background aura */}
-            <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500 to-emerald-500 rounded-2xl blur-xs opacity-30 group-hover:opacity-60 transition duration-300 -z-10" />
+            <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500 to-blue-500 rounded-2xl blur-xs opacity-30 group-hover:opacity-60 transition duration-300 -z-10" />
 
             {/* Left: Icon & Count / Subtotal */}
             <div className="flex items-center gap-3">
-              <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500/20 to-indigo-500/30 border border-emerald-400/40 text-emerald-300 shadow-inner">
+              <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500/20 to-indigo-500/30 border border-blue-400/40 text-blue-300 shadow-inner">
                 <FlaskConical className="h-5 w-5 animate-pulse" />
-                <span className="absolute -top-1.5 -right-1.5 flex h-5 min-w-5 px-1 items-center justify-center rounded-full bg-emerald-500 text-[10px] font-black text-slate-950 shadow-md">
+                <span className="absolute -top-1.5 -right-1.5 flex h-5 min-w-5 px-1 items-center justify-center rounded-full bg-blue-500 text-[10px] font-black text-slate-950 shadow-md">
                   {totalCount}
                 </span>
               </div>
@@ -70,7 +70,7 @@ export default function FloatingLabCart({
                 <div className="text-xs sm:text-sm font-extrabold text-white flex items-center gap-1.5">
                   <span>{totalCount} {totalCount === 1 ? 'Test Selected' : 'Tests Selected'}</span>
                 </div>
-                <div className="text-[11px] sm:text-xs font-bold text-emerald-400">
+                <div className="text-[11px] sm:text-xs font-bold text-blue-400">
                   {currencySymbol}{subtotal.toLocaleString('en-IN')}
                 </div>
               </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { X, Check, ChevronLeft, ChevronRight, RefreshCw, AlertTriangle, MapPin, Edit2, ShieldAlert } from 'lucide-react';
 import { providersApi } from '../../lib/api';
 import MapPicker from '../../components/common/MapPicker';
@@ -13,7 +13,7 @@ const initials = (name = '') =>
 const AVATAR_PALETTE = [
   'from-violet-500 to-indigo-600',
   'from-blue-500 to-cyan-600',
-  'from-emerald-500 to-teal-600',
+  'from-blue-500 to-teal-600',
   'from-orange-500 to-red-500',
   'from-pink-500 to-rose-600',
 ];
@@ -28,7 +28,7 @@ const Field = ({ label, required, error, checkingMsg, children, id }) => (
     </label>
     {children}
     {checkingMsg && !error && (
-      <span className="text-[10px] text-emerald-600 font-bold block mt-0.5">{checkingMsg}</span>
+      <span className="text-[10px] text-blue-600 font-bold block mt-0.5">{checkingMsg}</span>
     )}
     {error && (
       <span className="text-[10px] text-red-550 font-bold block mt-0.5">{error}</span>
@@ -41,7 +41,7 @@ const Input = ({ error, success, ...props }) => (
     {...props}
     className={`w-full px-3.5 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 transition ${
       error ? 'border-red-500 focus:border-red-500 focus:ring-red-500/25' : 
-      success ? 'border-emerald-500 focus:border-emerald-500 focus:ring-emerald-500/25 text-emerald-850 bg-emerald-50/20' : 
+      success ? 'border-blue-500 focus:border-blue-500 focus:ring-blue-500/25 text-blue-850 bg-blue-50/20' : 
       'border-slate-200 focus:border-blue-400 focus:ring-blue-500/25'
     }`}
   />
@@ -742,8 +742,8 @@ export const ProviderWizardModal = ({
                                         <span>{brCode}</span>
                                         <span className="text-slate-200">|</span>
                                         <span className="flex items-center gap-1.5">
-                                          <span className={`w-1.5 h-1.5 rounded-full ${b.active !== false ? 'bg-emerald-500 animate-pulse' : 'bg-rose-450'}`}></span>
-                                          <span className={b.active !== false ? 'text-emerald-600' : 'text-rose-500'}>
+                                          <span className={`w-1.5 h-1.5 rounded-full ${b.active !== false ? 'bg-blue-500 animate-pulse' : 'bg-rose-450'}`}></span>
+                                          <span className={b.active !== false ? 'text-blue-600' : 'text-rose-500'}>
                                             {b.active !== false ? 'Active' : 'Inactive'}
                                           </span>
                                         </span>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import consultationApi from '../../api/consultationApi';
 
@@ -56,7 +56,7 @@ const AppointmentConsultationButton = ({ appointmentId, status }) => {
 
   return (
     <Link
-      className="rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700 transition"
+      className="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 transition"
       to={`/appointments/${appointmentId}/consultation`}
     >
       Open consultation

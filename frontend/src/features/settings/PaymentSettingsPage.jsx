@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+﻿import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Building2, CreditCard, Shield, Bell, Settings as SettingsIcon,
@@ -367,10 +367,10 @@ const PaymentSettingsPage = () => {
           </div>
 
           {/* Last Updated Pill */}
-          <div className="inline-flex items-center gap-2 bg-emerald-50/90 text-emerald-800 border border-emerald-200/80 px-3.5 py-1.5 rounded-full text-xs font-bold shadow-xs self-start sm:self-center shrink-0">
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+          <div className="inline-flex items-center gap-2 bg-blue-50/90 text-blue-800 border border-blue-200/80 px-3.5 py-1.5 rounded-full text-xs font-bold shadow-xs self-start sm:self-center shrink-0">
+            <span className="w-2 h-2 rounded-full bg-blue-500" />
             <span>Last updated: {formatDateTime(serverData?.updatedAt)}</span>
-            <Clock size={13} className="text-emerald-600 ml-0.5" />
+            <Clock size={13} className="text-blue-600 ml-0.5" />
           </div>
         </div>
 
@@ -431,7 +431,7 @@ const PaymentSettingsPage = () => {
             {/* 1. Bank Account Details Card */}
             <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-xs p-5 sm:p-6 space-y-5">
               <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-                <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100">
                   <Building2 size={20} />
                 </div>
                 <div>
@@ -451,7 +451,7 @@ const PaymentSettingsPage = () => {
                     value={form.accountName}
                     onChange={(e) => handleInputChange('accountName', e.target.value)}
                     placeholder="PehalHealthcare Technologies Private Limited"
-                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 outline-none focus:border-[#00B96B] focus:ring-2 focus:ring-emerald-100 transition shadow-xs"
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 outline-none focus:border-[#00B96B] focus:ring-2 focus:ring-blue-100 transition shadow-xs"
                   />
                 </div>
 
@@ -465,7 +465,7 @@ const PaymentSettingsPage = () => {
                     value={form.bankName}
                     onChange={(e) => handleInputChange('bankName', e.target.value)}
                     placeholder="Kotak Mahindra Bank"
-                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 outline-none focus:border-[#00B96B] focus:ring-2 focus:ring-emerald-100 transition shadow-xs"
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 outline-none focus:border-[#00B96B] focus:ring-2 focus:ring-blue-100 transition shadow-xs"
                   />
                 </div>
 
@@ -489,7 +489,7 @@ const PaymentSettingsPage = () => {
                     value={form.accountNumber}
                     onChange={(e) => handleInputChange('accountNumber', e.target.value)}
                     placeholder="8512060314"
-                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl font-mono text-xs font-bold text-slate-900 outline-none focus:border-[#00B96B] focus:ring-2 focus:ring-emerald-100 transition shadow-xs tracking-wider"
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl font-mono text-xs font-bold text-slate-900 outline-none focus:border-[#00B96B] focus:ring-2 focus:ring-blue-100 transition shadow-xs tracking-wider"
                   />
                 </div>
 
@@ -503,7 +503,7 @@ const PaymentSettingsPage = () => {
                     value={form.ifscCode}
                     onChange={(e) => handleInputChange('ifscCode', e.target.value.toUpperCase())}
                     placeholder="KKBK0000181"
-                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl font-mono text-xs font-bold text-slate-900 outline-none focus:border-[#00B96B] focus:ring-2 focus:ring-emerald-100 transition shadow-xs uppercase tracking-wider"
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl font-mono text-xs font-bold text-slate-900 outline-none focus:border-[#00B96B] focus:ring-2 focus:ring-blue-100 transition shadow-xs uppercase tracking-wider"
                   />
                 </div>
 
@@ -517,7 +517,7 @@ const PaymentSettingsPage = () => {
                     value={form.branch}
                     onChange={(e) => handleInputChange('branch', e.target.value)}
                     placeholder="Sector-18, Noida"
-                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 outline-none focus:border-[#00B96B] focus:ring-2 focus:ring-emerald-100 transition shadow-xs"
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 outline-none focus:border-[#00B96B] focus:ring-2 focus:ring-blue-100 transition shadow-xs"
                   />
                 </div>
               </div>
@@ -573,7 +573,7 @@ const PaymentSettingsPage = () => {
                       value={form.supportEmail}
                       onChange={(e) => handleInputChange('supportEmail', e.target.value)}
                       placeholder="support@pehalhealthcare.com"
-                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 outline-none focus:border-[#00B96B] focus:ring-2 focus:ring-emerald-100 transition shadow-xs"
+                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 outline-none focus:border-[#00B96B] focus:ring-2 focus:ring-blue-100 transition shadow-xs"
                     />
                   </div>
                 </div>
@@ -592,7 +592,7 @@ const PaymentSettingsPage = () => {
                       value={form.supportPhone}
                       onChange={(e) => handleInputChange('supportPhone', e.target.value)}
                       placeholder="+91 81309 16134"
-                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 outline-none focus:border-[#00B96B] focus:ring-2 focus:ring-emerald-100 transition shadow-xs"
+                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 outline-none focus:border-[#00B96B] focus:ring-2 focus:ring-blue-100 transition shadow-xs"
                     />
                   </div>
                 </div>
@@ -607,7 +607,7 @@ const PaymentSettingsPage = () => {
             {/* 1. UPI Payment Card */}
             <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-xs p-5 sm:p-6 space-y-4">
               <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-                <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100">
                   <span className="font-mono font-black text-xs">UPI</span>
                 </div>
                 <div>
@@ -626,20 +626,20 @@ const PaymentSettingsPage = () => {
                     value={form.upiId}
                     onChange={(e) => handleInputChange('upiId', e.target.value)}
                     placeholder="8130916134@kotak"
-                    className="flex-1 px-4 py-2.5 bg-white border border-slate-200 rounded-xl font-mono text-xs font-bold text-slate-900 outline-none focus:border-[#00B96B] focus:ring-2 focus:ring-emerald-100 transition shadow-xs"
+                    className="flex-1 px-4 py-2.5 bg-white border border-slate-200 rounded-xl font-mono text-xs font-bold text-slate-900 outline-none focus:border-[#00B96B] focus:ring-2 focus:ring-blue-100 transition shadow-xs"
                   />
                   <button
                     type="button"
                     onClick={handleCopyUpi}
                     className="px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shrink-0 shadow-xs"
                   >
-                    {copiedUpi ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} className="text-slate-400" />}
+                    {copiedUpi ? <Check size={14} className="text-blue-600" /> : <Copy size={14} className="text-slate-400" />}
                     <span>{copiedUpi ? 'Copied' : 'Copy'}</span>
                   </button>
                 </div>
 
-                <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 mt-2">
-                  <CheckCircle2 size={13} className="text-emerald-500 shrink-0" />
+                <div className="flex items-center gap-1.5 text-[11px] font-bold text-blue-700 mt-2">
+                  <CheckCircle2 size={13} className="text-blue-500 shrink-0" />
                   <span>This UPI ID will be shown to clinics for quick payments.</span>
                 </div>
               </div>
@@ -648,7 +648,7 @@ const PaymentSettingsPage = () => {
             {/* 2. Payment QR Code Card */}
             <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-xs p-5 sm:p-6 space-y-4">
               <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-                <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100">
                   <Sparkles size={20} />
                 </div>
                 <div>
@@ -680,12 +680,12 @@ const PaymentSettingsPage = () => {
                 {/* QR Metadata & Actions */}
                 <div className="flex-1 w-full space-y-3">
                   {/* Status Banner */}
-                  <div className="bg-emerald-50/80 border border-emerald-200/70 rounded-2xl p-3.5 flex items-start gap-3">
-                    <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
+                  <div className="bg-blue-50/80 border border-blue-200/70 rounded-2xl p-3.5 flex items-start gap-3">
+                    <div className="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
                       <Check size={14} strokeWidth={3} />
                     </div>
                     <div className="min-w-0 text-xs text-slate-700 space-y-1">
-                      <div className="font-black text-emerald-950 text-xs">QR Code is active</div>
+                      <div className="font-black text-blue-950 text-xs">QR Code is active</div>
                       <div className="text-slate-600 text-[11px]">
                         UPI ID (detected): <span className="font-mono font-bold text-slate-800">{qrMetadata?.detectedUpiId || form.upiId || '8130916134@kotak'}</span>
                       </div>
@@ -806,7 +806,7 @@ const PaymentSettingsPage = () => {
             type="button"
             disabled={saving}
             onClick={handleSave}
-            className="px-6 py-2.5 bg-[#00B96B] hover:bg-[#00A25D] text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-500/20 transition flex items-center gap-2 disabled:opacity-60"
+            className="px-6 py-2.5 bg-[#00B96B] hover:bg-[#00A25D] text-white rounded-xl text-xs font-bold shadow-md shadow-blue-500/20 transition flex items-center gap-2 disabled:opacity-60"
           >
             {saving ? (
               <>

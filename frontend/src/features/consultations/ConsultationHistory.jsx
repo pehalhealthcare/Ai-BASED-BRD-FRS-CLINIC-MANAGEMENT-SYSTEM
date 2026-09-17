@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import DataTable from '../../components/common/DataTable';
@@ -76,7 +76,7 @@ const ConsultationHistory = ({ patientId, title = 'Clinical history', compact = 
       key: 'actions',
       label: 'Actions',
       render: (row) => (
-        <Link className="font-semibold text-emerald-700 hover:text-emerald-800" to={`/consultations/${row._id}`}>
+        <Link className="font-semibold text-blue-700 hover:text-blue-800" to={`/consultations/${row._id}`}>
           View
         </Link>
       )

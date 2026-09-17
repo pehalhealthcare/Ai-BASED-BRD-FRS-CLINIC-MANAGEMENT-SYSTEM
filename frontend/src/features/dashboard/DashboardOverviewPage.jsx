@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import ErrorState from '../../components/common/ErrorState';
@@ -228,13 +228,13 @@ const DashboardOverviewPage = () => {
             <div className="grid gap-3">
               {isDoctor ? (
                 <>
-                  <Link className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm font-semibold text-emerald-800 hover:bg-emerald-100" to="/appointments">
+                  <Link className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-4 text-sm font-semibold text-blue-800 hover:bg-blue-100" to="/appointments">
                     View today&apos;s appointments
                   </Link>
-                  <Link className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm font-semibold text-emerald-800 hover:bg-emerald-100" to="/consultations">
+                  <Link className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-4 text-sm font-semibold text-blue-800 hover:bg-blue-100" to="/consultations">
                     Open consultations
                   </Link>
-                  <Link className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm font-semibold text-emerald-800 hover:bg-emerald-100" to="/prescriptions">
+                  <Link className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-4 text-sm font-semibold text-blue-800 hover:bg-blue-100" to="/prescriptions">
                     Manage prescriptions
                   </Link>
                 </>
@@ -283,21 +283,21 @@ const DashboardOverviewPage = () => {
             ) : null}
 
             {isDoctor ? (
-              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">Your workload</p>
-                <p className="mt-2 text-sm text-emerald-900">
+              <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">Your workload</p>
+                <p className="mt-2 text-sm text-blue-900">
                   Today: {cards.todayAppointments ?? 0} appointments, {cards.completedConsultations ?? 0} completed consultations, {cards.activePrescriptions ?? 0} active prescriptions.
                 </p>
               </div>
             ) : null}
 
             {isAdmin ? (
-              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">Financial context</p>
-                <p className="mt-2 text-sm text-emerald-900">
+              <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">Financial context</p>
+                <p className="mt-2 text-sm text-blue-900">
                   Dashboard revenue detail lives in the backend-backed summary view, with invoice and pharmacy revenue combined safely.
                 </p>
-                <Link className="mt-3 inline-flex text-sm font-semibold text-emerald-800 hover:text-emerald-900" to="/dashboard/revenue">
+                <Link className="mt-3 inline-flex text-sm font-semibold text-blue-800 hover:text-blue-900" to="/dashboard/revenue">
                   Open revenue summary
                 </Link>
               </div>
@@ -310,9 +310,9 @@ const DashboardOverviewPage = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/60 p-4 backdrop-blur-sm">
           <div className="w-full max-w-lg rounded-3xl bg-white border border-stone-200 shadow-2xl p-6 md:p-8 relative overflow-hidden">
             {/* Top decorative gradient bar */}
-            <div className="absolute top-0 inset-x-0 h-2 bg-gradient-to-r from-emerald-400 via-teal-500 to-indigo-500"></div>
+            <div className="absolute top-0 inset-x-0 h-2 bg-gradient-to-r from-blue-400 via-teal-500 to-indigo-500"></div>
 
-            <div className="w-16 h-16 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100 mb-6 mx-auto">
+            <div className="w-16 h-16 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100 mb-6 mx-auto">
               <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
@@ -349,7 +349,7 @@ const DashboardOverviewPage = () => {
             <button
               onClick={handleAcceptSlots}
               disabled={acceptingSlot}
-              className="w-full rounded-2xl bg-emerald-600 py-3.5 text-sm font-bold text-white hover:bg-emerald-700 shadow-lg shadow-emerald-600/20 transition-all cursor-pointer disabled:opacity-60"
+              className="w-full rounded-2xl bg-blue-600 py-3.5 text-sm font-bold text-white hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all cursor-pointer disabled:opacity-60"
             >
               {acceptingSlot ? 'Accepting Schedule...' : 'Accept Schedule & Resume'}
             </button>

@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Search, Plus } from 'lucide-react';
 import { pharmacyApi } from '../../lib/api';
 
 const FIELD_CLASS =
-  'rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100';
+  'rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100';
 
 const routeOptions = ['oral', 'topical', 'injection', 'inhalation', 'other'];
 
@@ -150,10 +150,10 @@ const MedicineItemForm = ({ item, index, onChange, onRemove, disableRemove = fal
                   key={gen._id}
                   type="button"
                   onClick={() => selectGeneric(gen)}
-                  className="w-full text-left px-3 py-2 hover:bg-emerald-50 rounded-lg flex items-center justify-between"
+                  className="w-full text-left px-3 py-2 hover:bg-blue-50 rounded-lg flex items-center justify-between"
                 >
                   <span className="font-bold text-stone-800">{gen.name} ({gen.strength})</span>
-                  <span className="bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase">Generic</span>
+                  <span className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase">Generic</span>
                 </button>
               ))}
             </div>
@@ -217,12 +217,12 @@ const MedicineItemForm = ({ item, index, onChange, onRemove, disableRemove = fal
                 <div key={med._id} className="py-2.5 flex items-center justify-between">
                   <div className="flex flex-col">
                     <span className="font-bold text-stone-850">{med.name}</span>
-                    <span className="text-[10px] text-emerald-600 font-bold">Stock: {med.totalStock}</span>
+                    <span className="text-[10px] text-blue-600 font-bold">Stock: {med.totalStock}</span>
                   </div>
                   <button
                     type="button"
                     onClick={() => handlePrescribeBrand(med)}
-                    className="px-3 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl text-xs font-bold transition"
+                    className="px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-xl text-xs font-bold transition"
                   >
                     Select Brand
                   </button>
@@ -263,7 +263,7 @@ const MedicineItemForm = ({ item, index, onChange, onRemove, disableRemove = fal
               <button
                 type="button"
                 onClick={handleNotifyPharmacy}
-                className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1 shadow-md"
+                className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1 shadow-md"
               >
                 Notify Pharmacy
               </button>

@@ -1,9 +1,9 @@
-import React from 'react';
+﻿import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const QUICK_ACTIONS = [
   { icon: '📅', label: 'Book Appointment', action: '/appointments/new', color: 'bg-blue-50 hover:bg-blue-100' },
-  { icon: '👤', label: 'Register Patient', action: '/patients/new', color: 'bg-emerald-50 hover:bg-emerald-100' },
+  { icon: '👤', label: 'Register Patient', action: '/patients/new', color: 'bg-blue-50 hover:bg-blue-100' },
   { icon: '🚶', label: 'Walk-in Patient', action: null, special: 'walkin', color: 'bg-violet-50 hover:bg-violet-100' },
   { icon: '💵', label: 'Create Invoice', action: '/billing', color: 'bg-amber-50 hover:bg-amber-100' },
   { icon: '🩺', label: 'Add Doctor', action: '/admin/my-doctors-dashboard', color: 'bg-blue-50 hover:bg-blue-100' },

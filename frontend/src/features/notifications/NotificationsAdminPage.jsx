@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+﻿import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Bell, Search, Filter, CheckSquare, Settings as SettingsIcon,
@@ -26,7 +26,7 @@ const NOTIFICATION_CATEGORIES = [
 
 const NOTIFICATION_ICONS = {
   appointment: { icon: Calendar, color: '#6366f1', bg: '#eef2ff' },
-  patient:     { icon: User, color: '#10b981', bg: '#ecfdf5' },
+  patient:     { icon: User, color: '#2563EB', bg: '#ecfdf5' },
   payment:     { icon: CreditCard, color: '#f59e0b', bg: '#fffbeb' },
   laboratory:  { icon: FlaskConical, color: '#0ea5e9', bg: '#f0f9ff' },
   pharmacy:    { icon: Pill, color: '#ec4899', bg: '#fdf2f8' },
@@ -298,7 +298,7 @@ const NotificationsAdminPage = () => {
               {[
                 { label: 'Total Notifications', val: counts.all, color: '#6366f1' },
                 { label: 'Unread Notifications', val: counts.unread, color: '#3b82f6', isBlue: true },
-                { label: 'Appointments', val: counts.appointment, color: '#10b981' },
+                { label: 'Appointments', val: counts.appointment, color: '#2563EB' },
                 { label: 'Patients', val: counts.patient, color: '#f59e0b' },
                 { label: 'Payments', val: counts.payment, color: '#0ea5e9' },
                 { label: 'Laboratory', val: counts.laboratory, color: '#ec4899' },

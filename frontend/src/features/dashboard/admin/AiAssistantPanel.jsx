@@ -1,11 +1,11 @@
-import React from 'react';
+﻿import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const ALERT_CONFIGS = {
   warning: { icon: '⚠️', bg: 'bg-red-50', border: 'border-red-100', text: 'text-red-700' },
   info: { icon: 'ℹ️', bg: 'bg-blue-50', border: 'border-blue-100', text: 'text-blue-700' },
   reminder: { icon: '🔔', bg: 'bg-amber-50', border: 'border-amber-100', text: 'text-amber-700' },
-  success: { icon: '✅', bg: 'bg-emerald-50', border: 'border-emerald-100', text: 'text-emerald-700' },
+  success: { icon: '✅', bg: 'bg-blue-50', border: 'border-blue-100', text: 'text-blue-700' },
 };
 
 const computeInsights = (overview, queue, doctorStatus) => {

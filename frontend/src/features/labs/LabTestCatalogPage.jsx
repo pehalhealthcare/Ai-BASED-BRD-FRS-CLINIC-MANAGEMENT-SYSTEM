@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { 
   Search, Info, Check, Filter, X, Edit2, ShieldAlert,
   Sparkles, Layers, CheckCircle2, AlertCircle, RefreshCw
@@ -414,7 +414,7 @@ const LabTestCatalogPage = () => {
                       <td className="p-4">
                         <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
                           item.isActivated 
-                            ? 'bg-emerald-500/10 text-emerald-450 border border-emerald-500/20'
+                            ? 'bg-blue-500/10 text-blue-450 border border-blue-500/20'
                             : 'bg-slate-850 text-slate-400 border border-slate-800/50'
                         }`}>
                           {item.isActivated ? 'Activated' : 'Not Configured'}

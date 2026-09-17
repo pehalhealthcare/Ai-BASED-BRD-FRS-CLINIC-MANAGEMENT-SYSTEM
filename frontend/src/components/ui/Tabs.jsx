@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+﻿import { useState, useRef, useEffect } from 'react';
 import { clsx } from 'clsx';
 
 /**
@@ -32,9 +32,9 @@ const Tabs = ({ tabs, activeTab, onChange, variant = 'pill', className }) => {
             onClick={() => onChange(tab.id)}
             className={clsx(
               'relative px-4 py-3 text-sm font-medium transition-colors duration-150 whitespace-nowrap',
-              'focus:outline-none focus-visible:ring-2 focus-visible:ring-aura-500 rounded-t-lg',
+              'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-t-lg',
               activeTab === tab.id
-                ? 'text-aura-600 dark:text-aura-400'
+                ? 'text-blue-600 dark:text-blue-400'
                 : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
             )}
           >
@@ -42,13 +42,13 @@ const Tabs = ({ tabs, activeTab, onChange, variant = 'pill', className }) => {
               {tab.icon && <span>{tab.icon}</span>}
               {tab.label}
               {tab.badge !== undefined && (
-                <span className="ml-1 px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-aura-100 text-aura-700 dark:bg-aura-500/20 dark:text-aura-300">
+                <span className="ml-1 px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300">
                   {tab.badge}
                 </span>
               )}
             </span>
             {activeTab === tab.id && (
-              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-aura-500 dark:bg-aura-400 rounded-t-full" />
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 dark:bg-blue-400 rounded-t-full" />
             )}
           </button>
         ))}
@@ -65,7 +65,7 @@ const Tabs = ({ tabs, activeTab, onChange, variant = 'pill', className }) => {
             onClick={() => onChange(tab.id)}
             className={clsx(
               'flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-150',
-              'focus:outline-none focus-visible:ring-2 focus-visible:ring-aura-500',
+              'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500',
               activeTab === tab.id
                 ? 'bg-white dark:bg-navy-700 text-slate-900 dark:text-white shadow-sm'
                 : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
@@ -74,7 +74,7 @@ const Tabs = ({ tabs, activeTab, onChange, variant = 'pill', className }) => {
             {tab.icon && <span className="shrink-0">{tab.icon}</span>}
             <span className="whitespace-nowrap">{tab.label}</span>
             {tab.badge !== undefined && (
-              <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-aura-100 text-aura-700 dark:bg-aura-500/20 dark:text-aura-300">
+              <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300">
                 {tab.badge}
               </span>
             )}
@@ -89,7 +89,7 @@ const Tabs = ({ tabs, activeTab, onChange, variant = 'pill', className }) => {
     <div className={clsx('relative flex gap-1', className)}>
       {/* Animated sliding pill */}
       <div
-        className="absolute top-0 bottom-0 rounded-xl bg-aura-600 dark:bg-aura-500 transition-all duration-200 ease-spring pointer-events-none"
+        className="absolute top-0 bottom-0 rounded-xl bg-blue-600 dark:bg-blue-500 transition-all duration-200 ease-spring pointer-events-none"
         style={{ left: indicatorStyle.left, width: indicatorStyle.width }}
       />
 
@@ -101,7 +101,7 @@ const Tabs = ({ tabs, activeTab, onChange, variant = 'pill', className }) => {
           className={clsx(
             'relative z-10 flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl',
             'transition-colors duration-150',
-            'focus:outline-none focus-visible:ring-2 focus-visible:ring-aura-500',
+            'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500',
             activeTab === tab.id
               ? 'text-white'
               : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'

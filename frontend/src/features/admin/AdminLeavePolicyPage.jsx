@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { leaveApi } from '../../lib/api';
 import PageHeader from '../../components/layout/PageHeader';
 import { Calendar, Shield, Trash2, Plus, Check, RefreshCw, Settings, AlertTriangle } from 'lucide-react';
@@ -118,19 +118,19 @@ const AdminLeavePolicyPage = () => {
         <button
           onClick={() => handleSavePolicy()}
           disabled={saving || loading}
-          className="rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-emerald-700 shadow-md shadow-emerald-600/10 hover:shadow-emerald-700/25 transition-all flex items-center gap-2 cursor-pointer self-start sm:self-auto disabled:opacity-60"
+          className="rounded-xl bg-blue-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-blue-700 shadow-md shadow-blue-600/10 hover:shadow-blue-700/25 transition-all flex items-center gap-2 cursor-pointer self-start sm:self-auto disabled:opacity-60"
         >
           {saving ? <RefreshCw size={14} className="animate-spin" /> : <Check size={14} />}
           <span>{saving ? 'Saving...' : 'Save Policy Changes'}</span>
         </button>
       </div>
 
-      {success && <p className="p-4 rounded-2xl bg-emerald-50 text-emerald-800 text-sm font-semibold border border-emerald-100">{success}</p>}
+      {success && <p className="p-4 rounded-2xl bg-blue-50 text-blue-800 text-sm font-semibold border border-blue-100">{success}</p>}
       {error && <p className="p-4 rounded-2xl bg-rose-50 text-rose-800 text-sm font-semibold border border-rose-100">{error}</p>}
 
       {loading ? (
         <div className="py-12 flex justify-center items-center">
-          <RefreshCw size={32} className="animate-spin text-emerald-500" />
+          <RefreshCw size={32} className="animate-spin text-blue-500" />
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -139,12 +139,12 @@ const AdminLeavePolicyPage = () => {
             <div className="rounded-3xl border border-stone-200 dark:border-white/[0.08] bg-white dark:bg-navy-900 p-6 shadow-sm">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-bold text-stone-900 dark:text-white flex items-center gap-2">
-                  <Settings className="text-emerald-600" size={20} />
+                  <Settings className="text-blue-600" size={20} />
                   <span>Configure Leave Types</span>
                 </h3>
                 <button
                   onClick={() => setShowAddForm(true)}
-                  className="rounded-xl border border-emerald-300 dark:border-emerald-900 px-3 py-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 transition flex items-center gap-1.5 cursor-pointer"
+                  className="rounded-xl border border-blue-300 dark:border-blue-900 px-3 py-1.5 text-xs font-bold text-blue-700 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/20 transition flex items-center gap-1.5 cursor-pointer"
                 >
                   <Plus size={14} />
                   <span>Create Custom Type</span>
@@ -195,7 +195,7 @@ const AdminLeavePolicyPage = () => {
                             type="checkbox"
                             checked={type.allowRollover}
                             onChange={(e) => handleUpdateField(index, 'allowRollover', e.target.checked)}
-                            className="rounded text-emerald-600 focus:ring-emerald-500 h-4 w-4"
+                            className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4"
                           />
                         </td>
                         <td className="py-3 px-2">
@@ -239,7 +239,7 @@ const AdminLeavePolicyPage = () => {
           <div className="space-y-6">
             <div className="rounded-3xl border border-stone-200 dark:border-white/[0.08] bg-white dark:bg-navy-900 p-6 shadow-sm">
               <h3 className="text-base font-bold text-stone-900 dark:text-white flex items-center gap-2 mb-4">
-                <Shield className="text-emerald-600" size={18} />
+                <Shield className="text-blue-600" size={18} />
                 <span>Enforcement & Deductions</span>
               </h3>
               <p className="text-xs text-stone-500 dark:text-stone-400 mb-6">
@@ -268,7 +268,7 @@ const AdminLeavePolicyPage = () => {
                     key={item.value}
                     className={`flex items-start gap-3 p-4 border rounded-2xl cursor-pointer select-none transition-all ${
                       deductionRule === item.value
-                        ? 'bg-emerald-50/50 border-emerald-300 dark:bg-emerald-950/20 dark:border-emerald-900'
+                        ? 'bg-blue-50/50 border-blue-300 dark:bg-blue-950/20 dark:border-blue-900'
                         : 'bg-transparent border-stone-200 dark:border-white/[0.04]'
                     }`}
                   >
@@ -277,7 +277,7 @@ const AdminLeavePolicyPage = () => {
                       name="deductionRule"
                       checked={deductionRule === item.value}
                       onChange={() => setDeductionRule(item.value)}
-                      className="text-emerald-600 focus:ring-emerald-500 h-4 w-4 mt-0.5"
+                      className="text-blue-600 focus:ring-blue-500 h-4 w-4 mt-0.5"
                     />
                     <div>
                       <span className="text-xs font-bold text-stone-850 dark:text-white">{item.label}</span>
@@ -296,7 +296,7 @@ const AdminLeavePolicyPage = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white dark:bg-navy-900 rounded-3xl border border-stone-200 dark:border-white/[0.08] p-6 max-w-md w-full shadow-2xl animate-in fade-in-50 duration-200">
             <h3 className="text-lg font-bold text-stone-900 dark:text-white mb-2 flex items-center gap-2">
-              <Calendar className="text-emerald-600" size={22} />
+              <Calendar className="text-blue-600" size={22} />
               <span>Create Custom Leave Type</span>
             </h3>
             <p className="text-xs text-stone-500 dark:text-stone-400 mb-6">
@@ -357,7 +357,7 @@ const AdminLeavePolicyPage = () => {
                     type="checkbox"
                     checked={newType.allowRollover}
                     onChange={(e) => setNewType(prev => ({ ...prev, allowRollover: e.target.checked }))}
-                    className="rounded text-emerald-600 focus:ring-emerald-500 h-4 w-4"
+                    className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4"
                   />
                   <span className="text-stone-850 dark:text-white">Enable Rollover / Accumulation</span>
                 </label>
@@ -398,7 +398,7 @@ const AdminLeavePolicyPage = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 rounded-xl bg-emerald-600 text-xs font-bold text-white hover:bg-emerald-700 shadow-md transition cursor-pointer"
+                  className="px-5 py-2.5 rounded-xl bg-blue-600 text-xs font-bold text-white hover:bg-blue-700 shadow-md transition cursor-pointer"
                 >
                   Create
                 </button>

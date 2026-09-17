@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const StorageGauge = ({ usedGB, totalGB }) => {
@@ -13,7 +13,7 @@ const StorageGauge = ({ usedGB, totalGB }) => {
         <circle cx="35" cy="35" r={radius} fill="none" stroke="#f1f5f9" strokeWidth="8" />
         <circle
           cx="35" cy="35" r={radius} fill="none"
-          stroke={pct > 80 ? '#ef4444' : '#10b981'} strokeWidth="8"
+          stroke={pct > 80 ? '#ef4444' : '#2563EB'} strokeWidth="8"
           strokeDasharray={circumference}
           strokeDashoffset={dashOffset}
           strokeLinecap="round"
@@ -65,7 +65,7 @@ const SubscriptionWidget = ({ subscription, onboarding }) => {
               <p className="text-[10px] text-slate-400 mt-0.5">{usedGB} GB / {totalGB} GB</p>
               <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden mt-2">
                 <div
-                  className="h-full bg-emerald-500 rounded-full"
+                  className="h-full bg-blue-500 rounded-full"
                   style={{ width: `${Math.min((parseFloat(usedGB) / parseFloat(totalGB)) * 100, 100)}%` }}
                 />
               </div>
@@ -75,7 +75,7 @@ const SubscriptionWidget = ({ subscription, onboarding }) => {
 
         <button
           onClick={() => navigate('/admin/subscription')}
-          className="w-full py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl text-[10px] font-black hover:from-emerald-600 hover:to-teal-600 transition-all cursor-pointer shadow-sm"
+          className="w-full py-2 bg-gradient-to-r from-blue-500 to-teal-500 text-white rounded-xl text-[10px] font-black hover:from-blue-600 hover:to-teal-600 transition-all cursor-pointer shadow-sm"
         >
           ⬆ Upgrade Plan
         </button>

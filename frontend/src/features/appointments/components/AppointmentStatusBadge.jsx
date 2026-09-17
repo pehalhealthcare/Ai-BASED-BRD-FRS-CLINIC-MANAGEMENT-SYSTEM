@@ -1,9 +1,9 @@
-const STATUS_STYLES = {
+﻿const STATUS_STYLES = {
   booked: 'bg-sky-100 text-sky-700',
   confirmed: 'bg-indigo-100 text-indigo-700',
   checked_in: 'bg-amber-100 text-amber-700',
   in_consultation: 'bg-purple-100 text-purple-700',
-  completed: 'bg-emerald-100 text-emerald-700',
+  completed: 'bg-blue-100 text-blue-700',
   cancelled: 'bg-rose-100 text-rose-700',
   no_show: 'bg-orange-100 text-orange-700',
   rescheduled: 'bg-stone-200 text-stone-700'

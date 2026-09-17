@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Mail, Lock, User, Phone, Briefcase, HeartPulse } from 'lucide-react';
 
@@ -125,7 +125,7 @@ const RegisterPage = () => {
       ">
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-indigo-600/20 blur-3xl animate-pulse" />
-          <div className="absolute top-1/3 -left-16 w-80 h-80 rounded-full bg-aura-500/15 blur-3xl animate-pulse" style={{ animationDelay: '1.5s' }} />
+          <div className="absolute top-1/3 -left-16 w-80 h-80 rounded-full bg-blue-500/15 blur-3xl animate-pulse" style={{ animationDelay: '1.5s' }} />
           <div className="absolute bottom-0 right-1/4 w-72 h-72 rounded-full bg-violet-600/10 blur-3xl animate-pulse" style={{ animationDelay: '0.5s' }} />
           <div className="absolute inset-0 opacity-20"
             style={{
@@ -136,11 +136,11 @@ const RegisterPage = () => {
         </div>
 
         <div className="relative flex items-center gap-3 animate-fade-in">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-aura-500 to-indigo-600 flex items-center justify-center shadow-glow-teal">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-glow-teal">
             <HeartPulse size={20} className="text-white" />
           </div>
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-aura-400">AI-CMS</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-blue-400">AI-CMS</p>
             <p className="text-white font-semibold text-sm leading-tight">Clinic Management</p>
           </div>
         </div>
@@ -180,14 +180,14 @@ const RegisterPage = () => {
 
           {/* Mobile logo */}
           <div className="flex lg:hidden items-center gap-3 mb-8">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-aura-500 to-indigo-600 flex items-center justify-center">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
               <HeartPulse size={18} className="text-white" />
             </div>
             <p className="font-bold text-slate-900 dark:text-white">AI-CMS</p>
           </div>
 
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-aura-600 dark:text-aura-400">Get started</p>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400">Get started</p>
             <h2 className="mt-2 text-3xl font-bold text-slate-900 dark:text-white">Create your account</h2>
             <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
               Register a clinic account. Admin accounts are seed-only.
@@ -203,7 +203,7 @@ const RegisterPage = () => {
                 <input
                   id="reg-name" name="name" type="text" required
                   value={form.name} onChange={handleChange} placeholder="Dr. Jane Smith"
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm bg-white dark:bg-navy-800 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:border-aura-500 focus:ring-2 focus:ring-aura-500/20 transition"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm bg-white dark:bg-navy-800 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition"
                 />
               </div>
             </div>
@@ -217,7 +217,7 @@ const RegisterPage = () => {
                   <input
                     id="reg-email" name="email" type="email" required
                     value={form.email} onChange={handleChange} placeholder="you@clinic.com"
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm bg-white dark:bg-navy-800 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:border-aura-500 focus:ring-2 focus:ring-aura-500/20 transition"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm bg-white dark:bg-navy-800 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition"
                   />
                 </div>
               </div>
@@ -228,7 +228,7 @@ const RegisterPage = () => {
                   <input
                     id="reg-phone" name="phone" type="tel"
                     value={form.phone} onChange={handleChange} placeholder="9999999999"
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm bg-white dark:bg-navy-800 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:border-aura-500 focus:ring-2 focus:ring-aura-500/20 transition"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm bg-white dark:bg-navy-800 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition"
                   />
                 </div>
               </div>
@@ -248,7 +248,7 @@ const RegisterPage = () => {
                     className={`
                       px-3 py-2.5 rounded-xl border text-left transition-all duration-150 text-sm
                       ${form.role === r.value
-                        ? 'border-aura-500 bg-aura-50 dark:bg-aura-500/10 text-aura-700 dark:text-aura-300 shadow-sm'
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 shadow-sm'
                         : 'border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-white/20'
                       }
                     `}
@@ -267,7 +267,7 @@ const RegisterPage = () => {
                 <select
                   id="reg-gender" name="gender" required
                   value={form.gender} onChange={handleChange}
-                  className="w-full px-4 py-2.5 rounded-xl text-sm bg-white dark:bg-navy-800 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:border-aura-500 focus:ring-2 focus:ring-aura-500/20 transition"
+                  className="w-full px-4 py-2.5 rounded-xl text-sm bg-white dark:bg-navy-800 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition"
                 >
                   <option value="male">Male</option>
                   <option value="female">Female</option>
@@ -279,7 +279,7 @@ const RegisterPage = () => {
                 <input
                   id="reg-dob" name="dateOfBirth" type="date" required
                   value={form.dateOfBirth} onChange={handleDobChange}
-                  className="w-full px-4 py-2.5 rounded-xl text-sm bg-white dark:bg-navy-800 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-aura-500 focus:ring-2 focus:ring-aura-500/20 transition"
+                  className="w-full px-4 py-2.5 rounded-xl text-sm bg-white dark:bg-navy-800 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition"
                 />
               </div>
               <div className="flex flex-col gap-1.5">
@@ -303,7 +303,7 @@ const RegisterPage = () => {
                     setMapTarget('current');
                     setShowMapPicker(true);
                   }}
-                  className="inline-flex items-center gap-1.5 text-xs text-aura-600 dark:text-aura-400 hover:underline font-bold cursor-pointer"
+                  className="inline-flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 hover:underline font-bold cursor-pointer"
                 >
                   📍 Locate on Map
                 </button>
@@ -403,7 +403,7 @@ const RegisterPage = () => {
                       setPermanentAddress(currentAddress);
                     }
                   }}
-                  className="w-4 h-4 accent-aura-600 rounded cursor-pointer"
+                  className="w-4 h-4 accent-blue-600 rounded cursor-pointer"
                 />
                 <label htmlFor="reg-same-addr" className="text-xs font-bold text-slate-700 dark:text-slate-350 cursor-pointer">
                   Permanent address is same as current address
@@ -422,7 +422,7 @@ const RegisterPage = () => {
                       setMapTarget('permanent');
                       setShowMapPicker(true);
                     }}
-                    className="inline-flex items-center gap-1.5 text-xs text-aura-600 dark:text-aura-400 hover:underline font-bold cursor-pointer"
+                    className="inline-flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 hover:underline font-bold cursor-pointer"
                   >
                     📍 Locate on Map
                   </button>
@@ -479,7 +479,7 @@ const RegisterPage = () => {
                 <input
                   id="reg-password" name="password" type={showPassword ? 'text' : 'password'} required
                   value={form.password} onChange={handleChange} placeholder="Create a strong password"
-                  className="w-full pl-10 pr-10 py-2.5 rounded-xl text-sm bg-white dark:bg-navy-800 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:border-aura-500 focus:ring-2 focus:ring-aura-500/20 transition"
+                  className="w-full pl-10 pr-10 py-2.5 rounded-xl text-sm bg-white dark:bg-navy-800 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition"
                 />
                 <button type="button" onClick={() => setShowPassword((v) => !v)} className="absolute right-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition" aria-label={showPassword ? 'Hide' : 'Show'}>
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -498,7 +498,7 @@ const RegisterPage = () => {
             {/* Submit */}
             <button
               type="submit" disabled={loading}
-              className="w-full mt-2 py-2.5 px-4 rounded-xl bg-aura-600 hover:bg-aura-700 dark:bg-aura-500 dark:hover:bg-aura-600 text-white font-semibold text-sm shadow-sm hover:shadow-glow-teal transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full mt-2 py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-semibold text-sm shadow-sm hover:shadow-glow-teal transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {loading && (
                 <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
@@ -512,7 +512,7 @@ const RegisterPage = () => {
 
           <p className="mt-6 text-center text-sm text-slate-500 dark:text-slate-400">
             Already registered?{' '}
-            <Link to="/login" className="font-semibold text-aura-600 dark:text-aura-400 hover:text-aura-700 dark:hover:text-aura-300 transition">
+            <Link to="/login" className="font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition">
               Sign in
             </Link>
           </p>

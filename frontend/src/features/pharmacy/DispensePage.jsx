@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import EmptyState from '../../components/common/EmptyState';
@@ -9,7 +9,7 @@ import { dispensePrescription, getPrescription, listDispensings, listMedicines }
 import StockFlagBadge from './StockFlagBadge';
 
 const FIELD_CLASS =
-  'w-full rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100';
+  'w-full rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100';
 
 const DispensePage = () => {
   const { prescriptionId } = useParams();
@@ -156,7 +156,7 @@ const DispensePage = () => {
       {error ? <p className="rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p> : null}
 
       {prescription.dispensingStatus === 'dispensed' ? (
-        <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-6 text-sm text-emerald-900">
+        <div className="rounded-3xl border border-blue-200 bg-blue-50 p-6 text-sm text-blue-900">
           This prescription is already marked as dispensed. {existingDispensing?._id ? 'Open the existing dispensing record to review details.' : 'Refresh if you expect a linked dispensing record.'}
         </div>
       ) : null}
@@ -199,7 +199,7 @@ const DispensePage = () => {
                         {prescription.medicines?.[index]?.isSubstituteAllowed === false ? (
                           <span className="text-[10px] bg-rose-50 text-rose-700 border border-rose-200 px-2 py-0.5 rounded font-black uppercase">Substitution Disabled</span>
                         ) : (
-                          <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded font-black uppercase text-right">Substitution Suggested</span>
+                          <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded font-black uppercase text-right">Substitution Suggested</span>
                         )}
                       </div>
                       <select className={FIELD_CLASS} value={item.medicineId} onChange={(event) => handleItemChange(index, 'medicineId', event.target.value)} required>
@@ -286,7 +286,7 @@ const DispensePage = () => {
             <button
               type="submit"
               disabled={saving || prescription.dispensingStatus === 'dispensed'}
-              className="rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:bg-stone-300"
+              className="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-stone-300"
             >
               {saving ? 'Dispensing...' : 'Dispense medicines'}
             </button>

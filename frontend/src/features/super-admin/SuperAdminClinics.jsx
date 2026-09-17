@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+﻿import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { clinicApi } from '../../lib/api';
 import { 
@@ -163,7 +163,7 @@ const SuperAdminClinics = () => {
 
   const getAvatarStyle = (name) => {
     const styles = [
-      { bg: 'bg-emerald-100', text: 'text-emerald-800' },
+      { bg: 'bg-blue-100', text: 'text-blue-800' },
       { bg: 'bg-blue-100', text: 'text-blue-800' },
       { bg: 'bg-teal-100', text: 'text-teal-800' },
       { bg: 'bg-indigo-100', text: 'text-indigo-800' },
@@ -368,8 +368,8 @@ const SuperAdminClinics = () => {
 
     if (pStatus === 'VERIFIED') {
       return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-          <CheckCircle2 size={12} className="text-emerald-600" />
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
+          <CheckCircle2 size={12} className="text-blue-600" />
           Verified
         </span>
       );
@@ -458,8 +458,8 @@ const SuperAdminClinics = () => {
       );
     }
     return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
-        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200/60">
+        <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
         Active
       </span>
     );
@@ -722,7 +722,7 @@ const SuperAdminClinics = () => {
             </button>
             <button
               onClick={() => setShowCreateModal(true)}
-              className="inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 bg-[#00B96B] hover:bg-[#00A25D] text-white rounded-xl text-xs sm:text-sm font-bold shadow-md shadow-emerald-500/20 transition-all hover:scale-[1.01] active:scale-[0.99]"
+              className="inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 bg-[#00B96B] hover:bg-[#00A25D] text-white rounded-xl text-xs sm:text-sm font-bold shadow-md shadow-blue-500/20 transition-all hover:scale-[1.01] active:scale-[0.99]"
             >
               <Plus size={16} strokeWidth={2.5} />
               <span>Create Clinic</span>
@@ -744,11 +744,11 @@ const SuperAdminClinics = () => {
                   {loading ? '—' : (stats?.totalClinics || clinics.length)}
                 </div>
               </div>
-              <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100">
+              <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100">
                 <Building2 size={16} />
               </div>
             </div>
-            <div className="text-[11px] font-semibold text-emerald-600 mt-2">
+            <div className="text-[11px] font-semibold text-blue-600 mt-2">
               Active: {activeClinicsCount}
             </div>
           </div>
@@ -846,7 +846,7 @@ const SuperAdminClinics = () => {
                   {loading ? '—' : `₹${dynamicMRR.toLocaleString('en-IN')}`}
                 </div>
               </div>
-              <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100">
+              <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100">
                 <IndianRupee size={16} />
               </div>
             </div>
@@ -875,7 +875,7 @@ const SuperAdminClinics = () => {
               <span>{tab.label}</span>
               <span className={`px-2 py-0.5 rounded-full text-xs font-black ${
                 activeTab === tab.id 
-                  ? 'bg-emerald-100 text-emerald-800' 
+                  ? 'bg-blue-100 text-blue-800' 
                   : (tab.id === 'awaiting_approval' && tab.count > 0 ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600')
               }`}>
                 {tab.count}
@@ -976,25 +976,25 @@ const SuperAdminClinics = () => {
             <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 pt-1">
               <span className="font-semibold text-slate-400">Active Filters:</span>
               {searchTerm && (
-                <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-1 rounded-lg font-semibold">
+                <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-800 border border-blue-200 px-2.5 py-1 rounded-lg font-semibold">
                   Search: "{searchTerm}"
                   <button onClick={() => setSearchTerm('')}><X size={12} /></button>
                 </span>
               )}
               {statusFilter !== 'all' && (
-                <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-1 rounded-lg font-semibold">
+                <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-800 border border-blue-200 px-2.5 py-1 rounded-lg font-semibold">
                   Status: {statusFilter.replace('_', ' ')}
                   <button onClick={() => setStatusFilter('all')}><X size={12} /></button>
                 </span>
               )}
               {planFilter !== 'all' && (
-                <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-1 rounded-lg font-semibold">
+                <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-800 border border-blue-200 px-2.5 py-1 rounded-lg font-semibold">
                   Plan: {plans.find(p => p._id === planFilter)?.name || planFilter}
                   <button onClick={() => setPlanFilter('all')}><X size={12} /></button>
                 </span>
               )}
               {dateFilter !== 'all' && (
-                <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-1 rounded-lg font-semibold">
+                <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-800 border border-blue-200 px-2.5 py-1 rounded-lg font-semibold">
                   Date: {dateFilter.replace(/_/g, ' ')}
                   <button onClick={() => setDateFilter('all')}><X size={12} /></button>
                 </span>
@@ -1111,7 +1111,7 @@ const SuperAdminClinics = () => {
                                 {initials}
                               </div>
                               <div className="min-w-0">
-                                <div className="font-black text-slate-900 truncate leading-snug group-hover:text-emerald-700 transition">
+                                <div className="font-black text-slate-900 truncate leading-snug group-hover:text-blue-700 transition">
                                   {clinic.name}
                                 </div>
                                 <div className="text-[11px] text-slate-400 font-semibold tracking-wide">
@@ -1190,7 +1190,7 @@ const SuperAdminClinics = () => {
                             </div>
                             <div className="text-[11px] text-slate-400 font-medium">
                               {days !== null ? (
-                                <span className={days <= 30 && days > 0 ? 'text-amber-600 font-bold' : (days <= 0 ? 'text-rose-600 font-bold' : 'text-emerald-700 font-semibold')}>
+                                <span className={days <= 30 && days > 0 ? 'text-amber-600 font-bold' : (days <= 0 ? 'text-rose-600 font-bold' : 'text-blue-700 font-semibold')}>
                                   {days > 0 ? `in ${days} days` : 'Expired'}
                                 </span>
                               ) : '—'}

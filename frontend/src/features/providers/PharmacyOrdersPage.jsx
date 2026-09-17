@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Download, Settings, Plus, Search, Filter, Eye, Printer, MoreVertical,
@@ -147,7 +147,7 @@ export default function PharmacyOrdersPage() {
       <div className="grid grid-cols-6 gap-4">
         {[
           { label: 'Total Orders', val: stats.total, icon: ShoppingCart, bg: 'bg-blue-100 text-blue-750', sub: 'All time' },
-          { label: "Today's Orders", val: stats.today, icon: Calendar, bg: 'bg-emerald-105 text-emerald-650', sub: '↑ 20% vs yesterday', trendColor: 'text-emerald-600' },
+          { label: "Today's Orders", val: stats.today, icon: Calendar, bg: 'bg-blue-105 text-blue-650', sub: '↑ 20% vs yesterday', trendColor: 'text-blue-600' },
           { label: 'Pending Orders', val: stats.pending, icon: Clock, bg: 'bg-orange-105 text-orange-655', sub: 'Awaiting Dispense' },
           { label: 'Completed Orders', val: stats.completed, icon: CheckCircle2, bg: 'bg-teal-100 text-teal-650', sub: 'This month' },
           { label: 'Cancelled Orders', val: stats.cancelled, icon: XCircle, bg: 'bg-rose-100 text-rose-650', sub: 'This month' },
@@ -299,7 +299,7 @@ export default function PharmacyOrdersPage() {
                         <td className="p-4 text-slate-800 font-black">₹{(order.totalPrice || 0).toLocaleString()}</td>
                         <td className="p-4">
                           <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
-                            order.status === 'completed' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-705'
+                            order.status === 'completed' ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-705'
                           }`}>
                             {order.status === 'completed' ? 'Paid' : 'Pending'}
                           </span>
@@ -307,7 +307,7 @@ export default function PharmacyOrdersPage() {
                         <td className="p-4">
                           <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
                             order.status === 'completed' 
-                              ? 'bg-emerald-50 text-emerald-700' 
+                              ? 'bg-blue-50 text-blue-700' 
                               : order.status === 'cancelled'
                               ? 'bg-rose-50 text-rose-650'
                               : 'bg-blue-50 text-blue-700'
@@ -371,7 +371,7 @@ export default function PharmacyOrdersPage() {
             <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider">Order Summary</h4>
             <div className="flex justify-center p-4">
               <div className="relative w-32 h-32 border-8 border-slate-100 rounded-full flex items-center justify-center">
-                <div className="absolute inset-0 rounded-full border-8 border-emerald-505 border-t-transparent border-r-transparent rotate-45" />
+                <div className="absolute inset-0 rounded-full border-8 border-blue-505 border-t-transparent border-r-transparent rotate-45" />
                 <div className="absolute inset-0 rounded-full border-8 border-orange-505 border-b-transparent border-l-transparent rotate-[135deg]" />
                 <div className="absolute inset-0 rounded-full border-8 border-rose-505 border-t-transparent border-l-transparent rotate-[270deg]" />
                 <div className="text-center">
@@ -409,7 +409,7 @@ export default function PharmacyOrdersPage() {
             <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider">Recent Activity</h4>
             <div className="space-y-3 text-[11px] font-bold text-slate-600">
               <div className="flex gap-2">
-                <span className="text-emerald-500">●</span>
+                <span className="text-blue-500">●</span>
                 <div>
                   <p className="text-slate-800">Order ORD-000125 completed</p>
                   <p className="text-[10px] text-slate-400 font-semibold mt-0.5">10:40 AM</p>

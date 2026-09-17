@@ -1,6 +1,6 @@
-const CHANNEL_STYLES = {
+﻿const CHANNEL_STYLES = {
   mock: 'bg-sky-100 text-sky-800',
-  sms: 'bg-emerald-100 text-emerald-800',
+  sms: 'bg-blue-100 text-blue-800',
   whatsapp: 'bg-lime-100 text-lime-800',
   email: 'bg-violet-100 text-violet-800',
   in_app: 'bg-stone-200 text-stone-700'

@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+﻿import { useEffect, useState, useMemo } from 'react';
 import {
   FlaskConical, Search, Clock, Droplet, ClipboardList, CheckCircle,
   AlertCircle, Calendar, X, ChevronRight, Activity, Bell, FileText,
@@ -342,15 +342,15 @@ export default function LabTestsPage() {
       
       {/* HEADER HERO */}
       <div className="relative overflow-hidden rounded-3xl p-6 md:p-8 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-slate-800 shadow-2xl text-white">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0 shadow-inner">
+            <div className="w-16 h-16 rounded-2xl bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-blue-400 shrink-0 shadow-inner">
               <FlaskConical size={32} className="animate-pulse" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">
                   Patient Laboratory Portal
                 </span>
                 <span className="text-xs text-slate-400">• High Precision Diagnostics</span>
@@ -367,12 +367,12 @@ export default function LabTestsPage() {
           {/* Clinic Selector */}
           <div className="bg-white/5 backdrop-blur-md p-3.5 rounded-2xl border border-white/10 flex flex-col gap-1 min-w-[240px]">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-              <Building2 size={12} className="text-emerald-400" /> Selected Clinic Context
+              <Building2 size={12} className="text-blue-400" /> Selected Clinic Context
             </span>
             <select
               value={selectedClinicId}
               onChange={(e) => setSelectedClinicId(e.target.value)}
-              className="w-full bg-slate-900/90 text-xs font-semibold text-white px-3 py-2 rounded-xl border border-white/10 focus:outline-none focus:border-emerald-500"
+              className="w-full bg-slate-900/90 text-xs font-semibold text-white px-3 py-2 rounded-xl border border-white/10 focus:outline-none focus:border-blue-500"
             >
               {clinics.map(c => (
                 <option key={c._id} value={c._id}>{c.name}</option>
@@ -388,7 +388,7 @@ export default function LabTestsPage() {
           onClick={() => setActiveMode('prescription')}
           className={`flex items-center gap-2 px-5 py-3 rounded-xl text-xs font-bold transition-all ${
             activeMode === 'prescription'
-              ? 'bg-emerald-600 text-white shadow-md'
+              ? 'bg-blue-600 text-white shadow-md'
               : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
           }`}
         >
@@ -400,7 +400,7 @@ export default function LabTestsPage() {
           onClick={() => setActiveMode('catalog')}
           className={`flex items-center gap-2 px-5 py-3 rounded-xl text-xs font-bold transition-all ${
             activeMode === 'catalog'
-              ? 'bg-emerald-600 text-white shadow-md'
+              ? 'bg-blue-600 text-white shadow-md'
               : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
           }`}
         >
@@ -412,7 +412,7 @@ export default function LabTestsPage() {
           onClick={() => setActiveMode('history')}
           className={`flex items-center gap-2 px-5 py-3 rounded-xl text-xs font-bold transition-all ${
             activeMode === 'history'
-              ? 'bg-emerald-600 text-white shadow-md'
+              ? 'bg-blue-600 text-white shadow-md'
               : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
           }`}
         >
@@ -436,7 +436,7 @@ export default function LabTestsPage() {
                     <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px] font-black uppercase tracking-wider flex items-center gap-1">
                       <Sparkles size={11} /> Suggested Option
                     </span>
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-black uppercase">
+                    <span className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30 text-[10px] font-black uppercase">
                       You Save ₹{smartPackages[0].savings}
                     </span>
                   </div>
@@ -444,7 +444,7 @@ export default function LabTestsPage() {
                     {smartPackages[0].packageName}
                   </h3>
                   <p className="text-xs text-slate-300">
-                    Individual Tests: <span className="line-through text-slate-400">₹{smartPackages[0].individualTotal}</span> vs. Package Price: <strong className="text-emerald-400 text-sm">₹{smartPackages[0].packagePrice}</strong>
+                    Individual Tests: <span className="line-through text-slate-400">₹{smartPackages[0].individualTotal}</span> vs. Package Price: <strong className="text-blue-400 text-sm">₹{smartPackages[0].packagePrice}</strong>
                   </p>
                   <div className="flex flex-wrap gap-1.5 pt-1">
                     {smartPackages[0].coveredTests.map(ct => (
@@ -453,7 +453,7 @@ export default function LabTestsPage() {
                       </span>
                     ))}
                     {smartPackages[0].extraInvestigations.map(ex => (
-                      <span key={ex} className="text-[10px] px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold">
+                      <span key={ex} className="text-[10px] px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-300 border border-blue-500/30 font-bold">
                         + EXTRA: {ex}
                       </span>
                     ))}
@@ -464,7 +464,7 @@ export default function LabTestsPage() {
                   onClick={() => handleApplySmartPackage(smartPackages[0])}
                   className={`px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition shrink-0 flex items-center gap-1.5 shadow-md ${
                     appliedPackage?.packageId === smartPackages[0].packageId
-                      ? 'bg-emerald-500 text-white'
+                      ? 'bg-blue-500 text-white'
                       : 'bg-indigo-500 hover:bg-indigo-600 text-white'
                   }`}
                 >
@@ -532,7 +532,7 @@ export default function LabTestsPage() {
                         })}
                         className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-4 ${
                           isChecked
-                            ? 'bg-emerald-50/60 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-700/60'
+                            ? 'bg-blue-50/60 dark:bg-blue-950/20 border-blue-300 dark:border-blue-700/60'
                             : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 opacity-60 hover:opacity-100'
                         }`}
                       >
@@ -541,7 +541,7 @@ export default function LabTestsPage() {
                             type="checkbox"
                             checked={isChecked}
                             onChange={() => {}} // Handled by parent container click
-                            className="mt-1 w-4 h-4 rounded border-slate-300 accent-emerald-600"
+                            className="mt-1 w-4 h-4 rounded border-slate-300 accent-blue-600"
                           />
                           <div>
                             <div className="flex items-center gap-2">
@@ -553,7 +553,7 @@ export default function LabTestsPage() {
                                   Already Booked
                                 </span>
                               ) : (
-                                <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase bg-emerald-100 text-emerald-800">
+                                <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase bg-blue-100 text-blue-800">
                                   Prescribed
                                 </span>
                               )}
@@ -589,7 +589,7 @@ export default function LabTestsPage() {
                   </p>
                   <button
                     onClick={() => setActiveMode('catalog')}
-                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition"
+                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition"
                   >
                     Browse Individual Tests
                   </button>
@@ -609,7 +609,7 @@ export default function LabTestsPage() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Search tests by name (e.g. CBC, Lipid, Vitamin D)..."
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-emerald-500"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-blue-500"
                   />
                 </div>
                 <select
@@ -662,8 +662,8 @@ export default function LabTestsPage() {
                                 onClick={() => handleToggleTest(test)}
                                 className={`px-3 py-1.5 rounded-xl text-[10px] font-bold transition ${
                                   isAdded
-                                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                                    : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                                    ? 'bg-blue-100 text-blue-800 border border-blue-300'
+                                    : 'bg-blue-600 hover:bg-blue-700 text-white'
                                 }`}
                               >
                                 {isAdded ? 'Added ✓' : '+ Add Test'}
@@ -707,7 +707,7 @@ export default function LabTestsPage() {
                         </div>
                         <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
                           order.status === 'completed'
-                            ? 'bg-emerald-100 text-emerald-800'
+                            ? 'bg-blue-100 text-blue-800'
                             : order.status === 'cancelled'
                             ? 'bg-rose-100 text-rose-800'
                             : 'bg-indigo-100 text-indigo-800'
@@ -747,7 +747,7 @@ export default function LabTestsPage() {
           <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 space-y-6 shadow-sm">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <h3 className="text-sm font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-200 flex items-center gap-2">
-                <ShoppingCart size={16} className="text-emerald-500" /> Selected Tests ({selectedTests.length})
+                <ShoppingCart size={16} className="text-blue-500" /> Selected Tests ({selectedTests.length})
               </h3>
               {selectedTests.length > 0 && (
                 <button
@@ -813,7 +813,7 @@ export default function LabTestsPage() {
                   onClick={() => setCollectionMethod('AT_LAB')}
                   className={`py-2 px-3 rounded-xl text-xs font-bold border transition flex items-center justify-center gap-1.5 ${
                     collectionMethod === 'AT_LAB'
-                      ? 'bg-emerald-500 border-emerald-500 text-white shadow-sm'
+                      ? 'bg-blue-500 border-blue-500 text-white shadow-sm'
                       : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
                   }`}
                 >
@@ -824,7 +824,7 @@ export default function LabTestsPage() {
                   onClick={() => setCollectionMethod('HOME_COLLECTION')}
                   className={`py-2 px-3 rounded-xl text-xs font-bold border transition flex items-center justify-center gap-1.5 ${
                     collectionMethod === 'HOME_COLLECTION'
-                      ? 'bg-emerald-500 border-emerald-500 text-white shadow-sm'
+                      ? 'bg-blue-500 border-blue-500 text-white shadow-sm'
                       : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
                   }`}
                 >
@@ -874,14 +874,14 @@ export default function LabTestsPage() {
                 </div>
               )}
               {appliedPackage && (
-                <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400 font-bold">
+                <div className="flex items-center justify-between text-blue-600 dark:text-blue-400 font-bold">
                   <span>Package Savings:</span>
                   <span>-₹{appliedPackage.savings}</span>
                 </div>
               )}
               <div className="flex items-center justify-between text-sm font-extrabold text-slate-900 dark:text-white pt-2 border-t border-slate-200 dark:border-slate-700">
                 <span>Total Amount:</span>
-                <span className="text-emerald-600 dark:text-emerald-400 text-base">₹{grandTotal}</span>
+                <span className="text-blue-600 dark:text-blue-400 text-base">₹{grandTotal}</span>
               </div>
             </div>
 
@@ -889,7 +889,7 @@ export default function LabTestsPage() {
             <button
               disabled={selectedTests.length === 0 || isBooking}
               onClick={handleConfirmOrder}
-              className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-extrabold text-xs uppercase tracking-wider transition shadow-lg flex items-center justify-center gap-2"
+              className="w-full py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-extrabold text-xs uppercase tracking-wider transition shadow-lg flex items-center justify-center gap-2"
             >
               {isBooking ? (
                 <>
@@ -911,7 +911,7 @@ export default function LabTestsPage() {
       {bookingSuccessModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-100 dark:border-slate-800 space-y-4 animate-scale-in text-center">
-            <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-950/40 flex items-center justify-center mx-auto text-2xl">
+            <div className="w-14 h-14 rounded-full bg-blue-100 text-blue-600 dark:bg-blue-950/40 flex items-center justify-center mx-auto text-2xl">
               ✓
             </div>
             <div>
@@ -934,7 +934,7 @@ export default function LabTestsPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">Status:</span>
-                <span className="px-2 py-0.5 rounded text-[9px] font-bold uppercase bg-emerald-100 text-emerald-800">
+                <span className="px-2 py-0.5 rounded text-[9px] font-bold uppercase bg-blue-100 text-blue-800">
                   {bookingSuccessModal.status}
                 </span>
               </div>
@@ -945,7 +945,7 @@ export default function LabTestsPage() {
                 setBookingSuccessModal(null);
                 setActiveMode('history');
               }}
-              className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition"
+              className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition"
             >
               View in My Orders
             </button>
@@ -978,7 +978,7 @@ export default function LabTestsPage() {
                   setPriceGuardWarning(null);
                   setActiveMode('history');
                 }}
-                className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold"
+                className="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold"
               >
                 View Existing Order
               </button>

@@ -1,7 +1,7 @@
-import { clsx } from 'clsx';
+﻿import { clsx } from 'clsx';
 
 /**
- * Spinner — branded animated loading spinner.
+ * Spinner â€” branded animated loading spinner.
  *
  * @param {'sm'|'md'|'lg'|'xl'} [size='md']
  * @param {string} [className]
@@ -25,7 +25,7 @@ const Spinner = ({ size = 'md', className, label = 'Loading...' }) => {
         className={clsx(
           'rounded-full animate-spin',
           'border-slate-200 dark:border-slate-700',
-          'border-t-aura-600 dark:border-t-aura-400',
+          'border-t-blue-600 dark:border-t-blue-400',
           sizeMap[size]
         )}
       />
@@ -34,7 +34,7 @@ const Spinner = ({ size = 'md', className, label = 'Loading...' }) => {
 };
 
 /**
- * FullPageSpinner — centered spinner for page-level loading states.
+ * FullPageSpinner â€” centered spinner for page-level loading states.
  */
 export const FullPageSpinner = ({ message }) => (
   <div className="flex flex-col items-center justify-center min-h-64 gap-4">

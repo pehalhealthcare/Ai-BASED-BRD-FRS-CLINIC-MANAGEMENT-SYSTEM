@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Plus, Download, Upload, Search, Edit2, SlidersHorizontal, RefreshCw, X, ChevronDown, ChevronRight, Check, AlertCircle, FileSpreadsheet, Package, Sparkles, AlertTriangle, Layers, Award, Trash2 } from 'lucide-react';
 import { healthcareCatalogApi } from '../../lib/api';
 import ImportModal from './ImportModal';
@@ -321,7 +321,7 @@ const GlobalMedicinePage = () => {
         </div>
         <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm">
           <span className="text-xs font-black text-slate-400 uppercase block tracking-wider">Verified Formula</span>
-          <span className="text-3xl font-black text-emerald-600 mt-2 block">{totalVerified}</span>
+          <span className="text-3xl font-black text-blue-600 mt-2 block">{totalVerified}</span>
         </div>
         {/* Classification Queue Widget */}
         <div className="bg-amber-50/50 border border-amber-100 p-5 rounded-3xl flex justify-between items-center col-span-2">
@@ -493,7 +493,7 @@ const GlobalMedicinePage = () => {
                     <td className="px-6 py-4">{med.category?.name || 'General'}</td>
                     <td className="px-6 py-4">
                       <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                        med.classificationStatus === 'Verified' ? 'bg-emerald-50 text-emerald-700' :
+                        med.classificationStatus === 'Verified' ? 'bg-blue-50 text-blue-700' :
                         med.classificationStatus === 'Pending Classification' ? 'bg-amber-50 text-amber-700' :
                         'bg-red-50 text-red-700'
                       }`}>
@@ -965,7 +965,7 @@ const GlobalMedicinePage = () => {
 
               <div className="pt-4 border-t border-slate-100 flex justify-end gap-3">
                 <button type="button" onClick={() => setIsClassifyOpen(false)} className="px-5 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-bold hover:bg-slate-50 transition">Cancel</button>
-                <button type="submit" className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold transition shadow-lg shadow-emerald-100">
+                <button type="submit" className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold transition shadow-lg shadow-blue-100">
                   Verify & Classify
                 </button>
               </div>

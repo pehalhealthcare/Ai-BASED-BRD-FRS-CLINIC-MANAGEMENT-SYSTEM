@@ -1,4 +1,4 @@
-import EmptyState from '../../../components/common/EmptyState';
+﻿import EmptyState from '../../../components/common/EmptyState';
 
 const AvailableSlots = ({ slots = [], selectedSlot, onSelect }) => {
   if (!slots.length) {
@@ -19,8 +19,8 @@ const AvailableSlots = ({ slots = [], selectedSlot, onSelect }) => {
             className={`rounded-2xl border px-4 py-3 text-left transition ${
               slot.available
                 ? isSelected
-                  ? 'border-emerald-600 bg-emerald-50 text-emerald-900'
-                  : 'border-stone-300 bg-white text-stone-800 hover:border-emerald-400 hover:bg-emerald-50/70'
+                  ? 'border-blue-600 bg-blue-50 text-blue-900'
+                  : 'border-stone-300 bg-white text-stone-800 hover:border-blue-400 hover:bg-blue-50/70'
                 : 'border-gray-300 bg-gray-200 text-gray-400 cursor-not-allowed'
             }`}
           >

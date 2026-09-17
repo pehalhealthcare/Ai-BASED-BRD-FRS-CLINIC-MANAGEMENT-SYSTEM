@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+﻿import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Bot, X, Send, Calendar, HelpCircle, ArrowRight, Pill, User } from 'lucide-react';
 import { doctorApi, appointmentApi, patientApi } from '../../lib/api';
@@ -516,7 +516,7 @@ const FloatingChatbot = () => {
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="pointer-events-auto fixed bottom-6 right-6 w-14 h-14 rounded-full bg-gradient-to-br from-aura-500 to-indigo-600 hover:from-aura-600 hover:to-indigo-700 flex items-center justify-center text-white shadow-glow-teal hover:scale-105 active:scale-95 transition-all duration-150"
+          className="pointer-events-auto fixed bottom-6 right-6 w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 flex items-center justify-center text-white shadow-glow-teal hover:scale-105 active:scale-95 transition-all duration-150"
           title="Open AI Assistant"
         >
           <Bot size={26} />
@@ -538,9 +538,9 @@ const FloatingChatbot = () => {
           {/* Draggable Chat Header */}
           <div className="px-4 py-3 bg-[#060d18] text-white flex justify-between items-center select-none shrink-0">
             <div className="flex items-center gap-2">
-              <Bot size={16} className="text-aura-400" />
+              <Bot size={16} className="text-blue-400" />
               <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-aura-400">AuraCare AI</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-blue-400">AuraCare AI</p>
                 <p className="text-[10px] text-white/50">Movable Health Assistant</p>
               </div>
             </div>
@@ -559,7 +559,7 @@ const FloatingChatbot = () => {
                 <div className={`
                   max-w-[85%] rounded-2xl px-3 py-2 text-xs leading-relaxed whitespace-pre-wrap
                   ${msg.sender === 'user'
-                    ? 'bg-aura-600 dark:bg-aura-500 text-white rounded-br-sm'
+                    ? 'bg-blue-600 dark:bg-blue-500 text-white rounded-br-sm'
                     : 'bg-white dark:bg-navy-800 border border-slate-200 dark:border-white/10 text-slate-800 dark:text-slate-200 rounded-bl-sm shadow-sm'
                   }
                 `}>
@@ -572,9 +572,9 @@ const FloatingChatbot = () => {
                         <button
                           key={doc._id}
                           onClick={() => selectDoctor(doc)}
-                          className="w-full text-left p-2 rounded-lg bg-slate-50 dark:bg-navy-900 hover:bg-aura-50 dark:hover:bg-aura-500/10 text-[11px] font-semibold text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-white/5 transition flex items-center gap-1.5"
+                          className="w-full text-left p-2 rounded-lg bg-slate-50 dark:bg-navy-900 hover:bg-blue-50 dark:hover:bg-blue-500/10 text-[11px] font-semibold text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-white/5 transition flex items-center gap-1.5"
                         >
-                          <User size={12} className="text-aura-500" />
+                          <User size={12} className="text-blue-500" />
                           {doc.fullName} ({doc.specialization})
                         </button>
                       ))}
@@ -608,7 +608,7 @@ const FloatingChatbot = () => {
                       </div>
                       <button
                         onClick={confirmBooking}
-                        className="w-full py-1.5 bg-aura-600 hover:bg-aura-700 text-white rounded-lg text-xs font-semibold"
+                        className="w-full py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold"
                       >
                         Confirm Booking
                       </button>
@@ -619,21 +619,21 @@ const FloatingChatbot = () => {
                     <div className="mt-3 space-y-2">
                       <button
                         onClick={startBookingFlow}
-                        className="w-full text-left p-2.5 rounded-xl bg-slate-50 dark:bg-navy-900 hover:bg-aura-50 dark:hover:bg-aura-500/10 text-[11px] font-semibold text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-white/5 transition flex items-center gap-2"
+                        className="w-full text-left p-2.5 rounded-xl bg-slate-50 dark:bg-navy-900 hover:bg-blue-50 dark:hover:bg-blue-500/10 text-[11px] font-semibold text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-white/5 transition flex items-center gap-2"
                       >
-                        <Calendar size={13} className="text-aura-500" />
+                        <Calendar size={13} className="text-blue-500" />
                         Book an appointment with a doctor
                       </button>
                       <Link
                         to="/pharmacy/medicines"
-                        className="w-full text-left p-2.5 rounded-xl bg-slate-50 dark:bg-navy-900 hover:bg-aura-50 dark:hover:bg-aura-500/10 text-[11px] font-semibold text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-white/5 transition flex items-center gap-2"
+                        className="w-full text-left p-2.5 rounded-xl bg-slate-50 dark:bg-navy-900 hover:bg-blue-50 dark:hover:bg-blue-500/10 text-[11px] font-semibold text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-white/5 transition flex items-center gap-2"
                       >
-                        <Pill size={13} className="text-emerald-500" />
+                        <Pill size={13} className="text-blue-500" />
                         Order a pharmacy
                       </Link>
                       <Link
                         to="/labs/tests"
-                        className="w-full text-left p-2.5 rounded-xl bg-slate-50 dark:bg-navy-900 hover:bg-aura-50 dark:hover:bg-aura-500/10 text-[11px] font-semibold text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-white/5 transition flex items-center gap-2"
+                        className="w-full text-left p-2.5 rounded-xl bg-slate-50 dark:bg-navy-900 hover:bg-blue-50 dark:hover:bg-blue-500/10 text-[11px] font-semibold text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-white/5 transition flex items-center gap-2"
                       >
                         <HelpCircle size={13} className="text-indigo-500" />
                         Book a lab test with us
@@ -649,7 +649,7 @@ const FloatingChatbot = () => {
                           <span className="text-[10px] uppercase font-bold text-slate-400">Triage Specialization</span>
                           <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase ${
                             msg.payload.triage.urgency === 'high' ? 'bg-rose-100 text-rose-700' :
-                            msg.payload.triage.urgency === 'medium' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
+                            msg.payload.triage.urgency === 'medium' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
                           }`}>
                             {msg.payload.triage.urgency} Urgency
                           </span>
@@ -697,13 +697,13 @@ const FloatingChatbot = () => {
                               <button
                                 key={doc._id}
                                 onClick={() => selectDoctor(doc)}
-                                className="w-full text-left p-2.5 rounded-xl bg-slate-50 dark:bg-navy-900 hover:bg-aura-50 dark:hover:bg-aura-500/10 text-[11px] font-semibold text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-white/5 transition flex items-center justify-between"
+                                className="w-full text-left p-2.5 rounded-xl bg-slate-50 dark:bg-navy-900 hover:bg-blue-50 dark:hover:bg-blue-500/10 text-[11px] font-semibold text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-white/5 transition flex items-center justify-between"
                               >
                                 <div className="flex items-center gap-1.5">
-                                  <User size={12} className="text-aura-500" />
+                                  <User size={12} className="text-blue-500" />
                                   <span>{doc.fullName}</span>
                                 </div>
-                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-aura-500/10 text-aura-600 font-mono">Book Slot</span>
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600 font-mono">Book Slot</span>
                               </button>
                             ))}
                           </div>
@@ -739,7 +739,7 @@ const FloatingChatbot = () => {
               </button>
               <button
                 onClick={startDosageFlow}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-500/25 border border-emerald-200 dark:border-emerald-500/20 transition whitespace-nowrap"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-semibold bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-500/25 border border-blue-200 dark:border-blue-500/20 transition whitespace-nowrap"
               >
                 <Pill size={13} />
                 Dosage Suggestion
@@ -761,7 +761,7 @@ const FloatingChatbot = () => {
                 flow === 'dosage_age' ? 'Enter age in years...' :
                 flow === 'dosage_weight' ? 'Enter weight in kg...' : 'Ask assistant...'
               }
-              className="flex-1 px-3 py-1.5 rounded-lg text-xs bg-slate-50 dark:bg-navy-900 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-aura-500 transition"
+              className="flex-1 px-3 py-1.5 rounded-lg text-xs bg-slate-50 dark:bg-navy-900 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 transition"
             />
             <button
               type="button"
@@ -771,7 +771,7 @@ const FloatingChatbot = () => {
                   setInputValue('');
                 }
               }}
-              className="p-1.5 rounded-lg bg-aura-600 hover:bg-aura-700 text-white flex items-center justify-center"
+              className="p-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center"
             >
               <Send size={12} />
             </button>

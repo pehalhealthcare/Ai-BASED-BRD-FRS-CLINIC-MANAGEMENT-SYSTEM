@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import useAuth from '../../hooks/useAuth';
 import { staffApi } from '../../lib/api';
 import {
@@ -254,7 +254,7 @@ const StaffOnboardingWizard = () => {
       {/* Header */}
       <header className="bg-slate-950 border-b border-stone-850 py-4 px-6 md:px-8 flex justify-between items-center shadow-md">
         <div className="flex items-center gap-2.5">
-          <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center shadow-md">
+          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-teal-600 rounded-2xl flex items-center justify-center shadow-md">
             <User className="text-white w-5 h-5" />
           </div>
           <div>
@@ -297,12 +297,12 @@ const StaffOnboardingWizard = () => {
             return (
               <div key={s.stepNum} className="flex flex-col gap-2">
                 <div className={`h-1.5 rounded-full transition-all duration-300 ${
-                  isActive ? 'bg-emerald-500' : isCompleted ? 'bg-teal-650' : 'bg-stone-800'
+                  isActive ? 'bg-blue-500' : isCompleted ? 'bg-teal-650' : 'bg-stone-800'
                 }`} />
                 <div className="hidden md:flex items-center gap-2 px-1 text-left">
                   <div className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 border text-[10px] font-bold ${
                     isActive
-                      ? 'bg-emerald-500/10 border-emerald-500 text-emerald-400'
+                      ? 'bg-blue-500/10 border-blue-500 text-blue-400'
                       : isCompleted
                       ? 'bg-teal-500/20 border-teal-500/40 text-teal-400'
                       : 'border-stone-800 text-stone-500'
@@ -387,12 +387,12 @@ const StaffOnboardingWizard = () => {
                         <button
                           type="button"
                           onClick={() => setShowMapPicker(true)}
-                          className="px-4 py-2 rounded-xl text-[10px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer transition-colors shadow-sm"
+                          className="px-4 py-2 rounded-xl text-[10px] font-bold bg-blue-600 hover:bg-blue-700 text-white cursor-pointer transition-colors shadow-sm"
                         >
                           Select on Map
                         </button>
                         {personal.address.latitude && personal.address.longitude ? (
-                          <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1.5 rounded-lg border border-emerald-500/20 flex items-center gap-1">
+                          <span className="text-[10px] font-bold text-blue-400 bg-blue-500/10 px-2.5 py-1.5 rounded-lg border border-blue-500/20 flex items-center gap-1">
                             📍 Located ({personal.address.latitude.toFixed(4)}, {personal.address.longitude.toFixed(4)})
                           </span>
                         ) : (
@@ -524,12 +524,12 @@ const StaffOnboardingWizard = () => {
 
             {step < 3 ? (
               <button type="button" onClick={handleNext}
-                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-md shadow-emerald-500/10">
+                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-md shadow-blue-500/10">
                 Continue <ArrowRight className="w-4 h-4" />
               </button>
             ) : (
               <button type="button" onClick={handleSubmit} disabled={loading}
-                className="px-6 py-3 bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 hover:opacity-95 text-white rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-lg shadow-emerald-500/20 disabled:opacity-50">
+                className="px-6 py-3 bg-gradient-to-r from-blue-600 via-teal-600 to-indigo-600 hover:opacity-95 text-white rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-lg shadow-blue-500/20 disabled:opacity-50">
                 {loading ? 'Submitting profile...' : (
                   <>
                     <Sparkles size={16} />

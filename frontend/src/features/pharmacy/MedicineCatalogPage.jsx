@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { 
   Plus, Search, ArrowLeft, Calendar, FileText, CheckCircle2,
   ChevronLeft, ChevronRight, AlertTriangle, AlertCircle,
@@ -645,7 +645,7 @@ const MedicineCatalogPage = () => {
 
                 {/* Step 3: Clinic Configuration Form */}
                 <div className="space-y-4">
-                  <h4 className="text-sm font-black text-emerald-600 uppercase tracking-wider">Dispensary Settings</h4>
+                  <h4 className="text-sm font-black text-blue-600 uppercase tracking-wider">Dispensary Settings</h4>
                   <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-1">
                       <label className="text-stone-500 font-bold uppercase text-[10px]">Medicine Code</label>
@@ -823,7 +823,7 @@ const MedicineCatalogPage = () => {
                   <button
                     type="button"
                     onClick={handleSaveImport}
-                    className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5"
+                    className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5"
                   >
                     Save & Map to Inventory
                   </button>
@@ -1033,8 +1033,8 @@ const MedicineCatalogPage = () => {
               {/* PANEL 2: Clinic Configuration (Editable) */}
               <div className="p-6 space-y-5">
                 <div className="flex justify-between items-center">
-                  <h4 className="text-xs font-black text-emerald-600 uppercase tracking-wider">Dispensary Setup</h4>
-                  <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 rounded text-[9px] font-black uppercase">
+                  <h4 className="text-xs font-black text-blue-600 uppercase tracking-wider">Dispensary Setup</h4>
+                  <span className="px-2 py-0.5 bg-blue-500/10 text-blue-600 border border-blue-500/20 rounded text-[9px] font-black uppercase">
                     Clinic Settings
                   </span>
                 </div>
@@ -1083,7 +1083,7 @@ const MedicineCatalogPage = () => {
                     onClick={handleOpenEditConfig}
                     className="w-full py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-300 rounded-xl font-bold flex items-center justify-center gap-1.5 mt-4"
                   >
-                    <Edit2 className="w-4 h-4 text-emerald-600" /> Edit Clinic Setup
+                    <Edit2 className="w-4 h-4 text-blue-600" /> Edit Clinic Setup
                   </button>
                 </div>
               </div>
@@ -1144,7 +1144,7 @@ const MedicineCatalogPage = () => {
                         </div>
                         <div>
                           <span>Risk Profile:</span>
-                          <strong className={`block uppercase font-black ${forecastData.stockout_risk === 'high' ? 'text-rose-600' : 'text-emerald-600'}`}>
+                          <strong className={`block uppercase font-black ${forecastData.stockout_risk === 'high' ? 'text-rose-600' : 'text-blue-600'}`}>
                             {forecastData.stockout_risk}
                           </strong>
                         </div>
@@ -1263,7 +1263,7 @@ const MedicineCatalogPage = () => {
               </button>
               <button
                 type="submit"
-                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition"
+                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition"
               >
                 Apply Changes
               </button>

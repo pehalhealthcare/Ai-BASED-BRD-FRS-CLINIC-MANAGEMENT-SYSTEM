@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
+﻿import React, { useState, useMemo, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
 import {
   TrendingUp, Pill, ShoppingBag, Users, AlertTriangle,
   Search, Scan, RefreshCw, Barcode, Plus, Minus, Trash2,
@@ -2087,7 +2087,7 @@ const PharmacyWorkspace = ({ user }) => {
     switch (status) {
       case 'Waiting': return 'bg-blue-50 text-blue-600 border border-blue-100';
       case 'Preparing': return 'bg-amber-50 text-amber-600 border border-amber-100';
-      case 'Ready': return 'bg-emerald-50 text-emerald-600 border border-emerald-100';
+      case 'Ready': return 'bg-blue-50 text-blue-600 border border-blue-100';
       case 'Handed Over': case 'Completed': return 'bg-slate-100 text-slate-600 border border-slate-200';
       default: return 'bg-slate-50 text-slate-400';
     }
@@ -2275,7 +2275,7 @@ const PharmacyWorkspace = ({ user }) => {
 
             const kpisList = [
               { label: 'Total Sales (Revenue)', value: `₹${(report.kpis.totalSales || 0).toLocaleString()}`, desc: 'Gross transactional value', icon: '💰', color: 'text-blue-600', bg: 'bg-blue-50' },
-              { label: 'Total Orders', value: report.kpis.totalOrders || 0, desc: 'Successful checkouts', icon: '📦', color: 'text-emerald-600', bg: 'bg-emerald-50' },
+              { label: 'Total Orders', value: report.kpis.totalOrders || 0, desc: 'Successful checkouts', icon: '📦', color: 'text-blue-600', bg: 'bg-blue-50' },
               { label: 'Average Order Value', value: `₹${(report.kpis.averageOrderValue || 0).toLocaleString()}`, desc: 'Revenue per transaction', icon: '⚖️', color: 'text-violet-600', bg: 'bg-violet-50' },
               { label: 'Gross Revenue', value: `₹${(report.kpis.grossRevenue || 0).toLocaleString()}`, desc: 'Sales excluding returns', icon: '📈', color: 'text-sky-600', bg: 'bg-sky-50' },
               { label: 'Gross Profit', value: `₹${(report.kpis.grossProfit || 0).toLocaleString()}`, desc: 'Revenue minus COGS', icon: '💵', color: 'text-teal-600', bg: 'bg-teal-50' },
@@ -2727,7 +2727,7 @@ const PharmacyWorkspace = ({ user }) => {
                             {/* Visual List */}
                             <div className="space-y-2.5">
                               {report.categoryShare.map((cat, idx) => {
-                                const colors = ['bg-blue-500', 'bg-emerald-500', 'bg-violet-500', 'bg-amber-500', 'bg-rose-500', 'bg-sky-500', 'bg-teal-500', 'bg-fuchsia-500', 'bg-slate-400'];
+                                const colors = ['bg-blue-500', 'bg-blue-500', 'bg-violet-500', 'bg-amber-500', 'bg-rose-500', 'bg-sky-500', 'bg-teal-500', 'bg-fuchsia-500', 'bg-slate-400'];
                                 const colorClass = colors[idx % colors.length];
 
                                 return (
@@ -2835,7 +2835,7 @@ const PharmacyWorkspace = ({ user }) => {
                                       <td className="py-2.5 px-2 text-slate-500">{med.category}</td>
                                       <td className="py-2.5 px-2 text-center text-slate-850 font-black">{med.qty}</td>
                                       <td className="py-2.5 px-2 text-right text-slate-805">₹{med.revenue.toLocaleString()}</td>
-                                      <td className="py-2.5 px-2 text-right text-emerald-600">₹{med.profit.toLocaleString()}</td>
+                                      <td className="py-2.5 px-2 text-right text-blue-600">₹{med.profit.toLocaleString()}</td>
                                       <td className="py-2.5 pr-3 text-center">
                                         <span className={`px-2 py-0.5 rounded-full text-[8px] font-black ${
                                           med.stock === 0 ? 'bg-rose-50 text-rose-600' :
@@ -2946,7 +2946,7 @@ const PharmacyWorkspace = ({ user }) => {
                           </div>
                           <div className="pt-3 flex justify-between text-[10px] font-bold text-slate-600">
                             <span>GST Collected</span>
-                            <span className="text-emerald-600 font-black">₹{report.kpis.taxCollected.toLocaleString()}</span>
+                            <span className="text-blue-600 font-black">₹{report.kpis.taxCollected.toLocaleString()}</span>
                           </div>
                         </div>
 
@@ -3069,7 +3069,7 @@ const PharmacyWorkspace = ({ user }) => {
                               </div>
                               <div>
                                 <span className="text-[9px] text-slate-400 block">Gross Profit</span>
-                                <p className="text-emerald-600 text-xs font-black mt-0.5">₹{salesPerfActiveDetailMed.profit.toLocaleString()}</p>
+                                <p className="text-blue-600 text-xs font-black mt-0.5">₹{salesPerfActiveDetailMed.profit.toLocaleString()}</p>
                               </div>
                               <div>
                                 <span className="text-[9px] text-slate-400 block">Remaining Stock</span>
@@ -3116,7 +3116,7 @@ const PharmacyWorkspace = ({ user }) => {
                   <div>
                     <h3 className="text-xl font-black text-slate-900 leading-tight">₹{kpis.todaySalesAmount}</h3>
                   </div>
-                  <span className="text-[9px] font-bold text-emerald-600 flex items-center gap-0.5">
+                  <span className="text-[9px] font-bold text-blue-600 flex items-center gap-0.5">
                     <ArrowUpRight size={10} /> 18.6% vs yesterday
                   </span>
                 </div>
@@ -3127,7 +3127,7 @@ const PharmacyWorkspace = ({ user }) => {
                   className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-col gap-3 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl grid place-items-center shrink-0">
+                    <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl grid place-items-center shrink-0">
                       <ShoppingBag size={16} />
                     </div>
                     <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider leading-tight">Total Orders</p>
@@ -3135,7 +3135,7 @@ const PharmacyWorkspace = ({ user }) => {
                   <div>
                     <h3 className="text-xl font-black text-slate-900 leading-tight">{kpis.todayOrdersCount}</h3>
                   </div>
-                  <span className="text-[9px] font-bold text-emerald-600 flex items-center gap-0.5">
+                  <span className="text-[9px] font-bold text-blue-600 flex items-center gap-0.5">
                     <ArrowUpRight size={10} /> 12.5% vs yesterday
                   </span>
                 </div>
@@ -3173,7 +3173,7 @@ const PharmacyWorkspace = ({ user }) => {
                   <div>
                     <h3 className="text-xl font-black text-slate-900 leading-tight">{kpis.completedTokens}</h3>
                   </div>
-                  <span className="text-[9px] font-bold text-emerald-600 flex items-center gap-0.5">
+                  <span className="text-[9px] font-bold text-blue-600 flex items-center gap-0.5">
                     <ArrowUpRight size={10} /> 20.0% vs yesterday
                   </span>
                 </div>
@@ -3299,7 +3299,7 @@ const PharmacyWorkspace = ({ user }) => {
                                   {item.handoverStatus === 'Preparing' && (
                                     <button
                                       onClick={() => handleUpdateHandover(item.token, 'Ready')}
-                                      className="px-2 py-1 bg-emerald-500 text-white rounded-lg text-[9px] font-black hover:bg-emerald-600 transition animate-pulse"
+                                      className="px-2 py-1 bg-blue-500 text-white rounded-lg text-[9px] font-black hover:bg-blue-600 transition animate-pulse"
                                     >
                                       Ready
                                     </button>
@@ -3371,7 +3371,7 @@ const PharmacyWorkspace = ({ user }) => {
                         cy="80"
                         r="60"
                         fill="transparent"
-                        stroke="#10b981"
+                        stroke="#2563EB"
                         strokeWidth="18"
                         strokeDasharray={`${salesStats.walkinLength} 377`}
                         strokeDashoffset={`${salesStats.walkinOffset}`}
@@ -3410,7 +3410,7 @@ const PharmacyWorkspace = ({ user }) => {
 
                     <div className="flex justify-between items-center text-xs">
                       <div className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                        <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
                         <span className="text-slate-600 font-semibold">Walk-in Sales</span>
                       </div>
                       <span className="font-extrabold text-slate-800">{salesStats.walkinCount} ({salesStats.walkinPct}%)</span>
@@ -3463,12 +3463,12 @@ const PharmacyWorkspace = ({ user }) => {
                     <div>
                       <p className="text-[9px] font-bold text-slate-400 uppercase">Gross Revenue</p>
                       <h4 className="text-sm font-black text-slate-900 mt-0.5">₹{salesStats.grossRevenue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h4>
-                      <span className="text-[8px] font-bold text-emerald-600 bg-emerald-50 px-1 py-0.5 rounded-full">+22.5% MoM</span>
+                      <span className="text-[8px] font-bold text-blue-600 bg-blue-50 px-1 py-0.5 rounded-full">+22.5% MoM</span>
                     </div>
                     <div>
                       <p className="text-[9px] font-bold text-slate-400 uppercase">Net Profit</p>
                       <h4 className="text-sm font-black text-slate-900 mt-0.5">₹{salesStats.netProfit.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h4>
-                      <span className="text-[8px] font-bold text-emerald-600 bg-emerald-50 px-1 py-0.5 rounded-full">+18.2%</span>
+                      <span className="text-[8px] font-bold text-blue-600 bg-blue-50 px-1 py-0.5 rounded-full">+18.2%</span>
                     </div>
                     <div>
                       <p className="text-[9px] font-bold text-slate-400 uppercase">Average Basket Value</p>
@@ -3767,7 +3767,7 @@ const PharmacyWorkspace = ({ user }) => {
                   { label: 'Preparing', count: prescriptions.filter(p => p.status === 'Preparing').length, desc: 'Being Prepared', color: 'text-blue-600 bg-blue-50/50 border-blue-100', icon: '🛒' },
                   { label: 'Ready for Pickup', count: prescriptions.filter(p => p.status === 'Ready').length, desc: 'Ready to Hand Over', color: 'text-purple-600 bg-purple-50/50 border-purple-100', icon: '🎯' },
                   { label: 'Handed Over', count: prescriptions.filter(p => p.status === 'Handed Over').length, desc: 'Today', color: 'text-green-600 bg-green-50/50 border-green-100', icon: '🚚' },
-                  { label: 'Completed', count: prescriptions.filter(p => p.status === 'Completed').length, desc: 'Today', color: 'text-emerald-600 bg-emerald-50/50 border-emerald-100', icon: '✅' },
+                  { label: 'Completed', count: prescriptions.filter(p => p.status === 'Completed').length, desc: 'Today', color: 'text-blue-600 bg-blue-50/50 border-blue-100', icon: '✅' },
                   { label: 'Cancelled', count: prescriptions.filter(p => p.status === 'Cancelled').length, desc: 'Today', color: 'text-red-600 bg-red-50/50 border-red-100', icon: '❌' },
                 ].map((kpi, idx) => (
                   <div key={idx} className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between min-h-[100px] hover:shadow-md transition-all duration-200 cursor-pointer">
@@ -3878,7 +3878,7 @@ const PharmacyWorkspace = ({ user }) => {
                             <div className="flex justify-between items-start">
                               <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">{rx.id}</span>
                               <span className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
-                                rx.status === 'Completed' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
+                                rx.status === 'Completed' ? 'bg-blue-50 text-blue-600' : 'bg-amber-50 text-amber-600'
                               }`}>
                                 {rx.status}
                               </span>
@@ -3973,7 +3973,7 @@ const PharmacyWorkspace = ({ user }) => {
                                     <td className="py-3 px-1">
                                       <p className="font-extrabold text-slate-700">{stock} tabs</p>
                                       <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-full ${
-                                        stock === 0 ? 'bg-red-50 text-red-600' : stock <= (matchedInv?.reorderLevel || 10) ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'
+                                        stock === 0 ? 'bg-red-50 text-red-600' : stock <= (matchedInv?.reorderLevel || 10) ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'
                                       }`}>
                                         {stock === 0 ? 'Out of Stock' : stock <= (matchedInv?.reorderLevel || 10) ? 'Low Stock' : 'In Stock'}
                                       </span>
@@ -4064,14 +4064,14 @@ const PharmacyWorkspace = ({ user }) => {
                               <div>MRP Total: <span className="text-slate-800">
                                 {isAllAvailable ? `₹${cart.reduce((acc, curr) => acc + (curr.strips * curr.mrp), 0).toFixed(2)}` : '₹—'}
                               </span></div>
-                              <div>Discount: <span className="text-emerald-600">{isAllAvailable ? '₹0.00' : '₹—'}</span></div>
+                              <div>Discount: <span className="text-blue-600">{isAllAvailable ? '₹0.00' : '₹—'}</span></div>
                               <div>GST (12%): <span className="text-slate-800">
                                 {isAllAvailable ? `₹${(cart.reduce((acc, curr) => acc + (curr.strips * curr.mrp), 0) * 0.12).toFixed(2)}` : '₹—'}
                               </span></div>
                             </div>
                             <div className="text-right">
                               <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Payable Amount</p>
-                              <p className="text-2xl font-black text-emerald-600">
+                              <p className="text-2xl font-black text-blue-600">
                                 {isAllAvailable ? `₹${(cart.reduce((acc, curr) => acc + (curr.strips * curr.mrp), 0) * 1.12).toFixed(2)}` : '₹—'}
                               </p>
                             </div>
@@ -4219,7 +4219,7 @@ const PharmacyWorkspace = ({ user }) => {
                                     <div className="flex justify-between items-center mt-2 pt-1 border-t border-slate-50">
                                       <span className="text-[9px] text-slate-400">{rxItem.medicines?.length || 0} medicines</span>
                                       <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${
-                                        isSelected ? 'bg-blue-600 text-white' : (rxItem.status === 'Completed' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600')
+                                        isSelected ? 'bg-blue-600 text-white' : (rxItem.status === 'Completed' ? 'bg-blue-50 text-blue-600' : 'bg-amber-50 text-amber-600')
                                       }`}>
                                         {isSelected ? 'Active' : rxItem.status}
                                       </span>
@@ -4287,7 +4287,7 @@ const PharmacyWorkspace = ({ user }) => {
               <div className="bg-white border border-slate-100 shadow-sm rounded-3xl p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                   <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                    <span className="text-emerald-600">⚡</span> Walk-in Sales (POS)
+                    <span className="text-blue-600">⚡</span> Walk-in Sales (POS)
                   </h2>
                   <p className="text-xs text-slate-400 font-semibold mt-0.5">
                     Search medicines, scan barcodes, and complete walk-in sales in under 60 seconds
@@ -4300,7 +4300,7 @@ const PharmacyWorkspace = ({ user }) => {
                   <button onClick={() => toast.success('List of held carts loaded.')} className="px-3.5 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5">
                     <span>Resume Sale</span>
                   </button>
-                  <button onClick={() => { setCart([]); setWalkinCustomer({ name: '', phone: '' }); toast.success('New sale cart initialized.'); }} className="px-3.5 py-2 bg-emerald-50 text-emerald-650 rounded-xl text-xs font-bold transition flex items-center gap-1.5">
+                  <button onClick={() => { setCart([]); setWalkinCustomer({ name: '', phone: '' }); toast.success('New sale cart initialized.'); }} className="px-3.5 py-2 bg-blue-50 text-blue-650 rounded-xl text-xs font-bold transition flex items-center gap-1.5">
                     <span>+ New Sale</span>
                   </button>
                   <button onClick={() => toast.success('Search invoice console opened.')} className="px-3.5 py-2 bg-blue-50 text-blue-650 rounded-xl text-xs font-bold transition flex items-center gap-1.5">
@@ -4392,7 +4392,7 @@ const PharmacyWorkspace = ({ user }) => {
                                 <div className="flex items-center gap-1.5 mt-1.5">
                                   <span className="text-[8px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-bold">Rack: {rack}</span>
                                   <span className={`text-[8px] font-black px-1.5 py-0.5 rounded ${
-                                    isLowStock ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'
+                                    isLowStock ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'
                                   }`}>
                                     {isLowStock ? `Low Stock: ${item.totalStock}` : `In Stock: ${item.totalStock}`}
                                   </span>
@@ -4617,7 +4617,7 @@ const PharmacyWorkspace = ({ user }) => {
                       </div>
                       <div className="flex justify-between">
                         <span>Discount</span>
-                        <span className="text-emerald-600">₹0.00</span>
+                        <span className="text-blue-600">₹0.00</span>
                       </div>
                       <div className="flex justify-between border-b border-slate-50 pb-2">
                         <span>GST (12%)</span>
@@ -4627,7 +4627,7 @@ const PharmacyWorkspace = ({ user }) => {
                       </div>
                       <div className="flex justify-between items-center pt-1">
                         <span className="text-slate-800 font-black text-xs">Grand Total</span>
-                        <span className="text-base font-black text-emerald-600">
+                        <span className="text-base font-black text-blue-600">
                           ₹{(cart.reduce((acc, curr) => acc + (curr.strips * curr.mrp) + (curr.tablets * curr.unitPrice), 0) * 1.12).toFixed(2)}
                         </span>
                       </div>
@@ -4661,7 +4661,7 @@ const PharmacyWorkspace = ({ user }) => {
                       </div>
                       <div className="flex justify-between text-[10px] text-slate-500 font-extrabold">
                         <span>Balance Change:</span>
-                        <span className="text-emerald-600">₹0.00</span>
+                        <span className="text-blue-600">₹0.00</span>
                       </div>
                     </div>
 
@@ -4670,7 +4670,7 @@ const PharmacyWorkspace = ({ user }) => {
                       disabled={cart.length === 0}
                       className={`w-full py-3 rounded-2xl text-xs font-black text-white text-center transition shadow-md ${
                         cart.length > 0
-                          ? 'bg-emerald-600  hover:bg-emerald-600 shadow-emerald-100'
+                          ? 'bg-blue-600  hover:bg-blue-600 shadow-blue-100'
                           : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
                       }`}
                     >
@@ -4717,7 +4717,7 @@ const PharmacyWorkspace = ({ user }) => {
                           </td>
                           <td className="py-3 px-2 font-semibold text-slate-400">{sale.estFinish}</td>
                           <td className="py-3 px-2">
-                            <span className="bg-emerald-50 text-emerald-600 text-[9px] px-2 py-0.5 rounded-full">Completed</span>
+                            <span className="bg-blue-50 text-blue-600 text-[9px] px-2 py-0.5 rounded-full">Completed</span>
                           </td>
                         </tr>
                       ))}
@@ -4858,7 +4858,7 @@ const PharmacyWorkspace = ({ user }) => {
                                 <p className="text-[9px] text-slate-400 mt-1">Phone: {p.phone}</p>
                                 <div className="flex gap-1.5 mt-2">
                                   <span className="text-[8px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-bold">Visits: {p.prescriptionsCount}</span>
-                                  <span className="text-[8px] bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded font-black">{p.status}</span>
+                                  <span className="text-[8px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-black">{p.status}</span>
                                 </div>
                               </div>
                               <ChevronRight size={14} className={isSelected ? 'text-blue-500' : 'text-slate-300'} />
@@ -4880,7 +4880,7 @@ const PharmacyWorkspace = ({ user }) => {
                             <div>
                               <div className="flex items-center gap-2">
                                 <span className="text-xs font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">{activeConsoleRx.id}</span>
-                                <span className="text-[9px] font-extrabold uppercase bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full">
+                                <span className="text-[9px] font-extrabold uppercase bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">
                                   Active Prescription
                                 </span>
                               </div>
@@ -4917,7 +4917,7 @@ const PharmacyWorkspace = ({ user }) => {
                                     <p className="text-[9px] text-slate-500 font-semibold mt-1">Instructions: {med.dosage} for {med.duration}</p>
                                     <div className="flex items-center gap-2 mt-2">
                                       <span className={`text-[8px] font-black px-1.5 py-0.5 rounded ${
-                                        stock === 0 ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'
+                                        stock === 0 ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'
                                       }`}>
                                         {stock === 0 ? 'Out of Stock' : `Available: ${stock} tabs`}
                                       </span>
@@ -5035,7 +5035,7 @@ const PharmacyWorkspace = ({ user }) => {
                                   <p>Medicines: <span className="text-slate-805">{rx.medicines.length} items</span></p>
                                 </div>
                                 <div className="flex justify-between items-center border-t border-slate-50 pt-2.5">
-                                  <span className="text-[8px] bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full font-black">Completed</span>
+                                  <span className="text-[8px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-black">Completed</span>
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -5064,7 +5064,7 @@ const PharmacyWorkspace = ({ user }) => {
                                       setActiveTab('orders');
                                       toast.success(`Reordering all medicines from prescription ${rx.id}.`);
                                     }}
-                                    className="px-2.5 py-1 bg-emerald-650 hover:bg-emerald-700 text-white rounded-lg text-[9px] font-black shadow-xs transition"
+                                    className="px-2.5 py-1 bg-blue-650 hover:bg-blue-700 text-white rounded-lg text-[9px] font-black shadow-xs transition"
                                   >
                                     Reorder
                                   </button>
@@ -5114,7 +5114,7 @@ const PharmacyWorkspace = ({ user }) => {
               <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
                 {[
                   { label: 'Total Medicines', count: '128,456', desc: '+ 245 this week', color: 'text-blue-600 bg-blue-50/50', icon: '💊' },
-                  { label: 'Active Medicines', count: '112,589', desc: '87.6% of total', color: 'text-emerald-600 bg-emerald-50/50', icon: '✅' },
+                  { label: 'Active Medicines', count: '112,589', desc: '87.6% of total', color: 'text-blue-600 bg-blue-50/50', icon: '✅' },
                   { label: 'Manufacturers', count: '2,356', desc: 'Global active', color: 'text-purple-600 bg-purple-50/50', icon: '🏢' },
                   { label: 'Therapeutic Categories', count: '24', desc: 'Major categories', color: 'text-amber-600 bg-amber-50/50', icon: '🧬' },
                   { label: 'Recently Added', count: '245', desc: 'This week', color: 'text-rose-600 bg-rose-50/50', icon: '✨' },
@@ -5230,7 +5230,7 @@ const PharmacyWorkspace = ({ user }) => {
                                 <td className="py-3 px-2">{item.manufacturer}</td>
                                 <td className="py-3 px-2 font-black text-slate-900">₹{item.stripPrice}</td>
                                 <td className="py-3 px-2">
-                                  <span className="bg-emerald-50 text-emerald-600 text-[9px] px-2 py-0.5 rounded-full font-black border border-emerald-100">
+                                  <span className="bg-blue-50 text-blue-600 text-[9px] px-2 py-0.5 rounded-full font-black border border-blue-100">
                                     Active
                                   </span>
                                 </td>
@@ -5374,7 +5374,7 @@ const PharmacyWorkspace = ({ user }) => {
                       <button onClick={() => setShowNewMedicineModal(true)} className="p-3 bg-slate-50 border border-slate-100 hover:bg-blue-50/30 rounded-2xl flex flex-col gap-2 items-start transition text-left cursor-pointer">
                         <span className="text-[10px] font-black text-slate-700 leading-tight">Create Medicine</span>
                       </button>
-                      <button onClick={() => setShowRequestNewMedicineModal(true)} className="p-3 bg-slate-50 border border-slate-100 hover:bg-emerald-50/30 rounded-2xl flex flex-col gap-2 items-start transition text-left cursor-pointer">
+                      <button onClick={() => setShowRequestNewMedicineModal(true)} className="p-3 bg-slate-50 border border-slate-100 hover:bg-blue-50/30 rounded-2xl flex flex-col gap-2 items-start transition text-left cursor-pointer">
                         <span className="text-[10px] font-black text-slate-700 leading-tight">Request Medicine</span>
                       </button>
                     </div>
@@ -5876,8 +5876,8 @@ const PharmacyWorkspace = ({ user }) => {
                       {onboardingStep === 2 && (
                         <div className="space-y-6 text-xs font-bold text-slate-655">
                           {/* Visual Header / Card Distinction */}
-                          <div className="p-4 bg-emerald-50/40 border border-emerald-100 rounded-2xl flex flex-col gap-1">
-                            <h4 className="text-xs font-black text-emerald-700 uppercase tracking-wider">
+                          <div className="p-4 bg-blue-50/40 border border-blue-100 rounded-2xl flex flex-col gap-1">
+                            <h4 className="text-xs font-black text-blue-700 uppercase tracking-wider">
                               📦 Pharmacy-Specific Details (Local Inventory Config)
                             </h4>
                             <p className="text-[10px] text-slate-500 font-semibold leading-normal">
@@ -6317,7 +6317,7 @@ const PharmacyWorkspace = ({ user }) => {
                                 toast.error(err.response?.data?.message || 'Failed to onboard medicine.');
                               }
                             }}
-                            className="px-5 py-2 bg-emerald-655 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition shadow-md shadow-emerald-100"
+                            className="px-5 py-2 bg-blue-655 hover:bg-blue-700 text-white rounded-xl text-xs font-black transition shadow-md shadow-blue-100"
                           >
                             Save &amp; Onboard Batch
                           </button>
@@ -6739,11 +6739,11 @@ const PharmacyWorkspace = ({ user }) => {
             }, 0);
 
             let purchaseTrend = '+1.5%';
-            let purchaseTrendColor = 'text-emerald-500';
+            let purchaseTrendColor = 'text-blue-500';
             if (lastMonthPurchaseAmount > 0) {
               const diff = ((monthlyPurchaseAmount - lastMonthPurchaseAmount) / lastMonthPurchaseAmount) * 100;
               purchaseTrend = `${diff >= 0 ? '+' : ''}${diff.toFixed(1)}%`;
-              purchaseTrendColor = diff >= 0 ? 'text-emerald-500' : 'text-rose-500';
+              purchaseTrendColor = diff >= 0 ? 'text-blue-500' : 'text-rose-500';
             }
 
             const pendingPOs = purchaseOrders.filter(po => ['Draft', 'Pending Approval', 'Submitted', 'Partially Received'].includes(po.status));
@@ -6785,7 +6785,7 @@ const PharmacyWorkspace = ({ user }) => {
             const onTimeDeliveryRate = receivedPOs.length > 0 ? (onTimeCount / receivedPOs.length) * 100 : 100;
             const displayOnTimeDelivery = receivedPOs.length > 0 ? `${onTimeDeliveryRate.toFixed(1)}%` : '100.0%';
             const displayOnTimeTrend = receivedPOs.length > 0 ? `${(onTimeDeliveryRate >= 90 ? '+' : '-')}${Math.abs(onTimeDeliveryRate - 90).toFixed(1)}%` : 'Stable';
-            const displayOnTimeTrendColor = receivedPOs.length > 0 ? (onTimeDeliveryRate >= 90 ? 'text-emerald-500' : 'text-rose-500') : 'text-slate-400';
+            const displayOnTimeTrendColor = receivedPOs.length > 0 ? (onTimeDeliveryRate >= 90 ? 'text-blue-500' : 'text-rose-500') : 'text-slate-400';
 
             // Handle add supplier save
             const handleSaveSupplier = async () => {
@@ -6882,14 +6882,14 @@ const PharmacyWorkspace = ({ user }) => {
                 {/* ── KPI STATISTICS ── */}
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
                   {[
-                    { label: 'Total Suppliers', value: totalSuppliersCount, desc: 'All time registered', icon: <Users size={16} />, trend: '+4%', trendColor: 'text-emerald-500', color: 'bg-blue-50/20 border-blue-100' },
-                    { label: 'Active Suppliers', value: activeSuppliersCount, desc: `${((activeSuppliersCount/Math.max(1, totalSuppliersCount))*100).toFixed(0)}% of total`, icon: <Check size={16} />, trend: 'Stable', trendColor: 'text-slate-400', color: 'bg-emerald-50/20 border-emerald-100' },
-                    { label: 'Preferred Wholesalers', value: preferredSuppliersCount, desc: 'Top tier partners', icon: <Star size={16} />, trend: '+12%', trendColor: 'text-emerald-500', color: 'bg-amber-50/20 border-amber-100' },
-                    { label: 'Outstanding Amount', value: `₹${totalOutstandingAmount.toLocaleString()}`, desc: 'Outstanding payables', icon: <DollarSign size={16} />, trend: '-2.4%', trendColor: 'text-emerald-500', color: 'bg-rose-50/20 border-rose-100' },
+                    { label: 'Total Suppliers', value: totalSuppliersCount, desc: 'All time registered', icon: <Users size={16} />, trend: '+4%', trendColor: 'text-blue-500', color: 'bg-blue-50/20 border-blue-100' },
+                    { label: 'Active Suppliers', value: activeSuppliersCount, desc: `${((activeSuppliersCount/Math.max(1, totalSuppliersCount))*100).toFixed(0)}% of total`, icon: <Check size={16} />, trend: 'Stable', trendColor: 'text-slate-400', color: 'bg-blue-50/20 border-blue-100' },
+                    { label: 'Preferred Wholesalers', value: preferredSuppliersCount, desc: 'Top tier partners', icon: <Star size={16} />, trend: '+12%', trendColor: 'text-blue-500', color: 'bg-amber-50/20 border-amber-100' },
+                    { label: 'Outstanding Amount', value: `₹${totalOutstandingAmount.toLocaleString()}`, desc: 'Outstanding payables', icon: <DollarSign size={16} />, trend: '-2.4%', trendColor: 'text-blue-500', color: 'bg-rose-50/20 border-rose-100' },
                     { label: 'Monthly Purchase', value: displayMonthlyPurchase, desc: 'Current month total', icon: <Truck size={16} />, trend: displayMonthlyTrend, trendColor: displayMonthlyTrendColor, color: 'bg-purple-50/20 border-purple-100' },
                     { label: 'On-Time Delivery', value: displayOnTimeDelivery, desc: 'SLA target: 90%', icon: <Clock size={16} />, trend: displayOnTimeTrend, trendColor: displayOnTimeTrendColor, color: 'bg-indigo-50/20 border-indigo-100' },
                     { label: 'Pending POs', value: displayPendingPOsValue, desc: 'Awaiting fulfillment', icon: <Package size={16} />, trend: displayPendingPOsTrend, trendColor: 'text-blue-500', color: 'bg-sky-50/20 border-sky-100' },
-                    { label: 'Avg Delivery Time', value: displayAvgDeliveryValue, desc: 'Lead time average', icon: <Clock size={16} />, trend: displayAvgDeliveryTrend, trendColor: 'text-emerald-500', color: 'bg-slate-50/20 border-slate-100' }
+                    { label: 'Avg Delivery Time', value: displayAvgDeliveryValue, desc: 'Lead time average', icon: <Clock size={16} />, trend: displayAvgDeliveryTrend, trendColor: 'text-blue-500', color: 'bg-slate-50/20 border-slate-100' }
                   ].map((kpi, idx) => (
                     <div key={idx} className={`bg-white border rounded-3xl p-4 flex flex-col justify-between min-h-[105px] hover:shadow-md transition-all duration-200`}>
                       <div className="flex justify-between items-center">
@@ -7063,7 +7063,7 @@ const PharmacyWorkspace = ({ user }) => {
                             const logoChar = (s.name || 'S').charAt(0).toUpperCase();
                             const isPref = s.isPreferred;
                             const outstanding = s.outstandingAmount || 0;
-                            const statusColor = s.status === 'Active' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600';
+                            const statusColor = s.status === 'Active' ? 'bg-blue-50 text-blue-600' : 'bg-red-50 text-red-600';
 
                             return (
                               <tr key={s._id || s.id} className="hover:bg-slate-50/30 transition-colors group">
@@ -7567,7 +7567,7 @@ const PharmacyWorkspace = ({ user }) => {
                           ) : (
                             <button 
                               onClick={handleSaveSupplier}
-                              className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition shadow-md shadow-emerald-100"
+                              className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black transition shadow-md shadow-blue-100"
                             >
                               Save Partner Supplier
                             </button>
@@ -7651,7 +7651,7 @@ const PharmacyWorkspace = ({ user }) => {
                   {[
                     { label: 'Total Purchase Orders', value: totalPoCount, desc: 'All time processed', color: 'text-blue-600', icon: '📋' },
                     { label: 'Pending Deliveries', value: pendingPoCount, desc: 'Awaiting stock inward', color: 'text-amber-500', icon: '🚚' },
-                    { label: 'Completed Orders', value: completedPoCount, desc: 'Fully received & closed', color: 'text-emerald-600', icon: '✓' },
+                    { label: 'Completed Orders', value: completedPoCount, desc: 'Fully received & closed', color: 'text-blue-600', icon: '✓' },
                     { label: 'Outstanding Payments', value: `₹${totalOutstandingAmount.toLocaleString()}`, desc: 'Accounts payable', color: 'text-rose-500', icon: '💳' }
                   ].map((card, idx) => (
                     <div key={idx} className="p-4 bg-white border border-slate-100 rounded-2xl shadow-sm flex items-center justify-between">
@@ -7763,13 +7763,13 @@ const PharmacyWorkspace = ({ user }) => {
                             const pendingItemsCount = po.items.filter(i => i.status !== 'Received').length;
                             
                             let deliveryStatusColor = 'bg-slate-100 text-slate-600';
-                            if (po.status === 'Completed') deliveryStatusColor = 'bg-emerald-50 text-emerald-600';
+                            if (po.status === 'Completed') deliveryStatusColor = 'bg-blue-50 text-blue-600';
                             else if (po.status === 'Partially Received') deliveryStatusColor = 'bg-amber-50 text-amber-600';
                             else if (po.status === 'Submitted') deliveryStatusColor = 'bg-blue-50 text-blue-600';
                             else if (po.status === 'Cancelled') deliveryStatusColor = 'bg-rose-50 text-rose-600';
 
                             let paymentStatusColor = 'bg-slate-100 text-slate-600';
-                            if (po.paymentStatus === 'Fully Paid') paymentStatusColor = 'bg-emerald-50 text-emerald-600';
+                            if (po.paymentStatus === 'Fully Paid') paymentStatusColor = 'bg-blue-50 text-blue-600';
                             else if (po.paymentStatus === 'Partially Paid') paymentStatusColor = 'bg-amber-50 text-amber-600';
                             else if (po.paymentStatus === 'Pending') paymentStatusColor = 'bg-rose-50 text-rose-600';
 
@@ -7833,7 +7833,7 @@ const PharmacyWorkspace = ({ user }) => {
                                         </button>
                                         <button
                                           onClick={() => handleUpdatePoStatus(po._id, 'Submitted', 'Purchase order submitted directly from listing.')}
-                                          className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-lg text-[9px] font-black transition"
+                                          className="px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-[9px] font-black transition"
                                         >
                                           Submit
                                         </button>
@@ -8054,7 +8054,7 @@ const PharmacyWorkspace = ({ user }) => {
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   {[
                     { label: 'Total Manufacturers', value: totalManufacturersCount, desc: 'All time registered', color: 'text-blue-600', icon: '🏭' },
-                    { label: 'Active Manufacturers', value: activeManufacturersCount, desc: 'Supplying regularly', color: 'text-emerald-600', icon: '✓' },
+                    { label: 'Active Manufacturers', value: activeManufacturersCount, desc: 'Supplying regularly', color: 'text-blue-600', icon: '✓' },
                     { label: 'Preferred Partners', value: preferredManufacturersCount, desc: 'Top tier quality', color: 'text-amber-500', icon: '⭐' },
                     { label: 'Total Medicines Produced', value: totalMedicinesProduced, desc: 'In pharmacy catalog', color: 'text-violet-600', icon: '💊' }
                   ].map((card, i) => (
@@ -8158,7 +8158,7 @@ const PharmacyWorkspace = ({ user }) => {
                               </td>
                               <td className="px-5 py-3.5">
                                 <span className={`px-2 py-0.5 rounded-full font-black text-[9px] uppercase ${
-                                  m.status === 'Active' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-red-50 text-red-600 border border-red-100'
+                                  m.status === 'Active' ? 'bg-blue-50 text-blue-600 border border-blue-100' : 'bg-red-50 text-red-600 border border-red-100'
                                 }`}>
                                   {m.status}
                                 </span>
@@ -8608,7 +8608,7 @@ const PharmacyWorkspace = ({ user }) => {
               if (days <= 30) return 'bg-red-500'; // Red
               if (days <= 90) return 'bg-amber-500'; // Orange
               if (days <= 180) return 'bg-yellow-400'; // Yellow
-              return 'bg-emerald-500'; // Green
+              return 'bg-blue-500'; // Green
             };
 
             return (
@@ -8815,7 +8815,7 @@ const PharmacyWorkspace = ({ user }) => {
                             const isQuarantined = b.calculatedStatus === 'Quarantined';
                             const isRecalled = b.calculatedStatus === 'Recalled';
 
-                            let statusBadge = 'bg-emerald-50 text-emerald-600 border border-emerald-100';
+                            let statusBadge = 'bg-blue-50 text-blue-600 border border-blue-100';
                             if (isQuarantined) statusBadge = 'bg-slate-100 text-slate-655 border border-slate-250';
                             else if (isRecalled) statusBadge = 'bg-blue-50 text-blue-650 border border-blue-100';
                             else if (days < 0) statusBadge = 'bg-red-50 text-red-600 border border-red-150';
@@ -8863,7 +8863,7 @@ const PharmacyWorkspace = ({ user }) => {
                                     {isQuarantined ? (
                                       <button 
                                         onClick={() => handleReleaseQuarantine(b)}
-                                        className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-650 rounded-lg text-[9px] font-black transition"
+                                        className="px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-650 rounded-lg text-[9px] font-black transition"
                                       >
                                         Release
                                       </button>
@@ -9081,7 +9081,7 @@ const PharmacyWorkspace = ({ user }) => {
                           </div>
                           <div className="flex justify-between items-center text-slate-655 font-bold">
                             <span>Current Available Stock:</span>
-                            <span className="text-slate-855 font-extrabold text-emerald-600">{selectedBatchDetail.availableStock ?? selectedBatchDetail.quantity} tabs</span>
+                            <span className="text-slate-855 font-extrabold text-blue-600">{selectedBatchDetail.availableStock ?? selectedBatchDetail.quantity} tabs</span>
                           </div>
                         </div>
 
@@ -9092,7 +9092,7 @@ const PharmacyWorkspace = ({ user }) => {
                         {selectedBatchDetail.calculatedStatus === 'Quarantined' ? (
                           <button 
                             onClick={() => handleReleaseQuarantine(selectedBatchDetail)}
-                            className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition text-center"
+                            className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black transition text-center"
                           >
                             Release Quarantine
                           </button>
@@ -9312,7 +9312,7 @@ const PharmacyWorkspace = ({ user }) => {
                                 newTransferStep === s.step
                                   ? 'bg-blue-600 text-white shadow-md'
                                   : newTransferStep > s.step
-                                  ? 'bg-emerald-100 text-emerald-700'
+                                  ? 'bg-blue-100 text-blue-700'
                                   : 'bg-slate-50 border border-slate-200 text-slate-400'
                               }`}>
                                 {s.step}
@@ -9523,7 +9523,7 @@ const PharmacyWorkspace = ({ user }) => {
                               </div>
                               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
                                 <p className="text-[8px] text-slate-400 uppercase tracking-wider font-bold">Total Purchase Value</p>
-                                <p className="text-sm font-black text-emerald-600 mt-1">₹{transferTotalPurVal.toLocaleString()}</p>
+                                <p className="text-sm font-black text-blue-600 mt-1">₹{transferTotalPurVal.toLocaleString()}</p>
                               </div>
                               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
                                 <p className="text-[8px] text-slate-400 uppercase tracking-wider font-bold">Total MRP Value</p>
@@ -9591,7 +9591,7 @@ const PharmacyWorkspace = ({ user }) => {
                             ) : (
                               <button 
                                 onClick={handleSubmitTransfer}
-                                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition shadow-md shadow-emerald-100"
+                                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black transition shadow-md shadow-blue-100"
                               >
                                 Submit Transfer Request
                               </button>
@@ -9636,7 +9636,7 @@ const PharmacyWorkspace = ({ user }) => {
                             <tbody className="divide-y divide-slate-50">
                               {filteredTransfers.map(t => {
                                 let statusClass = 'bg-slate-50 text-slate-500 border border-slate-200';
-                                if (t.status === 'Completed') statusClass = 'bg-emerald-50 text-emerald-600 border border-emerald-100';
+                                if (t.status === 'Completed') statusClass = 'bg-blue-50 text-blue-600 border border-blue-100';
                                 else if (t.status === 'In Transit') statusClass = 'bg-blue-50 text-blue-600 border border-blue-100';
                                 else if (t.status === 'Pending Approval') statusClass = 'bg-amber-50 text-amber-600 border border-amber-100';
                                 else if (t.status === 'Cancelled') statusClass = 'bg-red-50 text-red-500 border border-red-100';
@@ -9784,14 +9784,14 @@ const PharmacyWorkspace = ({ user }) => {
                           <h4 className="text-[9px] text-slate-400 uppercase tracking-wider font-bold">Fulfillment Timeline</h4>
                           <div className="relative border-l border-slate-200 pl-4 ml-2 space-y-4">
                             <div className="relative">
-                              <span className="absolute -left-6 top-1 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white" />
+                              <span className="absolute -left-6 top-1 w-3.5 h-3.5 rounded-full bg-blue-500 border-2 border-white" />
                               <p className="text-slate-800 font-bold leading-none">Request Created</p>
                               <span className="text-[9px] text-slate-400 mt-1 block">Created on {selectedTransferDetail.createdDate} by {selectedTransferDetail.createdBy}</span>
                             </div>
                             {selectedTransferDetail.status !== 'Pending Approval' && (
                               <div className="relative">
                                 <span className={`absolute -left-6 top-1 w-3.5 h-3.5 rounded-full border-2 border-white ${
-                                  selectedTransferDetail.status === 'Cancelled' ? 'bg-red-500' : 'bg-emerald-500'
+                                  selectedTransferDetail.status === 'Cancelled' ? 'bg-red-500' : 'bg-blue-500'
                                 }`} />
                                 <p className="text-slate-800 font-bold leading-none">Approval Status</p>
                                 <span className="text-[9px] text-slate-400 mt-1 block">
@@ -9801,7 +9801,7 @@ const PharmacyWorkspace = ({ user }) => {
                             )}
                             <div className="relative">
                               <span className={`absolute -left-6 top-1 w-3.5 h-3.5 rounded-full border-2 border-white ${
-                                selectedTransferDetail.status === 'Completed' ? 'bg-emerald-500' : 'bg-slate-300'
+                                selectedTransferDetail.status === 'Completed' ? 'bg-blue-500' : 'bg-slate-300'
                               }`} />
                               <p className="text-slate-800 font-bold leading-none">Dispatch &amp; Receiving</p>
                               <span className="text-[9px] text-slate-400 mt-1 block">
@@ -9864,7 +9864,7 @@ const PharmacyWorkspace = ({ user }) => {
                         {selectedTransferDetail.status === 'In Transit' && (
                           <button 
                             onClick={() => handleAcceptTransfer(selectedTransferDetail)}
-                            className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition text-center"
+                            className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black transition text-center"
                           >
                             Confirm Goods Received
                           </button>
@@ -10128,9 +10128,9 @@ const PharmacyWorkspace = ({ user }) => {
                     {[
                       { label: 'Total Returns', value: returnsList.length, desc: 'All time', icon: <RotateCcw size={16} />, trend: 'Stable', trendColor: 'text-slate-400' },
                       { label: 'To Suppliers', value: returnsList.filter(r => r.type === 'Return to Supplier').length, desc: 'Wholesaler stock', icon: <Package size={16} />, trend: '32 this month', trendColor: 'text-blue-600' },
-                      { label: 'Customer Returns', value: returnsList.filter(r => r.type === 'Customer Return').length, desc: 'Patient sales', icon: <Users size={16} />, trend: '24 this month', trendColor: 'text-emerald-500' },
+                      { label: 'Customer Returns', value: returnsList.filter(r => r.type === 'Customer Return').length, desc: 'Patient sales', icon: <Users size={16} />, trend: '24 this month', trendColor: 'text-blue-500' },
                       { label: 'Pending Approval', value: returnsList.filter(r => r.status === 'Pending Approval').length, desc: 'Requires action', icon: <Clock size={16} />, trend: '8 active', trendColor: 'text-amber-500' },
-                      { label: 'Completed', value: returnsList.filter(r => r.status === 'Completed').length, desc: 'Disposed & returned', icon: <Check size={16} />, trend: '42 closed', trendColor: 'text-emerald-600' },
+                      { label: 'Completed', value: returnsList.filter(r => r.status === 'Completed').length, desc: 'Disposed & returned', icon: <Check size={16} />, trend: '42 closed', trendColor: 'text-blue-600' },
                       { label: 'Refund Amount', value: '₹48,560', desc: 'To customers', icon: <DollarSign size={16} />, trend: 'Reconciled', trendColor: 'text-slate-400' },
                       { label: 'Credit Issued', value: '₹32,450', desc: 'Supplier notes', icon: <FileText size={16} />, trend: 'Outstanding', trendColor: 'text-blue-500' },
                       { label: 'Rejected', value: returnsList.filter(r => r.status === 'Rejected').length, desc: 'Failed verification', icon: <Ban size={16} />, trend: '4 entries', trendColor: 'text-rose-500' }
@@ -10178,7 +10178,7 @@ const PharmacyWorkspace = ({ user }) => {
                                 newReturnStep === s.step
                                   ? 'bg-blue-600 text-white shadow-md'
                                   : newReturnStep > s.step
-                                  ? 'bg-emerald-100 text-emerald-700'
+                                  ? 'bg-blue-100 text-blue-700'
                                   : 'bg-slate-50 border border-slate-200 text-slate-400'
                               }`}>
                                 {s.step}
@@ -10395,7 +10395,7 @@ const PharmacyWorkspace = ({ user }) => {
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
                                 <p className="text-[8px] text-slate-400 uppercase tracking-wider font-bold">Total Refund Amount</p>
-                                <p className="text-sm font-black text-emerald-600 mt-1">₹{wizardTotalMRPVal.toLocaleString()}</p>
+                                <p className="text-sm font-black text-blue-600 mt-1">₹{wizardTotalMRPVal.toLocaleString()}</p>
                               </div>
                               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
                                 <p className="text-[8px] text-slate-400 uppercase tracking-wider font-bold">Total Cost Value</p>
@@ -10450,7 +10450,7 @@ const PharmacyWorkspace = ({ user }) => {
                                 <p>Return Type: <span className="text-slate-805">{newReturnData.returnType}</span></p>
                                 <p>Source entity: <span className="text-slate-805">{newReturnData.source === 'Supplier' ? newReturnData.supplierId : newReturnData.customerName}</span></p>
                                 <p>Compensation Type: <span className="text-slate-805">{newReturnData.compensationType}</span></p>
-                                <p>Total Return Value: <span className="text-emerald-600 font-extrabold">₹{wizardTotalMRPVal.toLocaleString()}</span></p>
+                                <p>Total Return Value: <span className="text-blue-600 font-extrabold">₹{wizardTotalMRPVal.toLocaleString()}</span></p>
                               </div>
                             </div>
 
@@ -10501,7 +10501,7 @@ const PharmacyWorkspace = ({ user }) => {
                             ) : (
                               <button 
                                 onClick={handleSubmitReturn}
-                                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition shadow-md shadow-emerald-100"
+                                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black transition shadow-md shadow-blue-100"
                               >
                                 Submit Return Request
                               </button>
@@ -10574,10 +10574,10 @@ const PharmacyWorkspace = ({ user }) => {
                             <tbody className="divide-y divide-slate-50">
                               {filteredReturns.map(r => {
                                 let typeBadge = 'bg-blue-50 text-blue-600 border border-blue-100';
-                                if (r.type === 'Customer Return') typeBadge = 'bg-emerald-50 text-emerald-600 border border-emerald-100';
+                                if (r.type === 'Customer Return') typeBadge = 'bg-blue-50 text-blue-600 border border-blue-100';
 
                                 let statusBadge = 'bg-slate-50 text-slate-500 border border-slate-200';
-                                if (r.status === 'Completed') statusBadge = 'bg-emerald-50 text-emerald-600 border border-emerald-100';
+                                if (r.status === 'Completed') statusBadge = 'bg-blue-50 text-blue-600 border border-blue-100';
                                 else if (r.status === 'Approved') statusBadge = 'bg-blue-50 text-blue-600 border border-blue-100';
                                 else if (r.status === 'Pending Approval') statusBadge = 'bg-amber-50 text-amber-600 border border-amber-100';
                                 else if (r.status === 'Rejected') statusBadge = 'bg-rose-50 text-rose-600 border border-rose-100';
@@ -10637,7 +10637,7 @@ const PharmacyWorkspace = ({ user }) => {
                           { label: 'Expired / Near Expiry', count: 34, pct: '60.5%', color: 'bg-rose-500' },
                           { label: 'Damaged in Transit', count: 12, pct: '21.4%', color: 'bg-amber-500' },
                           { label: 'Quality / Recall Issue', count: 5, pct: '8.9%', color: 'bg-blue-600' },
-                          { label: 'Unused / Wrong Dispensing', count: 5, pct: '8.9%', color: 'bg-emerald-500' }
+                          { label: 'Unused / Wrong Dispensing', count: 5, pct: '8.9%', color: 'bg-blue-500' }
                         ].map((item, idx) => (
                           <div key={idx} className="space-y-1">
                             <div className="flex justify-between text-[10px] text-slate-655">
@@ -10700,7 +10700,7 @@ const PharmacyWorkspace = ({ user }) => {
                           <p>Source / Destination: <span className="text-slate-855 font-black">{selectedReturnDetail.supplierOrCustomer}</span></p>
                           <p>Created By: <span className="text-slate-805">{selectedReturnDetail.createdBy}</span></p>
                           <p>Return Date: <span className="text-slate-805">{selectedReturnDetail.returnDate}</span></p>
-                          <p>Refund / Return Value: <span className="text-emerald-600 font-black">₹{selectedReturnDetail.amount.toLocaleString()}</span></p>
+                          <p>Refund / Return Value: <span className="text-blue-600 font-black">₹{selectedReturnDetail.amount.toLocaleString()}</span></p>
                         </div>
 
                         {/* Status history timeline */}
@@ -10708,13 +10708,13 @@ const PharmacyWorkspace = ({ user }) => {
                           <h4 className="text-[9px] text-slate-405 uppercase tracking-wider font-bold">Fulfillment Steps</h4>
                           <div className="relative border-l border-slate-200 pl-4 ml-2 space-y-4">
                             <div className="relative">
-                              <span className="absolute -left-6 top-1 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white" />
+                              <span className="absolute -left-6 top-1 w-3.5 h-3.5 rounded-full bg-blue-500 border-2 border-white" />
                               <p className="text-slate-800 font-bold leading-none">Return Created</p>
                               <span className="text-[9px] text-slate-400 mt-1 block">Created on {selectedReturnDetail.returnDate} by {selectedReturnDetail.createdBy}</span>
                             </div>
                             <div className="relative">
                               <span className={`absolute -left-6 top-1 w-3.5 h-3.5 rounded-full border-2 border-white ${
-                                selectedReturnDetail.status === 'Pending Approval' ? 'bg-amber-500' : 'bg-emerald-500'
+                                selectedReturnDetail.status === 'Pending Approval' ? 'bg-amber-500' : 'bg-blue-500'
                               }`} />
                               <p className="text-slate-800 font-bold leading-none">Approval Status</p>
                               <span className="text-[9px] text-slate-400 mt-1 block">
@@ -10723,7 +10723,7 @@ const PharmacyWorkspace = ({ user }) => {
                             </div>
                             <div className="relative">
                               <span className={`absolute -left-6 top-1 w-3.5 h-3.5 rounded-full border-2 border-white ${
-                                selectedReturnDetail.status === 'Completed' ? 'bg-emerald-500' : 'bg-slate-350'
+                                selectedReturnDetail.status === 'Completed' ? 'bg-blue-500' : 'bg-slate-350'
                               }`} />
                               <p className="text-slate-800 font-bold leading-none">Goods Reconciled</p>
                               <span className="text-[9px] text-slate-400 mt-1 block">
@@ -10767,7 +10767,7 @@ const PharmacyWorkspace = ({ user }) => {
                                 toast.success(`Approved Return ${selectedReturnDetail.returnNumber}. Inventory impact updated!`);
                                 setSelectedReturnDetail(null);
                               }}
-                              className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition text-center"
+                              className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black transition text-center"
                             >
                               Approve &amp; Reconcile
                             </button>
@@ -11104,7 +11104,7 @@ const PharmacyWorkspace = ({ user }) => {
                   </div>
 
                   <div className="bg-white border border-slate-200/80 rounded-[20px] p-5 shadow-sm flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-600 shrink-0">
+                    <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
                       <Calendar size={20} />
                     </div>
                     <div>
@@ -11215,7 +11215,7 @@ const PharmacyWorkspace = ({ user }) => {
                             const used = coupon.usedCount || 0;
                             const usedPct = Math.min(Math.round((used / limit) * 100), 100);
 
-                            let statusBadge = <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100 text-[9px] font-black uppercase">Active</span>;
+                            let statusBadge = <span className="px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-100 text-[9px] font-black uppercase">Active</span>;
                             if (!coupon.isActive) {
                               statusBadge = <span className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200 text-[9px] font-black uppercase">Disabled</span>;
                             } else if (isExpired) {
@@ -11623,7 +11623,7 @@ const PharmacyWorkspace = ({ user }) => {
                           </div>
                           <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-center">
                             <p className="text-[10px] text-slate-400 font-black uppercase tracking-wider">Conversion Rate</p>
-                            <p className="text-2xl font-black text-emerald-600 mt-1">
+                            <p className="text-2xl font-black text-blue-600 mt-1">
                               {selectedCouponForAnalytics.usedCount ? `${Math.min(Math.round(((selectedCouponForAnalytics.usedCount || 0) / (selectedCouponForAnalytics.usageLimit || 100)) * 100), 100)}%` : '0%'}
                             </p>
                           </div>
@@ -11869,7 +11869,7 @@ const PharmacyWorkspace = ({ user }) => {
                         <div>
                           <h4 className="font-black text-slate-905">{fallback(profileData?.clinic?.name)}</h4>
                           <p className="text-[9px] text-slate-405 font-bold mt-0.5">Clinic Code: {fallback(profileData?.clinic?.code)}</p>
-                          <span className="text-[8px] bg-emerald-50 text-emerald-600 border border-emerald-100 px-2 py-0.5 rounded-full font-black mt-1 inline-block">
+                          <span className="text-[8px] bg-blue-50 text-blue-600 border border-blue-100 px-2 py-0.5 rounded-full font-black mt-1 inline-block">
                             {fallback(profileData?.clinic?.approvalStatus === 'approved' ? 'Active' : profileData?.clinic?.approvalStatus)}
                           </span>
                         </div>
@@ -11928,7 +11928,7 @@ const PharmacyWorkspace = ({ user }) => {
                       <div className="space-y-3">
                         <div className="flex justify-between items-center">
                           <span>Database Server:</span>
-                          <span className="text-emerald-600 font-extrabold">Online</span>
+                          <span className="text-blue-600 font-extrabold">Online</span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span>Storage Utilized:</span>
@@ -11936,11 +11936,11 @@ const PharmacyWorkspace = ({ user }) => {
                         </div>
                         <div className="flex justify-between items-center">
                           <span>SMTP Email Gateway:</span>
-                          <span className="text-emerald-600 font-extrabold">Connected</span>
+                          <span className="text-blue-600 font-extrabold">Connected</span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span>SMS Gateway:</span>
-                          <span className="text-emerald-600 font-extrabold">Active</span>
+                          <span className="text-blue-600 font-extrabold">Active</span>
                         </div>
                       </div>
                     </div>
@@ -12275,7 +12275,7 @@ const PharmacyWorkspace = ({ user }) => {
             };
 
             const statusConfig = {
-              'in-stock':    { label: 'In Stock',    cls: 'bg-emerald-50 text-emerald-700 border-emerald-100' },
+              'in-stock':    { label: 'In Stock',    cls: 'bg-blue-50 text-blue-700 border-blue-100' },
               'low-stock':   { label: 'Low Stock',   cls: 'bg-amber-50 text-amber-700 border-amber-100' },
               'out-of-stock':{ label: 'Out of Stock',cls: 'bg-red-50 text-red-700 border-red-100' },
               'near-expiry': { label: 'Near Expiry', cls: 'bg-orange-50 text-orange-700 border-orange-100' },
@@ -12327,7 +12327,7 @@ const PharmacyWorkspace = ({ user }) => {
               return 'active';
             };
             const batchStatusConfig = {
-              'active':     { label: 'Active',      cls: 'bg-emerald-50 text-emerald-700 border-emerald-100' },
+              'active':     { label: 'Active',      cls: 'bg-blue-50 text-blue-700 border-blue-100' },
               'near-expiry':{ label: 'Near Expiry', cls: 'bg-orange-50 text-orange-700 border-orange-100' },
               'expired':    { label: 'Expired',     cls: 'bg-red-50 text-red-500 border-red-100' },
               'exhausted':  { label: 'Exhausted',   cls: 'bg-slate-100 text-slate-400 border-slate-200' },
@@ -12418,7 +12418,7 @@ const PharmacyWorkspace = ({ user }) => {
                     <div className="grid grid-cols-5 gap-3">
                       {[
                         { label: 'Total SKUs', value: inventory.length, cls: 'text-slate-900', bg: 'bg-white' },
-                        { label: 'In Stock',   value: kpiInStock,       cls: 'text-emerald-700', bg: 'bg-emerald-50' },
+                        { label: 'In Stock',   value: kpiInStock,       cls: 'text-blue-700', bg: 'bg-blue-50' },
                         { label: 'Low Stock',  value: kpiLow,           cls: 'text-amber-700',   bg: 'bg-amber-50' },
                         { label: 'Out of Stock',value: kpiOut,          cls: 'text-red-600',     bg: 'bg-red-50' },
                         { label: 'Near Expiry',value: kpiNearExp,       cls: 'text-orange-700',  bg: 'bg-orange-50' },
@@ -12644,7 +12644,7 @@ const PharmacyWorkspace = ({ user }) => {
                                     </td>
                                     <td className="py-3 px-3 font-black text-slate-900 text-[11px]">{row.purchaseQuantity ?? row.quantity ?? '—'}</td>
                                     <td className="py-3 px-3">
-                                      <span className={`font-black text-[11px] ${(row.availableStock ?? 0) === 0 ? 'text-red-400' : 'text-emerald-700'}`}>
+                                      <span className={`font-black text-[11px] ${(row.availableStock ?? 0) === 0 ? 'text-red-400' : 'text-blue-700'}`}>
                                         {row.availableStock ?? row.quantity ?? '—'}
                                       </span>
                                     </td>
@@ -12866,7 +12866,7 @@ const PharmacyWorkspace = ({ user }) => {
                         {/* KPI Cards */}
                         <div className="grid grid-cols-4 gap-3">
                           {[
-                            { label: 'Available Stock', value: getAvailableStock(selectedInventoryMedicine), cls: 'text-emerald-700' },
+                            { label: 'Available Stock', value: getAvailableStock(selectedInventoryMedicine), cls: 'text-blue-700' },
                             { label: 'Reserved',   value: 0, cls: 'text-slate-500' },
                             { label: 'Active Batches', value: getActiveBatches(selectedInventoryMedicine).length, cls: 'text-blue-700' },
                             { label: 'Total Batches',  value: (selectedInventoryMedicine.batches||[]).length, cls: 'text-slate-700' },
@@ -13098,7 +13098,7 @@ const PharmacyWorkspace = ({ user }) => {
                                           {b.isActive === false && <span className="ml-1 text-[8px] bg-slate-100 text-slate-400 font-extrabold px-1 rounded">Inactive</span>}
                                         </td>
                                         <td className="py-2.5 px-3 font-bold text-slate-600">{b.purchaseQuantity ?? b.quantity ?? '—'}</td>
-                                        <td className="py-2.5 px-3 font-black text-emerald-700">{b.availableStock ?? b.quantity ?? '—'}</td>
+                                        <td className="py-2.5 px-3 font-black text-blue-700">{b.availableStock ?? b.quantity ?? '—'}</td>
                                         <td className="py-2.5 px-3 text-slate-600">
                                           {b.expiryDate ? new Date(b.expiryDate).toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric'}) : '—'}
                                         </td>
@@ -13131,7 +13131,7 @@ const PharmacyWorkspace = ({ user }) => {
                                               className={`px-1.5 py-1 text-[9px] font-black rounded-lg transition-colors border ${
                                                 b.isActive !== false
                                                   ? 'border-amber-200 text-amber-600 hover:bg-amber-50'
-                                                  : 'border-emerald-200 text-emerald-600 hover:bg-emerald-50'
+                                                  : 'border-blue-200 text-blue-600 hover:bg-blue-50'
                                               }`}
                                             >
                                               {b.isActive !== false ? 'Deactivate' : 'Activate'}
@@ -13331,7 +13331,7 @@ const PharmacyWorkspace = ({ user }) => {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {[
                     { label: "Today's Sales", val: `₹${(salesStats.dailyAmounts[6]?.amount || 0).toLocaleString('en-IN')}`, pct: "+18.6%", color: "text-blue-600 bg-blue-50 border-blue-100", icon: "💰" },
-                    { label: "Monthly Sales", val: `₹${salesStats.grossRevenue.toLocaleString('en-IN')}`, pct: "+14.2%", color: "text-emerald-600 bg-emerald-50 border-emerald-100", icon: "📈" },
+                    { label: "Monthly Sales", val: `₹${salesStats.grossRevenue.toLocaleString('en-IN')}`, pct: "+14.2%", color: "text-blue-600 bg-blue-50 border-blue-100", icon: "📈" },
                     { label: "Average Order Value", val: `₹${salesStats.avgBasket.toFixed(0)}`, pct: "+11.3%", color: "text-amber-600 bg-amber-50 border-amber-100", icon: "🛒" },
                     { label: "Gross Profit", val: `₹${(salesStats.netProfit).toFixed(0)}`, pct: "30.0% Margin", color: "text-purple-600 bg-purple-50 border-purple-100", icon: "💎" },
                   ].map((card, idx) => (
@@ -13439,7 +13439,7 @@ const PharmacyWorkspace = ({ user }) => {
                               </td>
                               <td className="p-4 whitespace-nowrap">{sale.date}</td>
                               <td className="p-4">
-                                <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${sale.type === 'Prescription' ? 'bg-purple-50 text-purple-600 border border-purple-100' : 'bg-emerald-50 text-emerald-600 border border-emerald-100'}`}>
+                                <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${sale.type === 'Prescription' ? 'bg-purple-50 text-purple-600 border border-purple-100' : 'bg-blue-50 text-blue-600 border border-blue-100'}`}>
                                   {sale.type}
                                 </span>
                               </td>
@@ -13448,7 +13448,7 @@ const PharmacyWorkspace = ({ user }) => {
                               <td className="p-4 font-bold text-slate-600">{sale.paymentMode}</td>
                               <td className="p-4">
                                 <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase ${
-                                  sale.status === 'Completed' || sale.status === 'Paid' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
+                                  sale.status === 'Completed' || sale.status === 'Paid' ? 'bg-blue-50 text-blue-600 border border-blue-100' :
                                   sale.status === 'Cancelled' ? 'bg-red-50 text-red-500 border border-red-100' :
                                   'bg-amber-50 text-amber-600 border border-amber-100'
                                 }`}>
@@ -13718,7 +13718,7 @@ const PharmacyWorkspace = ({ user }) => {
                     <span>Total Invoices</span>
                     <span className="font-black text-slate-800">{salesStats.totalCount}</span>
                   </div>
-                  <div className="flex justify-between text-emerald-600">
+                  <div className="flex justify-between text-blue-600">
                     <span>Paid Amount</span>
                     <span className="font-black">₹{salesStats.grossRevenue.toLocaleString('en-IN')}</span>
                   </div>
@@ -13736,11 +13736,11 @@ const PharmacyWorkspace = ({ user }) => {
                   <svg width="80" height="80" viewBox="0 0 80 80">
                     <circle cx="40" cy="40" r="30" fill="transparent" stroke="#f1f5f9" strokeWidth="8" />
                     <circle cx="40" cy="40" r="30" fill="transparent" stroke="#3b82f6" strokeWidth="8" strokeDasharray="120 188" strokeDashoffset="0" />
-                    <circle cx="40" cy="40" r="30" fill="transparent" stroke="#10b981" strokeWidth="8" strokeDasharray="68 188" strokeDashoffset="-120" />
+                    <circle cx="40" cy="40" r="30" fill="transparent" stroke="#2563EB" strokeWidth="8" strokeDasharray="68 188" strokeDashoffset="-120" />
                   </svg>
                   <div className="text-[10px] space-y-1 font-bold">
                     <div className="flex items-center gap-1.5"><span className="w-2 h-2 bg-blue-500 rounded-full"></span> UPI ({salesStats.rxPct}%)</div>
-                    <div className="flex items-center gap-1.5"><span className="w-2 h-2 bg-emerald-500 rounded-full"></span> Cash ({salesStats.walkinPct}%)</div>
+                    <div className="flex items-center gap-1.5"><span className="w-2 h-2 bg-blue-500 rounded-full"></span> Cash ({salesStats.walkinPct}%)</div>
                   </div>
                 </div>
               </div>
@@ -13869,7 +13869,7 @@ const PharmacyWorkspace = ({ user }) => {
                           </div>
                           <div className="text-right">
                             <p className="text-xs font-black text-slate-905">₹{med.revenue.toLocaleString('en-IN')}</p>
-                            <span className="text-[8px] text-emerald-600 font-bold flex items-center justify-end gap-0.5">
+                            <span className="text-[8px] text-blue-600 font-bold flex items-center justify-end gap-0.5">
                               <ArrowUpRight size={8} /> Rise
                             </span>
                           </div>
@@ -14001,7 +14001,7 @@ const PharmacyWorkspace = ({ user }) => {
                 <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100/50 space-y-1 font-bold text-slate-600">
                   <p>Name: <span className="text-slate-800 font-black">{selectedSaleDetail.patientName}</span></p>
                   <p>Customer Type: <span className="text-slate-800 font-black">{selectedSaleDetail.type} Client</span></p>
-                  <p>Status: <span className="text-emerald-600 font-black">Verified Verified</span></p>
+                  <p>Status: <span className="text-blue-600 font-black">Verified Verified</span></p>
                 </div>
               </div>
 
@@ -14009,7 +14009,7 @@ const PharmacyWorkspace = ({ user }) => {
                 <h4 className="font-black text-slate-800 uppercase tracking-wider text-[10px]">Payment Details</h4>
                 <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100/50 space-y-1 font-bold text-slate-600">
                   <p>Method: <span className="text-slate-800 font-black">{selectedSaleDetail.paymentMode}</span></p>
-                  <p>Billing Status: <span className="text-emerald-600 font-black">{selectedSaleDetail.status}</span></p>
+                  <p>Billing Status: <span className="text-blue-600 font-black">{selectedSaleDetail.status}</span></p>
                   <p>Amount Charged: <span className="text-slate-800 font-black">₹{selectedSaleDetail.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span></p>
                 </div>
               </div>
@@ -14334,7 +14334,7 @@ const PharmacyWorkspace = ({ user }) => {
                     const medColor = [
                       'bg-violet-100 text-violet-600',
                       'bg-blue-100 text-blue-600',
-                      'bg-emerald-100 text-emerald-600',
+                      'bg-blue-100 text-blue-600',
                       'bg-amber-100 text-amber-600',
                       'bg-rose-100 text-rose-600',
                       'bg-cyan-100 text-cyan-600',
@@ -15305,7 +15305,7 @@ const PharmacyWorkspace = ({ user }) => {
                               <p className="text-[9px] text-slate-400 font-medium">{item.medicineId?.genericName || ''}</p>
                             </td>
                             <td className="py-3 px-2 text-center text-slate-850">{item.quantity}</td>
-                            <td className="py-3 px-2 text-center text-emerald-600">{item.receivedQuantity || 0}</td>
+                            <td className="py-3 px-2 text-center text-blue-600">{item.receivedQuantity || 0}</td>
                             <td className="py-3 px-2 text-right text-slate-500">₹{item.unitCost}</td>
                             <td className="py-3 pr-3 text-right text-slate-805">₹{(item.quantity * item.unitCost).toLocaleString()}</td>
                           </tr>
@@ -15353,7 +15353,7 @@ const PharmacyWorkspace = ({ user }) => {
                               </td>
                               <td className="py-3 px-2 text-slate-805">{p.paymentMethod}</td>
                               <td className="py-3 px-2 font-mono text-slate-500">{p.transactionReference || 'N/A'}</td>
-                              <td className="py-3 px-2 text-right text-emerald-600">₹{p.amountPaid.toLocaleString()}</td>
+                              <td className="py-3 px-2 text-right text-blue-600">₹{p.amountPaid.toLocaleString()}</td>
                               <td className="py-3 pr-3 text-right text-slate-805">₹{p.remainingBalance.toLocaleString()}</td>
                             </tr>
                           ))}
@@ -15673,7 +15673,7 @@ const PharmacyWorkspace = ({ user }) => {
               </button>
               <button
                 onClick={handleReceiveStockSubmit}
-                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition shadow-md shadow-emerald-100"
+                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black transition shadow-md shadow-blue-100"
               >
                 Receive &amp; Inward Stock
               </button>

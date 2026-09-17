@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { useFeatureAccess } from '../../hooks/useFeatureAccess';
 import PremiumFeaturePlaceholder from '../../components/PremiumFeaturePlaceholder';
 
@@ -83,7 +83,7 @@ const AiSuggestionsPanel = ({
     not_requested: 'bg-slate-700/60 text-slate-300',
     pending: 'bg-amber-500/20 text-amber-300 border border-amber-500/30',
     generated: 'bg-sky-500/20 text-sky-300 border border-sky-500/30',
-    accepted: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30',
+    accepted: 'bg-blue-500/20 text-blue-300 border border-blue-500/30',
     partially_accepted: 'bg-blue-500/20 text-blue-300 border border-blue-500/30',
     rejected: 'bg-red-500/20 text-red-300 border border-red-500/30',
     failed: 'bg-red-500/20 text-red-300 border border-red-500/30'
@@ -107,7 +107,7 @@ const AiSuggestionsPanel = ({
             </div>
           </div>
           {assistantFeature.isTrial && (
-            <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-bold bg-emerald-500/20 text-emerald-400 mr-2">
+            <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-bold bg-blue-500/20 text-blue-400 mr-2">
               ⭐ Trial: {assistantFeature.daysRemaining}d
             </span>
           )}
@@ -201,13 +201,13 @@ const AiSuggestionsPanel = ({
                   const isAccepted = selectionState.accepted.includes(s.condition);
                   const isRejected = selectionState.rejected.includes(s.condition);
                   return (
-                    <li key={s.condition} className={`flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-xs transition-all ${isAccepted ? 'bg-emerald-500/15 border border-emerald-500/30' : isRejected ? 'bg-red-500/10 border border-red-500/20' : 'bg-slate-800/40 border border-transparent'}`}>
+                    <li key={s.condition} className={`flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-xs transition-all ${isAccepted ? 'bg-blue-500/15 border border-blue-500/30' : isRejected ? 'bg-red-500/10 border border-red-500/20' : 'bg-slate-800/40 border border-transparent'}`}>
                       <div className="flex items-center gap-1.5 min-w-0">
-                        <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${isAccepted ? 'bg-emerald-400' : isRejected ? 'bg-red-400' : 'bg-slate-500'}`} />
+                        <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${isAccepted ? 'bg-blue-400' : isRejected ? 'bg-red-400' : 'bg-slate-500'}`} />
                         <span className="text-slate-200 truncate">{s.condition}</span>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
-                        <button type="button" onClick={() => toggleSelection('accepted', s.condition)} className={`w-5 h-5 rounded flex items-center justify-center text-[10px] transition-all ${isAccepted ? 'bg-emerald-500 text-white' : 'text-emerald-400 hover:bg-emerald-500/20'}`}>✓</button>
+                        <button type="button" onClick={() => toggleSelection('accepted', s.condition)} className={`w-5 h-5 rounded flex items-center justify-center text-[10px] transition-all ${isAccepted ? 'bg-blue-500 text-white' : 'text-blue-400 hover:bg-blue-500/20'}`}>✓</button>
                         <button type="button" onClick={() => toggleSelection('rejected', s.condition)} className={`w-5 h-5 rounded flex items-center justify-center text-[10px] transition-all ${isRejected ? 'bg-red-500 text-white' : 'text-red-400 hover:bg-red-500/20'}`}>✕</button>
                       </div>
                     </li>
@@ -215,7 +215,7 @@ const AiSuggestionsPanel = ({
                 })}
               </ul>
               {possibleConditions.length > 0 && (
-                <button type="button" className="mt-2 text-[10px] text-emerald-400 hover:underline">View more</button>
+                <button type="button" className="mt-2 text-[10px] text-blue-400 hover:underline">View more</button>
               )}
             </div>
           </div>
@@ -233,7 +233,7 @@ const AiSuggestionsPanel = ({
                   </li>
                 ))}
               </ul>
-              {recommendedLabs.length > 5 && <button type="button" className="mt-2 text-[10px] text-emerald-400 hover:underline">View more</button>}
+              {recommendedLabs.length > 5 && <button type="button" className="mt-2 text-[10px] text-blue-400 hover:underline">View more</button>}
             </div>
           </div>
         )}
@@ -270,7 +270,7 @@ const AiSuggestionsPanel = ({
             <div className="ai-panel-section">
               <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Doctor Comment</p>
               <textarea
-                className="w-full rounded-lg border border-slate-600/40 bg-slate-800/50 px-3 py-2 text-xs text-slate-200 outline-none transition-all focus:border-emerald-500/40 focus:ring-1 focus:ring-emerald-500/10 placeholder:text-slate-500 resize-none"
+                className="w-full rounded-lg border border-slate-600/40 bg-slate-800/50 px-3 py-2 text-xs text-slate-200 outline-none transition-all focus:border-blue-500/40 focus:ring-1 focus:ring-blue-500/10 placeholder:text-slate-500 resize-none"
                 rows={2}
                 value={selectionState.doctorComment}
                 onChange={(e) => setSelectionState((c) => ({ ...c, doctorComment: e.target.value }))}
@@ -308,7 +308,7 @@ const AiSuggestionsPanel = ({
                 type="button"
                 onClick={handleSubmitReview}
                 disabled={reviewLoading || !decision}
-                className="flex items-center justify-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-400 hover:bg-emerald-500/20 disabled:opacity-40 transition-all"
+                className="flex items-center justify-center gap-1.5 rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-xs font-medium text-blue-400 hover:bg-blue-500/20 disabled:opacity-40 transition-all"
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 13l4 4L19 7"/></svg>
                 {reviewLoading ? 'Saving...' : 'Save Review'}
@@ -321,7 +321,7 @@ const AiSuggestionsPanel = ({
               type="button"
               onClick={onComplete}
               disabled={completing}
-              className="flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 px-3 py-2.5 text-xs font-semibold text-white disabled:opacity-40 transition-all"
+              className="flex items-center justify-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 px-3 py-2.5 text-xs font-semibold text-white disabled:opacity-40 transition-all"
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
               {completing ? 'Completing...' : '✓ Complete Consultation'}

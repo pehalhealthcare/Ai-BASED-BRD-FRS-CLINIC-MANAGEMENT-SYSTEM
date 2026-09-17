@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import {
@@ -407,7 +407,7 @@ const ConsultationPage = () => {
       { label: 'SpO₂', val: (vitals.oxygenSaturation || vitals.spo2) ? `${vitals.oxygenSaturation || vitals.spo2} %` : '98 %', icon: '💨', color: 'text-teal-600' },
       { label: 'Weight', val: vitals.weight ? `${vitals.weight} kg` : '65 kg', icon: '⚖️', color: 'text-orange-600' },
       { label: 'Height', val: vitals.height ? `${vitals.height} cm` : '175 cm', icon: '📏', color: 'text-yellow-600' },
-      { label: 'BMI', val: calculateBMI(), unit: 'kg/m²', icon: '📊', color: 'text-emerald-600' },
+      { label: 'BMI', val: calculateBMI(), unit: 'kg/m²', icon: '📊', color: 'text-blue-600' },
       { label: 'Pain Score', val: `${vitals.painScore || '0'} /10`, icon: '😣', color: 'text-red-600' },
     ];
 
@@ -454,8 +454,8 @@ const ConsultationPage = () => {
               <span className="text-[10px] text-slate-400 uppercase font-black tracking-wider">Appointment Status</span>
               <div className="flex items-start gap-2 flex-col mt-1">
                 <div className="flex items-center gap-1.5">
-                  <span className="w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center text-white text-[9px] font-black">✓</span>
-                  <span className="text-base font-extrabold text-emerald-600">Completed</span>
+                  <span className="w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center text-white text-[9px] font-black">✓</span>
+                  <span className="text-base font-extrabold text-blue-600">Completed</span>
                 </div>
                 <span className="text-[10px] text-slate-400 font-medium">Consultation completed successfully</span>
                 {consult.editCompleted && (
@@ -487,7 +487,7 @@ const ConsultationPage = () => {
             <div className="flex flex-col gap-1">
               <span className="text-[10px] text-slate-400 uppercase font-black tracking-wider">Duration</span>
               <div className="flex items-center gap-1.5 mt-1">
-                <Clock className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                <Clock className="w-3.5 h-3.5 text-blue-500 shrink-0" />
                 <span className="text-sm font-extrabold text-slate-800">22 mins</span>
               </div>
             </div>
@@ -510,14 +510,14 @@ const ConsultationPage = () => {
                 <div key={idx} className="flex flex-col items-center flex-1 relative min-w-[120px]">
                   {/* Connector line */}
                   {idx < trackingSteps.length - 1 && (
-                    <div className={`absolute top-6 left-[calc(50%+20px)] right-0 h-0.5 ${step.done ? 'bg-emerald-400' : 'bg-slate-200'}`} />
+                    <div className={`absolute top-6 left-[calc(50%+20px)] right-0 h-0.5 ${step.done ? 'bg-blue-400' : 'bg-slate-200'}`} />
                   )}
                   {/* Icon circle */}
                   <div className={`w-12 h-12 rounded-full flex items-center justify-center text-xl z-10 border-2 ${
                     step.active
                       ? 'bg-indigo-600 border-indigo-600 shadow-lg shadow-indigo-200'
                       : step.done
-                        ? 'bg-emerald-50 border-emerald-400'
+                        ? 'bg-blue-50 border-blue-400'
                         : 'bg-slate-50 border-slate-200'
                   }`}>
                     {step.icon}
@@ -860,7 +860,7 @@ const ConsultationPage = () => {
                                   {h.completedAt ? new Date(h.completedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'}
                                 </span>
                               </div>
-                              <span className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-full font-bold">Completed</span>
+                              <span className="text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-full font-bold">Completed</span>
                             </div>
                           ))}
                         </div>
@@ -1035,7 +1035,7 @@ const ConsultationPage = () => {
                             <strong className="text-xs text-slate-800 font-bold">
                               {h.completedAt ? new Date(h.completedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'}
                             </strong>
-                            <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full font-bold">Completed</span>
+                            <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full font-bold">Completed</span>
                           </div>
                           <p className="text-[11px] text-slate-400 mt-0.5">{h.diagnosis?.primary || 'Consultation'}</p>
                         </div>
@@ -1081,7 +1081,7 @@ const ConsultationPage = () => {
                 setUpcomingSearchQuery(e.target.value);
                 setCompletedSearchQuery(e.target.value);
               }}
-              className="bg-[#111827] border border-gray-800 rounded-xl py-2 pl-10 pr-4 text-sm text-gray-200 focus:outline-none focus:border-emerald-500 w-64"
+              className="bg-[#111827] border border-gray-800 rounded-xl py-2 pl-10 pr-4 text-sm text-gray-200 focus:outline-none focus:border-blue-500 w-64"
             />
           </div>
 
@@ -1100,7 +1100,7 @@ const ConsultationPage = () => {
       {/* Metrics Banner */}
       <div className="mt-6 grid grid-cols-2 md:grid-cols-5 gap-4">
         {[
-          { label: 'Upcoming Today', count: upcomingTodayCount, sub: nextAppt ? `Next: ${nextAppt.startTime} - ${nextAppt.patientId?.fullName}` : 'None scheduled', icon: Calendar, color: 'text-emerald-400', border: 'border-emerald-500/20 bg-emerald-500/5' },
+          { label: 'Upcoming Today', count: upcomingTodayCount, sub: nextAppt ? `Next: ${nextAppt.startTime} - ${nextAppt.patientId?.fullName}` : 'None scheduled', icon: Calendar, color: 'text-blue-400', border: 'border-blue-500/20 bg-blue-500/5' },
           { label: 'Upcoming This Week', count: upcomingThisWeekCount, sub: 'Mon 23 Jun - Sun 29 Jun', icon: Clock, color: 'text-purple-400', border: 'border-purple-500/20 bg-purple-500/5' },
           { label: 'Completed This Week', count: completedThisWeekCount, sub: 'Mon 16 Jun - Sun 22 Jun', icon: CheckCircle, color: 'text-blue-400', border: 'border-blue-500/20 bg-blue-500/5' },
           { label: 'Total Completed', count: totalCompletedCount, sub: 'All time', icon: FileText, color: 'text-amber-400', border: 'border-amber-500/20 bg-amber-500/5' },
@@ -1124,7 +1124,7 @@ const ConsultationPage = () => {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-gray-800/80 pb-4">
           <div>
             <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-emerald-400" /> Upcoming Consultations
+              <Calendar className="w-5 h-5 text-blue-400" /> Upcoming Consultations
             </h2>
             <p className="text-xs text-gray-400 mt-0.5">Scheduled consultations not yet completed</p>
           </div>
@@ -1172,7 +1172,7 @@ const ConsultationPage = () => {
                     <td className="py-3 px-4 font-semibold text-white">{item.startTime || '09:00 AM'}</td>
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold text-xs">
+                        <div className="w-8 h-8 rounded-full bg-blue-500/10 text-blue-400 flex items-center justify-center font-bold text-xs">
                           {item.patientId?.fullName?.split(' ').map(n => n[0]).join('') || 'PT'}
                         </div>
                         <div>
@@ -1186,14 +1186,14 @@ const ConsultationPage = () => {
                     <td className="py-3 px-4">
                       <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${item.type?.toLowerCase() === 'follow-up'
                           ? 'bg-blue-500/10 text-blue-400'
-                          : 'bg-emerald-500/10 text-emerald-400'
+                          : 'bg-blue-500/10 text-blue-400'
                         }`}>
                         {item.type || 'In-Clinic'}
                       </span>
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-1.5">
-                        <div className={`w-1.5 h-1.5 rounded-full ${item.status === 'confirmed' ? 'bg-emerald-400' : 'bg-amber-400'
+                        <div className={`w-1.5 h-1.5 rounded-full ${item.status === 'confirmed' ? 'bg-blue-400' : 'bg-amber-400'
                           }`} />
                         <span className="text-xs font-semibold capitalize">{item.status || 'Confirmed'}</span>
                       </div>
@@ -1205,7 +1205,7 @@ const ConsultationPage = () => {
                           next.set('appointmentId', item._id);
                           setSearchParams(next);
                         }}
-                        className="bg-emerald-600/10 hover:bg-emerald-600/25 border border-emerald-500/30 text-emerald-400 rounded-xl p-2 transition inline-flex items-center justify-center"
+                        className="bg-blue-600/10 hover:bg-blue-600/25 border border-blue-500/30 text-blue-400 rounded-xl p-2 transition inline-flex items-center justify-center"
                       >
                         <ArrowRight className="w-4 h-4" />
                       </button>
@@ -1227,7 +1227,7 @@ const ConsultationPage = () => {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-gray-800/80 pb-4">
           <div>
             <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <CheckCircle className="w-5 h-5 text-emerald-400" /> Completed Consultations
+              <CheckCircle className="w-5 h-5 text-blue-400" /> Completed Consultations
             </h2>
             <p className="text-xs text-gray-400 mt-0.5">All previously completed consultations</p>
           </div>
@@ -1276,7 +1276,7 @@ const ConsultationPage = () => {
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold text-xs">
+                        <div className="w-8 h-8 rounded-full bg-blue-500/10 text-blue-400 flex items-center justify-center font-bold text-xs">
                           {item.patientId?.fullName?.split(' ').map(n => n[0]).join('') || 'PT'}
                         </div>
                         <div>
@@ -1290,7 +1290,7 @@ const ConsultationPage = () => {
                     <td className="py-3 px-4">
                       <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${item.type?.toLowerCase() === 'follow-up'
                           ? 'bg-blue-500/10 text-blue-400'
-                          : 'bg-emerald-500/10 text-emerald-400'
+                          : 'bg-blue-500/10 text-blue-400'
                         }`}>
                         {item.type || 'In-Clinic'}
                       </span>

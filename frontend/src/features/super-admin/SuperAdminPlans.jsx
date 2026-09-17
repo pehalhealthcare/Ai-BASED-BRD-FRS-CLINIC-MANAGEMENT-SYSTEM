@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { subscriptionApi } from '../../lib/api';
 import {
   Plus, Edit3, Copy, Archive, ToggleLeft, ToggleRight, RefreshCw,
@@ -226,7 +226,7 @@ const SuperAdminPlans = () => {
           <button onClick={loadPlans} className="flex items-center gap-1 px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-700 rounded-xl text-xs font-bold transition"><RefreshCw className="w-3 h-3" /> Retry</button>
         </div>
       )}
-      {success && <div className="mb-4 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm font-medium flex items-center gap-2"><Check className="w-4 h-4" />{success}</div>}
+      {success && <div className="mb-4 p-4 rounded-2xl bg-blue-50 border border-blue-200 text-blue-700 text-sm font-medium flex items-center gap-2"><Check className="w-4 h-4" />{success}</div>}
 
       {/* Plans Grid */}
       {loading ? (
@@ -279,7 +279,7 @@ const SuperAdminPlans = () => {
                     {!plan.isArchived && (
                       <button onClick={() => handleToggleActive(plan)} title={plan.isActive ? 'Disable' : 'Enable'}>
                         {plan.isActive
-                          ? <ToggleRight className="w-7 h-7 text-emerald-500" />
+                          ? <ToggleRight className="w-7 h-7 text-blue-500" />
                           : <ToggleLeft className="w-7 h-7 text-slate-300" />}
                       </button>
                     )}
@@ -444,7 +444,7 @@ const SuperAdminPlans = () => {
                     <p className="text-xs text-slate-400">Published on public pricing & register wizard.</p>
                   </div>
                   <button type="button" onClick={() => setEditingPlan(p => ({ ...p, isActive: !p.isActive }))} className="focus:outline-none">
-                    {editingPlan.isActive ? <ToggleRight className="w-8 h-8 text-emerald-500" /> : <ToggleLeft className="w-8 h-8 text-slate-300" />}
+                    {editingPlan.isActive ? <ToggleRight className="w-8 h-8 text-blue-500" /> : <ToggleLeft className="w-8 h-8 text-slate-300" />}
                   </button>
                 </div>
 

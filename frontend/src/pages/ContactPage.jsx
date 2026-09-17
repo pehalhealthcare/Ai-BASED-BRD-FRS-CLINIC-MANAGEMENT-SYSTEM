@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
@@ -475,7 +475,7 @@ export default function ContactPage() {
               <div className={`${isMobile ? 'w-6 h-6' : 'w-7 h-7 2xl:w-8 2xl:h-8'} rounded-lg bg-blue-50 border border-blue-100/80 text-[#0070F3] flex items-center justify-center shadow-xs`}>
                 <MessageCircle size={isMobile ? 12 : 14} />
               </div>
-              <span className="bg-emerald-50 border border-emerald-200 text-emerald-600 text-[7.5px] sm:text-[8px] 2xl:text-[9.5px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider">
+              <span className="bg-blue-50 border border-blue-200 text-blue-600 text-[7.5px] sm:text-[8px] 2xl:text-[9.5px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider">
                 ONLINE
               </span>
             </div>
@@ -608,12 +608,12 @@ export default function ContactPage() {
             animate={{ opacity: 1, scale: 1 }}
             className="py-8 sm:py-10 text-center space-y-4"
           >
-            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-emerald-50 border-2 border-emerald-400 text-emerald-600 flex items-center justify-center mx-auto shadow-md shadow-emerald-500/15">
+            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-blue-50 border-2 border-blue-400 text-blue-600 flex items-center justify-center mx-auto shadow-md shadow-blue-500/15">
               <CheckCircle2 size={30} />
             </div>
 
             <div className="space-y-2">
-              <span className="text-[10px] sm:text-[11px] 2xl:text-xs font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full inline-block">
+              <span className="text-[10px] sm:text-[11px] 2xl:text-xs font-black uppercase tracking-wider text-blue-700 bg-blue-50 border border-blue-200 px-3 py-1 rounded-full inline-block">
                 MESSAGE SENT SUCCESSFULLY • {successInfo.ticketId}
               </span>
               <h3 className="text-xl sm:text-2xl 2xl:text-3xl font-black text-[#0B1E3B]">

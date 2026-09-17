@@ -1,4 +1,4 @@
-import { clsx } from 'clsx';
+﻿import { clsx } from 'clsx';
 
 /**
  * Avatar — user avatar with image support and fallback initials.
@@ -30,7 +30,7 @@ const Avatar = ({ src, name, size = 'md', className, onClick }) => {
   // Generate a consistent color from name
   const getColor = (name) => {
     const colors = [
-      'from-aura-500 to-aura-600',
+      'from-blue-500 to-blue-600',
       'from-indigo-500 to-indigo-600',
       'from-violet-500 to-purple-600',
       'from-rose-500 to-pink-600',
@@ -49,7 +49,7 @@ const Avatar = ({ src, name, size = 'md', className, onClick }) => {
       className={clsx(
         'relative inline-flex shrink-0 items-center justify-center rounded-full overflow-hidden select-none',
         sizeMap[size],
-        onClick && 'cursor-pointer ring-2 ring-offset-2 ring-transparent hover:ring-aura-500 transition',
+        onClick && 'cursor-pointer ring-2 ring-offset-2 ring-transparent hover:ring-blue-500 transition',
         !src && `bg-gradient-to-br ${getColor(name)} text-white font-semibold`,
         className
       )}

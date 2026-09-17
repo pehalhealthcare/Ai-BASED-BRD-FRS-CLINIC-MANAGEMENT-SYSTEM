@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   ShieldCheck, AlertTriangle, CheckCircle2, Building2,
@@ -160,11 +160,11 @@ export default function PublicReportVerificationPage() {
             <div className={`p-6 sm:p-7 border-b ${
               data.isSuperseded
                 ? 'bg-amber-50/80 border-amber-200 text-amber-900'
-                : 'bg-emerald-50/80 border-emerald-200 text-emerald-950'
+                : 'bg-blue-50/80 border-blue-200 text-blue-950'
             }`}>
               <div className="flex items-start gap-4">
                 <div className={`h-12 w-12 rounded-2xl flex items-center justify-center shrink-0 ${
-                  data.isSuperseded ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
+                  data.isSuperseded ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
                 }`}>
                   <CheckCircle2 size={26} />
                 </div>
@@ -176,7 +176,7 @@ export default function PublicReportVerificationPage() {
                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-black border ${
                       data.isSuperseded
                         ? 'bg-amber-100 text-amber-800 border-amber-300'
-                        : 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                        : 'bg-blue-100 text-blue-800 border-blue-300'
                     }`}>
                       Version {data.version}.0
                     </span>
@@ -203,7 +203,7 @@ export default function PublicReportVerificationPage() {
 
                 <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-1">
                   <span className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">Verification Status</span>
-                  <p className="font-bold text-emerald-700 flex items-center gap-1.5">
+                  <p className="font-bold text-blue-700 flex items-center gap-1.5">
                     <ShieldCheck size={14} />
                     <span>{data.status === 'SUPERSEDED' ? 'Superseded by Revision' : 'Officially Valid & Authentic'}</span>
                   </p>

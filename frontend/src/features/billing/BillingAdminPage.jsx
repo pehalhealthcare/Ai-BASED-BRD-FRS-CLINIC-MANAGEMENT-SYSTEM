@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback } from 'react';
+﻿import { useEffect, useState, useMemo, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Plus, Search, Download, ChevronDown, RefreshCw,
@@ -21,12 +21,12 @@ const fmtShortDate = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: '
 
 /* ─── Status configs ─────────────────────────────────── */
 const PAYMENT_STATUS = {
-  paid:      { label: 'Paid',      cls: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: CheckCircle2 },
+  paid:      { label: 'Paid',      cls: 'bg-blue-50 text-blue-700 border-blue-200', icon: CheckCircle2 },
   partial:   { label: 'Partial',   cls: 'bg-blue-50 text-blue-700 border-blue-200',          icon: Clock },
   unpaid:    { label: 'Unpaid',    cls: 'bg-amber-50 text-amber-700 border-amber-200',       icon: AlertCircle },
   refunded:  { label: 'Refunded',  cls: 'bg-purple-50 text-purple-700 border-purple-200',   icon: RotateCcw },
   cancelled: { label: 'Cancelled', cls: 'bg-rose-50 text-rose-700 border-rose-200',          icon: XCircle },
-  PAID:      { label: 'Paid',      cls: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: CheckCircle2 },
+  PAID:      { label: 'Paid',      cls: 'bg-blue-50 text-blue-700 border-blue-200', icon: CheckCircle2 },
   PENDING:   { label: 'Pending',   cls: 'bg-amber-50 text-amber-700 border-amber-200',       icon: Clock },
   CANCELLED: { label: 'Cancelled', cls: 'bg-rose-50 text-rose-700 border-rose-200',          icon: XCircle },
   REFUNDED:  { label: 'Refunded',  cls: 'bg-purple-50 text-purple-700 border-purple-200',   icon: RotateCcw },
@@ -35,12 +35,12 @@ const PAYMENT_STATUS = {
 const SERVICE_TYPE = {
   CONSULTATION: { label: 'Consultation', cls: 'bg-violet-50 text-violet-700' },
   LAB:          { label: 'Laboratory',   cls: 'bg-sky-50 text-sky-700' },
-  PHARMACY:     { label: 'Pharmacy',     cls: 'bg-emerald-50 text-emerald-700' },
+  PHARMACY:     { label: 'Pharmacy',     cls: 'bg-blue-50 text-blue-700' },
   other:        { label: 'Other',        cls: 'bg-slate-100 text-slate-600' },
 };
 
 /* ─── Sparkline ──────────────────────────────────────── */
-const Sparkline = ({ color = '#10b981', up = true }) => {
+const Sparkline = ({ color = '#2563EB', up = true }) => {
   const pts = (up
     ? [4, 10, 7, 14, 9, 17, 13]
     : [16, 12, 14, 9, 11, 7, 5]
@@ -63,7 +63,7 @@ const StatCard = ({ label, value, sub, icon: Icon, color, up = true }) => (
     </div>
     <p className="text-2xl font-black text-slate-900 tracking-tight leading-tight">{value}</p>
     <p className="text-xs font-semibold text-slate-500">{label}</p>
-    {sub && <p className={`text-[11px] font-semibold ${up ? 'text-emerald-600' : 'text-rose-500'}`}>{sub}</p>}
+    {sub && <p className={`text-[11px] font-semibold ${up ? 'text-blue-600' : 'text-rose-500'}`}>{sub}</p>}
   </div>
 );
 
@@ -225,7 +225,7 @@ const BillingAdminPage = () => {
 
   /* ── Revenue by type segments ────────────── */
   const revenueSegments = useMemo(() => {
-    const COLORS = { CONSULTATION: '#8b5cf6', LAB: '#0ea5e9', PHARMACY: '#10b981', other: '#94a3b8' };
+    const COLORS = { CONSULTATION: '#8b5cf6', LAB: '#0ea5e9', PHARMACY: '#2563EB', other: '#94a3b8' };
     return Object.entries(stats.byType).map(([key, value]) => ({
       label: SERVICE_TYPE[key]?.label || key,
       value,
@@ -314,7 +314,7 @@ const BillingAdminPage = () => {
       {/* ── Stats Row ────────────────────────────── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-4">
         <StatCard label="Total Invoices (This Month)" value={fmtNum(stats.total)} sub={`↑ 18% vs last month`} icon={Receipt} color="#6366f1" />
-        <StatCard label="Paid Invoices" value={fmtNum(stats.paid)} sub={`↑ 22% vs last month`} icon={CheckCircle2} color="#10b981" />
+        <StatCard label="Paid Invoices" value={fmtNum(stats.paid)} sub={`↑ 22% vs last month`} icon={CheckCircle2} color="#2563EB" />
         <StatCard label="Pending Invoices" value={fmtNum(stats.pending)} sub={`↑ ${stats.pending} pending`} icon={AlertCircle} color="#f59e0b" up={false} />
         <StatCard label="Total Revenue (This Month)" value={fmt(stats.totalRevenue)} sub={`↑ 15% vs last month`} icon={IndianRupee} color="#0ea5e9" />
         <StatCard label="Outstanding Amount" value={fmt(stats.outstanding)} sub={`↓ 10% vs last month`} icon={TrendingUp} color="#ef4444" up={false} />
@@ -471,7 +471,7 @@ const BillingAdminPage = () => {
 
                       {/* Paid */}
                       <td className="px-4 py-3.5">
-                        <p className={`text-sm font-semibold ${inv.paidAmount > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
+                        <p className={`text-sm font-semibold ${inv.paidAmount > 0 ? 'text-blue-600' : 'text-slate-400'}`}>
                           {fmt(inv.paidAmount)}
                         </p>
                       </td>
@@ -569,7 +569,7 @@ const BillingAdminPage = () => {
             <div className="space-y-2.5">
               {[
                 { label: 'Total Invoices',    val: fmtNum(stats.total),    color: '#6366f1' },
-                { label: 'Paid Invoices',     val: fmtNum(stats.paid),     color: '#10b981' },
+                { label: 'Paid Invoices',     val: fmtNum(stats.paid),     color: '#2563EB' },
                 { label: 'Pending Invoices',  val: fmtNum(stats.pending),  color: '#f59e0b' },
                 { label: 'Cancelled',         val: fmtNum(stats.cancelled), color: '#ef4444' },
               ].map(row => (
@@ -643,7 +643,7 @@ const BillingAdminPage = () => {
                     <p className="text-xs font-bold text-slate-800 truncate">{patientName(inv)}</p>
                     <p className="text-[10px] text-slate-400">{inv.invoiceNumber} · {fmtShortDate(inv.updatedAt || inv.createdAt)}</p>
                   </div>
-                  <span className="text-xs font-extrabold text-emerald-600 shrink-0">{fmt(inv.paidAmount)}</span>
+                  <span className="text-xs font-extrabold text-blue-600 shrink-0">{fmt(inv.paidAmount)}</span>
                 </div>
               ))}
             </div>

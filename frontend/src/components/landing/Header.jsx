@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
   Search, LogIn, Menu, X, ArrowRight, User, Building2, 
@@ -291,10 +291,10 @@ export default function Header({
                     <Link
                       to="/login?type=staff"
                       onClick={() => setIsLoginDropdownOpen(false)}
-                      className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl hover:bg-emerald-50/80 text-slate-700 hover:text-emerald-700 text-xs sm:text-sm font-medium transition"
+                      className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl hover:bg-blue-50/80 text-slate-700 hover:text-blue-700 text-xs sm:text-sm font-medium transition"
                     >
-                      <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center shrink-0">
-                        <Stethoscope size={16} className="text-emerald-600" />
+                      <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
+                        <Stethoscope size={16} className="text-blue-600" />
                       </div>
                       <div>
                         <div className="font-semibold text-slate-900 leading-tight">Doctor & Staff</div>
@@ -412,9 +412,9 @@ export default function Header({
                   <Link
                     to="/login?type=staff"
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className="flex items-center gap-2.5 p-3 rounded-xl bg-slate-50 border border-slate-200/90 text-slate-700 text-xs font-semibold min-h-[44px] hover:bg-emerald-50"
+                    className="flex items-center gap-2.5 p-3 rounded-xl bg-slate-50 border border-slate-200/90 text-slate-700 text-xs font-semibold min-h-[44px] hover:bg-blue-50"
                   >
-                    <Stethoscope size={16} className="text-emerald-600 shrink-0" />
+                    <Stethoscope size={16} className="text-blue-600 shrink-0" />
                     <span>Doctor & Staff</span>
                   </Link>
                   <Link

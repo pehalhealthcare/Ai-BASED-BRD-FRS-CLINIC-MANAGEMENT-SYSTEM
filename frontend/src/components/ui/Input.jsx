@@ -1,4 +1,4 @@
-import { forwardRef } from 'react';
+﻿import { forwardRef } from 'react';
 import { clsx } from 'clsx';
 
 /**
@@ -51,7 +51,7 @@ const Input = forwardRef(function Input(
             // Default border
             !error && !success && [
               'border-slate-200 dark:border-white/10',
-              'focus:border-aura-500 focus:ring-aura-500/25',
+              'focus:border-blue-500 focus:ring-blue-500/25',
             ],
 
             // Error state
@@ -63,8 +63,8 @@ const Input = forwardRef(function Input(
 
             // Success state
             success && [
-              'border-aura-400 dark:border-aura-500/50',
-              'focus:border-aura-500 focus:ring-aura-500/20',
+              'border-blue-400 dark:border-blue-500/50',
+              'focus:border-blue-500 focus:ring-blue-500/20',
             ],
 
             prefix && 'pl-10',

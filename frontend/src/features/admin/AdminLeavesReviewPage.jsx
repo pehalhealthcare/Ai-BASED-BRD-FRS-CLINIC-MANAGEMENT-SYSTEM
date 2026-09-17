@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { leaveApi } from '../../lib/api';
 import PageHeader from '../../components/layout/PageHeader';
@@ -97,7 +97,7 @@ const AdminLeavesReviewPage = () => {
                 onClick={() => setActiveTab('pending')}
                 className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
                   activeTab === 'pending'
-                    ? 'bg-white dark:bg-navy-900 text-emerald-600 shadow-sm'
+                    ? 'bg-white dark:bg-navy-900 text-blue-600 shadow-sm'
                     : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white'
                 }`}
               >
@@ -108,7 +108,7 @@ const AdminLeavesReviewPage = () => {
                 onClick={() => setActiveTab('history')}
                 className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
                   activeTab === 'history'
-                    ? 'bg-white dark:bg-navy-900 text-emerald-600 shadow-sm'
+                    ? 'bg-white dark:bg-navy-900 text-blue-600 shadow-sm'
                     : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white'
                 }`}
               >
@@ -128,12 +128,12 @@ const AdminLeavesReviewPage = () => {
         }
       />
 
-      {success && <p className="p-4 rounded-2xl bg-emerald-50 text-emerald-800 text-sm font-semibold border border-emerald-100">{success}</p>}
+      {success && <p className="p-4 rounded-2xl bg-blue-50 text-blue-800 text-sm font-semibold border border-blue-100">{success}</p>}
       {error && <p className="p-4 rounded-2xl bg-rose-50 text-rose-800 text-sm font-semibold border border-rose-100">{error}</p>}
 
       {loading ? (
         <div className="py-12 flex justify-center items-center">
-          <CheckCircle2 size={32} className="animate-spin text-emerald-500" />
+          <CheckCircle2 size={32} className="animate-spin text-blue-500" />
         </div>
       ) : visibleLeaves.length === 0 ? (
         <div className="text-center py-12 border border-dashed border-stone-200 dark:border-white/[0.08] rounded-2xl">
@@ -149,7 +149,7 @@ const AdminLeavesReviewPage = () => {
             >
               <div>
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/40 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
                     <User size={18} />
                   </div>
                   <div>
@@ -206,7 +206,7 @@ const AdminLeavesReviewPage = () => {
                     <button
                       onClick={() => handleReview(l._id, 'approved')}
                       disabled={actionLoading}
-                      className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-xs font-bold text-white shadow-sm transition cursor-pointer"
+                      className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-xs font-bold text-white shadow-sm transition cursor-pointer"
                     >
                       Approve
                     </button>
@@ -214,7 +214,7 @@ const AdminLeavesReviewPage = () => {
                 ) : (
                   <div className="flex items-center gap-2">
                     <span className={`text-xs font-bold uppercase tracking-wider ${
-                      l.status === 'approved' ? 'text-emerald-500' : l.status === 'rejected' ? 'text-rose-500' : 'text-stone-500'
+                      l.status === 'approved' ? 'text-blue-500' : l.status === 'rejected' ? 'text-rose-500' : 'text-stone-500'
                     }`}>
                       {l.status}
                     </span>
@@ -253,7 +253,7 @@ const AdminLeavesReviewPage = () => {
                   key: 'reassign',
                   label: 'Assign Alternate Doctor (Best)',
                   desc: 'Search for another active cardiologist / specialist in this clinic and reassign slots automatically.',
-                  icon: <ArrowLeftRight className="text-emerald-500" size={16} />
+                  icon: <ArrowLeftRight className="text-blue-500" size={16} />
                 },
                 {
                   key: 'reschedule',
@@ -272,7 +272,7 @@ const AdminLeavesReviewPage = () => {
                   key={item.key}
                   className={`flex items-start gap-3 p-3 border rounded-2xl cursor-pointer select-none transition-all ${
                     policy === item.key
-                      ? 'bg-emerald-50/50 border-emerald-300 dark:bg-emerald-950/20 dark:border-emerald-900'
+                      ? 'bg-blue-50/50 border-blue-300 dark:bg-blue-950/20 dark:border-blue-900'
                       : 'bg-transparent border-stone-200 dark:border-white/[0.04]'
                   }`}
                 >
@@ -281,7 +281,7 @@ const AdminLeavesReviewPage = () => {
                     name="policy"
                     checked={policy === item.key}
                     onChange={() => setPolicy(item.key)}
-                    className="text-emerald-600 focus:ring-emerald-500 h-4 w-4 mt-0.5"
+                    className="text-blue-600 focus:ring-blue-500 h-4 w-4 mt-0.5"
                   />
                   <div>
                     <div className="flex items-center gap-1.5">
@@ -305,7 +305,7 @@ const AdminLeavesReviewPage = () => {
               <button
                 onClick={() => handleReview(confirmApprove._id, 'approved')}
                 disabled={actionLoading}
-                className="px-5 py-2.5 rounded-xl bg-emerald-600 text-xs font-bold text-white hover:bg-emerald-700 shadow-md transition cursor-pointer"
+                className="px-5 py-2.5 rounded-xl bg-blue-600 text-xs font-bold text-white hover:bg-blue-700 shadow-md transition cursor-pointer"
               >
                 {actionLoading ? 'Processing...' : 'Approve & Resolve'}
               </button>

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo } from 'react';
+﻿import { useEffect, useRef, useState, useMemo } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   Calendar, Clock, Filter, Eye, Printer, FileText, ChevronLeft, ChevronRight,
@@ -466,7 +466,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                 } else if (status === 'past') {
                   classes += "text-slate-300 cursor-not-allowed ";
                 } else if (status === 'available') {
-                  classes += "text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-250/70 ";
+                  classes += "text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-250/70 ";
                 } else if (status === 'unavailable') {
                   classes += "text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-250/70 ";
                 } else {
@@ -487,7 +487,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                   >
                     {dateObj.getDate()}
                     {!isSelected && status !== 'past' && (
-                      <span className={`absolute bottom-1 w-1 h-1 rounded-full ${status === 'available' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                      <span className={`absolute bottom-1 w-1 h-1 rounded-full ${status === 'available' ? 'bg-blue-500' : 'bg-rose-500'}`} />
                     )}
                   </button>
                 );
@@ -2653,7 +2653,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                 {/* Meeting Stats Header */}
                 <div className="absolute top-4 left-4 z-20 flex items-center gap-2">
                   <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider flex items-center gap-1 ${
-                    connectionQuality === 'Excellent' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'
+                    connectionQuality === 'Excellent' ? 'bg-blue-500/20 text-blue-400' : 'bg-amber-500/20 text-amber-400'
                   }`}>
                     🟢 {connectionQuality} Connection
                   </span>
@@ -2687,7 +2687,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                   {!remoteStream && (
                     <div className="flex flex-col items-center justify-center text-center space-y-4 px-4 py-8 absolute inset-0">
                       <div className={`w-16 h-16 rounded-full border flex items-center justify-center ${
-                        callStatus === 'connected' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' :
+                        callStatus === 'connected' ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' :
                         callStatus === 'connecting' ? 'bg-amber-500/10 border-amber-500/20 text-amber-400' :
                         'bg-indigo-500/10 border-indigo-500/20 text-indigo-400'
                       }`}>
@@ -2695,7 +2695,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                       </div>
                       <h4 className="text-sm font-black text-white">Video Consultation Room</h4>
                       <div className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                        callStatus === 'connected' ? 'bg-emerald-500/15 text-emerald-400' :
+                        callStatus === 'connected' ? 'bg-blue-500/15 text-blue-400' :
                         callStatus === 'connecting' ? 'bg-amber-500/15 text-amber-400' :
                         callStatus === 'calling' ? 'bg-blue-500/15 text-blue-400' :
                         callStatus === 'reconnecting' ? 'bg-orange-500/15 text-orange-400' :
@@ -2744,7 +2744,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                       <p className="text-[9px] text-slate-300 font-extrabold uppercase tracking-wider">Your Video is Off</p>
                       <button
                         onClick={doctorStartSharingVideo}
-                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black uppercase tracking-wider rounded-xl shadow-md transition flex items-center gap-1.5"
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-black uppercase tracking-wider rounded-xl shadow-md transition flex items-center gap-1.5"
                       >
                         📹 Share My Video
                       </button>
@@ -3017,7 +3017,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
 
             <p className="text-[10px] text-slate-455 font-semibold flex items-center justify-between mt-1">
               {ambientTranscriptReady ? (
-                <span className="text-emerald-600 font-bold flex items-center gap-1">
+                <span className="text-blue-600 font-bold flex items-center gap-1">
                   ✅ Whisper transcription complete! Fields auto-filled from AI. Review and edit as needed.
                 </span>
               ) : (
@@ -3163,14 +3163,14 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
               <button
                 onClick={handleComplete}
                 disabled={completing}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {completing ? 'Completing...' : (editMode ? 'Complete Edit' : 'Complete Consultation')}
               </button>
             </>
           ) : (
-            <span className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-xs font-bold">
-              <Check size={14} className="text-emerald-500" /> Consultation Completed
+            <span className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-50 border border-blue-200 text-blue-700 rounded-xl text-xs font-bold">
+              <Check size={14} className="text-blue-500" /> Consultation Completed
             </span>
           )}
         </div>
@@ -3202,15 +3202,15 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                 <div className="space-y-3.5 text-xs">
                   <div className="flex justify-between items-center border-b border-slate-100 pb-2">
                     <div><strong className="text-slate-850">CBC</strong><span className="text-[10px] text-slate-400 block mt-0.5">10 Jul 2026</span></div>
-                    <span className="text-[10px] text-emerald-600 font-extrabold">Completed</span>
+                    <span className="text-[10px] text-blue-600 font-extrabold">Completed</span>
                   </div>
                   <div className="flex justify-between items-center border-b border-slate-100 pb-2">
                     <div><strong className="text-slate-850">Lipid Profile</strong><span className="text-[10px] text-slate-400 block mt-0.5">02 May 2026</span></div>
-                    <span className="text-[10px] text-emerald-600 font-extrabold">Completed</span>
+                    <span className="text-[10px] text-blue-600 font-extrabold">Completed</span>
                   </div>
                   <div className="flex justify-between items-center pb-1">
                     <div><strong className="text-slate-850">TSH</strong><span className="text-[10px] text-slate-400 block mt-0.5">15 Feb 2026</span></div>
-                    <span className="text-[10px] text-emerald-600 font-extrabold">Completed</span>
+                    <span className="text-[10px] text-blue-600 font-extrabold">Completed</span>
                   </div>
                   <button className="w-full py-2 bg-slate-50 hover:bg-slate-105 text-slate-600 font-bold border border-slate-200 rounded-xl text-center transition">View All Reports</button>
                 </div>
@@ -3248,7 +3248,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                     }}
                     className={`w-full text-left py-2 px-3 rounded-lg font-bold flex justify-between ${workspaceTab === 'Chronic Conditions' ? 'bg-indigo-50 border-l-2 border-indigo-650 text-indigo-707 font-extrabold' : 'hover:bg-slate-50 text-slate-650'}`}
                   >
-                    Chronic Conditions ({patient?.chronicConditions?.length || 2}) <span className="bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded text-[10px] font-black">{patient?.chronicConditions?.length || 2}</span>
+                    Chronic Conditions ({patient?.chronicConditions?.length || 2}) <span className="bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded text-[10px] font-black">{patient?.chronicConditions?.length || 2}</span>
                   </button>
                   <button
                     onClick={() => {
@@ -3530,8 +3530,8 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                   <div className="px-4 py-3 flex flex-col gap-2">
                     <div className="flex flex-wrap gap-2">
                       {pastMedicalHistory.map((condition) => (
-                        <span key={condition} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-full text-emerald-700 text-[10px] font-bold">
-                          <CheckCircle2 size={10} className="text-emerald-500" /> {condition}
+                        <span key={condition} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-full text-blue-700 text-[10px] font-bold">
+                          <CheckCircle2 size={10} className="text-blue-500" /> {condition}
                         </span>
                       ))}
                     </div>
@@ -3679,9 +3679,9 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                               setSocialHistory(updated);
                               setIsDirty(true);
                             }}
-                            className="w-3.5 h-3.5 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300"
+                            className="w-3.5 h-3.5 rounded text-blue-600 focus:ring-blue-500 border-slate-300"
                           />
-                          <span className={item.active ? 'text-emerald-700 font-bold' : 'text-slate-500'}>{item.label}</span>
+                          <span className={item.active ? 'text-blue-700 font-bold' : 'text-slate-500'}>{item.label}</span>
                         </label>
                       ))}
                     </div>
@@ -3810,8 +3810,8 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                 <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
                   <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-6 h-6 rounded-lg bg-emerald-50 flex items-center justify-center">
-                        <Heart size={12} className="text-emerald-500" />
+                      <div className="w-6 h-6 rounded-lg bg-blue-50 flex items-center justify-center">
+                        <Heart size={12} className="text-blue-500" />
                       </div>
                       <span className="text-sm font-bold text-slate-800">Vitals</span>
                       <span className="text-[10px] text-slate-400">Recorded at {new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
@@ -4199,7 +4199,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
 
                 {/* Header */}
                 <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-lg bg-emerald-50 flex items-center justify-center text-sm">🩺</div>
+                  <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center text-sm">🩺</div>
                   <span className="text-base font-bold text-slate-800">Diagnosis &amp; Clinical Impression</span>
                 </div>
 
@@ -4706,7 +4706,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                       key={f}
                       onClick={() => setLabSubFilter(f)}
                       className={`px-4 py-1.5 rounded-full text-xs font-bold border transition ${labSubFilter === f
-                          ? 'bg-emerald-500 border-emerald-500 text-white'
+                          ? 'bg-blue-500 border-blue-500 text-white'
                           : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
                         }`}
                     >
@@ -4794,7 +4794,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                                       <strong className="text-slate-800 block text-xs">{test.name}</strong>
                                       <span
                                         className={`text-[8px] px-1 py-0.2 rounded font-bold uppercase ${test.isAvailable
-                                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                            ? 'bg-blue-100 text-blue-800 border border-blue-200'
                                             : 'bg-rose-100 text-rose-800 border border-rose-200'
                                           }`}
                                       >
@@ -4882,7 +4882,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                                 const getProviderBadge = (source, provider) => {
                                   const s = (source || '').toUpperCase();
                                   if (s === 'CLINIC LABORATORY' || s.includes('CLINIC')) {
-                                    return 'bg-emerald-50 text-emerald-700 border border-emerald-200';
+                                    return 'bg-blue-50 text-blue-700 border border-blue-200';
                                   }
                                   if (s === 'LOCAL LABORATORY') {
                                     return 'bg-teal-50 text-teal-700 border border-teal-200';
@@ -4896,7 +4896,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                                 const getAvailabilityBadge = (avail) => {
                                   const a = (avail || '').toUpperCase();
                                   if (a === 'AVAILABLE' || (a.includes('AVAILABLE') && !a.includes('UN'))) {
-                                    return 'bg-emerald-100 text-emerald-800 border border-emerald-200';
+                                    return 'bg-blue-100 text-blue-800 border border-blue-200';
                                   }
                                   return 'bg-rose-100 text-rose-800 border border-rose-200';
                                 };
@@ -5118,7 +5118,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => setLabFastingRequired(!labFastingRequired)}
-                              className={`relative w-9 h-5 rounded-full transition-colors duration-200 ${labFastingRequired ? 'bg-emerald-500' : 'bg-slate-200'
+                              className={`relative w-9 h-5 rounded-full transition-colors duration-200 ${labFastingRequired ? 'bg-blue-500' : 'bg-slate-200'
                                 }`}
                             >
                               <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${labFastingRequired ? 'translate-x-4' : 'translate-x-0'
@@ -5147,7 +5147,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                                   name="labCollection"
                                   checked={labCollectionPref === opt}
                                   onChange={() => setLabCollectionPref(opt)}
-                                  className="accent-emerald-500"
+                                  className="accent-blue-500"
                                 />
                                 {opt}
                               </label>
@@ -5285,7 +5285,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                       key={subcat}
                       onClick={() => setProcedureSubFilter(subcat)}
                       className={`px-4 py-1.5 rounded-full text-xs font-bold border transition ${procedureSubFilter === subcat
-                          ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
+                          ? 'bg-blue-50 border-blue-300 text-blue-700'
                           : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-500'
                         }`}
                     >
@@ -5321,14 +5321,14 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                               setIsDirty(true);
                             }
                           }}
-                          className={`w-full text-left px-3 py-2.5 flex items-center gap-2.5 border-b border-slate-100 last:border-0 transition ${isAdded ? 'bg-emerald-50/60' : 'hover:bg-slate-50'}`}
+                          className={`w-full text-left px-3 py-2.5 flex items-center gap-2.5 border-b border-slate-100 last:border-0 transition ${isAdded ? 'bg-blue-50/60' : 'hover:bg-slate-50'}`}
                         >
                           <div className={`w-7 h-7 rounded-lg ${pItem.bg} flex items-center justify-center text-sm shrink-0`}>{pItem.icon}</div>
                           <div className="min-w-0 flex-1">
                             <p className="text-xs font-bold text-slate-800 leading-tight truncate">{pItem.name}</p>
                             <p className="text-[9px] text-slate-400 mt-0.5 leading-tight">{pItem.cat}</p>
                           </div>
-                          {isAdded && <Check size={11} className="text-emerald-500 shrink-0" />}
+                          {isAdded && <Check size={11} className="text-blue-500 shrink-0" />}
                         </button>
                       );
                     })}
@@ -5508,7 +5508,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                 {/* Header */}
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3 bg-white px-1">
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-sm">🥦</div>
+                    <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-sm">🥦</div>
                     <span className="text-base font-bold text-slate-800">Patient Advice &amp; Instructions</span>
                   </div>
                   <button className="px-3.5 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 flex items-center gap-1 hover:bg-slate-50 transition">
@@ -5530,7 +5530,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                     <button
                       key={tab.key}
                       onClick={() => setAdviceSubTab(tab.key)}
-                      className={`pb-2 transition ${adviceSubTab === tab.key ? 'text-emerald-500 border-b-2 border-emerald-500 font-extrabold' : 'hover:text-slate-600'}`}
+                      className={`pb-2 transition ${adviceSubTab === tab.key ? 'text-blue-500 border-b-2 border-blue-500 font-extrabold' : 'hover:text-slate-600'}`}
                     >
                       {tab.label}
                     </button>
@@ -5557,7 +5557,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                     }`}>
                       <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50/40">
                         <div className="flex items-center gap-2">
-                          <span className="text-emerald-500">🥦</span>
+                          <span className="text-blue-500">🥦</span>
                           <span className="text-xs font-bold text-slate-800">{adviceSubTab} Details</span>
                           {renderDictationStatus(
                             adviceSubTab === 'Diet Advice' ? 'dietAdviceText' :
@@ -5649,7 +5649,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                       <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-sm relative group">
                         <div className="flex justify-between items-center border-b border-slate-100 pb-1.5 mb-2">
                           <span className="text-[11px] font-bold text-slate-800 flex items-center gap-1.5">
-                            <span className="text-emerald-500">🌱</span> Lifestyle Advice
+                            <span className="text-blue-500">🌱</span> Lifestyle Advice
                           </span>
                           <button className="text-[9px] text-indigo-650 font-bold hover:underline opacity-0 group-hover:opacity-100 transition">Use Template</button>
                         </div>
@@ -5767,7 +5767,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                 {/* Follow up Plan main card details */}
                 <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 space-y-4 relative z-10">
                   <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
-                    <span className="text-emerald-500 text-sm">📅</span>
+                    <span className="text-blue-500 text-sm">📅</span>
                     <strong className="text-base font-bold text-slate-800">Follow-up Plan</strong>
                   </div>
 
@@ -5781,7 +5781,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                             type="button"
                             onClick={() => setFollowUpType(fType)}
                             className={`px-3 py-2 rounded-xl text-[10px] font-bold border transition ${followUpType === fType
-                                ? 'bg-emerald-50 border-emerald-250 text-emerald-800'
+                                ? 'bg-blue-50 border-blue-250 text-blue-800'
                                 : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                               }`}
                           >
@@ -5876,7 +5876,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                             type="button"
                             onClick={() => setFollowUpPriority(prio)}
                             className={`flex-1 py-2 rounded-xl text-[10px] font-bold border transition ${followUpPriority === prio
-                                ? 'bg-emerald-50 border-emerald-250 text-emerald-800'
+                                ? 'bg-blue-50 border-blue-250 text-blue-800'
                                 : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                               }`}
                           >
@@ -6030,7 +6030,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                       {recommendedLabTests.map((test, index) => (
                         <div key={index} className="flex justify-between items-center text-xs p-2.5 bg-slate-50 border border-slate-150 rounded-xl">
                           <div className="flex items-center gap-2">
-                            <span className="text-emerald-500 text-[10px]">🧪</span>
+                            <span className="text-blue-500 text-[10px]">🧪</span>
                             <span className="font-semibold text-slate-700">{test}</span>
                           </div>
                           <button
@@ -6262,7 +6262,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                               <div className="flex justify-between items-center gap-1">
                                 <span>{s.text}</span>
                                 {s.badge && (
-                                  <span className={`text-[8px] font-black px-1.5 py-0.5 rounded shrink-0 ${i === 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}`}>
+                                  <span className={`text-[8px] font-black px-1.5 py-0.5 rounded shrink-0 ${i === 0 ? 'bg-blue-100 text-blue-800' : 'bg-slate-100 text-slate-600'}`}>
                                     {s.badge}
                                   </span>
                                 )}
@@ -6381,7 +6381,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                       ? 'bg-rose-50 border-rose-200 text-rose-700'
                       : aiRiskData.level === 'medium'
                       ? 'bg-amber-50 border-amber-200 text-amber-700'
-                      : 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                      : 'bg-blue-50 border-blue-200 text-blue-700'
                   }`}>
                     {aiRiskData.level === 'high' ? 'High Risk'
                       : aiRiskData.level === 'critical' ? 'Critical'
@@ -6398,7 +6398,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                     className={`h-full rounded-full transition-all duration-700 ${
                       aiRiskData.level === 'high' || aiRiskData.level === 'critical' ? 'bg-rose-500'
                       : aiRiskData.level === 'medium' ? 'bg-amber-500'
-                      : aiRiskData.score != null ? 'bg-emerald-500'
+                      : aiRiskData.score != null ? 'bg-blue-500'
                       : 'bg-slate-300'
                     }`}
                     style={{ width: aiRiskData.score != null ? `${aiRiskData.score}%` : '0%' }}
@@ -6426,7 +6426,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                 return (
                   <div key={f.label} className="flex justify-between items-center">
                     <span className="font-semibold text-slate-600">{f.label}</span>
-                    <span className={isIncluded ? "text-emerald-650 font-bold" : "text-rose-650 font-bold"}>
+                    <span className={isIncluded ? "text-blue-650 font-bold" : "text-rose-650 font-bold"}>
                       {isIncluded ? 'Included' : 'Not Included'}
                     </span>
                   </div>
@@ -6491,7 +6491,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                 ].map((item) => (
                   <div key={item.label} className="flex items-center gap-2">
                     {item.done ? (
-                      <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
+                      <CheckCircle2 size={15} className="text-blue-500 shrink-0" />
                     ) : (
                       <span className="w-3.5 h-3.5 rounded-full border border-slate-300 shrink-0 block" />
                     )}
@@ -6517,7 +6517,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                 ].map((item) => (
                   <div key={item.label} className="flex items-center gap-2">
                     {item.done ? (
-                      <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
+                      <CheckCircle2 size={15} className="text-blue-500 shrink-0" />
                     ) : (
                       <span className="w-3.5 h-3.5 rounded-full border border-slate-300 shrink-0 block" />
                     )}
@@ -6543,7 +6543,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                 ].map((item) => (
                   <div key={item.label} className="flex items-center gap-2">
                     {item.done ? (
-                      <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
+                      <CheckCircle2 size={15} className="text-blue-500 shrink-0" />
                     ) : (
                       <span className="w-3.5 h-3.5 rounded-full border border-slate-300 shrink-0 block" />
                     )}
@@ -6590,7 +6590,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                 ].map((item) => (
                   <div key={item.label} className="flex items-center gap-2">
                     {item.done ? (
-                      <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
+                      <CheckCircle2 size={15} className="text-blue-500 shrink-0" />
                     ) : (
                       <span className="w-3.5 h-3.5 rounded-full border border-slate-300 shrink-0 block" />
                     )}
@@ -6606,19 +6606,19 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
               <h3 className="text-xs font-black uppercase tracking-wider text-slate-500">PROCEDURE CHECKLIST</h3>
               <div className="space-y-2.5 text-xs">
                 <div className="flex items-center gap-2">
-                  <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
+                  <CheckCircle2 size={15} className="text-blue-500 shrink-0" />
                   <span className="text-slate-707 font-bold">History Completed</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
+                  <CheckCircle2 size={15} className="text-blue-500 shrink-0" />
                   <span className="text-slate-707 font-bold">Examination Done</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
+                  <CheckCircle2 size={15} className="text-blue-500 shrink-0" />
                   <span className="text-slate-707 font-bold">Diagnosis Added</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
+                  <CheckCircle2 size={15} className="text-blue-500 shrink-0" />
                   <span className="text-slate-707 font-bold">Prescription Added</span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -6626,7 +6626,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                   <span className="text-slate-400">Lab Tests Added</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
+                  <CheckCircle2 size={15} className="text-blue-500 shrink-0" />
                   <span className="text-slate-707 font-bold">Procedures Added</span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -6647,7 +6647,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
               <div className="space-y-2.5 text-xs">
                 {['Diet Advice Added', 'Lifestyle Advice Added', 'Activity / Exercise Added', 'Restrictions Added', 'Precautions Added', 'General Instructions Added'].map((item) => (
                   <div key={item} className="flex items-center gap-2">
-                    <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
+                    <CheckCircle2 size={15} className="text-blue-500 shrink-0" />
                     <span className="text-slate-707 font-bold">{item}</span>
                   </div>
                 ))}
@@ -6660,31 +6660,31 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
               <h3 className="text-xs font-black uppercase tracking-wider text-slate-500">FOLLOW-UP CHECKLIST</h3>
               <div className="space-y-2.5 text-xs font-semibold text-slate-650">
                 <div className="flex items-center gap-2">
-                  <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
+                  <CheckCircle2 size={15} className="text-blue-500 shrink-0" />
                   <span className="text-slate-707 font-bold">Diagnosis Added</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
+                  <CheckCircle2 size={15} className="text-blue-500 shrink-0" />
                   <span className="text-slate-707 font-bold">Treatment Plan Added</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
+                  <CheckCircle2 size={15} className="text-blue-500 shrink-0" />
                   <span className="text-slate-707 font-bold">Advice Added</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
+                  <CheckCircle2 size={15} className="text-blue-500 shrink-0" />
                   <span className="text-slate-707 font-bold">Laboratory Added</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
+                  <CheckCircle2 size={15} className="text-blue-500 shrink-0" />
                   <span className="text-slate-707 font-bold">Procedures Added</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
+                  <CheckCircle2 size={15} className="text-blue-500 shrink-0" />
                   <span className="text-slate-707 font-bold">Follow-up Added</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
+                  <CheckCircle2 size={15} className="text-blue-500 shrink-0" />
                   <span className="text-slate-707 font-bold">Prescription Generated</span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -6707,7 +6707,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="text-sm font-black text-slate-800 flex items-center gap-2">
                 {completionProgress.status === 'success' ? (
-                  <span className="text-emerald-500 text-base">✓</span>
+                  <span className="text-blue-500 text-base">✓</span>
                 ) : (
                   <RefreshCw size={14} className="animate-spin text-indigo-500" />
                 )}
@@ -6735,7 +6735,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                 return (
                   <div key={step.key} className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2.5">
-                      {status === 'success' && <CheckCircle size={15} className="text-emerald-500 shrink-0" />}
+                      {status === 'success' && <CheckCircle size={15} className="text-blue-500 shrink-0" />}
                       {status === 'failed' && <XCircle size={15} className="text-rose-500 shrink-0" />}
                       {status === 'in_progress' && <RefreshCw size={14} className="animate-spin text-indigo-500 shrink-0" />}
                       {status === 'pending' && <span className="w-3.5 h-3.5 rounded-full border border-slate-200 shrink-0 block" />}
@@ -6826,9 +6826,9 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
             {/* Success Details & Options */}
             {completionProgress.status === 'success' && (
               <div className="border-t border-slate-100 pt-4 space-y-4">
-                <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 text-center space-y-1">
-                  <span className="text-emerald-700 text-sm font-extrabold block">✅ Consultation Completed Successfully</span>
-                  <p className="text-[10px] text-emerald-600">All records and prescriptions have been committed to the database.</p>
+                <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 text-center space-y-1">
+                  <span className="text-blue-700 text-sm font-extrabold block">✅ Consultation Completed Successfully</span>
+                  <p className="text-[10px] text-blue-600">All records and prescriptions have been committed to the database.</p>
                 </div>
 
                 {/* Consultation Summary */}
@@ -7009,7 +7009,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                         toast.success(`Booked with ${labOpt.name}!`);
                         setShowNearbyLabsModal(false);
                       }}
-                      className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition"
+                      className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition"
                     >
                       Book
                     </button>

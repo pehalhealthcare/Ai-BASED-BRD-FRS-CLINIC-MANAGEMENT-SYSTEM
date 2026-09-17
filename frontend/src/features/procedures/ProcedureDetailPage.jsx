@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, Calendar, User, UserCheck, Shield, Clock, FileText, 
@@ -81,7 +81,7 @@ export default function ProcedureDetailPage() {
       case 'In Progress':
         return 'bg-blue-50 text-blue-600 border-blue-100';
       case 'Completed':
-        return 'bg-emerald-50 text-emerald-600 border-emerald-100';
+        return 'bg-blue-50 text-blue-600 border-blue-100';
       case 'Cancelled Before Payment':
       case 'Cancelled After Payment':
       case 'Cancelled':
@@ -246,7 +246,7 @@ export default function ProcedureDetailPage() {
                 <p className="font-bold text-slate-800">
                   <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${
                     procedure.paymentStatus === 'Paid' 
-                      ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                      ? 'bg-blue-50 text-blue-600 border border-blue-100'
                       : 'bg-amber-50 text-amber-600 border border-amber-100'
                   }`}>
                     {procedure.paymentStatus || 'Pending'}

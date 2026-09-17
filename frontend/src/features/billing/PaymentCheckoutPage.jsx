@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getInvoiceById } from './billing.api';
 import { paymentApi, patientApi, billingApi } from '../../lib/api';
@@ -192,7 +192,7 @@ const PaymentCheckoutPage = () => {
     <div className="max-w-4xl mx-auto p-6 space-y-6">
       <div className="bg-white rounded-3xl shadow-xl border border-stone-100 overflow-hidden">
         {/* Header */}
-        <div className="bg-gradient-to-r from-emerald-600 to-teal-700 text-white p-8">
+        <div className="bg-gradient-to-r from-blue-600 to-teal-700 text-white p-8">
           <h1 className="text-2xl font-bold">Secure Checkout</h1>
           <p className="opacity-90 text-sm mt-1">Invoice: {invoice?.invoiceNumber}</p>
         </div>
@@ -205,7 +205,7 @@ const PaymentCheckoutPage = () => {
                 <h3 className="text-sm font-bold text-stone-750">Select Bills to Pay</h3>
                 <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
                   {unpaidInvoicesList.map(inv => (
-                    <label key={inv._id} className="flex items-center gap-3 p-3.5 bg-white rounded-xl border border-stone-200 hover:border-emerald-500 cursor-pointer transition">
+                    <label key={inv._id} className="flex items-center gap-3 p-3.5 bg-white rounded-xl border border-stone-200 hover:border-blue-500 cursor-pointer transition">
                       <input
                         type="checkbox"
                         checked={selectedInvoiceIds.includes(inv._id)}
@@ -216,7 +216,7 @@ const PaymentCheckoutPage = () => {
                             setSelectedInvoiceIds(selectedInvoiceIds.filter(iid => iid !== inv._id));
                           }
                         }}
-                        className="w-4 h-4 text-emerald-600 border-stone-300 rounded focus:ring-emerald-500 cursor-pointer"
+                        className="w-4 h-4 text-blue-600 border-stone-300 rounded focus:ring-blue-500 cursor-pointer"
                       />
                       <div className="flex-1 min-w-0 text-xs">
                         <p className="font-semibold text-stone-800">
@@ -246,7 +246,7 @@ const PaymentCheckoutPage = () => {
                 <span className="text-stone-700">₹{subtotal}</span>
               </div>
               {discountAmount > 0 && (
-                <div className="flex justify-between text-emerald-600 font-medium">
+                <div className="flex justify-between text-blue-600 font-medium">
                   <span>Discount:</span>
                   <span>-₹{discountAmount}</span>
                 </div>
@@ -265,9 +265,9 @@ const PaymentCheckoutPage = () => {
 
             {/* Insurance details */}
             {coveredAmount > 0 && (
-              <div className="bg-emerald-50 rounded-2xl p-5 border border-emerald-100 space-y-3">
+              <div className="bg-blue-50 rounded-2xl p-5 border border-blue-100 space-y-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-emerald-800 flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-blue-800 flex items-center gap-2">
                     🛡️ Insurance Coverage Available
                   </h3>
                   <input
@@ -275,21 +275,21 @@ const PaymentCheckoutPage = () => {
                     id="useInsuranceCheckbox"
                     checked={useInsurance}
                     onChange={(e) => setUseInsurance(e.target.checked)}
-                    className="w-4 h-4 text-emerald-600 border-emerald-300 rounded focus:ring-emerald-500 cursor-pointer"
+                    className="w-4 h-4 text-blue-600 border-blue-300 rounded focus:ring-blue-500 cursor-pointer"
                   />
                 </div>
-                <label htmlFor="useInsuranceCheckbox" className="text-xs text-emerald-600 block cursor-pointer font-semibold">
+                <label htmlFor="useInsuranceCheckbox" className="text-xs text-blue-600 block cursor-pointer font-semibold">
                   Use insurance coverage to reduce bill amount.
                 </label>
                 {useInsurance && (
-                  <div className="space-y-2 pt-2 border-t border-emerald-200 text-sm text-emerald-700">
+                  <div className="space-y-2 pt-2 border-t border-blue-200 text-sm text-blue-700">
                     <div className="flex justify-between">
                       <span>Covered Amount ({reductionPercent}% reduction):</span>
                       <span>-₹{coveredAmount}</span>
                     </div>
                   </div>
                 )}
-                <div className="flex justify-between text-sm text-emerald-800 font-bold border-t border-emerald-200 pt-2">
+                <div className="flex justify-between text-sm text-blue-800 font-bold border-t border-blue-200 pt-2">
                   <span>Payable Now:</span>
                   <span>₹{finalPayable}</span>
                 </div>
@@ -309,7 +309,7 @@ const PaymentCheckoutPage = () => {
                   type="button"
                   onClick={() => setGateway('RAZORPAY')}
                   className={`py-3 px-4 rounded-xl border-2 text-sm font-medium transition ${
-                    gateway === 'RAZORPAY' ? 'border-emerald-600 bg-emerald-50 text-emerald-700' : 'border-stone-200 text-stone-600'
+                    gateway === 'RAZORPAY' ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-stone-200 text-stone-600'
                   }`}
                 >
                   Razorpay (Test Mode)
@@ -318,7 +318,7 @@ const PaymentCheckoutPage = () => {
                   type="button"
                   onClick={() => setGateway('MANUAL')}
                   className={`py-3 px-4 rounded-xl border-2 text-sm font-medium transition ${
-                    gateway === 'MANUAL' ? 'border-emerald-600 bg-emerald-50 text-emerald-700' : 'border-stone-200 text-stone-600'
+                    gateway === 'MANUAL' ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-stone-200 text-stone-600'
                   }`}
                 >
                   Manual / Cash
@@ -332,7 +332,7 @@ const PaymentCheckoutPage = () => {
               <select
                 value={method}
                 onChange={(e) => setMethod(e.target.value)}
-                className="w-full rounded-xl border border-stone-200 px-4 py-3 text-sm focus:border-emerald-500 outline-none"
+                className="w-full rounded-xl border border-stone-200 px-4 py-3 text-sm focus:border-blue-500 outline-none"
               >
                 <option value="UPI">UPI (GPay/PhonePe)</option>
                 <option value="CARD">Credit/Debit Card</option>
@@ -346,7 +346,7 @@ const PaymentCheckoutPage = () => {
             <button
               onClick={handleInitiatePayment}
               disabled={processing}
-              className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow-lg transition disabled:opacity-50"
+              className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-lg transition disabled:opacity-50"
             >
               {processing ? 'Processing...' : `Pay ₹${finalPayable}`}
             </button>
@@ -384,7 +384,7 @@ const PaymentCheckoutPage = () => {
             <div className="grid grid-cols-2 gap-4 pt-2">
               <button
                 onClick={() => handleSimulatePayment(true)}
-                className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold shadow transition"
+                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold shadow transition"
               >
                 Simulate Success
               </button>

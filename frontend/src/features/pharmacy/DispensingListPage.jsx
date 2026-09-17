@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import EmptyState from '../../components/common/EmptyState';
@@ -9,7 +9,7 @@ import { listDispensings } from './pharmacyApi';
 import DispensingStatusBadge from './DispensingStatusBadge';
 
 const FIELD_CLASS =
-  'w-full rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100';
+  'w-full rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100';
 
 const DispensingListPage = () => {
   const [filters, setFilters] = useState({

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import {
   Camera, MapPin, Phone, CheckCircle2, User, Mail, Shield, Heart,
   Lock, ChevronRight, Download, Bell, FileText, Activity, Edit3, ShieldAlert,
@@ -64,8 +64,8 @@ export default function MyProfile({
       <div className="rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-navy-800 shadow-card dark:shadow-card-dark p-6 max-w-4xl mx-auto space-y-6">
         <div className="flex items-center justify-between pb-5 mb-5 border-b border-slate-100 dark:border-white/[0.06]">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-aura-50 dark:bg-aura-500/10 border border-aura-200 dark:border-aura-500/20 flex items-center justify-center">
-              <User size={18} className="text-aura-600 dark:text-aura-400" />
+            <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 flex items-center justify-center">
+              <User size={18} className="text-blue-600 dark:text-blue-400" />
             </div>
             <div>
               <h2 className="text-base font-semibold text-slate-900 dark:text-white">Edit My Profile</h2>
@@ -81,7 +81,7 @@ export default function MyProfile({
         </div>
 
         {profileSuccessMessage && (
-          <div className="flex items-center gap-2 p-3 rounded-xl bg-aura-50 dark:bg-aura-500/10 border border-aura-200 dark:border-aura-500/30 text-aura-700 dark:text-aura-300 text-sm font-medium animate-slide-down">
+          <div className="flex items-center gap-2 p-3 rounded-xl bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 text-blue-700 dark:text-blue-300 text-sm font-medium animate-slide-down">
             <CheckCircle2 size={16} />
             {profileSuccessMessage}
           </div>
@@ -100,7 +100,7 @@ export default function MyProfile({
                 name={`${profileForm.firstName} ${profileForm.lastName}`}
                 size="xl"
               />
-              <label className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-aura-600 dark:bg-aura-500 border-2 border-white dark:border-navy-800 flex items-center justify-center cursor-pointer hover:bg-aura-700 transition">
+              <label className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-blue-600 dark:bg-blue-500 border-2 border-white dark:border-navy-800 flex items-center justify-center cursor-pointer hover:bg-blue-700 transition">
                 <Camera size={12} className="text-white" />
                 <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" aria-label="Upload profile photo" />
               </label>
@@ -172,7 +172,7 @@ export default function MyProfile({
             <button
               type="submit"
               disabled={savingProfile}
-              className="px-6 py-2.5 rounded-xl bg-aura-600 dark:bg-aura-500 text-white text-sm font-semibold hover:bg-aura-700 dark:hover:bg-aura-600 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="px-6 py-2.5 rounded-xl bg-blue-600 dark:bg-blue-500 text-white text-sm font-semibold hover:bg-blue-700 dark:hover:bg-blue-600 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {savingProfile && <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>}
               {savingProfile ? 'Saving...' : 'Save Profile'}
@@ -189,14 +189,14 @@ export default function MyProfile({
       <div className="rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-navy-800 p-6 flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex gap-4">
           <div className="px-5 py-3 rounded-2xl bg-slate-50 dark:bg-navy-900/60 border border-slate-200 dark:border-white/10 min-w-[120px]">
-            <div className="flex items-center gap-2 text-aura-500 dark:text-aura-400 mb-1">
+            <div className="flex items-center gap-2 text-blue-500 dark:text-blue-400 mb-1">
               <Calendar size={15} />
               <span className="text-lg font-extrabold text-slate-900 dark:text-white">{appointments.length}</span>
             </div>
             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Appointments</p>
           </div>
           <div className="px-5 py-3 rounded-2xl bg-slate-50 dark:bg-navy-900/60 border border-slate-200 dark:border-white/10 min-w-[120px]">
-            <div className="flex items-center gap-2 text-aura-500 dark:text-aura-400 mb-1">
+            <div className="flex items-center gap-2 text-blue-500 dark:text-blue-400 mb-1">
               <FileText size={15} />
               <span className="text-lg font-extrabold text-slate-900 dark:text-white">{prescriptions.length}</span>
             </div>
@@ -213,12 +213,12 @@ export default function MyProfile({
           <div className="rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-navy-800 p-6">
             <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-100 dark:border-white/[0.06]">
               <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                <User size={16} className="text-aura-500" />
+                <User size={16} className="text-blue-500" />
                 Personal Information
               </h3>
               <button
                 onClick={() => setIsEditing(true)}
-                className="px-3.5 py-1.5 text-xs font-bold rounded-xl border border-aura-500/20 text-aura-500 hover:bg-aura-500/5 transition flex items-center gap-1.5"
+                className="px-3.5 py-1.5 text-xs font-bold rounded-xl border border-blue-500/20 text-blue-500 hover:bg-blue-500/5 transition flex items-center gap-1.5"
               >
                 <Edit3 size={11} />
                 Edit Profile
@@ -247,7 +247,7 @@ export default function MyProfile({
           <div className="rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-navy-800 p-6">
             <div className="flex items-center pb-4 mb-4 border-b border-slate-100 dark:border-white/[0.06]">
               <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                <Mail size={16} className="text-aura-500" />
+                <Mail size={16} className="text-blue-500" />
                 Contact Information
               </h3>
             </div>
@@ -256,7 +256,7 @@ export default function MyProfile({
                 <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Phone Number</p>
                 <div className="flex items-center gap-2 mt-1.5">
                   <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">{profile?.phone || profileForm.phone || '+91 98765 43210'}</p>
-                  <span className="px-1.5 py-0.5 rounded text-[8px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/10">Primary</span>
+                  <span className="px-1.5 py-0.5 rounded text-[8px] font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/10">Primary</span>
                 </div>
               </div>
               <div>
@@ -281,7 +281,7 @@ export default function MyProfile({
                 </h3>
                 <button
                   onClick={() => setIsEditing(true)}
-                  className="px-2.5 py-1 text-[10px] font-bold rounded-lg border border-aura-500/20 text-aura-500 hover:bg-aura-500/5 transition flex items-center gap-1"
+                  className="px-2.5 py-1 text-[10px] font-bold rounded-lg border border-blue-500/20 text-blue-500 hover:bg-blue-500/5 transition flex items-center gap-1"
                 >
                   <Edit3 size={10} />
                   Edit
@@ -309,12 +309,12 @@ export default function MyProfile({
             <div className="rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-navy-800 p-6">
               <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-100 dark:border-white/[0.06]">
                 <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                  <Shield size={16} className="text-aura-500" />
+                  <Shield size={16} className="text-blue-500" />
                   Insurance Information
                 </h3>
                 <button
                   onClick={() => setIsEditing(true)}
-                  className="px-2.5 py-1 text-[10px] font-bold rounded-lg border border-aura-500/20 text-aura-500 hover:bg-aura-500/5 transition flex items-center gap-1"
+                  className="px-2.5 py-1 text-[10px] font-bold rounded-lg border border-blue-500/20 text-blue-500 hover:bg-blue-500/5 transition flex items-center gap-1"
                 >
                   <Edit3 size={10} />
                   Edit
@@ -345,7 +345,7 @@ export default function MyProfile({
           {/* Health Summary */}
           <div className="rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-navy-800 p-6">
             <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2 pb-4 mb-4 border-b border-slate-100 dark:border-white/[0.06]">
-              <Activity size={16} className="text-aura-500" />
+              <Activity size={16} className="text-blue-500" />
               Health Summary
             </h3>
             <div className="grid grid-cols-2 gap-4">
@@ -360,7 +360,7 @@ export default function MyProfile({
                   <div className="flex items-center gap-2 mt-1">
                     <span className="text-sm font-extrabold text-slate-800 dark:text-slate-200">{box.value}</span>
                     {box.badge && (
-                      <span className="px-1.5 py-0.5 rounded text-[8px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/10">{box.badge}</span>
+                      <span className="px-1.5 py-0.5 rounded text-[8px] font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/10">{box.badge}</span>
                     )}
                   </div>
                 </div>
@@ -371,7 +371,7 @@ export default function MyProfile({
           {/* Quick Actions */}
           <div className="rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-navy-800 p-6">
             <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2 pb-4 mb-4 border-b border-slate-100 dark:border-white/[0.06]">
-              <Activity size={16} className="text-aura-500" />
+              <Activity size={16} className="text-blue-500" />
               Quick Actions
             </h3>
             <div className="space-y-4">
@@ -379,8 +379,8 @@ export default function MyProfile({
                 {
                   title: 'Update Profile',
                   desc: 'Edit your personal information',
-                  icon: <User size={14} className="text-aura-500" />,
-                  bg: 'bg-aura-500/10',
+                  icon: <User size={14} className="text-blue-500" />,
+                  bg: 'bg-blue-500/10',
                   action: () => setIsEditing(true)
                 },
                 {
@@ -414,7 +414,7 @@ export default function MyProfile({
                     {action.icon}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-aura-500 dark:group-hover:text-aura-400 transition">{action.title}</p>
+                    <p className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition">{action.title}</p>
                     <p className="text-[10px] text-slate-400 mt-0.5">{action.desc}</p>
                   </div>
                   <ChevronRight size={14} className="text-slate-400 group-hover:translate-x-0.5 transition" />
@@ -428,8 +428,8 @@ export default function MyProfile({
       {/* 2. FOOTER PRIVACY BANNER */}
       <div className="rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-navy-800 p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
         <div className="flex flex-col sm:flex-row items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
-            <Lock size={15} className="text-emerald-500" />
+          <div className="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shrink-0">
+            <Lock size={15} className="text-blue-500" />
           </div>
           <div>
             <p className="text-xs font-bold text-slate-800 dark:text-slate-200">Your data is secure and encrypted</p>
@@ -438,7 +438,7 @@ export default function MyProfile({
         </div>
         <button
           onClick={() => alert('All personal data is encrypted at rest and in transit in compliance with HIPAA and GDPR guidelines.')}
-          className="text-xs font-bold text-aura-500 hover:text-aura-600 transition whitespace-nowrap"
+          className="text-xs font-bold text-blue-500 hover:text-blue-600 transition whitespace-nowrap"
         >
           Learn more about privacy &gt;
         </button>

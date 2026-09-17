@@ -1,4 +1,4 @@
-import { Calendar, ChevronRight, ClipboardList, Clock, FileText, Pill } from 'lucide-react';
+﻿import { Calendar, ChevronRight, ClipboardList, Clock, FileText, Pill } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Badge from '../../../components/ui/Badge';
 
@@ -8,8 +8,8 @@ export default function Records({ appointments, prescriptions, invoices }) {
       {/* Appointments */}
       <div className="rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-navy-800 shadow-card dark:shadow-card-dark overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-100 dark:border-white/[0.06] flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-aura-50 dark:bg-aura-500/10 flex items-center justify-center">
-            <Calendar size={16} className="text-aura-600 dark:text-aura-400" />
+          <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center">
+            <Calendar size={16} className="text-blue-600 dark:text-blue-400" />
           </div>
           <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Appointments</h3>
           <Badge color="success" size="sm" className="ml-auto">{appointments.length}</Badge>

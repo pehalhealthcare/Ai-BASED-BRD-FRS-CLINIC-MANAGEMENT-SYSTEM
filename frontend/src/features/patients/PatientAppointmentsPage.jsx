@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Calendar, RotateCcw, Building2, MessageCircle,
@@ -21,7 +21,7 @@ const MOCK_CONVERSATIONS = [
   { id: 'c2', letter: 'R', bg: 'bg-amber-600',  title: 'Reschedule Request',           preview: 'Can we reschedule my appointment...', time: 'Yesterday, 03:15 PM' },
   { id: 'c3', letter: 'C', bg: 'bg-cyan-600',   title: 'Clinic Information',           preview: 'What are the clinic hours?',          time: 'May 24, 2025' },
   { id: 'c4', letter: 'P', bg: 'bg-violet-600', title: 'Previous Consultation',        preview: 'Summary of my last appointment...',    time: 'May 20, 2025' },
-  { id: 'c5', letter: 'B', bg: 'bg-emerald-600',title: 'Payment & Billing',            preview: 'Can you show my payment history?',     time: 'May 18, 2025' },
+  { id: 'c5', letter: 'B', bg: 'bg-blue-600',title: 'Payment & Billing',            preview: 'Can you show my payment history?',     time: 'May 18, 2025' },
   { id: 'c6', letter: 'Q', bg: 'bg-orange-600', title: 'Prescription Query',           preview: 'Information about my prescriptions...',time: 'May 15, 2025' },
   { id: 'c7', letter: 'F', bg: 'bg-pink-600',   title: 'Follow-up Appointment',        preview: 'Schedule a follow-up appointment...',  time: 'May 10, 2025' },
   { id: 'c8', letter: 'G', bg: 'bg-indigo-500', title: 'General Health Question',      preview: 'What should I do for headache?',       time: 'May 8, 2025' },
@@ -30,12 +30,12 @@ const MOCK_CONVERSATIONS = [
 const ACTION_CARDS = [
   { icon: Calendar,      title: 'Book an Appointment', desc: 'AI-powered symptom triage & smart doctor matching', iconColor: 'text-blue-400',    bgColor: 'bg-blue-500/10',    action: 'book' },
   { icon: RotateCcw,     title: 'Reschedule',          desc: 'Reschedule or change your appointment time',       iconColor: 'text-purple-400',  bgColor: 'bg-purple-500/10',  action: 'reschedule' },
-  { icon: Building2,     title: 'Clinic Details',      desc: 'View clinic info, location & contact details',    iconColor: 'text-emerald-400', bgColor: 'bg-emerald-500/10', action: 'clinic' },
+  { icon: Building2,     title: 'Clinic Details',      desc: 'View clinic info, location & contact details',    iconColor: 'text-blue-400', bgColor: 'bg-blue-500/10', action: 'clinic' },
   { icon: Pill,          title: 'Dosage Calculator',   desc: 'Get AI-estimated safe dosage for a medicine',     iconColor: 'text-amber-400',   bgColor: 'bg-amber-500/10',   action: 'dosage' },
 ];
 
 const PREFERENCE_OPTIONS = [
-  { key: 'nearest',    icon: MapPin,       label: 'Nearest Doctor',         desc: 'Closest clinic to your location', color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30' },
+  { key: 'nearest',    icon: MapPin,       label: 'Nearest Doctor',         desc: 'Closest clinic to your location', color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/30' },
   { key: 'earliest',   icon: Clock,        label: 'Earliest Appointment',   desc: 'First available consultation',    color: 'text-blue-400',    bg: 'bg-blue-500/10',    border: 'border-blue-500/30' },
   { key: 'online',     icon: Monitor,      label: 'Online Consultation',    desc: 'Video/chat consultation',         color: 'text-violet-400',  bg: 'bg-violet-500/10',  border: 'border-violet-500/30' },
   { key: 'lowest_fee', icon: IndianRupee,  label: 'Lowest Consultation Fee',desc: 'Most affordable option',          color: 'text-amber-400',   bg: 'bg-amber-500/10',   border: 'border-amber-500/30' },
@@ -58,9 +58,9 @@ const DEFAULT_PRECAUTIONS = ['Get plenty of rest and sleep.', 'Stay hydrated.', 
 /* ── Small helpers ─────────────────────────────────────────────── */
 const StatusBadge = ({ status }) => {
   const M = {
-    completed: { l: 'Completed', c: 'bg-emerald-500/10 text-emerald-400' },
+    completed: { l: 'Completed', c: 'bg-blue-500/10 text-blue-400' },
     cancelled: { l: 'Cancelled', c: 'bg-rose-500/10 text-rose-400' },
-    scheduled: { l: 'Scheduled', c: 'bg-aura-500/10 text-aura-400' },
+    scheduled: { l: 'Scheduled', c: 'bg-blue-500/10 text-blue-400' },
     pending:   { l: 'Pending',   c: 'bg-amber-500/10 text-amber-400' },
     confirmed: { l: 'Confirmed', c: 'bg-blue-500/10 text-blue-400' },
   };
@@ -112,14 +112,14 @@ const MessageBubble = ({ msg, handlers, bookingDate, setBookingDate, bookingTime
   return (
     <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
       <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
-        isUser ? 'bg-aura-600' : 'bg-gradient-to-br from-aura-500 to-indigo-600'}`}>
+        isUser ? 'bg-blue-600' : 'bg-gradient-to-br from-blue-500 to-indigo-600'}`}>
         {isUser ? <User size={14} className="text-white" /> : <Bot size={14} className="text-white" />}
       </div>
 
       <div className={`max-w-[78%] flex flex-col gap-1 ${isUser ? 'items-end' : 'items-start'}`}>
         <div className={`px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
           isUser
-            ? 'bg-aura-600 text-white rounded-tr-sm'
+            ? 'bg-blue-600 text-white rounded-tr-sm'
             : 'bg-[#111827] border border-white/[0.07] text-slate-200 rounded-tl-sm'
         }`}>
           {msg.text}
@@ -128,12 +128,12 @@ const MessageBubble = ({ msg, handlers, bookingDate, setBookingDate, bookingTime
           {msg.payload?.type === 'initial_options' && (
             <div className="mt-3 space-y-2">
               <button onClick={handlers.startBooking}
-                className="w-full text-left px-3 py-2.5 rounded-xl bg-white/[0.05] hover:bg-aura-500/10 border border-white/[0.08] hover:border-aura-500/30 text-[12px] font-semibold text-slate-200 transition flex items-center gap-2.5">
-                <Calendar size={14} className="text-aura-400 shrink-0" /> Book an appointment with a doctor
+                className="w-full text-left px-3 py-2.5 rounded-xl bg-white/[0.05] hover:bg-blue-500/10 border border-white/[0.08] hover:border-blue-500/30 text-[12px] font-semibold text-slate-200 transition flex items-center gap-2.5">
+                <Calendar size={14} className="text-blue-400 shrink-0" /> Book an appointment with a doctor
               </button>
               <Link to="/pharmacy/medicines"
-                className="w-full text-left px-3 py-2.5 rounded-xl bg-white/[0.05] hover:bg-emerald-500/10 border border-white/[0.08] hover:border-emerald-500/30 text-[12px] font-semibold text-slate-200 transition flex items-center gap-2.5">
-                <Pill size={14} className="text-emerald-400 shrink-0" /> Order from pharmacy
+                className="w-full text-left px-3 py-2.5 rounded-xl bg-white/[0.05] hover:bg-blue-500/10 border border-white/[0.08] hover:border-blue-500/30 text-[12px] font-semibold text-slate-200 transition flex items-center gap-2.5">
+                <Pill size={14} className="text-blue-400 shrink-0" /> Order from pharmacy
               </Link>
               <Link to="/labs/tests"
                 className="w-full text-left px-3 py-2.5 rounded-xl bg-white/[0.05] hover:bg-indigo-500/10 border border-white/[0.08] hover:border-indigo-500/30 text-[12px] font-semibold text-slate-200 transition flex items-center gap-2.5">
@@ -156,12 +156,12 @@ const MessageBubble = ({ msg, handlers, bookingDate, setBookingDate, bookingTime
                   <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
                     msg.payload.triage?.urgency === 'high'   ? 'bg-rose-500/15 text-rose-400' :
                     msg.payload.triage?.urgency === 'medium' ? 'bg-amber-500/15 text-amber-400' :
-                                                               'bg-emerald-500/15 text-emerald-400'}`}>
+                                                               'bg-blue-500/15 text-blue-400'}`}>
                     {msg.payload.triage?.urgency} urgency
                   </span>
                 </div>
                 <p className="text-white font-bold text-sm flex items-center gap-2">
-                  <Stethoscope size={14} className="text-aura-400" />
+                  <Stethoscope size={14} className="text-blue-400" />
                   {msg.payload.triage?.recommendedSpecialization || 'General Physician'}
                 </p>
               </div>
@@ -200,7 +200,7 @@ const MessageBubble = ({ msg, handlers, bookingDate, setBookingDate, bookingTime
                 const Icon = opt.icon;
                 return (
                   <button key={opt.key} onClick={() => handlers.selectPreference(opt.key)}
-                    className="w-full text-left p-3 rounded-xl bg-white/[0.04] hover:bg-[#1f293d] border border-white/[0.08] hover:border-aura-500/30 transition flex items-start gap-3">
+                    className="w-full text-left p-3 rounded-xl bg-white/[0.04] hover:bg-[#1f293d] border border-white/[0.08] hover:border-blue-500/30 transition flex items-start gap-3">
                     <div className={`w-8 h-8 rounded-lg ${opt.bg} flex items-center justify-center shrink-0 mt-0.5`}>
                       <Icon size={16} className={opt.color} />
                     </div>
@@ -223,10 +223,10 @@ const MessageBubble = ({ msg, handlers, bookingDate, setBookingDate, bookingTime
                     <p className="text-white font-bold text-xs">Dr. {doc.fullName}</p>
                     <p className="text-[10px] text-slate-400">{doc.specialization} • {doc.experience}y exp</p>
                     {doc.clinic?.name && <p className="text-[10px] text-slate-500 mt-0.5">🏥 {doc.clinic.name}</p>}
-                    {doc.distance != null && <p className="text-[10px] text-emerald-400 mt-0.5">📍 {(doc.distance / 1000).toFixed(1)} km away</p>}
+                    {doc.distance != null && <p className="text-[10px] text-blue-400 mt-0.5">📍 {(doc.distance / 1000).toFixed(1)} km away</p>}
                   </div>
                   <button onClick={() => handlers.selectDoctor(doc)}
-                    className="px-3 py-1.5 rounded-lg bg-aura-600 hover:bg-aura-700 text-white text-[11px] font-bold transition">
+                    className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold transition">
                     Select
                   </button>
                 </div>
@@ -255,8 +255,8 @@ const MessageBubble = ({ msg, handlers, bookingDate, setBookingDate, bookingTime
                       <button key={d.dateString} onClick={() => { setBookingDate(d.dateString); selectSlot(null); }}
                         className={`py-1.5 rounded-lg text-[10px] font-semibold transition border ${
                           bookingDate === d.dateString 
-                          ? 'bg-aura-600 text-white border-aura-500' 
-                          : 'bg-white/[0.05] text-slate-300 border-white/[0.1] hover:border-aura-500/50'
+                          ? 'bg-blue-600 text-white border-blue-500' 
+                          : 'bg-white/[0.05] text-slate-300 border-white/[0.1] hover:border-blue-500/50'
                         }`}>
                         {d.formatted}
                       </button>
@@ -275,8 +275,8 @@ const MessageBubble = ({ msg, handlers, bookingDate, setBookingDate, bookingTime
                             !slot.available
                             ? 'bg-slate-800/40 text-slate-500 border-white/[0.03] cursor-not-allowed opacity-50 line-through'
                             : selectedSlot?.startTime === slot.startTime 
-                              ? 'bg-aura-600 text-white border-aura-500' 
-                              : 'bg-white/[0.05] text-slate-300 border-white/[0.1] hover:border-aura-500/50'
+                              ? 'bg-blue-600 text-white border-blue-500' 
+                              : 'bg-white/[0.05] text-slate-300 border-white/[0.1] hover:border-blue-500/50'
                           }`}>
                           {slot.startTime}
                         </button>
@@ -286,7 +286,7 @@ const MessageBubble = ({ msg, handlers, bookingDate, setBookingDate, bookingTime
                 )}
 
                 <button onClick={handlers.confirmBooking}
-                  className="w-full py-2.5 rounded-xl bg-aura-600 hover:bg-aura-700 text-white text-xs font-bold transition flex items-center justify-center gap-1.5">
+                  className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition flex items-center justify-center gap-1.5">
                   <Check size={14} /> Confirm Appoinment
                 </button>
               </div>
@@ -744,7 +744,7 @@ const PatientAppointmentsPage = () => {
   const rightPanelAppts = appointments.map(a => ({
     id:      a._id,
     letter:  (a.doctorId?.fullName?.[0] || 'D').toUpperCase(),
-    bg:      'bg-aura-600',
+    bg:      'bg-blue-600',
     title:   a.doctorId?.fullName || 'Doctor Appointment',
     preview: a.reasonForVisit || `${a.clinicId?.name || 'Clinic'} • ${a.startTime || ''}`,
     time:    a.appointmentDate ? new Date(a.appointmentDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'TBD',
@@ -783,7 +783,7 @@ const PatientAppointmentsPage = () => {
           <div className="pb-2 border-b border-white/[0.06] flex items-center justify-between">
             <div>
               <p className="text-xs text-slate-500">
-                <span className="cursor-pointer hover:text-aura-400" onClick={() => setSelectedClinic(null)}>My Portal</span> &gt; View Clinic &amp; Details
+                <span className="cursor-pointer hover:text-blue-400" onClick={() => setSelectedClinic(null)}>My Portal</span> &gt; View Clinic &amp; Details
               </p>
               <h1 className="text-xl md:text-2xl font-extrabold text-white mt-1">View Clinic &amp; Details</h1>
             </div>
@@ -804,7 +804,7 @@ const PatientAppointmentsPage = () => {
                 
                 {/* Background glows */}
                 <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                  <div className="absolute -top-20 -right-20 w-72 h-72 rounded-full bg-aura-500/10 blur-3xl" />
+                  <div className="absolute -top-20 -right-20 w-72 h-72 rounded-full bg-blue-500/10 blur-3xl" />
                   <div className="absolute -bottom-16 -left-10 w-64 h-64 rounded-full bg-indigo-600/10 blur-3xl" />
                 </div>
 
@@ -826,8 +826,8 @@ const PatientAppointmentsPage = () => {
                   <div>
                     {/* Nearest Tag at the top if matches closest clinic */}
                     {(selectedClinic.isNearest || selectedClinic.dist === '0.8 km' || selectedClinic.id === '1') && (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 mb-2">
-                        <MapPin size={10} className="fill-emerald-400/20" />
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-500/15 text-blue-400 border border-blue-500/20 mb-2">
+                        <MapPin size={10} className="fill-blue-400/20" />
                         Nearest to You
                       </span>
                     )}
@@ -836,7 +836,7 @@ const PatientAppointmentsPage = () => {
                       <h2 className="text-xl md:text-2xl font-extrabold text-white leading-tight">
                         {selectedClinic.name}
                       </h2>
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/10">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/10">
                         <CheckCircle2 size={10} /> Verified Clinic
                       </span>
                     </div>
@@ -866,15 +866,15 @@ const PatientAppointmentsPage = () => {
                   {/* Contact Row */}
                   <div className="flex items-center gap-3.5 flex-wrap pt-2 text-xs border-t border-white/[0.04]">
                     <a href={`tel:${selectedClinic.phone}`} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.03] hover:bg-white/[0.08] text-slate-300 transition border border-white/[0.05]">
-                      <Phone size={12} className="text-aura-400" />
+                      <Phone size={12} className="text-blue-400" />
                       {selectedClinic.phone || '+91 98765 43210'}
                     </a>
                     <a href={`mailto:${selectedClinic.email}`} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.03] hover:bg-white/[0.08] text-slate-300 transition border border-white/[0.05]">
-                      <Mail size={12} className="text-aura-400" />
+                      <Mail size={12} className="text-blue-400" />
                       {selectedClinic.email || 'info@aicmsclinic.com'}
                     </a>
                     <a href={`https://${selectedClinic.web}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.03] hover:bg-white/[0.08] text-slate-300 transition border border-white/[0.05]">
-                      <Globe size={12} className="text-aura-400" />
+                      <Globe size={12} className="text-blue-400" />
                       {selectedClinic.web || 'www.aicmsclinic.com'}
                     </a>
                   </div>
@@ -898,7 +898,7 @@ const PatientAppointmentsPage = () => {
                     onClick={() => setActiveClinicTab(t.id)}
                     className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all whitespace-nowrap ${
                       activeClinicTab === t.id
-                        ? 'text-aura-400 border-aura-400'
+                        ? 'text-blue-400 border-blue-400'
                         : 'text-slate-400 border-transparent hover:text-slate-200'
                     }`}
                   >
@@ -916,7 +916,7 @@ const PatientAppointmentsPage = () => {
                       { val: `${selectedClinic.rating || '4.8'} ★`, label: `${selectedClinic.reviews || 'Verified'} Rating`, icon: <Star size={16} className="text-amber-500" /> },
                       { val: 'Expert', label: 'Doctor Panel', icon: <User size={16} className="text-blue-400" /> },
                       { val: 'Modern', label: 'Specialties', icon: <Stethoscope size={16} className="text-purple-400" /> },
-                      { val: 'Active', label: 'OPD Services', icon: <Activity size={16} className="text-emerald-400" /> }
+                      { val: 'Active', label: 'OPD Services', icon: <Activity size={16} className="text-blue-400" /> }
                     ].map((st, i) => (
                       <div key={i} className="p-4 rounded-xl bg-[#060d18] border border-white/[0.06] flex flex-col items-center justify-center text-center space-y-1">
                         <div className="w-8 h-8 rounded-full bg-white/[0.04] flex items-center justify-center mb-1">{st.icon}</div>
@@ -930,7 +930,7 @@ const PatientAppointmentsPage = () => {
                   <div className="space-y-4">
                     <div className="flex justify-between items-center">
                       <h3 className="text-sm font-bold text-white">Our Services</h3>
-                      <button className="text-xs font-bold text-aura-500 hover:text-aura-600" onClick={() => setActiveClinicTab('services')}>
+                      <button className="text-xs font-bold text-blue-500 hover:text-blue-600" onClick={() => setActiveClinicTab('services')}>
                         View All Services
                       </button>
                     </div>
@@ -940,7 +940,7 @@ const PatientAppointmentsPage = () => {
                         { title: 'General Consultation', desc: 'Consult with our general physicians for routine checkups and treatment.', icon: <Stethoscope size={16} className="text-purple-400" /> },
                         { title: 'Pediatrics', desc: 'Specialized care for infants, children, and adolescents.', icon: <Sparkles size={16} className="text-amber-400" /> },
                         { title: 'Cardiology', desc: 'Comprehensive heart care and cardiac health management.', icon: <Heart size={16} className="text-rose-400" /> },
-                        { title: 'Dermatology', desc: 'Skin, hair, and nail care with advanced treatments.', icon: <User size={16} className="text-emerald-400" /> },
+                        { title: 'Dermatology', desc: 'Skin, hair, and nail care with advanced treatments.', icon: <User size={16} className="text-blue-400" /> },
                         { title: 'Orthopedics', desc: 'Bone, joint, and muscle care for improved mobility.', icon: <Activity size={16} className="text-blue-400" /> },
                         { title: 'Gynecology', desc: 'Women\'s health and wellness with expert care.', icon: <User size={16} className="text-pink-400" /> },
                         { title: 'Diagnostics', desc: 'Advanced lab tests and imaging for accurate diagnosis.', icon: <FlaskConical size={16} className="text-indigo-400" /> },
@@ -959,7 +959,7 @@ const PatientAppointmentsPage = () => {
                               // Trigger booking chatbot query
                               startBooking();
                             }}
-                            className="w-full py-1.5 rounded-lg bg-white/[0.04] hover:bg-aura-500/10 hover:text-white border border-white/[0.08] hover:border-aura-500/30 text-[10px] font-bold text-slate-300 transition"
+                            className="w-full py-1.5 rounded-lg bg-white/[0.04] hover:bg-blue-500/10 hover:text-white border border-white/[0.08] hover:border-blue-500/30 text-[10px] font-bold text-slate-300 transition"
                           >
                             Book Appointment
                           </button>
@@ -969,13 +969,13 @@ const PatientAppointmentsPage = () => {
                   </div>
 
                   {/* Priority banner */}
-                  <div className="rounded-xl border border-emerald-500/15 bg-emerald-500/5 p-4 flex items-center gap-3.5">
-                    <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0">
-                      <Shield size={20} className="text-emerald-400" />
+                  <div className="rounded-xl border border-blue-500/15 bg-blue-500/5 p-4 flex items-center gap-3.5">
+                    <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0">
+                      <Shield size={20} className="text-blue-400" />
                     </div>
                     <div>
-                      <h4 className="text-xs font-bold text-emerald-400">Your Health, Our Priority</h4>
-                      <p className="text-[10px] text-emerald-500/70 mt-0.5">We are committed to providing the best healthcare experience with advanced technology and compassionate care.</p>
+                      <h4 className="text-xs font-bold text-blue-400">Your Health, Our Priority</h4>
+                      <p className="text-[10px] text-blue-500/70 mt-0.5">We are committed to providing the best healthcare experience with advanced technology and compassionate care.</p>
                     </div>
                   </div>
 
@@ -1011,7 +1011,7 @@ const PatientAppointmentsPage = () => {
                           // Back to chatbot view
                           setSelectedClinic(null);
                         }}
-                        className="px-3.5 py-1.5 rounded-lg bg-aura-600 hover:bg-aura-700 text-white text-[10px] font-bold transition"
+                        className="px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold transition"
                       >
                         Book Slot
                       </button>
@@ -1028,7 +1028,7 @@ const PatientAppointmentsPage = () => {
               {/* Placeholder tabs */}
               {['services', 'facilities', 'reviews', 'insurance', 'gallery'].includes(activeClinicTab) && (
                 <div className="p-8 rounded-xl bg-[#060d18] border border-white/[0.06] text-center space-y-3">
-                  <Sparkles className="mx-auto text-aura-400" size={32} />
+                  <Sparkles className="mx-auto text-blue-400" size={32} />
                   <div>
                     <h3 className="text-xs font-bold text-white capitalize">{activeClinicTab} Details</h3>
                     <p className="text-[10px] text-slate-400 mt-1">This section contains advanced amenities and dynamic configuration for {selectedClinic.name}.</p>
@@ -1043,8 +1043,8 @@ const PatientAppointmentsPage = () => {
               {/* Card 1: Book Appointment */}
               <div className="rounded-2xl border border-white/[0.08] bg-[#060d18] p-5 space-y-4">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                    <Calendar size={15} className="text-emerald-400" />
+                  <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                    <Calendar size={15} className="text-blue-400" />
                   </div>
                   <div>
                     <h3 className="text-xs font-bold text-white">Book an Appointment</h3>
@@ -1057,13 +1057,13 @@ const PatientAppointmentsPage = () => {
                     setSelectedClinic(null);
                     startBooking();
                   }}
-                  className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-extrabold transition flex items-center justify-center gap-1.5"
+                  className="w-full py-2.5 rounded-xl bg-blue-500 hover:bg-blue-600 text-white text-xs font-extrabold transition flex items-center justify-center gap-1.5"
                 >
                   <Calendar size={13} /> Book Appointment
                 </button>
                 <a 
                   href={`tel:${selectedClinic.phone}`}
-                  className="w-full py-2.5 rounded-xl border border-emerald-500/25 hover:bg-emerald-500/5 text-emerald-400 text-xs font-bold transition flex items-center justify-center gap-1.5 text-center"
+                  className="w-full py-2.5 rounded-xl border border-blue-500/25 hover:bg-blue-500/5 text-blue-400 text-xs font-bold transition flex items-center justify-center gap-1.5 text-center"
                 >
                   <Phone size={13} /> Call Clinic
                 </a>
@@ -1134,7 +1134,7 @@ const PatientAppointmentsPage = () => {
                     <line x1="0" y1="30" x2="100" y2="30" stroke="#fff" strokeWidth="0.5" />
                     <line x1="0" y1="60" x2="100" y2="60" stroke="#fff" strokeWidth="0.5" />
                   </svg>
-                  <MapPin size={24} className="text-emerald-500 animate-bounce absolute" />
+                  <MapPin size={24} className="text-blue-500 animate-bounce absolute" />
                 </div>
                 <button 
                   onClick={() => window.open('https://maps.google.com', '_blank')}
@@ -1165,7 +1165,7 @@ const PatientAppointmentsPage = () => {
                           setSelectedClinic(oc);
                           setActiveClinicTab('overview');
                         }}
-                        className="px-2.5 py-1 rounded-lg bg-white/[0.04] hover:bg-aura-500/20 border border-white/10 hover:border-aura-500/30 text-white text-[10px] font-bold transition shrink-0"
+                        className="px-2.5 py-1 rounded-lg bg-white/[0.04] hover:bg-blue-500/20 border border-white/10 hover:border-blue-500/30 text-white text-[10px] font-bold transition shrink-0"
                       >
                         View
                       </button>
@@ -1202,7 +1202,7 @@ const PatientAppointmentsPage = () => {
             <div className="relative overflow-hidden rounded-2xl p-6 bg-[#060d18] border border-white/[0.06] flex flex-col md:flex-row md:items-center justify-between gap-6">
               {/* Background glows */}
               <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                <div className="absolute -top-20 -right-20 w-72 h-72 rounded-full bg-aura-500/10 blur-3xl" />
+                <div className="absolute -top-20 -right-20 w-72 h-72 rounded-full bg-blue-500/10 blur-3xl" />
                 <div className="absolute -bottom-16 -left-10 w-64 h-64 rounded-full bg-indigo-600/10 blur-3xl" />
               </div>
 
@@ -1216,13 +1216,13 @@ const PatientAppointmentsPage = () => {
                   <input
                     type="text"
                     placeholder="Search by hospital, clinic, specialty or doctor..."
-                    className="w-full pl-4 pr-10 py-2.5 rounded-xl text-xs bg-slate-900 border border-white/10 text-white placeholder:text-slate-500 focus:outline-none focus:border-aura-500 transition"
+                    className="w-full pl-4 pr-10 py-2.5 rounded-xl text-xs bg-slate-900 border border-white/10 text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500 transition"
                   />
                   <MessageCircle size={15} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <button className="px-4 py-2 rounded-xl bg-aura-600 hover:bg-aura-700 text-white text-xs font-bold transition flex items-center gap-1.5">
+                  <button className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition flex items-center gap-1.5">
                     <MapPin size={13} />
                     Near Me
                   </button>
@@ -1246,10 +1246,10 @@ const PatientAppointmentsPage = () => {
                   <line x1="0" y1="30" x2="100" y2="30" stroke="#fff" strokeWidth="0.5" />
                   <line x1="0" y1="70" x2="100" y2="70" stroke="#fff" strokeWidth="0.5" />
                 </svg>
-                <div className="absolute w-4 h-4 rounded-full bg-aura-500 animate-ping z-20" />
-                <div className="absolute w-2.5 h-2.5 rounded-full bg-aura-500 border border-white z-20" />
+                <div className="absolute w-4 h-4 rounded-full bg-blue-500 animate-ping z-20" />
+                <div className="absolute w-2.5 h-2.5 rounded-full bg-blue-500 border border-white z-20" />
                 {/* Map Pins */}
-                <MapPin size={14} className="text-emerald-500 absolute top-6 left-12 z-20" />
+                <MapPin size={14} className="text-blue-500 absolute top-6 left-12 z-20" />
                 <MapPin size={14} className="text-indigo-400 absolute bottom-8 right-14 z-20" />
                 <MapPin size={14} className="text-rose-500 absolute top-10 right-8 z-20" />
               </div>
@@ -1259,12 +1259,12 @@ const PatientAppointmentsPage = () => {
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
                   <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">Nearest to You</h3>
-                  <button className="text-xs font-bold text-aura-500 hover:text-aura-600">View All</button>
+                  <button className="text-xs font-bold text-blue-500 hover:text-blue-600">View All</button>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                   {displayClinics.map(c => (
-                    <div key={c.id} className="rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-navy-800 overflow-hidden flex flex-col justify-between hover:border-aura-400 transition-all duration-150">
+                    <div key={c.id} className="rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-navy-800 overflow-hidden flex flex-col justify-between hover:border-blue-400 transition-all duration-150">
                       <div className="w-full h-24 bg-slate-100 dark:bg-navy-900 relative">
                         <img src={c.img} alt={c.name} className="w-full h-full object-cover" />
                         <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded text-[8px] font-bold bg-slate-900/80 text-white border border-white/10">{c.dist}</span>
@@ -1297,7 +1297,7 @@ const PatientAppointmentsPage = () => {
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">Popular Treatments &amp; Specialties</h3>
-                <button className="text-xs font-bold text-aura-500 hover:text-aura-600">View All Specialties</button>
+                <button className="text-xs font-bold text-blue-500 hover:text-blue-600">View All Specialties</button>
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-3">
@@ -1307,12 +1307,12 @@ const PatientAppointmentsPage = () => {
                   { name: 'Dermatology', label: 'Skin & Hair', icon: <User size={14} className="text-amber-500" />, bg: 'bg-amber-500/15' },
                   { name: 'Pediatrics', label: 'Child Care', icon: <Sparkles size={14} className="text-purple-500" />, bg: 'bg-purple-500/15' },
                   { name: 'Gynecology', label: 'Women\'s Health', icon: <User size={14} className="text-pink-500" />, bg: 'bg-pink-500/15' },
-                  { name: 'Neurology', label: 'Brain & Nerve', icon: <Stethoscope size={14} className="text-emerald-500" />, bg: 'bg-emerald-500/15' },
+                  { name: 'Neurology', label: 'Brain & Nerve', icon: <Stethoscope size={14} className="text-blue-500" />, bg: 'bg-blue-500/15' },
                   { name: 'Ophthalmology', label: 'Eye Care', icon: <Eye size={14} className="text-sky-500" />, bg: 'bg-sky-500/15' },
                   { name: 'Dental Care', label: 'Teeth & Gum', icon: <Sparkles size={14} className="text-teal-500" />, bg: 'bg-teal-500/15' }
                 ].map(spec => (
                   <button key={spec.name} onClick={() => alert(`Browsing ${spec.name} doctors`)}
-                    className="p-3 rounded-xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-navy-800 hover:border-aura-400 transition flex flex-col items-center justify-center text-center space-y-2">
+                    className="p-3 rounded-xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-navy-800 hover:border-blue-400 transition flex flex-col items-center justify-center text-center space-y-2">
                     <div className={`w-9 h-9 rounded-full ${spec.bg} flex items-center justify-center shrink-0`}>
                       {spec.icon}
                     </div>
@@ -1341,7 +1341,7 @@ const PatientAppointmentsPage = () => {
                 ].map((act, i) => (
                   <button key={i} onClick={act.action} className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition text-left group">
                     <div>
-                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-aura-500 transition">{act.title}</p>
+                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-blue-500 transition">{act.title}</p>
                       <p className="text-[10px] text-slate-450 mt-0.5">{act.desc}</p>
                     </div>
                     <ChevronRight size={14} className="text-slate-400 group-hover:translate-x-0.5 transition" />
@@ -1354,7 +1354,7 @@ const PatientAppointmentsPage = () => {
             <div className="rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-navy-800 p-5">
               <div className="flex justify-between items-center pb-2">
                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Your Location</h3>
-                <button onClick={() => alert('Change Location modal opened')} className="text-xs font-bold text-aura-500 hover:text-aura-600">Change</button>
+                <button onClick={() => alert('Change Location modal opened')} className="text-xs font-bold text-blue-500 hover:text-blue-600">Change</button>
               </div>
               <p className="text-xs font-bold text-slate-800 dark:text-slate-200 mt-1 flex items-center gap-1.5">
                 <MapPin size={14} className="text-rose-500" />
@@ -1377,7 +1377,7 @@ const PatientAppointmentsPage = () => {
                     <button key={dist} onClick={() => alert(`Radius filter set to ${dist}`)}
                       className={`py-1.5 text-center text-xs font-bold rounded-lg transition-all ${
                         idx === 0
-                          ? 'bg-aura-600 text-white shadow-sm'
+                          ? 'bg-blue-600 text-white shadow-sm'
                           : 'bg-slate-50 dark:bg-navy-900 border border-slate-200 dark:border-white/10 text-slate-600 hover:bg-slate-100'
                       }`}
                     >
@@ -1392,11 +1392,11 @@ const PatientAppointmentsPage = () => {
                 <label className="text-[10px] text-slate-400 font-bold uppercase">Type</label>
                 <div className="flex gap-4">
                   <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer">
-                    <input type="checkbox" defaultChecked className="rounded border-slate-300 text-aura-600 focus:ring-aura-500" />
+                    <input type="checkbox" defaultChecked className="rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
                     Clinic
                   </label>
                   <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer">
-                    <input type="checkbox" defaultChecked className="rounded border-slate-300 text-aura-600 focus:ring-aura-500" />
+                    <input type="checkbox" defaultChecked className="rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
                     Hospital
                   </label>
                 </div>
@@ -1429,7 +1429,7 @@ const PatientAppointmentsPage = () => {
                 <div className="space-y-2">
                   {['24x7 Emergency', 'Parking Available', 'Online Appointment', 'Insurance Accepted'].map(fac => (
                     <label key={fac} className="flex items-center gap-2.5 text-xs font-semibold text-slate-750 dark:text-slate-300 cursor-pointer">
-                      <input type="checkbox" className="rounded border-slate-300 text-aura-600 focus:ring-aura-500" />
+                      <input type="checkbox" className="rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
                       {fac}
                     </label>
                   ))}
@@ -1437,7 +1437,7 @@ const PatientAppointmentsPage = () => {
               </div>
 
               <button onClick={() => alert('Filters applied')}
-                className="w-full py-2.5 rounded-xl bg-aura-600 hover:bg-aura-700 text-white text-xs font-bold transition flex items-center justify-center gap-1.5">
+                className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition flex items-center justify-center gap-1.5">
                 <Filter size={13} />
                 Apply Filters
               </button>
@@ -1468,10 +1468,10 @@ const PatientAppointmentsPage = () => {
           {!chatStarted && (
             <div className="flex flex-col items-center px-6 pt-10 pb-4">
               <div className="relative mb-5">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-aura-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-aura-500/30">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
                   <Sparkles size={28} className="text-white" />
                 </div>
-                <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-[#080e1a]" />
+                <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-blue-500 border-2 border-[#080e1a]" />
               </div>
               <h1 className="text-2xl md:text-3xl font-bold text-white text-center mb-2">How can I help you today?</h1>
               <p className="text-slate-400 text-sm text-center mb-8">Ask about your health, appointments, or anything else.</p>
@@ -1513,13 +1513,13 @@ const PatientAppointmentsPage = () => {
 
               {isTyping && (
                 <div className="flex gap-3">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-aura-500 to-indigo-600 flex items-center justify-center shrink-0 mt-0.5">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shrink-0 mt-0.5">
                     <Bot size={14} className="text-white" />
                   </div>
                   <div className="px-4 py-3 bg-[#111827] border border-white/[0.07] rounded-2xl rounded-tl-sm inline-flex">
                     <div className="flex gap-1.5 items-center h-4">
                       {[0, 150, 300].map(d => (
-                        <div key={d} className="w-1.5 h-1.5 rounded-full bg-aura-400 animate-bounce" style={{ animationDelay: `${d}ms` }} />
+                        <div key={d} className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-bounce" style={{ animationDelay: `${d}ms` }} />
                       ))}
                     </div>
                   </div>
@@ -1533,10 +1533,10 @@ const PatientAppointmentsPage = () => {
         {/* Quick actions bar */}
         {chatStarted && (flow === 'menu' || flow === 'booking_results') && (
           <div className="px-4 md:px-8 py-2 border-t border-white/[0.04] bg-[#060c17] shrink-0 flex gap-2 overflow-x-auto no-scrollbar">
-            <button onClick={startBooking} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-semibold bg-aura-500/10 text-aura-300 hover:bg-aura-500/20 border border-aura-500/20 transition whitespace-nowrap">
+            <button onClick={startBooking} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-semibold bg-blue-500/10 text-blue-300 hover:bg-blue-500/20 border border-blue-500/20 transition whitespace-nowrap">
               <Calendar size={12} /> Book Doctor
             </button>
-            <button onClick={startDosage} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-semibold bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 border border-emerald-500/20 transition whitespace-nowrap">
+            <button onClick={startDosage} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-semibold bg-blue-500/10 text-blue-300 hover:bg-blue-500/20 border border-blue-500/20 transition whitespace-nowrap">
               <Pill size={12} /> Dosage Calc
             </button>
             <Link to="/labs/tests" className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-semibold bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500/20 border border-indigo-500/20 transition whitespace-nowrap">
@@ -1551,7 +1551,7 @@ const PatientAppointmentsPage = () => {
         {/* Chat input */}
         <div className="px-4 md:px-8 py-4 border-t border-white/[0.06] bg-[#080e1a] shrink-0">
           <div className="max-w-2xl mx-auto">
-            <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-[#111827] border border-white/[0.08] focus-within:border-aura-500/40 transition-colors duration-200">
+            <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-[#111827] border border-white/[0.08] focus-within:border-blue-500/40 transition-colors duration-200">
               <input ref={inputRef} id="apt-chat-input"
                 type={(flow === 'dosage_age' || flow === 'dosage_weight') ? 'number' : 'text'}
                 value={inputValue}
@@ -1564,7 +1564,7 @@ const PatientAppointmentsPage = () => {
                 <Mic size={16} />
               </button>
               <button onClick={() => handleSend()} disabled={!inputValue.trim() || isTyping} aria-label="Send"
-                className="p-2 rounded-xl bg-aura-600 hover:bg-aura-700 disabled:opacity-40 text-white transition-all duration-150">
+                className="p-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white transition-all duration-150">
                 {isTyping ? <Loader2 size={16} className="animate-spin" /> : <ArrowUp size={16} />}
               </button>
             </div>
@@ -1580,7 +1580,7 @@ const PatientAppointmentsPage = () => {
             {['appointments', 'chats'].map(tab => (
               <button key={tab} onClick={() => setActiveTab(tab)}
                 className={`text-[12px] font-semibold pb-3 border-b-2 transition-all duration-150 ${
-                  activeTab === tab ? 'text-aura-400 border-aura-400' : 'text-slate-600 border-transparent hover:text-slate-300'}`}>
+                  activeTab === tab ? 'text-blue-400 border-blue-400' : 'text-slate-600 border-transparent hover:text-slate-300'}`}>
                 {tab === 'appointments' ? 'Appointments' : 'Past Chats'}
               </button>
             ))}
@@ -1590,7 +1590,7 @@ const PatientAppointmentsPage = () => {
         <div className="flex-1 overflow-y-auto divide-y divide-white/[0.04]">
           {activeTab === 'appointments' ? (
             apptLoading ? (
-              <div className="flex items-center justify-center py-16"><Loader2 size={20} className="text-aura-500 animate-spin" /></div>
+              <div className="flex items-center justify-center py-16"><Loader2 size={20} className="text-blue-500 animate-spin" /></div>
             ) : rightPanelAppts.length > 0 ? (
               rightPanelAppts.map(item => (
                 <button key={item.id} className="w-full px-4 py-3.5 hover:bg-white/[0.025] transition text-left flex items-start gap-3">

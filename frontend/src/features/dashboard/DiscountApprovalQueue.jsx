@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import { Clock, CheckCircle2, XCircle, AlertCircle, Tag, RefreshCw, User, ChevronDown, ChevronUp } from 'lucide-react';
 import { appointmentApi } from '../../lib/api';
 import useAuth from '../../hooks/useAuth';
@@ -211,7 +211,7 @@ export default function DiscountApprovalQueue({ compact = false, onDecisionMade 
                       <button
                         disabled={isDeciding}
                         onClick={() => handleDecide(apt._id, 'approved')}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-200 text-white text-[11px] font-bold rounded-xl transition"
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 text-white text-[11px] font-bold rounded-xl transition"
                       >
                         <CheckCircle2 size={12} />
                         {isDeciding ? 'Processing...' : 'Approve'}

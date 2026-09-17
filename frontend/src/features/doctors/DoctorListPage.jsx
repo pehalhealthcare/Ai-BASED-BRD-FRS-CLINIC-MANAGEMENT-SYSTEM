@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+﻿import { useEffect, useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
   Search, Filter, RefreshCw, Plus, Eye, Calendar, MessageSquare, 
@@ -180,8 +180,8 @@ const DoctorListPage = () => {
     switch (statusVal) {
       case 'Available':
         return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-100">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
             Live (Available)
           </span>
         );
@@ -267,7 +267,7 @@ const DoctorListPage = () => {
   }
 
   if (error && doctors.length === 0) {
-    return <ErrorState title="Unable to load doctors" description={error} action={<button className="rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white" onClick={() => loadDoctors(pagination.page)}>Retry</button>} />;
+    return <ErrorState title="Unable to load doctors" description={error} action={<button className="rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white" onClick={() => loadDoctors(pagination.page)}>Retry</button>} />;
   }
 
   return (
@@ -303,7 +303,7 @@ const DoctorListPage = () => {
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {/* Doctors Available */}
         <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
+          <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
             <Activity size={18} />
           </div>
           <div>
@@ -531,7 +531,7 @@ const DoctorListPage = () => {
                             </button>
                             <Link 
                               to={`/doctors/${doctor._id}/schedule`}
-                              className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-emerald-600 transition"
+                              className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-blue-600 transition"
                               title="Today's Schedule"
                             >
                               <Calendar size={13} />
@@ -628,14 +628,14 @@ const DoctorListPage = () => {
           <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-4">
             <div className="border-b border-slate-50 pb-2 flex justify-between items-center">
               <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">Live Doctor Status</h3>
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+              <span className="w-2 h-2 rounded-full bg-blue-500 animate-ping"></span>
             </div>
             <div className="space-y-2">
               {doctors.slice(0, 4).map((doc, idx) => (
                 <div key={idx} className="p-3 bg-slate-50/50 rounded-2xl border border-slate-100 flex items-center justify-between text-xs hover:bg-slate-50 transition cursor-pointer">
                   <div className="flex items-center gap-2">
                     <span className={`w-2 h-2 rounded-full ${
-                      doc.liveStatus === 'Available' ? 'bg-emerald-500' :
+                      doc.liveStatus === 'Available' ? 'bg-blue-500' :
                       doc.liveStatus === 'In Consultation' ? 'bg-amber-500' :
                       doc.liveStatus === 'Break' ? 'bg-yellow-500' : 'bg-slate-400'
                     }`}></span>
@@ -662,7 +662,7 @@ const DoctorListPage = () => {
                   <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="#E2E8F0" strokeWidth="4"></circle>
                   {(() => {
                     let accumulated = 0;
-                    const colors = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899'];
+                    const colors = ['#3B82F6', '#2563EB', '#F59E0B', '#8B5CF6', '#EC4899'];
                     return specializationDistribution.map((item, idx) => {
                       const percentage = item.percentage;
                       const strokeDasharray = `${percentage} ${100 - percentage}`;
@@ -692,7 +692,7 @@ const DoctorListPage = () => {
             </div>
             <div className="space-y-1.5 text-[9px] font-bold text-slate-600">
               {specializationDistribution.map((item, idx) => {
-                const colors = ['bg-blue-500', 'bg-emerald-500', 'bg-amber-500', 'bg-purple-500', 'bg-pink-500'];
+                const colors = ['bg-blue-500', 'bg-blue-500', 'bg-amber-500', 'bg-purple-500', 'bg-pink-500'];
                 return (
                   <div key={idx} className="flex justify-between items-center">
                     <span className="flex items-center gap-1.5">
@@ -864,7 +864,7 @@ const DoctorListPage = () => {
 
               {/* Today's Schedule Card */}
               <div className="space-y-3">
-                <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest border-l-2 border-emerald-600 pl-2">
+                <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest border-l-2 border-blue-600 pl-2">
                   Today's Appointments Summary
                 </h4>
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
@@ -876,7 +876,7 @@ const DoctorListPage = () => {
                   </div>
                   <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
                     <div 
-                      className="bg-emerald-500 h-full rounded-full" 
+                      className="bg-blue-500 h-full rounded-full" 
                       style={{ width: `${(selectedDoctor.appointmentsCompleted / (selectedDoctor.appointmentsTotal || 1)) * 100}%` }}
                     ></div>
                   </div>
@@ -891,7 +891,7 @@ const DoctorListPage = () => {
             <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex gap-3">
               <Link 
                 to={`/doctors/${selectedDoctor._id}/edit`}
-                className="w-1/2 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-center text-xs rounded-xl transition"
+                className="w-1/2 py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold text-center text-xs rounded-xl transition"
               >
                 Edit Doctor
               </Link>

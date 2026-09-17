@@ -1,11 +1,11 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
 import PageHeader from '../../components/layout/PageHeader';
 import { createMedicine } from './pharmacyApi';
 
 const FIELD_CLASS =
-  'w-full rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100';
+  'w-full rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100';
 
 const createEmptyBatch = () => ({
   batchNumber: '',
@@ -175,7 +175,7 @@ const MedicineFormPage = () => {
               <button
                 type="button"
                 onClick={() => setForm((current) => ({ ...current, batches: [...current.batches, createEmptyBatch()] }))}
-                className="rounded-2xl border border-emerald-300 px-4 py-3 text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
+                className="rounded-2xl border border-blue-300 px-4 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-50"
               >
                 Add batch
               </button>
@@ -215,7 +215,7 @@ const MedicineFormPage = () => {
         <button
           type="submit"
           disabled={saving}
-          className="rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:bg-stone-300"
+          className="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-stone-300"
         >
           {saving ? 'Saving...' : 'Create medicine'}
         </button>

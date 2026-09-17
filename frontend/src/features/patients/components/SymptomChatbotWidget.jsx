@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import aiApi from '../../../api/aiApi';
@@ -310,7 +310,7 @@ const SymptomChatbotWidget = ({ isPatientDashboard = false, onBookingSuccess }) 
               contact: user?.phone || ''
             },
             theme: {
-              color: '#10b981'
+              color: '#2563EB'
             }
           };
           const rzp = new window.Razorpay(options);
@@ -351,7 +351,7 @@ const SymptomChatbotWidget = ({ isPatientDashboard = false, onBookingSuccess }) 
       <div className="grid gap-6 xl:grid-cols-[1fr_1.2fr]">
         <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300">
           <h2 className="text-xl font-bold text-stone-900 mb-2 flex items-center gap-2">
-            <span className="flex h-3 w-3 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="flex h-3 w-3 rounded-full bg-blue-500 animate-pulse" />
             Describe your symptoms
           </h2>
           <form className="grid gap-4" onSubmit={handleSubmit}>
@@ -449,7 +449,7 @@ const SymptomChatbotWidget = ({ isPatientDashboard = false, onBookingSuccess }) 
               />
             </label>
 
-            <Button type="submit" disabled={loading} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 rounded-2xl shadow-md transition-all">
+            <Button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-2xl shadow-md transition-all">
               {loading ? 'Analyzing symptoms...' : 'Run Symptom Check'}
             </Button>
           </form>
@@ -520,7 +520,7 @@ const SymptomChatbotWidget = ({ isPatientDashboard = false, onBookingSuccess }) 
                           onClick={() => setSelectedDoctor(doc)}
                           className={`flex flex-col text-left p-3 rounded-2xl border transition-all ${
                             isSelected
-                              ? 'border-emerald-600 bg-emerald-50/80 shadow-sm text-emerald-900 ring-2 ring-emerald-600/20'
+                              ? 'border-blue-600 bg-blue-50/80 shadow-sm text-blue-900 ring-2 ring-blue-600/20'
                               : 'border-stone-200 bg-white hover:border-stone-300 text-stone-800'
                           }`}
                         >
@@ -549,7 +549,7 @@ const SymptomChatbotWidget = ({ isPatientDashboard = false, onBookingSuccess }) 
                         type="date"
                         value={selectedDate}
                         onChange={(e) => setSelectedDate(e.target.value)}
-                        className="text-xs rounded-lg border border-stone-300 px-2 py-1 font-medium bg-white text-stone-800 outline-none focus:border-emerald-500"
+                        className="text-xs rounded-lg border border-stone-300 px-2 py-1 font-medium bg-white text-stone-800 outline-none focus:border-blue-500"
                         min={new Date().toISOString().split('T')[0]}
                       />
                     </div>
@@ -574,8 +574,8 @@ const SymptomChatbotWidget = ({ isPatientDashboard = false, onBookingSuccess }) 
                             className={`p-2 rounded-xl text-center border text-xs font-semibold transition ${
                               slot.available
                                 ? isSlotSelected
-                                  ? 'border-emerald-600 bg-emerald-50 text-emerald-950 font-bold'
-                                  : 'border-stone-200 bg-white text-stone-800 hover:border-emerald-400 hover:bg-emerald-50/50'
+                                  ? 'border-blue-600 bg-blue-50 text-blue-950 font-bold'
+                                  : 'border-stone-200 bg-white text-stone-800 hover:border-blue-400 hover:bg-blue-50/50'
                                 : 'border-stone-150 bg-stone-100 text-stone-400 cursor-not-allowed'
                             }`}
                           >
@@ -594,7 +594,7 @@ const SymptomChatbotWidget = ({ isPatientDashboard = false, onBookingSuccess }) 
                 <div className="border-t border-stone-100 pt-4 flex flex-col gap-3">
                   <Button
                     onClick={handleBookSlot}
-                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 rounded-2xl shadow-md transition-all"
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-2xl shadow-md transition-all"
                   >
                     Book Appointment with {selectedDoctor.fullName} at {selectedSlot}
                   </Button>
@@ -604,7 +604,7 @@ const SymptomChatbotWidget = ({ isPatientDashboard = false, onBookingSuccess }) 
               {bookingStatus && (
                 <div className={`p-3 rounded-2xl text-sm font-semibold border ${
                   bookingStatus.startsWith('Success')
-                    ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+                    ? 'border-blue-200 bg-blue-50 text-blue-900'
                     : 'border-rose-200 bg-rose-50 text-rose-900'
                 }`}>
                   {bookingStatus}

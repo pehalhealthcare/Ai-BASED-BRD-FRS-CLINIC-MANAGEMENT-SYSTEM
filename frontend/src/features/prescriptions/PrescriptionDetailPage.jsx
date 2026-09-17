@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import ErrorState from '../../components/common/ErrorState';
@@ -339,7 +339,7 @@ const PrescriptionDetailPage = () => {
     <section className="grid gap-6">
       <div className="flex flex-col gap-4 rounded-3xl border border-stone-200 bg-white p-6 shadow-lg shadow-stone-200/40 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">Prescription detail</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">Prescription detail</p>
           <h1 className="mt-2 text-3xl font-semibold text-stone-900">{prescription.prescriptionNumber || 'Prescription'}</h1>
           <p className="mt-2 text-sm text-stone-600">Finalized prescriptions are locked for normal edits and remain downloadable as PDF.</p>
         </div>
@@ -413,7 +413,7 @@ const PrescriptionDetailPage = () => {
 
           {prescription.consultationId?._id ? (
             <div className="mt-6">
-              <Link className="rounded-2xl border border-emerald-300 px-4 py-3 text-sm font-semibold text-emerald-700 hover:bg-emerald-50" to={`/consultations/${prescription.consultationId._id}`}>
+              <Link className="rounded-2xl border border-blue-300 px-4 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-50" to={`/consultations/${prescription.consultationId._id}`}>
                 Open consultation
               </Link>
             </div>

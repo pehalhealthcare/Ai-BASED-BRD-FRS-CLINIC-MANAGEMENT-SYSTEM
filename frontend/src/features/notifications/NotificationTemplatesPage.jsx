@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import EmptyState from '../../components/common/EmptyState';
@@ -11,7 +11,7 @@ import { createNotificationTemplate, listNotificationTemplates } from './notific
 import ChannelBadge from './ChannelBadge';
 
 const FIELD_CLASS =
-  'w-full rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100';
+  'w-full rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100';
 
 const createInitialForm = () => ({
   name: '',
@@ -107,7 +107,7 @@ const NotificationTemplatesPage = () => {
             <Link className="rounded-2xl border border-stone-300 px-4 py-3 text-sm font-semibold text-stone-700 hover:bg-stone-50" to="/notifications/logs">
               View logs
             </Link>
-            <Link className="rounded-2xl border border-emerald-300 px-4 py-3 text-sm font-semibold text-emerald-700 hover:bg-emerald-50" to="/notifications/send">
+            <Link className="rounded-2xl border border-blue-300 px-4 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-50" to="/notifications/send">
               Send notification
             </Link>
           </>
@@ -183,7 +183,7 @@ const NotificationTemplatesPage = () => {
             <button
               type="submit"
               disabled={saving}
-              className="rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:bg-stone-300"
+              className="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-stone-300"
             >
               {saving ? 'Saving...' : 'Create template'}
             </button>

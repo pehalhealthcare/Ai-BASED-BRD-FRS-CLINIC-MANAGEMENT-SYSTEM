@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+﻿import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Activity, Play, CheckCircle2, XCircle, Search, Clock, 
@@ -255,7 +255,7 @@ export default function ProcedureManagementPage() {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'Completed': return 'bg-emerald-50 text-emerald-600';
+      case 'Completed': return 'bg-blue-50 text-blue-600';
       case 'In Progress': return 'bg-blue-50 text-blue-600';
       case 'Planned': case 'Ready To Perform': return 'bg-purple-50 text-purple-650';
       case 'Suggested': return 'bg-amber-50 text-amber-600';
@@ -266,7 +266,7 @@ export default function ProcedureManagementPage() {
 
   const getPaymentStatusColor = (pStatus) => {
     switch (pStatus) {
-      case 'paid': return 'text-emerald-600 bg-emerald-50';
+      case 'paid': return 'text-blue-600 bg-blue-50';
       case 'partial': return 'text-amber-600 bg-amber-50';
       default: return 'text-rose-600 bg-rose-50';
     }
@@ -346,7 +346,7 @@ export default function ProcedureManagementPage() {
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Procedures</span>
           <div className="mt-2">
             <h3 className="text-3xl font-black text-slate-905">{kpis.totalProcedures ?? 0}</h3>
-            <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full mt-1 inline-block">Active Range</span>
+            <span className="text-[9px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full mt-1 inline-block">Active Range</span>
           </div>
         </div>
 
@@ -363,8 +363,8 @@ export default function ProcedureManagementPage() {
         <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between min-h-[120px]">
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Completed</span>
           <div className="mt-2">
-            <h3 className="text-3xl font-black text-emerald-600">{kpis.completed ?? 0}</h3>
-            <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full mt-1 inline-block">Finalized</span>
+            <h3 className="text-3xl font-black text-blue-600">{kpis.completed ?? 0}</h3>
+            <span className="text-[9px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full mt-1 inline-block">Finalized</span>
           </div>
         </div>
 
@@ -562,7 +562,7 @@ export default function ProcedureManagementPage() {
                           {proc.status === 'In Progress' && (
                             <button 
                               onClick={() => handleCompleteProcedure(proc._id)}
-                              className="px-2 py-1 bg-emerald-500 text-white hover:bg-emerald-600 rounded text-[10px] font-extrabold flex items-center gap-0.5 cursor-pointer"
+                              className="px-2 py-1 bg-blue-500 text-white hover:bg-blue-600 rounded text-[10px] font-extrabold flex items-center gap-0.5 cursor-pointer"
                             >
                               <CheckCircle2 className="w-2.5 h-2.5" /> End
                             </button>

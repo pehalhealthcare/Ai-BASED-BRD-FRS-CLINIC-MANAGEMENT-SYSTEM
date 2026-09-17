@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Search, X, Sparkles, AlertCircle, ArrowLeft, Check, ShoppingCart } from 'lucide-react';
 import { pharmacyApi } from '../../lib/api';
 
@@ -204,7 +204,7 @@ export default function PharmacySearchPanel({
           </button>
           <div>
             <h1 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
-              <span className="flex items-center justify-center w-5 h-5 rounded bg-emerald-500/20 text-emerald-400 text-[10px] font-bold">💊</span>
+              <span className="flex items-center justify-center w-5 h-5 rounded bg-blue-500/20 text-blue-400 text-[10px] font-bold">💊</span>
               Add Medicine / Pharmacy
             </h1>
             <p className="text-xs text-slate-400">Search and select medicines to add to prescription.</p>
@@ -219,7 +219,7 @@ export default function PharmacySearchPanel({
           </button>
           <button
             onClick={handleConfirm}
-            className="px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 rounded-xl shadow-lg transition"
+            className="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-xl shadow-lg transition"
           >
             Add to Prescription ({addedMedicines.length})
           </button>
@@ -239,7 +239,7 @@ export default function PharmacySearchPanel({
                 <Search className="absolute left-3.5 top-3 w-4 h-4 text-slate-400" />
                 <input
                   type="text"
-                  className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-800 bg-[#111827] text-xs text-white outline-none focus:border-emerald-500 placeholder:text-slate-500 transition-all"
+                  className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-800 bg-[#111827] text-xs text-white outline-none focus:border-blue-500 placeholder:text-slate-500 transition-all"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search medicine (e.g. Paracetamol)..."
@@ -255,7 +255,7 @@ export default function PharmacySearchPanel({
               </div>
 
               <select
-                className="w-full md:w-44 py-2.5 px-3 rounded-xl border border-slate-800 bg-[#111827] text-xs text-white outline-none focus:border-emerald-500 cursor-pointer transition"
+                className="w-full md:w-44 py-2.5 px-3 rounded-xl border border-slate-800 bg-[#111827] text-xs text-white outline-none focus:border-blue-500 cursor-pointer transition"
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
               >
@@ -276,7 +276,7 @@ export default function PharmacySearchPanel({
             
             {/* 1. Medicines Available in Your Organization */}
             <div className="space-y-3">
-              <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase tracking-wider">
+              <div className="flex items-center gap-2 text-blue-400 font-bold text-xs uppercase tracking-wider">
                 <span>🏥</span> 1. Medicines Available in Your Organization
               </div>
 
@@ -292,7 +292,7 @@ export default function PharmacySearchPanel({
                       onClick={() => handleSelectForDetails(m, true)}
                       className={`flex items-center justify-between p-4 rounded-2xl border transition-all cursor-pointer ${
                         selectedMedicine?._id === m._id 
-                          ? 'border-emerald-500/50 bg-[#111827]' 
+                          ? 'border-blue-500/50 bg-[#111827]' 
                           : 'border-slate-850 bg-[#111827]/40 hover:bg-slate-900/40'
                       }`}
                     >
@@ -304,7 +304,7 @@ export default function PharmacySearchPanel({
                           <div className="flex items-center gap-4 mt-2 text-[11px]">
                             <div><span className="text-slate-500">Strength:</span> <span className="text-slate-300 font-semibold">{m.strength || '—'}</span></div>
                             <div><span className="text-slate-500">Form:</span> <span className="text-slate-300 font-semibold">{m.form || '—'}</span></div>
-                            <div><span className="text-slate-500">Stock:</span> <span className="text-emerald-400 font-extrabold">450 In stock</span></div>
+                            <div><span className="text-slate-500">Stock:</span> <span className="text-blue-400 font-extrabold">450 In stock</span></div>
                           </div>
                         </div>
                       </div>
@@ -314,7 +314,7 @@ export default function PharmacySearchPanel({
                           handleSelectForDetails(m, true);
                           handleAddSelection();
                         }}
-                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-555 text-xs font-bold text-white rounded-xl transition shadow-md"
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-555 text-xs font-bold text-white rounded-xl transition shadow-md"
                       >
                         + Add
                       </button>
@@ -411,7 +411,7 @@ export default function PharmacySearchPanel({
             {selectedMedicine ? (
               <div className="space-y-5">
                 <div>
-                  <h4 className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Medicine Details</h4>
+                  <h4 className="text-xs font-bold text-blue-400 uppercase tracking-wider">Medicine Details</h4>
                   <h3 className="text-base font-extrabold text-white mt-1">{selectedMedicine.name}</h3>
                   <p className="text-xs text-slate-400 mt-0.5">Generic: {selectedMedicine.genericName} • {selectedMedicine.category}</p>
                 </div>
@@ -460,7 +460,7 @@ export default function PharmacySearchPanel({
                       <label className="block text-[10px] text-slate-500 mb-1">Dose</label>
                       <input
                         type="text"
-                        className="w-full rounded-xl border border-slate-800 bg-[#0B0F19] px-3 py-2 text-xs text-slate-200 outline-none focus:border-emerald-500"
+                        className="w-full rounded-xl border border-slate-800 bg-[#0B0F19] px-3 py-2 text-xs text-slate-200 outline-none focus:border-blue-500"
                         value={dosageForm.dosage}
                         onChange={(e) => setDosageForm({ ...dosageForm, dosage: e.target.value })}
                       />
@@ -469,7 +469,7 @@ export default function PharmacySearchPanel({
                       <label className="block text-[10px] text-slate-500 mb-1">Frequency</label>
                       <input
                         type="text"
-                        className="w-full rounded-xl border border-slate-800 bg-[#0B0F19] px-3 py-2 text-xs text-slate-200 outline-none focus:border-emerald-500"
+                        className="w-full rounded-xl border border-slate-800 bg-[#0B0F19] px-3 py-2 text-xs text-slate-200 outline-none focus:border-blue-500"
                         value={dosageForm.frequency}
                         onChange={(e) => setDosageForm({ ...dosageForm, frequency: e.target.value })}
                       />
@@ -478,7 +478,7 @@ export default function PharmacySearchPanel({
                       <label className="block text-[10px] text-slate-500 mb-1">Duration</label>
                       <input
                         type="text"
-                        className="w-full rounded-xl border border-slate-800 bg-[#0B0F19] px-3 py-2 text-xs text-slate-200 outline-none focus:border-emerald-500"
+                        className="w-full rounded-xl border border-slate-800 bg-[#0B0F19] px-3 py-2 text-xs text-slate-200 outline-none focus:border-blue-500"
                         value={dosageForm.duration}
                         onChange={(e) => setDosageForm({ ...dosageForm, duration: e.target.value })}
                       />
@@ -487,7 +487,7 @@ export default function PharmacySearchPanel({
                       <label className="block text-[10px] text-slate-500 mb-1">Timing</label>
                       <input
                         type="text"
-                        className="w-full rounded-xl border border-slate-800 bg-[#0B0F19] px-3 py-2 text-xs text-slate-200 outline-none focus:border-emerald-500"
+                        className="w-full rounded-xl border border-slate-800 bg-[#0B0F19] px-3 py-2 text-xs text-slate-200 outline-none focus:border-blue-500"
                         value={dosageForm.timing}
                         onChange={(e) => setDosageForm({ ...dosageForm, timing: e.target.value })}
                       />
@@ -497,7 +497,7 @@ export default function PharmacySearchPanel({
                     <label className="block text-[10px] text-slate-500 mb-1">Special Instructions</label>
                     <input
                       type="text"
-                      className="w-full rounded-xl border border-slate-800 bg-[#0B0F19] px-3 py-2 text-xs text-slate-200 outline-none focus:border-emerald-500"
+                      className="w-full rounded-xl border border-slate-800 bg-[#0B0F19] px-3 py-2 text-xs text-slate-200 outline-none focus:border-blue-500"
                       value={dosageForm.instructions}
                       onChange={(e) => setDosageForm({ ...dosageForm, instructions: e.target.value })}
                     />
@@ -505,7 +505,7 @@ export default function PharmacySearchPanel({
 
                   <button
                     onClick={handleAddSelection}
-                    className="w-full text-center py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition"
+                    className="w-full text-center py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md transition"
                   >
                     Add to Selection list
                   </button>
@@ -559,10 +559,10 @@ export default function PharmacySearchPanel({
                 </div>
 
                 {/* Bottom availability banner */}
-                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3.5 flex items-start gap-2.5">
-                  <AlertCircle className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3.5 flex items-start gap-2.5">
+                  <AlertCircle className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
                   <p className="text-[11px] text-slate-400 leading-relaxed">
-                    <span className="text-emerald-400 font-bold block mb-0.5">This medicine is available in your hospital pharmacy.</span>
+                    <span className="text-blue-400 font-bold block mb-0.5">This medicine is available in your hospital pharmacy.</span>
                     It will be dispensed to the patient from in-house inventory.
                   </p>
                 </div>

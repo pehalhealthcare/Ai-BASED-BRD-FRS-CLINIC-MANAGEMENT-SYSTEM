@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const formatCurrency = (v) =>
@@ -21,7 +21,7 @@ const ProviderCard = ({ icon, name, subtitle, orders, revenue, status, pending, 
       </div>
       <span className={`text-[8px] font-bold px-2 py-0.5 rounded-full ${
         status === 'Open'
-          ? 'bg-emerald-50 text-emerald-700'
+          ? 'bg-blue-50 text-blue-700'
           : status === 'Busy'
           ? 'bg-amber-50 text-amber-700'
           : 'bg-slate-100 text-slate-500'

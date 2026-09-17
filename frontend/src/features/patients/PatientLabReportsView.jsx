@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   FileText, Download, Eye, Search, Filter, Calendar, Building2,
@@ -290,7 +290,7 @@ export default function PatientLabReportsView({
               onClick={() => setStatusFilter('AVAILABLE')}
               className={`px-3 py-1.5 rounded-xl transition cursor-pointer ${
                 statusFilter === 'AVAILABLE'
-                  ? 'bg-emerald-600 text-white shadow-xs'
+                  ? 'bg-blue-600 text-white shadow-xs'
                   : 'text-slate-500 hover:text-slate-900'
               }`}
             >
@@ -372,8 +372,8 @@ export default function PatientLabReportsView({
                     </div>
 
                     {ready ? (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-extrabold shrink-0 shadow-2xs">
-                        <CheckCircle2 size={12} className="text-emerald-600" />
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-extrabold shrink-0 shadow-2xs">
+                        <CheckCircle2 size={12} className="text-blue-600" />
                         <span>REPORT READY</span>
                       </span>
                     ) : (
@@ -409,7 +409,7 @@ export default function PatientLabReportsView({
                     <div className="flex items-center gap-3 text-[11px] font-bold px-1 text-slate-600">
                       <span className="text-slate-800">{totalParams} parameters</span>
                       <span>•</span>
-                      <span className="text-emerald-700 font-extrabold">Normal: {normalCount}</span>
+                      <span className="text-blue-700 font-extrabold">Normal: {normalCount}</span>
                       {abnormalCount > 0 && (
                         <>
                           <span>•</span>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import LoadingState from '../../components/common/LoadingState';
 import ErrorState from '../../components/common/ErrorState';
 import PageHeader from '../../components/layout/PageHeader';
@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 
 const FIELD_CLASS =
-  'w-full rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 text-black dark:bg-navy-800 dark:border-white/[0.08] dark:text-white';
+  'w-full rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-black dark:bg-navy-800 dark:border-white/[0.08] dark:text-white';
 
 const ClinicSettingsPage = () => {
   const { user } = useAuth();
@@ -316,7 +316,7 @@ const ClinicSettingsPage = () => {
             onClick={() => setActiveTab('profile')}
             className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
               activeTab === 'profile'
-                ? 'bg-white dark:bg-navy-900 text-emerald-600 shadow-sm'
+                ? 'bg-white dark:bg-navy-900 text-blue-600 shadow-sm'
                 : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white'
             }`}
           >
@@ -327,7 +327,7 @@ const ClinicSettingsPage = () => {
             onClick={() => setActiveTab('holidays')}
             className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
               activeTab === 'holidays'
-                ? 'bg-white dark:bg-navy-900 text-emerald-600 shadow-sm'
+                ? 'bg-white dark:bg-navy-900 text-blue-600 shadow-sm'
                 : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white'
             }`}
           >
@@ -339,12 +339,12 @@ const ClinicSettingsPage = () => {
 
       {activeTab === 'profile' ? (
         <form onSubmit={handleSave} className="space-y-8 max-w-4xl">
-          {success && <p className="p-4 rounded-2xl bg-emerald-50 text-emerald-800 text-sm font-semibold border border-emerald-100">{success}</p>}
+          {success && <p className="p-4 rounded-2xl bg-blue-50 text-blue-800 text-sm font-semibold border border-blue-100">{success}</p>}
           {error && <p className="p-4 rounded-2xl bg-rose-50 text-rose-800 text-sm font-semibold border border-rose-100">{error}</p>}
 
           <div className="rounded-3xl border border-stone-200 dark:border-white/[0.08] bg-white dark:bg-navy-900 p-6 shadow-sm">
             <h3 className="text-lg font-bold text-stone-900 dark:text-white mb-4 flex items-center gap-2">
-              <Building className="text-emerald-600" size={20} />
+              <Building className="text-blue-600" size={20} />
               <span>Clinic Identity & Contact</span>
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -394,13 +394,13 @@ const ClinicSettingsPage = () => {
           <div className="rounded-3xl border border-stone-200 dark:border-white/[0.08] bg-white dark:bg-navy-900 p-6 shadow-sm">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-bold text-stone-900 dark:text-white flex items-center gap-2">
-                <MapPin className="text-emerald-600" size={20} />
+                <MapPin className="text-blue-600" size={20} />
                 <span>Clinic Address Details</span>
               </h3>
               <button
                 type="button"
                 onClick={() => setShowMapPicker(true)}
-                className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 hover:text-emerald-700 transition cursor-pointer"
+                className="flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-700 transition cursor-pointer"
               >
                 <MapPin size={15} />
                 <span>Get address from maps</span>
@@ -465,7 +465,7 @@ const ClinicSettingsPage = () => {
           <div className="flex justify-end pt-4 border-t border-stone-200 dark:border-white/[0.08]">
             <button
               type="submit"
-              className="rounded-2xl bg-emerald-600 px-8 py-4 text-sm font-semibold text-white hover:bg-emerald-700 shadow-lg shadow-emerald-600/20 hover:shadow-emerald-700/35 transition-all duration-200 cursor-pointer flex items-center gap-2"
+              className="rounded-2xl bg-blue-600 px-8 py-4 text-sm font-semibold text-white hover:bg-blue-700 shadow-lg shadow-blue-600/20 hover:shadow-blue-700/35 transition-all duration-200 cursor-pointer flex items-center gap-2"
             >
               <Save size={16} />
               <span>Save Clinic Changes</span>
@@ -478,7 +478,7 @@ const ClinicSettingsPage = () => {
           <div className="rounded-3xl border border-stone-200 dark:border-white/[0.08] bg-stone-50/50 dark:bg-navy-950 p-6">
             <div className="flex items-center justify-between mb-4">
               <h4 className="text-sm font-bold text-stone-900 dark:text-white flex items-center gap-2">
-                <Info className="text-emerald-500 animate-pulse" size={18} />
+                <Info className="text-blue-500 animate-pulse" size={18} />
                 <span>Upcoming Public Holidays (Nager.Date Suggestions)</span>
               </h4>
               <button
@@ -509,7 +509,7 @@ const ClinicSettingsPage = () => {
                     </div>
                     <button
                       onClick={() => handleQuickAdd(item)}
-                      className="mt-3 w-full bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 text-[10px] font-bold py-1.5 px-3 rounded-lg transition flex items-center justify-center gap-1 cursor-pointer"
+                      className="mt-3 w-full bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400 text-[10px] font-bold py-1.5 px-3 rounded-lg transition flex items-center justify-center gap-1 cursor-pointer"
                     >
                       <Plus size={10} />
                       <span>Add as Holiday</span>
@@ -525,7 +525,7 @@ const ClinicSettingsPage = () => {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
               <div>
                 <h3 className="text-lg font-bold text-stone-900 dark:text-white flex items-center gap-2">
-                  <Calendar className="text-emerald-600" size={20} />
+                  <Calendar className="text-blue-600" size={20} />
                   <span>Clinic Holiday Schedule</span>
                 </h3>
                 <p className="text-xs text-stone-500 dark:text-stone-400 mt-1">
@@ -535,7 +535,7 @@ const ClinicSettingsPage = () => {
 
               <button
                 onClick={() => handleOpenAddModal()}
-                className="rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-emerald-700 shadow-md shadow-emerald-600/10 hover:shadow-emerald-700/25 transition-all flex items-center gap-2 cursor-pointer self-start sm:self-auto"
+                className="rounded-xl bg-blue-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-blue-700 shadow-md shadow-blue-600/10 hover:shadow-blue-700/25 transition-all flex items-center gap-2 cursor-pointer self-start sm:self-auto"
               >
                 <Plus size={14} />
                 <span>Add Custom Holiday</span>
@@ -544,7 +544,7 @@ const ClinicSettingsPage = () => {
 
             {loadingHolidays ? (
               <div className="py-12 flex justify-center items-center">
-                <RefreshCw size={24} className="animate-spin text-emerald-500" />
+                <RefreshCw size={24} className="animate-spin text-blue-500" />
               </div>
             ) : holidays.length === 0 ? (
               <div className="text-center py-12 border border-dashed border-stone-200 dark:border-white/[0.08] rounded-2xl">
@@ -624,14 +624,14 @@ const ClinicSettingsPage = () => {
                                 </div>
                               )}
                               {h.allow_emergency && (
-                                <span className="text-[9px] uppercase tracking-wider bg-emerald-50 text-emerald-705 dark:bg-emerald-950/40 dark:text-emerald-400 font-bold px-1.5 py-0.5 rounded w-max">
+                                <span className="text-[9px] uppercase tracking-wider bg-blue-50 text-blue-705 dark:bg-blue-950/40 dark:text-blue-400 font-bold px-1.5 py-0.5 rounded w-max">
                                   Emergency Open
                                 </span>
                               )}
                             </div>
                           </td>
                           <td className="py-4 px-4">
-                            <span className={`text-xs font-bold ${isDeleted ? 'text-rose-500' : 'text-emerald-500'}`}>
+                            <span className={`text-xs font-bold ${isDeleted ? 'text-rose-500' : 'text-blue-500'}`}>
                               {isDeleted ? 'Closed (Temporary Delete)' : 'Active (Closed)'}
                             </span>
                           </td>
@@ -640,7 +640,7 @@ const ClinicSettingsPage = () => {
                               {isDeleted ? (
                                 <button
                                   onClick={() => handleToggleRestoreHoliday(h)}
-                                  className="text-xs font-bold text-emerald-600 hover:text-emerald-700 transition cursor-pointer"
+                                  className="text-xs font-bold text-blue-600 hover:text-blue-700 transition cursor-pointer"
                                 >
                                   Restore
                                 </button>
@@ -696,7 +696,7 @@ const ClinicSettingsPage = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white dark:bg-navy-900 rounded-3xl border border-stone-200 dark:border-white/[0.08] p-6 max-w-lg w-full shadow-2xl animate-in fade-in-50 duration-200">
             <h3 className="text-lg font-bold text-stone-900 dark:text-white mb-2 flex items-center gap-2">
-              <Calendar className="text-emerald-600" size={22} />
+              <Calendar className="text-blue-600" size={22} />
               <span>{holidayForm._id ? 'Edit Clinic Holiday' : 'Schedule Clinic Closure / Holiday'}</span>
             </h3>
             <p className="text-xs text-stone-500 dark:text-stone-400 mb-6">
@@ -736,7 +736,7 @@ const ClinicSettingsPage = () => {
                       type="checkbox"
                       checked={holidayForm.is_recurring}
                       onChange={(e) => setHolidayForm(prev => ({ ...prev, is_recurring: e.target.checked }))}
-                      className="rounded border-stone-300 dark:border-white/[0.08] text-emerald-600 focus:ring-emerald-500 h-4.5 w-4.5"
+                      className="rounded border-stone-300 dark:border-white/[0.08] text-blue-600 focus:ring-blue-500 h-4.5 w-4.5"
                     />
                     <span className="text-xs font-semibold text-stone-700 dark:text-stone-300">Repeat Yearly</span>
                   </label>
@@ -750,7 +750,7 @@ const ClinicSettingsPage = () => {
                       type="checkbox"
                       checked={holidayForm.all_clinics}
                       onChange={(e) => setHolidayForm(prev => ({ ...prev, all_clinics: e.target.checked }))}
-                      className="rounded border-stone-300 dark:border-white/[0.08] text-emerald-600 focus:ring-emerald-500 h-4.5 w-4.5 mt-0.5"
+                      className="rounded border-stone-300 dark:border-white/[0.08] text-blue-600 focus:ring-blue-500 h-4.5 w-4.5 mt-0.5"
                     />
                     <div>
                       <span className="text-xs font-bold text-stone-850 dark:text-white">Apply to All Clinics</span>
@@ -763,7 +763,7 @@ const ClinicSettingsPage = () => {
                       type="checkbox"
                       checked={holidayForm.allow_emergency}
                       onChange={(e) => setHolidayForm(prev => ({ ...prev, allow_emergency: e.target.checked }))}
-                      className="rounded border-stone-300 dark:border-white/[0.08] text-emerald-600 focus:ring-emerald-500 h-4.5 w-4.5 mt-0.5"
+                      className="rounded border-stone-300 dark:border-white/[0.08] text-blue-600 focus:ring-blue-500 h-4.5 w-4.5 mt-0.5"
                     />
                     <div>
                       <span className="text-xs font-bold text-stone-850 dark:text-white">Allow Emergency Services</span>
@@ -785,7 +785,7 @@ const ClinicSettingsPage = () => {
                           key={clinic._id}
                           className={`flex items-center gap-2.5 px-3 py-2.5 border rounded-2xl transition-all duration-200 cursor-pointer select-none ${
                             isChecked
-                              ? 'bg-emerald-50/80 border-emerald-300 text-emerald-900 dark:bg-emerald-950/20 dark:border-emerald-800/80 dark:text-emerald-400 font-bold'
+                              ? 'bg-blue-50/80 border-blue-300 text-blue-900 dark:bg-blue-950/20 dark:border-blue-800/80 dark:text-blue-400 font-bold'
                               : 'bg-transparent border-stone-200 hover:bg-stone-50 text-stone-700 dark:border-white/[0.08] dark:hover:bg-navy-800 dark:text-stone-300'
                           }`}
                         >
@@ -804,7 +804,7 @@ const ClinicSettingsPage = () => {
                                 return { ...prev, clinicIds: updated };
                               });
                             }}
-                            className="rounded border-stone-300 dark:border-white/[0.08] text-emerald-600 focus:ring-emerald-500 h-4.5 w-4.5"
+                            className="rounded border-stone-300 dark:border-white/[0.08] text-blue-600 focus:ring-blue-500 h-4.5 w-4.5"
                           />
                           <span className="text-xs truncate">{clinic.name}</span>
                         </label>
@@ -825,7 +825,7 @@ const ClinicSettingsPage = () => {
                       name="closureType"
                       checked={holidayForm.closeAll}
                       onChange={() => setHolidayForm(prev => ({ ...prev, closeAll: true }))}
-                      className="text-emerald-600 focus:ring-emerald-500 h-4 w-4"
+                      className="text-blue-600 focus:ring-blue-500 h-4 w-4"
                     />
                     <div>
                       <span className="text-xs font-bold text-stone-850 dark:text-white">Close Entire Clinic</span>
@@ -839,7 +839,7 @@ const ClinicSettingsPage = () => {
                       name="closureType"
                       checked={!holidayForm.closeAll}
                       onChange={() => setHolidayForm(prev => ({ ...prev, closeAll: false }))}
-                      className="text-emerald-600 focus:ring-emerald-500 h-4 w-4"
+                      className="text-blue-600 focus:ring-blue-500 h-4 w-4"
                     />
                     <div>
                       <span className="text-xs font-bold text-stone-850 dark:text-white">Close Specific Sections</span>
@@ -887,7 +887,7 @@ const ClinicSettingsPage = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 rounded-xl bg-emerald-600 text-xs font-bold text-white hover:bg-emerald-700 shadow-md transition cursor-pointer"
+                  className="px-5 py-2.5 rounded-xl bg-blue-600 text-xs font-bold text-white hover:bg-blue-700 shadow-md transition cursor-pointer"
                 >
                   Save Holiday
                 </button>

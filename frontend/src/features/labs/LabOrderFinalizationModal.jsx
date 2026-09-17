@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
 import Badge from '../../components/common/Badge';
 import { checkOrderCompletion, finalizeOrder } from './labApi';
 
@@ -202,18 +202,18 @@ const LabOrderFinalizationModal = ({
           ) : (
             <div className="space-y-4">
               {/* Ready Confirmation Banner */}
-              <div className="rounded-2xl border border-emerald-300 bg-emerald-50/80 p-4">
+              <div className="rounded-2xl border border-blue-300 bg-blue-50/80 p-4">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500 text-white font-bold shrink-0">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-500 text-white font-bold shrink-0">
                     <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                     </svg>
                   </div>
                   <div>
-                    <h4 className="text-xs font-bold text-emerald-900">
+                    <h4 className="text-xs font-bold text-blue-900">
                       All {totalParams} Diagnostic Parameters Verified
                     </h4>
-                    <p className="text-xs text-emerald-700">
+                    <p className="text-xs text-blue-700">
                       All required laboratory results have been entered ({completedCount} / {totalParams} parameters completed). The order will be marked Completed and the final report will be published.
                     </p>
                   </div>
@@ -278,7 +278,7 @@ const LabOrderFinalizationModal = ({
                 type="button"
                 onClick={handleFinalize}
                 disabled={finalizing}
-                className="flex items-center gap-2 rounded-2xl bg-emerald-600 px-5 py-2.5 text-xs font-semibold text-white shadow-md shadow-emerald-200 hover:bg-emerald-700 disabled:bg-stone-300 disabled:shadow-none cursor-pointer"
+                className="flex items-center gap-2 rounded-2xl bg-blue-600 px-5 py-2.5 text-xs font-semibold text-white shadow-md shadow-blue-100 hover:bg-blue-700 disabled:bg-stone-300 disabled:shadow-none cursor-pointer"
                 id="confirm-finalize-btn"
               >
                 {finalizing ? (

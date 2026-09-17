@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+﻿import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   TrendingUp, FlaskConical, ShoppingBag, Users, AlertTriangle, 
   Search, Scan, RefreshCw, RotateCcw, Barcode, Plus, Minus, Trash2, 
@@ -882,7 +882,7 @@ const LaboratoryWorkspace = ({ tab: propTab, laboratoryId: propLaboratoryId }) =
               {[
                 { label: 'TOTAL TESTS ORDERED', val: totalTestsCount, desc: 'All orders registered', color: 'text-purple-650 bg-purple-50' },
                 { label: 'SAMPLES RECEIVED', val: samplesReceivedCount, desc: 'Tubes checked-in', color: 'text-blue-600 bg-blue-50' },
-                { label: 'TESTS COMPLETED', val: completedCount, desc: 'Finalized reports', color: 'text-emerald-600 bg-emerald-50' },
+                { label: 'TESTS COMPLETED', val: completedCount, desc: 'Finalized reports', color: 'text-blue-600 bg-blue-50' },
                 { label: 'PENDING TESTS', val: pendingCount, desc: 'Currently in processing', color: 'text-amber-600 bg-amber-50' },
                 { label: 'CRITICAL RESULTS', val: criticalCount, desc: 'Require doctor review', color: 'text-rose-600 bg-rose-50' }
               ].map((kpi, idx) => (
@@ -904,7 +904,7 @@ const LaboratoryWorkspace = ({ tab: propTab, laboratoryId: propLaboratoryId }) =
                   { label: 'Samples Received', val: workflowCounts.received, color: 'text-purple-650', bg: 'bg-purple-50' },
                   { label: 'In Processing', val: workflowCounts.processing, color: 'text-blue-600', bg: 'bg-blue-50' },
                   { label: 'In Analysis', val: workflowCounts.analysis, color: 'text-amber-600', bg: 'bg-amber-50' },
-                  { label: 'Completed', val: workflowCounts.completed, color: 'text-emerald-650', bg: 'bg-emerald-50' },
+                  { label: 'Completed', val: workflowCounts.completed, color: 'text-blue-650', bg: 'bg-blue-50' },
                   { label: 'Reported', val: workflowCounts.reported, color: 'text-slate-600', bg: 'bg-slate-50' }
                 ].map((st, idx) => (
                   <React.Fragment key={idx}>
@@ -988,7 +988,7 @@ const LaboratoryWorkspace = ({ tab: propTab, laboratoryId: propLaboratoryId }) =
                         <div className="flex justify-between items-center">
                           <span className="font-black text-slate-800">{o.orderNumber || o._id.slice(-6).toUpperCase()}</span>
                           <span className={`px-2 py-0.5 rounded-full text-[9px] font-black border ${
-                            o.status === 'completed' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                            o.status === 'completed' ? 'bg-blue-50 text-blue-600 border-blue-100' :
                             o.status === 'processing' ? 'bg-blue-50 text-blue-600 border-blue-100' :
                             'bg-amber-50 text-amber-600 border-amber-100'
                           }`}>{o.status}</span>
@@ -1048,7 +1048,7 @@ const LaboratoryWorkspace = ({ tab: propTab, laboratoryId: propLaboratoryId }) =
                           <p className="text-[9px] text-slate-400">Workload: {eq.workload}% | Calibration: {eq.calibrationStatus}</p>
                         </div>
                         <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
-                          eq.status === 'Running' ? 'bg-emerald-50 text-emerald-600' :
+                          eq.status === 'Running' ? 'bg-blue-50 text-blue-600' :
                           eq.status === 'Maintenance' ? 'bg-amber-50 text-amber-600' :
                           'bg-rose-50 text-rose-600'
                         }`}>{eq.status}</span>
@@ -1112,7 +1112,7 @@ const LaboratoryWorkspace = ({ tab: propTab, laboratoryId: propLaboratoryId }) =
                           <td className="py-3 px-2">{test.tests?.map(t => t.name).join(', ') || 'General Investigations'}</td>
                           <td className="py-3 px-2 text-slate-500 font-bold">{new Date(test.updatedAt).toLocaleDateString()}</td>
                           <td className="py-3 px-2">
-                            <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-emerald-50 text-emerald-600">Normal</span>
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-blue-50 text-blue-600">Normal</span>
                           </td>
                           <td className="py-3 px-2">
                             <div className="flex gap-2 justify-center">
@@ -1364,7 +1364,7 @@ const LaboratoryWorkspace = ({ tab: propTab, laboratoryId: propLaboratoryId }) =
                         <button
                           type="button"
                           onClick={() => navigate(`/labs/orders/${selectedOrder._id}`)}
-                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md shadow-emerald-200 transition cursor-pointer"
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md shadow-blue-100 transition cursor-pointer"
                         >
                           <FileCheck size={14} /> Review & Finalize
                         </button>
@@ -1373,7 +1373,7 @@ const LaboratoryWorkspace = ({ tab: propTab, laboratoryId: propLaboratoryId }) =
                         <button
                           type="button"
                           onClick={() => navigate(`/labs/orders/${selectedOrder._id}/reports`)}
-                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md shadow-emerald-200 transition cursor-pointer"
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md shadow-blue-100 transition cursor-pointer"
                         >
                           <FileText size={14} /> View Report
                         </button>
@@ -1397,7 +1397,7 @@ const LaboratoryWorkspace = ({ tab: propTab, laboratoryId: propLaboratoryId }) =
                       <div
                         className={`h-full rounded-full transition-all duration-500 ${
                           selectedOrderProgress.isAllComplete
-                            ? 'bg-gradient-to-r from-emerald-500 to-teal-500'
+                            ? 'bg-gradient-to-r from-blue-500 to-teal-500'
                             : 'bg-gradient-to-r from-purple-600 to-indigo-600'
                         }`}
                         style={{ width: `${selectedOrderProgress.pct}%` }}
@@ -1418,7 +1418,7 @@ const LaboratoryWorkspace = ({ tab: propTab, laboratoryId: propLaboratoryId }) =
                             {hasLineAfter && (
                               <div
                                 className={`absolute top-3.5 left-[50%] right-[-50%] h-0.5 -z-0 transition-colors duration-300 ${
-                                  isLineCompleted ? 'bg-emerald-500' : 'bg-slate-200'
+                                  isLineCompleted ? 'bg-blue-500' : 'bg-slate-200'
                                 }`}
                               />
                             )}
@@ -1427,7 +1427,7 @@ const LaboratoryWorkspace = ({ tab: propTab, laboratoryId: propLaboratoryId }) =
                             <div
                               className={`relative z-10 flex h-7 w-7 items-center justify-center rounded-full font-black text-[11px] shadow-xs transition-all ${
                                 step.isDone
-                                  ? 'bg-emerald-600 text-white'
+                                  ? 'bg-blue-600 text-white'
                                   : step.isActive
                                   ? 'bg-blue-600 text-white ring-4 ring-blue-100 border-2 border-blue-600 shadow-xs'
                                   : step.isLocked
@@ -1546,7 +1546,7 @@ const LaboratoryWorkspace = ({ tab: propTab, laboratoryId: propLaboratoryId }) =
                               <div className="flex items-start gap-3">
                                 <div className={`mt-0.5 flex h-9 w-9 items-center justify-center rounded-2xl font-black text-xs ${
                                   isTestDone
-                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
                                     : 'bg-purple-50 text-purple-700 border border-purple-200'
                                 }`}>
                                   🧪
@@ -1568,7 +1568,7 @@ const LaboratoryWorkspace = ({ tab: propTab, laboratoryId: propLaboratoryId }) =
 
                               <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-black ${
                                 isTestDone
-                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                  ? 'bg-blue-50 text-blue-700 border border-blue-200'
                                   : isInProgress
                                   ? 'bg-purple-50 text-purple-700 border border-purple-200'
                                   : 'bg-slate-100 text-slate-600 border border-slate-200'
@@ -1582,7 +1582,7 @@ const LaboratoryWorkspace = ({ tab: propTab, laboratoryId: propLaboratoryId }) =
                               <div className="flex-1">
                                 <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100 border border-slate-200/50">
                                   <div
-                                    className={`h-full transition-all duration-300 ${isTestDone ? 'bg-emerald-500' : 'bg-purple-600'}`}
+                                    className={`h-full transition-all duration-300 ${isTestDone ? 'bg-blue-500' : 'bg-purple-600'}`}
                                     style={{ width: `${testPct}%` }}
                                   />
                                 </div>
@@ -1683,7 +1683,7 @@ const LaboratoryWorkspace = ({ tab: propTab, laboratoryId: propLaboratoryId }) =
                               <div className="flex items-center gap-1.5">
                                 <span className={`rounded-lg px-2 py-0.5 text-[9px] font-black ${
                                   doc.type === 'Original'
-                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
                                     : 'bg-purple-50 text-purple-700 border border-purple-200'
                                 }`}>
                                   {doc.type}
@@ -1733,7 +1733,7 @@ const LaboratoryWorkspace = ({ tab: propTab, laboratoryId: propLaboratoryId }) =
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
-                              <span className="rounded-lg bg-emerald-50 border border-emerald-200 px-2.5 py-1 text-[10px] font-black text-emerald-800">
+                              <span className="rounded-lg bg-blue-50 border border-blue-200 px-2.5 py-1 text-[10px] font-black text-blue-800">
                                 {doc.type}
                               </span>
                               {doc.url && doc.url !== '#' ? (
@@ -1775,7 +1775,7 @@ const LaboratoryWorkspace = ({ tab: propTab, laboratoryId: propLaboratoryId }) =
                       )}
                       {selectedOrder.finalizedAt && (
                         <div>
-                          <div className="font-black text-emerald-700">Order Finalized & Published to Patient EMR</div>
+                          <div className="font-black text-blue-700">Order Finalized & Published to Patient EMR</div>
                           <div className="text-[10px] text-slate-400 font-bold">{new Date(selectedOrder.finalizedAt).toLocaleDateString()}</div>
                         </div>
                       )}
@@ -1934,7 +1934,7 @@ const LaboratoryWorkspace = ({ tab: propTab, laboratoryId: propLaboratoryId }) =
                           </td>
                           <td className="py-3 px-2">
                             <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${
-                              getTestAvailabilityStatus(test) === 'Fully Available' ? 'bg-emerald-50 text-emerald-700' :
+                              getTestAvailabilityStatus(test) === 'Fully Available' ? 'bg-blue-50 text-blue-700' :
                               getTestAvailabilityStatus(test) === 'Partially Available' ? 'bg-amber-50 text-amber-700' :
                               'bg-rose-50 text-rose-700'
                             }`}>
@@ -2123,7 +2123,7 @@ const LaboratoryWorkspace = ({ tab: propTab, laboratoryId: propLaboratoryId }) =
                     <td className="py-3.5 px-2 font-extrabold text-slate-905">{eq.name}</td>
                     <td className="py-3.5 px-2">
                       <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
-                        eq.calibrationStatus === 'Pass' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
+                        eq.calibrationStatus === 'Pass' ? 'bg-blue-50 text-blue-600' : 'bg-rose-50 text-rose-600'
                       }`}>{eq.calibrationStatus || 'Pass'}</span>
                     </td>
                     <td className="py-3.5 px-2 text-slate-500">{eq.lastCalibration ? new Date(eq.lastCalibration).toLocaleDateString() : 'Active'}</td>
@@ -2181,7 +2181,7 @@ const LaboratoryWorkspace = ({ tab: propTab, laboratoryId: propLaboratoryId }) =
                   <td className="py-3.5 px-2 text-purple-600">Chief Pathologist</td>
                   <td className="py-3.5 px-2 text-slate-500">sarah@clinic.com</td>
                   <td className="py-3.5 px-2">
-                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-emerald-50 text-emerald-600 uppercase">On duty</span>
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-blue-50 text-blue-600 uppercase">On duty</span>
                   </td>
                 </tr>
                 <tr className="hover:bg-slate-50/50 transition">
@@ -2189,7 +2189,7 @@ const LaboratoryWorkspace = ({ tab: propTab, laboratoryId: propLaboratoryId }) =
                   <td className="py-3.5 px-2 text-purple-600">Lab Technician</td>
                   <td className="py-3.5 px-2 text-slate-550">alex@clinic.com</td>
                   <td className="py-3.5 px-2">
-                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-emerald-50 text-emerald-600 uppercase">On duty</span>
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-blue-50 text-blue-600 uppercase">On duty</span>
                   </td>
                 </tr>
               </tbody>
@@ -2539,7 +2539,7 @@ const LaboratoryWorkspace = ({ tab: propTab, laboratoryId: propLaboratoryId }) =
                             <div className="flex items-center gap-2">
                               <span className="font-black text-slate-800">{g.name}</span>
                               {g.shortName && <span className="text-[9px] px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded font-bold">{g.shortName}</span>}
-                              {g.isActivated && <span className="text-[8px] px-1.5 py-0.5 bg-emerald-50 text-emerald-600 rounded font-black uppercase">Already Added</span>}
+                              {g.isActivated && <span className="text-[8px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded font-black uppercase">Already Added</span>}
                             </div>
                             <p className="text-[10px] text-slate-400 font-bold mt-1 uppercase tracking-wide">
                               ID: {g.globalId} | Dept: {g.department} | Sample: {g.sampleType || 'Serum'} | LOINC: {g.loincCode || 'N/A'} | Parameters: {g.parameterCount || 0}
@@ -2617,7 +2617,7 @@ const LaboratoryWorkspace = ({ tab: propTab, laboratoryId: propLaboratoryId }) =
                                           setWizardTestConfigs(updatedConfigs);
                                         }}
                                         className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase transition ${
-                                          isAvailable ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'bg-rose-50 text-rose-700 hover:bg-rose-100'
+                                          isAvailable ? 'bg-blue-50 text-blue-700 hover:bg-blue-100' : 'bg-rose-50 text-rose-700 hover:bg-rose-100'
                                         }`}
                                       >
                                         {isAvailable ? 'Available' : 'Unavailable'}
@@ -2890,7 +2890,7 @@ const LaboratoryWorkspace = ({ tab: propTab, laboratoryId: propLaboratoryId }) =
                               </td>
                               <td className="py-3 px-2">
                                 <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${
-                                  dynamicStatus === 'Fully Available' ? 'bg-emerald-50 text-emerald-700' :
+                                  dynamicStatus === 'Fully Available' ? 'bg-blue-50 text-blue-700' :
                                   dynamicStatus === 'Partially Available' ? 'bg-amber-50 text-amber-700' :
                                   'bg-rose-50 text-rose-700'
                                 }`}>
@@ -3202,7 +3202,7 @@ const LaboratoryWorkspace = ({ tab: propTab, laboratoryId: propLaboratoryId }) =
                               ]);
                             }}
                             className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase transition cursor-pointer ${
-                              isAvailable ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'bg-rose-50 text-rose-700 hover:bg-rose-100'
+                              isAvailable ? 'bg-blue-50 text-blue-700 hover:bg-blue-100' : 'bg-rose-50 text-rose-700 hover:bg-rose-100'
                             }`}
                           >
                             {isAvailable ? 'Available' : 'Unavailable'}

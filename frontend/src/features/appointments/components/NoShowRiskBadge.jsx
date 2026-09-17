@@ -1,5 +1,5 @@
-const RISK_STYLES = {
-  low: 'bg-emerald-100 text-emerald-700',
+﻿const RISK_STYLES = {
+  low: 'bg-blue-100 text-blue-700',
   medium: 'bg-amber-100 text-amber-800',
   high: 'bg-rose-100 text-rose-700'
 };

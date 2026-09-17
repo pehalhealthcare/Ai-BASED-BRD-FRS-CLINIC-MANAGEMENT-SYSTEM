@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+﻿import { useEffect, useState, useCallback, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import {
@@ -1054,7 +1054,7 @@ const PatientPortalPage = () => {
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
                 {[
                   { label: 'Book Appointment', icon: <CalendarPlus size={20} className="text-violet-500" />, tab: 'appointments' },
-                  { label: 'View Prescription', icon: <Pill size={20} className="text-emerald-500" />, tab: 'prescriptions' },
+                  { label: 'View Prescription', icon: <Pill size={20} className="text-blue-500" />, tab: 'prescriptions' },
                   { label: 'Lab Reports', icon: <Syringe size={20} className="text-amber-500" />, tab: 'labs' },
                   { label: 'Pay Bills', icon: <CreditCard size={20} className="text-blue-500" />, tab: 'billing' },
                   { label: 'Upload Documents', icon: <UploadCloud size={20} className="text-rose-500" />, tab: 'documents' }
@@ -1090,7 +1090,7 @@ const PatientPortalPage = () => {
                     className={`bg-white border border-slate-200 p-4 rounded-2xl flex flex-col items-center justify-center text-center cursor-pointer hover:border-blue-400 transition`}
                   >
                     <span className={`text-2xl font-black ${metric.color === 'blue' ? 'text-blue-600' :
-                      metric.color === 'emerald' ? 'text-emerald-500' :
+                      metric.color === 'emerald' ? 'text-blue-500' :
                         metric.color === 'amber' ? 'text-amber-500' :
                           metric.color === 'violet' ? 'text-violet-500' : 'text-rose-500'
                       }`}>{metric.count}</span>
@@ -1118,7 +1118,7 @@ const PatientPortalPage = () => {
                       <p className="text-[11px] text-slate-505 font-semibold mt-1">Diagnosis: {appt.reasonForVisit || 'General Health Check'}</p>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="px-2.5 py-0.5 rounded-lg text-[9px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">Completed</span>
+                      <span className="px-2.5 py-0.5 rounded-lg text-[9px] font-bold uppercase tracking-wider bg-blue-500/10 text-blue-600 border border-blue-500/20">Completed</span>
                       <button
                         onClick={() => setSelectedApptDetails(appt)}
                         className="px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-white text-[10px] font-bold transition"
@@ -1314,7 +1314,7 @@ const PatientPortalPage = () => {
                   </div>
                   <div className="space-y-1">
                     <p className="text-slate-400 font-bold">Services Status</p>
-                    <span className="inline-block bg-emerald-500/10 text-emerald-600 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-500/20">Operational</span>
+                    <span className="inline-block bg-blue-500/10 text-blue-600 text-[10px] font-bold px-2 py-0.5 rounded-full border border-blue-500/20">Operational</span>
                   </div>
                 </div>
               </div>
@@ -1638,7 +1638,7 @@ const PatientPortalPage = () => {
                         <div
                           key={test.id}
                           className={`bg-white border rounded-3xl p-5 shadow-xs flex flex-col justify-between space-y-4 hover:shadow-md transition-all duration-200 ${
-                            isAdded ? 'border-emerald-300 ring-2 ring-emerald-100 bg-emerald-50/10' : 'border-slate-200/90'
+                            isAdded ? 'border-blue-300 ring-2 ring-blue-100 bg-blue-50/10' : 'border-slate-200/90'
                           }`}
                         >
                           <div>
@@ -1664,7 +1664,7 @@ const PatientPortalPage = () => {
                               aria-label={isAdded ? `Remove ${test.name} from cart` : `Add ${test.name} to cart`}
                               className={`px-3.5 py-1.5 font-bold rounded-xl text-[10px] transition cursor-pointer flex items-center gap-1.5 shadow-xs ${
                                 isAdded
-                                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white ring-2 ring-emerald-200'
+                                  ? 'bg-blue-600 hover:bg-blue-700 text-white ring-2 ring-blue-200'
                                   : 'bg-blue-600 hover:bg-blue-700 text-white'
                               }`}
                             >
@@ -2020,7 +2020,7 @@ const PatientPortalPage = () => {
                       stockClass = 'text-amber-600 font-bold bg-amber-50 border border-amber-100 px-2 py-0.5 rounded-md text-[9px]';
                     } else {
                       stockText = `In Stock (${med.totalStock} units)`;
-                      stockClass = 'text-emerald-600 font-bold bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-md text-[9px]';
+                      stockClass = 'text-blue-600 font-bold bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-md text-[9px]';
                     }
 
                     const handleAddToCart = () => {
@@ -2605,7 +2605,7 @@ const PatientPortalPage = () => {
                           <p><span className="font-bold text-slate-500">Pharmacy Store:</span> {activePharmacy?.name}</p>
                           <p><span className="font-bold text-slate-500">Address:</span> {activePharmacy?.address ? `${activePharmacy.address.line1}, ${activePharmacy.address.city}, ${activePharmacy.address.state} ${activePharmacy.address.pincode}` : 'Registered Address'}</p>
                           <p><span className="font-bold text-slate-500">Working Hours:</span> {activePharmacy?.timings || '09:00 AM - 09:00 PM'}</p>
-                          <p className="text-emerald-700 font-extrabold mt-1">🕒 Estimated Preparation Time: 30-45 minutes</p>
+                          <p className="text-blue-700 font-extrabold mt-1">🕒 Estimated Preparation Time: 30-45 minutes</p>
                         </div>
                       )}
 
@@ -2647,12 +2647,12 @@ const PatientPortalPage = () => {
 
                     {/* Applied Coupon Info */}
                     {appliedCoupon && (
-                      <div className="flex items-center justify-between bg-emerald-50 border border-emerald-150 p-2.5 rounded-xl text-[10px] text-emerald-800 font-bold animate-fade-in">
+                      <div className="flex items-center justify-between bg-blue-50 border border-blue-150 p-2.5 rounded-xl text-[10px] text-blue-800 font-bold animate-fade-in">
                         <div className="flex items-center gap-1.5">
                           <span>🎉</span>
                           <div>
                             <p className="font-extrabold uppercase tracking-wider">{appliedCoupon.code} Applied</p>
-                            <p className="text-[8px] text-emerald-600 font-medium">
+                            <p className="text-[8px] text-blue-600 font-medium">
                               {appliedCoupon.description || (appliedCoupon.type === 'percentage' ? `${appliedCoupon.value}% Off` : `₹${appliedCoupon.value} Off`)}
                             </p>
                           </div>
@@ -2701,7 +2701,7 @@ const PatientPortalPage = () => {
                       <span className="font-bold text-slate-800">₹{subtotal.toFixed(2)}</span>
                     </div>
 
-                    <div className="flex justify-between text-emerald-600 font-bold">
+                    <div className="flex justify-between text-blue-600 font-bold">
                       <span>Discount {appliedCoupon ? `(${appliedCoupon.code})` : ''}</span>
                       <span>-₹{discountAmt.toFixed(2)}</span>
                     </div>
@@ -2959,7 +2959,7 @@ const PatientPortalPage = () => {
                   { label: 'Active Orders', count: active, bg: 'bg-amber-50 text-amber-700 border-amber-100', icon: <Clock size={16} /> },
                   { label: 'Ready for Pickup', count: ready, bg: 'bg-purple-50 text-purple-700 border-purple-100', icon: <ShoppingBag size={16} /> },
                   { label: 'Home Deliveries', count: transit, bg: 'bg-sky-50 text-sky-700 border-sky-100', icon: <Truck size={16} /> },
-                  { label: 'Completed Orders', count: completed, bg: 'bg-emerald-50 text-emerald-700 border-emerald-100', icon: <CheckCircle2 size={16} /> }
+                  { label: 'Completed Orders', count: completed, bg: 'bg-blue-50 text-blue-700 border-blue-100', icon: <CheckCircle2 size={16} /> }
                 ].map((card, idx) => (
                   <div key={idx} className={`p-4 rounded-2xl border ${card.bg} flex flex-col gap-1.5 shadow-sm`}>
                     <div className="flex justify-between items-center">
@@ -3063,7 +3063,7 @@ const PatientPortalPage = () => {
                           <span className={`px-2 py-0.5 rounded-lg text-[9px] font-bold uppercase border ${order.status === 'ready_for_pickup' ? 'bg-purple-50 text-purple-700 border-purple-200' :
                             order.status === 'preparing' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
                               order.status === 'confirmed' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                                order.status === 'completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                order.status === 'completed' ? 'bg-blue-50 text-blue-700 border-blue-200' :
                                   'bg-slate-50 text-slate-500 border-slate-200'
                             }`}>
                             {order.status.replace('_', ' ')}
@@ -3213,7 +3213,7 @@ const PatientPortalPage = () => {
                           </div>
                           <span className={`px-2 py-0.5 rounded-lg text-[9px] font-bold uppercase border ${order.status === 'out_for_delivery' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
                             order.status === 'preparing' ? 'bg-amber-50 text-amber-705 border-amber-200' :
-                              order.status === 'completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                              order.status === 'completed' ? 'bg-blue-50 text-blue-700 border-blue-200' :
                                 'bg-slate-50 text-slate-500 border-slate-200'
                             }`}>
                             {order.status.replace('_', ' ')}
@@ -3719,7 +3719,7 @@ const PatientPortalPage = () => {
       {activeCallInvite && (
         <div className="fixed bottom-6 right-6 z-[999] w-80 bg-slate-900 border border-white/[0.08] shadow-2xl rounded-3xl p-5 text-white animate-bounce">
           <div className="flex items-start gap-4">
-            <div className="w-10 h-10 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center shrink-0">
               <span className="text-lg">🩺</span>
             </div>
             <div className="flex-1 min-w-0">
@@ -3737,7 +3737,7 @@ const PatientPortalPage = () => {
                 </button>
                 <button
                   onClick={() => handleJoinNow(activeCallInvite)}
-                  className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-[10px] font-black uppercase tracking-wider text-white transition shadow-md shadow-emerald-950/40"
+                  className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-[10px] font-black uppercase tracking-wider text-white transition shadow-md shadow-blue-950/40"
                 >
                   Join Now
                 </button>

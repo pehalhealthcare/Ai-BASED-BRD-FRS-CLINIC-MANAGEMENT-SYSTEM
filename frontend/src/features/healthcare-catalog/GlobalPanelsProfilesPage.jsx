@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Plus, Download, Upload, Search, Edit2, SlidersHorizontal, RefreshCw, X, HelpCircle, Check, AlertCircle, FileSpreadsheet, Trash, ArrowUp, ArrowDown, Eye, ChevronDown } from 'lucide-react';
 import { healthcareCatalogApi } from '../../lib/api';
 import toast from 'react-hot-toast';
@@ -484,7 +484,7 @@ const GlobalPanelsProfilesPage = () => {
             onClick={handleExportCSV}
             className="px-5 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-bold hover:bg-slate-50 transition inline-flex items-center gap-2 shadow-sm"
           >
-            <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+            <FileSpreadsheet className="w-4 h-4 text-blue-600" />
             Export CSV
           </button>
           <button
@@ -514,10 +514,10 @@ const GlobalPanelsProfilesPage = () => {
           </div>
         </div>
         <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-xl">✅</div>
+          <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xl">✅</div>
           <div>
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Active Panels & Profiles</span>
-            <span className="text-2xl font-black text-emerald-600 mt-0.5 block">{activeCount}</span>
+            <span className="text-2xl font-black text-blue-600 mt-0.5 block">{activeCount}</span>
           </div>
         </div>
         <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4">
@@ -646,7 +646,7 @@ const GlobalPanelsProfilesPage = () => {
                       <td className="px-6 py-4 text-slate-655">{item.department}</td>
                       <td className="px-6 py-4 text-slate-655">{item.normalReportingTime}</td>
                       <td className="px-6 py-4">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${item.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${item.isActive ? 'bg-blue-50 text-blue-700' : 'bg-red-50 text-red-700'}`}>
                           {item.isActive ? 'Active' : 'Inactive'}
                         </span>
                       </td>
@@ -748,7 +748,7 @@ const GlobalPanelsProfilesPage = () => {
                   </button>
                   <button
                     onClick={() => toggleStatus(viewingItem)}
-                    className={`flex-1 py-2.5 rounded-xl font-bold text-xs border transition ${viewingItem.isActive ? 'bg-white border-red-200 text-red-600 hover:bg-red-50/20' : 'bg-white border-emerald-200 text-emerald-600 hover:bg-emerald-50/20'}`}
+                    className={`flex-1 py-2.5 rounded-xl font-bold text-xs border transition ${viewingItem.isActive ? 'bg-white border-red-200 text-red-600 hover:bg-red-50/20' : 'bg-white border-blue-200 text-blue-600 hover:bg-blue-50/20'}`}
                   >
                     {viewingItem.isActive ? 'Deactivate' : 'Activate'}
                   </button>
@@ -1041,7 +1041,7 @@ const GlobalPanelsProfilesPage = () => {
                                 {p.shortName && <span className="text-slate-400 ml-1.5">({p.shortName})</span>}
                                 <span className="text-[10px] text-slate-400 block">{p.globalId} • {p.department}</span>
                               </div>
-                              <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${isSelected ? 'bg-emerald-55 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                              <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${isSelected ? 'bg-blue-55 text-blue-700' : 'bg-slate-100 text-slate-500'}`}>
                                 {isSelected ? '✓ Already Added' : '+ Add'}
                               </span>
                             </button>

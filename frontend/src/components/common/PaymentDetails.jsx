@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import {
   Building2, CreditCard, Copy, Check, QrCode,
   ShieldCheck, AlertCircle, RefreshCw, CheckCircle2
@@ -95,7 +95,7 @@ const PaymentDetails = ({
       {/* Header Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
         <div>
-          <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+          <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">
             Official Payment Details
           </span>
           <h3 className="text-lg font-black text-slate-900 mt-1">Make Payment for {planName}</h3>
@@ -116,7 +116,7 @@ const PaymentDetails = ({
         {/* Left: QR Code & UPI */}
         <div className="bg-slate-50/80 border border-slate-100 rounded-2xl p-5 space-y-4 flex flex-col justify-between">
           <div className="flex items-center gap-2">
-            <QrCode size={18} className="text-emerald-600" />
+            <QrCode size={18} className="text-blue-600" />
             <h4 className="text-xs font-black uppercase tracking-wider text-slate-800">Scan UPI QR Code</h4>
           </div>
 
@@ -151,7 +151,7 @@ const PaymentDetails = ({
                 onClick={handleCopyUpi}
                 className="px-3.5 py-2 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1 shrink-0"
               >
-                {copiedUpi ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} className="text-slate-400" />}
+                {copiedUpi ? <Check size={14} className="text-blue-600" /> : <Copy size={14} className="text-slate-400" />}
                 <span>{copiedUpi ? 'Copied' : 'Copy'}</span>
               </button>
             </div>
@@ -161,7 +161,7 @@ const PaymentDetails = ({
         {/* Right: Bank Transfer Details */}
         <div className="bg-slate-50/80 border border-slate-100 rounded-2xl p-5 space-y-3.5 flex flex-col justify-between">
           <div className="flex items-center gap-2 border-b border-slate-200/60 pb-3">
-            <Building2 size={18} className="text-emerald-600" />
+            <Building2 size={18} className="text-blue-600" />
             <h4 className="text-xs font-black uppercase tracking-wider text-slate-800">Bank Transfer (NEFT / RTGS / IMPS)</h4>
           </div>
 
@@ -202,8 +202,8 @@ const PaymentDetails = ({
             </div>
           </div>
 
-          <div className="p-2.5 bg-emerald-50/80 border border-emerald-100 rounded-xl flex items-center gap-2 text-[11px] text-emerald-800 font-semibold">
-            <ShieldCheck size={16} className="text-emerald-600 shrink-0" />
+          <div className="p-2.5 bg-blue-50/80 border border-blue-100 rounded-xl flex items-center gap-2 text-[11px] text-blue-800 font-semibold">
+            <ShieldCheck size={16} className="text-blue-600 shrink-0" />
             <span>Payments are securely received by PehalHealthcare Technologies Pvt. Ltd.</span>
           </div>
         </div>
@@ -225,7 +225,7 @@ const PaymentDetails = ({
               value={utrNumber}
               onChange={(e) => setUtrNumber(e.target.value)}
               placeholder="e.g. 624518920134"
-              className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-[#00B96B] focus:ring-2 focus:ring-emerald-100 transition"
+              className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-[#00B96B] focus:ring-2 focus:ring-blue-100 transition"
             />
             <button
               type="submit"

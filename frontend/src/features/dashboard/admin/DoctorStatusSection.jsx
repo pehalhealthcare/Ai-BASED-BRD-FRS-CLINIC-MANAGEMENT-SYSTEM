@@ -1,8 +1,8 @@
-import React from 'react';
+﻿import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const STATUS_CONFIG = {
-  'Available': { bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500', label: 'Available' },
+  'Available': { bg: 'bg-blue-50', text: 'text-blue-700', dot: 'bg-blue-500', label: 'Available' },
   'In Consultation': { bg: 'bg-violet-50', text: 'text-violet-700', dot: 'bg-violet-500 animate-pulse', label: 'In Consultation' },
   'On Leave': { bg: 'bg-slate-100', text: 'text-slate-500', dot: 'bg-slate-400', label: 'On Leave' },
   'Break': { bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500', label: 'Break' },
@@ -17,7 +17,7 @@ const DoctorAvatar = ({ name, photo, size = 'w-12 h-12' }) => {
     );
   }
   const initials = name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'DR';
-  const colors = ['bg-blue-500', 'bg-violet-500', 'bg-emerald-500', 'bg-pink-500', 'bg-indigo-500', 'bg-teal-500'];
+  const colors = ['bg-blue-500', 'bg-violet-500', 'bg-blue-500', 'bg-pink-500', 'bg-indigo-500', 'bg-teal-500'];
   const color = colors[name?.charCodeAt(0) % colors.length] || 'bg-blue-500';
   return (
     <div className={`${size} ${color} rounded-xl flex items-center justify-center text-white font-black text-sm`}>
@@ -27,7 +27,7 @@ const DoctorAvatar = ({ name, photo, size = 'w-12 h-12' }) => {
 };
 
 const UtilizationBar = ({ value }) => {
-  const color = value >= 80 ? 'bg-rose-500' : value >= 50 ? 'bg-amber-500' : 'bg-emerald-500';
+  const color = value >= 80 ? 'bg-rose-500' : value >= 50 ? 'bg-amber-500' : 'bg-blue-500';
   return (
     <div>
       <div className="flex items-center justify-between mb-1">

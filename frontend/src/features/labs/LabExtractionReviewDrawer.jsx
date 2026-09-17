@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
 import Badge from '../../components/common/Badge';
 import { saveResultsBatch } from './labApi';
 
@@ -138,7 +138,7 @@ const LabExtractionReviewDrawer = ({
         <div className="border-b border-stone-200 bg-stone-50/80 px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-md shadow-emerald-200">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-md shadow-blue-100">
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
                 </svg>
@@ -167,7 +167,7 @@ const LabExtractionReviewDrawer = ({
             <span className="rounded-xl bg-white border border-stone-200 px-3 py-1 text-xs font-semibold text-stone-700 shadow-sm">
               Total Extracted: {mappings.length}
             </span>
-            <span className="rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-1 text-xs font-semibold text-emerald-800">
+            <span className="rounded-xl bg-blue-50 border border-blue-200 px-3 py-1 text-xs font-semibold text-blue-800">
               Auto-Matched: {matchedCount}
             </span>
             {unmappedCount > 0 ? (
@@ -204,7 +204,7 @@ const LabExtractionReviewDrawer = ({
                       <tr
                         key={m.id}
                         className={`transition hover:bg-stone-50/60 ${
-                          !isMatched ? 'bg-amber-50/20' : m.isSelected ? 'bg-emerald-50/20' : ''
+                          !isMatched ? 'bg-amber-50/20' : m.isSelected ? 'bg-blue-50/20' : ''
                         }`}
                       >
                         {/* Checkbox */}
@@ -290,7 +290,7 @@ const LabExtractionReviewDrawer = ({
                 type="button"
                 onClick={handleApply}
                 disabled={isApplying || matchedCount === 0}
-                className="flex items-center gap-2 rounded-2xl bg-emerald-600 px-5 py-2.5 text-xs font-semibold text-white shadow-md shadow-emerald-200 hover:bg-emerald-700 disabled:bg-stone-300 disabled:shadow-none"
+                className="flex items-center gap-2 rounded-2xl bg-blue-600 px-5 py-2.5 text-xs font-semibold text-white shadow-md shadow-blue-100 hover:bg-blue-700 disabled:bg-stone-300 disabled:shadow-none"
               >
                 {isApplying ? (
                   <span>Applying ({matchedCount})...</span>

@@ -1,4 +1,4 @@
-import {
+﻿import {
   buildDrugSafetySections,
   canUserOverrideDrugSafety,
   getDrugSafetySeverity,
@@ -69,7 +69,7 @@ const DrugSafetyWarningPanel = ({
         <label className="grid gap-2 text-sm font-medium text-stone-800">
           <span>Override reason</span>
           <textarea
-            className="min-h-[110px] rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+            className="min-h-[110px] rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             value={overrideReason}
             onChange={(event) => onOverrideReasonChange?.(event.target.value)}
             placeholder="Explain why you are proceeding despite this potential safety alert."

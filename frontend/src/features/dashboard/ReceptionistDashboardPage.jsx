@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+﻿import { useEffect, useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Calendar as CalendarIcon,
@@ -471,7 +471,7 @@ const ReceptionistDashboardPage = () => {
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Walk-In Patients</p>
               <h3 className="text-3xl font-extrabold text-slate-800 mt-1">{stats.walkIn}</h3>
             </div>
-            <div className="p-2.5 bg-emerald-50 rounded-xl text-emerald-500">
+            <div className="p-2.5 bg-blue-50 rounded-xl text-blue-500">
               <User size={20} />
             </div>
           </div>
@@ -608,7 +608,7 @@ const ReceptionistDashboardPage = () => {
                             : app.status === 'Confirmed'
                             ? 'bg-teal-50 text-teal-600'
                             : app.status === 'Completed'
-                            ? 'bg-emerald-50 text-emerald-600'
+                            ? 'bg-blue-50 text-blue-600'
                             : 'bg-slate-100 text-slate-500'
                         }`}
                       >
@@ -773,7 +773,7 @@ const ReceptionistDashboardPage = () => {
 
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                    <span className="w-2 h-2 rounded-full bg-blue-500" />
                     <span>Completed</span>
                   </div>
                   <span className="text-slate-800 font-bold">10 (41.7%)</span>
@@ -826,7 +826,7 @@ const ReceptionistDashboardPage = () => {
               </div>
 
               <div className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-slate-50 transition-colors">
-                <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg mt-0.5 shrink-0">
+                <div className="p-2 bg-blue-50 text-blue-600 rounded-lg mt-0.5 shrink-0">
                   <FileText size={14} />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -862,7 +862,7 @@ const ReceptionistDashboardPage = () => {
         {/* Checked-In widget */}
         <div className="bg-white p-4.5 rounded-2xl border border-slate-150 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-emerald-50 text-emerald-500 rounded-xl shrink-0">
+            <div className="p-2.5 bg-blue-50 text-blue-500 rounded-xl shrink-0">
               <UserCheck size={18} />
             </div>
             <div>
@@ -940,7 +940,7 @@ const ReceptionistDashboardPage = () => {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">Status</span>
-                  <span className="text-emerald-600 font-bold">{scannedPatient?.status}</span>
+                  <span className="text-blue-600 font-bold">{scannedPatient?.status}</span>
                 </div>
               </div>
             )}

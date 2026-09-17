@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, useParams } from 'react-router-dom';
 import {
   FlaskConical, Search, QrCode, Phone, User, FileText, Plus,
@@ -283,7 +283,7 @@ export default function LabOrderCreatePage() {
           {/* Clinic context */}
           <div className="bg-white/5 backdrop-blur-md p-3.5 rounded-2xl border border-white/10 flex flex-col gap-1 min-w-[240px]">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-              <Building2 size={12} className="text-emerald-400" /> Performing Clinic
+              <Building2 size={12} className="text-blue-400" /> Performing Clinic
             </span>
             <select
               value={selectedClinicId}
@@ -395,7 +395,7 @@ export default function LabOrderCreatePage() {
                         {resolvedPatient.gender || '—'}, {resolvedPatient.age || '—'} yrs
                       </span>
                     </div>
-                    <span className="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase bg-emerald-100 text-emerald-800">
+                    <span className="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase bg-blue-100 text-blue-800">
                       Verified Patient
                     </span>
                   </div>
@@ -556,7 +556,7 @@ export default function LabOrderCreatePage() {
                         Sample: {test.specimenType} • TAT: {test.turnaroundTime}
                       </span>
                       {test.fromPrescription && (
-                        <span className="inline-block mt-1 px-1.5 py-0.2 rounded text-[8px] font-black uppercase bg-emerald-100 text-emerald-800">
+                        <span className="inline-block mt-1 px-1.5 py-0.2 rounded text-[8px] font-black uppercase bg-blue-100 text-blue-800">
                           From Prescription
                         </span>
                       )}
@@ -623,7 +623,7 @@ export default function LabOrderCreatePage() {
             <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-3">
               <div className="flex items-center justify-between text-sm font-extrabold">
                 <span>Total Amount:</span>
-                <span className="text-emerald-600 dark:text-emerald-400 text-lg">₹{totalPrice}</span>
+                <span className="text-blue-600 dark:text-blue-400 text-lg">₹{totalPrice}</span>
               </div>
 
               <button

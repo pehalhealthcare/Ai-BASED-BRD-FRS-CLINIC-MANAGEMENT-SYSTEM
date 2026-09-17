@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 import EmptyState from '../../components/common/EmptyState';
@@ -10,7 +10,7 @@ import InvoiceItemsTable from './InvoiceItemsTable';
 import { createInvoice, previewInvoiceTotals } from './billing.api';
 
 const FIELD_CLASS =
-  'w-full rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100';
+  'w-full rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100';
 
 const createEmptyItem = () => ({
   itemType: 'consultation',
@@ -188,7 +188,7 @@ const CreateInvoicePage = () => {
     <section className="grid gap-6">
       <div className="flex flex-col gap-4 rounded-3xl border border-stone-200 bg-white p-6 shadow-lg shadow-stone-200/40 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">Phase 8</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">Phase 8</p>
           <h1 className="mt-2 text-3xl font-semibold text-stone-900">Create invoice</h1>
           <p className="mt-2 text-sm text-stone-600">Totals shown here are previews only. The backend recalculates subtotal, discount, GST, paid, and due values on save.</p>
         </div>
@@ -197,7 +197,7 @@ const CreateInvoicePage = () => {
             Back to billing
           </Link>
           {consultation?._id ? (
-            <Link className="rounded-2xl border border-emerald-300 px-4 py-3 text-sm font-semibold text-emerald-700 hover:bg-emerald-50" to={`/consultations/${consultation._id}`}>
+            <Link className="rounded-2xl border border-blue-300 px-4 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-50" to={`/consultations/${consultation._id}`}>
               Open consultation
             </Link>
           ) : null}
@@ -316,7 +316,7 @@ const CreateInvoicePage = () => {
             <button
               type="submit"
               disabled={saving}
-              className="rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:bg-stone-300"
+              className="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-stone-300"
             >
               {saving ? 'Creating...' : 'Create invoice'}
             </button>

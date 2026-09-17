@@ -1,6 +1,6 @@
-const SOAP_SECTIONS = [
+﻿const SOAP_SECTIONS = [
   { key: 'subjective', label: 'Subjective', letter: 'S', colorClass: 'soap-s', badgeBg: 'bg-blue-500', badgeText: 'text-white' },
-  { key: 'objective', label: 'Objective', letter: 'O', colorClass: 'soap-o', badgeBg: 'bg-emerald-500', badgeText: 'text-white' },
+  { key: 'objective', label: 'Objective', letter: 'O', colorClass: 'soap-o', badgeBg: 'bg-blue-500', badgeText: 'text-white' },
   { key: 'assessment', label: 'Assessment', letter: 'A', colorClass: 'soap-a', badgeBg: 'bg-amber-500', badgeText: 'text-white' },
   { key: 'plan', label: 'Plan', letter: 'P', colorClass: 'soap-p', badgeBg: 'bg-violet-500', badgeText: 'text-white' }
 ];
@@ -39,7 +39,7 @@ const SOAPNoteEditor = ({ value = {}, onChange }) => (
             {section.label}
           </span>
           <textarea
-            className="w-full rounded-xl border border-stone-200 dark:border-stone-600 bg-stone-50 dark:bg-stone-900/50 px-3.5 py-2.5 text-sm text-stone-800 dark:text-stone-200 outline-none transition-all duration-200 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:focus:ring-emerald-900/30 placeholder:text-stone-400 dark:placeholder:text-stone-500 resize-y"
+            className="w-full rounded-xl border border-stone-200 dark:border-stone-600 bg-stone-50 dark:bg-stone-900/50 px-3.5 py-2.5 text-sm text-stone-800 dark:text-stone-200 outline-none transition-all duration-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 placeholder:text-stone-400 dark:placeholder:text-stone-500 resize-y"
             rows={3}
             value={value?.[section.key] || ''}
             onChange={(event) => onChange(section.key, event.target.value)}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
 import {
@@ -149,15 +149,15 @@ export default function ClinicStatusDashboard() {
 
         {/* 1. STATUS HERO BANNER */}
         {currentApprovalStatus === 'approved' ? (
-          <div className="bg-gradient-to-r from-emerald-600 to-teal-700 rounded-3xl p-6 sm:p-8 text-white shadow-lg shadow-emerald-600/10 space-y-4">
+          <div className="bg-gradient-to-r from-blue-600 to-teal-700 rounded-3xl p-6 sm:p-8 text-white shadow-lg shadow-blue-600/10 space-y-4">
             <div className="flex items-start gap-4">
               <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center shrink-0">
                 <CheckCircle size={28} className="text-white" />
               </div>
               <div className="space-y-1">
-                <span className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-200 block">Registration Approved</span>
+                <span className="text-[10px] font-extrabold uppercase tracking-widest text-blue-200 block">Registration Approved</span>
                 <h1 className="text-2xl sm:text-3xl font-black">Clinic Approved &amp; Ready!</h1>
-                <p className="text-xs sm:text-sm text-emerald-100 font-medium max-w-2xl leading-relaxed">
+                <p className="text-xs sm:text-sm text-blue-100 font-medium max-w-2xl leading-relaxed">
                   Congratulations! Your clinic registration and subscription payment have been verified and approved by the Super Admin. You can now complete your clinic onboarding.
                 </p>
               </div>
@@ -168,7 +168,7 @@ export default function ClinicStatusDashboard() {
                 <button
                   type="button"
                   onClick={() => navigate('/dashboard')}
-                  className="px-6 py-3 bg-white hover:bg-emerald-50 text-emerald-800 rounded-2xl text-xs font-black shadow-md transition flex items-center gap-2 cursor-pointer"
+                  className="px-6 py-3 bg-white hover:bg-blue-50 text-blue-800 rounded-2xl text-xs font-black shadow-md transition flex items-center gap-2 cursor-pointer"
                 >
                   <span>Go to Clinic Dashboard</span>
                   <ArrowRight size={14} />
@@ -177,7 +177,7 @@ export default function ClinicStatusDashboard() {
                 <button
                   type="button"
                   onClick={() => navigate('/clinic/onboarding')}
-                  className="px-6 py-3 bg-white hover:bg-emerald-50 text-emerald-800 rounded-2xl text-xs font-black shadow-md transition flex items-center gap-2 cursor-pointer"
+                  className="px-6 py-3 bg-white hover:bg-blue-50 text-blue-800 rounded-2xl text-xs font-black shadow-md transition flex items-center gap-2 cursor-pointer"
                 >
                   <span>Continue Clinic Onboarding</span>
                   <ArrowRight size={14} />
@@ -322,7 +322,7 @@ export default function ClinicStatusDashboard() {
                   key={st.id}
                   className={`rounded-2xl p-3.5 border transition-all flex flex-col justify-between gap-3 ${
                     isDone
-                      ? 'bg-emerald-50/60 border-emerald-200 text-emerald-950'
+                      ? 'bg-blue-50/60 border-blue-200 text-blue-950'
                       : isCurrent
                         ? isPaymentRejected
                           ? 'bg-rose-50 border-rose-300 text-rose-950 ring-2 ring-rose-200'
@@ -333,7 +333,7 @@ export default function ClinicStatusDashboard() {
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-black uppercase tracking-wider">Step {st.id}</span>
                     {isDone ? (
-                      <CheckCircle2 size={15} className="text-emerald-600 shrink-0" />
+                      <CheckCircle2 size={15} className="text-blue-600 shrink-0" />
                     ) : isCurrent ? (
                       isPaymentRejected ? (
                         <XCircle size={15} className="text-rose-600 shrink-0" />
@@ -363,7 +363,7 @@ export default function ClinicStatusDashboard() {
             <div className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-xs space-y-4">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3.5">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                  <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
                     <CreditCard size={18} />
                   </div>
                   <div>
@@ -375,7 +375,7 @@ export default function ClinicStatusDashboard() {
                 <button
                   type="button"
                   onClick={() => navigate('/clinic-setup/payment', { state: { clinic, plan: clinic?.subscription?.planId } })}
-                  className="text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 cursor-pointer"
+                  className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 cursor-pointer"
                 >
                   <span>New Payment</span>
                   <ChevronRight size={14} />
@@ -410,7 +410,7 @@ export default function ClinicStatusDashboard() {
                         key={p._id || idx}
                         className={`rounded-2xl p-4 border transition-all space-y-2.5 ${
                           isVerified
-                            ? 'bg-emerald-50/40 border-emerald-200'
+                            ? 'bg-blue-50/40 border-blue-200'
                             : isRejected
                               ? 'bg-rose-50/40 border-rose-200'
                               : 'bg-amber-50/30 border-amber-200'
@@ -424,7 +424,7 @@ export default function ClinicStatusDashboard() {
                           <span
                             className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
                               isVerified
-                                ? 'bg-emerald-100 text-emerald-800'
+                                ? 'bg-blue-100 text-blue-800'
                                 : isRejected
                                   ? 'bg-rose-100 text-rose-800'
                                   : 'bg-amber-100 text-amber-800'

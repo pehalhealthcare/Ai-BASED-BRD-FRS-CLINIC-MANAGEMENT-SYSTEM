@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ShieldCheck, KeyRound, Eye, EyeOff, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -49,19 +49,19 @@ const StaffOtpVerification = () => {
     <div className="min-h-screen flex items-center justify-center bg-slate-900 p-4">
       {/* Background blobs for rich aesthetics */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-emerald-500/10 blur-3xl" />
+        <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-blue-500/10 blur-3xl" />
         <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full bg-indigo-500/10 blur-3xl" />
       </div>
 
       {/* Card */}
       <div className="w-full max-w-md bg-slate-950/80 backdrop-blur-md rounded-3xl shadow-2xl border border-stone-800 overflow-hidden relative z-10">
         {/* Header */}
-        <div className="bg-gradient-to-br from-emerald-600 via-teal-600 to-indigo-700 px-8 py-8 text-white text-center">
+        <div className="bg-gradient-to-br from-blue-600 via-teal-600 to-indigo-700 px-8 py-8 text-white text-center">
           <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-white/20 shadow-lg">
             <ShieldCheck className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-xl font-black leading-tight">Verify Your Email</h1>
-          <p className="text-emerald-100 text-xs mt-2">
+          <p className="text-blue-100 text-xs mt-2">
             Enter the 6-digit OTP code sent to <strong>{email}</strong><br />
             and choose your new secure password.
           </p>
@@ -83,7 +83,7 @@ const StaffOtpVerification = () => {
                 value={otp}
                 onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
                 placeholder="Enter 6-digit OTP"
-                className="w-full pl-10 pr-4 py-3 border border-stone-800 bg-stone-900 rounded-xl text-sm font-mono tracking-[0.3em] text-center text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-3 border border-stone-800 bg-stone-900 rounded-xl text-sm font-mono tracking-[0.3em] text-center text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 required
               />
             </div>
@@ -100,7 +100,7 @@ const StaffOtpVerification = () => {
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 placeholder="Set secure password"
-                className="w-full px-4 pr-10 py-3 border border-stone-800 bg-stone-900 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                className="w-full px-4 pr-10 py-3 border border-stone-800 bg-stone-900 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 required
               />
               <button
@@ -124,7 +124,7 @@ const StaffOtpVerification = () => {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="Repeat password"
-                className="w-full px-4 pr-10 py-3 border border-stone-800 bg-stone-900 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                className="w-full px-4 pr-10 py-3 border border-stone-800 bg-stone-900 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 required
               />
               <button
@@ -141,7 +141,7 @@ const StaffOtpVerification = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 hover:from-emerald-700 hover:to-indigo-700 text-white rounded-xl font-bold text-sm transition-all disabled:opacity-60 disabled:cursor-not-allowed shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2"
+            className="w-full py-3 bg-gradient-to-r from-blue-600 via-teal-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-bold text-sm transition-all disabled:opacity-60 disabled:cursor-not-allowed shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2"
           >
             {loading ? 'Verifying…' : (
               <>
@@ -155,7 +155,7 @@ const StaffOtpVerification = () => {
             Didn't receive the OTP?{' '}
             <button
               type="button"
-              className="text-emerald-500 font-semibold hover:underline"
+              className="text-blue-500 font-semibold hover:underline"
               onClick={() => navigate('/login')}
             >
               Go back to login to resend
@@ -165,7 +165,7 @@ const StaffOtpVerification = () => {
 
         {/* Footer brand */}
         <div className="border-t border-stone-900 px-8 py-4 flex items-center justify-center gap-2 text-stone-500 bg-slate-950">
-          <ShieldCheck className="w-4 h-4 text-emerald-500" />
+          <ShieldCheck className="w-4 h-4 text-blue-500" />
           <span className="text-[10px] font-bold uppercase tracking-wider">AI-CMS Staff Network</span>
         </div>
       </div>

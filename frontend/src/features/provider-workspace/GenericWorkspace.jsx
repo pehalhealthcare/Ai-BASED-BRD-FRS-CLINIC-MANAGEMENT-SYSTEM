@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { 
   Building2, Calendar, ClipboardList, TrendingUp, ShieldCheck, 
   Search, ArrowRight, UserCheck, AlertCircle, Sparkles
@@ -36,7 +36,7 @@ const GenericWorkspace = ({ tab, type, user }) => {
                 <div className="w-9 h-9 bg-purple-50 text-purple-650 rounded-xl flex items-center justify-center">
                   <ClipboardList size={16} />
                 </div>
-                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">Live</span>
+                <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">Live</span>
               </div>
               <div className="mt-3">
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Active Workorders</p>
@@ -58,7 +58,7 @@ const GenericWorkspace = ({ tab, type, user }) => {
 
             <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between min-h-[120px]">
               <div className="flex items-start justify-between">
-                <div className="w-9 h-9 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
+                <div className="w-9 h-9 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
                   <UserCheck size={16} />
                 </div>
               </div>
@@ -91,7 +91,7 @@ const GenericWorkspace = ({ tab, type, user }) => {
                     <p className="text-[10px] text-slate-400 mt-0.5">Patient: {order.patient} | Prescribed by: {order.doctor}</p>
                   </div>
                   <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase border ${
-                    order.status === 'Pending' ? 'bg-amber-50 text-amber-600 border-amber-100' : 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                    order.status === 'Pending' ? 'bg-amber-50 text-amber-600 border-amber-100' : 'bg-blue-50 text-blue-600 border-blue-100'
                   }`}>
                     {order.status}
                   </span>

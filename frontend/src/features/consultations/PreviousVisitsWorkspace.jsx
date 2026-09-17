@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import {
   Search, Calendar, Clock, Printer, ChevronRight, Activity, ArrowLeft,
   Filter, User, Building, Trash2, Edit2, FileDown, PlusCircle, Check
@@ -167,7 +167,7 @@ export default function PreviousVisitsWorkspace({ patient, currentUser, navigate
                 <div className="flex-1 min-w-0 space-y-1">
                   <div className="flex justify-between items-start gap-1">
                     <span className="text-[10px] font-black text-indigo-600 uppercase">{visitDate} • {visitTime}</span>
-                    <span className="text-[9px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded font-black">Completed</span>
+                    <span className="text-[9px] bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded font-black">Completed</span>
                   </div>
                   <strong className="text-xs font-black text-slate-800 block truncate">Dr. {v.doctorId?.fullName || 'Doctor'}</strong>
                   <span className="text-[10px] text-slate-400 block">{v.doctorId?.specialization || 'General Medicine'}</span>
@@ -214,7 +214,7 @@ export default function PreviousVisitsWorkspace({ patient, currentUser, navigate
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
                 <div>
                   <h3 className="text-sm font-extrabold text-slate-800">Visit Details — {visitDate}</h3>
-                  <span className="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded font-black inline-block mt-0.5">Completed</span>
+                  <span className="text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-black inline-block mt-0.5">Completed</span>
                 </div>
                 <div className="flex gap-2">
                   <button onClick={() => navigate(`/consultations/${c._id}`)} className="px-3.5 py-1.5 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold transition">
@@ -237,7 +237,7 @@ export default function PreviousVisitsWorkspace({ patient, currentUser, navigate
                       step.active
                         ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
                         : step.done
-                          ? 'bg-emerald-50 border-emerald-400 text-emerald-600'
+                          ? 'bg-blue-50 border-blue-400 text-blue-600'
                           : 'bg-slate-50 border-slate-200 text-slate-400'
                     }`}>
                       {step.done ? '✓' : idx + 1}

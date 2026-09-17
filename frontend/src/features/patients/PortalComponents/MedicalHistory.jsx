@@ -1,4 +1,4 @@
-import {
+﻿import {
   Activity, AlertTriangle, Calendar, ChevronRight, CheckCircle2,
   Edit3, Eye, EyeOff, Heart, Lock, Pill, Plus, Shield,
   ShieldAlert, Syringe, UploadCloud
@@ -53,7 +53,7 @@ export default function MedicalHistory({
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="Enter password..."
-                className="w-full pl-10 pr-10 py-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-navy-950 text-slate-900 dark:text-black placeholder:text-gray-300 focus:outline-none focus:border-aura-500 transition"
+                className="w-full pl-10 pr-10 py-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-navy-950 text-slate-900 dark:text-black placeholder:text-gray-300 focus:outline-none focus:border-blue-500 transition"
               />  
               <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
                 <Lock size={16} />
@@ -103,14 +103,14 @@ export default function MedicalHistory({
               <button
                 type="button"
                 onClick={() => window.print()}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold border bg-white dark:bg-[#060d18] border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 transition shadow-sm"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold border bg-white dark:bg-[#060d18] border-blue-500/30 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 transition shadow-sm"
               >
                 <UploadCloud size={14} className="rotate-180" /> Download Summary
               </button>
               <button
                 type="button"
                 onClick={() => setIsEditingHistory(!isEditingHistory)}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-aura-600 text-white hover:bg-aura-700 transition"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 transition"
               >
                 <Edit3 size={14} /> {isEditingHistory ? 'View Mode' : 'Edit Records'}
               </button>
@@ -155,7 +155,7 @@ export default function MedicalHistory({
 
           {/* Success message */}
           {historySuccessMessage && (
-            <div className="flex items-center gap-2 p-3 rounded-xl bg-aura-50 dark:bg-aura-500/10 border border-aura-200 dark:border-aura-500/30 text-aura-700 dark:text-aura-300 text-sm font-medium animate-slide-down">
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 text-blue-700 dark:text-blue-300 text-sm font-medium animate-slide-down">
               <CheckCircle2 size={16} />{historySuccessMessage}
             </div>
           )}
@@ -175,7 +175,7 @@ export default function MedicalHistory({
                     onChange={(e) => setNewAllergy(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addHistoryItem('allergies', newAllergy, setNewAllergy); } }}
                     placeholder="Add allergy (e.g. Penicillin)"
-                    className="flex-1 px-4 py-2.5 rounded-xl text-sm bg-white dark:bg-navy-800/60 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-aura-500 transition"
+                    className="flex-1 px-4 py-2.5 rounded-xl text-sm bg-white dark:bg-navy-800/60 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 transition"
                   />
                   <button type="button" onClick={() => addHistoryItem('allergies', newAllergy, setNewAllergy)} className="px-4 py-2.5 rounded-xl text-sm font-semibold bg-slate-100 dark:bg-white/8 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/15 transition flex items-center gap-1.5">
                     <Plus size={14} /> Add
@@ -195,7 +195,7 @@ export default function MedicalHistory({
                     onChange={(e) => setNewCondition(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addHistoryItem('chronicConditions', newCondition, setNewCondition); } }}
                     placeholder="Add condition (e.g. Hypertension)"
-                    className="flex-1 px-4 py-2.5 rounded-xl text-sm bg-white dark:bg-navy-800/60 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-aura-500 transition"
+                    className="flex-1 px-4 py-2.5 rounded-xl text-sm bg-white dark:bg-navy-800/60 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 transition"
                   />
                   <button type="button" onClick={() => addHistoryItem('chronicConditions', newCondition, setNewCondition)} className="px-4 py-2.5 rounded-xl text-sm font-semibold bg-slate-100 dark:bg-white/8 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/15 transition flex items-center gap-1.5">
                     <Plus size={14} /> Add
@@ -215,9 +215,9 @@ export default function MedicalHistory({
                   )) : <p className="text-xs text-slate-400 italic">None added yet</p>}
                 </div>
                 <div className="grid sm:grid-cols-2 gap-2">
-                  <input value={newMedication.name} onChange={(e) => setNewMedication({ ...newMedication, name: e.target.value })} placeholder="Medication name (e.g. Metformin 500mg)" className="px-4 py-2.5 rounded-xl text-sm bg-white dark:bg-navy-800/60 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-aura-500 transition" />
+                  <input value={newMedication.name} onChange={(e) => setNewMedication({ ...newMedication, name: e.target.value })} placeholder="Medication name (e.g. Metformin 500mg)" className="px-4 py-2.5 rounded-xl text-sm bg-white dark:bg-navy-800/60 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 transition" />
                   <div className="flex gap-2">
-                    <input value={newMedication.frequency} onChange={(e) => setNewMedication({ ...newMedication, frequency: e.target.value })} placeholder="Frequency (e.g. Twice Daily)" className="flex-1 px-4 py-2.5 rounded-xl text-sm bg-white dark:bg-navy-800/60 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-aura-500 transition" />
+                    <input value={newMedication.frequency} onChange={(e) => setNewMedication({ ...newMedication, frequency: e.target.value })} placeholder="Frequency (e.g. Twice Daily)" className="flex-1 px-4 py-2.5 rounded-xl text-sm bg-white dark:bg-navy-800/60 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 transition" />
                     <button type="button" onClick={() => { if (!newMedication.name.trim()) return; setHistoryForm(prev => ({ ...prev, currentMedications: [...prev.currentMedications, { name: newMedication.name.trim(), frequency: newMedication.frequency.trim() }] })); setNewMedication({ name: '', frequency: '' }); }} className="px-4 py-2.5 rounded-xl text-sm font-semibold bg-slate-100 dark:bg-white/8 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/15 transition flex items-center gap-1.5">
                       <Plus size={14} /> Add
                     </button>
@@ -237,9 +237,9 @@ export default function MedicalHistory({
                   )) : <p className="text-xs text-slate-400 italic">None added yet</p>}
                 </div>
                 <div className="grid sm:grid-cols-2 gap-2">
-                  <input value={newSurgery.name} onChange={(e) => setNewSurgery({ ...newSurgery, name: e.target.value })} placeholder="Surgery (e.g. Heart Bypass)" className="px-4 py-2.5 rounded-xl text-sm bg-white dark:bg-navy-800/60 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-aura-500 transition" />
+                  <input value={newSurgery.name} onChange={(e) => setNewSurgery({ ...newSurgery, name: e.target.value })} placeholder="Surgery (e.g. Heart Bypass)" className="px-4 py-2.5 rounded-xl text-sm bg-white dark:bg-navy-800/60 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 transition" />
                   <div className="flex gap-2">
-                    <input value={newSurgery.year} onChange={(e) => setNewSurgery({ ...newSurgery, year: e.target.value })} placeholder="Year (e.g. 2018)" className="flex-1 px-4 py-2.5 rounded-xl text-sm bg-white dark:bg-navy-800/60 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-aura-500 transition" />
+                    <input value={newSurgery.year} onChange={(e) => setNewSurgery({ ...newSurgery, year: e.target.value })} placeholder="Year (e.g. 2018)" className="flex-1 px-4 py-2.5 rounded-xl text-sm bg-white dark:bg-navy-800/60 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 transition" />
                     <button type="button" onClick={() => { if (!newSurgery.name.trim()) return; setHistoryForm(prev => ({ ...prev, pastSurgeries: [...(prev.pastSurgeries || []), { name: newSurgery.name.trim(), year: newSurgery.year.trim() }] })); setNewSurgery({ name: '', year: '' }); }} className="px-4 py-2.5 rounded-xl text-sm font-semibold bg-slate-100 dark:bg-white/8 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/15 transition flex items-center gap-1.5">
                       <Plus size={14} /> Add
                     </button>
@@ -259,9 +259,9 @@ export default function MedicalHistory({
                   )) : <p className="text-xs text-slate-400 italic">None added yet</p>}
                 </div>
                 <div className="grid sm:grid-cols-2 gap-2">
-                  <input value={newFamilyHistory.relation} onChange={(e) => setNewFamilyHistory({ ...newFamilyHistory, relation: e.target.value })} placeholder="Relation (e.g. Father)" className="px-4 py-2.5 rounded-xl text-sm bg-white dark:bg-navy-800/60 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-aura-500 transition" />
+                  <input value={newFamilyHistory.relation} onChange={(e) => setNewFamilyHistory({ ...newFamilyHistory, relation: e.target.value })} placeholder="Relation (e.g. Father)" className="px-4 py-2.5 rounded-xl text-sm bg-white dark:bg-navy-800/60 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 transition" />
                   <div className="flex gap-2">
-                    <input value={newFamilyHistory.condition} onChange={(e) => setNewFamilyHistory({ ...newFamilyHistory, condition: e.target.value })} placeholder="Condition (e.g. Diabetes)" className="flex-1 px-4 py-2.5 rounded-xl text-sm bg-white dark:bg-navy-800/60 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-aura-500 transition" />
+                    <input value={newFamilyHistory.condition} onChange={(e) => setNewFamilyHistory({ ...newFamilyHistory, condition: e.target.value })} placeholder="Condition (e.g. Diabetes)" className="flex-1 px-4 py-2.5 rounded-xl text-sm bg-white dark:bg-navy-800/60 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 transition" />
                     <button type="button" onClick={() => { if (!newFamilyHistory.relation.trim() || !newFamilyHistory.condition.trim()) return; setHistoryForm(prev => ({ ...prev, familyHistory: [...(prev.familyHistory || []), { relation: newFamilyHistory.relation.trim(), condition: newFamilyHistory.condition.trim() }] })); setNewFamilyHistory({ relation: '', condition: '' }); }} className="px-4 py-2.5 rounded-xl text-sm font-semibold bg-slate-100 dark:bg-white/8 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/15 transition flex items-center gap-1.5">
                       <Plus size={14} /> Add
                     </button>
@@ -329,7 +329,7 @@ export default function MedicalHistory({
 
               <div className="pt-2 flex justify-end border-t border-slate-100 dark:border-white/[0.06] gap-2">
                 <button type="button" onClick={() => setIsEditingHistory(false)} className="px-6 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-white/5 transition">Cancel</button>
-                <button type="submit" disabled={savingHistory} className="px-6 py-2.5 rounded-xl bg-aura-600 dark:bg-aura-500 text-white text-sm font-semibold hover:bg-aura-700 dark:hover:bg-aura-600 transition disabled:opacity-50 flex items-center gap-2">
+                <button type="submit" disabled={savingHistory} className="px-6 py-2.5 rounded-xl bg-blue-600 dark:bg-blue-500 text-white text-sm font-semibold hover:bg-blue-700 dark:hover:bg-blue-600 transition disabled:opacity-50 flex items-center gap-2">
                   {savingHistory && <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>}
                   {savingHistory ? 'Saving...' : 'Save Changes'}
                 </button>
@@ -349,7 +349,7 @@ export default function MedicalHistory({
                         { label: 'Past Surgeries', sub: 'Surgeries', count: historyForm.pastSurgeries?.length || 0, icon: <Syringe size={22} />, color: 'emerald', tab: 'surgeries' },
                       ].map(card => (
                         <button key={card.tab} type="button" onClick={() => setHistorySubTab(card.tab)}
-                          className="w-full text-left p-5 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-navy-800 hover:border-aura-500 dark:hover:border-aura-500/50 hover:shadow-lg transition duration-200 flex items-center justify-between group">
+                          className="w-full text-left p-5 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-navy-800 hover:border-blue-500 dark:hover:border-blue-500/50 hover:shadow-lg transition duration-200 flex items-center justify-between group">
                           <div className="flex items-center gap-4">
                             <div className={`w-12 h-12 rounded-xl bg-${card.color}-50 dark:bg-${card.color}-500/10 text-${card.color}-600 dark:text-${card.color}-400 flex items-center justify-center shrink-0`}>{card.icon}</div>
                             <div>
@@ -374,12 +374,12 @@ export default function MedicalHistory({
                         </div>
                       </div>
                     </div>
-                    <div className="p-5 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 flex items-start gap-4 mt-auto">
-                      <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0">
+                    <div className="p-5 rounded-2xl border border-blue-500/20 bg-blue-500/5 flex items-start gap-4 mt-auto">
+                      <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0">
                         <Shield size={20} className="animate-pulse" />
                       </div>
                       <div>
-                        <h4 className="text-xs font-bold text-emerald-800 dark:text-emerald-300">Keep Your Records Updated</h4>
+                        <h4 className="text-xs font-bold text-blue-800 dark:text-blue-300">Keep Your Records Updated</h4>
                         <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">Regularly update your medical information to help your doctor provide better care.</p>
                       </div>
                     </div>
@@ -423,7 +423,7 @@ export default function MedicalHistory({
                             ))}
                             {historyForm.pastSurgeries?.map((surg, i) => (
                               <div key={`surg-${i}`} className="relative">
-                                <div className="absolute -left-[31px] top-1 w-4 h-4 rounded-full bg-emerald-500 border-4 border-white dark:border-navy-800 shadow" />
+                                <div className="absolute -left-[31px] top-1 w-4 h-4 rounded-full bg-blue-500 border-4 border-white dark:border-navy-800 shadow" />
                                 <div>
                                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Surgical Record</p>
                                   <h4 className="text-xs font-semibold text-slate-800 dark:text-slate-100 mt-0.5">{surg.name}</h4>
@@ -499,10 +499,10 @@ export default function MedicalHistory({
                 <div className="p-5 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-navy-800 space-y-4">
                   <h3 className="text-sm font-bold text-slate-900 dark:text-white">Past Surgeries & Procedures</h3>
                   {historyForm.pastSurgeries?.length > 0 ? (
-                    <div className="relative pl-6 border-l-2 border-emerald-500/20 space-y-4">
+                    <div className="relative pl-6 border-l-2 border-blue-500/20 space-y-4">
                       {historyForm.pastSurgeries.map((surg, i) => (
                         <div key={i} className="relative">
-                          <div className="absolute -left-[31px] top-1.5 w-4 h-4 rounded-full bg-emerald-500 border-4 border-white dark:border-navy-800 shadow" />
+                          <div className="absolute -left-[31px] top-1.5 w-4 h-4 rounded-full bg-blue-500 border-4 border-white dark:border-navy-800 shadow" />
                           <div>
                             <span className="text-[10px] font-bold text-slate-400 bg-slate-100 dark:bg-navy-900 px-2 py-0.5 rounded">{surg.year || 'Year N/A'}</span>
                             <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100 mt-1">{surg.name}</h4>
@@ -596,7 +596,7 @@ export default function MedicalHistory({
                             <p className="text-[10px] text-slate-400 mt-0.5">Uploaded: {new Date(doc.createdAt).toLocaleDateString()}</p>
                           </div>
                           <div className="flex gap-2">
-                            <a href={doc.fileUrl || `${import.meta.env.VITE_API_BASE_URL}/patients/documents/${doc._id}`} target="_blank" rel="noopener noreferrer" className="text-[10px] font-bold text-aura-600 hover:underline">View</a>
+                            <a href={doc.fileUrl || `${import.meta.env.VITE_API_BASE_URL}/patients/documents/${doc._id}`} target="_blank" rel="noopener noreferrer" className="text-[10px] font-bold text-blue-600 hover:underline">View</a>
                             <button type="button" onClick={async () => {
                               if (window.confirm('Delete this report?')) {
                                 try {

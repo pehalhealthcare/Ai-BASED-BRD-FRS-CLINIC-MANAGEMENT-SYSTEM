@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+﻿import { useEffect, useRef, useState } from 'react';
 import { MapPin, Search, Navigation, X, Loader } from 'lucide-react';
 
 const MapPicker = ({ isOpen, onClose, onSelectAddress, initialAddress }) => {
@@ -251,7 +251,7 @@ const MapPicker = ({ isOpen, onClose, onSelectAddress, initialAddress }) => {
         {/* Header */}
         <div className="flex justify-between items-center pb-4 border-b border-stone-150">
           <div className="flex items-center gap-2">
-            <div className="p-2 bg-emerald-50 text-emerald-700 rounded-xl">
+            <div className="p-2 bg-blue-50 text-blue-700 rounded-xl">
               <MapPin size={20} />
             </div>
             <div>
@@ -282,7 +282,7 @@ const MapPicker = ({ isOpen, onClose, onSelectAddress, initialAddress }) => {
                   if (searchQuery.trim()) geocodeAddressString(searchQuery);
                 }
               }}
-              className="w-full pl-10 pr-4 py-3 rounded-2xl border border-stone-300 bg-white text-stone-900 placeholder-stone-400 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+              className="w-full pl-10 pr-4 py-3 rounded-2xl border border-stone-300 bg-white text-stone-900 placeholder-stone-400 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             />
             <Search className="absolute left-3.5 top-3.5 text-stone-400" size={16} />
           </div>
@@ -322,7 +322,7 @@ const MapPicker = ({ isOpen, onClose, onSelectAddress, initialAddress }) => {
           {geocoding && (
             <div className="absolute inset-0 bg-white/40 backdrop-blur-[1px] flex items-center justify-center z-10">
               <div className="bg-white px-4 py-2.5 rounded-2xl shadow-lg border border-stone-100 flex items-center gap-2">
-                <Loader className="animate-spin text-emerald-600" size={16} />
+                <Loader className="animate-spin text-blue-600" size={16} />
                 <span className="text-xs font-semibold text-stone-700">Resolving address details...</span>
               </div>
             </div>
@@ -355,7 +355,7 @@ const MapPicker = ({ isOpen, onClose, onSelectAddress, initialAddress }) => {
               onClose();
             }}
             disabled={geocoding || !selectedAddress.line1}
-            className="rounded-2xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white hover:bg-emerald-700 shadow-md shadow-emerald-600/10 cursor-pointer disabled:opacity-50"
+            className="rounded-2xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white hover:bg-blue-700 shadow-md shadow-blue-600/10 cursor-pointer disabled:opacity-50"
           >
             Apply Address
           </button>

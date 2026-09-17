@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+﻿import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   ChevronLeft, ChevronRight, ShoppingCart, Trash2, Plus, CheckCircle2,
   Calendar, Clock, MapPin, Phone, ShieldCheck, CreditCard, Lock,
@@ -652,7 +652,7 @@ export default function PatientLabCheckoutView({
     return (
       <div className="max-w-3xl mx-auto py-12 px-4 animate-fade-in">
         <div className="bg-white rounded-3xl border border-slate-200 shadow-xl p-8 text-center space-y-6">
-          <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
+          <div className="w-20 h-20 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
             <CheckCircle2 size={44} className="stroke-[2.5]" />
           </div>
           <div className="space-y-2">
@@ -757,8 +757,8 @@ export default function PatientLabCheckoutView({
 
           {/* Progress Indicator */}
           <div className="flex items-center gap-2 text-xs font-bold">
-            <div className="flex items-center gap-1.5 text-emerald-700">
-              <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
+            <div className="flex items-center gap-1.5 text-blue-700">
+              <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
                 <Check size={12} className="stroke-[3]" />
               </div>
               <span>Review Tests</span>
@@ -943,10 +943,10 @@ export default function PatientLabCheckoutView({
                     </div>
                     <div>
                       <h4 className="text-xs font-black text-slate-900">Collect Sample at Laboratory</h4>
-                      <p className="text-[10px] text-emerald-600 font-bold">Fee: ₹0</p>
+                      <p className="text-[10px] text-blue-600 font-bold">Fee: ₹0</p>
                     </div>
                   </div>
-                  <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-700 text-[9px] font-black uppercase tracking-wider">
+                  <span className="px-2 py-0.5 rounded-md bg-blue-100 text-blue-700 text-[9px] font-black uppercase tracking-wider">
                     No Additional Charges
                   </span>
                 </div>
@@ -1141,7 +1141,7 @@ export default function PatientLabCheckoutView({
                       <div
                         key={pkg.packageId || pkg.id}
                         className={`w-72 shrink-0 rounded-2xl p-4 border transition flex flex-col justify-between space-y-3 bg-white shadow-2xs snap-start ${
-                          isAdded ? 'border-emerald-600 bg-emerald-50/20 ring-2 ring-emerald-500/20' : 'border-slate-200 hover:border-blue-400 hover:shadow-md'
+                          isAdded ? 'border-blue-600 bg-blue-50/20 ring-2 ring-blue-500/20' : 'border-slate-200 hover:border-blue-400 hover:shadow-md'
                         }`}
                       >
                         <div className="space-y-2">
@@ -1174,7 +1174,7 @@ export default function PatientLabCheckoutView({
                             </div>
                             {investigationsFormatted.slice(0, 4).map((testName, idx) => (
                               <div key={idx} className="flex items-center gap-1.5 truncate">
-                                <Check size={12} className="text-emerald-600 shrink-0 stroke-[3]" />
+                                <Check size={12} className="text-blue-600 shrink-0 stroke-[3]" />
                                 <span className="truncate">{testName}</span>
                               </div>
                             ))}
@@ -1197,7 +1197,7 @@ export default function PatientLabCheckoutView({
                                 ₹{pkg.packagePrice || pkg.price}
                               </span>
                             </div>
-                            <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-black rounded-md">
+                            <span className="px-2 py-0.5 bg-blue-100 text-blue-800 text-[10px] font-black rounded-md">
                               Save ₹{pkg.savings} ({pkg.discountPercent}% OFF)
                             </span>
                           </div>
@@ -1214,7 +1214,7 @@ export default function PatientLabCheckoutView({
                               <button
                                 type="button"
                                 onClick={handleRemovePackage}
-                                className="px-3 py-1.5 bg-emerald-600 text-white font-bold text-[11px] rounded-xl transition flex items-center gap-1"
+                                className="px-3 py-1.5 bg-blue-600 text-white font-bold text-[11px] rounded-xl transition flex items-center gap-1"
                               >
                                 <Check size={13} />
                                 <span>Added</span>
@@ -1248,16 +1248,16 @@ export default function PatientLabCheckoutView({
             </div>
 
             {appliedPromo ? (
-              <div className="p-4 bg-emerald-50/80 border border-emerald-200 rounded-2xl flex items-center justify-between">
+              <div className="p-4 bg-blue-50/80 border border-blue-200 rounded-2xl flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                  <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center">
                     <Sparkles size={18} />
                   </div>
                   <div>
-                    <h4 className="text-xs font-black text-emerald-900">
+                    <h4 className="text-xs font-black text-blue-900">
                       🎉 {appliedPromo.code} Applied!
                     </h4>
-                    <p className="text-[11px] text-emerald-700 font-medium">
+                    <p className="text-[11px] text-blue-700 font-medium">
                       {appliedPromo.message || `You saved ₹${appliedPromo.discountAmount} using this promo code.`}
                     </p>
                   </div>
@@ -1343,21 +1343,21 @@ export default function PatientLabCheckoutView({
               <div className="flex justify-between text-slate-600">
                 <span>Home Collection Fee</span>
                 <span className="font-bold text-slate-800">
-                  {collectionMethod === 'HOME_COLLECTION' ? `₹${calculations.homeCollectionFee}` : <strong className="text-emerald-600 font-black">FREE</strong>}
+                  {collectionMethod === 'HOME_COLLECTION' ? `₹${calculations.homeCollectionFee}` : <strong className="text-blue-600 font-black">FREE</strong>}
                 </span>
               </div>
               <div className="flex justify-between text-slate-600">
                 <span>Convenience Fee</span>
-                <span className="font-bold text-emerald-600">₹0</span>
+                <span className="font-bold text-blue-600">₹0</span>
               </div>
               {appliedPackage && (
-                <div className="flex justify-between text-emerald-700 font-bold">
+                <div className="flex justify-between text-blue-700 font-bold">
                   <span>Package Savings ({appliedPackage.packageName || appliedPackage.name})</span>
                   <span>-₹{calculations.packageDiscount}</span>
                 </div>
               )}
               {appliedPromo && calculations.promoDiscount > 0 && (
-                <div className="flex justify-between text-emerald-700 font-bold">
+                <div className="flex justify-between text-blue-700 font-bold">
                   <span>Promo Discount ({appliedPromo.code})</span>
                   <span>-₹{calculations.promoDiscount}</span>
                 </div>
@@ -1374,8 +1374,8 @@ export default function PatientLabCheckoutView({
             </div>
 
             {/* Reward Points Badge */}
-            <div className="p-2.5 bg-emerald-50 border border-emerald-200/80 rounded-xl flex items-center gap-2 text-[11px] text-emerald-900 font-bold">
-              <Award size={16} className="text-emerald-600 shrink-0" />
+            <div className="p-2.5 bg-blue-50 border border-blue-200/80 rounded-xl flex items-center gap-2 text-[11px] text-blue-900 font-bold">
+              <Award size={16} className="text-blue-600 shrink-0" />
               <span>You will earn <strong>{calculations.rewardPoints} Reward Points</strong> on this order</span>
             </div>
 
@@ -1679,7 +1679,7 @@ export default function PatientLabCheckoutView({
                       <div
                         key={pkg.packageId || pkg.id}
                         className={`p-4 rounded-2xl border transition flex flex-col justify-between space-y-3 bg-white shadow-2xs ${
-                          isAdded ? 'border-emerald-600 bg-emerald-50/20' : 'border-slate-200 hover:border-blue-400'
+                          isAdded ? 'border-blue-600 bg-blue-50/20' : 'border-slate-200 hover:border-blue-400'
                         }`}
                       >
                         <div className="space-y-2">
@@ -1709,7 +1709,7 @@ export default function PatientLabCheckoutView({
                             </div>
                             {investigationsFormatted.slice(0, 4).map((testName, idx) => (
                               <div key={idx} className="flex items-center gap-1.5 truncate">
-                                <Check size={12} className="text-emerald-600 shrink-0 stroke-[3]" />
+                                <Check size={12} className="text-blue-600 shrink-0 stroke-[3]" />
                                 <span className="truncate">{testName}</span>
                               </div>
                             ))}
@@ -1731,7 +1731,7 @@ export default function PatientLabCheckoutView({
                                 ₹{pkg.packagePrice || pkg.price}
                               </span>
                             </div>
-                            <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-black rounded-md">
+                            <span className="px-2 py-0.5 bg-blue-100 text-blue-800 text-[10px] font-black rounded-md">
                               Save ₹{pkg.savings} ({pkg.discountPercent}% OFF)
                             </span>
                           </div>
@@ -1748,7 +1748,7 @@ export default function PatientLabCheckoutView({
                               <button
                                 type="button"
                                 onClick={handleRemovePackage}
-                                className="px-3.5 py-2 bg-emerald-600 text-white font-bold text-[11px] rounded-xl transition flex items-center gap-1"
+                                className="px-3.5 py-2 bg-blue-600 text-white font-bold text-[11px] rounded-xl transition flex items-center gap-1"
                               >
                                 <Check size={13} />
                                 <span>Added</span>
@@ -1828,7 +1828,7 @@ export default function PatientLabCheckoutView({
                   return (
                     <div key={idx} className="p-2.5 bg-slate-50 rounded-xl flex items-center justify-between gap-2 text-xs font-bold text-slate-700 border border-slate-100">
                       <div className="flex items-center gap-2">
-                        <Check size={14} className="text-emerald-600 stroke-[3] shrink-0" />
+                        <Check size={14} className="text-blue-600 stroke-[3] shrink-0" />
                         <span>{testName}</span>
                         {sample && (
                           <span className="text-[10px] text-slate-400 font-normal">({sample})</span>
@@ -1852,7 +1852,7 @@ export default function PatientLabCheckoutView({
                   Package Price ₹{selectedPackageForModal.packagePrice || selectedPackageForModal.price}
                 </span>
               </div>
-              <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 font-black text-xs rounded-xl">
+              <span className="px-2.5 py-1 bg-blue-100 text-blue-800 font-black text-xs rounded-xl">
                 Save ₹{selectedPackageForModal.savings} ({selectedPackageForModal.discountPercent}% OFF)
               </span>
             </div>

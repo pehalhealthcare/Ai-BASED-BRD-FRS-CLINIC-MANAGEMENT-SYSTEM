@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import SkeletonCard from './SkeletonCard';
 
 const formatCurrency = (amount) =>
@@ -94,7 +94,7 @@ const StatCards = ({ overview, revenue, loading }) => {
       >
         <SubStats items={[
           { label: 'Booked', value: apptSummary.pending ?? 0, color: 'text-blue-500' },
-          { label: 'Checked-In', value: apptSummary.confirmed ?? 0, color: 'text-emerald-600' },
+          { label: 'Checked-In', value: apptSummary.confirmed ?? 0, color: 'text-blue-600' },
           { label: 'Completed', value: apptSummary.completed ?? 0, color: 'text-slate-500' },
           { label: 'Rescheduled', value: 0 },
           { label: 'Walk-In', value: apptSummary.walkIns ?? 0 },
@@ -138,16 +138,16 @@ const StatCards = ({ overview, revenue, loading }) => {
             <path strokeWidth="2" d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
           </svg>
         }
-        iconBg="bg-emerald-50"
-        iconColor="text-emerald-600"
+        iconBg="bg-blue-50"
+        iconColor="text-blue-600"
         label="Today's Revenue"
         value={formatCurrency(totalRevenue)}
         badge="Received"
-        badgeColor="text-emerald-600 bg-emerald-50"
+        badgeColor="text-blue-600 bg-blue-50"
         sparkColor="#059669"
       >
         <SubStats items={[
-          { label: 'Consultation', value: formatCurrency(consultationRevenue), color: 'text-emerald-600' },
+          { label: 'Consultation', value: formatCurrency(consultationRevenue), color: 'text-blue-600' },
           { label: 'Pharmacy', value: formatCurrency(pharmacyRevenue) },
           { label: 'Lab Tests', value: '₹0' },
           { label: 'Others', value: '₹0' },

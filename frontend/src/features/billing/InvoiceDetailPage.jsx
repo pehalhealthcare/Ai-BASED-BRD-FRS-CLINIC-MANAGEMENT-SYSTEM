@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 
 import ErrorState from '../../components/common/ErrorState';
@@ -22,7 +22,7 @@ import {
 import useRazorpay from '../../hooks/useRazorpay';
 
 const FIELD_CLASS =
-  'w-full rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100';
+  'w-full rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100';
 
 const buildFormFromInvoice = (invoice) => ({
   dueDate: invoice?.dueDate?.slice?.(0, 10) || invoice?.dueDate || '',
@@ -266,7 +266,7 @@ const InvoiceDetailPage = () => {
     <section className="grid gap-6">
       <div className="flex flex-col gap-4 rounded-3xl border border-stone-200 bg-white p-6 shadow-lg shadow-stone-200/40 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">Invoice detail</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">Invoice detail</p>
           <h1 className="mt-2 text-3xl font-semibold text-stone-900">{invoice.invoiceNumber || 'Invoice'}</h1>
           <p className="mt-2 text-sm text-stone-600">Issued invoices remain visible to doctors and staff, but tax and item changes stay limited to drafts.</p>
         </div>
@@ -275,7 +275,7 @@ const InvoiceDetailPage = () => {
             Back to billing
           </Link>
           {invoice.patientId?._id ? (
-            <Link className="rounded-2xl border border-emerald-300 px-4 py-3 text-sm font-semibold text-emerald-700 hover:bg-emerald-50" to={`/patients/${invoice.patientId._id}`}>
+            <Link className="rounded-2xl border border-blue-300 px-4 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-50" to={`/patients/${invoice.patientId._id}`}>
               Open patient
             </Link>
           ) : null}
@@ -406,7 +406,7 @@ const InvoiceDetailPage = () => {
                 type="button"
                 onClick={handleSave}
                 disabled={saving}
-                className="rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:bg-stone-300"
+                className="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-stone-300"
               >
                 {saving ? 'Saving...' : isDraft ? 'Save invoice draft' : 'Save notes'}
               </button>
@@ -487,7 +487,7 @@ const InvoiceDetailPage = () => {
                 type="button"
                 onClick={handleRazorpayPayment}
                 disabled={razorpayLoading || invoice.invoiceStatus === 'cancelled' || Number(invoice.dueAmount || 0) <= 0}
-                className="w-full rounded-2xl border-2 border-emerald-600 bg-white px-4 py-3 text-sm font-semibold text-emerald-600 transition hover:bg-emerald-50 focus:outline-none focus:ring-4 focus:ring-emerald-500/20 disabled:border-stone-300 disabled:bg-stone-100 disabled:text-stone-400"
+                className="w-full rounded-2xl border-2 border-blue-600 bg-white px-4 py-3 text-sm font-semibold text-blue-600 transition hover:bg-blue-50 focus:outline-none focus:ring-4 focus:ring-blue-500/20 disabled:border-stone-300 disabled:bg-stone-100 disabled:text-stone-400"
               >
                 {razorpayLoading ? 'Initiating Razorpay...' : 'Pay Online with Razorpay'}
               </button>
@@ -525,7 +525,7 @@ const InvoiceDetailPage = () => {
                   >
                     {refunding ? 'Recording refund...' : 'Record refund'}
                   </button>
-                  {refundMessage ? <p className="text-sm text-emerald-700">{refundMessage}</p> : null}
+                  {refundMessage ? <p className="text-sm text-blue-700">{refundMessage}</p> : null}
                 </form>
               ) : null}
             </div>

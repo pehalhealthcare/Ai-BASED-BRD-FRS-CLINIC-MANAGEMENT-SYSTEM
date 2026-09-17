@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import LoadingState from '../../components/common/LoadingState';
 import ErrorState from '../../components/common/ErrorState';
 import PageHeader from '../../components/layout/PageHeader';
@@ -107,7 +107,7 @@ const ReadOnlyMap = ({ id, lat, lng }) => {
         ) : null}
       </div>
       {lat && lng && (
-        <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono font-semibold">
+        <p className="text-[10px] text-blue-600 dark:text-blue-400 font-mono font-semibold">
           Coordinates: {lat.toFixed(6)}, {lng.toFixed(6)}
         </p>
       )}
@@ -221,17 +221,17 @@ const DoctorSettingsPage = () => {
   return (
     <div className="max-w-6xl mx-auto my-6 px-4 animate-fade-in">
       {/* Premium Header Banner */}
-      <div className="relative rounded-3xl overflow-hidden mb-8 border border-stone-200 dark:border-white/[0.06] bg-gradient-to-br from-slate-900 via-stone-900 to-emerald-950 p-6 md:p-8 shadow-xl">
-        <div className="absolute inset-0 bg-[radial-gradient(#10b981_1px,transparent_1px)] [background-size:16px_16px] opacity-10"></div>
+      <div className="relative rounded-3xl overflow-hidden mb-8 border border-stone-200 dark:border-white/[0.06] bg-gradient-to-br from-slate-900 via-stone-900 to-blue-950 p-6 md:p-8 shadow-xl">
+        <div className="absolute inset-0 bg-[radial-gradient(#2563EB_1px,transparent_1px)] [background-size:16px_16px] opacity-10"></div>
         <div className="relative flex flex-col md:flex-row items-center gap-6 z-10">
           {profile.image ? (
             <img 
               src={profile.image} 
               alt={profile.fullName} 
-              className="w-28 h-28 rounded-full object-cover border-4 border-emerald-500/30 shadow-2xl" 
+              className="w-28 h-28 rounded-full object-cover border-4 border-blue-500/30 shadow-2xl" 
             />
           ) : (
-            <div className="w-28 h-28 rounded-full bg-emerald-800 text-white font-black text-3xl flex items-center justify-center border-4 border-emerald-500/20 shadow-2xl">
+            <div className="w-28 h-28 rounded-full bg-blue-800 text-white font-black text-3xl flex items-center justify-center border-4 border-blue-500/20 shadow-2xl">
               {profile.firstName?.[0]}{profile.lastName?.[0]}
             </div>
           )}
@@ -239,11 +239,11 @@ const DoctorSettingsPage = () => {
           <div className="text-center md:text-left flex-1">
             <div className="flex flex-wrap justify-center md:justify-start items-center gap-2 mb-1.5">
               <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight">{profile.fullName}</h1>
-              <span className="bg-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full border border-emerald-500/30 flex items-center gap-1">
+              <span className="bg-blue-500/20 text-blue-400 text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full border border-blue-500/30 flex items-center gap-1">
                 ✓ Verified Practitioner
               </span>
             </div>
-            <p className="text-sm font-bold text-emerald-400 mb-1">{profile.specialization || 'Medical Specialist'}</p>
+            <p className="text-sm font-bold text-blue-400 mb-1">{profile.specialization || 'Medical Specialist'}</p>
             <p className="text-xs text-stone-400">{orgName} Healthcare Network</p>
           </div>
         </div>
@@ -256,7 +256,7 @@ const DoctorSettingsPage = () => {
           
           {/* Professional Details Card */}
           <div className="bg-white dark:bg-navy-900 border border-stone-200 dark:border-white/[0.06] rounded-3xl p-6 shadow-md">
-            <h3 className="text-xs font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 mb-4 pb-2 border-b border-stone-100 dark:border-white/[0.04]">
+            <h3 className="text-xs font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 mb-4 pb-2 border-b border-stone-100 dark:border-white/[0.04]">
               Professional Credentials
             </h3>
             
@@ -281,7 +281,7 @@ const DoctorSettingsPage = () => {
                   <button
                     type="button"
                     onClick={() => setShowPdfModal(true)}
-                    className="inline-flex items-center gap-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 bg-emerald-50 dark:bg-emerald-950/20 px-3.5 py-2 rounded-xl border border-emerald-100 dark:border-emerald-900/30 transition-colors w-full justify-center cursor-pointer"
+                    className="inline-flex items-center gap-2 text-xs font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 bg-blue-50 dark:bg-blue-950/20 px-3.5 py-2 rounded-xl border border-blue-100 dark:border-blue-900/30 transition-colors w-full justify-center cursor-pointer"
                   >
                     📄 View Registration Certificate
                   </button>
@@ -292,7 +292,7 @@ const DoctorSettingsPage = () => {
 
           {/* Consultation Formats Card */}
           <div className="bg-white dark:bg-navy-900 border border-stone-200 dark:border-white/[0.06] rounded-3xl p-6 shadow-md">
-            <h3 className="text-xs font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 mb-4 pb-2 border-b border-stone-100 dark:border-white/[0.04]">
+            <h3 className="text-xs font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 mb-4 pb-2 border-b border-stone-100 dark:border-white/[0.04]">
               Consultation Rates & Setup
             </h3>
             
@@ -311,7 +311,7 @@ const DoctorSettingsPage = () => {
               <div className="pt-2 border-t border-stone-100 dark:border-white/[0.04]">
                 <span className="text-[10px] text-stone-400 dark:text-stone-500 font-bold uppercase tracking-wider block mb-1.5">Teleconsultation Format</span>
                 {profile.isOnlineAvailable ? (
-                  <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/20 px-2 py-1 rounded border border-emerald-100 dark:border-emerald-900/30">
+                  <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/20 px-2 py-1 rounded border border-blue-100 dark:border-blue-900/30">
                     🌐 Available Online
                   </span>
                 ) : (
@@ -325,7 +325,7 @@ const DoctorSettingsPage = () => {
 
           {/* Contact Details Card */}
           <div className="bg-white dark:bg-navy-900 border border-stone-200 dark:border-white/[0.06] rounded-3xl p-6 shadow-md">
-            <h3 className="text-xs font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 mb-4 pb-2 border-b border-stone-100 dark:border-white/[0.04]">
+            <h3 className="text-xs font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 mb-4 pb-2 border-b border-stone-100 dark:border-white/[0.04]">
               Contact Info
             </h3>
             
@@ -344,13 +344,13 @@ const DoctorSettingsPage = () => {
           {/* Bank Account Details Card */}
           <div className="bg-white dark:bg-navy-900 border border-stone-200 dark:border-white/[0.06] rounded-3xl p-6 shadow-md">
             <div className="flex justify-between items-center mb-4 pb-2 border-b border-stone-100 dark:border-white/[0.04]">
-              <h3 className="text-xs font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
+              <h3 className="text-xs font-black uppercase tracking-widest text-blue-600 dark:text-blue-400">
                 Bank Account Details
               </h3>
               {!isEditingBank && (
                 <button
                   onClick={() => setIsEditingBank(true)}
-                  className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
+                  className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
                 >
                   Edit details
                 </button>
@@ -366,7 +366,7 @@ const DoctorSettingsPage = () => {
                     required
                     value={bankForm.accountHolderName}
                     onChange={(e) => setBankForm({ ...bankForm, accountHolderName: e.target.value })}
-                    className="w-full text-xs p-2 rounded-xl border border-stone-250 dark:border-white/10 bg-transparent text-stone-900 dark:text-white focus:outline-none focus:border-emerald-500"
+                    className="w-full text-xs p-2 rounded-xl border border-stone-250 dark:border-white/10 bg-transparent text-stone-900 dark:text-white focus:outline-none focus:border-blue-500"
                   />
                 </div>
                 <div>
@@ -376,7 +376,7 @@ const DoctorSettingsPage = () => {
                     required
                     value={bankForm.accountNumber}
                     onChange={(e) => setBankForm({ ...bankForm, accountNumber: e.target.value })}
-                    className="w-full text-xs p-2 rounded-xl border border-stone-250 dark:border-white/10 bg-transparent text-stone-900 dark:text-white focus:outline-none focus:border-emerald-500"
+                    className="w-full text-xs p-2 rounded-xl border border-stone-250 dark:border-white/10 bg-transparent text-stone-900 dark:text-white focus:outline-none focus:border-blue-500"
                   />
                 </div>
                 <div>
@@ -386,7 +386,7 @@ const DoctorSettingsPage = () => {
                     required
                     value={bankForm.ifscCode}
                     onChange={(e) => setBankForm({ ...bankForm, ifscCode: e.target.value })}
-                    className="w-full text-xs p-2 rounded-xl border border-stone-250 dark:border-white/10 bg-transparent text-stone-900 dark:text-white focus:outline-none focus:border-emerald-500"
+                    className="w-full text-xs p-2 rounded-xl border border-stone-250 dark:border-white/10 bg-transparent text-stone-900 dark:text-white focus:outline-none focus:border-blue-500"
                   />
                 </div>
                 <div>
@@ -396,7 +396,7 @@ const DoctorSettingsPage = () => {
                     required
                     value={bankForm.bankName}
                     onChange={(e) => setBankForm({ ...bankForm, bankName: e.target.value })}
-                    className="w-full text-xs p-2 rounded-xl border border-stone-250 dark:border-white/10 bg-transparent text-stone-900 dark:text-white focus:outline-none focus:border-emerald-500"
+                    className="w-full text-xs p-2 rounded-xl border border-stone-250 dark:border-white/10 bg-transparent text-stone-900 dark:text-white focus:outline-none focus:border-blue-500"
                   />
                 </div>
                 <div>
@@ -413,7 +413,7 @@ const DoctorSettingsPage = () => {
                       </button>
                     </div>
                   ) : (
-                    <label className="inline-flex items-center gap-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 bg-emerald-50 dark:bg-emerald-950/20 px-3.5 py-2 rounded-xl border border-emerald-100 dark:border-emerald-900/30 transition-colors w-full justify-center cursor-pointer">
+                    <label className="inline-flex items-center gap-2 text-xs font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 bg-blue-50 dark:bg-blue-950/20 px-3.5 py-2 rounded-xl border border-blue-100 dark:border-blue-900/30 transition-colors w-full justify-center cursor-pointer">
                       📁 Upload Passbook Copy
                       <input
                         type="file"
@@ -435,7 +435,7 @@ const DoctorSettingsPage = () => {
                 <div className="flex gap-2 pt-2">
                   <button
                     type="submit"
-                    className="flex-1 text-center bg-emerald-600 text-white rounded-xl py-2 text-xs font-bold hover:bg-emerald-700 transition cursor-pointer"
+                    className="flex-1 text-center bg-blue-600 text-white rounded-xl py-2 text-xs font-bold hover:bg-blue-700 transition cursor-pointer"
                   >
                     Save
                   </button>
@@ -484,7 +484,7 @@ const DoctorSettingsPage = () => {
                       href={profile.bankAccount.passbookCopy}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline mt-1 inline-block"
+                      className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline mt-1 inline-block"
                     >
                       📄 View Passbook Document
                     </a>
@@ -496,7 +496,7 @@ const DoctorSettingsPage = () => {
 
           {/* Digital Signature Card */}
           <div className="bg-white dark:bg-navy-900 border border-stone-200 dark:border-white/[0.06] rounded-3xl p-6 shadow-md">
-            <h3 className="text-xs font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 mb-4 pb-2 border-b border-stone-100 dark:border-white/[0.04]">
+            <h3 className="text-xs font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 mb-4 pb-2 border-b border-stone-100 dark:border-white/[0.04]">
               Digital Signature
             </h3>
             
@@ -517,7 +517,7 @@ const DoctorSettingsPage = () => {
               )}
 
               <div className="pt-2">
-                <label className="inline-flex items-center gap-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 bg-emerald-50 dark:bg-emerald-950/20 px-3.5 py-2 rounded-xl border border-emerald-100 dark:border-emerald-900/30 transition-colors w-full justify-center cursor-pointer">
+                <label className="inline-flex items-center gap-2 text-xs font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 bg-blue-50 dark:bg-blue-950/20 px-3.5 py-2 rounded-xl border border-blue-100 dark:border-blue-900/30 transition-colors w-full justify-center cursor-pointer">
                   📁 {profile.signature ? 'Replace Signature' : 'Upload Signature'}
                   <input
                     type="file"
@@ -572,7 +572,7 @@ const DoctorSettingsPage = () => {
           
           {/* Assigned Practice Venues */}
           <div className="bg-white dark:bg-navy-900 border border-stone-200 dark:border-white/[0.06] rounded-3xl p-6 shadow-md">
-            <h3 className="text-xs font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 mb-4 pb-2 border-b border-stone-100 dark:border-white/[0.04]">
+            <h3 className="text-xs font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 mb-4 pb-2 border-b border-stone-100 dark:border-white/[0.04]">
               Assigned Practice Clinic Venues
             </h3>
             
@@ -585,7 +585,7 @@ const DoctorSettingsPage = () => {
                 return (
                   <div key={cObj._id} className={`p-4 rounded-2xl border-2 transition-all ${
                     isPrimary 
-                      ? 'border-emerald-600 dark:border-emerald-500 bg-emerald-50/10 dark:bg-emerald-950/10' 
+                      ? 'border-blue-600 dark:border-blue-500 bg-blue-50/10 dark:bg-blue-950/10' 
                       : 'border-stone-200 dark:border-white/[0.04] bg-stone-50/50 dark:bg-white/[0.01]'
                   }`}>
                     <div className="flex justify-between items-start">
@@ -599,7 +599,7 @@ const DoctorSettingsPage = () => {
                     </p>
                     <div className="flex items-center gap-2 mt-3">
                       {isPrimary && (
-                        <span className="text-[9px] font-black uppercase tracking-widest bg-emerald-600 text-white px-2 py-0.5 rounded shadow-sm">
+                        <span className="text-[9px] font-black uppercase tracking-widest bg-blue-600 text-white px-2 py-0.5 rounded shadow-sm">
                           Primary Clinic
                         </span>
                       )}
@@ -620,7 +620,7 @@ const DoctorSettingsPage = () => {
 
           {/* Assigned Practice Slots */}
           <div className="bg-white dark:bg-navy-900 border border-stone-200 dark:border-white/[0.06] rounded-3xl p-6 shadow-md">
-            <h3 className="text-xs font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 mb-4 pb-2 border-b border-stone-100 dark:border-white/[0.04]">
+            <h3 className="text-xs font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 mb-4 pb-2 border-b border-stone-100 dark:border-white/[0.04]">
               Weekly Assigned Practice Slots
             </h3>
             
@@ -644,7 +644,7 @@ const DoctorSettingsPage = () => {
                             <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded border ${
                               slot.consultationMode === 'online'
                                 ? 'bg-sky-50 dark:bg-sky-950/20 text-sky-700 dark:text-sky-400 border-sky-200 dark:border-sky-900/30'
-                                : 'bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900/30'
+                                : 'bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-900/30'
                             }`}>
                               {slot.consultationMode === 'online' ? 'Online' : 'Offline'}
                             </span>
@@ -673,7 +673,7 @@ const DoctorSettingsPage = () => {
             {profile.currentAddress && (
               <div className="bg-white dark:bg-navy-900 border border-stone-200 dark:border-white/[0.06] rounded-3xl p-5 shadow-md flex flex-col justify-between">
                 <div>
-                  <h4 className="text-xs font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 mb-3 pb-2 border-b border-stone-100 dark:border-white/[0.04]">
+                  <h4 className="text-xs font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 mb-3 pb-2 border-b border-stone-100 dark:border-white/[0.04]">
                     Current Address
                   </h4>
                   <p className="text-xs font-bold text-stone-850 dark:text-white leading-relaxed">
@@ -696,7 +696,7 @@ const DoctorSettingsPage = () => {
             {profile.permanentAddress && (
               <div className="bg-white dark:bg-navy-900 border border-stone-200 dark:border-white/[0.06] rounded-3xl p-5 shadow-md flex flex-col justify-between">
                 <div>
-                  <h4 className="text-xs font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 mb-3 pb-2 border-b border-stone-100 dark:border-white/[0.04]">
+                  <h4 className="text-xs font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 mb-3 pb-2 border-b border-stone-100 dark:border-white/[0.04]">
                     Permanent Address
                   </h4>
                   <p className="text-xs font-bold text-stone-850 dark:text-white leading-relaxed">
@@ -759,7 +759,7 @@ const DoctorSettingsPage = () => {
               <a
                 href={profile.documentPdf}
                 download="Medical_Registration.pdf"
-                className="rounded-2xl bg-emerald-600 px-6 py-3 text-xs font-bold text-white hover:bg-emerald-700 transition shadow-md shadow-emerald-600/10 cursor-pointer"
+                className="rounded-2xl bg-blue-600 px-6 py-3 text-xs font-bold text-white hover:bg-blue-700 transition shadow-md shadow-blue-600/10 cursor-pointer"
               >
                 Download Certificate
               </a>

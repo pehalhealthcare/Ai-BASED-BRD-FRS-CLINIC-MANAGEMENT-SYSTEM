@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
 import EmptyState from '../../components/common/EmptyState';
@@ -97,7 +97,7 @@ const PatientMedicineHistory = () => {
                     Open dispensing
                   </Link>
                   {record.prescriptionId?._id ? (
-                    <Link className="rounded-2xl border border-emerald-300 px-4 py-3 text-sm font-semibold text-emerald-700 hover:bg-emerald-50" to={`/prescriptions/${record.prescriptionId._id}`}>
+                    <Link className="rounded-2xl border border-blue-300 px-4 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-50" to={`/prescriptions/${record.prescriptionId._id}`}>
                       Open prescription
                     </Link>
                   ) : null}

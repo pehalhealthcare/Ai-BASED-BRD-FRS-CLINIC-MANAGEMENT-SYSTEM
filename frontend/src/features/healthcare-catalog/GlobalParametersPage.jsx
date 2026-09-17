@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Plus, Search, Download, Upload, X, RefreshCw, Edit2, SlidersHorizontal, ArrowLeft, ArrowRight, Eye, ShieldCheck, Check, Trash, FileSpreadsheet, ChevronDown } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { healthcareCatalogApi } from '../../lib/api';
@@ -765,7 +765,7 @@ const GlobalParametersPage = () => {
             onClick={handleExportCSV}
             className="px-5 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-bold hover:bg-slate-50 transition inline-flex items-center gap-2 shadow-sm"
           >
-            <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+            <FileSpreadsheet className="w-4 h-4 text-blue-600" />
             Export CSV
           </button>
           <button
@@ -788,10 +788,10 @@ const GlobalParametersPage = () => {
           </div>
         </div>
         <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-xl">✅</div>
+          <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xl">✅</div>
           <div>
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Active Parameters</span>
-            <span className="text-2xl font-black text-emerald-600 mt-0.5 block">{activeCount}</span>
+            <span className="text-2xl font-black text-blue-600 mt-0.5 block">{activeCount}</span>
           </div>
         </div>
         <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4">
@@ -938,7 +938,7 @@ const GlobalParametersPage = () => {
                       </td>
                       <td className="px-6 py-4 text-xs font-mono text-slate-500">{p.loincCode || '—'}</td>
                       <td className="px-6 py-4">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${p.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${p.isActive ? 'bg-blue-50 text-blue-700' : 'bg-red-50 text-red-700'}`}>
                           {p.isActive ? 'Active' : 'Inactive'}
                         </span>
                       </td>
@@ -1075,7 +1075,7 @@ const GlobalParametersPage = () => {
                   </button>
                   <button
                     onClick={() => toggleStatus(viewingParameter)}
-                    className={`flex-1 py-2.5 rounded-xl font-bold text-xs border transition ${viewingParameter.isActive ? 'bg-white border-red-200 text-red-600 hover:bg-red-50/20' : 'bg-white border-emerald-200 text-emerald-600 hover:bg-emerald-50/20'}`}
+                    className={`flex-1 py-2.5 rounded-xl font-bold text-xs border transition ${viewingParameter.isActive ? 'bg-white border-red-200 text-red-600 hover:bg-red-50/20' : 'bg-white border-blue-200 text-blue-600 hover:bg-blue-50/20'}`}
                   >
                     {viewingParameter.isActive ? 'Deactivate' : 'Activate'}
                   </button>
@@ -1098,7 +1098,7 @@ const GlobalParametersPage = () => {
                               <span className="px-1.5 py-0.5 bg-red-50 text-red-700 border border-red-100 rounded text-[9px] font-bold">Critical</span>
                             )}
                             {!v.isAbnormal && !v.isCritical && (
-                              <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded text-[9px] font-bold">Normal</span>
+                              <span className="px-1.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-100 rounded text-[9px] font-bold">Normal</span>
                             )}
                           </div>
                         </div>
@@ -1439,7 +1439,7 @@ const GlobalParametersPage = () => {
                                 <div className="flex gap-1.5 mt-0.5">
                                   {v.isAbnormal && <span className="text-[8px] bg-amber-50 text-amber-700 border border-amber-100 px-1 py-0.2 rounded font-bold uppercase">Abnormal</span>}
                                   {v.isCritical && <span className="text-[8px] bg-red-50 text-red-700 border border-red-100 px-1 py-0.2 rounded font-bold uppercase">Critical</span>}
-                                  {!v.isAbnormal && !v.isCritical && <span className="text-[8px] bg-emerald-50 text-emerald-700 border border-emerald-100 px-1 py-0.2 rounded font-bold uppercase">Normal</span>}
+                                  {!v.isAbnormal && !v.isCritical && <span className="text-[8px] bg-blue-50 text-blue-700 border border-blue-100 px-1 py-0.2 rounded font-bold uppercase">Normal</span>}
                                 </div>
                               </div>
                               <button

@@ -1,4 +1,4 @@
-const Pagination = ({ page = 1, totalPages = 1, onPageChange }) => {
+﻿const Pagination = ({ page = 1, totalPages = 1, onPageChange }) => {
   if (totalPages <= 1) {
     return null;
   }
@@ -26,7 +26,7 @@ const Pagination = ({ page = 1, totalPages = 1, onPageChange }) => {
           onClick={() => onPageChange(pageNumber)}
           className={`rounded-xl px-3 py-2 text-sm font-medium transition ${
             pageNumber === page
-              ? 'bg-emerald-600 text-white'
+              ? 'bg-blue-600 text-white'
               : 'border border-stone-300 text-stone-700 hover:bg-stone-50'
           }`}
         >

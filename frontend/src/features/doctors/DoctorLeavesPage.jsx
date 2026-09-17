@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+﻿import { useState, useEffect, useMemo, useRef } from 'react';
 import { leaveApi, holidayApi, appointmentApi, doctorApi } from '../../lib/api';
 import PageHeader from '../../components/layout/PageHeader';
 import {
@@ -181,7 +181,7 @@ const DoctorLeavesPage = () => {
   // Leave color status maps
   const getLeaveStatusColor = (status, durationMode) => {
     if (durationMode === 'half') return 'bg-blue-500'; // BLUE = Half Day
-    if (status === 'approved') return 'bg-emerald-500'; // GREEN = Approved
+    if (status === 'approved') return 'bg-blue-500'; // GREEN = Approved
     if (status === 'rejected') return 'bg-rose-500'; // RED = Rejected
     return 'bg-amber-500'; // ORANGE = Pending
   };
@@ -487,7 +487,7 @@ const DoctorLeavesPage = () => {
                   <svg className="w-36 h-36" viewBox="0 0 100 100">
                     <circle cx="50" cy="50" r="40" fill="transparent" stroke="#f1f5f9" strokeWidth="10" />
                     {/* Primary Approved leave donut stroke representing total balance ratio */}
-                    <circle cx="50" cy="50" r="40" fill="transparent" stroke="#10b981" strokeWidth="10" 
+                    <circle cx="50" cy="50" r="40" fill="transparent" stroke="#2563EB" strokeWidth="10" 
                             strokeDasharray="251.2" strokeDashoffset="125" className="transform -rotate-90 origin-center" />
                   </svg>
                   <div className="absolute flex flex-col items-center justify-center">
@@ -501,7 +501,7 @@ const DoctorLeavesPage = () => {
                   {Object.entries(statsSummary.summary).map(([key, val]) => (
                     <div key={key} className="flex justify-between items-center text-slate-600 font-bold">
                       <span className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                        <span className="w-2 h-2 rounded-full bg-blue-500" />
                         {key.replaceAll('_', ' ')}
                       </span>
                       <span>{val} days ({Math.round((val / statsSummary.totalDays) * 100)}%)</span>
@@ -567,7 +567,7 @@ const DoctorLeavesPage = () => {
                       <td className="py-4 px-4 text-center">
                         <span className={`inline-flex items-center gap-1 text-[8px] px-2.5 py-1 rounded-full font-black uppercase tracking-wider border ${
                           l.status === 'approved'
-                            ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                            ? 'bg-blue-50 border-blue-200 text-blue-700'
                             : l.status === 'rejected'
                             ? 'bg-rose-50 border-rose-200 text-rose-700'
                             : l.status === 'cancelled'

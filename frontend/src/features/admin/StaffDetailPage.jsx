@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   User, Briefcase, Clock, FileText, CheckCircle, ArrowLeft, LogOut, Sparkles, Check, AlertCircle,
@@ -138,10 +138,10 @@ const StaffDetailPage = () => {
     // Simple mock matrix mapping roles to standard permission levels
     const permissions = {
       RECEPTIONIST: {
-        Appointments: { label: 'Full Access', style: 'bg-emerald-50 text-emerald-600 border-emerald-100' },
-        Patients: { label: 'Full Access', style: 'bg-emerald-50 text-emerald-600 border-emerald-100' },
-        Reception: { label: 'Full Access', style: 'bg-emerald-50 text-emerald-600 border-emerald-100' },
-        Billing: { label: 'Full Access', style: 'bg-emerald-50 text-emerald-600 border-emerald-100' },
+        Appointments: { label: 'Full Access', style: 'bg-blue-50 text-blue-600 border-blue-100' },
+        Patients: { label: 'Full Access', style: 'bg-blue-50 text-blue-600 border-blue-100' },
+        Reception: { label: 'Full Access', style: 'bg-blue-50 text-blue-600 border-blue-100' },
+        Billing: { label: 'Full Access', style: 'bg-blue-50 text-blue-600 border-blue-100' },
         Inventory: { label: 'Read Only', style: 'bg-amber-50 text-amber-600 border-amber-100' },
         Laboratory: { label: 'No Access', style: 'bg-slate-100 text-slate-500 border-slate-200' },
         Pharmacy: { label: 'No Access', style: 'bg-slate-100 text-slate-500 border-slate-200' },
@@ -153,14 +153,14 @@ const StaffDetailPage = () => {
       },
       NURSE: {
         Appointments: { label: 'Read Only', style: 'bg-amber-50 text-amber-600 border-amber-100' },
-        Patients: { label: 'Full Access', style: 'bg-emerald-50 text-emerald-600 border-emerald-100' },
+        Patients: { label: 'Full Access', style: 'bg-blue-50 text-blue-600 border-blue-100' },
         Reception: { label: 'Read Only', style: 'bg-amber-50 text-amber-600 border-amber-100' },
         Billing: { label: 'No Access', style: 'bg-slate-100 text-slate-500 border-slate-200' },
-        Inventory: { label: 'Full Access', style: 'bg-emerald-50 text-emerald-600 border-emerald-100' },
+        Inventory: { label: 'Full Access', style: 'bg-blue-50 text-blue-600 border-blue-100' },
         Laboratory: { label: 'Read Only', style: 'bg-amber-50 text-amber-600 border-amber-100' },
         Pharmacy: { label: 'Read Only', style: 'bg-amber-50 text-amber-600 border-amber-100' },
         Reports: { label: 'Read Only', style: 'bg-amber-50 text-amber-600 border-amber-100' },
-        Procedures: { label: 'Full Access', style: 'bg-emerald-50 text-emerald-600 border-emerald-100' },
+        Procedures: { label: 'Full Access', style: 'bg-blue-50 text-blue-600 border-blue-100' },
         Finance: { label: 'No Access', style: 'bg-slate-100 text-slate-500 border-slate-200' },
         Administration: { label: 'No Access', style: 'bg-slate-100 text-slate-500 border-slate-200' },
         Settings: { label: 'No Access', style: 'bg-slate-100 text-slate-500 border-slate-200' }
@@ -170,9 +170,9 @@ const StaffDetailPage = () => {
         Patients: { label: 'Read Only', style: 'bg-amber-50 text-amber-600 border-amber-100' },
         Reception: { label: 'No Access', style: 'bg-slate-100 text-slate-500 border-slate-200' },
         Billing: { label: 'Read Only', style: 'bg-amber-50 text-amber-600 border-amber-100' },
-        Inventory: { label: 'Full Access', style: 'bg-emerald-50 text-emerald-600 border-emerald-100' },
+        Inventory: { label: 'Full Access', style: 'bg-blue-50 text-blue-600 border-blue-100' },
         Laboratory: { label: 'No Access', style: 'bg-slate-100 text-slate-500 border-slate-200' },
-        Pharmacy: { label: 'Full Access', style: 'bg-emerald-50 text-emerald-600 border-emerald-100' },
+        Pharmacy: { label: 'Full Access', style: 'bg-blue-50 text-blue-600 border-blue-100' },
         Reports: { label: 'Read Only', style: 'bg-amber-50 text-amber-600 border-amber-100' },
         Procedures: { label: 'No Access', style: 'bg-slate-100 text-slate-500 border-slate-200' },
         Finance: { label: 'No Access', style: 'bg-slate-100 text-slate-500 border-slate-200' },
@@ -290,7 +290,7 @@ const StaffDetailPage = () => {
                 </span>
               )}
               <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase border ${
-                user.isActive ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-100 text-slate-500 border-slate-200'
+                user.isActive ? 'bg-blue-50 text-blue-600 border-blue-100' : 'bg-slate-100 text-slate-500 border-slate-200'
               }`}>
                 {user.isActive ? 'Active' : 'Inactive'}
               </span>
@@ -388,7 +388,7 @@ const StaffDetailPage = () => {
                       <span className="text-purple-600/70 font-bold block mb-0.5">Provider Status</span>
                       <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase ring-1 ring-inset ${
                         profile.assignedProviderId.status === 'Active'
-                          ? 'bg-emerald-50 text-emerald-700 ring-emerald-600/20'
+                          ? 'bg-blue-50 text-blue-700 ring-blue-600/20'
                           : 'bg-red-50 text-red-700 ring-red-650/20'
                       }`}>
                         {profile.assignedProviderId.status || 'Active'}
@@ -641,7 +641,7 @@ const StaffDetailPage = () => {
                       <div>
                         <div className="flex items-center justify-between gap-2">
                           <span className="font-extrabold text-xs text-slate-850">{doc.name}</span>
-                          {hasDoc && <span className="bg-emerald-50 text-emerald-600 border border-emerald-100 px-2 py-0.5 rounded text-[8px] font-black uppercase">Verified</span>}
+                          {hasDoc && <span className="bg-blue-50 text-blue-600 border border-blue-100 px-2 py-0.5 rounded text-[8px] font-black uppercase">Verified</span>}
                         </div>
                         <span className="text-[10px] text-slate-400 block mt-1">Uploaded: {formatDate(doc.date)}</span>
                       </div>
@@ -705,7 +705,7 @@ const StaffDetailPage = () => {
                         <td className="py-3 px-3">{row.hours}</td>
                         <td className="py-3 px-3 text-right">
                           <span className={`px-2 py-0.5 rounded-full text-[9px] border font-black uppercase ${
-                            row.status === 'Present' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-500 border-amber-100'
+                            row.status === 'Present' ? 'bg-blue-50 text-blue-600 border-blue-100' : 'bg-amber-50 text-amber-500 border-amber-100'
                           }`}>{row.status}</span>
                         </td>
                       </tr>
@@ -750,9 +750,9 @@ const StaffDetailPage = () => {
           {/* Card 1: Status */}
           <div className="bg-white border border-slate-100 shadow-sm rounded-3xl p-5 space-y-4">
             <h4 className="text-[10px] text-slate-400 font-black uppercase tracking-wider">Staff Status</h4>
-            <div className="flex items-start gap-3.5 bg-emerald-500/5 border border-emerald-500/10 p-4 rounded-2xl">
+            <div className="flex items-start gap-3.5 bg-blue-500/5 border border-blue-500/10 p-4 rounded-2xl">
               <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-xs font-black ${
-                user.isActive ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'
+                user.isActive ? 'bg-blue-50 text-blue-600' : 'bg-slate-100 text-slate-500'
               }`}>
                 {user.isActive ? '✓' : '✗'}
               </div>
@@ -785,7 +785,7 @@ const StaffDetailPage = () => {
               </div>
               <div className="flex justify-between items-center">
                 <span>Password Status</span>
-                <span className="text-emerald-600 font-bold">✓ Secure</span>
+                <span className="text-blue-600 font-bold">✓ Secure</span>
               </div>
             </div>
             
@@ -812,7 +812,7 @@ const StaffDetailPage = () => {
               </div>
               <div className="text-center">
                 <span className="text-[8px] text-slate-400 font-black uppercase tracking-wide block">Attendance %</span>
-                <strong className="text-base font-black text-emerald-600 mt-1 block">94.7%</strong>
+                <strong className="text-base font-black text-blue-600 mt-1 block">94.7%</strong>
               </div>
             </div>
 

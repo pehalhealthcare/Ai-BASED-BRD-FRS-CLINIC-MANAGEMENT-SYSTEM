@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import EmptyState from '../../components/common/EmptyState';
@@ -11,7 +11,7 @@ import useAuth from '../../hooks/useAuth';
 import { listLabOrders } from './labApi';
 
 const FIELD_CLASS =
-  'w-full rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 text-white';
+  'w-full rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-white';
 
 const getStatusTone = (status = '') => {
   if (status === 'completed') {
@@ -93,7 +93,7 @@ const LabOrdersPage = () => {
         actions={
           <>
             {ADMIN_ROLES.includes(user?.role) ? (
-              <Link className="rounded-2xl border border-emerald-300 px-4 py-3 text-sm font-semibold text-emerald-700 hover:bg-emerald-50" to="/labs/tests">
+              <Link className="rounded-2xl border border-blue-300 px-4 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-50" to="/labs/tests">
                 Manage catalog
               </Link>
             ) : null}

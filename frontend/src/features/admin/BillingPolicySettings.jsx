@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+﻿import { useState, useEffect, useCallback } from "react";
 import {
   ShieldCheck, ChevronDown, ChevronUp, Save, CheckCircle2,
   AlertCircle, Info, Users, Settings2, Percent, IndianRupee,
@@ -26,11 +26,11 @@ const POLICIES = [
     id: "doctor_first",
     label: "Doctor First Approval",
     badge: "Policy 2",
-    badgeColor: "bg-emerald-100 text-emerald-700",
+    badgeColor: "bg-blue-100 text-blue-700",
     icon: Users,
-    iconColor: "text-emerald-600",
-    bgColor: "bg-emerald-50",
-    borderColor: "border-emerald-200",
+    iconColor: "text-blue-600",
+    bgColor: "bg-blue-50",
+    borderColor: "border-blue-200",
     description: "Only the doctor with whom the appointment is booked receives and decides on the discount request.",
     workflow: ["Receptionist", "Doctor", "Approve / Reject", "Payment"],
     recommendedFor: ["Small clinics", "Personal practices", "Owner-operated clinics"],
@@ -218,8 +218,8 @@ const BillingPolicySettings = () => {
 
       {/* Toast */}
       {success && (
-        <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-xl text-sm font-semibold">
-          <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+        <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-xl text-sm font-semibold">
+          <CheckCircle2 size={16} className="text-blue-600 shrink-0" />
           {success}
         </div>
       )}
@@ -384,7 +384,7 @@ const BillingPolicySettings = () => {
                     <button
                       onClick={() => setAllowFullWaiver(!allowFullWaiver)}
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                        allowFullWaiver ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200" : "bg-rose-50 text-rose-600 hover:bg-rose-100"
+                        allowFullWaiver ? "bg-blue-100 text-blue-700 hover:bg-blue-200" : "bg-rose-50 text-rose-600 hover:bg-rose-100"
                       }`}
                     >
                       {allowFullWaiver ? <><ToggleRight size={14} /> Yes</> : <><ToggleLeft size={14} /> No</>}

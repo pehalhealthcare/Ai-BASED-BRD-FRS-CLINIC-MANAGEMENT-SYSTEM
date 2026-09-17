@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import ErrorState from '../../components/common/ErrorState';
@@ -145,10 +145,10 @@ const DoctorFormPage = () => {
     <section className="grid gap-6">
       <div className="flex flex-col gap-3 rounded-3xl border border-stone-200 bg-white dark:bg-stone-800 p-6 shadow-lg shadow-stone-200/40 md:flex-row md:items-center md:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">Doctors</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-700">Doctors</p>
           <h2 className="mt-2 text-2xl font-semibold text-stone-900">{pageTitle}</h2>
         </div>
-        <Link className="text-sm font-semibold text-emerald-700 hover:text-emerald-800" to="/doctors">
+        <Link className="text-sm font-semibold text-blue-700 hover:text-blue-800" to="/doctors">
           Back to doctor list
         </Link>
       </div>
@@ -157,15 +157,15 @@ const DoctorFormPage = () => {
         <div className="grid gap-6 rounded-3xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 p-6 shadow-lg shadow-stone-200/40 md:grid-cols-2">
           <label className="grid gap-2 text-sm text-stone-700 dark:text-gray-100">
             First name
-            <input className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 text-gray-900 dark:text-gray-100 bg-white dark:bg-stone-700" value={form.firstName} onChange={(event) => updateField('firstName', event.target.value)} />
+            <input className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-gray-900 dark:text-gray-100 bg-white dark:bg-stone-700" value={form.firstName} onChange={(event) => updateField('firstName', event.target.value)} />
           </label>
           <label className="grid gap-2 text-sm text-stone-700 dark:text-gray-100">
             Last name
-            <input className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 text-gray-900 dark:text-gray-100 bg-white dark:bg-stone-700" value={form.lastName} onChange={(event) => updateField('lastName', event.target.value)} />
+            <input className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-gray-900 dark:text-gray-100 bg-white dark:bg-stone-700" value={form.lastName} onChange={(event) => updateField('lastName', event.target.value)} />
           </label>
           <label className="grid gap-2 text-sm text-stone-700 dark:text-gray-100">
             Gender
-            <select className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 text-gray-900 dark:text-gray-100 bg-white dark:bg-stone-700" value={form.gender} onChange={(event) => updateField('gender', event.target.value)}>
+            <select className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-gray-900 dark:text-gray-100 bg-white dark:bg-stone-700" value={form.gender} onChange={(event) => updateField('gender', event.target.value)}>
               <option value="male">Male</option>
               <option value="female">Female</option>
               <option value="other">Other</option>
@@ -173,27 +173,27 @@ const DoctorFormPage = () => {
           </label>
           <label className="grid gap-2 text-sm text-stone-700 dark:text-gray-100">
             Phone
-            <input className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 text-gray-900 dark:text-gray-100 bg-white dark:bg-stone-700" value={form.phone} onChange={(event) => updateField('phone', event.target.value)} />
+            <input className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-gray-900 dark:text-gray-100 bg-white dark:bg-stone-700" value={form.phone} onChange={(event) => updateField('phone', event.target.value)} />
           </label>
           <label className="grid gap-2 text-sm text-stone-700 dark:text-gray-100">
             Email
-            <input type="email" className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 text-gray-900 dark:text-gray-100 bg-white dark:bg-stone-700" value={form.email} onChange={(event) => updateField('email', event.target.value)} />
+            <input type="email" className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-gray-900 dark:text-gray-100 bg-white dark:bg-stone-700" value={form.email} onChange={(event) => updateField('email', event.target.value)} />
           </label>
           <label className="grid gap-2 text-sm text-stone-700 dark:text-gray-100">
             Specialization
-            <input className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 text-gray-900 dark:text-gray-100 bg-white dark:bg-stone-700" value={form.specialization} onChange={(event) => updateField('specialization', event.target.value)} />
+            <input className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-gray-900 dark:text-gray-100 bg-white dark:bg-stone-700" value={form.specialization} onChange={(event) => updateField('specialization', event.target.value)} />
           </label>
           <label className="grid gap-2 text-sm text-stone-700 dark:text-gray-100">
             Qualification
-            <input className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 text-gray-900 dark:text-gray-100 bg-white dark:bg-stone-700" value={form.qualification} onChange={(event) => updateField('qualification', event.target.value)} />
+            <input className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-gray-900 dark:text-gray-100 bg-white dark:bg-stone-700" value={form.qualification} onChange={(event) => updateField('qualification', event.target.value)} />
           </label>
           <label className="grid gap-2 text-sm text-stone-700 dark:text-gray-100">
             Experience years
-            <input type="number" min="0" className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 text-gray-900 dark:text-gray-100 bg-white dark:bg-stone-700" value={form.experienceYears} onChange={(event) => updateField('experienceYears', event.target.value)} />
+            <input type="number" min="0" className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-gray-900 dark:text-gray-100 bg-white dark:bg-stone-700" value={form.experienceYears} onChange={(event) => updateField('experienceYears', event.target.value)} />
           </label>
           <label className="grid gap-2 text-sm text-stone-700 dark:text-gray-100">
             Consultation fee
-            <input type="number" min="0" className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 text-gray-900 dark:text-gray-100 bg-white dark:bg-stone-700" value={form.consultationFee} onChange={(event) => updateField('consultationFee', event.target.value)} />
+            <input type="number" min="0" className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-gray-900 dark:text-gray-100 bg-white dark:bg-stone-700" value={form.consultationFee} onChange={(event) => updateField('consultationFee', event.target.value)} />
           </label>
           <label className="grid gap-2 text-sm text-stone-700 dark:text-gray-100">
             Token Prefix
@@ -201,7 +201,7 @@ const DoctorFormPage = () => {
               type="text" 
               maxLength={10} 
               placeholder="e.g. SM or CARD (auto-generated if empty)"
-              className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 text-gray-900 dark:text-gray-100 bg-white dark:bg-stone-700 uppercase" 
+              className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-gray-900 dark:text-gray-100 bg-white dark:bg-stone-700 uppercase" 
               value={form.tokenPrefix} 
               onChange={(event) => updateField('tokenPrefix', event.target.value.replace(/[^A-Za-z0-9-]/g, '').toUpperCase())} 
             />
@@ -220,7 +220,7 @@ const DoctorFormPage = () => {
         {error ? <p className="rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p> : null}
 
         <div className="flex flex-wrap gap-3">
-          <button type="submit" disabled={submitting} className="rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60">
+          <button type="submit" disabled={submitting} className="rounded-2xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60">
             {submitting ? 'Saving...' : isEditMode ? 'Save changes' : 'Create doctor'}
           </button>
           <Link className="rounded-2xl border border-stone-300 px-5 py-3 text-sm font-semibold text-stone-700 transition hover:bg-stone-50" to={isEditMode ? `/doctors/${id}` : '/doctors'}>

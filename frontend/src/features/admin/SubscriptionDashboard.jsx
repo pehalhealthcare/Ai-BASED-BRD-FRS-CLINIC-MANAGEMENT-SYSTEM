@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import { 
   CreditCard, ShieldCheck, CheckCircle2, AlertTriangle, ArrowUpRight, 
   Sparkles, RefreshCw, Layers, Check, Download, AlertCircle, Eye, Info
@@ -407,7 +407,7 @@ export default function SubscriptionDashboard() {
                     <td className="py-4 px-4 text-slate-500">₹{item.creditApplied || 0}</td>
                     <td className="py-4 px-4 font-black text-slate-900">₹{item.amountPaid}</td>
                     <td className="py-4 px-4">
-                      <span className="px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-700 text-[9px] font-black uppercase">
+                      <span className="px-2 py-0.5 rounded-full bg-blue-50 border border-blue-100 text-blue-700 text-[9px] font-black uppercase">
                         {item.paymentStatus}
                       </span>
                     </td>
@@ -528,7 +528,7 @@ export default function SubscriptionDashboard() {
                       <span>Selected Plan Rate</span>
                       <span className="font-bold text-slate-800">₹{upgradePreview.selectedPlanPrice}</span>
                     </div>
-                    <div className="flex justify-between items-center text-emerald-600 font-semibold">
+                    <div className="flex justify-between items-center text-blue-600 font-semibold">
                       <span>Current Plan Credit (Prorated)</span>
                       <span className="font-black">- ₹{upgradePreview.currentPlanCredit}</span>
                     </div>

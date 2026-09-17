@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
 import aiApi from '../../api/aiApi';
@@ -12,7 +12,7 @@ import LabResultTable from './LabResultTable';
 import { finalizeLabReport, getLabReport, reviewLabAnalysis, updateLabReport } from './labApi';
 
 const FIELD_CLASS =
-  'w-full rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100';
+  'w-full rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100';
 
 const createEmptyEntry = () => ({
   code: '',
@@ -290,7 +290,7 @@ const LabReportPage = () => {
                 type="button"
                 onClick={handleFinalize}
                 disabled={finalizing}
-                className="rounded-2xl border border-emerald-300 px-4 py-3 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 disabled:border-stone-300 disabled:text-stone-400"
+                className="rounded-2xl border border-blue-300 px-4 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-50 disabled:border-stone-300 disabled:text-stone-400"
               >
                 {finalizing ? 'Finalizing...' : 'Finalize report'}
               </button>
@@ -349,16 +349,16 @@ const LabReportPage = () => {
             </label>
 
             {report?.generatedReportUrl ? (
-              <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3.5 flex items-center justify-between">
+              <div className="rounded-2xl border border-blue-200 bg-blue-50/70 p-3.5 flex items-center justify-between">
                 <div>
-                  <div className="text-xs font-bold text-emerald-950">Official Generated PDF Report</div>
-                  <div className="text-[11px] text-emerald-700">Generated from verified diagnostic parameters</div>
+                  <div className="text-xs font-bold text-blue-950">Official Generated PDF Report</div>
+                  <div className="text-[11px] text-blue-700">Generated from verified diagnostic parameters</div>
                 </div>
                 <a
                   href={report.generatedReportUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
+                  className="rounded-xl bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
                 >
                   Download PDF
                 </a>
@@ -414,7 +414,7 @@ const LabReportPage = () => {
               <button
                 type="submit"
                 disabled={saving}
-                className="rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:bg-stone-300"
+                className="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-stone-300"
               >
                 {saving ? 'Saving...' : 'Save report'}
               </button>

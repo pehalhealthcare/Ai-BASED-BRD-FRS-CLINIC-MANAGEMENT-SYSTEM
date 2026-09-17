@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+﻿import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import {
   Check, Star, Zap, Crown, Building2, ArrowUpRight,
@@ -50,7 +50,7 @@ const TABS = ['My Subscription', 'Available Plans', 'Billing & Payment History']
 /* ─── Feature Check Component ───────────────────────────── */
 const FeatureItem = ({ text, highlighted = false }) => (
   <div className="flex items-start gap-2">
-    <CheckCircle2 size={14} className={`mt-0.5 shrink-0 ${highlighted ? 'text-indigo-600' : 'text-emerald-500'}`} />
+    <CheckCircle2 size={14} className={`mt-0.5 shrink-0 ${highlighted ? 'text-indigo-600' : 'text-blue-500'}`} />
     <span className="text-xs text-slate-600 leading-relaxed font-medium">{text}</span>
   </div>
 );
@@ -422,7 +422,7 @@ export default function SubscriptionPage() {
             onClick={() => setActiveTab(tab)}
             className={`px-5 py-3 text-xs font-extrabold cursor-pointer transition border-b-2 -mb-px whitespace-nowrap ${
               activeTab === tab
-                ? 'text-emerald-600 border-emerald-600 bg-emerald-50/40 rounded-t-xl'
+                ? 'text-blue-600 border-blue-600 bg-blue-50/40 rounded-t-xl'
                 : 'text-slate-500 border-transparent hover:text-slate-800'
             }`}
           >
@@ -442,7 +442,7 @@ export default function SubscriptionPage() {
             
             {/* 1. Main Current Subscription Card */}
             <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-200/90 shadow-xs p-6 sm:p-8 flex flex-col justify-between relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-50/50 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
+              <div className="absolute top-0 right-0 w-64 h-64 bg-blue-50/50 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
               
               <div className="space-y-6 relative z-10">
                 <div className="flex flex-wrap items-start justify-between gap-4">
@@ -459,8 +459,8 @@ export default function SubscriptionPage() {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-blue-50 text-blue-700 border border-blue-200">
+                      <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
                       Active
                     </span>
                   </div>
@@ -493,7 +493,7 @@ export default function SubscriptionPage() {
                     {/* Upgrade Plan button */}
                     <button
                       onClick={() => handleOpenUpgrade()}
-                      className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black transition flex items-center gap-1.5 shadow-md shadow-emerald-600/20 cursor-pointer"
+                      className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black transition flex items-center gap-1.5 shadow-md shadow-blue-600/20 cursor-pointer"
                     >
                       <Crown size={14} />
                       <span>{isCurrentlyMonthly ? 'Upgrade Plan' : 'Change Plan'}</span>
@@ -522,7 +522,7 @@ export default function SubscriptionPage() {
 
               {/* Footer Note */}
               <div className="mt-6 pt-4 border-t border-slate-100 text-[11px] text-slate-400 flex items-center gap-1.5">
-                <ShieldCheck size={14} className="text-emerald-600 shrink-0" />
+                <ShieldCheck size={14} className="text-blue-600 shrink-0" />
                 <span>Encrypted medical grade multi-tenant HIPAA isolation included.</span>
               </div>
             </div>
@@ -542,15 +542,15 @@ export default function SubscriptionPage() {
 
                 <div className="space-y-2 text-xs text-slate-200">
                   <div className="flex items-center gap-2">
-                    <CheckCircle2 size={13} className="text-emerald-400 shrink-0" />
+                    <CheckCircle2 size={13} className="text-blue-400 shrink-0" />
                     <span>Instant activation upon verification</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <CheckCircle2 size={13} className="text-emerald-400 shrink-0" />
+                    <CheckCircle2 size={13} className="text-blue-400 shrink-0" />
                     <span>Existing patient data stays untouched</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <CheckCircle2 size={13} className="text-emerald-400 shrink-0" />
+                    <CheckCircle2 size={13} className="text-blue-400 shrink-0" />
                     <span>Unified direct bank / UPI payment</span>
                   </div>
                 </div>
@@ -576,7 +576,7 @@ export default function SubscriptionPage() {
                 <h3 className="text-base font-black text-slate-900">Plan Usage & Limits</h3>
                 <p className="text-xs text-slate-400 mt-0.5">Real-time resource allocation and storage utilization for {currentPlanName}</p>
               </div>
-              <span className="px-3 py-1 rounded-full text-xs font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <span className="px-3 py-1 rounded-full text-xs font-black bg-blue-50 text-blue-700 border border-blue-200">
                 85% Total Capacity
               </span>
             </div>
@@ -586,7 +586,7 @@ export default function SubscriptionPage() {
               <div className="bg-slate-50/80 border border-slate-150 rounded-2xl p-4.5 space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-slate-700 font-bold text-xs">
-                    <Database size={16} className="text-emerald-600" />
+                    <Database size={16} className="text-blue-600" />
                     <span>Cloud Medical Storage</span>
                   </div>
                   <span className="text-xs font-black text-slate-900">85% Used</span>
@@ -597,7 +597,7 @@ export default function SubscriptionPage() {
                     <span>200 GB Limit</span>
                   </div>
                   <div className="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
-                    <div className="h-full bg-emerald-500 rounded-full transition-all duration-500" style={{ width: '85%' }} />
+                    <div className="h-full bg-blue-500 rounded-full transition-all duration-500" style={{ width: '85%' }} />
                   </div>
                 </div>
               </div>
@@ -668,7 +668,7 @@ export default function SubscriptionPage() {
                 'Financial Analytics'
               ]).map((feat, idx) => (
                 <div key={idx} className="bg-slate-50 border border-slate-150/80 rounded-2xl p-3.5 flex items-start gap-2.5">
-                  <CheckCircle2 size={15} className="text-emerald-600 shrink-0 mt-0.5" />
+                  <CheckCircle2 size={15} className="text-blue-600 shrink-0 mt-0.5" />
                   <span className="text-xs font-bold text-slate-700 capitalize">
                     {String(feat).replace(/_/g, ' ')}
                   </span>
@@ -709,7 +709,7 @@ export default function SubscriptionPage() {
                   key={plan._id || idx}
                   className={`relative rounded-3xl border p-6 flex flex-col justify-between transition-all duration-200 ${
                     isCurrent
-                      ? 'bg-emerald-50/30 border-emerald-300 ring-2 ring-emerald-500/20 shadow-sm'
+                      ? 'bg-blue-50/30 border-blue-300 ring-2 ring-blue-500/20 shadow-sm'
                       : isPopular
                       ? 'bg-gradient-to-b from-indigo-50/50 to-white border-indigo-200 shadow-md ring-1 ring-indigo-300'
                       : 'bg-white border-slate-200 shadow-xs hover:shadow-md'
@@ -717,7 +717,7 @@ export default function SubscriptionPage() {
                 >
                   {isCurrent && (
                     <div className="absolute -top-3 left-6">
-                      <span className="bg-emerald-600 text-white text-[10px] font-black px-3 py-1 rounded-full shadow-xs">
+                      <span className="bg-blue-600 text-white text-[10px] font-black px-3 py-1 rounded-full shadow-xs">
                         Current Plan
                       </span>
                     </div>
@@ -761,7 +761,7 @@ export default function SubscriptionPage() {
 
                   <div className="pt-6 border-t border-slate-100 mt-4">
                     {isCurrent ? (
-                      <div className="w-full py-2.5 rounded-2xl bg-emerald-100 text-emerald-800 text-xs font-black text-center">
+                      <div className="w-full py-2.5 rounded-2xl bg-blue-100 text-blue-800 text-xs font-black text-center">
                         Active Plan
                       </div>
                     ) : isHigher ? (
@@ -852,7 +852,7 @@ export default function SubscriptionPage() {
                         <td className="py-3.5 px-4 text-right">
                           <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black ${
                             isVerified 
-                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              ? 'bg-blue-50 text-blue-700 border border-blue-200'
                               : isRejected
                               ? 'bg-rose-50 text-rose-700 border border-rose-200'
                               : 'bg-amber-50 text-amber-700 border border-amber-200'
@@ -902,7 +902,7 @@ export default function SubscriptionPage() {
                   type="button"
                   onClick={() => setSelectedCycle('yearly')}
                   className={`px-4 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5 ${
-                    selectedCycle === 'yearly' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-500 hover:text-slate-800'
+                    selectedCycle === 'yearly' ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-500 hover:text-slate-800'
                   }`}
                 >
                   <Sparkles size={12} />
@@ -931,7 +931,7 @@ export default function SubscriptionPage() {
                       isCurrent
                         ? 'bg-slate-50 border-slate-200 opacity-80'
                         : isSelected
-                        ? 'bg-emerald-50/50 border-emerald-400 ring-2 ring-emerald-400/20 shadow-sm'
+                        ? 'bg-blue-50/50 border-blue-400 ring-2 ring-blue-400/20 shadow-sm'
                         : 'bg-white border-slate-200 hover:border-slate-300 shadow-2xs'
                     }`}
                   >
@@ -953,7 +953,7 @@ export default function SubscriptionPage() {
                       <div className="space-y-1.5 text-xs text-slate-600 pt-2 border-t border-slate-100">
                         {(plan.features || []).slice(0, 5).map((f, fi) => (
                           <div key={fi} className="flex items-center gap-1.5 text-[11px]">
-                            <Check size={12} className="text-emerald-500 shrink-0" />
+                            <Check size={12} className="text-blue-500 shrink-0" />
                             <span>{String(f).replace(/_/g, ' ')}</span>
                           </div>
                         ))}
@@ -968,7 +968,7 @@ export default function SubscriptionPage() {
                       ) : isHigher ? (
                         <button
                           onClick={() => handleProceedToReview(plan, selectedCycle)}
-                          className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black transition cursor-pointer shadow-xs"
+                          className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black transition cursor-pointer shadow-xs"
                         >
                           Select Plan
                         </button>
@@ -1010,10 +1010,10 @@ export default function SubscriptionPage() {
                 <span className="text-[10px] text-slate-500 capitalize">{currentBillingCycle} Billing</span>
               </div>
 
-              <div className="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-3.5">
-                <span className="text-[10px] uppercase font-bold text-emerald-700 block">New Plan</span>
-                <span className="font-black text-emerald-900 text-sm block mt-0.5">{selectedPlanForUpgrade?.name}</span>
-                <span className="text-[10px] text-emerald-700 capitalize font-bold">{selectedCycle} Billing</span>
+              <div className="bg-blue-50/70 border border-blue-200 rounded-2xl p-3.5">
+                <span className="text-[10px] uppercase font-bold text-blue-700 block">New Plan</span>
+                <span className="font-black text-blue-900 text-sm block mt-0.5">{selectedPlanForUpgrade?.name}</span>
+                <span className="text-[10px] text-blue-700 capitalize font-bold">{selectedCycle} Billing</span>
               </div>
             </div>
 
@@ -1025,7 +1025,7 @@ export default function SubscriptionPage() {
               </div>
 
               {calculatedReview.savings > 0 && (
-                <div className="flex justify-between text-emerald-600 font-bold">
+                <div className="flex justify-between text-blue-600 font-bold">
                   <span>Yearly Discount Savings</span>
                   <span>- {fmt(calculatedReview.savings)}</span>
                 </div>
@@ -1038,7 +1038,7 @@ export default function SubscriptionPage() {
 
               <div className="border-t border-slate-200 pt-2.5 flex justify-between items-center text-sm font-black text-slate-900">
                 <span>Total Payable Amount</span>
-                <span className="text-emerald-600 text-base">{fmt(calculatedReview.total)}</span>
+                <span className="text-blue-600 text-base">{fmt(calculatedReview.total)}</span>
               </div>
             </div>
 
@@ -1063,7 +1063,7 @@ export default function SubscriptionPage() {
                 type="button"
                 onClick={handleProceedToPayment}
                 disabled={loadingInitiation}
-                className="flex-1 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black transition flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/20 cursor-pointer disabled:opacity-60"
+                className="flex-1 py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black transition flex items-center justify-center gap-1.5 shadow-md shadow-blue-600/20 cursor-pointer disabled:opacity-60"
               >
                 {loadingInitiation ? <RefreshCw size={14} className="animate-spin" /> : <ArrowRight size={14} />}
                 <span>Proceed to Payment</span>
@@ -1199,7 +1199,7 @@ export default function SubscriptionPage() {
                     value={utr}
                     onChange={(e) => setUtr(e.target.value)}
                     placeholder="e.g. 425316789012"
-                    className="w-full px-3.5 py-2.5 text-xs font-mono font-bold uppercase rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition"
+                    className="w-full px-3.5 py-2.5 text-xs font-mono font-bold uppercase rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition"
                   />
                   <p className="text-[10px] text-slate-400 mt-1">Found in your UPI or banking receipt</p>
                 </div>
@@ -1213,7 +1213,7 @@ export default function SubscriptionPage() {
                     value={transactionId}
                     onChange={(e) => setTransactionId(e.target.value)}
                     placeholder="e.g. TXN987654"
-                    className="w-full px-3.5 py-2.5 text-xs font-mono rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition"
+                    className="w-full px-3.5 py-2.5 text-xs font-mono rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition"
                   />
                 </div>
               </div>
@@ -1225,7 +1225,7 @@ export default function SubscriptionPage() {
                 </label>
                 <div
                   onClick={() => fileInputRef.current?.click()}
-                  className="border-2 border-dashed border-slate-200 hover:border-emerald-400 rounded-2xl p-4 text-center cursor-pointer transition bg-slate-50/50 hover:bg-emerald-50/20 flex flex-col items-center justify-center gap-1.5"
+                  className="border-2 border-dashed border-slate-200 hover:border-blue-400 rounded-2xl p-4 text-center cursor-pointer transition bg-slate-50/50 hover:bg-blue-50/20 flex flex-col items-center justify-center gap-1.5"
                 >
                   <input
                     type="file"
@@ -1261,7 +1261,7 @@ export default function SubscriptionPage() {
                 <button
                   type="submit"
                   disabled={submittingPayment || !utr}
-                  className="flex-2 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black transition flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 cursor-pointer disabled:opacity-60"
+                  className="flex-2 py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black transition flex items-center justify-center gap-2 shadow-md shadow-blue-600/20 cursor-pointer disabled:opacity-60"
                 >
                   {submittingPayment ? <RefreshCw size={14} className="animate-spin" /> : <ShieldCheck size={14} />}
                   <span>{submittingPayment ? 'Submitting Payment...' : 'Submit Payment Attempt'}</span>
@@ -1306,7 +1306,7 @@ export default function SubscriptionPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Amount Paid</span>
-                <span className="font-bold text-emerald-600">{fmt(latestPayment?.amount || calculatedReview?.total)}</span>
+                <span className="font-bold text-blue-600">{fmt(latestPayment?.amount || calculatedReview?.total)}</span>
               </div>
               <div className="flex justify-between items-center pt-2 border-t border-slate-200">
                 <span className="text-slate-500">Payment Status</span>
@@ -1323,12 +1323,12 @@ export default function SubscriptionPage() {
               </span>
 
               <div className="grid grid-cols-4 gap-2 text-center text-[10px] font-bold">
-                <div className="flex flex-col items-center gap-1 text-emerald-600">
-                  <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center">✓</div>
+                <div className="flex flex-col items-center gap-1 text-blue-600">
+                  <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center">✓</div>
                   <span>Plan Selected</span>
                 </div>
-                <div className="flex flex-col items-center gap-1 text-emerald-600">
-                  <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center">✓</div>
+                <div className="flex flex-col items-center gap-1 text-blue-600">
+                  <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center">✓</div>
                   <span>Payment Submitted</span>
                 </div>
                 <div className="flex flex-col items-center gap-1 text-amber-600">
@@ -1363,7 +1363,7 @@ export default function SubscriptionPage() {
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-md w-full border border-slate-100 shadow-2xl p-6 sm:p-8 space-y-6 text-center text-slate-800">
             
-            <div className="w-16 h-16 rounded-3xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center mx-auto shadow-sm">
+            <div className="w-16 h-16 rounded-3xl bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center mx-auto shadow-sm">
               <Sparkles size={32} />
             </div>
 
@@ -1374,27 +1374,27 @@ export default function SubscriptionPage() {
               </p>
             </div>
 
-            <div className="bg-gradient-to-b from-emerald-50/50 to-white border border-emerald-200 rounded-3xl p-5 space-y-2">
-              <span className="text-[10px] font-black uppercase text-emerald-700 tracking-wider">You are now on</span>
+            <div className="bg-gradient-to-b from-blue-50/50 to-white border border-blue-200 rounded-3xl p-5 space-y-2">
+              <span className="text-[10px] font-black uppercase text-blue-700 tracking-wider">You are now on</span>
               <h4 className="text-lg font-black text-slate-900">{clinic.subscription?.planId?.name || pendingPlanName}</h4>
               <p className="text-xs font-bold text-slate-700 capitalize">
                 {clinic.subscription?.billingCycle || pendingCycle} Billing • {fmt(currentPlanPrice)}
               </p>
-              <p className="text-[11px] text-emerald-600 font-bold pt-1">
+              <p className="text-[11px] text-blue-600 font-bold pt-1">
                 Your new plan is now active.
               </p>
             </div>
 
             <div className="grid grid-cols-1 gap-2 text-xs font-bold text-slate-700 text-left bg-slate-50 p-4 rounded-2xl border border-slate-150">
-              <div className="flex items-center gap-2 text-emerald-700">
+              <div className="flex items-center gap-2 text-blue-700">
                 <CheckCircle2 size={14} />
                 <span>Payment Verified by Super Admin</span>
               </div>
-              <div className="flex items-center gap-2 text-emerald-700">
+              <div className="flex items-center gap-2 text-blue-700">
                 <CheckCircle2 size={14} />
                 <span>Plan Activated with updated dates</span>
               </div>
-              <div className="flex items-center gap-2 text-emerald-700">
+              <div className="flex items-center gap-2 text-blue-700">
                 <CheckCircle2 size={14} />
                 <span>New features and limits unlocked</span>
               </div>
@@ -1415,7 +1415,7 @@ export default function SubscriptionPage() {
                   setFlowStep(null);
                   setActiveTab('My Subscription');
                 }}
-                className="flex-1 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black transition cursor-pointer shadow-md shadow-emerald-600/20"
+                className="flex-1 py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black transition cursor-pointer shadow-md shadow-blue-600/20"
               >
                 View Subscription
               </button>
@@ -1478,7 +1478,7 @@ export default function SubscriptionPage() {
                   setProofPreview('');
                   setFlowStep('PAYMENT');
                 }}
-                className="flex-1 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black transition cursor-pointer shadow-md shadow-emerald-600/20"
+                className="flex-1 py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black transition cursor-pointer shadow-md shadow-blue-600/20"
               >
                 Try Payment Again
               </button>

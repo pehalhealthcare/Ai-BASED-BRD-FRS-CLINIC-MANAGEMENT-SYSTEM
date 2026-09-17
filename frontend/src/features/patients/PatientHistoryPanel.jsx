@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import EmptyState from '../../components/common/EmptyState';
@@ -53,7 +53,7 @@ const renderConsultations = (items = []) => (
                 </p>
               </div>
               {item._id ? (
-                <Link className="rounded-2xl border border-emerald-300 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50" to={`/consultations/${item._id}`}>
+                <Link className="rounded-2xl border border-blue-300 px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50" to={`/consultations/${item._id}`}>
                   Open
                 </Link>
               ) : null}
@@ -202,7 +202,7 @@ const renderDispensings = (items = []) => (
                   </Link>
                 ) : null}
                 {item.prescription?._id ? (
-                  <Link className="rounded-2xl border border-emerald-300 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50" to={`/prescriptions/${item.prescription._id}`}>
+                  <Link className="rounded-2xl border border-blue-300 px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50" to={`/prescriptions/${item.prescription._id}`}>
                     Open prescription
                   </Link>
                 ) : null}

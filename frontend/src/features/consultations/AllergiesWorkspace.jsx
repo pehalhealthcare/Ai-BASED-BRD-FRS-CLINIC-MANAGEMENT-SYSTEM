@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import {
   Search, Eye, Printer, ChevronDown, ChevronUp, FileDown, PlusCircle, Check, X,
   AlertTriangle, Play, Calendar, Clock, RefreshCw, Trash2, Edit2, AlertCircle
@@ -206,7 +206,7 @@ export default function AllergiesWorkspace({
         {[
           { label: 'Active Allergies', count: allergies.filter(a => a.currentStatus === 'Active').length, color: 'bg-red-50 text-red-700 border-red-200' },
           { label: 'Medication Allergies', count: allergies.filter(a => a.category === 'Medication Allergy').length, color: 'bg-blue-50 text-blue-700 border-blue-200' },
-          { label: 'Food Allergies', count: allergies.filter(a => a.category === 'Food Allergy').length, color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+          { label: 'Food Allergies', count: allergies.filter(a => a.category === 'Food Allergy').length, color: 'bg-blue-50 text-blue-700 border-blue-200' },
           { label: 'Environmental Allergies', count: allergies.filter(a => a.category === 'Environmental Allergy').length, color: 'bg-orange-50 text-orange-700 border-orange-200' },
           { label: 'Past (Inactive)', count: allergies.filter(a => a.currentStatus === 'Inactive').length, color: 'bg-slate-50 text-slate-700 border-slate-200' },
           { label: 'Total Allergies', count: allergies.length, color: 'bg-indigo-50 text-indigo-700 border-indigo-200' }
@@ -322,7 +322,7 @@ export default function AllergiesWorkspace({
                       <span className="text-[10px] text-slate-400 block">{al.clinic}</span>
                     </td>
                     <td className="p-4">
-                      <span className="px-2 py-0.5 rounded font-black text-[9px] bg-emerald-50 text-emerald-707 border border-emerald-200">
+                      <span className="px-2 py-0.5 rounded font-black text-[9px] bg-blue-50 text-blue-707 border border-blue-200">
                         {al.currentStatus}
                       </span>
                     </td>

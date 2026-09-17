@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Shield, CreditCard, CheckCircle2, TrendingUp, FileText,
@@ -66,11 +66,11 @@ export default function BillingInsurance({
         <div className="rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-navy-800 p-5 flex items-center gap-4">
           <div>
             <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Insurance Coverage</p>
-            <p className="text-3xl font-black text-emerald-500 mt-1">{coverageLimit > 0 ? `${coveragePercent}%` : '0%'}</p>
+            <p className="text-3xl font-black text-blue-500 mt-1">{coverageLimit > 0 ? `${coveragePercent}%` : '0%'}</p>
             <p className="text-[11px] text-slate-400 mt-1">{insuranceForm.provider || 'No insurance linked'}</p>
           </div>
-          <div className="ml-auto w-14 h-14 rounded-full bg-emerald-500/10 border-2 border-emerald-500/30 flex items-center justify-center shrink-0">
-            <Shield size={24} className="text-emerald-500" />
+          <div className="ml-auto w-14 h-14 rounded-full bg-blue-500/10 border-2 border-blue-500/30 flex items-center justify-center shrink-0">
+            <Shield size={24} className="text-blue-500" />
           </div>
         </div>
 
@@ -82,8 +82,8 @@ export default function BillingInsurance({
               {
                 label: 'Make Payment',
                 icon: <CreditCard size={16} />,
-                color: 'text-aura-500',
-                bg: 'bg-aura-500/10',
+                color: 'text-blue-500',
+                bg: 'bg-blue-500/10',
                 onClick: () => {
                   if (unpaidInvoices.length > 0) {
                     navigate('/billing/all/checkout');
@@ -93,7 +93,7 @@ export default function BillingInsurance({
                 }
               },
               { label: 'Payment History', icon: <TrendingUp size={16} />, color: 'text-indigo-500', bg: 'bg-indigo-500/10', onClick: () => setBillingSubTab('history') },
-              { label: 'Download Invoice', icon: <Download size={16} />, color: 'text-emerald-500', bg: 'bg-emerald-500/10', onClick: () => setBillingSubTab('invoices') },
+              { label: 'Download Invoice', icon: <Download size={16} />, color: 'text-blue-500', bg: 'bg-blue-500/10', onClick: () => setBillingSubTab('invoices') },
             ].map(action => (
               <button key={action.label} onClick={action.onClick}
                 className="flex flex-col items-center gap-1.5 p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-white/[0.04] transition group">
@@ -113,7 +113,7 @@ export default function BillingInsurance({
           <button key={tab.id} onClick={() => setBillingSubTab(tab.id)}
             className={`px-5 py-3 text-sm font-semibold border-b-2 transition-all duration-150 whitespace-nowrap ${
               billingSubTab === tab.id
-                ? 'border-aura-500 text-aura-500 dark:text-aura-400'
+                ? 'border-blue-500 text-blue-500 dark:text-blue-400'
                 : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
             }`}>
             {tab.label}
@@ -129,7 +129,7 @@ export default function BillingInsurance({
           
           {/* Success Message */}
           {billingSuccessMessage && (
-            <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-sm font-medium animate-slide-down">
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 text-blue-700 dark:text-blue-300 text-sm font-medium animate-slide-down">
               <CheckCircle2 size={16} />{billingSuccessMessage}
             </div>
           )}
@@ -140,14 +140,14 @@ export default function BillingInsurance({
               {/* Insurance Summary Card */}
               <div className="rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-navy-800 p-5">
                 <div className="flex items-center gap-2 mb-4">
-                  <Shield size={16} className="text-emerald-500" />
+                  <Shield size={16} className="text-blue-500" />
                   <h3 className="text-sm font-bold text-slate-900 dark:text-white">Insurance Summary</h3>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-5">
                   <div>
                     <p className="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">Provider</p>
                     <p className="text-sm font-bold text-slate-800 dark:text-slate-200 mt-1">{insuranceForm.provider || '—'}</p>
-                    <button onClick={() => setBillingSubTab('insurance')} className="text-[11px] text-aura-500 hover:underline mt-1 font-semibold">View Details</button>
+                    <button onClick={() => setBillingSubTab('insurance')} className="text-[11px] text-blue-500 hover:underline mt-1 font-semibold">View Details</button>
                   </div>
                   <div>
                     <p className="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">Policy Number</p>
@@ -155,13 +155,13 @@ export default function BillingInsurance({
                   </div>
                   <div>
                     <p className="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">Coverage</p>
-                    <p className="text-sm font-bold text-emerald-500 mt-1">{coverageLimit > 0 ? `${coveragePercent}%` : '0%'}</p>
+                    <p className="text-sm font-bold text-blue-500 mt-1">{coverageLimit > 0 ? `${coveragePercent}%` : '0%'}</p>
                   </div>
                   <div>
                     <p className="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">Remaining Coverage</p>
                     <p className="text-sm font-bold text-slate-800 dark:text-slate-200 mt-1">₹{remainingCoverage.toLocaleString('en-IN')} / ₹{coverageLimit.toLocaleString('en-IN')}</p>
                     <div className="mt-2 h-1.5 rounded-full bg-slate-100 dark:bg-white/5 overflow-hidden">
-                      <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600" style={{ width: `${coveragePercent}%` }} />
+                      <div className="h-full rounded-full bg-gradient-to-r from-blue-400 to-blue-600" style={{ width: `${coveragePercent}%` }} />
                     </div>
                   </div>
                 </div>
@@ -174,7 +174,7 @@ export default function BillingInsurance({
                     <FileText size={16} className="text-amber-500" />
                     <h3 className="text-sm font-bold text-slate-900 dark:text-white">Recent Bills</h3>
                   </div>
-                  <button onClick={() => setBillingSubTab('invoices')} className="text-xs font-semibold text-aura-500 hover:text-aura-600 transition">View All</button>
+                  <button onClick={() => setBillingSubTab('invoices')} className="text-xs font-semibold text-blue-500 hover:text-blue-600 transition">View All</button>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs">
@@ -208,10 +208,10 @@ export default function BillingInsurance({
                               {inv.doctorName || inv.appointmentId?.doctorId?.fullName || 'AI-CMS'}
                             </td>
                             <td className="px-4 py-3.5 text-right font-semibold text-slate-800 dark:text-slate-200">₹{total.toLocaleString('en-IN')}</td>
-                            <td className="px-4 py-3.5 text-right text-emerald-600 dark:text-emerald-400">₹{insurancePaid.toLocaleString('en-IN')}</td>
+                            <td className="px-4 py-3.5 text-right text-blue-600 dark:text-blue-400">₹{insurancePaid.toLocaleString('en-IN')}</td>
                             <td className="px-4 py-3.5 text-right text-slate-700 dark:text-slate-300">₹{youPaid.toLocaleString('en-IN')}</td>
                             <td className="px-4 py-3.5 text-center">
-                              <span className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-bold border ${isPaid ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}>
+                              <span className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-bold border ${isPaid ? 'bg-blue-500/10 text-blue-500 border-blue-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}>
                                 {isPaid ? 'Paid' : 'Unpaid'}
                               </span>
                             </td>
@@ -225,7 +225,7 @@ export default function BillingInsurance({
                                   <Download size={12} className="text-slate-500" />
                                 </button>
                               ) : (
-                                <Link to={`/billing/${inv._id}/checkout`} className="px-3 py-1.5 rounded-lg bg-aura-500 text-white text-[10px] font-bold hover:bg-aura-600 transition inline-block text-center">Pay Now</Link>
+                                <Link to={`/billing/${inv._id}/checkout`} className="px-3 py-1.5 rounded-lg bg-blue-500 text-white text-[10px] font-bold hover:bg-blue-600 transition inline-block text-center">Pay Now</Link>
                               )}
                             </td>
                           </tr>
@@ -243,8 +243,8 @@ export default function BillingInsurance({
               {/* Billing Summary Cards */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {[
-                  { label: 'Total Billed', value: totalBilled, sub: 'All time', icon: <FileText size={20} />, color: 'text-aura-500', bg: 'bg-aura-500/10' },
-                  { label: 'Insurance Paid', value: Math.round(totalPaid * (coveragePercent / 100)), sub: 'All time', icon: <Shield size={20} />, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+                  { label: 'Total Billed', value: totalBilled, sub: 'All time', icon: <FileText size={20} />, color: 'text-blue-500', bg: 'bg-blue-500/10' },
+                  { label: 'Insurance Paid', value: Math.round(totalPaid * (coveragePercent / 100)), sub: 'All time', icon: <Shield size={20} />, color: 'text-blue-500', bg: 'bg-blue-500/10' },
                   { label: 'You Paid', value: totalPaid - Math.round(totalPaid * (coveragePercent / 100)), sub: 'All time', icon: <CreditCard size={20} />, color: 'text-indigo-500', bg: 'bg-indigo-500/10' },
                   { label: 'Amount Due', value: totalUnpaid, sub: 'Due Now', icon: <AlertTriangle size={20} />, color: 'text-rose-500', bg: 'bg-rose-500/10' },
                 ].map(card => (
@@ -265,8 +265,8 @@ export default function BillingInsurance({
           {billingSubTab === 'insurance' && (
             <div className="rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-navy-800 p-6 space-y-6">
               <div className="flex items-center gap-3 pb-4 border-b border-slate-100 dark:border-white/[0.06]">
-                <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 flex items-center justify-center">
-                  <Shield size={18} className="text-emerald-600 dark:text-emerald-400" />
+                <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 flex items-center justify-center">
+                  <Shield size={18} className="text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
                   <h2 className="text-base font-semibold text-slate-900 dark:text-white">Insurance Details</h2>
@@ -283,28 +283,28 @@ export default function BillingInsurance({
                     <p className="text-[11px] text-slate-500 dark:text-slate-400">Policy: <span className="font-mono text-slate-800 dark:text-slate-200">STAR12345</span></p>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400">Subscriber: <span className="font-semibold text-slate-800 dark:text-slate-200">Rahul Sharma</span></p>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400">Group: <span className="font-mono text-slate-800 dark:text-slate-200">GRP1001</span></p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Coverage: <span className="font-semibold text-emerald-500">₹1,50,000</span></p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Coverage: <span className="font-semibold text-blue-500">₹1,50,000</span></p>
                   </div>
                   <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5">
                     <p className="font-semibold text-slate-700 dark:text-slate-300">Niva Bupa Health Insurance</p>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400">Policy: <span className="font-mono text-slate-800 dark:text-slate-200">NIVA98765</span></p>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400">Subscriber: <span className="font-semibold text-slate-800 dark:text-slate-200">Priya Patel</span></p>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400">Group: <span className="font-mono text-slate-800 dark:text-slate-200">GRP1002</span></p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Coverage: <span className="font-semibold text-emerald-500">₹2,50,000</span></p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Coverage: <span className="font-semibold text-blue-500">₹2,50,000</span></p>
                   </div>
                   <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5">
                     <p className="font-semibold text-slate-700 dark:text-slate-300">ICICI Lombard Insurance</p>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400">Policy: <span className="font-mono text-slate-800 dark:text-slate-200">ICICI55555</span></p>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400">Subscriber: <span className="font-semibold text-slate-800 dark:text-slate-200">Amit Kumar</span></p>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400">Group: <span className="font-mono text-slate-800 dark:text-slate-200">GRP1003</span></p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Coverage: <span className="font-semibold text-emerald-500">₹3,50,000</span></p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Coverage: <span className="font-semibold text-blue-500">₹3,50,000</span></p>
                   </div>
                   <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5">
                     <p className="font-semibold text-slate-700 dark:text-slate-300">HDFC Ergo Insurance</p>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400">Policy: <span className="font-mono text-slate-800 dark:text-slate-200">HDFC44444</span></p>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400">Subscriber: <span className="font-semibold text-slate-800 dark:text-slate-200">Siddharth Malhotra</span></p>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400">Group: <span className="font-mono text-slate-800 dark:text-slate-200">GRP1004</span></p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Coverage: <span className="font-semibold text-emerald-500">₹5,00,000</span></p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Coverage: <span className="font-semibold text-blue-500">₹5,00,000</span></p>
                   </div>
                 </div>
               </div>
@@ -317,11 +317,11 @@ export default function BillingInsurance({
                 <InputRow label="Subscriber Name" value={insuranceForm.subscriberName} onChange={(e) => setInsuranceForm({ ...insuranceForm, subscriberName: e.target.value })} placeholder="Name on card" />
                 <InputRow label="Subscriber Date of Birth" type="date" value={insuranceForm.subscriberDob ? insuranceForm.subscriberDob.slice(0, 10) : ''} onChange={(e) => setInsuranceForm({ ...insuranceForm, subscriberDob: e.target.value })} />
                 <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/8">
-                  <input type="checkbox" id="autoClaimAutomation" checked={insuranceForm.autoClaimAutomation} onChange={(e) => setInsuranceForm({ ...insuranceForm, autoClaimAutomation: e.target.checked })} className="w-4 h-4 rounded text-aura-600 border-slate-300 focus:ring-aura-500" />
+                  <input type="checkbox" id="autoClaimAutomation" checked={insuranceForm.autoClaimAutomation} onChange={(e) => setInsuranceForm({ ...insuranceForm, autoClaimAutomation: e.target.checked })} className="w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500" />
                   <label htmlFor="autoClaimAutomation" className="text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer">Enable Auto Insurance Claims Automation</label>
                 </div>
                 <div className="pt-2 flex justify-end">
-                  <button type="submit" disabled={savingBilling} className="px-6 py-2.5 rounded-xl bg-aura-600 dark:bg-aura-500 text-white text-sm font-semibold hover:bg-aura-700 dark:hover:bg-aura-600 transition disabled:opacity-50">
+                  <button type="submit" disabled={savingBilling} className="px-6 py-2.5 rounded-xl bg-blue-600 dark:bg-blue-500 text-white text-sm font-semibold hover:bg-blue-700 dark:hover:bg-blue-600 transition disabled:opacity-50">
                     {savingBilling ? 'Saving...' : 'Save Insurance'}
                   </button>
                 </div>
@@ -368,7 +368,7 @@ export default function BillingInsurance({
                         <td className="px-4 py-3.5 text-center">
                           <span className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-bold border ${
                             payment.status === 'SUCCESS'
-                              ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
+                              ? 'bg-blue-500/10 text-blue-500 border-blue-500/20'
                               : payment.status === 'REFUNDED'
                               ? 'bg-blue-500/10 text-blue-500 border-blue-500/20'
                               : 'bg-amber-500/10 text-amber-500 border-amber-500/20'
@@ -421,7 +421,7 @@ export default function BillingInsurance({
                         <td className="px-4 py-3.5 text-slate-500 dark:text-slate-400">{inv.createdAt ? new Date(inv.createdAt).toLocaleDateString('en-IN', { dateStyle: 'medium' }) : '—'}</td>
                         <td className="px-4 py-3.5 text-right font-bold text-slate-800 dark:text-slate-200">₹{(inv.totalAmount || 0).toLocaleString('en-IN')}</td>
                         <td className="px-4 py-3.5 text-center">
-                          <span className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-bold border ${inv.paymentStatus === 'paid' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}>
+                          <span className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-bold border ${inv.paymentStatus === 'paid' ? 'bg-blue-500/10 text-blue-500 border-blue-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}>
                             {inv.paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
                           </span>
                         </td>
@@ -451,7 +451,7 @@ export default function BillingInsurance({
               <div className="rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-navy-800 p-5 space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-bold text-slate-900 dark:text-white">Payment Methods</h3>
-                  <button onClick={() => setShowAddCard(!showAddCard)} className="flex items-center gap-1.5 text-xs font-semibold text-aura-500 hover:text-aura-600 transition">
+                  <button onClick={() => setShowAddCard(!showAddCard)} className="flex items-center gap-1.5 text-xs font-semibold text-blue-500 hover:text-blue-600 transition">
                     <Plus size={14} /> Add New
                   </button>
                 </div>
@@ -465,7 +465,7 @@ export default function BillingInsurance({
                         <p className="text-sm font-semibold text-slate-900 dark:text-white">•••• {pm.cardNumber?.slice(-4) || '----'}</p>
                         <p className="text-[11px] text-slate-500 dark:text-slate-400">Expires {pm.expiryDate}</p>
                       </div>
-                      {i === 0 && <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-500/20">Primary</span>}
+                      {i === 0 && <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-200 dark:border-blue-500/20">Primary</span>}
                       <button onClick={() => handleRemoveCard(i)} className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition">
                         <MoreVertical size={14} />
                       </button>
@@ -476,7 +476,7 @@ export default function BillingInsurance({
 
                   {/* Add Card Button */}
                   <button onClick={() => setShowAddCard(!showAddCard)}
-                    className="w-full flex items-center gap-2 p-4 rounded-xl border-2 border-dashed border-slate-200 dark:border-white/10 text-slate-400 hover:border-aura-400 hover:text-aura-500 transition text-sm font-semibold">
+                    className="w-full flex items-center gap-2 p-4 rounded-xl border-2 border-dashed border-slate-200 dark:border-white/10 text-slate-400 hover:border-blue-400 hover:text-blue-500 transition text-sm font-semibold">
                     <Plus size={16} /> Add New Payment Method
                   </button>
                 </div>
@@ -503,7 +503,7 @@ export default function BillingInsurance({
                     </div>
                     <div className="flex gap-2 pt-2">
                       <button type="button" onClick={() => setShowAddCard(false)} className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 transition">Cancel</button>
-                      <button type="submit" disabled={savingBilling} className="flex-1 py-2.5 rounded-xl bg-slate-900 dark:bg-aura-500 text-white text-sm font-semibold hover:bg-slate-800 dark:hover:bg-aura-600 transition disabled:opacity-50">
+                      <button type="submit" disabled={savingBilling} className="flex-1 py-2.5 rounded-xl bg-slate-900 dark:bg-blue-500 text-white text-sm font-semibold hover:bg-slate-800 dark:hover:bg-blue-600 transition disabled:opacity-50">
                         {savingBilling ? 'Adding...' : 'Add Card'}
                       </button>
                     </div>
@@ -536,7 +536,7 @@ export default function BillingInsurance({
             {unpaidInvoices.length > 0 ? (
               <Link
                 to={`/billing/all/checkout`}
-                className="w-full text-center py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white text-sm font-bold transition shadow-md block"
+                className="w-full text-center py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-sm font-bold transition shadow-md block"
               >
                 Make a Payment
               </Link>
@@ -553,7 +553,7 @@ export default function BillingInsurance({
               {[
                 { label: 'Total Unpaid Dues', value: `₹${totalUnpaid.toLocaleString('en-IN')}` },
                 ...(hasInsurance && totalCovered > 0 ? [
-                  { label: `Insurance Coverage (${actualReductionPercent}%)`, value: `-₹${totalCovered.toLocaleString('en-IN')}`, colorClass: 'text-emerald-500 font-medium' }
+                  { label: `Insurance Coverage (${actualReductionPercent}%)`, value: `-₹${totalCovered.toLocaleString('en-IN')}`, colorClass: 'text-blue-500 font-medium' }
                 ] : []),
                 { label: 'Patient Payable', value: `₹${patientPayable.toLocaleString('en-IN')}`, bold: true },
               ].map(item => (
@@ -569,7 +569,7 @@ export default function BillingInsurance({
           <div className="rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-navy-800 p-5 space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">Payment Methods</h3>
-              <button onClick={() => setBillingSubTab('payment')} className="text-[11px] text-aura-500 hover:text-aura-600 font-semibold">Manage</button>
+              <button onClick={() => setBillingSubTab('payment')} className="text-[11px] text-blue-500 hover:text-blue-600 font-semibold">Manage</button>
             </div>
             {paymentMethods.length > 0 ? paymentMethods.slice(0, 2).map((pm, i) => (
               <div key={i} className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 dark:border-white/[0.06] bg-slate-50 dark:bg-navy-900/50">
@@ -580,14 +580,14 @@ export default function BillingInsurance({
                   <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">•••• {pm.cardNumber?.slice(-4) || '----'}</p>
                   <p className="text-[10px] text-slate-400">Expires {pm.expiryDate}</p>
                 </div>
-                {i === 0 && <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400">Primary</span>}
+                {i === 0 && <span className="text-[9px] font-bold text-blue-600 dark:text-blue-400">Primary</span>}
                 <button className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
                   <MoreVertical size={13} />
                 </button>
               </div>
             )) : null}
             <button onClick={() => { setBillingSubTab('payment'); setShowAddCard(true); }}
-              className="w-full flex items-center gap-2 p-2.5 rounded-xl border border-dashed border-slate-200 dark:border-white/10 text-slate-400 hover:border-aura-400 hover:text-aura-500 transition text-xs font-semibold">
+              className="w-full flex items-center gap-2 p-2.5 rounded-xl border border-dashed border-slate-200 dark:border-white/10 text-slate-400 hover:border-blue-400 hover:text-blue-500 transition text-xs font-semibold">
               <Plus size={13} /> Add New Payment Method
             </button>
           </div>
@@ -595,15 +595,15 @@ export default function BillingInsurance({
           {/* Help & Support */}
           <div className="rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-navy-800 p-5 space-y-3">
             <div className="flex items-start gap-3">
-              <div className="w-9 h-9 rounded-xl bg-aura-500/10 flex items-center justify-center shrink-0">
-                <Headphones size={16} className="text-aura-500" />
+              <div className="w-9 h-9 rounded-xl bg-blue-500/10 flex items-center justify-center shrink-0">
+                <Headphones size={16} className="text-blue-500" />
               </div>
               <div>
                 <h4 className="text-sm font-bold text-slate-900 dark:text-white">Need Help?</h4>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">If you have any questions regarding insurance coverage or billing.</p>
               </div>
             </div>
-            <button className="w-full py-2.5 rounded-xl border border-aura-500/30 text-aura-600 dark:text-aura-400 text-xs font-bold hover:bg-aura-500/10 transition flex items-center justify-center gap-2">
+            <button className="w-full py-2.5 rounded-xl border border-blue-500/30 text-blue-600 dark:text-blue-400 text-xs font-bold hover:bg-blue-500/10 transition flex items-center justify-center gap-2">
               <Phone size={13} /> Contact Billing Support
             </button>
           </div>

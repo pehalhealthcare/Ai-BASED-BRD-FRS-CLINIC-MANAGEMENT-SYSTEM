@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+﻿import { useState, useEffect, useMemo } from 'react';
 import { settlementsApi, doctorApi } from '../../lib/api';
 import useAuth from '../../hooks/useAuth';
 import LoadingState from '../../components/common/LoadingState';
@@ -258,11 +258,11 @@ export default function DoctorEarningsPage() {
               <h3 className="text-2xl font-black text-slate-900 mt-2 font-mono">
                 ₹{(summary.totalEarnings || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
               </h3>
-              <p className="text-[10px] text-emerald-600 font-bold mt-2.5 flex items-center gap-1">
+              <p className="text-[10px] text-blue-600 font-bold mt-2.5 flex items-center gap-1">
                 <ArrowUpRight size={12} /> {summary.totalEarningsChange}
               </p>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 shrink-0">
               <Wallet size={18} />
             </div>
           </div>
@@ -344,8 +344,8 @@ export default function DoctorEarningsPage() {
                 <svg viewBox="0 0 600 240" className="w-full h-full" preserveAspectRatio="none">
                   <defs>
                     <linearGradient id="gradient-area" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#10b981" stopOpacity="0.25" />
-                      <stop offset="100%" stopColor="#10b981" stopOpacity="0.0" />
+                      <stop offset="0%" stopColor="#2563EB" stopOpacity="0.25" />
+                      <stop offset="100%" stopColor="#2563EB" stopOpacity="0.0" />
                     </linearGradient>
                   </defs>
 
@@ -359,7 +359,7 @@ export default function DoctorEarningsPage() {
                     <path
                       d={linePathD}
                       fill="none"
-                      stroke="#10b981"
+                      stroke="#2563EB"
                       strokeWidth="3"
                       strokeLinecap="round"
                     />
@@ -375,7 +375,7 @@ export default function DoctorEarningsPage() {
 
                   {/* Points */}
                   {chartCoordinates.map((c, i) => (
-                    <circle key={i} cx={c.x} cy={c.y} r="4.5" fill="#ffffff" stroke="#10b981" strokeWidth="2.5" />
+                    <circle key={i} cx={c.x} cy={c.y} r="4.5" fill="#ffffff" stroke="#2563EB" strokeWidth="2.5" />
                   ))}
                 </svg>
 
@@ -438,7 +438,7 @@ export default function DoctorEarningsPage() {
                   <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="rgba(148,163,184,0.08)" strokeWidth="4.2" />
                   {/* Render segments representing percentages of total */}
                   {breakdown.map((item, idx) => {
-                    const strokeColors = ['#10b981', '#8b5cf6', '#f59e0b', '#3b82f6'];
+                    const strokeColors = ['#2563EB', '#8b5cf6', '#f59e0b', '#3b82f6'];
                     const color = strokeColors[idx] || '#cbd5e1';
                     
                     // Cumulative dash offset calculation
@@ -472,7 +472,7 @@ export default function DoctorEarningsPage() {
               <div className="space-y-3 mt-4">
                 {breakdown.map((item, idx) => {
                   const colors = [
-                    { dot: 'bg-emerald-500', bar: 'bg-emerald-500' },
+                    { dot: 'bg-blue-500', bar: 'bg-blue-500' },
                     { dot: 'bg-purple-500', bar: 'bg-purple-500' },
                     { dot: 'bg-amber-500', bar: 'bg-amber-500' },
                     { dot: 'bg-blue-500', bar: 'bg-blue-500' }
@@ -533,7 +533,7 @@ export default function DoctorEarningsPage() {
                       <td className="px-3 py-3 text-center">
                         <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${
                           tx.status === 'Paid'
-                            ? 'bg-emerald-50 border-emerald-150 text-emerald-600'
+                            ? 'bg-blue-50 border-blue-150 text-blue-600'
                             : 'bg-amber-50 border-amber-150 text-amber-600'
                         }`}>
                           {tx.status}

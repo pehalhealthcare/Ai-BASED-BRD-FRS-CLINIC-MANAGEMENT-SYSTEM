@@ -1,8 +1,8 @@
-import { useState, useRef } from 'react';
+﻿import { useState, useRef } from 'react';
 
 const SOAP_TABS = [
   { key: 'subjective', label: 'S', full: 'Subjective', color: 'bg-blue-500' },
-  { key: 'objective', label: 'O', full: 'Objective', color: 'bg-emerald-500' },
+  { key: 'objective', label: 'O', full: 'Objective', color: 'bg-blue-500' },
   { key: 'assessment', label: 'A', full: 'Assessment', color: 'bg-amber-500' },
   { key: 'plan', label: 'P', full: 'Plan', color: 'bg-violet-500' }
 ];
@@ -139,7 +139,7 @@ const VoiceNotePanel = ({
             <label className="grid flex-1 gap-1.5 text-sm font-medium text-stone-700 dark:text-stone-300">
               <span>Audio file</span>
               <input
-                className="w-full rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 px-3 py-2.5 text-sm outline-none file:mr-3 file:rounded-lg file:border-0 file:bg-emerald-50 file:px-3 file:py-1 file:text-sm file:font-semibold file:text-emerald-700 dark:file:bg-emerald-900/30 dark:file:text-emerald-400"
+                className="w-full rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 px-3 py-2.5 text-sm outline-none file:mr-3 file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-1 file:text-sm file:font-semibold file:text-blue-700 dark:file:bg-blue-900/30 dark:file:text-blue-400"
                 type="file"
                 accept=".wav,.mp3,.m4a,.webm,.ogg,audio/*"
                 onChange={(event) => onAudioSelected(event.target.files?.[0] || null)}
@@ -232,7 +232,7 @@ const VoiceNotePanel = ({
               className={`transition-all duration-200 ${activeTab === tab.key ? 'block animate-fade-in' : 'hidden'}`}
             >
               <textarea
-                className="w-full rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900/50 px-4 py-3 text-sm text-stone-800 dark:text-stone-200 outline-none transition-all focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:focus:ring-emerald-900/30 placeholder:text-stone-400 resize-y"
+                className="w-full rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900/50 px-4 py-3 text-sm text-stone-800 dark:text-stone-200 outline-none transition-all focus:border-blue-400 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 placeholder:text-stone-400 resize-y"
                 rows={8}
                 value={form.ai_soap_note?.[tab.key] || ''}
                 onChange={(event) => onAiNoteFieldChange(tab.key, event.target.value)}
@@ -257,7 +257,7 @@ const VoiceNotePanel = ({
           type="button"
           disabled={!consultation?._id || aiDraftApproving}
           onClick={onApprove}
-          className="btn-glow rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-40 transition-all"
+          className="btn-glow rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-40 transition-all"
         >
           {aiDraftApproving ? '⏳ Approving...' : '✅ Approve & Save to EMR'}
         </button>

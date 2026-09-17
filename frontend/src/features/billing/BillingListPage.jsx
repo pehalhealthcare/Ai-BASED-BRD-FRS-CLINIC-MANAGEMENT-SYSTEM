@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+﻿import { useEffect, useState, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { 
   Search, CheckCircle, X,
@@ -409,7 +409,7 @@ export default function BillingListPage() {
 
       {paymentSuccess ? (
         <div className="bg-white border border-slate-100 rounded-3xl p-8 flex flex-col items-center justify-center text-center max-w-2xl mx-auto space-y-6 my-10 shadow-md">
-          <div className="w-20 h-20 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center">
+          <div className="w-20 h-20 rounded-full bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center">
             <CheckCircle size={48} />
           </div>
           <div className="space-y-2">
@@ -424,7 +424,7 @@ export default function BillingListPage() {
             </div>
             <div>
               <p className="text-[10px] uppercase font-bold text-slate-400">Prescription Access</p>
-              <p className="font-extrabold text-emerald-600 mt-1 flex items-center gap-1">Unlocked EMR &amp; Ready ✓</p>
+              <p className="font-extrabold text-blue-600 mt-1 flex items-center gap-1">Unlocked EMR &amp; Ready ✓</p>
             </div>
             {successDetails?.insuranceAmount > 0 && (
               <>
@@ -502,7 +502,7 @@ export default function BillingListPage() {
               </div>
               <div>
                 <span className="text-[9px] text-slate-400 font-extrabold uppercase block tracking-wider">Appointment Status</span>
-                <span className="inline-block bg-emerald-50 text-emerald-600 border border-emerald-100 font-black px-2 py-0.5 rounded-lg text-[9px] uppercase mt-1">Completed</span>
+                <span className="inline-block bg-blue-50 text-blue-600 border border-blue-100 font-black px-2 py-0.5 rounded-lg text-[9px] uppercase mt-1">Completed</span>
               </div>
             </div>
             {selectedPatient?.insuranceDetails?.provider && (
@@ -511,7 +511,7 @@ export default function BillingListPage() {
                 <div className="bg-slate-50 border border-slate-100 p-3.5 rounded-2xl text-xs space-y-2">
                   <p className="font-semibold text-slate-600">Provider: <span className="text-slate-900 font-extrabold">{selectedPatient?.insuranceDetails?.provider || 'Star Health'}</span></p>
                   <p className="text-slate-400 text-[10px]">Policy: {selectedPatient?.insuranceDetails?.policyNumber || 'SHI-987654'}</p>
-                  <span className="inline-block bg-emerald-50 text-emerald-600 border border-emerald-100 text-[8px] font-extrabold px-1.5 py-0.5 rounded-lg uppercase tracking-wider">Cashless Eligible</span>
+                  <span className="inline-block bg-blue-50 text-blue-600 border border-blue-100 text-[8px] font-extrabold px-1.5 py-0.5 rounded-lg uppercase tracking-wider">Cashless Eligible</span>
                 </div>
               </div>
             )}
@@ -637,7 +637,7 @@ export default function BillingListPage() {
                 <span className="text-slate-800 font-extrabold">₹{calculatedTotals.grandTotal}</span>
               </div>
               {calculatedTotals.insuranceCovered > 0 && (
-                <div className="flex justify-between text-emerald-600">
+                <div className="flex justify-between text-blue-600">
                   <span>Insurance Approved ({coveragePercentage}%)</span>
                   <span>- ₹{calculatedTotals.insuranceCovered}</span>
                 </div>
@@ -817,7 +817,7 @@ export default function BillingListPage() {
                         <td className="py-4 px-5">
                           <span className={`inline-block px-2.5 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider border ${
                             inv.paymentStatus === 'paid' 
-                              ? 'bg-emerald-50 text-emerald-600 border-emerald-100' 
+                              ? 'bg-blue-50 text-blue-600 border-blue-100' 
                               : 'bg-amber-50 text-amber-600 border-amber-100'
                           }`}>
                             {inv.paymentStatus || 'UNPAID'}
@@ -873,7 +873,7 @@ export default function BillingListPage() {
               <p className="font-semibold text-slate-500">Grand Total: <span className="text-slate-800 font-extrabold">₹{calculatedTotals.grandTotal}</span></p>
               {paymentMethod === 'Insurance' && (
                 <>
-                  <p className="text-emerald-600 text-[11px] font-bold">Insurance approved ({coveragePercentage}%): ₹{calculatedTotals.insuranceCovered}</p>
+                  <p className="text-blue-600 text-[11px] font-bold">Insurance approved ({coveragePercentage}%): ₹{calculatedTotals.insuranceCovered}</p>
                   <p className="text-amber-600 text-[11px] font-bold">Patient Payable Portion: ₹{calculatedTotals.payableAmount}</p>
                 </>
               )}

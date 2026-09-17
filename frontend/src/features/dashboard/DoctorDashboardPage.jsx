@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef } from 'react';
+﻿import { useEffect, useState, useMemo, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { Link, useNavigate } from 'react-router-dom';
 import {
@@ -568,13 +568,13 @@ const DoctorDashboardPage = () => {
         <div className="bg-white border border-slate-150 rounded-2xl p-4 flex flex-col justify-between hover:translate-y-[-2px] transition duration-200 shadow-sm relative overflow-hidden">
           <div className="flex justify-between items-center text-slate-500">
             <span className="text-[9px] font-bold uppercase tracking-wider">Current Patient</span>
-            <div className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg"><User size={14} /></div>
+            <div className="p-1.5 bg-blue-50 text-blue-600 rounded-lg"><User size={14} /></div>
           </div>
           <h3 className="text-sm font-black text-slate-900 mt-3 truncate">
             {activeConsultation?.appointmentId?.patientId?.fullName || 'No Patient'}
           </h3>
           <span className={`inline-flex items-center w-fit text-[8px] font-black uppercase px-2 py-0.5 rounded border mt-1 ${
-            activeConsultation ? 'bg-emerald-50 border-emerald-250 text-emerald-700' : 'bg-slate-50 border-slate-200 text-slate-450'
+            activeConsultation ? 'bg-blue-50 border-blue-250 text-blue-700' : 'bg-slate-50 border-slate-200 text-slate-450'
           }`}>
             {activeConsultation ? 'In Progress' : 'No Consultation'}
           </span>
@@ -693,7 +693,7 @@ const DoctorDashboardPage = () => {
                           appt.status === 'completed' 
                             ? 'bg-slate-150 border-slate-200 text-slate-600'
                             : isCheckedIn 
-                              ? 'bg-emerald-50 border-emerald-200 text-emerald-700' 
+                              ? 'bg-blue-50 border-blue-200 text-blue-700' 
                               : 'bg-blue-50 border-blue-200 text-blue-700'
                         }`}>
                           {appt.status === 'completed' ? 'Completed' : isCheckedIn ? 'Checked-In' : 'Upcoming'}
@@ -724,7 +724,7 @@ const DoctorDashboardPage = () => {
               <h2 className="text-sm font-black text-slate-800">Current Patient</h2>
               {selectedToken ? (
                 <span className={`text-[8px] font-black uppercase tracking-widest px-2.5 py-1 rounded border animate-pulse ${
-                  selectedToken.status === 'in_consultation' ? 'bg-emerald-50 border-emerald-250 text-emerald-700' : 'bg-purple-50 border-purple-255 text-purple-700'
+                  selectedToken.status === 'in_consultation' ? 'bg-blue-50 border-blue-250 text-blue-700' : 'bg-purple-50 border-purple-255 text-purple-700'
                 }`}>
                   {selectedToken.status?.replace('_', ' ')}
                 </span>

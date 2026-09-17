@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+﻿import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Badge from '../../components/common/Badge';
 import { saveResultsBatch } from './labApi';
 
@@ -328,7 +328,7 @@ const LabResultEntryDrawer = ({
               <div className="flex items-center gap-2 rounded-2xl border border-stone-200 bg-white px-3 py-1.5 shadow-sm">
                 <div className="h-2 w-16 overflow-hidden rounded-full bg-stone-100">
                   <div
-                    className={`h-full transition-all duration-300 ${currentStats.pct === 100 ? 'bg-emerald-500' : 'bg-violet-600'}`}
+                    className={`h-full transition-all duration-300 ${currentStats.pct === 100 ? 'bg-blue-500' : 'bg-violet-600'}`}
                     style={{ width: `${currentStats.pct}%` }}
                   />
                 </div>
@@ -385,7 +385,7 @@ const LabResultEntryDrawer = ({
                         isSelected
                           ? 'bg-violet-800 text-violet-100'
                           : gAllDone
-                          ? 'bg-emerald-100 text-emerald-800'
+                          ? 'bg-blue-100 text-blue-800'
                           : 'bg-stone-100 text-stone-600'
                       }`}
                     >
@@ -683,7 +683,7 @@ const LabResultEntryDrawer = ({
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               {saveMessage ? (
-                <span className={`text-xs font-semibold ${saveMessage.includes('Error') ? 'text-rose-600' : 'text-emerald-700'}`}>
+                <span className={`text-xs font-semibold ${saveMessage.includes('Error') ? 'text-rose-600' : 'text-blue-700'}`}>
                   {saveMessage}
                 </span>
               ) : hasUnsavedChanges ? (

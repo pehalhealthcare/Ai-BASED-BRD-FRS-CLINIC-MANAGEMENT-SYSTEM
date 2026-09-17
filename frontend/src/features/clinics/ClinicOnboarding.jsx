@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
 import { clinicApi, specializationApi, providersApi, validationApi } from '../../lib/api';
@@ -2765,8 +2765,8 @@ export default function ClinicOnboarding() {
                               </div>
                             )}
                             {emailValState.status === 'valid' && (
-                              <div className="flex items-center gap-1 text-[10px] text-emerald-600 mt-1 font-bold">
-                                <CheckCircle size={11} className="text-emerald-500 shrink-0" /> {emailValState.message}
+                              <div className="flex items-center gap-1 text-[10px] text-blue-600 mt-1 font-bold">
+                                <CheckCircle size={11} className="text-blue-500 shrink-0" /> {emailValState.message}
                               </div>
                             )}
                             {emailValState.status === 'invalid' && (
@@ -2797,8 +2797,8 @@ export default function ClinicOnboarding() {
                               </div>
                             )}
                             {phoneValState.status === 'valid' && (
-                              <div className="flex items-center gap-1 text-[10px] text-emerald-600 mt-1 font-bold">
-                                <CheckCircle size={11} className="text-emerald-500 shrink-0" /> {phoneValState.message}
+                              <div className="flex items-center gap-1 text-[10px] text-blue-600 mt-1 font-bold">
+                                <CheckCircle size={11} className="text-blue-500 shrink-0" /> {phoneValState.message}
                               </div>
                             )}
                             {phoneValState.status === 'invalid' && (
@@ -2924,8 +2924,8 @@ export default function ClinicOnboarding() {
                                           </div>
                                         )}
                                         {emailValState.status === 'valid' && (
-                                          <div className="flex items-center gap-1 text-[10px] text-emerald-600 mt-1 font-bold">
-                                            <CheckCircle size={11} className="text-emerald-500 shrink-0" /> {emailValState.message}
+                                          <div className="flex items-center gap-1 text-[10px] text-blue-600 mt-1 font-bold">
+                                            <CheckCircle size={11} className="text-blue-500 shrink-0" /> {emailValState.message}
                                           </div>
                                         )}
                                         {emailValState.status === 'invalid' && (
@@ -2951,8 +2951,8 @@ export default function ClinicOnboarding() {
                                           </div>
                                         )}
                                         {phoneValState.status === 'valid' && (
-                                          <div className="flex items-center gap-1 text-[10px] text-emerald-600 mt-1 font-bold">
-                                            <CheckCircle size={11} className="text-emerald-500 shrink-0" /> {phoneValState.message}
+                                          <div className="flex items-center gap-1 text-[10px] text-blue-600 mt-1 font-bold">
+                                            <CheckCircle size={11} className="text-blue-500 shrink-0" /> {phoneValState.message}
                                           </div>
                                         )}
                                         {phoneValState.status === 'invalid' && (
@@ -3435,8 +3435,8 @@ export default function ClinicOnboarding() {
                                   {b.isPrimary ? 'Main Branch' : 'Secondary Branch'}
                                 </span>
                                 {b.active && (
-                                  <span className="flex items-center gap-1 text-[8.5px] font-black text-emerald-600">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                  <span className="flex items-center gap-1 text-[8.5px] font-black text-blue-600">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
                                     Active
                                   </span>
                                 )}
@@ -3639,8 +3639,8 @@ export default function ClinicOnboarding() {
                               </div>
                             )}
                             {staffEmailValState.status === 'valid' && (
-                              <div className="flex items-center gap-1 text-[10px] text-emerald-600 mt-1 font-bold">
-                                <CheckCircle size={11} className="text-emerald-500 shrink-0" /> {staffEmailValState.message}
+                              <div className="flex items-center gap-1 text-[10px] text-blue-600 mt-1 font-bold">
+                                <CheckCircle size={11} className="text-blue-500 shrink-0" /> {staffEmailValState.message}
                               </div>
                             )}
                             {staffEmailValState.status === 'invalid' && (
@@ -3671,8 +3671,8 @@ export default function ClinicOnboarding() {
                               </div>
                             )}
                             {staffPhoneValState.status === 'valid' && (
-                              <div className="flex items-center gap-1 text-[10px] text-emerald-600 mt-1 font-bold">
-                                <CheckCircle size={11} className="text-emerald-500 shrink-0" /> {staffPhoneValState.message}
+                              <div className="flex items-center gap-1 text-[10px] text-blue-600 mt-1 font-bold">
+                                <CheckCircle size={11} className="text-blue-500 shrink-0" /> {staffPhoneValState.message}
                               </div>
                             )}
                             {staffPhoneValState.status === 'invalid' && (
@@ -4977,7 +4977,7 @@ export default function ClinicOnboarding() {
                       ))}
 
                       {/* ── Hero Banner ── */}
-                      <div className="relative overflow-hidden bg-gradient-to-br from-emerald-500 via-green-500 to-teal-600 rounded-2xl p-5 text-white">
+                      <div className="relative overflow-hidden bg-gradient-to-br from-blue-500 via-green-500 to-teal-600 rounded-2xl p-5 text-white">
                         <div className="absolute inset-0 opacity-10">
                           <div className="absolute top-2 right-10 w-32 h-32 rounded-full bg-white/30 blur-2xl" />
                           <div className="absolute bottom-0 left-0 w-24 h-24 rounded-full bg-white/20 blur-xl" />
@@ -4985,11 +4985,11 @@ export default function ClinicOnboarding() {
                         <div className="relative flex items-start justify-between gap-4">
                           <div>
                             <div className="flex items-center gap-2 mb-1">
-                              <span className="text-[10px] font-black uppercase tracking-widest text-emerald-100">Step 10 of 10</span>
+                              <span className="text-[10px] font-black uppercase tracking-widest text-blue-100">Step 10 of 10</span>
                               <span className="px-2 py-0.5 rounded-full bg-white/20 text-[9px] font-black text-white uppercase tracking-wide">Final Step</span>
                             </div>
                             <h2 className="text-xl font-black leading-tight">Review & Launch</h2>
-                            <p className="text-sm text-emerald-100 font-semibold mt-1 leading-relaxed">
+                            <p className="text-sm text-blue-100 font-semibold mt-1 leading-relaxed">
                               Review every configuration below, confirm accuracy, and launch your clinic.
                             </p>
                           </div>
@@ -5035,7 +5035,7 @@ export default function ClinicOnboarding() {
                             { icon: '💊', label: 'Healthcare', value: `${pharmacyProviders.length} Pharmacy · ${labProviders.length} Lab`, color: 'from-rose-400 to-rose-600', bg: 'bg-rose-50', border: 'border-rose-100' },
                             { icon: '🤖', label: 'AI Modules', value: limits.ai ? `${enabledAiModules} Enabled` : 'Plan Locked', color: 'from-indigo-500 to-violet-600', bg: 'bg-indigo-50', border: 'border-indigo-100' },
                             { icon: '📹', label: 'Video Consult', value: limits.video ? videoProvider : 'Plan Locked', color: 'from-cyan-500 to-blue-600', bg: 'bg-cyan-50', border: 'border-cyan-100' },
-                            { icon: '🗓️', label: 'Clinic Schedule', value: scheduleDays.length > 0 ? scheduleDays[0].dayRange : 'Not Set', color: 'from-green-500 to-emerald-600', bg: 'bg-green-50', border: 'border-green-100' },
+                            { icon: '🗓️', label: 'Clinic Schedule', value: scheduleDays.length > 0 ? scheduleDays[0].dayRange : 'Not Set', color: 'from-green-500 to-blue-600', bg: 'bg-green-50', border: 'border-green-100' },
                           ].map((c, i) => (
                             <div key={i} className={`${c.bg} border ${c.border} rounded-2xl p-3.5 group hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-default`}>
                               <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${c.color} flex items-center justify-center text-lg mb-2.5 shadow-sm group-hover:scale-110 transition-transform duration-200`}>
@@ -5252,7 +5252,7 @@ export default function ClinicOnboarding() {
                 disabled={isSubmitting || !Object.values(launchConfirmations).every(Boolean)}
                 className={`flex items-center gap-1.5 px-6 py-2.5 text-white rounded-xl text-xs font-black shadow-md transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
                   Object.values(launchConfirmations).every(Boolean)
-                    ? 'bg-gradient-to-r from-emerald-500 to-green-700 hover:opacity-90 shadow-green-500/20 animate-pulse-soft'
+                    ? 'bg-gradient-to-r from-blue-500 to-green-700 hover:opacity-90 shadow-green-500/20 animate-pulse-soft'
                     : 'bg-slate-400 shadow-none'
                 }`}
               >
@@ -5275,7 +5275,7 @@ export default function ClinicOnboarding() {
             <div className="flex flex-col gap-4 p-5 flex-1">
               {/* Header */}
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-400 to-green-600 flex items-center justify-center text-white text-base shadow-sm">🚀</div>
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-400 to-green-600 flex items-center justify-center text-white text-base shadow-sm">🚀</div>
                 <div>
                   <h3 className="text-sm font-black text-slate-900 block">AI Launch Assistant</h3>
                   <span className="text-[10px] text-slate-400 font-bold block mt-0.5">Ready to go live</span>
@@ -5283,9 +5283,9 @@ export default function ClinicOnboarding() {
               </div>
 
               {/* Congratulations Banner */}
-              <div className="bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-100 rounded-xl p-3.5 space-y-1">
-                <span className="text-[10px] font-black text-emerald-700 uppercase tracking-wide block">🎉 Congratulations!</span>
-                <p className="text-[10.5px] text-emerald-900 font-semibold leading-relaxed">
+              <div className="bg-gradient-to-br from-blue-50 to-green-50 border border-blue-100 rounded-xl p-3.5 space-y-1">
+                <span className="text-[10px] font-black text-blue-700 uppercase tracking-wide block">🎉 Congratulations!</span>
+                <p className="text-[10.5px] text-blue-900 font-semibold leading-relaxed">
                   Your clinic has completed all onboarding steps successfully. Review and launch when ready.
                 </p>
               </div>
@@ -5354,7 +5354,7 @@ export default function ClinicOnboarding() {
                         </div>
                         <div className="h-1 bg-slate-200 rounded-full overflow-hidden">
                           <div
-                            className="h-full bg-gradient-to-r from-green-400 to-emerald-500 rounded-full transition-all duration-700"
+                            className="h-full bg-gradient-to-r from-green-400 to-blue-500 rounded-full transition-all duration-700"
                             style={{ width: max === 999 ? '100%' : `${Math.min(100, (current / max) * 100)}%` }}
                           />
                         </div>
@@ -5635,7 +5635,7 @@ export default function ClinicOnboarding() {
               </div>
               <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden border border-slate-200/50">
                 <div
-                  className="h-full bg-gradient-to-r from-indigo-500 via-purple-600 to-emerald-500 transition-all duration-300 rounded-full"
+                  className="h-full bg-gradient-to-r from-indigo-500 via-purple-600 to-blue-500 transition-all duration-300 rounded-full"
                   style={{ width: `${launchProgress.percent}%` }}
                 />
               </div>
@@ -5693,7 +5693,7 @@ export default function ClinicOnboarding() {
           <div className="bg-white rounded-3xl max-w-3xl w-full shadow-2xl border border-slate-100 overflow-hidden my-8 animate-scaleIn">
             
             {/* Top Confetti Banner */}
-            <div className="bg-gradient-to-br from-emerald-500 via-green-600 to-teal-600 p-8 text-center relative text-white">
+            <div className="bg-gradient-to-br from-blue-500 via-green-600 to-teal-600 p-8 text-center relative text-white">
               <div className="absolute inset-0 opacity-10">
                 <div className="absolute top-2 right-12 w-36 h-36 rounded-full bg-white/30 blur-3xl animate-pulse" />
                 <div className="absolute bottom-2 left-12 w-28 h-28 rounded-full bg-white/20 blur-2xl" />
@@ -5703,11 +5703,11 @@ export default function ClinicOnboarding() {
                 <div className="w-16 h-16 rounded-2xl bg-white/20 border border-white/30 flex items-center justify-center text-4xl mb-4 shadow-inner animate-bounce">
                   🎉
                 </div>
-                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-100 bg-white/10 px-3 py-1 rounded-full mb-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-blue-100 bg-white/10 px-3 py-1 rounded-full mb-2">
                   Clinic Launch Success
                 </span>
                 <h1 className="text-2xl font-black tracking-tight">{launchResult.clinicName}</h1>
-                <p className="text-xs text-emerald-100 font-semibold mt-1 max-w-md mx-auto leading-relaxed">
+                <p className="text-xs text-blue-100 font-semibold mt-1 max-w-md mx-auto leading-relaxed">
                   Your digital clinic environment has been provisioned, secured, and activated.
                 </p>
               </div>
@@ -5807,7 +5807,7 @@ export default function ClinicOnboarding() {
                     await refreshUser();
                     navigate('/dashboard', { replace: true });
                   }}
-                  className="flex-1 py-3.5 bg-gradient-to-r from-emerald-500 to-green-600 hover:opacity-95 text-white rounded-xl text-xs font-black shadow-md shadow-emerald-500/20 transition cursor-pointer flex items-center justify-center gap-2"
+                  className="flex-1 py-3.5 bg-gradient-to-r from-blue-500 to-green-600 hover:opacity-95 text-white rounded-xl text-xs font-black shadow-md shadow-blue-500/20 transition cursor-pointer flex items-center justify-center gap-2"
                 >
                   <CheckCircle size={15} /> Go To Dashboard
                 </button>

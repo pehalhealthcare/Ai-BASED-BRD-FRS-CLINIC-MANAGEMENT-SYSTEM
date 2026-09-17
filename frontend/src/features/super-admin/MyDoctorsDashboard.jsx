@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+﻿import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import LoadingState from '../../components/common/LoadingState';
 import ErrorState from '../../components/common/ErrorState';
@@ -215,7 +215,7 @@ const MyDoctorsDashboard = () => {
             <div className="w-9 h-9 bg-blue-50 text-blue-650 rounded-xl flex items-center justify-center">
               <CheckCircle size={16} />
             </div>
-            <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+            <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
               100% of total
             </span>
           </div>
@@ -439,8 +439,8 @@ const MyDoctorsDashboard = () => {
                                 .join(', ') || 'No availability'
                             : 'Mon - Sat (10:00 AM - 06:00 PM)'}
                       </p>
-                      <span className="text-[9px] text-emerald-600 flex items-center gap-1 mt-1 font-bold">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Available
+                      <span className="text-[9px] text-blue-600 flex items-center gap-1 mt-1 font-bold">
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500" /> Available
                       </span>
                     </td>
 
@@ -453,7 +453,7 @@ const MyDoctorsDashboard = () => {
                     {/* Status */}
                     <td className="py-4 px-2">
                       <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase ${
-                        doc.isActive ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'
+                        doc.isActive ? 'bg-blue-50 text-blue-600' : 'bg-slate-100 text-slate-500'
                       }`}>
                         {doc.isActive ? 'Active' : 'Inactive'}
                       </span>
@@ -966,7 +966,7 @@ const DoctorProfileOverviewOverlay = ({ doctor, onClose, onEdit, onToggleActive 
             <button onClick={() => toast.success('Clinic assigner opened')} className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl transition flex items-center gap-1.5">
               <Building size={13} /> Assign Clinic
             </button>
-            <button onClick={onToggleActive} className={`px-3.5 py-1.5 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 shadow-sm ${doctor.isActive ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}>
+            <button onClick={onToggleActive} className={`px-3.5 py-1.5 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 shadow-sm ${doctor.isActive ? 'bg-amber-600 hover:bg-amber-700' : 'bg-blue-600 hover:bg-blue-700'}`}>
               {doctor.isActive ? <Lock size={13} /> : <Unlock size={13} />}
               {doctor.isActive ? 'Suspend Doctor' : 'Activate Doctor'}
             </button>
@@ -999,7 +999,7 @@ const DoctorProfileOverviewOverlay = ({ doctor, onClose, onEdit, onToggleActive 
                       {doctor.fullName?.slice(0, 2).toUpperCase()}
                     </div>
                   )}
-                  <span className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${doctor.isActive ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                  <span className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${doctor.isActive ? 'bg-blue-500' : 'bg-slate-400'}`} />
                 </div>
 
                 <div className="space-y-1">
@@ -1008,7 +1008,7 @@ const DoctorProfileOverviewOverlay = ({ doctor, onClose, onEdit, onToggleActive 
                     <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg flex items-center gap-1 ${doctor.approvalStatus === 'approved' ? 'bg-blue-50 text-blue-650' : 'bg-amber-50 text-amber-650'}`}>
                       <ShieldCheck size={11} /> {doctor.approvalStatus === 'approved' ? 'Verified' : 'Pending Verification'}
                     </span>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg ${doctor.isActive ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg ${doctor.isActive ? 'bg-blue-50 text-blue-600' : 'bg-slate-100 text-slate-500'}`}>
                       {doctor.isActive ? 'Live' : 'Offline'}
                     </span>
                   </div>
@@ -1023,13 +1023,13 @@ const DoctorProfileOverviewOverlay = ({ doctor, onClose, onEdit, onToggleActive 
               <div className="flex flex-wrap items-center gap-2 bg-slate-50 px-4 py-3 rounded-2xl border border-slate-100">
                 <div className="flex flex-col pr-4 border-r border-slate-200">
                   <span className="text-[10px] font-bold text-slate-400 uppercase">Verification</span>
-                  <span className={`text-xs font-black mt-0.5 flex items-center gap-1 ${doctor.approvalStatus === 'approved' ? 'text-emerald-600' : 'text-amber-600'}`}>
+                  <span className={`text-xs font-black mt-0.5 flex items-center gap-1 ${doctor.approvalStatus === 'approved' ? 'text-blue-600' : 'text-amber-600'}`}>
                     <CheckCircle2 size={13} /> {doctor.approvalStatus === 'approved' ? 'Verified' : 'Pending'}
                   </span>
                 </div>
                 <div className="flex flex-col pl-4">
                   <span className="text-[10px] font-bold text-slate-400 uppercase">Roster Status</span>
-                  <span className={`text-xs font-black mt-0.5 flex items-center gap-1 ${doctor.isActive ? 'text-emerald-605' : 'text-slate-500'}`}>
+                  <span className={`text-xs font-black mt-0.5 flex items-center gap-1 ${doctor.isActive ? 'text-blue-605' : 'text-slate-500'}`}>
                     <Building size={13} /> {doctor.isActive ? 'Active' : 'Inactive'}
                   </span>
                 </div>
@@ -1039,7 +1039,7 @@ const DoctorProfileOverviewOverlay = ({ doctor, onClose, onEdit, onToggleActive 
             {/* NEW REDESIGNED PREMIUM DOCTOR TOKEN PREFIX CARD */}
             <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md hover:border-blue-500/20 transition-all duration-300 space-y-6 relative overflow-hidden group">
               {/* Glass subtle gradient overlay */}
-              <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/[0.01] to-emerald-500/[0.01] pointer-events-none" />
+              <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/[0.01] to-blue-500/[0.01] pointer-events-none" />
 
               <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                 <div className="space-y-1">
@@ -1075,7 +1075,7 @@ const DoctorProfileOverviewOverlay = ({ doctor, onClose, onEdit, onToggleActive 
                   <span className="text-[9px] uppercase tracking-wider text-slate-400 font-black">🏷 Token Prefix</span>
                   <div className="flex items-center gap-3">
                     <span className="text-3xl font-black text-slate-900 tracking-tight">{currentPrefix || 'DOC'}</span>
-                    <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 text-[10px] font-black rounded-lg border border-emerald-200 animate-pulse">
+                    <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-black rounded-lg border border-blue-200 animate-pulse">
                       ✓ Active
                     </span>
                   </div>
@@ -1196,7 +1196,7 @@ const DoctorProfileOverviewOverlay = ({ doctor, onClose, onEdit, onToggleActive 
                 </div>
                 <div className="space-y-0.5">
                   <span className="text-[9px] uppercase tracking-wider text-slate-400 font-black">Last Generated</span>
-                  <p className="text-lg font-black text-emerald-600 font-mono">
+                  <p className="text-lg font-black text-blue-600 font-mono">
                     {appointments.length > 0 ? `${currentPrefix}-${String(appointments.length).padStart(3, '0')}` : '—'}
                   </p>
                 </div>
@@ -1231,9 +1231,9 @@ const DoctorProfileOverviewOverlay = ({ doctor, onClose, onEdit, onToggleActive 
                   <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">
                     <div className="flex items-center justify-between border-b border-slate-50 pb-2">
                       <h3 className="text-xs font-black text-slate-950 uppercase tracking-wider flex items-center gap-1.5">
-                        <Activity size={14} className="text-emerald-500" /> Today's Live Status
+                        <Activity size={14} className="text-blue-500" /> Today's Live Status
                       </h3>
-                      <span className={`w-2.5 h-2.5 rounded-full ${doctor.isActive ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+                      <span className={`w-2.5 h-2.5 rounded-full ${doctor.isActive ? 'bg-blue-500 animate-pulse' : 'bg-slate-400'}`} />
                     </div>
 
                     <div className="grid grid-cols-2 gap-4 text-xs">
@@ -1247,7 +1247,7 @@ const DoctorProfileOverviewOverlay = ({ doctor, onClose, onEdit, onToggleActive 
                       </div>
                       <div>
                         <p className="text-slate-400 font-bold">Verification status</p>
-                        <p className={`font-black mt-0.5 flex items-center gap-1 ${doctor.approvalStatus === 'approved' ? 'text-emerald-600' : 'text-amber-600'}`}>
+                        <p className={`font-black mt-0.5 flex items-center gap-1 ${doctor.approvalStatus === 'approved' ? 'text-blue-600' : 'text-amber-600'}`}>
                           <ShieldCheck size={13} /> {doctor.approvalStatus === 'approved' ? 'Verified' : 'Pending'}
                         </p>
                       </div>
@@ -1265,7 +1265,7 @@ const DoctorProfileOverviewOverlay = ({ doctor, onClose, onEdit, onToggleActive 
                       </div>
                       <div>
                         <p className="text-slate-400 font-bold">All Appointments</p>
-                        <p className="text-slate-800 font-black mt-0.5 text-emerald-600">{appointments.length} Total</p>
+                        <p className="text-slate-800 font-black mt-0.5 text-blue-600">{appointments.length} Total</p>
                       </div>
                     </div>
                   </div>
@@ -1352,7 +1352,7 @@ const DoctorProfileOverviewOverlay = ({ doctor, onClose, onEdit, onToggleActive 
                                   onChange={(e) => setEditText(e.target.value)}
                                   className="flex-1 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
                                 />
-                                <button onClick={() => handleSaveEditNote(note.id)} className="px-2 py-1 bg-emerald-600 text-white text-[10px] font-bold rounded-lg hover:bg-emerald-700">Save</button>
+                                <button onClick={() => handleSaveEditNote(note.id)} className="px-2 py-1 bg-blue-600 text-white text-[10px] font-bold rounded-lg hover:bg-blue-700">Save</button>
                                 <button onClick={() => setEditingNoteId(null)} className="px-2 py-1 bg-slate-200 text-slate-700 text-[10px] font-bold rounded-lg hover:bg-slate-350">Cancel</button>
                               </div>
                             ) : (
@@ -1506,7 +1506,7 @@ const DoctorProfileOverviewOverlay = ({ doctor, onClose, onEdit, onToggleActive 
                                 <td className="py-2.5 px-4 capitalize">{slot && slot.isAvailable ? slot.consultationMode : '-'}</td>
                                 <td className="py-2.5 px-4">{slot && slot.isAvailable ? `${slot.slotDurationMinutes} Mins` : '-'}</td>
                                 <td className="py-2.5 px-4">
-                                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${slot && slot.isAvailable ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>
+                                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${slot && slot.isAvailable ? 'bg-blue-50 text-blue-600' : 'bg-slate-100 text-slate-500'}`}>
                                     {slot && slot.isAvailable ? 'Active' : 'Not Scheduled'}
                                   </span>
                                 </td>
@@ -1579,7 +1579,7 @@ const DoctorProfileOverviewOverlay = ({ doctor, onClose, onEdit, onToggleActive 
                               <td className="py-3.5 px-5 text-right">
                                 <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border shadow-xs ${
                                   appt.status === 'completed' 
-                                    ? 'bg-emerald-50 text-emerald-600 border-emerald-200' 
+                                    ? 'bg-blue-50 text-blue-600 border-blue-200' 
                                     : appt.status === 'cancelled'
                                     ? 'bg-rose-50 text-rose-600 border-rose-200'
                                     : 'bg-indigo-50 text-indigo-600 border-indigo-200'
@@ -1629,7 +1629,7 @@ const DoctorProfileOverviewOverlay = ({ doctor, onClose, onEdit, onToggleActive 
                               <td className="py-3.5 px-4 capitalize">{p.gender}</td>
                               <td className="py-3.5 px-4">{new Date(p.lastAppointmentDate).toLocaleDateString()}</td>
                               <td className="py-3.5 px-5 text-right">
-                                <span className="bg-emerald-50 text-emerald-600 text-[8px] font-black px-2 py-0.5 rounded-md border border-emerald-100">
+                                <span className="bg-blue-50 text-blue-600 text-[8px] font-black px-2 py-0.5 rounded-md border border-blue-100">
                                   Treated
                                 </span>
                               </td>
@@ -1680,7 +1680,7 @@ const DoctorProfileOverviewOverlay = ({ doctor, onClose, onEdit, onToggleActive 
                       </div>
                       <div className="p-3 bg-slate-50 rounded-2xl text-center">
                         <p className="text-[10px] text-slate-400 font-bold uppercase">Feedback score</p>
-                        <p className="text-lg font-black text-emerald-600 mt-1">9.8 / 10</p>
+                        <p className="text-lg font-black text-blue-600 mt-1">9.8 / 10</p>
                       </div>
                     </div>
                   </div>
@@ -1752,7 +1752,7 @@ const DoctorProfileOverviewOverlay = ({ doctor, onClose, onEdit, onToggleActive 
                       ].map((item, idx) => (
                         <div key={idx} className="p-4 border border-slate-100 rounded-2xl bg-slate-50/50 flex flex-col justify-between min-h-[90px]">
                           <p className="text-xs font-black text-slate-850">{item.n}</p>
-                          <span className={`text-[10px] font-black flex items-center gap-1 mt-2 ${item.s.includes('Verified') || item.s.includes('Active') ? 'text-emerald-600' : 'text-amber-600'}`}>
+                          <span className={`text-[10px] font-black flex items-center gap-1 mt-2 ${item.s.includes('Verified') || item.s.includes('Active') ? 'text-blue-600' : 'text-amber-600'}`}>
                             <CheckCircle2 size={12} /> {item.s}
                           </span>
                         </div>
@@ -1802,7 +1802,7 @@ const DoctorProfileOverviewOverlay = ({ doctor, onClose, onEdit, onToggleActive 
               <div>
                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Summary Status</h4>
                 <div className="flex items-center gap-1.5 mt-2">
-                  <span className={`w-2 h-2 rounded-full ${doctor.isActive ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                  <span className={`w-2 h-2 rounded-full ${doctor.isActive ? 'bg-blue-500' : 'bg-slate-400'}`} />
                   <span className="text-xs font-black text-slate-700 capitalize">{doctor.isActive ? 'Live & Active' : 'Offline'}</span>
                 </div>
               </div>
@@ -1846,7 +1846,7 @@ const DoctorProfileOverviewOverlay = ({ doctor, onClose, onEdit, onToggleActive 
               <div>
                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Verification Checklist</h4>
                 <div className="mt-2 space-y-1 text-[11px] text-slate-600 font-bold">
-                  <p className={`flex items-center gap-1 ${doctor.approvalStatus === 'approved' ? 'text-emerald-600' : 'text-amber-600'}`}>
+                  <p className={`flex items-center gap-1 ${doctor.approvalStatus === 'approved' ? 'text-blue-600' : 'text-amber-600'}`}>
                     <Check size={12} /> {doctor.approvalStatus === 'approved' ? 'Medical Council Check Passed' : 'Verification Pending'}
                   </p>
                 </div>
@@ -1930,7 +1930,7 @@ const DoctorProfileOverviewOverlay = ({ doctor, onClose, onEdit, onToggleActive 
                   {prefixValidating ? (
                     <span className="text-blue-500 flex items-center gap-1.5">Checking prefix availability...</span>
                   ) : isPrefixAvailable ? (
-                    <span className="text-emerald-600 flex items-center gap-1.5">
+                    <span className="text-blue-600 flex items-center gap-1.5">
                       ✓ {prefixValidationMsg}
                     </span>
                   ) : (

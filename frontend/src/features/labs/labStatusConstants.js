@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Centralized Laboratory Status Constants and Configurations
  * Single source of truth across Sample Collection, Lab Orders, Order Details, and Results Entry.
  */
@@ -178,15 +178,15 @@ export const ORDER_STATUS_CONFIG = {
   },
   [LAB_ORDER_STATUS.COMPLETED]: {
     label: 'Completed',
-    tone: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-    badgeClasses: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+    tone: 'bg-blue-100 text-blue-800 border-blue-200',
+    badgeClasses: 'bg-blue-100 text-blue-800 border-blue-200',
     description: 'Final report verified and published to patient health records',
     stepNumber: 6
   },
   [LAB_ORDER_STATUS.REPORT_READY]: {
     label: 'Report Ready',
-    tone: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-    badgeClasses: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+    tone: 'bg-blue-100 text-blue-800 border-blue-200',
+    badgeClasses: 'bg-blue-100 text-blue-800 border-blue-200',
     description: 'Final report verified and ready for download',
     stepNumber: 6
   },
@@ -239,7 +239,7 @@ export const getSampleStatusTone = (status = '') => {
     case 'COLLECTED':
     case 'VERIFIED':
     case 'RECEIVED':
-      return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+      return 'bg-blue-100 text-blue-800 border-blue-200';
     case 'COLLECTING':
     case 'COLLECTION_IN_PROGRESS':
       return 'bg-indigo-100 text-indigo-800 border-indigo-200';

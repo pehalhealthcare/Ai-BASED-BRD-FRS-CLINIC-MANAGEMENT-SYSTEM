@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { 
   Check, ShieldAlert, CreditCard, Lock, Download, Printer, Share2, 
   Phone, AlertCircle, RefreshCw, Layers, Sparkles, User, FileText, CheckCircle
@@ -189,10 +189,10 @@ export default function PrescriptionPreview({
   const getBranchStock = (medName) => {
     const sum = (medName || '').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
     return [
-      { name: 'Indirapuram', stock: `In Stock (${(sum % 300) + 100})`, color: 'text-emerald-500 bg-emerald-500' },
-      { name: 'Noida', stock: `In Stock (${(sum % 200) + 50})`, color: 'text-emerald-500 bg-emerald-500' },
-      { name: 'Vaishali', stock: (sum % 3 === 0) ? 'Low Stock (15)' : `In Stock (${(sum % 100) + 10})`, color: (sum % 3 === 0) ? 'text-amber-500 bg-amber-500' : 'text-emerald-500 bg-emerald-500' },
-      { name: 'Lucknow', stock: (sum % 5 === 0) ? 'Out of Stock' : `In Stock (${(sum % 50) + 5})`, color: (sum % 5 === 0) ? 'text-red-500 bg-red-500' : 'text-emerald-500 bg-emerald-500' }
+      { name: 'Indirapuram', stock: `In Stock (${(sum % 300) + 100})`, color: 'text-blue-500 bg-blue-500' },
+      { name: 'Noida', stock: `In Stock (${(sum % 200) + 50})`, color: 'text-blue-500 bg-blue-500' },
+      { name: 'Vaishali', stock: (sum % 3 === 0) ? 'Low Stock (15)' : `In Stock (${(sum % 100) + 10})`, color: (sum % 3 === 0) ? 'text-amber-500 bg-amber-500' : 'text-blue-500 bg-blue-500' },
+      { name: 'Lucknow', stock: (sum % 5 === 0) ? 'Out of Stock' : `In Stock (${(sum % 50) + 5})`, color: (sum % 5 === 0) ? 'text-red-500 bg-red-500' : 'text-blue-500 bg-blue-500' }
     ];
   };
 
@@ -208,14 +208,14 @@ export default function PrescriptionPreview({
         
         {/* Left: Clinic Info */}
         <div className="flex items-start gap-4">
-          <div className="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600 shrink-0 border border-emerald-100">
+          <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 shrink-0 border border-blue-100">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
             </svg>
           </div>
           <div>
             <h1 className="text-xl font-black text-slate-900 tracking-tight">APOLLO HOSPITAL</h1>
-            <p className="text-xs font-bold text-emerald-600 tracking-widest uppercase">INDIRAPURAM</p>
+            <p className="text-xs font-bold text-blue-600 tracking-widest uppercase">INDIRAPURAM</p>
             <p className="text-[11px] text-slate-400 mt-1 leading-relaxed max-w-[240px]">
               Windsor Park, Indirapuram, Ghaziabad, Uttar Pradesh - 201014, India <br />
               Reception: 0120-6912563
@@ -241,14 +241,14 @@ export default function PrescriptionPreview({
           </div>
           <div className="text-left">
             <h2 className="text-base font-extrabold text-slate-900">Dr. {doctor?.fullName || 'Alpha Doctor'}</h2>
-            <p className="text-xs font-bold text-emerald-600 uppercase">{doctor?.specialization || 'General Physician'}</p>
+            <p className="text-xs font-bold text-blue-600 uppercase">{doctor?.specialization || 'General Physician'}</p>
             <p className="text-[11px] text-slate-400 mt-0.5">Reg. No.: {doctorReg}</p>
           </div>
         </div>
       </div>
 
       {/* ─── Patient Info Bar (Demographics Grid) ─── */}
-      <div className="bg-emerald-500/[0.04] border border-emerald-500/10 rounded-2xl p-5 grid grid-cols-2 md:grid-cols-5 gap-y-4 gap-x-6">
+      <div className="bg-blue-500/[0.04] border border-blue-500/10 rounded-2xl p-5 grid grid-cols-2 md:grid-cols-5 gap-y-4 gap-x-6">
         <div>
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Patient Name</p>
           <p className="text-sm font-extrabold text-slate-900 mt-0.5">{patient?.fullName || 'Raj Sharma'}</p>
@@ -287,11 +287,11 @@ export default function PrescriptionPreview({
         {/* 1. Chief Complaint */}
         <div className="border border-slate-150 rounded-2xl p-4.5 space-y-3">
           <div className="flex items-center gap-2">
-            <span className="w-5 h-5 rounded-md bg-emerald-600 text-white font-extrabold text-[11px] flex items-center justify-center">1</span>
+            <span className="w-5 h-5 rounded-md bg-blue-600 text-white font-extrabold text-[11px] flex items-center justify-center">1</span>
             <h3 className="text-xs font-extrabold text-slate-900 tracking-wide uppercase">Chief Complaint</h3>
           </div>
           <div>
-            <p className="text-[10px] font-bold text-emerald-600">AI Triage: General Physician</p>
+            <p className="text-[10px] font-bold text-blue-600">AI Triage: General Physician</p>
             <p className="text-xs text-slate-600 mt-1 leading-relaxed">
               {consultation?.chiefComplaint || 'Patient reports mild fever and dry cough for three days.'}
             </p>
@@ -301,27 +301,27 @@ export default function PrescriptionPreview({
         {/* 2. SOAP Notes */}
         <div className="border border-slate-150 rounded-2xl p-4.5 space-y-3">
           <div className="flex items-center gap-2">
-            <span className="w-5 h-5 rounded-md bg-emerald-600 text-white font-extrabold text-[11px] flex items-center justify-center">2</span>
+            <span className="w-5 h-5 rounded-md bg-blue-600 text-white font-extrabold text-[11px] flex items-center justify-center">2</span>
             <h3 className="text-xs font-extrabold text-slate-900 tracking-wide uppercase">Clinical Notes — SOAP</h3>
           </div>
           <div className="space-y-1.5 text-xs">
-            <p className="leading-tight"><span className="font-extrabold text-emerald-600 font-mono">S</span> <span className="text-slate-600">{consultation?.formattedClinicalNotes?.subjective || 'Patient reports mild fever and dry cough for three days.'}</span></p>
-            <p className="leading-tight"><span className="font-extrabold text-emerald-600 font-mono">O</span> <span className="text-slate-600">{consultation?.formattedClinicalNotes?.objective || 'Temp: 100.2 °F, SpO2: 98% on room air.'}</span></p>
-            <p className="leading-tight"><span className="font-extrabold text-emerald-600 font-mono">A</span> <span className="text-slate-600">{consultation?.formattedClinicalNotes?.assessment || 'Suspected acute viral upper respiratory tract infection.'}</span></p>
-            <p className="leading-tight"><span className="font-extrabold text-emerald-600 font-mono">P</span> <span className="text-slate-600">{consultation?.formattedClinicalNotes?.plan || '1. Tab Paracetamol 650mg, 2. Cough Syrup.'}</span></p>
+            <p className="leading-tight"><span className="font-extrabold text-blue-600 font-mono">S</span> <span className="text-slate-600">{consultation?.formattedClinicalNotes?.subjective || 'Patient reports mild fever and dry cough for three days.'}</span></p>
+            <p className="leading-tight"><span className="font-extrabold text-blue-600 font-mono">O</span> <span className="text-slate-600">{consultation?.formattedClinicalNotes?.objective || 'Temp: 100.2 °F, SpO2: 98% on room air.'}</span></p>
+            <p className="leading-tight"><span className="font-extrabold text-blue-600 font-mono">A</span> <span className="text-slate-600">{consultation?.formattedClinicalNotes?.assessment || 'Suspected acute viral upper respiratory tract infection.'}</span></p>
+            <p className="leading-tight"><span className="font-extrabold text-blue-600 font-mono">P</span> <span className="text-slate-600">{consultation?.formattedClinicalNotes?.plan || '1. Tab Paracetamol 650mg, 2. Cough Syrup.'}</span></p>
           </div>
         </div>
 
         {/* 3. Diagnosis */}
         <div className="border border-slate-150 rounded-2xl p-4.5 space-y-3">
           <div className="flex items-center gap-2">
-            <span className="w-5 h-5 rounded-md bg-emerald-600 text-white font-extrabold text-[11px] flex items-center justify-center">3</span>
+            <span className="w-5 h-5 rounded-md bg-blue-600 text-white font-extrabold text-[11px] flex items-center justify-center">3</span>
             <h3 className="text-xs font-extrabold text-slate-900 tracking-wide uppercase">Diagnosis</h3>
           </div>
           <div className="space-y-2 text-xs">
             <div>
               <p className="text-[10px] text-slate-400 font-bold">Primary Diagnosis</p>
-              <p className="font-bold text-emerald-600">{consultation?.diagnosis?.primary || 'Viral Fever'}</p>
+              <p className="font-bold text-blue-600">{consultation?.diagnosis?.primary || 'Viral Fever'}</p>
             </div>
             <div>
               <p className="text-[10px] text-slate-400 font-bold">Secondary Diagnosis</p>
@@ -336,7 +336,7 @@ export default function PrescriptionPreview({
         {/* 4. Treatment Plan */}
         <div className="border border-slate-150 rounded-2xl p-4.5 space-y-3">
           <div className="flex items-center gap-2">
-            <span className="w-5 h-5 rounded-md bg-emerald-600 text-white font-extrabold text-[11px] flex items-center justify-center">4</span>
+            <span className="w-5 h-5 rounded-md bg-blue-600 text-white font-extrabold text-[11px] flex items-center justify-center">4</span>
             <h3 className="text-xs font-extrabold text-slate-900 tracking-wide uppercase">Treatment Plan & Advice</h3>
           </div>
           <ul className="text-xs text-slate-600 space-y-1.5 list-disc pl-4">
@@ -351,12 +351,12 @@ export default function PrescriptionPreview({
       <div className="border border-slate-150 rounded-2xl p-5 space-y-4">
         <div className="flex items-center justify-between border-b pb-3 border-slate-100">
           <div className="flex items-center gap-2">
-            <span className="w-5 h-5 rounded-md bg-emerald-600 text-white font-extrabold text-[11px] flex items-center justify-center">5</span>
+            <span className="w-5 h-5 rounded-md bg-blue-600 text-white font-extrabold text-[11px] flex items-center justify-center">5</span>
             <h3 className="text-sm font-extrabold text-slate-900 tracking-wide uppercase">Prescription Medicines</h3>
           </div>
           <div className="flex items-center gap-3">
-            <span className="inline-flex items-center gap-1.5 text-xs text-emerald-600 font-semibold bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
-              <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+            <span className="inline-flex items-center gap-1.5 text-xs text-blue-600 font-semibold bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100">
+              <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
               Allergy check: Safe
             </span>
             <span className="text-xs text-slate-400">
@@ -395,7 +395,7 @@ export default function PrescriptionPreview({
                         <span className="text-slate-400 text-[10px] capitalize">({med.timing})</span>
                       </div>
                     </td>
-                    <td className="py-3 font-semibold text-emerald-600">{med.duration}</td>
+                    <td className="py-3 font-semibold text-blue-600">{med.duration}</td>
                     <td className="py-3 text-slate-500 italic">{med.instructions || 'Take as directed'}</td>
                     <td className="py-3 text-center font-bold text-slate-800">{med.quantity}</td>
                     <td className="py-3 pr-2">
@@ -434,7 +434,7 @@ export default function PrescriptionPreview({
         <div className="border border-slate-150 rounded-2xl p-4.5 space-y-4">
           <div className="flex items-center justify-between border-b pb-2 border-slate-100">
             <div className="flex items-center gap-2">
-              <span className="w-5 h-5 rounded-md bg-emerald-600 text-white font-extrabold text-[11px] flex items-center justify-center">6</span>
+              <span className="w-5 h-5 rounded-md bg-blue-600 text-white font-extrabold text-[11px] flex items-center justify-center">6</span>
               <h3 className="text-xs font-extrabold text-slate-900 tracking-wide uppercase">Lab Tests</h3>
             </div>
           </div>
@@ -468,7 +468,7 @@ export default function PrescriptionPreview({
         <div className="border border-slate-150 rounded-2xl p-4.5 space-y-4">
           <div className="flex items-center justify-between border-b pb-2 border-slate-100">
             <div className="flex items-center gap-2">
-              <span className="w-5 h-5 rounded-md bg-emerald-600 text-white font-extrabold text-[11px] flex items-center justify-center">7</span>
+              <span className="w-5 h-5 rounded-md bg-blue-600 text-white font-extrabold text-[11px] flex items-center justify-center">7</span>
               <h3 className="text-xs font-extrabold text-slate-900 tracking-wide uppercase">Procedures</h3>
             </div>
           </div>
@@ -489,7 +489,7 @@ export default function PrescriptionPreview({
                   <td className="py-2 font-semibold">₹{proc.fee}</td>
                   <td className="py-2 pr-1 text-center">
                     {proc.status === 'completed' ? (
-                      <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-100 text-emerald-600">
+                      <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-blue-100 text-blue-600">
                         ✓
                       </span>
                     ) : (
@@ -509,13 +509,13 @@ export default function PrescriptionPreview({
         {/* 8. Follow Up */}
         <div className="border border-slate-150 rounded-2xl p-4.5 space-y-4">
           <div className="flex items-center gap-2 border-b pb-2 border-slate-100">
-            <span className="w-5 h-5 rounded-md bg-emerald-600 text-white font-extrabold text-[11px] flex items-center justify-center">8</span>
+            <span className="w-5 h-5 rounded-md bg-blue-600 text-white font-extrabold text-[11px] flex items-center justify-center">8</span>
             <h3 className="text-xs font-extrabold text-slate-900 tracking-wide uppercase">Follow Up</h3>
           </div>
           <div className="space-y-3.5 text-xs">
             <div className="flex items-center justify-between">
               <span className="text-slate-500">Follow-up Required</span>
-              <span className="font-extrabold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-md border border-emerald-100">Yes</span>
+              <span className="font-extrabold text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-md border border-blue-100">Yes</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-slate-500">Follow-up Date</span>
@@ -533,15 +533,15 @@ export default function PrescriptionPreview({
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Reminders</p>
               <div className="flex items-center gap-4">
                 <label className="flex items-center gap-1.5 font-semibold text-slate-700">
-                  <input type="checkbox" defaultChecked disabled className="rounded text-emerald-600 focus:ring-emerald-500" />
+                  <input type="checkbox" defaultChecked disabled className="rounded text-blue-600 focus:ring-blue-500" />
                   SMS
                 </label>
                 <label className="flex items-center gap-1.5 font-semibold text-slate-700">
-                  <input type="checkbox" defaultChecked disabled className="rounded text-emerald-600 focus:ring-emerald-500" />
+                  <input type="checkbox" defaultChecked disabled className="rounded text-blue-600 focus:ring-blue-500" />
                   WhatsApp
                 </label>
                 <label className="flex items-center gap-1.5 font-semibold text-slate-700">
-                  <input type="checkbox" defaultChecked disabled className="rounded text-emerald-600 focus:ring-emerald-500" />
+                  <input type="checkbox" defaultChecked disabled className="rounded text-blue-600 focus:ring-blue-500" />
                   Email
                 </label>
               </div>
@@ -556,7 +556,7 @@ export default function PrescriptionPreview({
         {/* 9. Patient Advice */}
         <div className="border border-slate-150 rounded-2xl p-4.5 space-y-3">
           <div className="flex items-center gap-2">
-            <span className="w-5 h-5 rounded-md bg-emerald-600 text-white font-extrabold text-[11px] flex items-center justify-center">9</span>
+            <span className="w-5 h-5 rounded-md bg-blue-600 text-white font-extrabold text-[11px] flex items-center justify-center">9</span>
             <h3 className="text-xs font-extrabold text-slate-900 tracking-wide uppercase">Patient Advice</h3>
           </div>
           <ul className="text-xs text-slate-600 space-y-2 list-disc pl-4">
@@ -573,40 +573,40 @@ export default function PrescriptionPreview({
         <div className="border border-slate-150 rounded-2xl p-4.5 space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="w-5 h-5 rounded-md bg-emerald-600 text-white font-extrabold text-[11px] flex items-center justify-center">10</span>
+              <span className="w-5 h-5 rounded-md bg-blue-600 text-white font-extrabold text-[11px] flex items-center justify-center">10</span>
               <h3 className="text-xs font-extrabold text-slate-900 tracking-wide uppercase">AI Clinical Assistant Summary</h3>
             </div>
-            <span className="text-[10px] font-extrabold text-white bg-aura-500 px-2 py-0.5 rounded-full shrink-0">AI</span>
+            <span className="text-[10px] font-extrabold text-white bg-blue-500 px-2 py-0.5 rounded-full shrink-0">AI</span>
           </div>
 
           <div className="space-y-3 text-xs">
             <div className="flex items-center justify-between font-semibold text-slate-700">
               <span className="flex items-center gap-1.5">
-                <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
+                <CheckCircle className="w-4 h-4 text-blue-500 shrink-0" />
                 Diagnosis Confidence
               </span>
-              <span className="text-emerald-600 font-extrabold">98%</span>
+              <span className="text-blue-600 font-extrabold">98%</span>
             </div>
             <div className="flex items-center justify-between font-semibold text-slate-700">
               <span className="flex items-center gap-1.5">
-                <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
+                <CheckCircle className="w-4 h-4 text-blue-500 shrink-0" />
                 Medicine Appropriateness
               </span>
-              <span className="text-emerald-600 font-extrabold">96%</span>
+              <span className="text-blue-600 font-extrabold">96%</span>
             </div>
             <div className="flex items-center justify-between font-semibold text-slate-700">
               <span className="flex items-center gap-1.5">
-                <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
+                <CheckCircle className="w-4 h-4 text-blue-500 shrink-0" />
                 Lab Tests Appropriateness
               </span>
-              <span className="text-emerald-600 font-extrabold">94%</span>
+              <span className="text-blue-600 font-extrabold">94%</span>
             </div>
             <div className="flex items-center justify-between font-semibold text-slate-700">
               <span className="flex items-center gap-1.5">
-                <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
+                <CheckCircle className="w-4 h-4 text-blue-500 shrink-0" />
                 Procedure Appropriateness
               </span>
-              <span className="text-emerald-600 font-extrabold">92%</span>
+              <span className="text-blue-600 font-extrabold">92%</span>
             </div>
             <button className="w-full text-center py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold transition text-xs">
               View Full AI Analysis
@@ -623,7 +623,7 @@ export default function PrescriptionPreview({
             <p className="text-xs font-extrabold text-slate-900 mt-2">Dr. {doctor?.fullName || 'Alpha Doctor'}</p>
             <p className="text-[10px] text-slate-400 capitalize">{doctor?.specialization || 'General Physician'}</p>
             <p className="text-[9px] text-slate-400">Reg No: {doctorReg}</p>
-            <p className="text-[9px] text-emerald-600 font-bold mt-1">Digitally Signed</p>
+            <p className="text-[9px] text-blue-600 font-bold mt-1">Digitally Signed</p>
           </div>
 
           <div className="w-32 h-20 border-2 border-dashed border-slate-200 rounded-xl flex items-center justify-center text-[10px] text-slate-400 font-bold select-none">
@@ -633,31 +633,31 @@ export default function PrescriptionPreview({
       </div>
 
       {/* ─── Footer Action Banner ─── */}
-      <div className="bg-emerald-600 text-white rounded-2xl p-5 flex flex-col md:flex-row items-center justify-between gap-4">
+      <div className="bg-blue-600 text-white rounded-2xl p-5 flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-4 text-center md:text-left">
           <button 
             onClick={handleBuyMedicines}
             disabled={buyingMedicines}
-            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 rounded-xl font-bold transition-colors text-xs disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2.5 bg-blue-700 hover:bg-blue-800 rounded-xl font-bold transition-colors text-xs disabled:opacity-50"
           >
             <span>🛒</span> {buyingMedicines ? 'Ordering...' : 'Buy Medicines Online'}
           </button>
           <button 
             onClick={handleBookLabTests}
             disabled={bookingLabs}
-            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 rounded-xl font-bold transition-colors text-xs disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2.5 bg-blue-700 hover:bg-blue-800 rounded-xl font-bold transition-colors text-xs disabled:opacity-50"
           >
             <span>🔬</span> {bookingLabs ? 'Booking...' : 'Book Lab Tests'}
           </button>
           <button 
             onClick={handleDownloadPdf}
             disabled={downloading}
-            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-750 hover:bg-emerald-850 rounded-xl font-bold transition-colors text-xs"
+            className="flex items-center gap-2 px-4 py-2.5 bg-blue-750 hover:bg-blue-850 rounded-xl font-bold transition-colors text-xs"
           >
             <Download className="w-3.5 h-3.5" />
             {downloading ? 'Downloading...' : 'View / Print PDF'}
           </button>
-          <button className="flex items-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 rounded-xl font-bold transition-colors text-xs">
+          <button className="flex items-center gap-2 px-4 py-2.5 bg-blue-700 hover:bg-blue-800 rounded-xl font-bold transition-colors text-xs">
             <Share2 className="w-3.5 h-3.5" /> Share on WhatsApp
           </button>
         </div>

@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+﻿import { useEffect, useState, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, Calendar, Download, Printer, Clock, User, Plus, 
@@ -399,7 +399,7 @@ const DoctorSchedulePage = () => {
       const normalStatus = (appt.status || '').toLowerCase();
       if (normalStatus === 'completed') {
         statusLabel = 'Completed';
-        statusColor = 'bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100/50';
+        statusColor = 'bg-blue-50 text-blue-700 border border-blue-100 hover:bg-blue-100/50';
       } else if (normalStatus === 'in_consultation' || normalStatus === 'in-progress' || normalStatus === 'current') {
         statusLabel = 'In Progress';
         statusColor = 'bg-amber-50 text-amber-700 border border-amber-100 hover:bg-amber-100/50';
@@ -500,7 +500,7 @@ const DoctorSchedulePage = () => {
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-lg font-black text-slate-900 leading-tight">{doctor.fullName}</h2>
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-100">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-600 border border-blue-100">
                 {doctor.liveStatus}
               </span>
             </div>
@@ -636,7 +636,7 @@ const DoctorSchedulePage = () => {
 
                     {/* Timeline dot */}
                     <span className={`absolute -left-[30px] top-1.5 w-2 h-2 rounded-full border-2 border-white bg-slate-300 ring-4 ring-white ${
-                      slot.status === 'Completed' ? 'bg-emerald-500' :
+                      slot.status === 'Completed' ? 'bg-blue-500' :
                       slot.status === 'Current' ? 'bg-blue-600 animate-pulse' :
                       slot.status === 'In Progress' ? 'bg-amber-500' :
                       slot.isBreak ? 'bg-amber-500' : 'bg-slate-350 bg-slate-300'
@@ -675,7 +675,7 @@ const DoctorSchedulePage = () => {
                               </span>
                             )}
                             <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                              slot.status === 'Completed' ? 'bg-emerald-100 text-emerald-700' :
+                              slot.status === 'Completed' ? 'bg-blue-100 text-blue-700' :
                               slot.status === 'Current' ? 'bg-blue-100 text-blue-700' :
                               slot.status === 'In Progress' ? 'bg-amber-100 text-amber-700' :
                               'bg-sky-100 text-sky-700'
@@ -696,7 +696,7 @@ const DoctorSchedulePage = () => {
                     ) : slot.type === 'available' ? (
                       <div className={`p-3 rounded-2xl ${slot.statusColor} flex justify-between items-center text-xs font-bold`}>
                         <span>{slot.label}</span>
-                        <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+                        <span className="text-[9px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">
                           Available
                         </span>
                       </div>
@@ -759,7 +759,7 @@ const DoctorSchedulePage = () => {
                 <span className="text-slate-450 text-slate-400">Total Appointments</span>
                 <span className="text-slate-800">{stats.total}</span>
               </div>
-              <div className="flex justify-between items-center text-emerald-600">
+              <div className="flex justify-between items-center text-blue-600">
                 <span className="flex items-center gap-1.5">🟢 Completed</span>
                 <span>{stats.completed}</span>
               </div>
@@ -894,7 +894,7 @@ const DoctorSchedulePage = () => {
                   </div>
                   <div>
                     <span className="text-[9px] uppercase tracking-wider text-slate-400">Payment Status</span>
-                    <p className={`mt-0.5 ${selectedAppointment.paymentStatus === 'Paid' ? 'text-emerald-600' : 'text-amber-600'}`}>
+                    <p className={`mt-0.5 ${selectedAppointment.paymentStatus === 'Paid' ? 'text-blue-600' : 'text-amber-600'}`}>
                       {selectedAppointment.paymentStatus}
                     </p>
                   </div>
@@ -944,7 +944,7 @@ const DoctorSchedulePage = () => {
                   setIsDrawerOpen(false);
                   toast.success('Notification sent to doctor');
                 }}
-                className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-center text-xs rounded-xl shadow-sm transition"
+                className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-center text-xs rounded-xl shadow-sm transition"
               >
                 Message Doctor
               </button>

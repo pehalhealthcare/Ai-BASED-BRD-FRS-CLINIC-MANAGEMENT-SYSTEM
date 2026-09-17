@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 
 import { downloadPrescriptionPdf } from './prescriptionApi';
 
@@ -43,7 +43,7 @@ const PrescriptionPdfButton = ({ prescriptionId, disabled = false }) => {
         type="button"
         disabled={disabled || loading}
         onClick={handleDownload}
-        className="rounded-2xl border border-emerald-300 px-4 py-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50 disabled:border-stone-200 disabled:text-stone-400"
+        className="rounded-2xl border border-blue-300 px-4 py-3 text-sm font-semibold text-blue-700 transition hover:bg-blue-50 disabled:border-stone-200 disabled:text-stone-400"
       >
         {loading ? 'Preparing PDF...' : 'Download PDF'}
       </button>

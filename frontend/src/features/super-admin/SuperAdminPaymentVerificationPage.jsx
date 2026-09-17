@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
@@ -31,7 +31,7 @@ const fmtDate = (d) => {
 const getInitials = (name = '') =>
   name.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase();
 
-const AVATAR_COLORS = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899'];
+const AVATAR_COLORS = ['#2563EB', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899'];
 const getAvatarColor = (str = '') => AVATAR_COLORS[(str.charCodeAt(0) || 0) % AVATAR_COLORS.length];
 
 const REJECTION_REASONS = [
@@ -281,7 +281,7 @@ export default function SuperAdminPaymentVerificationPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-6 space-y-4 font-sans">
-        <RefreshCw className="w-10 h-10 text-emerald-600 animate-spin" />
+        <RefreshCw className="w-10 h-10 text-blue-600 animate-spin" />
         <p className="text-sm font-bold text-slate-600">Loading clinic verification workspace...</p>
       </div>
     );
@@ -310,7 +310,7 @@ export default function SuperAdminPaymentVerificationPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-800 font-sans pb-16 antialiased selection:bg-emerald-500 selection:text-white">
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-800 font-sans pb-16 antialiased selection:bg-blue-500 selection:text-white">
       
       {/* ── TOP HEADER & BREADCRUMB ── */}
       <div className="bg-white border-b border-slate-200/80 sticky top-0 z-30 shadow-xs">
@@ -356,7 +356,7 @@ export default function SuperAdminPaymentVerificationPage() {
                 <Clock size={13} /> Payment Pending Verification
               </span>
             ) : isVerified ? (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-blue-50 text-blue-700 border border-blue-200 shadow-2xs">
                 <CheckCircle2 size={13} /> Payment Verified
               </span>
             ) : (
@@ -431,7 +431,7 @@ export default function SuperAdminPaymentVerificationPage() {
               <div>
                 <span className="text-[10px] uppercase font-bold text-slate-400 block">Clinic Approval</span>
                 <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black uppercase mt-0.5 ${
-                  clinic.approvalStatus === 'approved' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                  clinic.approvalStatus === 'approved' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'
                 }`}>
                   {clinic.approvalStatus?.replace('_', ' ') || 'Pending'}
                 </span>
@@ -462,7 +462,7 @@ export default function SuperAdminPaymentVerificationPage() {
 
           <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs">
             <span className="text-[10px] uppercase font-bold text-slate-400 block">Amount</span>
-            <span className="text-sm font-black text-emerald-600 block mt-1">
+            <span className="text-sm font-black text-blue-600 block mt-1">
               {fmt(payment.amount)}
             </span>
             <span className="text-[10px] font-medium text-slate-400 block mt-0.5">INR (Inclusive of tax)</span>
@@ -481,7 +481,7 @@ export default function SuperAdminPaymentVerificationPage() {
           <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs">
             <span className="text-[10px] uppercase font-bold text-slate-400 block">Verification</span>
             <span className={`text-sm font-black block mt-1 ${
-              isVerified ? 'text-emerald-600' : isRejected ? 'text-rose-600' : 'text-amber-600'
+              isVerified ? 'text-blue-600' : isRejected ? 'text-rose-600' : 'text-amber-600'
             }`}>
               {isVerified ? 'Verified' : isRejected ? 'Rejected' : 'Pending'}
             </span>
@@ -510,7 +510,7 @@ export default function SuperAdminPaymentVerificationPage() {
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 px-4 py-3 text-xs font-black border-b-2 transition cursor-pointer whitespace-nowrap ${
                   isActive
-                    ? 'border-emerald-600 text-emerald-700 bg-white/50 rounded-t-xl'
+                    ? 'border-blue-600 text-blue-700 bg-white/50 rounded-t-xl'
                     : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300'
                 }`}
               >
@@ -518,7 +518,7 @@ export default function SuperAdminPaymentVerificationPage() {
                 <span>{tab.label}</span>
                 {tab.count !== undefined && (
                   <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
-                    isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-500'
+                    isActive ? 'bg-blue-100 text-blue-800' : 'bg-slate-100 text-slate-500'
                   }`}>
                     {tab.count}
                   </span>
@@ -542,7 +542,7 @@ export default function SuperAdminPaymentVerificationPage() {
                 <div className="bg-white rounded-3xl border border-slate-200/80 p-5 sm:p-6 shadow-xs space-y-4">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                     <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
-                      <User size={16} className="text-emerald-600" />
+                      <User size={16} className="text-blue-600" />
                       Owner / Administrator Information
                     </h3>
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Read-only</span>
@@ -626,7 +626,7 @@ export default function SuperAdminPaymentVerificationPage() {
                 <div className="bg-white rounded-3xl border border-slate-200/80 p-5 sm:p-6 shadow-xs space-y-4">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                     <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
-                      <Building2 size={16} className="text-emerald-600" />
+                      <Building2 size={16} className="text-blue-600" />
                       Clinic Registration Parameters
                     </h3>
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Submitted Details</span>
@@ -692,7 +692,7 @@ export default function SuperAdminPaymentVerificationPage() {
                 <div className="bg-white rounded-3xl border border-slate-200/80 p-5 sm:p-6 shadow-xs space-y-5">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-3.5">
                     <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
-                      <CreditCard size={16} className="text-emerald-600" />
+                      <CreditCard size={16} className="text-blue-600" />
                       Payment Transaction Details
                     </h3>
                     <div className="flex items-center gap-2">
@@ -727,7 +727,7 @@ export default function SuperAdminPaymentVerificationPage() {
                     <div>
                       <span className="text-[10px] uppercase font-bold text-slate-400 block">Payment Status</span>
                       <span className={`font-black block mt-0.5 ${
-                        isVerified ? 'text-emerald-600' : isRejected ? 'text-rose-600' : 'text-amber-600'
+                        isVerified ? 'text-blue-600' : isRejected ? 'text-rose-600' : 'text-amber-600'
                       }`}>
                         {payment.status}
                       </span>
@@ -755,7 +755,7 @@ export default function SuperAdminPaymentVerificationPage() {
                           onClick={() => handleCopy(payment.utr, 'utr', 'UTR')}
                           className="px-3 py-1.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 transition flex items-center gap-1 cursor-pointer"
                         >
-                          {copiedKey === 'utr' ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
+                          {copiedKey === 'utr' ? <Check size={12} className="text-blue-600" /> : <Copy size={12} />}
                           <span>{copiedKey === 'utr' ? 'Copied' : 'Copy UTR'}</span>
                         </button>
                       </div>
@@ -815,7 +815,7 @@ export default function SuperAdminPaymentVerificationPage() {
                     </div>
 
                     {isAmountMatch ? (
-                      <span className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-xs font-black">
+                      <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-xs font-black">
                         <CheckCircle2 size={13} /> Amount Matches
                       </span>
                     ) : (
@@ -832,10 +832,10 @@ export default function SuperAdminPaymentVerificationPage() {
                       <span className="text-[10px] font-medium text-slate-400 block mt-0.5">{plan.name} ({payment.billingCycle})</span>
                     </div>
 
-                    <div className="bg-emerald-50/50 border border-emerald-200/80 rounded-2xl p-4">
-                      <span className="text-[10px] uppercase font-bold text-emerald-700 block">Submitted Amount</span>
-                      <span className="text-xl font-black text-emerald-600 block mt-1">{fmt(submittedAmount)}</span>
-                      <span className="text-[10px] font-medium text-emerald-600 block mt-0.5">Recorded via UTR</span>
+                    <div className="bg-blue-50/50 border border-blue-200/80 rounded-2xl p-4">
+                      <span className="text-[10px] uppercase font-bold text-blue-700 block">Submitted Amount</span>
+                      <span className="text-xl font-black text-blue-600 block mt-1">{fmt(submittedAmount)}</span>
+                      <span className="text-[10px] font-medium text-blue-600 block mt-0.5">Recorded via UTR</span>
                     </div>
 
                     <div className={`border rounded-2xl p-4 ${
@@ -861,10 +861,10 @@ export default function SuperAdminPaymentVerificationPage() {
                 <div className="bg-white rounded-3xl border border-slate-200/80 p-5 sm:p-6 shadow-xs space-y-5">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-3.5">
                     <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
-                      <Package size={16} className="text-emerald-600" />
+                      <Package size={16} className="text-blue-600" />
                       Subscription Plan &amp; Billing
                     </h3>
-                    <span className="text-xs font-bold text-emerald-600 capitalize">
+                    <span className="text-xs font-bold text-blue-600 capitalize">
                       {payment.billingCycle} billing cycle
                     </span>
                   </div>
@@ -887,7 +887,7 @@ export default function SuperAdminPaymentVerificationPage() {
 
                     <div>
                       <span className="text-[10px] uppercase font-bold text-slate-400 block">Final Payable</span>
-                      <span className="font-black text-emerald-600 block mt-0.5">{fmt(submittedAmount)}</span>
+                      <span className="font-black text-blue-600 block mt-0.5">{fmt(submittedAmount)}</span>
                     </div>
 
                     <div>
@@ -918,7 +918,7 @@ export default function SuperAdminPaymentVerificationPage() {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                         {plan.features.map((feat, idx) => (
                           <div key={idx} className="flex items-center gap-2 text-slate-700 bg-slate-50 px-3 py-2 rounded-xl border border-slate-100 font-medium">
-                            <Check size={14} className="text-emerald-600 shrink-0" />
+                            <Check size={14} className="text-blue-600 shrink-0" />
                             <span className="capitalize">{String(feat).replace(/_/g, ' ')}</span>
                           </div>
                         ))}
@@ -935,7 +935,7 @@ export default function SuperAdminPaymentVerificationPage() {
                 <div className="bg-white rounded-3xl border border-slate-200/80 p-5 sm:p-6 shadow-xs space-y-5">
                   <div className="border-b border-slate-100 pb-3">
                     <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
-                      <FileCheck size={16} className="text-emerald-600" />
+                      <FileCheck size={16} className="text-blue-600" />
                       Clinic Registration Documents &amp; Proofs
                     </h3>
                     <p className="text-[11px] text-slate-400 font-medium mt-0.5">Uploaded verification attachments</p>
@@ -949,7 +949,7 @@ export default function SuperAdminPaymentVerificationPage() {
                         <span className="text-xs font-bold text-slate-900">Payment Receipt / Proof</span>
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                           payment.paymentProofUrl
-                            ? (getProofFileType(payment.paymentProofUrl) === 'pdf' ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800')
+                            ? (getProofFileType(payment.paymentProofUrl) === 'pdf' ? 'bg-rose-100 text-rose-800' : 'bg-blue-100 text-blue-800')
                             : 'bg-slate-200 text-slate-600'
                         }`}>
                           {payment.paymentProofUrl ? (getProofFileType(payment.paymentProofUrl) === 'pdf' ? 'PDF Uploaded' : 'Image Uploaded') : 'Not Uploaded'}
@@ -1041,7 +1041,7 @@ export default function SuperAdminPaymentVerificationPage() {
                         </div>
                         <div className="flex justify-between pb-1">
                           <span className="text-slate-400 font-medium">Email Verified</span>
-                          <span className="text-emerald-600 font-bold">✓ Verified</span>
+                          <span className="text-blue-600 font-bold">✓ Verified</span>
                         </div>
                       </div>
                     </div>
@@ -1079,16 +1079,16 @@ export default function SuperAdminPaymentVerificationPage() {
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {/* Current Payment */}
-                        <tr className="bg-emerald-50/30">
+                        <tr className="bg-blue-50/30">
                           <td className="px-4 py-3 font-bold text-slate-900">
-                            #{payment.attemptNumber || 1} <span className="text-[10px] text-emerald-600 font-extrabold">(Current)</span>
+                            #{payment.attemptNumber || 1} <span className="text-[10px] text-blue-600 font-extrabold">(Current)</span>
                           </td>
-                          <td className="px-3 py-3 font-black text-emerald-600">{fmt(payment.amount)}</td>
+                          <td className="px-3 py-3 font-black text-blue-600">{fmt(payment.amount)}</td>
                           <td className="px-3 py-3 font-mono font-bold text-slate-800">{payment.utr}</td>
                           <td className="px-3 py-3 text-slate-600">{fmtDate(payment.submittedAt || payment.createdAt)}</td>
                           <td className="px-3 py-3">
                             <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
-                              isVerified ? 'bg-emerald-100 text-emerald-800' : isRejected ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'
+                              isVerified ? 'bg-blue-100 text-blue-800' : isRejected ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'
                             }`}>
                               {payment.status}
                             </span>
@@ -1105,7 +1105,7 @@ export default function SuperAdminPaymentVerificationPage() {
                             <td className="px-3 py-3 text-slate-500">{fmtDate(att.submittedAt || att.createdAt)}</td>
                             <td className="px-3 py-3">
                               <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
-                                att.status === 'VERIFIED' ? 'bg-emerald-100 text-emerald-800' : att.status === 'REJECTED' ? 'bg-rose-100 text-rose-800' : 'bg-slate-100 text-slate-700'
+                                att.status === 'VERIFIED' ? 'bg-blue-100 text-blue-800' : att.status === 'REJECTED' ? 'bg-rose-100 text-rose-800' : 'bg-slate-100 text-slate-700'
                               }`}>
                                 {att.status}
                               </span>
@@ -1113,7 +1113,7 @@ export default function SuperAdminPaymentVerificationPage() {
                             <td className="px-4 py-3 text-right">
                               <Link
                                 to={`/super-admin/payments/${att._id}`}
-                                className="text-emerald-600 hover:text-emerald-700 font-bold"
+                                className="text-blue-600 hover:text-blue-700 font-bold"
                               >
                                 View
                               </Link>
@@ -1157,7 +1157,7 @@ export default function SuperAdminPaymentVerificationPage() {
                       <div key={idx} className="relative">
                         <div className={`absolute -left-[31px] top-0 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${
                           step.done
-                            ? 'bg-emerald-600 text-white'
+                            ? 'bg-blue-600 text-white'
                             : step.rejected
                             ? 'bg-rose-600 text-white'
                             : step.current
@@ -1193,7 +1193,7 @@ export default function SuperAdminPaymentVerificationPage() {
                   <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                     <div>
                       <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
-                        <Activity size={16} className="text-emerald-600" />
+                        <Activity size={16} className="text-blue-600" />
                         Audit &amp; Activity Log
                       </h3>
                       <p className="text-[11px] text-slate-400 font-medium">Immutable system records of actions taken</p>
@@ -1243,7 +1243,7 @@ export default function SuperAdminPaymentVerificationPage() {
                     <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
                       getProofFileType(payment.paymentProofUrl) === 'pdf'
                         ? 'bg-rose-100 text-rose-800'
-                        : 'bg-emerald-100 text-emerald-800'
+                        : 'bg-blue-100 text-blue-800'
                     }`}>
                       {getProofFileType(payment.paymentProofUrl) === 'pdf' ? 'PDF' : 'IMAGE'}
                     </span>
@@ -1257,7 +1257,7 @@ export default function SuperAdminPaymentVerificationPage() {
                       setProofRotation(0);
                       setShowProofModal(true);
                     }}
-                    className="text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 cursor-pointer"
+                    className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 cursor-pointer"
                   >
                     <span>View</span>
                     <ArrowUpRight size={13} />
@@ -1326,16 +1326,16 @@ export default function SuperAdminPaymentVerificationPage() {
                   </p>
                 </div>
               ) : isVerified ? (
-                <div className="p-3.5 bg-emerald-50/80 border border-emerald-200/80 rounded-2xl space-y-1.5">
-                  <div className="flex items-center gap-2 text-emerald-800 font-black text-xs">
+                <div className="p-3.5 bg-blue-50/80 border border-blue-200/80 rounded-2xl space-y-1.5">
+                  <div className="flex items-center gap-2 text-blue-800 font-black text-xs">
                     <CheckCircle2 size={15} />
                     <span>Payment Verified</span>
                   </div>
-                  <p className="text-[11px] text-emerald-700 leading-snug">
+                  <p className="text-[11px] text-blue-700 leading-snug">
                     Verified on {fmtDate(payment.verifiedAt)} by {payment.verifiedBy?.name || 'Super Admin'}.
                   </p>
                   {payment.verificationNotes && (
-                    <div className="text-[11px] bg-white/80 p-2 rounded-xl border border-emerald-100 text-emerald-900">
+                    <div className="text-[11px] bg-white/80 p-2 rounded-xl border border-blue-100 text-blue-900">
                       <strong>Notes:</strong> {payment.verificationNotes}
                     </div>
                   )}
@@ -1363,14 +1363,14 @@ export default function SuperAdminPaymentVerificationPage() {
                   <label className="text-xs font-bold text-slate-800 block">
                     Internal Verification Notes
                   </label>
-                  <span className="text-[10px] text-emerald-600 font-bold">Only visible to Super Admin</span>
+                  <span className="text-[10px] text-blue-600 font-bold">Only visible to Super Admin</span>
                 </div>
                 <textarea
                   rows={3}
                   value={internalNotes}
                   onChange={(e) => setInternalNotes(e.target.value)}
                   placeholder="Add internal verification notes, reconciliation reference, or notes..."
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-medium text-slate-800 focus:bg-white focus:border-emerald-500 transition outline-hidden"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-medium text-slate-800 focus:bg-white focus:border-blue-500 transition outline-hidden"
                 />
               </div>
 
@@ -1380,7 +1380,7 @@ export default function SuperAdminPaymentVerificationPage() {
                   <button
                     type="button"
                     onClick={() => setShowVerifyModal(true)}
-                    className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-black shadow-sm transition flex items-center justify-center gap-2 cursor-pointer"
+                    className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs font-black shadow-sm transition flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <CheckCircle2 size={16} />
                     <span>Verify Payment</span>
@@ -1411,7 +1411,7 @@ export default function SuperAdminPaymentVerificationPage() {
           <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl border border-slate-100 space-y-5 animate-in fade-in zoom-in-95 duration-150">
             
             <div className="flex items-center gap-3.5">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+              <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
                 <ShieldCheck size={24} />
               </div>
               <div>
@@ -1437,7 +1437,7 @@ export default function SuperAdminPaymentVerificationPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500 font-medium">Submitted</span>
-                <span className="font-black text-emerald-600">{fmt(submittedAmount)}</span>
+                <span className="font-black text-blue-600">{fmt(submittedAmount)}</span>
               </div>
               <div className="flex justify-between border-t border-slate-200 pt-2">
                 <span className="text-slate-500 font-medium">UTR / Reference</span>
@@ -1445,7 +1445,7 @@ export default function SuperAdminPaymentVerificationPage() {
               </div>
             </div>
 
-            <p className="text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl p-3">
+            <p className="text-[11px] text-blue-700 bg-blue-50 border border-blue-200 rounded-xl p-3">
               By confirming, this payment attempt will be marked <strong>VERIFIED</strong> and the clinic registration will be activated.
             </p>
 
@@ -1462,7 +1462,7 @@ export default function SuperAdminPaymentVerificationPage() {
                 type="button"
                 onClick={handleConfirmVerify}
                 disabled={actionLoading}
-                className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-xl shadow-xs transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-black rounded-xl shadow-xs transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 {actionLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check size={14} />}
                 <span>{actionLoading ? 'Verifying...' : 'Confirm Verification'}</span>
@@ -1561,7 +1561,7 @@ export default function SuperAdminPaymentVerificationPage() {
             <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 gap-2">
               <div className="flex items-center gap-2.5 min-w-0">
                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                  getProofFileType(payment.paymentProofUrl) === 'pdf' ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'
+                  getProofFileType(payment.paymentProofUrl) === 'pdf' ? 'bg-rose-50 text-rose-600' : 'bg-blue-50 text-blue-600'
                 }`}>
                   <FileText size={18} />
                 </div>
@@ -1569,7 +1569,7 @@ export default function SuperAdminPaymentVerificationPage() {
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-black text-slate-900 truncate">Payment Proof Document</span>
                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
-                      getProofFileType(payment.paymentProofUrl) === 'pdf' ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'
+                      getProofFileType(payment.paymentProofUrl) === 'pdf' ? 'bg-rose-100 text-rose-800' : 'bg-blue-100 text-blue-800'
                     }`}>
                       {getProofFileType(payment.paymentProofUrl) === 'pdf' ? 'PDF' : 'IMAGE'}
                     </span>
@@ -1628,7 +1628,7 @@ export default function SuperAdminPaymentVerificationPage() {
                 <button
                   type="button"
                   onClick={() => handleDownloadFile(payment.paymentProofUrl, `payment_proof_${clinicName}`)}
-                  className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer"
+                  className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer"
                   title="Download Document"
                 >
                   <Download size={13} />
@@ -1677,7 +1677,7 @@ export default function SuperAdminPaymentVerificationPage() {
                         <button
                           type="button"
                           onClick={() => handleOpenFileInNewTab(payment.paymentProofUrl)}
-                          className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer"
+                          className="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer"
                         >
                           <ExternalLink size={14} /> Open in Browser
                         </button>

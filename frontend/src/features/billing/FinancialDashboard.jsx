@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { settlementsApi, doctorApi, paymentApi } from '../../lib/api';
 import LoadingState from '../../components/common/LoadingState';
 
@@ -165,13 +165,13 @@ const FinancialDashboard = () => {
         </div>
         <button
           onClick={handleGenerateSettlements}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 px-5 rounded-2xl text-sm transition shadow-md"
+          className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-5 rounded-2xl text-sm transition shadow-md"
         >
           ⚙️ Run Settlement Engine
         </button>
       </div>
 
-      {success && <div className="p-4 bg-emerald-50 text-emerald-800 rounded-2xl border border-emerald-100 text-sm font-medium">{success}</div>}
+      {success && <div className="p-4 bg-blue-50 text-blue-800 rounded-2xl border border-blue-100 text-sm font-medium">{success}</div>}
       {error && <div className="p-4 bg-red-50 text-red-800 rounded-2xl border border-red-100 text-sm font-medium">{error}</div>}
 
       {/* Tabs */}
@@ -179,7 +179,7 @@ const FinancialDashboard = () => {
         <button
           onClick={() => setActiveTab('orgRevenue')}
           className={`pb-3 text-sm font-semibold border-b-2 transition ${
-            activeTab === 'orgRevenue' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-stone-500 hover:text-stone-800'
+            activeTab === 'orgRevenue' ? 'border-blue-600 text-blue-600' : 'border-transparent text-stone-500 hover:text-stone-800'
           }`}
         >
           🏥 Org Revenue
@@ -187,7 +187,7 @@ const FinancialDashboard = () => {
         <button
           onClick={() => setActiveTab('doctorEarnings')}
           className={`pb-3 text-sm font-semibold border-b-2 transition ${
-            activeTab === 'doctorEarnings' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-stone-500 hover:text-stone-800'
+            activeTab === 'doctorEarnings' ? 'border-blue-600 text-blue-600' : 'border-transparent text-stone-500 hover:text-stone-800'
           }`}
         >
           🩺 Doctor Earnings & Payouts
@@ -195,7 +195,7 @@ const FinancialDashboard = () => {
         <button
           onClick={() => setActiveTab('settings')}
           className={`pb-3 text-sm font-semibold border-b-2 transition ${
-            activeTab === 'settings' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-stone-500 hover:text-stone-800'
+            activeTab === 'settings' ? 'border-blue-600 text-blue-600' : 'border-transparent text-stone-500 hover:text-stone-800'
           }`}
         >
           ⚙️ Financial Settings
@@ -203,7 +203,7 @@ const FinancialDashboard = () => {
         <button
           onClick={() => setActiveTab('transactions')}
           className={`pb-3 text-sm font-semibold border-b-2 transition ${
-            activeTab === 'transactions' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-stone-500 hover:text-stone-800'
+            activeTab === 'transactions' ? 'border-blue-600 text-blue-600' : 'border-transparent text-stone-500 hover:text-stone-800'
           }`}
         >
           📜 Transaction History
@@ -223,7 +223,7 @@ const FinancialDashboard = () => {
               <span className="text-stone-400 text-xs font-semibold uppercase tracking-wider">Insurance Covered</span>
               <div className="text-3xl font-bold text-stone-800">₹{totalInsuranceAmount}</div>
             </div>
-            <div className="bg-emerald-600 text-white p-6 rounded-3xl shadow-sm space-y-2">
+            <div className="bg-blue-600 text-white p-6 rounded-3xl shadow-sm space-y-2">
               <span className="opacity-80 text-xs font-semibold uppercase tracking-wider">Net Organization Revenue</span>
               <div className="text-3xl font-bold">₹{totalOrgRevenue}</div>
             </div>
@@ -253,10 +253,10 @@ const FinancialDashboard = () => {
                       <td className="p-4 font-semibold">₹{earn.grossRevenue}</td>
                       <td className="p-4">₹{earn.insuranceAmount}</td>
                       <td className="p-4">₹{earn.patientAmount}</td>
-                      <td className="p-4 text-emerald-600 font-bold">₹{earn.netRevenue}</td>
+                      <td className="p-4 text-blue-600 font-bold">₹{earn.netRevenue}</td>
                       <td className="p-4">
                         <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                          earn.status === 'SETTLED' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                          earn.status === 'SETTLED' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'
                         }`}>
                           {earn.status}
                         </span>
@@ -284,7 +284,7 @@ const FinancialDashboard = () => {
               <select
                 value={selectedDoctor}
                 onChange={(e) => setSelectedDoctor(e.target.value)}
-                className="rounded-xl border border-stone-200 px-4 py-2.5 text-sm focus:border-emerald-500 outline-none w-64"
+                className="rounded-xl border border-stone-200 px-4 py-2.5 text-sm focus:border-blue-500 outline-none w-64"
               >
                 {doctors.map((d) => (
                   <option key={d._id} value={d._id}>{d.fullName || `${d.firstName} ${d.lastName}`}</option>
@@ -331,11 +331,11 @@ const FinancialDashboard = () => {
                     <tr key={earn._id}>
                       <td className="p-4 font-semibold text-xs">{earn.earningType}</td>
                       <td className="p-4">₹{earn.grossAmount}</td>
-                      <td className="p-4 text-emerald-600 font-bold">₹{earn.doctorShare}</td>
+                      <td className="p-4 text-blue-600 font-bold">₹{earn.doctorShare}</td>
                       <td className="p-4">₹{earn.clinicShare}</td>
                       <td className="p-4">
                         <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                          earn.status === 'PAID' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                          earn.status === 'PAID' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'
                         }`}>
                           {earn.status}
                         </span>
@@ -344,7 +344,7 @@ const FinancialDashboard = () => {
                         {earn.status !== 'PAID' && (
                           <button
                             onClick={() => setSelectedEarning(earn)}
-                            className="bg-emerald-600 text-white text-xs font-bold py-1.5 px-3.5 rounded-xl hover:bg-emerald-700 transition"
+                            className="bg-blue-600 text-white text-xs font-bold py-1.5 px-3.5 rounded-xl hover:bg-blue-700 transition"
                           >
                             Mark Paid
                           </button>
@@ -376,7 +376,7 @@ const FinancialDashboard = () => {
                   type="checkbox"
                   checked={financialSettings.automaticSettlement}
                   onChange={(e) => setFinancialSettings({ ...financialSettings, automaticSettlement: e.target.checked })}
-                  className="w-5 h-5 accent-emerald-600"
+                  className="w-5 h-5 accent-blue-600"
                 />
               </div>
               <div className="space-y-2">
@@ -385,7 +385,7 @@ const FinancialDashboard = () => {
                   type="number"
                   value={financialSettings.doctorRevenuePercentage}
                   onChange={(e) => setFinancialSettings({ ...financialSettings, doctorRevenuePercentage: Number(e.target.value) })}
-                  className="w-full rounded-xl border border-stone-200 px-4 py-3 text-sm focus:border-emerald-500 outline-none"
+                  className="w-full rounded-xl border border-stone-200 px-4 py-3 text-sm focus:border-blue-500 outline-none"
                 />
               </div>
               <div className="space-y-2">
@@ -394,7 +394,7 @@ const FinancialDashboard = () => {
                   type="number"
                   value={financialSettings.clinicRevenuePercentage}
                   onChange={(e) => setFinancialSettings({ ...financialSettings, clinicRevenuePercentage: Number(e.target.value) })}
-                  className="w-full rounded-xl border border-stone-200 px-4 py-3 text-sm focus:border-emerald-500 outline-none"
+                  className="w-full rounded-xl border border-stone-200 px-4 py-3 text-sm focus:border-blue-500 outline-none"
                 />
               </div>
               <div className="space-y-2">
@@ -403,12 +403,12 @@ const FinancialDashboard = () => {
                   value={financialSettings.bankDetails}
                   onChange={(e) => setFinancialSettings({ ...financialSettings, bankDetails: e.target.value })}
                   rows="3"
-                  className="w-full rounded-xl border border-stone-200 px-4 py-3 text-sm focus:border-emerald-500 outline-none"
+                  className="w-full rounded-xl border border-stone-200 px-4 py-3 text-sm focus:border-blue-500 outline-none"
                 />
               </div>
               <button
                 type="submit"
-                className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition shadow"
+                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition shadow"
               >
                 Save Org Settings
               </button>
@@ -424,7 +424,7 @@ const FinancialDashboard = () => {
                 <select
                   value={docSettings.paymentMode}
                   onChange={(e) => setDocSettings({ ...docSettings, paymentMode: e.target.value })}
-                  className="w-full rounded-xl border border-stone-200 px-4 py-3 text-sm focus:border-emerald-500 outline-none"
+                  className="w-full rounded-xl border border-stone-200 px-4 py-3 text-sm focus:border-blue-500 outline-none"
                 >
                   <option value="REVENUE_SHARE">Revenue Share</option>
                   <option value="MONTHLY_SALARY">Monthly Salary</option>
@@ -438,7 +438,7 @@ const FinancialDashboard = () => {
                     type="number"
                     value={docSettings.revenuePercentage}
                     onChange={(e) => setDocSettings({ ...docSettings, revenuePercentage: Number(e.target.value) })}
-                    className="w-full rounded-xl border border-stone-200 px-4 py-3 text-sm focus:border-emerald-500 outline-none"
+                    className="w-full rounded-xl border border-stone-200 px-4 py-3 text-sm focus:border-blue-500 outline-none"
                   />
                 </div>
               )}
@@ -449,7 +449,7 @@ const FinancialDashboard = () => {
                     type="number"
                     value={docSettings.monthlySalary}
                     onChange={(e) => setDocSettings({ ...docSettings, monthlySalary: Number(e.target.value) })}
-                    className="w-full rounded-xl border border-stone-200 px-4 py-3 text-sm focus:border-emerald-500 outline-none"
+                    className="w-full rounded-xl border border-stone-200 px-4 py-3 text-sm focus:border-blue-500 outline-none"
                   />
                 </div>
               )}
@@ -459,12 +459,12 @@ const FinancialDashboard = () => {
                   value={docSettings.bankDetails}
                   onChange={(e) => setDocSettings({ ...docSettings, bankDetails: e.target.value })}
                   rows="3"
-                  className="w-full rounded-xl border border-stone-200 px-4 py-3 text-sm focus:border-emerald-500 outline-none"
+                  className="w-full rounded-xl border border-stone-200 px-4 py-3 text-sm focus:border-blue-500 outline-none"
                 />
               </div>
               <button
                 type="submit"
-                className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition shadow"
+                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition shadow"
               >
                 Save Doctor Settings
               </button>
@@ -495,7 +495,7 @@ const FinancialDashboard = () => {
                     <td className="p-4">{new Date(t.createdAt).toLocaleDateString()}</td>
                     <td className="p-4 font-mono text-xs">{t.doctorId || t.organizationId}</td>
                     <td className="p-4">{t.earningType || 'ORGANIZATION_REVENUE'}</td>
-                    <td className="p-4 font-semibold text-emerald-600">₹{t.doctorShare || t.netRevenue}</td>
+                    <td className="p-4 font-semibold text-blue-600">₹{t.doctorShare || t.netRevenue}</td>
                     <td className="p-4 font-mono text-xs">{t.payoutDetails?.transactionRef || 'SYSTEM_AUTO'}</td>
                   </tr>
                 ))}
@@ -532,7 +532,7 @@ const FinancialDashboard = () => {
                   value={payoutForm.transactionRef}
                   onChange={(e) => setPayoutForm({ ...payoutForm, transactionRef: e.target.value })}
                   placeholder="e.g. TXN-12903810"
-                  className="w-full rounded-xl border border-stone-200 px-4 py-2.5 text-sm focus:border-emerald-500 outline-none"
+                  className="w-full rounded-xl border border-stone-200 px-4 py-2.5 text-sm focus:border-blue-500 outline-none"
                 />
               </div>
               <div className="space-y-2">
@@ -542,13 +542,13 @@ const FinancialDashboard = () => {
                   onChange={(e) => setPayoutForm({ ...payoutForm, remarks: e.target.value })}
                   placeholder="Additional remarks..."
                   rows="3"
-                  className="w-full rounded-xl border border-stone-200 px-4 py-2.5 text-sm focus:border-emerald-500 outline-none"
+                  className="w-full rounded-xl border border-stone-200 px-4 py-2.5 text-sm focus:border-blue-500 outline-none"
                 />
               </div>
               <button
                 type="submit"
                 disabled={submittingPayout}
-                className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition shadow disabled:opacity-50"
+                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition shadow disabled:opacity-50"
               >
                 {submittingPayout ? 'Submitting...' : 'Confirm Payout'}
               </button>

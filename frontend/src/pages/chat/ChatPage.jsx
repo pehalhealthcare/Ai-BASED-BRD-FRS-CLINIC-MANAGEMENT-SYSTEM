@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useMemo } from 'react';
+﻿import { useEffect, useState, useRef, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
@@ -288,12 +288,12 @@ const ChatPage = () => {
                   onClick={() => setActiveFilterTab(tab)}
                   className={`px-3 py-1.5 rounded-full text-xs font-black transition flex items-center gap-1.5 border ${
                     isActive 
-                      ? 'bg-emerald-50 text-emerald-600 border-emerald-200' 
+                      ? 'bg-blue-50 text-blue-600 border-blue-200' 
                       : 'bg-slate-50 text-slate-400 border-transparent hover:bg-slate-100'
                   }`}
                 >
                   <span>{tab}</span>
-                  <span className={`text-[9px] px-1.5 py-0.2 rounded-full ${isActive ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-550 font-bold'}`}>
+                  <span className={`text-[9px] px-1.5 py-0.2 rounded-full ${isActive ? 'bg-blue-500 text-white' : 'bg-slate-200 text-slate-550 font-bold'}`}>
                     {count}
                   </span>
                 </button>
@@ -307,7 +307,7 @@ const ChatPage = () => {
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
               placeholder="Search by name, role or message..."
-              className="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-100 focus:border-emerald-500 transition font-medium placeholder:text-slate-400"
+              className="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition font-medium placeholder:text-slate-400"
             />
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-450 w-3.5 h-3.5" />
           </div>
@@ -335,7 +335,7 @@ const ChatPage = () => {
                   onClick={() => setActiveConversation(conv)}
                   className={`p-3.5 rounded-2xl border flex items-center justify-between cursor-pointer transition ${
                     isSelected 
-                      ? 'bg-emerald-50/40 border-emerald-500/20 shadow-xs' 
+                      ? 'bg-blue-50/40 border-blue-500/20 shadow-xs' 
                       : 'bg-white border-transparent hover:bg-slate-50'
                   }`}
                 >
@@ -344,7 +344,7 @@ const ChatPage = () => {
                       <div className="w-10 h-10 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center font-bold text-slate-500 text-xs overflow-hidden">
                         {getInitials(otherUser.fullName || otherUser.name)}
                       </div>
-                      <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full"></span>
+                      <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-blue-500 border-2 border-white rounded-full"></span>
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
@@ -366,7 +366,7 @@ const ChatPage = () => {
                       {new Date(conv.lastMessageAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                     {unread > 0 && (
-                      <span className="bg-emerald-600 text-white font-bold text-[8.5px] w-4.5 h-4.5 rounded-full flex items-center justify-center">
+                      <span className="bg-blue-600 text-white font-bold text-[8.5px] w-4.5 h-4.5 rounded-full flex items-center justify-center">
                         {unread}
                       </span>
                     )}
@@ -380,7 +380,7 @@ const ChatPage = () => {
         {/* Floating compose button */}
         <button 
           onClick={() => setComposeOpen(true)}
-          className="absolute bottom-4 right-4 w-12 h-12 bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white rounded-full flex items-center justify-center shadow-lg transition duration-150 cursor-pointer"
+          className="absolute bottom-4 right-4 w-12 h-12 bg-blue-500 hover:bg-blue-600 active:scale-95 text-white rounded-full flex items-center justify-center shadow-lg transition duration-150 cursor-pointer"
         >
           <Plus size={22} />
         </button>
@@ -405,17 +405,17 @@ const ChatPage = () => {
                       <ArrowLeft size={16} />
                     </button>
                     <div className="relative">
-                      <div className="w-10 h-10 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center font-bold text-emerald-600 text-xs">
+                      <div className="w-10 h-10 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center font-bold text-blue-600 text-xs">
                         {getInitials(otherUser?.fullName || otherUser?.name)}
                       </div>
-                      <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full animate-pulse"></span>
+                      <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-blue-500 border-2 border-white rounded-full animate-pulse"></span>
                     </div>
                     <div>
                       <h4 className="font-black text-slate-900 text-xs leading-none">
                         {otherUser?.fullName || otherUser?.name}
                       </h4>
                       <span className="text-[9px] text-slate-400 font-bold block mt-1.5">
-                        {otherUser?.role || 'Staff'} · <span className="text-emerald-600">Online</span>
+                        {otherUser?.role || 'Staff'} · <span className="text-blue-600">Online</span>
                       </span>
                     </div>
                   </div>
@@ -443,7 +443,7 @@ const ChatPage = () => {
                     <div className={`max-w-[70%] space-y-1 ${isMe ? 'text-right' : 'text-left'}`}>
                       <div className={`p-3 rounded-2xl text-xs font-semibold leading-relaxed shadow-xs ${
                         isMe 
-                          ? 'bg-emerald-500 text-white rounded-tr-none' 
+                          ? 'bg-blue-500 text-white rounded-tr-none' 
                           : 'bg-white text-slate-800 rounded-tl-none border border-slate-150'
                       }`}>
                         <p className="whitespace-pre-wrap">{msg.message}</p>
@@ -455,7 +455,7 @@ const ChatPage = () => {
                         {isMe && (
                           <span>
                             {msg.isRead ? (
-                              <CheckCheck size={12} className="text-emerald-500" />
+                              <CheckCheck size={12} className="text-blue-500" />
                             ) : (
                               <Check size={12} />
                             )}
@@ -473,9 +473,9 @@ const ChatPage = () => {
                   <div className="bg-white border border-slate-150 p-2.5 rounded-2xl rounded-tl-none flex items-center gap-1.5 shadow-sm">
                     <span className="text-[10px] text-slate-400 font-bold italic">Typing</span>
                     <div className="flex gap-1">
-                      <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-bounce"></span>
-                      <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-bounce [animation-delay:0.2s]"></span>
-                      <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-bounce [animation-delay:0.4s]"></span>
+                      <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce"></span>
+                      <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:0.2s]"></span>
+                      <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:0.4s]"></span>
                     </div>
                   </div>
                 </div>
@@ -489,7 +489,7 @@ const ChatPage = () => {
                 <button
                   key={reply}
                   onClick={() => setInputText(reply)}
-                  className="px-3 py-1.5 bg-slate-50 hover:bg-emerald-50 border border-slate-150 text-[10px] text-slate-600 hover:text-emerald-600 font-bold rounded-full transition shrink-0 cursor-pointer"
+                  className="px-3 py-1.5 bg-slate-50 hover:bg-blue-50 border border-slate-150 text-[10px] text-slate-600 hover:text-blue-600 font-bold rounded-full transition shrink-0 cursor-pointer"
                 >
                   {reply}
                 </button>
@@ -507,7 +507,7 @@ const ChatPage = () => {
                 value={inputText}
                 onChange={handleInputChange}
                 placeholder="Type a message..."
-                className="flex-1 py-2 px-3.5 text-xs border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-100 focus:border-emerald-500 transition font-medium"
+                className="flex-1 py-2 px-3.5 text-xs border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition font-medium"
               />
               <div className="flex items-center gap-1.5 text-slate-400">
                 <button type="button" className="p-2 hover:bg-slate-100 rounded-xl transition">
@@ -517,7 +517,7 @@ const ChatPage = () => {
               <button
                 type="submit"
                 disabled={!inputText.trim()}
-                className="p-2.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-xl shadow-sm transition flex items-center justify-center cursor-pointer"
+                className="p-2.5 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white rounded-xl shadow-sm transition flex items-center justify-center cursor-pointer"
               >
                 <Send size={15} />
               </button>
@@ -560,7 +560,7 @@ const ChatPage = () => {
                   value={composeSearch}
                   onChange={(e) => setComposeSearch(e.target.value)}
                   placeholder="Search by name, role or phone number..."
-                  className="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-100 focus:border-emerald-500 transition font-medium"
+                  className="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition font-medium"
                 />
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-3.5 h-3.5" />
               </div>
@@ -573,7 +573,7 @@ const ChatPage = () => {
                     onClick={() => { setComposeTab(tab); setSelectedContact(null); }}
                     className={`flex-1 py-2 text-xs font-black rounded-xl border transition ${
                       composeTab === tab
-                        ? 'bg-emerald-50 text-emerald-600 border-emerald-250'
+                        ? 'bg-blue-50 text-blue-600 border-blue-250'
                         : 'bg-slate-50 text-slate-400 border-transparent hover:bg-slate-100'
                     }`}
                   >
@@ -596,7 +596,7 @@ const ChatPage = () => {
                         key={contact._id}
                         onClick={() => setSelectedContact(contact)}
                         className={`p-3 rounded-2xl border flex items-center justify-between cursor-pointer transition ${
-                          isSelected ? 'bg-emerald-50/30 border-emerald-500/20' : 'bg-white border-slate-100 hover:bg-slate-50/50'
+                          isSelected ? 'bg-blue-50/30 border-blue-500/20' : 'bg-white border-slate-100 hover:bg-slate-50/50'
                         }`}
                       >
                         <div className="flex items-center gap-3">
@@ -618,7 +618,7 @@ const ChatPage = () => {
                           type="radio"
                           checked={isSelected}
                           onChange={() => setSelectedContact(contact)}
-                          className="w-4 h-4 accent-emerald-600 cursor-pointer"
+                          className="w-4 h-4 accent-blue-600 cursor-pointer"
                         />
                       </div>
                     );
@@ -629,7 +629,7 @@ const ChatPage = () => {
               <button
                 disabled={!selectedContact}
                 onClick={handleStartChat}
-                className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white font-black text-xs rounded-2xl transition uppercase tracking-wider mt-2 cursor-pointer"
+                className="w-full py-3 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white font-black text-xs rounded-2xl transition uppercase tracking-wider mt-2 cursor-pointer"
               >
                 Start New Chat
               </button>

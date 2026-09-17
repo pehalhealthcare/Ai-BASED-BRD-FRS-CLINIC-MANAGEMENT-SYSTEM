@@ -1,8 +1,8 @@
-import { clsx } from 'clsx';
+﻿import { clsx } from 'clsx';
 
 const colorMap = {
   default:  'bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-300',
-  success:  'bg-aura-50 text-aura-700 dark:bg-aura-500/15 dark:text-aura-300',
+  success:  'bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300',
   warning:  'bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300',
   danger:   'bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300',
   info:     'bg-sky-50 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300',
@@ -12,7 +12,7 @@ const colorMap = {
 
 const dotColorMap = {
   default:  'bg-slate-400 dark:bg-slate-500',
-  success:  'bg-aura-500 dark:bg-aura-400',
+  success:  'bg-blue-500 dark:bg-blue-400',
   warning:  'bg-amber-500 dark:bg-amber-400',
   danger:   'bg-rose-500 dark:bg-rose-400',
   info:     'bg-sky-500 dark:bg-sky-400',

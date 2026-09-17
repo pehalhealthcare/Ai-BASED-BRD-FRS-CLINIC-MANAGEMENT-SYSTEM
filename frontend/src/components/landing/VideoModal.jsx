@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+﻿import React, { useEffect } from 'react';
 import { X, Play, Sparkles, CheckCircle2, Shield, Activity, Zap } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -80,7 +80,7 @@ export default function VideoModal({ isOpen, onClose, onSetupClinic }) {
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-left mb-6 text-xs text-slate-300">
                 <div className="flex items-center gap-2 bg-slate-800/80 p-2.5 rounded-xl border border-slate-700/50">
-                  <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
+                  <CheckCircle2 size={16} className="text-blue-400 shrink-0" />
                   <span>OPD & Live Tokens</span>
                 </div>
                 <div className="flex items-center gap-2 bg-slate-800/80 p-2.5 rounded-xl border border-slate-700/50">

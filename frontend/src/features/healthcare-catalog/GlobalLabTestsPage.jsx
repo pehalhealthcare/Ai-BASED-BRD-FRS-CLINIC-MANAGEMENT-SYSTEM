@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Plus, Download, Upload, Search, Edit2, SlidersHorizontal, RefreshCw, X, HelpCircle, Check, AlertCircle, FileSpreadsheet, Trash, ArrowUp, ArrowDown } from 'lucide-react';
 import { healthcareCatalogApi } from '../../lib/api';
 import ImportModal from './ImportModal';
@@ -520,10 +520,10 @@ const GlobalLabTestsPage = () => {
           </div>
         </div>
         <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-xl">✅</div>
+          <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xl">✅</div>
           <div>
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Active Investigations</span>
-            <span className="text-2xl font-black text-emerald-600 mt-0.5 block">{activeCount}</span>
+            <span className="text-2xl font-black text-blue-600 mt-0.5 block">{activeCount}</span>
           </div>
         </div>
         <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4">
@@ -688,7 +688,7 @@ const GlobalLabTestsPage = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${test.investigationType === 'ATOMIC_TEST' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-blue-50 text-blue-600 border border-blue-100'}`}>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${test.investigationType === 'ATOMIC_TEST' ? 'bg-blue-50 text-blue-600 border border-blue-100' : 'bg-blue-50 text-blue-600 border border-blue-100'}`}>
                         {test.investigationType === 'ATOMIC_TEST' ? 'ATOMIC TEST' : test.investigationType || 'ATOMIC TEST'}
                       </span>
                     </td>
@@ -699,7 +699,7 @@ const GlobalLabTestsPage = () => {
                     </td>
                     <td className="px-6 py-4">{test.normalReportingTime}</td>
                     <td className="px-6 py-4">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${test.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${test.isActive ? 'bg-blue-50 text-blue-700' : 'bg-red-50 text-red-700'}`}>
                         {test.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </td>
@@ -994,7 +994,7 @@ const GlobalLabTestsPage = () => {
                                 {p.shortName && <span className="text-slate-400 ml-1.5">({p.shortName})</span>}
                                 <span className="text-[10px] text-slate-400 block">{p.parameterId} • {p.resultType}</span>
                               </div>
-                              <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${isSelected ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700'}`}>
+                              <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${isSelected ? 'bg-blue-50 text-blue-700' : 'bg-blue-50 text-blue-700'}`}>
                                 {isSelected ? 'Added' : '+ Add'}
                               </span>
                             </button>
@@ -1210,7 +1210,7 @@ const GlobalLabTestsPage = () => {
                                 </div>
                                 <div>
                                   {isSelected ? (
-                                    <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-2.5 py-1 rounded-lg flex items-center gap-1">
+                                    <span className="text-[10px] text-blue-600 font-bold bg-blue-50 px-2.5 py-1 rounded-lg flex items-center gap-1">
                                       <Check className="w-3 h-3" /> Already Added
                                     </span>
                                   ) : (

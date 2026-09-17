@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+﻿import { useEffect, useState, useRef } from 'react';
 import {
   Pill, Search, UserCheck, MessageSquare, AlertCircle, ShoppingBag,
   X, ChevronRight, Upload, Percent, Gift, Truck, ShoppingCart,
@@ -392,13 +392,13 @@ export default function PharmacyStorePage() {
           <div className="relative overflow-hidden rounded-2xl p-6 bg-[#060d18] dark:bg-navy-900 border border-white/[0.06] flex flex-col md:flex-row md:items-center justify-between gap-6">
             {/* Background glow */}
             <div className="absolute inset-0 pointer-events-none overflow-hidden">
-              <div className="absolute -top-20 -right-20 w-72 h-72 rounded-full bg-emerald-500/10 blur-3xl" />
+              <div className="absolute -top-20 -right-20 w-72 h-72 rounded-full bg-blue-500/10 blur-3xl" />
               <div className="absolute -bottom-16 -left-10 w-64 h-64 rounded-full bg-indigo-600/10 blur-3xl" />
             </div>
 
             <div className="relative flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center shrink-0">
-                <ShoppingBag size={26} className="text-emerald-400" />
+              <div className="w-14 h-14 rounded-2xl bg-blue-500/20 border border-blue-500/30 flex items-center justify-center shrink-0">
+                <ShoppingBag size={26} className="text-blue-400" />
               </div>
               <div>
                 <h1 className="text-xl md:text-2xl font-extrabold text-white">Order Medicines & Essentials</h1>
@@ -433,7 +433,7 @@ export default function PharmacyStorePage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search medicines or healthcare products..."
-                className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm bg-slate-50 dark:bg-navy-900 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-aura-500 transition"
+                className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm bg-slate-50 dark:bg-navy-900 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 transition"
               />
             </div>
             <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -459,12 +459,12 @@ export default function PharmacyStorePage() {
           <div className="space-y-3">
             <div className="flex justify-between items-center">
               <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">Popular Categories</h3>
-              <button onClick={() => setSelectedCategory('All')} className="text-xs font-bold text-aura-500 hover:text-aura-600">View All</button>
+              <button onClick={() => setSelectedCategory('All')} className="text-xs font-bold text-blue-500 hover:text-blue-600">View All</button>
             </div>
             <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
               {[
                 { name: 'Pain Relief', count: '120 Items', icon: <Pill size={18} className="text-indigo-500" />, bg: 'bg-indigo-500/10' },
-                { name: 'Vitamins & Supplements', count: '86 Items', icon: <Pill size={18} className="text-emerald-500" />, bg: 'bg-emerald-500/10' },
+                { name: 'Vitamins & Supplements', count: '86 Items', icon: <Pill size={18} className="text-blue-500" />, bg: 'bg-blue-500/10' },
                 { name: 'Cold & Cough', count: '64 Items', icon: <Pill size={18} className="text-blue-500" />, bg: 'bg-blue-500/10' },
                 { name: 'Diabetes Care', count: '44 Items', icon: <Pill size={18} className="text-amber-500" />, bg: 'bg-amber-500/10' },
                 { name: 'Skin Care', count: '72 Items', icon: <Pill size={18} className="text-rose-500" />, bg: 'bg-rose-500/10' },
@@ -473,7 +473,7 @@ export default function PharmacyStorePage() {
                 <button
                   key={cat.name}
                   onClick={() => setSelectedCategory(cat.name.split(' ')[0])}
-                  className="p-3.5 rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-navy-800 hover:border-aura-400 dark:hover:border-aura-500/50 hover:shadow-sm transition-all text-left flex items-center gap-3 shrink-0 min-w-[180px]"
+                  className="p-3.5 rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-navy-800 hover:border-blue-400 dark:hover:border-blue-500/50 hover:shadow-sm transition-all text-left flex items-center gap-3 shrink-0 min-w-[180px]"
                 >
                   <div className={`w-10 h-10 rounded-xl ${cat.bg} flex items-center justify-center shrink-0`}>
                     {cat.icon}
@@ -498,12 +498,12 @@ export default function PharmacyStorePage() {
                   return (
                     <Card
                       key={med._id}
-                      className="hover:border-aura-400 dark:hover:border-aura-500/40 hover:shadow-sm transition-all flex flex-col justify-between"
+                      className="hover:border-blue-400 dark:hover:border-blue-500/40 hover:shadow-sm transition-all flex flex-col justify-between"
                     >
                       <div className="space-y-2">
                         <div className="flex justify-between items-start">
-                          <div className="w-9 h-9 rounded-lg bg-aura-50 dark:bg-aura-500/10 flex items-center justify-center">
-                            <Pill size={16} className="text-aura-600 dark:text-aura-400" />
+                          <div className="w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center">
+                            <Pill size={16} className="text-blue-600 dark:text-blue-400" />
                           </div>
                           <Badge color={isOutOfStock ? 'danger' : 'success'}>
                             {isOutOfStock ? 'Out of Stock' : `${med.totalStock} In Stock`}
@@ -526,7 +526,7 @@ export default function PharmacyStorePage() {
                             setSelectedMedicine(med);
                             setReserveModalOpen(true);
                           }}
-                          className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-aura-600 hover:bg-aura-700 text-white disabled:bg-slate-100 disabled:text-slate-400 transition"
+                          className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white disabled:bg-slate-100 disabled:text-slate-400 transition"
                         >
                           Reserve
                         </button>
@@ -601,7 +601,7 @@ export default function PharmacyStorePage() {
                     alert('Order confirmed successfully! Pickup ready in 24 hours.');
                     setCart([]);
                   }}
-                  className="w-full py-2 bg-aura-600 hover:bg-aura-700 text-white rounded-xl text-xs font-bold transition"
+                  className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition"
                 >
                   Checkout (₹{cart.reduce((sum, item) => sum + item.price, 0).toFixed(2)})
                 </button>
@@ -615,7 +615,7 @@ export default function PharmacyStorePage() {
                 </div>
                 <button
                   onClick={() => alert('Search medicines by typing in the search bar above')}
-                  className="px-4 py-2 bg-aura-600 hover:bg-aura-700 text-white rounded-xl text-xs font-bold transition"
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition"
                 >
                   Browse Medicines
                 </button>
@@ -627,7 +627,7 @@ export default function PharmacyStorePage() {
           <div className="rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-navy-800 p-5">
             <div className="flex justify-between items-center pb-3 mb-3 border-b border-slate-100 dark:border-white/[0.06]">
               <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">My Orders</h3>
-              <button onClick={() => alert('Redirecting to order history')} className="text-xs font-bold text-aura-500 hover:text-aura-600">View All</button>
+              <button onClick={() => alert('Redirecting to order history')} className="text-xs font-bold text-blue-500 hover:text-blue-600">View All</button>
             </div>
             
             <div className="space-y-3.5">
@@ -640,7 +640,7 @@ export default function PharmacyStorePage() {
                   <div className="flex items-center gap-1.5 shrink-0">
                     <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold ${
                       ord.status === 'completed'
-                        ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                        ? 'bg-blue-500/10 text-blue-500 border border-blue-500/20'
                         : ord.status === 'cancelled'
                         ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20'
                         : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
@@ -661,14 +661,14 @@ export default function PharmacyStorePage() {
           <div className="rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-navy-800 p-5">
             <div className="flex justify-between items-center pb-3 mb-3 border-b border-slate-100 dark:border-white/[0.06]">
               <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">Offers for You</h3>
-              <button onClick={() => alert('Viewing all active promotional coupon offers')} className="text-xs font-bold text-aura-500 hover:text-aura-600">View All</button>
+              <button onClick={() => alert('Viewing all active promotional coupon offers')} className="text-xs font-bold text-blue-500 hover:text-blue-600">View All</button>
             </div>
 
             <div className="space-y-3">
               {[
                 { title: 'FLAT 20% OFF', desc: 'On all medicines', code: 'SAVE20', icon: <Percent size={14} className="text-indigo-500" />, bg: 'bg-indigo-500/10' },
                 { title: 'FLAT 15% OFF', desc: 'On orders above ₹999', code: 'HEALTH15', icon: <Gift size={14} className="text-amber-500" />, bg: 'bg-amber-500/10' },
-                { title: 'FREE DELIVERY', desc: 'On orders above ₹499', code: 'FREEDEL', icon: <Truck size={14} className="text-emerald-500" />, bg: 'bg-emerald-500/10' }
+                { title: 'FREE DELIVERY', desc: 'On orders above ₹499', code: 'FREEDEL', icon: <Truck size={14} className="text-blue-500" />, bg: 'bg-blue-500/10' }
               ].map(promo => (
                 <div key={promo.code} className="p-3 rounded-xl border border-slate-100 dark:border-white/[0.04] bg-slate-50/50 dark:bg-navy-900/40 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2.5 min-w-0">
@@ -680,7 +680,7 @@ export default function PharmacyStorePage() {
                       <p className="text-[10px] text-slate-400 mt-0.5">{promo.desc}</p>
                     </div>
                   </div>
-                  <span className="text-[10px] font-bold font-mono text-aura-500 bg-aura-500/10 px-2 py-0.5 rounded border border-aura-500/20">{promo.code}</span>
+                  <span className="text-[10px] font-bold font-mono text-blue-500 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">{promo.code}</span>
                 </div>
               ))}
             </div>
@@ -689,7 +689,7 @@ export default function PharmacyStorePage() {
           {/* Pharmacist Help Card */}
           <div className="rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-navy-800 p-5 space-y-4">
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0 text-emerald-600"><MessageSquare size={18} /></div>
+              <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0 text-blue-600"><MessageSquare size={18} /></div>
               <div>
                 <h4 className="text-sm font-bold text-slate-850 dark:text-slate-200">Need Help?</h4>
                 <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
@@ -699,7 +699,7 @@ export default function PharmacyStorePage() {
             </div>
             <button
               onClick={() => setPharmacistModalOpen(true)}
-              className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 text-xs font-semibold text-emerald-500 dark:text-emerald-400 transition"
+              className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 text-xs font-semibold text-blue-500 dark:text-blue-400 transition"
             >
               <MessageSquare size={13} />
               Contact Pharmacy Support
@@ -726,7 +726,7 @@ export default function PharmacyStorePage() {
 
             {querySuccess ? (
               <div className="py-6 text-center space-y-3">
-                <div className="w-12 h-12 rounded-full bg-aura-500/10 flex items-center justify-center mx-auto text-aura-500">
+                <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center mx-auto text-blue-500">
                   <UserCheck size={24} />
                 </div>
                 <h4 className="text-sm font-semibold text-slate-900 dark:text-white">Request Sent to Pharmacist</h4>
@@ -742,13 +742,13 @@ export default function PharmacyStorePage() {
                     onChange={(e) => setPharmacistQuery(e.target.value)}
                     required
                     placeholder="Ask about side effects, correct dosage, drug interactions, or stock availability..."
-                    className="w-full px-4 py-3 rounded-xl text-sm bg-slate-50 dark:bg-navy-900 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-aura-500 transition resize-none"
+                    className="w-full px-4 py-3 rounded-xl text-sm bg-slate-50 dark:bg-navy-900 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 transition resize-none"
                   />
                 </div>
                 <button
                   type="submit"
                   disabled={submittingQuery}
-                  className="w-full py-2.5 rounded-xl text-sm font-semibold bg-aura-600 hover:bg-aura-700 text-white transition flex justify-center items-center gap-2"
+                  className="w-full py-2.5 rounded-xl text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white transition flex justify-center items-center gap-2"
                 >
                   {submittingQuery ? 'Sending...' : 'Submit Message'}
                 </button>
@@ -764,8 +764,8 @@ export default function PharmacyStorePage() {
           <div className="w-full max-w-md bg-white dark:bg-navy-800 rounded-2xl border border-slate-200 dark:border-white/[0.08] shadow-2xl p-6 animate-scale-up">
             <div className="flex justify-between items-center pb-4 mb-4 border-b border-slate-100 dark:border-white/[0.06]">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-aura-50 dark:bg-aura-500/10 flex items-center justify-center">
-                  <Pill size={16} className="text-aura-600 dark:text-aura-400" />
+                <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center">
+                  <Pill size={16} className="text-blue-600 dark:text-blue-400" />
                 </div>
                 <h3 className="text-base font-bold text-slate-900 dark:text-white">Reserve Medication</h3>
               </div>
@@ -776,7 +776,7 @@ export default function PharmacyStorePage() {
 
             {reserveSuccess ? (
               <div className="py-6 text-center space-y-3">
-                <div className="w-12 h-12 rounded-full bg-aura-500/10 flex items-center justify-center mx-auto text-aura-500">
+                <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center mx-auto text-blue-500">
                   <ShoppingBag size={24} />
                 </div>
                 <h4 className="text-sm font-semibold text-slate-900 dark:text-white">Reservation Successful</h4>
@@ -808,7 +808,7 @@ export default function PharmacyStorePage() {
                     max={selectedMedicine.totalStock}
                     value={reserveQty}
                     onChange={(e) => setReserveQty(Math.min(selectedMedicine.totalStock, Math.max(1, Number(e.target.value))))}
-                    className="w-full px-3 py-2 rounded-xl text-xs bg-slate-50 dark:bg-navy-900 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-aura-500 transition"
+                    className="w-full px-3 py-2 rounded-xl text-xs bg-slate-50 dark:bg-navy-900 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500 transition"
                   />
                 </div>
 
@@ -821,7 +821,7 @@ export default function PharmacyStorePage() {
                       onClick={() => setPrescriptionType('system')}
                       className={`flex-1 py-2 rounded-xl text-[10px] font-bold uppercase transition ${
                         prescriptionType === 'system'
-                          ? 'bg-aura-600 text-white'
+                          ? 'bg-blue-600 text-white'
                           : 'bg-slate-100 dark:bg-white/8 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
                       }`}
                     >
@@ -832,7 +832,7 @@ export default function PharmacyStorePage() {
                       onClick={() => setPrescriptionType('manual')}
                       className={`flex-1 py-2 rounded-xl text-[10px] font-bold uppercase transition ${
                         prescriptionType === 'manual'
-                          ? 'bg-aura-600 text-white'
+                          ? 'bg-blue-600 text-white'
                           : 'bg-slate-100 dark:bg-white/8 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
                       }`}
                     >
@@ -850,7 +850,7 @@ export default function PharmacyStorePage() {
                         value={selectedPrescriptionId}
                         onChange={(e) => setSelectedPrescriptionId(e.target.value)}
                         required
-                        className="w-full px-3 py-2 rounded-xl text-xs bg-slate-50 dark:bg-navy-900 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-aura-500 transition"
+                        className="w-full px-3 py-2 rounded-xl text-xs bg-slate-50 dark:bg-navy-900 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500 transition"
                       >
                         <option value="">Select prescription...</option>
                         {patientPrescriptions.map((rx) => (
@@ -873,10 +873,10 @@ export default function PharmacyStorePage() {
                       required
                       accept=".pdf,image/*"
                       onChange={(e) => setUploadedFileName(e.target.files[0]?.name || '')}
-                      className="w-full text-xs text-slate-500 dark:text-slate-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-[11px] file:font-semibold file:bg-aura-600 file:text-white hover:file:bg-aura-700 cursor-pointer"
+                      className="w-full text-xs text-slate-500 dark:text-slate-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-[11px] file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer"
                     />
                     {uploadedFileName && (
-                      <p className="text-[10px] text-aura-600 dark:text-aura-400 mt-1">File selected: {uploadedFileName}</p>
+                      <p className="text-[10px] text-blue-600 dark:text-blue-400 mt-1">File selected: {uploadedFileName}</p>
                     )}
                   </div>
                 )}
@@ -889,7 +889,7 @@ export default function PharmacyStorePage() {
                   <button
                     type="submit"
                     disabled={reserving || (prescriptionType === 'system' && patientPrescriptions.length === 0)}
-                    className="px-6 py-2.5 rounded-xl text-sm font-semibold bg-aura-600 hover:bg-aura-700 text-white transition disabled:opacity-50"
+                    className="px-6 py-2.5 rounded-xl text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white transition disabled:opacity-50"
                   >
                     {reserving ? 'Reserving...' : 'Confirm'}
                   </button>
@@ -931,9 +931,9 @@ export default function PharmacyStorePage() {
                       setUploadStep('camera');
                       startCamera();
                     }}
-                    className="flex flex-col items-center justify-center p-6 rounded-2xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.06] hover:border-emerald-500/30 transition-all duration-200 group text-center"
+                    className="flex flex-col items-center justify-center p-6 rounded-2xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.06] hover:border-blue-500/30 transition-all duration-200 group text-center"
                   >
-                    <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform mb-4">
+                    <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform mb-4">
                       <Camera size={22} />
                     </div>
                     <h4 className="font-bold text-sm text-white">Open Camera</h4>
@@ -991,17 +991,17 @@ export default function PharmacyStorePage() {
                             className="w-full h-full object-cover"
                           />
                           {/* Guides */}
-                          <div className="absolute inset-4 border border-dashed border-emerald-500/40 rounded-xl pointer-events-none flex flex-col justify-between p-3">
+                          <div className="absolute inset-4 border border-dashed border-blue-500/40 rounded-xl pointer-events-none flex flex-col justify-between p-3">
                             <div className="flex justify-between">
-                              <span className="w-4 h-4 border-t-2 border-l-2 border-emerald-400" />
-                              <span className="w-4 h-4 border-t-2 border-r-2 border-emerald-400" />
+                              <span className="w-4 h-4 border-t-2 border-l-2 border-blue-400" />
+                              <span className="w-4 h-4 border-t-2 border-r-2 border-blue-400" />
                             </div>
-                            <p className="text-[9px] font-semibold text-emerald-400/80 bg-black/60 px-2 py-1 rounded self-center leading-none">
+                            <p className="text-[9px] font-semibold text-blue-400/80 bg-black/60 px-2 py-1 rounded self-center leading-none">
                               Position the prescription within the frame
                             </p>
                             <div className="flex justify-between">
-                              <span className="w-4 h-4 border-b-2 border-l-2 border-emerald-400" />
-                              <span className="w-4 h-4 border-b-2 border-r-2 border-emerald-400" />
+                              <span className="w-4 h-4 border-b-2 border-l-2 border-blue-400" />
+                              <span className="w-4 h-4 border-b-2 border-r-2 border-blue-400" />
                             </div>
                           </div>
                         </>
@@ -1015,7 +1015,7 @@ export default function PharmacyStorePage() {
                   ) : (
                     <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-black aspect-video flex items-center justify-center relative">
                       <img src={capturedImage} alt="Captured Prescription" className="w-full h-full object-contain" />
-                      <div className="absolute top-3 right-3 bg-emerald-500 text-white p-1 rounded-full shadow-lg">
+                      <div className="absolute top-3 right-3 bg-blue-500 text-white p-1 rounded-full shadow-lg">
                         <CheckCircle2 size={16} />
                       </div>
                     </div>
@@ -1038,7 +1038,7 @@ export default function PharmacyStorePage() {
                           type="button"
                           onClick={capturePhoto}
                           disabled={!cameraActive}
-                          className="px-5 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-lg shadow-emerald-600/20 transition flex items-center gap-1.5"
+                          className="px-5 py-2 text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white rounded-xl shadow-lg shadow-blue-600/20 transition flex items-center gap-1.5"
                         >
                           <Camera size={13} />
                           Capture Photo
@@ -1060,7 +1060,7 @@ export default function PharmacyStorePage() {
                           type="button"
                           onClick={handleSubmitManualUpload}
                           disabled={uploadingManual}
-                          className="px-5 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-lg shadow-emerald-600/20 transition"
+                          className="px-5 py-2 text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white rounded-xl shadow-lg shadow-blue-600/20 transition"
                         >
                           {uploadingManual ? 'Uploading...' : 'Confirm Upload'}
                         </button>
@@ -1181,7 +1181,7 @@ export default function PharmacyStorePage() {
                             <button
                               type="button"
                               onClick={() => handleUsePrescription(rx)}
-                              className="px-3.5 py-1.5 text-[10px] font-bold border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500 hover:text-white rounded-lg transition shrink-0"
+                              className="px-3.5 py-1.5 text-[10px] font-bold border border-blue-500/30 text-blue-400 hover:bg-blue-500 hover:text-white rounded-lg transition shrink-0"
                             >
                               Use
                             </button>

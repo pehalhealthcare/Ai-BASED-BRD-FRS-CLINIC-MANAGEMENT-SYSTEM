@@ -1,11 +1,11 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 
 import ClinicalNotesEditor from './ClinicalNotesEditor';
 import SOAPNoteEditor from './SOAPNoteEditor';
 import VitalsForm from './VitalsForm';
 
 const FIELD_CLASS =
-  'w-full rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800/50 px-4 py-3 text-sm text-stone-800 dark:text-stone-200 outline-none transition-all duration-200 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:focus:ring-emerald-900/30 placeholder:text-stone-400 dark:placeholder:text-stone-500';
+  'w-full rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800/50 px-4 py-3 text-sm text-stone-800 dark:text-stone-200 outline-none transition-all duration-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 placeholder:text-stone-400 dark:placeholder:text-stone-500';
 
 const severityOptions = [
   { value: 'mild', label: 'Mild', colorClass: 'severity-mild' },
@@ -29,7 +29,7 @@ const ChevronIcon = ({ expanded }) => (
 const CollapsibleSection = ({ title, icon, subtitle, defaultOpen = true, accentColor = 'emerald', children }) => {
   const [expanded, setExpanded] = useState(defaultOpen);
   const dotColors = {
-    emerald: 'bg-emerald-500',
+    emerald: 'bg-blue-500',
     sky: 'bg-sky-500',
     amber: 'bg-amber-500',
     violet: 'bg-violet-500',
@@ -99,7 +99,7 @@ const ConsultationForm = ({
         <button
           type="submit"
           disabled={saving}
-          className="btn-glow rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-emerald-700 disabled:opacity-40"
+          className="btn-glow rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-blue-700 disabled:opacity-40"
         >
           {saving ? '⏳ Saving...' : isExistingConsultation ? '💾 Save Draft' : '▶️ Start Consultation'}
         </button>
@@ -213,7 +213,7 @@ const ConsultationForm = ({
         <button
           type="button"
           onClick={onAddSymptom}
-          className="justify-self-start rounded-xl border border-dashed border-stone-300 dark:border-stone-600 px-4 py-2.5 text-sm font-semibold text-stone-600 dark:text-stone-400 hover:border-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all"
+          className="justify-self-start rounded-xl border border-dashed border-stone-300 dark:border-stone-600 px-4 py-2.5 text-sm font-semibold text-stone-600 dark:text-stone-400 hover:border-blue-400 hover:text-blue-600 dark:hover:text-blue-400 transition-all"
         >
           + Add Symptom
         </button>
@@ -248,12 +248,12 @@ const ConsultationForm = ({
             />
           </label>
         </div>
-        <label className="flex items-center gap-3 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800/30 px-4 py-3 text-sm font-medium text-stone-700 dark:text-stone-300 cursor-pointer hover:border-emerald-300 transition-all">
+        <label className="flex items-center gap-3 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800/30 px-4 py-3 text-sm font-medium text-stone-700 dark:text-stone-300 cursor-pointer hover:border-blue-300 transition-all">
           <input
             type="checkbox"
             checked={Boolean(form.followUp.required)}
             onChange={(event) => onFieldChange('followUp.required', event.target.checked)}
-            className="h-4 w-4 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500"
+            className="h-4 w-4 rounded border-stone-300 text-blue-600 focus:ring-blue-500"
           />
           Follow-up required
         </label>
@@ -271,7 +271,7 @@ const ConsultationForm = ({
     </CollapsibleSection>
 
     {/* Info footer */}
-    <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 px-4 py-3 text-sm text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
+    <div className="rounded-xl bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 px-4 py-3 text-sm text-blue-800 dark:text-blue-300 flex items-center gap-2">
       <span>💡</span>
       Prescription creation is available from the consultation workspace after the draft is saved.
     </div>

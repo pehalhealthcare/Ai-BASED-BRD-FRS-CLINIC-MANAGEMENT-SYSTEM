@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import ErrorState from '../../components/common/ErrorState';
@@ -141,10 +141,10 @@ const DoctorAvailabilityEditor = ({ value, onChange }) => {
     <section className="grid gap-6">
       <div className="flex flex-col gap-3 rounded-3xl border border-stone-200 bg-white p-6 shadow-lg shadow-stone-200/40 md:flex-row md:items-center md:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">Doctor availability</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-700">Doctor availability</p>
           <h2 className="mt-2 text-2xl font-semibold text-stone-900">{doctorName || 'Doctor'}</h2>
         </div>
-        <Link className="text-sm font-semibold text-emerald-700 hover:text-emerald-800" to={`/doctors/${id}`}>
+        <Link className="text-sm font-semibold text-blue-700 hover:text-blue-800" to={`/doctors/${id}`}>
           Back to doctor profile
         </Link>
       </div>
@@ -153,7 +153,7 @@ const DoctorAvailabilityEditor = ({ value, onChange }) => {
         <AvailabilityFields availability={currentAvailability} onChange={updateCurrentAvailability} />
         {error ? <p className="rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p> : null}
         <div className="flex flex-wrap gap-3">
-          <button type="submit" disabled={submitting} className="rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60">
+          <button type="submit" disabled={submitting} className="rounded-2xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60">
             {submitting ? 'Saving...' : 'Save availability'}
           </button>
           <Link className="rounded-2xl border border-stone-300 px-5 py-3 text-sm font-semibold text-stone-700 transition hover:bg-stone-50" to={`/doctors/${id}`}>

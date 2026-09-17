@@ -1,4 +1,4 @@
-// src/features/pharmacy/MedicineDetailPage.jsx
+﻿// src/features/pharmacy/MedicineDetailPage.jsx
 import { useEffect, useState, useMemo } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
@@ -380,7 +380,7 @@ const MedicineDetailPage = () => {
           </button>
           <button
             onClick={() => setIsEditMode(!isEditMode)}
-            className="px-4 py-2 bg-emerald-650 hover:bg-emerald-700 text-white text-xs font-black rounded-xl transition flex items-center gap-1.5"
+            className="px-4 py-2 bg-blue-650 hover:bg-blue-700 text-white text-xs font-black rounded-xl transition flex items-center gap-1.5"
           >
             <Edit3 size={13} /> {isEditMode ? 'View Mode' : 'Edit Medicine'}
           </button>
@@ -482,7 +482,7 @@ const MedicineDetailPage = () => {
                 type="checkbox"
                 checked={editForm.isActive}
                 onChange={(e) => setEditForm({ ...editForm, isActive: e.target.checked })}
-                className="rounded border-white/10 bg-slate-900 text-emerald-600 focus:ring-emerald-500 w-4 h-4"
+                className="rounded border-white/10 bg-slate-900 text-blue-600 focus:ring-blue-500 w-4 h-4"
               />
               Active Product Status
             </label>
@@ -491,7 +491,7 @@ const MedicineDetailPage = () => {
                 type="checkbox"
                 checked={editForm.requiresPrescription}
                 onChange={(e) => setEditForm({ ...editForm, requiresPrescription: e.target.checked })}
-                className="rounded border-white/10 bg-slate-900 text-emerald-600 focus:ring-emerald-500 w-4 h-4"
+                className="rounded border-white/10 bg-slate-900 text-blue-600 focus:ring-blue-500 w-4 h-4"
               />
               Requires Prescription Tag
             </label>
@@ -522,7 +522,7 @@ const MedicineDetailPage = () => {
           <div className="bg-[#060d18] border border-white/[0.08] rounded-3xl p-6 flex items-center gap-5">
             <div className="w-16 h-16 rounded-2xl bg-indigo-950/40 border border-white/5 flex items-center justify-center shrink-0">
               {/* Dynamic capsule illustration depending on category */}
-              <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-emerald-500 to-emerald-450 border border-white/15 flex items-center justify-center text-white text-xs font-bold shadow-lg shadow-emerald-500/20">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-500 to-blue-450 border border-white/15 flex items-center justify-center text-white text-xs font-bold shadow-lg shadow-blue-500/20">
                 Pill
               </div>
             </div>
@@ -531,7 +531,7 @@ const MedicineDetailPage = () => {
               <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-lg font-black text-white">{medicine.name || 'Albuterol Sulfate'}</h2>
                 <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider ${
-                  medicine.isActive ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/10' : 'bg-slate-800 text-slate-400'
+                  medicine.isActive ? 'bg-blue-500/10 text-blue-400 border border-blue-500/10' : 'bg-slate-800 text-slate-400'
                 }`}>
                   {medicine.isActive ? 'Active' : 'Inactive'}
                 </span>
@@ -582,7 +582,7 @@ const MedicineDetailPage = () => {
                   <ul className="space-y-1.5 mt-1.5">
                     {drugDetails.uses.map((use, idx) => (
                       <li key={idx} className="flex items-start gap-2 text-slate-400">
-                        <Check size={12} className="text-emerald-400 shrink-0 mt-0.5" />
+                        <Check size={12} className="text-blue-400 shrink-0 mt-0.5" />
                         <span>{use}</span>
                       </li>
                     ))}
@@ -663,7 +663,7 @@ const MedicineDetailPage = () => {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="p-3 bg-slate-900/50 border border-white/5 rounded-2xl">
                     <p className="text-[9px] text-slate-500 uppercase font-bold">Available Stock</p>
-                    <p className="text-emerald-400 font-black text-lg mt-1">{medicine.totalStock ?? 0} <span className="text-[10px] font-normal text-slate-500">Units</span></p>
+                    <p className="text-blue-400 font-black text-lg mt-1">{medicine.totalStock ?? 0} <span className="text-[10px] font-normal text-slate-500">Units</span></p>
                   </div>
                   <div className="p-3 bg-slate-900/50 border border-white/5 rounded-2xl">
                     <p className="text-[9px] text-slate-500 uppercase font-bold">Reorder Level</p>
@@ -682,7 +682,7 @@ const MedicineDetailPage = () => {
                 <div className="flex justify-between items-center pt-2.5 border-t border-white/[0.04] text-[10px]">
                   <div>
                     <p className="text-slate-505 uppercase">Stock Status</p>
-                    <span className="px-1.5 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/10 rounded font-black text-[9px] mt-1 inline-block uppercase">In Stock</span>
+                    <span className="px-1.5 py-0.5 bg-blue-500/10 text-blue-400 border border-blue-500/10 rounded font-black text-[9px] mt-1 inline-block uppercase">In Stock</span>
                   </div>
                   <div className="text-right">
                     <p className="text-slate-505 uppercase">Last Updated</p>
@@ -748,14 +748,14 @@ const MedicineDetailPage = () => {
                         <td className="py-3 px-3 text-slate-400">
                           {batch.expiryDate ? new Date(batch.expiryDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'}
                         </td>
-                        <td className="py-3 px-3 text-center font-bold text-emerald-400">{batch.quantity} Units</td>
+                        <td className="py-3 px-3 text-center font-bold text-blue-400">{batch.quantity} Units</td>
                         <td className="py-3 px-3 text-center text-slate-350">₹{(batch.purchasePrice || 0).toFixed(2)}</td>
                         <td className="py-3 px-3 text-center text-slate-200 font-semibold">₹{(batch.sellingPrice || 0).toFixed(2)}</td>
                         <td className="py-3 px-3 text-slate-400">{batch.supplier || 'ABC Pharma Distributors'}</td>
                         <td className="py-3 px-3 text-slate-500">12 May 2025</td>
                         <td className="py-3 px-3 text-center">
                           <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${
-                            isExpired ? 'bg-rose-500/10 text-rose-400' : 'bg-emerald-500/10 text-emerald-400'
+                            isExpired ? 'bg-rose-500/10 text-rose-400' : 'bg-blue-500/10 text-blue-400'
                           }`}>
                             {isExpired ? 'Expired' : 'Active'}
                           </span>
@@ -1020,7 +1020,7 @@ const MedicineDetailPage = () => {
                         {/* Medicine & Batch Details Card */}
                         <div className="lg:col-span-3 rounded-2xl border border-white/[0.08] bg-[#060d18] p-5 space-y-4">
                           <h3 className="text-xs font-bold text-slate-400 border-b border-white/[0.06] pb-2 flex items-center gap-2">
-                            <Package size={14} className="text-emerald-400" />
+                            <Package size={14} className="text-blue-400" />
                             Medicine & Batch Details
                           </h3>
                           
@@ -1031,7 +1031,7 @@ const MedicineDetailPage = () => {
                             <div className="space-y-1 flex-1">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span className="text-sm font-extrabold text-white">{medicine?.name}</span>
-                                <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/10">{medicine?.form || 'Tablets'}</span>
+                                <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/10">{medicine?.form || 'Tablets'}</span>
                               </div>
                               <p className="text-xs text-slate-400">Generic: {medicine?.genericName} &nbsp;|&nbsp; Strength: {medicine?.strength}</p>
                             </div>
@@ -1052,7 +1052,7 @@ const MedicineDetailPage = () => {
                             </div>
                             <div>
                               <p className="text-[10px] text-slate-555 uppercase">Total Quantity</p>
-                              <p className="font-bold text-emerald-400 mt-0.5">{Number(newBatch.quantity).toLocaleString()} Units</p>
+                              <p className="font-bold text-blue-400 mt-0.5">{Number(newBatch.quantity).toLocaleString()} Units</p>
                             </div>
                             <div>
                               <p className="text-[10px] text-slate-555 uppercase">Purchase Price (per unit)</p>
@@ -1064,7 +1064,7 @@ const MedicineDetailPage = () => {
                         {/* Distribution Method Card */}
                         <div className="lg:col-span-2 rounded-2xl border border-white/[0.08] bg-[#060d18] p-5 space-y-4">
                           <h3 className="text-xs font-bold text-slate-400 border-b border-white/[0.06] pb-2 flex items-center gap-2">
-                            <Layers size={14} className="text-emerald-400" />
+                            <Layers size={14} className="text-blue-400" />
                             Distribution Method
                           </h3>
                           <p className="text-[10px] text-slate-500">Choose how you want to distribute this stock.</p>
@@ -1076,13 +1076,13 @@ const MedicineDetailPage = () => {
                               onClick={() => setDistributionMethod('manual')}
                               className={`p-3 rounded-xl border text-left flex flex-col justify-between h-24 transition-all ${
                                 distributionMethod === 'manual'
-                                  ? 'border-emerald-500 bg-emerald-500/5 text-white'
+                                  ? 'border-blue-500 bg-blue-500/5 text-white'
                                   : 'border-white/10 bg-slate-900/50 hover:bg-slate-900 text-slate-400'
                               }`}
                             >
                               <div className="flex justify-between items-center w-full">
                                 <span className="text-[11px] font-bold">Manual</span>
-                                <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${distributionMethod === 'manual' ? 'border-emerald-500 text-emerald-400 bg-emerald-500/10' : 'border-slate-800'}`}>
+                                <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${distributionMethod === 'manual' ? 'border-blue-500 text-blue-400 bg-blue-500/10' : 'border-slate-800'}`}>
                                   {distributionMethod === 'manual' && <Check size={10} />}
                                 </span>
                               </div>
@@ -1095,13 +1095,13 @@ const MedicineDetailPage = () => {
                               onClick={() => setDistributionMethod('equal')}
                               className={`p-3 rounded-xl border text-left flex flex-col justify-between h-24 transition-all ${
                                 distributionMethod === 'equal'
-                                  ? 'border-emerald-500 bg-emerald-500/5 text-white'
+                                  ? 'border-blue-500 bg-blue-500/5 text-white'
                                   : 'border-white/10 bg-slate-900/50 hover:bg-slate-900 text-slate-400'
                               }`}
                             >
                               <div className="flex justify-between items-center w-full">
                                 <span className="text-[11px] font-bold">Equal</span>
-                                <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${distributionMethod === 'equal' ? 'border-emerald-500 text-emerald-400 bg-emerald-500/10' : 'border-slate-800'}`}>
+                                <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${distributionMethod === 'equal' ? 'border-blue-500 text-blue-400 bg-blue-500/10' : 'border-slate-800'}`}>
                                   {distributionMethod === 'equal' && <Check size={10} />}
                                 </span>
                               </div>
@@ -1114,13 +1114,13 @@ const MedicineDetailPage = () => {
                               onClick={() => setDistributionMethod('ai')}
                               className={`p-3 rounded-xl border text-left flex flex-col justify-between h-24 transition-all relative ${
                                 distributionMethod === 'ai'
-                                  ? 'border-emerald-500 bg-emerald-500/5 text-white'
+                                  ? 'border-blue-500 bg-blue-500/5 text-white'
                                   : 'border-white/10 bg-slate-900/50 hover:bg-slate-900 text-slate-400'
                               }`}
                             >
                               <div className="flex justify-between items-center w-full">
                                 <span className="text-[11px] font-bold">AI Recommended</span>
-                                <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${distributionMethod === 'ai' ? 'border-emerald-500 text-emerald-400 bg-emerald-500/10' : 'border-slate-800'}`}>
+                                <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${distributionMethod === 'ai' ? 'border-blue-500 text-blue-400 bg-blue-500/10' : 'border-slate-800'}`}>
                                   {distributionMethod === 'ai' && <Check size={10} />}
                                 </span>
                               </div>
@@ -1161,11 +1161,11 @@ const MedicineDetailPage = () => {
                               </div>
                               <div className="bg-slate-900/50 border border-white/5 rounded-xl p-3.5 space-y-1">
                                 <p className="text-[10px] text-slate-505 uppercase font-semibold">Avg. Margin / Unit</p>
-                                <p className="text-sm font-bold text-emerald-400">₹{unitMargin.toFixed(2)} ({marginPct.toFixed(2)}%)</p>
+                                <p className="text-sm font-bold text-blue-400">₹{unitMargin.toFixed(2)} ({marginPct.toFixed(2)}%)</p>
                               </div>
                               <div className="bg-slate-900/50 border border-white/5 rounded-xl p-3.5 space-y-1">
                                 <p className="text-[10px] text-slate-505 uppercase font-semibold">Total Margin (All Units)</p>
-                                <p className="text-sm font-bold text-emerald-400">₹{totalMarginVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                                <p className="text-sm font-bold text-blue-400">₹{totalMarginVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                               </div>
                               <div className="bg-slate-900/50 border border-white/5 rounded-xl p-3.5 space-y-1">
                                 <p className="text-[10px] text-slate-505 uppercase font-semibold">Total Margin %</p>
@@ -1194,9 +1194,9 @@ const MedicineDetailPage = () => {
                                   <p className="text-xs text-slate-400 mt-0.5">Enter the quantity you want to assign to each clinic.</p>
                                 </div>
                                 <div className="flex flex-wrap gap-4 text-xs">
-                                  <span className="text-slate-450">Purchased Quantity: <strong className="text-emerald-400">{totalQtyVal.toLocaleString()} Units</strong></span>
-                                  <span className="text-slate-450">Assigned Quantity: <strong className="text-emerald-400">{assignedQty.toLocaleString()} Units</strong></span>
-                                  <span className="text-slate-450">Remaining Quantity: <strong className={remainingQty > 0 ? 'text-amber-500' : 'text-emerald-400'}>{remainingQty.toLocaleString()} Units</strong></span>
+                                  <span className="text-slate-450">Purchased Quantity: <strong className="text-blue-400">{totalQtyVal.toLocaleString()} Units</strong></span>
+                                  <span className="text-slate-450">Assigned Quantity: <strong className="text-blue-400">{assignedQty.toLocaleString()} Units</strong></span>
+                                  <span className="text-slate-450">Remaining Quantity: <strong className={remainingQty > 0 ? 'text-amber-500' : 'text-blue-400'}>{remainingQty.toLocaleString()} Units</strong></span>
                                 </div>
                               </div>
 
@@ -1211,7 +1211,7 @@ const MedicineDetailPage = () => {
                                       <th className="py-3 font-bold uppercase tracking-wider text-[10px]">Assign Quantity (Units)</th>
                                       <th className="py-3 font-bold uppercase tracking-wider text-[10px]">Assigned Value (Approx.)</th>
                                       <th className="py-3 font-bold uppercase tracking-wider text-[10px]">Margin / Unit</th>
-                                      <th className="py-3 font-bold uppercase tracking-wider text-[10px] text-emerald-400">Total Margin</th>
+                                      <th className="py-3 font-bold uppercase tracking-wider text-[10px] text-blue-400">Total Margin</th>
                                       <th className="py-3 font-bold uppercase tracking-wider text-[10px] text-right">Margin %</th>
                                     </tr>
                                   </thead>
@@ -1231,12 +1231,12 @@ const MedicineDetailPage = () => {
                                                 if (!e.target.checked) updated[idx].quantity = '0';
                                                 setDistributions(updated);
                                               }}
-                                              className="rounded border-white/10 bg-slate-900 text-emerald-600 focus:ring-emerald-500"
+                                              className="rounded border-white/10 bg-slate-900 text-blue-600 focus:ring-blue-500"
                                             />
                                           </td>
                                           <td className="py-3.5">
                                             <div className="flex items-center gap-3">
-                                              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-400 shrink-0">
+                                              <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400 shrink-0">
                                                 <Building2 size={14} />
                                               </div>
                                               <div>
@@ -1257,12 +1257,12 @@ const MedicineDetailPage = () => {
                                                 updated[idx].quantity = e.target.value;
                                                 setDistributions(updated);
                                               }}
-                                              className="w-24 bg-slate-900 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed"
+                                              className="w-24 bg-slate-900 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500 disabled:opacity-40 disabled:cursor-not-allowed"
                                             />
                                           </td>
                                           <td className="py-3.5 font-bold text-slate-200">₹{assignedValue.toFixed(2)}</td>
                                           <td className="py-3.5 text-slate-400">₹{unitMargin.toFixed(2)}</td>
-                                          <td className="py-3.5 text-emerald-450 font-extrabold">₹{totalMargin.toFixed(2)}</td>
+                                          <td className="py-3.5 text-blue-450 font-extrabold">₹{totalMargin.toFixed(2)}</td>
                                           <td className="py-3.5 text-right text-purple-400 font-bold">{marginPct.toFixed(2)}%</td>
                                         </tr>
                                       );
@@ -1315,7 +1315,7 @@ const MedicineDetailPage = () => {
                         {/* Left: Batch & Medicine Summary Card */}
                         <div className="lg:col-span-3 rounded-2xl border border-white/[0.08] bg-[#060d18] p-5 space-y-4">
                           <h3 className="text-xs font-bold text-slate-400 border-b border-white/[0.06] pb-2 flex items-center gap-2">
-                            <Package size={14} className="text-emerald-400" />
+                            <Package size={14} className="text-blue-400" />
                             Batch & Medicine Summary
                           </h3>
                           
@@ -1326,7 +1326,7 @@ const MedicineDetailPage = () => {
                             <div className="space-y-1 flex-1">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span className="text-sm font-extrabold text-white">{medicine?.name}</span>
-                                <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/10">{medicine?.form || 'Tablets'}</span>
+                                <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/10">{medicine?.form || 'Tablets'}</span>
                               </div>
                               <p className="text-xs text-slate-400">Generic: {medicine?.genericName} &nbsp;|&nbsp; Strength: {medicine?.strength}</p>
                             </div>
@@ -1347,7 +1347,7 @@ const MedicineDetailPage = () => {
                             </div>
                             <div>
                               <p className="text-[10px] text-slate-500 uppercase">Total Quantity</p>
-                              <p className="font-bold text-emerald-400 mt-0.5">{Number(newBatch.quantity).toLocaleString()} Units</p>
+                              <p className="font-bold text-blue-400 mt-0.5">{Number(newBatch.quantity).toLocaleString()} Units</p>
                             </div>
                             <div>
                               <p className="text-[10px] text-slate-500 uppercase">Purchase Price (per unit)</p>
@@ -1367,7 +1367,7 @@ const MedicineDetailPage = () => {
                           return (
                             <div className="lg:col-span-2 rounded-2xl border border-white/[0.08] bg-[#060d18] p-5 space-y-4">
                               <h3 className="text-xs font-bold text-slate-400 border-b border-white/[0.06] pb-2 flex items-center gap-2">
-                                <Layers size={14} className="text-emerald-400" />
+                                <Layers size={14} className="text-blue-400" />
                                 Overall Margin Summary (Entire Batch)
                               </h3>
                               
@@ -1386,11 +1386,11 @@ const MedicineDetailPage = () => {
                                 </div>
                                 <div>
                                   <p className="text-[9px] text-slate-500 uppercase font-semibold">Avg. Margin / Unit</p>
-                                  <p className="font-bold text-emerald-400 mt-0.5">₹{unitMargin.toFixed(2)} ({marginPct.toFixed(2)}%)</p>
+                                  <p className="font-bold text-blue-400 mt-0.5">₹{unitMargin.toFixed(2)} ({marginPct.toFixed(2)}%)</p>
                                 </div>
                                 <div>
                                   <p className="text-[9px] text-slate-500 uppercase font-semibold">Total Margin (All Units)</p>
-                                  <p className="font-bold text-emerald-400 mt-0.5">₹{totalMarginVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                                  <p className="font-bold text-blue-400 mt-0.5">₹{totalMarginVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                                 </div>
                                 <div>
                                   <p className="text-[9px] text-slate-500 uppercase font-semibold">Total Margin %</p>
@@ -1414,7 +1414,7 @@ const MedicineDetailPage = () => {
                                 <th className="py-3 font-bold uppercase tracking-wider text-[10px]">Assigned Quantity (Units)</th>
                                 <th className="py-3 font-bold uppercase tracking-wider text-[10px]">Assigned Value (Approx.)</th>
                                 <th className="py-3 font-bold uppercase tracking-wider text-[10px]">Margin / Unit</th>
-                                <th className="py-3 font-bold uppercase tracking-wider text-[10px] text-emerald-400 font-extrabold">Total Margin</th>
+                                <th className="py-3 font-bold uppercase tracking-wider text-[10px] text-blue-400 font-extrabold">Total Margin</th>
                                 <th className="py-3 font-bold uppercase tracking-wider text-[10px]">Margin %</th>
                                 <th className="py-3 font-bold uppercase tracking-wider text-[10px] text-right">Current Stock (After Allocation)</th>
                               </tr>
@@ -1436,7 +1436,7 @@ const MedicineDetailPage = () => {
                                         <tr key={dist.clinicId} className="border-b border-white/[0.03] hover:bg-white/[0.01]">
                                           <td className="py-3.5">
                                             <div className="flex items-center gap-3">
-                                              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-400 shrink-0">
+                                              <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400 shrink-0">
                                                 <Building2 size={14} />
                                               </div>
                                               <div>
@@ -1448,7 +1448,7 @@ const MedicineDetailPage = () => {
                                           <td className="py-3.5 font-bold text-slate-350">{qty.toLocaleString()} Units</td>
                                           <td className="py-3.5 font-semibold text-slate-200">₹{assignedValue.toFixed(2)}</td>
                                           <td className="py-3.5 text-slate-400">₹{unitMargin.toFixed(2)}</td>
-                                          <td className="py-3.5 text-emerald-450 font-extrabold">₹{totalMargin.toFixed(2)}</td>
+                                          <td className="py-3.5 text-blue-450 font-extrabold">₹{totalMargin.toFixed(2)}</td>
                                           <td className="py-3.5 text-purple-400 font-bold">{marginPct.toFixed(2)}%</td>
                                           <td className="py-3.5 text-right text-slate-300">{(dist.currentStock + qty).toLocaleString()} Units</td>
                                         </tr>
@@ -1472,14 +1472,14 @@ const MedicineDetailPage = () => {
                           </h4>
                           <div className="flex items-center justify-between gap-4">
                             <div className="relative w-20 h-20 shrink-0 flex items-center justify-center rounded-full border-[6px] border-indigo-500/10 border-t-indigo-500">
-                              <span className="text-[9px] font-black text-center leading-none text-slate-200">Total<br/><span className="text-[11px] text-emerald-400">100%</span></span>
+                              <span className="text-[9px] font-black text-center leading-none text-slate-200">Total<br/><span className="text-[11px] text-blue-400">100%</span></span>
                             </div>
                             <div className="space-y-1.5 flex-1">
                               {distributions.filter(d => d.checked && Number(d.quantity) > 0).map((d, index) => {
                                 const totalMarginAmt = distributions.reduce((sum, db) => sum + (db.checked ? Number(db.quantity || 0) * (Number(newBatch.sellingPrice || 0) - Number(newBatch.purchasePrice || 0)) : 0), 0);
                                 const currentMarginAmt = Number(d.quantity || 0) * (Number(newBatch.sellingPrice || 0) - Number(newBatch.purchasePrice || 0));
                                 const share = totalMarginAmt > 0 ? ((currentMarginAmt / totalMarginAmt) * 100).toFixed(0) : '0';
-                                const colors = ['bg-indigo-500', 'bg-purple-500', 'bg-blue-500', 'bg-emerald-500'];
+                                const colors = ['bg-indigo-500', 'bg-purple-500', 'bg-blue-500', 'bg-blue-500'];
                                 return (
                                   <div key={d.clinicId} className="flex justify-between items-center text-[10px]">
                                     <span className="flex items-center gap-1.5 truncate max-w-[120px]">
@@ -1501,12 +1501,12 @@ const MedicineDetailPage = () => {
                             Distribution Summary
                           </h4>
                           <div className="flex items-center justify-between gap-4">
-                            <div className="relative w-20 h-20 shrink-0 flex items-center justify-center rounded-full border-[6px] border-emerald-500/10 border-t-emerald-500">
-                              <span className="text-[9px] font-black text-center leading-none text-slate-200">Allocated<br/><span className="text-[11px] text-emerald-400">100%</span></span>
+                            <div className="relative w-20 h-20 shrink-0 flex items-center justify-center rounded-full border-[6px] border-blue-500/10 border-t-blue-500">
+                              <span className="text-[9px] font-black text-center leading-none text-slate-200">Allocated<br/><span className="text-[11px] text-blue-400">100%</span></span>
                             </div>
                             <div className="space-y-2 flex-1 text-[10px] text-slate-400">
                               <div className="flex justify-between">
-                                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-emerald-500" /> Allocated</span>
+                                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-blue-500" /> Allocated</span>
                                 <strong className="text-white font-bold">{Number(newBatch.quantity).toLocaleString()} Units (100%)</strong>
                               </div>
                               <div className="flex justify-between">

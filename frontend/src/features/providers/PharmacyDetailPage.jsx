@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   ArrowLeft, Edit2, LogOut, CheckCircle2, Shield, Building2, Package,
@@ -12,7 +12,7 @@ import toast from 'react-hot-toast';
 
 /* ─── Helpers ─────────────────────────────────────────────────────────────── */
 const statusColor = {
-  Active: 'bg-emerald-100 text-emerald-700',
+  Active: 'bg-blue-100 text-blue-700',
   Inactive: 'bg-slate-100 text-slate-500',
   Suspended: 'bg-red-100 text-red-600',
 };
@@ -27,7 +27,7 @@ const initials = (name = '') =>
 const AVATAR_PALETTE = [
   'from-violet-500 to-indigo-600',
   'from-blue-500 to-cyan-600',
-  'from-emerald-500 to-teal-600',
+  'from-blue-500 to-teal-600',
   'from-orange-500 to-red-500',
   'from-pink-500 to-rose-600',
 ];
@@ -370,7 +370,7 @@ const ProviderDetailPage = () => {
                         <p className="font-bold text-slate-700">{cert.label}</p>
                         <p className="text-slate-400 font-semibold mt-0.5">No: {cert.no} | Expires: {cert.exp}</p>
                       </div>
-                      <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 font-bold rounded-lg">{cert.status}</span>
+                      <span className="px-2 py-0.5 bg-blue-50 text-blue-700 font-bold rounded-lg">{cert.status}</span>
                     </div>
                   ))}
                 </div>
@@ -393,7 +393,7 @@ const ProviderDetailPage = () => {
                   {/* Mock Donut UI */}
                   <div className="relative w-36 h-36 border-8 border-slate-100 rounded-full flex items-center justify-center">
                     {/* Ring colors */}
-                    <div className="absolute inset-0 rounded-full border-8 border-emerald-500 border-t-transparent border-r-transparent rotate-45" />
+                    <div className="absolute inset-0 rounded-full border-8 border-blue-500 border-t-transparent border-r-transparent rotate-45" />
                     <div className="absolute inset-0 rounded-full border-8 border-orange-500 border-b-transparent border-l-transparent rotate-[135deg]" />
                     <div className="absolute inset-0 rounded-full border-8 border-rose-500 border-t-transparent border-l-transparent rotate-[270deg]" />
                     <div className="text-center">
@@ -423,7 +423,7 @@ const ProviderDetailPage = () => {
                       <span className="text-slate-400">{row.label}</span>
                       <div className="flex items-center gap-1.5">
                         <span className="text-slate-850 font-black">{row.val}</span>
-                        {row.growth && <span className="text-emerald-600 text-[10px] font-black">↑ {row.growth}</span>}
+                        {row.growth && <span className="text-blue-600 text-[10px] font-black">↑ {row.growth}</span>}
                       </div>
                     </div>
                   ))}
@@ -452,7 +452,7 @@ const ProviderDetailPage = () => {
                         </div>
                         <div className="text-right">
                           <p className="font-bold text-slate-700">₹{ord.totalPrice || '1,250'}</p>
-                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase ${ord.status === 'completed' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase ${ord.status === 'completed' ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'
                             }`}>{ord.status}</span>
                         </div>
                       </div>
@@ -568,7 +568,7 @@ const ProviderDetailPage = () => {
                       <td className="p-3">{member.phone || '—'}</td>
                       <td className="p-3">General (09:00 – 18:00)</td>
                       <td className="p-3">
-                        <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase ${member.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-400'
+                        <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase ${member.isActive ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-400'
                           }`}>
                           {member.isActive ? 'Active' : 'Inactive'}
                         </span>
@@ -606,7 +606,7 @@ const ProviderDetailPage = () => {
             ].map(int => (
               <div key={int.label} className="p-4 border border-slate-100 rounded-2xl bg-slate-50 flex justify-between items-center text-xs font-bold">
                 <span className="text-slate-805">{int.label}</span>
-                <span className={`px-2 py-0.5 rounded-lg ${int.state === 'Connected' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-400'
+                <span className={`px-2 py-0.5 rounded-lg ${int.state === 'Connected' ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-400'
                   }`}>{int.state}</span>
               </div>
             ))}
@@ -628,12 +628,12 @@ const ProviderDetailPage = () => {
       {activeTab === 'Compliance' && (
         <SectionCard title="Healthcare Compliance" icon={ShieldCheck}>
           <div className="space-y-3 text-xs">
-            <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center justify-between">
+            <div className="p-4 bg-blue-50 border border-blue-100 rounded-2xl flex items-center justify-between">
               <div>
-                <p className="font-black text-emerald-800">Drug License Verified</p>
-                <p className="text-emerald-600 font-semibold mt-0.5">Verified by Registration Board of UP. Expires 2029.</p>
+                <p className="font-black text-blue-800">Drug License Verified</p>
+                <p className="text-blue-600 font-semibold mt-0.5">Verified by Registration Board of UP. Expires 2029.</p>
               </div>
-              <ShieldCheck className="w-6 h-6 text-emerald-600" />
+              <ShieldCheck className="w-6 h-6 text-blue-600" />
             </div>
           </div>
         </SectionCard>

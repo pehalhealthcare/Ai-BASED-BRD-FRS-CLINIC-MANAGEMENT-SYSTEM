@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { 
   CheckCircle2, XCircle, AlertCircle, Printer, Download, Clock, User, 
@@ -302,14 +302,14 @@ const AppointmentDetailsPage = () => {
             {trackingSteps.map((step, idx) => (
               <div key={idx} className="flex flex-col items-center flex-1 relative min-w-[120px]">
                 {idx < trackingSteps.length - 1 && (
-                  <div className={`absolute top-6 left-[calc(50%+20px)] right-0 h-0.5 ${step.active ? (step.isRed ? 'bg-red-400' : 'bg-emerald-400') : 'bg-slate-200'}`} />
+                  <div className={`absolute top-6 left-[calc(50%+20px)] right-0 h-0.5 ${step.active ? (step.isRed ? 'bg-red-400' : 'bg-blue-400') : 'bg-slate-200'}`} />
                 )}
                 <div className={`w-12 h-12 rounded-full flex items-center justify-center text-xl z-10 border-2 ${
                   step.isRed
                     ? 'bg-red-50 border-red-400 text-red-600'
                     : step.isGray
                       ? 'bg-slate-100 border-slate-300 text-slate-500'
-                      : 'bg-emerald-50 border-emerald-400 text-emerald-600'
+                      : 'bg-blue-50 border-blue-400 text-blue-600'
                 }`}>
                   {step.icon}
                 </div>
@@ -608,8 +608,8 @@ const AppointmentDetailsPage = () => {
 
         {/* ─── SUCCESS / ERROR ALERTS ─── */}
         {successMsg && (
-          <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-2xl text-sm font-semibold">
-            <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+          <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-2xl text-sm font-semibold">
+            <CheckCircle2 size={16} className="text-blue-600 shrink-0" />
             {successMsg}
           </div>
         )}
@@ -753,7 +753,7 @@ const AppointmentDetailsPage = () => {
                 <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between">
                   <span className="text-xs font-bold text-slate-500">Doctor Approval Authority</span>
                   <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-full uppercase tracking-wider ${
-                    doctorApprovalAuthority === 'Allowed' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                    doctorApprovalAuthority === 'Allowed' ? 'bg-blue-100 text-blue-800' : 'bg-rose-100 text-rose-800'
                   }`}>
                     {doctorApprovalAuthority}
                   </span>
@@ -854,7 +854,7 @@ const AppointmentDetailsPage = () => {
               <div className="relative pl-6 space-y-5 border-l-2 border-slate-100">
                 {/* Booked */}
                 <div className="relative">
-                  <span className="absolute -left-[31px] top-0.5 bg-emerald-500 text-white rounded-full p-0.5">
+                  <span className="absolute -left-[31px] top-0.5 bg-blue-500 text-white rounded-full p-0.5">
                     <CheckCircle2 size={12} />
                   </span>
                   <p className="text-xs font-bold text-slate-800">Appointment Booked</p>
@@ -863,7 +863,7 @@ const AppointmentDetailsPage = () => {
 
                 {/* Requested */}
                 <div className="relative">
-                  <span className="absolute -left-[31px] top-0.5 bg-emerald-500 text-white rounded-full p-0.5">
+                  <span className="absolute -left-[31px] top-0.5 bg-blue-500 text-white rounded-full p-0.5">
                     <CheckCircle2 size={12} />
                   </span>
                   <p className="text-xs font-bold text-slate-800">Discount Requested</p>
@@ -968,15 +968,15 @@ const AppointmentDetailsPage = () => {
                     return (
                       <div className="space-y-4">
                         {isStillAvailable ? (
-                          <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 space-y-3">
-                            <p className="text-xs text-emerald-800 font-bold leading-relaxed">
+                          <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 space-y-3">
+                            <p className="text-xs text-blue-800 font-bold leading-relaxed">
                               ✅ Original slot <strong>{appointment.startTime}</strong> is still available! Do you want to continue with this slot?
                             </p>
                             <div className="flex gap-2">
                               <button
                                 onClick={() => handleRebook(appointment.startTime)}
                                 disabled={actionLoading}
-                                className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-extrabold transition"
+                                className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[11px] font-extrabold transition"
                               >
                                 Continue
                               </button>
@@ -1088,12 +1088,12 @@ const AppointmentDetailsPage = () => {
                   </div>
 
                   {/* Action 1: Approve Override Discount */}
-                  <div className="p-4 bg-emerald-50/50 border border-emerald-100 rounded-2xl space-y-3 text-center">
-                    <p className="text-xs text-emerald-800 font-semibold">Approve the above discount configuration.</p>
+                  <div className="p-4 bg-blue-50/50 border border-blue-100 rounded-2xl space-y-3 text-center">
+                    <p className="text-xs text-blue-800 font-semibold">Approve the above discount configuration.</p>
                     <button
                       onClick={() => handleDecideDiscount('approved', '', overrideType, overrideVal)}
                       disabled={actionLoading}
-                      className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-sm flex items-center justify-center gap-1.5"
+                      className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition shadow-sm flex items-center justify-center gap-1.5"
                     >
                       <CheckCircle2 size={13} /> Approve Consultation Fee
                     </button>
@@ -1251,7 +1251,7 @@ const AppointmentDetailsPage = () => {
     <section className="grid gap-6">
       <div className="flex flex-col gap-4 rounded-3xl border border-stone-200 bg-white p-6 shadow-lg lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">Appointment details</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-700">Appointment details</p>
           <h2 className="mt-2 text-3xl font-semibold text-stone-900">{patient.fullName || 'Patient not provided'}</h2>
           <p className="mt-2 text-sm text-stone-600">{appointment.appointmentDate?.slice?.(0, 10) || 'No date'} at {appointment.startTime || '--'}</p>
         </div>
@@ -1265,16 +1265,16 @@ const AppointmentDetailsPage = () => {
       </div>
 
       {error ? <p className="rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p> : null}
-      {reminderMessage ? <p className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{reminderMessage}</p> : null}
+      {reminderMessage ? <p className="rounded-2xl bg-blue-50 px-4 py-3 text-sm text-blue-700">{reminderMessage}</p> : null}
 
       <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
         <div className="grid gap-6">
           {/* Waiver/Discount Details Card */}
           {(appointment.waiverAmount > 0 || (appointment.discountRequest && appointment.discountRequest.type && appointment.discountRequest.type !== 'none')) && (
-            <article className="rounded-3xl border border-emerald-200 bg-emerald-50/20 p-6 shadow-md relative overflow-hidden">
-              <div className="absolute top-0 left-0 right-0 h-1.5 bg-emerald-500" />
-              <h3 className="text-lg font-bold text-emerald-900 flex items-center gap-2">
-                <ShieldCheck size={18} className="text-emerald-600" />
+            <article className="rounded-3xl border border-blue-200 bg-blue-50/20 p-6 shadow-md relative overflow-hidden">
+              <div className="absolute top-0 left-0 right-0 h-1.5 bg-blue-500" />
+              <h3 className="text-lg font-bold text-blue-900 flex items-center gap-2">
+                <ShieldCheck size={18} className="text-blue-600" />
                 Consultation Fee Waiver / Discount Applied
               </h3>
               <dl className="mt-4 grid gap-4 md:grid-cols-2">
@@ -1358,7 +1358,7 @@ const AppointmentDetailsPage = () => {
                   <span className="font-bold text-stone-800">₹{appointment.consultationFee || 500}</span>
                 </div>
                 {appointment.waiverAmount > 0 && (
-                  <div className="flex justify-between text-emerald-700 font-bold">
+                  <div className="flex justify-between text-blue-700 font-bold">
                     <span>Waiver Amount:</span>
                     <span>-₹{appointment.waiverAmount}</span>
                   </div>
@@ -1369,7 +1369,7 @@ const AppointmentDetailsPage = () => {
                 </div>
                 <div className="flex justify-between pt-1">
                   <span>Payment Status:</span>
-                  <span className="font-bold uppercase text-[10px] text-emerald-600">
+                  <span className="font-bold uppercase text-[10px] text-blue-600">
                     {appointment.paymentStatus || 'Pending'}
                   </span>
                 </div>
@@ -1423,7 +1423,7 @@ const AppointmentDetailsPage = () => {
                 ))}
               </select>
               <textarea value={statusNote} onChange={(event) => setStatusNote(event.target.value)} rows={3} placeholder="Optional note" className="rounded-2xl border border-stone-300 px-4 py-3 text-sm" />
-              <button type="submit" className="rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700">
+              <button type="submit" className="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700">
                 Save status
               </button>
             </form>

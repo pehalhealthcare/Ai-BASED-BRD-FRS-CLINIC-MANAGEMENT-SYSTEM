@@ -1,10 +1,10 @@
-import { useState, useRef } from 'react';
+﻿import { useState, useRef } from 'react';
 import VitalsForm from './VitalsForm';
 import { useFeatureAccess } from '../../hooks/useFeatureAccess';
 import PremiumFeaturePlaceholder from '../../components/PremiumFeaturePlaceholder';
 
 /* ─── Field class ─── */
-const FC = 'w-full rounded-xl border border-slate-600/40 bg-slate-800/50 px-3.5 py-2.5 text-sm text-slate-200 outline-none transition-all focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/10 placeholder:text-slate-500';
+const FC = 'w-full rounded-xl border border-slate-600/40 bg-slate-800/50 px-3.5 py-2.5 text-sm text-slate-200 outline-none transition-all focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/10 placeholder:text-slate-500';
 
 /* ─── Collapsible Section ─── */
 const Section = ({ number, title, children, defaultOpen = true }) => {
@@ -16,7 +16,7 @@ const Section = ({ number, title, children, defaultOpen = true }) => {
         onClick={() => setOpen(!open)}
         className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700/20 transition-colors rounded-t-xl"
       >
-        <span className="flex items-center justify-center w-5 h-5 rounded bg-emerald-500/20 text-emerald-400 text-[10px] font-bold shrink-0">{number}</span>
+        <span className="flex items-center justify-center w-5 h-5 rounded bg-blue-500/20 text-blue-400 text-[10px] font-bold shrink-0">{number}</span>
         <span className="text-sm font-semibold text-slate-200">{title}</span>
         <svg className={`ml-auto w-4 h-4 text-slate-500 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7"/></svg>
       </button>
@@ -186,7 +186,7 @@ const ConsultationMainPanel = ({
       <button
         type="button"
         onClick={() => toggleFieldDictation(fieldName, currentValue, onUpdate)}
-        className={`absolute right-3 text-slate-400 hover:text-emerald-400 transition-all ${
+        className={`absolute right-3 text-slate-400 hover:text-blue-400 transition-all ${
           isTextArea ? 'top-3' : 'top-1/2 -translate-y-1/2'
         } ${isListening ? 'text-red-500 animate-pulse scale-110' : ''}`}
         title={isListening ? 'Listening... Click to stop' : 'Click to dictate'}
@@ -220,10 +220,10 @@ const ConsultationMainPanel = ({
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <span className="text-sm">🎙️</span>
-                <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-400">AI Clinical Dictation & Audio Upload</h3>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-blue-400">AI Clinical Dictation & Audio Upload</h3>
               </div>
               {voiceFeature.isTrial && (
-                <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-bold bg-emerald-500/20 text-emerald-400">
+                <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-bold bg-blue-500/20 text-blue-400">
                   ⭐ Trial Feature: {voiceFeature.daysRemaining} Days Remaining
                 </span>
               )}
@@ -250,10 +250,10 @@ const ConsultationMainPanel = ({
                       type="file"
                       accept=".wav,.mp3,.m4a,.webm,.ogg,audio/*"
                       onChange={(e) => onAudioSelected(e.target.files?.[0] || null)}
-                      className="w-full text-xs text-slate-300 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-[10px] file:font-semibold file:bg-emerald-500/10 file:text-emerald-400 hover:file:bg-emerald-500/20 cursor-pointer"
+                      className="w-full text-xs text-slate-300 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-[10px] file:font-semibold file:bg-blue-500/10 file:text-blue-400 hover:file:bg-blue-500/20 cursor-pointer"
                     />
                     {selectedAudioFile && (
-                      <p className="text-[10px] text-emerald-400 mt-1 truncate">📄 Selected: {selectedAudioFile.name}</p>
+                      <p className="text-[10px] text-blue-400 mt-1 truncate">📄 Selected: {selectedAudioFile.name}</p>
                     )}
                   </div>
 
@@ -272,7 +272,7 @@ const ConsultationMainPanel = ({
                       type="button"
                       disabled={voiceUploading || (!selectedAudioFile && !form.transcript_text?.trim())}
                       onClick={onUploadVoiceNote}
-                      className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                      className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                     >
                       {voiceUploading ? (
                         <>
@@ -330,7 +330,7 @@ const ConsultationMainPanel = ({
         <div className="flex items-center gap-2">
           <label className="flex items-center gap-2 cursor-pointer">
             <div
-              className={`relative w-9 h-5 rounded-full transition-colors ${form.followUp?.required ? 'bg-emerald-500' : 'bg-slate-600'}`}
+              className={`relative w-9 h-5 rounded-full transition-colors ${form.followUp?.required ? 'bg-blue-500' : 'bg-slate-600'}`}
               onClick={() => onFieldChange('followUp.required', !form.followUp?.required)}
             >
               <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${form.followUp?.required ? 'translate-x-4' : 'translate-x-0.5'}`} />
@@ -392,7 +392,7 @@ const ConsultationMainPanel = ({
         <button
           type="button"
           onClick={onAddSymptom}
-          className="flex items-center gap-1.5 text-xs font-medium text-emerald-400 hover:text-emerald-300 border border-dashed border-emerald-500/30 rounded-lg px-3 py-2 hover:bg-emerald-500/5 transition-all"
+          className="flex items-center gap-1.5 text-xs font-medium text-blue-400 hover:text-blue-300 border border-dashed border-blue-500/30 rounded-lg px-3 py-2 hover:bg-blue-500/5 transition-all"
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14"/></svg>
           Add Symptom
@@ -423,7 +423,7 @@ const ConsultationMainPanel = ({
               <button
                 type="button"
                 onClick={() => toggleFieldDictation('diagnosis.primary', form.diagnosis.primary, (val) => onFieldChange('diagnosis.primary', val))}
-                className={`absolute right-8 top-1/2 -translate-y-1/2 text-slate-400 hover:text-emerald-400 transition-all ${
+                className={`absolute right-8 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-400 transition-all ${
                   dictatingField === 'diagnosis.primary' ? 'text-red-500 animate-pulse scale-110' : ''
                 }`}
                 title={dictatingField === 'diagnosis.primary' ? 'Listening... Click to stop' : 'Click to dictate'}
@@ -477,7 +477,7 @@ const ConsultationMainPanel = ({
               type="checkbox"
               checked={Boolean(form.followUp?.required)}
               onChange={(e) => onFieldChange('followUp.required', e.target.checked)}
-              className="rounded border-slate-600 bg-slate-800 text-emerald-500 focus:ring-emerald-500"
+              className="rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500"
             />
             <span className="text-xs text-slate-400">Follow-up required</span>
           </label>
@@ -516,7 +516,7 @@ const ConsultationMainPanel = ({
                 type="button"
                 disabled={!consultation?._id || formatting}
                 onClick={onFormatNotes}
-                className="flex items-center gap-1.5 text-xs text-emerald-400 hover:text-emerald-300 border border-emerald-500/30 rounded-lg px-2.5 py-1.5 hover:bg-emerald-500/5 disabled:opacity-40 transition-all"
+                className="flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 border border-blue-500/30 rounded-lg px-2.5 py-1.5 hover:bg-blue-500/5 disabled:opacity-40 transition-all"
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
                 {formatting ? 'Formatting...' : '✨ Format to SOAP'}
@@ -540,9 +540,9 @@ const ConsultationMainPanel = ({
                   key={tab.key}
                   type="button"
                   onClick={() => setSoapActiveTab(tab.key)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${soapActiveTab === tab.key ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'text-slate-400 hover:text-slate-300 border border-transparent'}`}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${soapActiveTab === tab.key ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : 'text-slate-400 hover:text-slate-300 border border-transparent'}`}
                 >
-                  <span className={`w-5 h-5 rounded flex items-center justify-center text-[11px] font-bold ${soapActiveTab === tab.key ? 'bg-emerald-500 text-white' : 'bg-slate-700 text-slate-300'}`}>{tab.label}</span>
+                  <span className={`w-5 h-5 rounded flex items-center justify-center text-[11px] font-bold ${soapActiveTab === tab.key ? 'bg-blue-500 text-white' : 'bg-slate-700 text-slate-300'}`}>{tab.label}</span>
                   {tab.full}
                 </button>
               ))}
@@ -602,7 +602,7 @@ const ConsultationMainPanel = ({
       )}
 
       {/* ─── Info footer ─── */}
-      <div className="rounded-xl bg-emerald-500/5 border border-emerald-500/20 px-4 py-3 text-xs text-emerald-400 flex items-center gap-2">
+      <div className="rounded-xl bg-blue-500/5 border border-blue-500/20 px-4 py-3 text-xs text-blue-400 flex items-center gap-2">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
         Prescription creation is available from the toolbar after saving the consultation draft.
       </div>

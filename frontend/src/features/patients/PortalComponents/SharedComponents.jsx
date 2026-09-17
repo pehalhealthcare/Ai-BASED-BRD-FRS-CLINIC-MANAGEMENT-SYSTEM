@@ -1,4 +1,4 @@
-import { X } from 'lucide-react';
+﻿import { X } from 'lucide-react';
 import Avatar from '../../../components/ui/Avatar';
 
 export const TagList = ({ items, color, onRemove }) => (
@@ -41,7 +41,7 @@ export const DoctorCard = ({ doc, onViewProfile, onBookSlot }) => (
     p-3.5 rounded-xl border
     bg-white dark:bg-navy-800
     border-slate-200 dark:border-white/10
-    hover:border-aura-400 dark:hover:border-aura-500/50
+    hover:border-blue-400 dark:hover:border-blue-500/50
     hover:-translate-y-0.5 hover:shadow-elevated dark:hover:shadow-elevated-dark
     transition-all duration-150 flex flex-col gap-3
   ">
@@ -52,8 +52,8 @@ export const DoctorCard = ({ doc, onViewProfile, onBookSlot }) => (
         <p className="text-[11px] text-slate-500 dark:text-slate-400">{doc.specialization}</p>
       </div>
       {doc.isActive && (
-        <span className="ml-auto shrink-0 flex items-center gap-1 text-[10px] font-semibold text-aura-600 dark:text-aura-400">
-          <span className="w-1.5 h-1.5 rounded-full bg-aura-500 animate-pulse" />
+        <span className="ml-auto shrink-0 flex items-center gap-1 text-[10px] font-semibold text-blue-600 dark:text-blue-400">
+          <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
           Online
         </span>
       )}
@@ -67,7 +67,7 @@ export const DoctorCard = ({ doc, onViewProfile, onBookSlot }) => (
       </button>
       <button
         onClick={() => onBookSlot(doc)}
-        className="flex-1 py-1.5 text-[11px] font-semibold rounded-lg bg-aura-600 dark:bg-aura-500 text-white hover:bg-aura-700 dark:hover:bg-aura-600 transition"
+        className="flex-1 py-1.5 text-[11px] font-semibold rounded-lg bg-blue-600 dark:bg-blue-500 text-white hover:bg-blue-700 dark:hover:bg-blue-600 transition"
       >
         Book Slot
       </button>
@@ -90,7 +90,7 @@ export const InputRow = ({ label, value, onChange, type = 'text', placeholder, r
         border border-slate-200 dark:border-white/10
         text-slate-900 dark:text-slate-100
         placeholder:text-slate-400 dark:placeholder:text-slate-600
-        focus:outline-none focus:border-aura-500 focus:ring-2 focus:ring-aura-500/20
+        focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20
         transition
         disabled:opacity-60 disabled:cursor-not-allowed
       "
@@ -111,7 +111,7 @@ export const SelectRow = ({ label, value, onChange, children, required }) => (
         bg-white dark:bg-navy-800/60
         border border-slate-200 dark:border-white/10
         text-slate-900 dark:text-slate-100
-        focus:outline-none focus:border-aura-500 focus:ring-2 focus:ring-aura-500/20
+        focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20
         transition
       "
     >

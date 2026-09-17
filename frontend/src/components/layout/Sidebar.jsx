@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
 import { NavLink, useNavigate, useLocation, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -56,7 +56,7 @@ const ICON_MAP = {
 const getClinicTheme = (name) => {
   const lower = (name || '').toLowerCase();
   if (lower.includes('garg') || lower.includes('green') || lower.includes('emg')) {
-    return { primary: '#10b981', bgLight: 'rgba(16,185,129,0.08)', bgHover: 'rgba(16,185,129,0.15)', text: 'text-emerald-700', bg: 'bg-emerald-600', shadow: 'rgba(16,185,129,0.1)' };
+    return { primary: '#2563EB', bgLight: 'rgba(37,99,235,0.08)', bgHover: 'rgba(37,99,235,0.15)', text: 'text-blue-700', bg: 'bg-blue-600', shadow: 'rgba(37,99,235,0.1)' };
   }
   if (lower.includes('ram') || lower.includes('dental') || lower.includes('blue')) {
     return { primary: '#0f766e', bgLight: 'rgba(15,118,110,0.08)', bgHover: 'rgba(15,118,110,0.15)', text: 'text-teal-700', bg: 'bg-teal-700', shadow: 'rgba(15,118,110,0.1)' };
@@ -742,7 +742,7 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
         title: 'Doctor Profile',
         subtitle: user?.specialization?.name || 'General Medicine',
         name: user?.name || 'Doctor',
-        icon: <User size={20} className="text-emerald-500" />
+        icon: <User size={20} className="text-blue-500" />
       };
     }
     if (role === 'PATIENT') {
@@ -750,7 +750,7 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
         title: 'Patient Membership',
         subtitle: `UHID: ${user?.patientId || '—'}`,
         name: user?.name || 'Patient',
-        icon: <User size={20} className="text-emerald-500" />
+        icon: <User size={20} className="text-blue-500" />
       };
     }
     if (role === 'RECEPTIONIST') {
@@ -758,7 +758,7 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
         title: 'Reception Desk',
         subtitle: 'Indirapuram Branch',
         name: user?.name || 'Receptionist',
-        icon: <Users size={20} className="text-emerald-500" />
+        icon: <Users size={20} className="text-blue-500" />
       };
     }
     if (role === 'LAB_TECHNICIAN') {
@@ -766,7 +766,7 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
         title: 'Laboratory Workspace',
         subtitle: 'Lab Department',
         name: user?.name || 'Technician',
-        icon: <Activity size={20} className="text-emerald-500" />
+        icon: <Activity size={20} className="text-blue-500" />
       };
     }
     if (role === 'PHARMACIST' || role === 'PHARMACY_OPERATOR' || role === 'PHARMACY STORE OPERATOR') {
@@ -774,7 +774,7 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
         title: 'Pharmacy Workspace',
         subtitle: 'Pharmacy Store',
         name: user?.name || 'Pharmacist',
-        icon: <Package size={20} className="text-emerald-500" />
+        icon: <Package size={20} className="text-blue-500" />
       };
     }
     if (normRole === 'SUPER_ADMIN') {
@@ -789,7 +789,7 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
       title: 'CURRENT PLAN 👑',
       subtitle: `${storageUsed} / ${storageLimit} Used`,
       name: planName,
-      icon: <Building2 size={20} className="text-emerald-500" />,
+      icon: <Building2 size={20} className="text-blue-500" />,
       isClickable: true,
       path: '/clinic/subscription',
       isPending: clinicObj?.paymentStatus === 'PENDING_VERIFICATION' || user?.clinic?.paymentStatus === 'PENDING_VERIFICATION'
@@ -1233,10 +1233,10 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
             to={`/portal?tab=dashboard&clinicId=${selectedClinicId}`}
             onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
             className={`flex items-center gap-3 px-3.5 h-[46px] rounded-2xl text-[13px] font-bold transition duration-150 ${
-              currentTab === 'dashboard' ? 'bg-gradient-to-r from-emerald-50/70 to-emerald-50/20 text-slate-800 border-l-4 border-emerald-500 shadow-[0_1px_2px_rgba(16,185,129,0.05)]' : 'text-slate-500 hover:bg-slate-50 hover:text-emerald-600'
+              currentTab === 'dashboard' ? 'bg-gradient-to-r from-blue-50/70 to-blue-50/20 text-slate-800 border-l-4 border-blue-500 shadow-[0_1px_2px_rgba(37,99,235,0.08)]' : 'text-slate-500 hover:bg-slate-50 hover:text-blue-600'
             }`}
           >
-            <LayoutDashboard size={20} className={currentTab === 'dashboard' ? 'text-emerald-500' : 'text-slate-400'} />
+            <LayoutDashboard size={20} className={currentTab === 'dashboard' ? 'text-blue-500' : 'text-slate-400'} />
             <span>Dashboard</span>
           </NavLink>
 
@@ -1244,10 +1244,10 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
             to={`/portal?tab=my-clinic&clinicId=${selectedClinicId}`}
             onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
             className={`flex items-center gap-3 px-3.5 h-[46px] rounded-2xl text-[13px] font-bold transition duration-150 ${
-              currentTab === 'my-clinic' ? 'bg-gradient-to-r from-emerald-50/70 to-emerald-50/20 text-slate-800 border-l-4 border-emerald-500 shadow-[0_1px_2px_rgba(16,185,129,0.05)]' : 'text-slate-500 hover:bg-slate-50 hover:text-emerald-600'
+              currentTab === 'my-clinic' ? 'bg-gradient-to-r from-blue-50/70 to-blue-50/20 text-slate-800 border-l-4 border-blue-500 shadow-[0_1px_2px_rgba(37,99,235,0.08)]' : 'text-slate-500 hover:bg-slate-50 hover:text-blue-600'
             }`}
           >
-            <Building2 size={20} className={currentTab === 'my-clinic' ? 'text-emerald-500' : 'text-slate-400'} />
+            <Building2 size={20} className={currentTab === 'my-clinic' ? 'text-blue-500' : 'text-slate-400'} />
             <span>My Clinic</span>
           </NavLink>
 
@@ -1255,10 +1255,10 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
             to={`/portal?tab=appointments&clinicId=${selectedClinicId}`}
             onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
             className={`flex items-center gap-3 px-3.5 h-[46px] rounded-2xl text-[13px] font-bold transition duration-150 ${
-              currentTab === 'appointments' ? 'bg-gradient-to-r from-emerald-50/70 to-emerald-50/20 text-slate-800 border-l-4 border-emerald-500 shadow-[0_1px_2px_rgba(16,185,129,0.05)]' : 'text-slate-500 hover:bg-slate-50 hover:text-emerald-600'
+              currentTab === 'appointments' ? 'bg-gradient-to-r from-blue-50/70 to-blue-50/20 text-slate-800 border-l-4 border-blue-500 shadow-[0_1px_2px_rgba(37,99,235,0.08)]' : 'text-slate-500 hover:bg-slate-50 hover:text-blue-600'
             }`}
           >
-            <Calendar size={20} className={currentTab === 'appointments' ? 'text-emerald-500' : 'text-slate-400'} />
+            <Calendar size={20} className={currentTab === 'appointments' ? 'text-blue-500' : 'text-slate-400'} />
             <span>Appointments</span>
           </NavLink>
 
@@ -1266,10 +1266,10 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
             to={`/portal?tab=history&clinicId=${selectedClinicId}`}
             onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
             className={`flex items-center gap-3 px-3.5 h-[46px] rounded-2xl text-[13px] font-bold transition duration-150 ${
-              currentTab === 'history' ? 'bg-gradient-to-r from-emerald-50/70 to-emerald-50/20 text-slate-800 border-l-4 border-emerald-500 shadow-[0_1px_2px_rgba(16,185,129,0.05)]' : 'text-slate-500 hover:bg-slate-50 hover:text-emerald-600'
+              currentTab === 'history' ? 'bg-gradient-to-r from-blue-50/70 to-blue-50/20 text-slate-800 border-l-4 border-blue-500 shadow-[0_1px_2px_rgba(37,99,235,0.08)]' : 'text-slate-500 hover:bg-slate-50 hover:text-blue-600'
             }`}
           >
-            <Stethoscope size={20} className={currentTab === 'history' ? 'text-emerald-500' : 'text-slate-400'} />
+            <Stethoscope size={20} className={currentTab === 'history' ? 'text-blue-500' : 'text-slate-400'} />
             <span>Consultation History</span>
           </NavLink>
 
@@ -1277,10 +1277,10 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
             to={`/portal?tab=prescriptions&clinicId=${selectedClinicId}`}
             onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
             className={`flex items-center gap-3 px-3.5 h-[46px] rounded-2xl text-[13px] font-bold transition duration-150 ${
-              currentTab === 'prescriptions' ? 'bg-gradient-to-r from-emerald-50/70 to-emerald-50/20 text-slate-800 border-l-4 border-emerald-500 shadow-[0_1px_2px_rgba(16,185,129,0.05)]' : 'text-slate-500 hover:bg-slate-50 hover:text-emerald-600'
+              currentTab === 'prescriptions' ? 'bg-gradient-to-r from-blue-50/70 to-blue-50/20 text-slate-800 border-l-4 border-blue-500 shadow-[0_1px_2px_rgba(37,99,235,0.08)]' : 'text-slate-500 hover:bg-slate-50 hover:text-blue-600'
             }`}
           >
-            <ClipboardList size={20} className={currentTab === 'prescriptions' ? 'text-emerald-500' : 'text-slate-400'} />
+            <ClipboardList size={20} className={currentTab === 'prescriptions' ? 'text-blue-500' : 'text-slate-400'} />
             <span>Prescriptions</span>
           </NavLink>
 
@@ -1289,7 +1289,7 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
             <div className="space-y-1">
               <button
                 onClick={() => setLabExpanded(!labExpanded)}
-                className="w-full flex items-center justify-between px-3.5 h-[46px] rounded-2xl text-[13px] font-bold text-slate-500 hover:bg-slate-50 hover:text-emerald-600 transition duration-150"
+                className="w-full flex items-center justify-between px-3.5 h-[46px] rounded-2xl text-[13px] font-bold text-slate-500 hover:bg-slate-50 hover:text-blue-600 transition duration-150"
               >
                 <div className="flex items-center gap-3">
                   <FlaskConical size={20} className="text-slate-400" />
@@ -1301,17 +1301,17 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
                 <NavLink
                   to={`/portal?tab=book-lab&clinicId=${selectedClinicId}`}
                   onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
-                  className={`flex items-center gap-2 py-1.5 text-xs font-bold ${currentTab === 'book-lab' ? 'text-emerald-600' : 'text-slate-400 hover:text-slate-650'}`}
+                  className={`flex items-center gap-2 py-1.5 text-xs font-bold ${currentTab === 'book-lab' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-650'}`}
                 >
-                  <span className={`w-1.5 h-1.5 rounded-full ${currentTab === 'book-lab' ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                  <span className={`w-1.5 h-1.5 rounded-full ${currentTab === 'book-lab' ? 'bg-blue-500' : 'bg-slate-300'}`} />
                   <span>Book Lab Test</span>
                 </NavLink>
                 <NavLink
                   to={`/portal?tab=labs&clinicId=${selectedClinicId}`}
                   onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
-                  className={`flex items-center gap-2 py-1.5 text-xs font-bold ${currentTab === 'labs' || currentTab === 'lab-reports' || isLabReportPath ? 'text-emerald-600' : 'text-slate-400 hover:text-slate-650'}`}
+                  className={`flex items-center gap-2 py-1.5 text-xs font-bold ${currentTab === 'labs' || currentTab === 'lab-reports' || isLabReportPath ? 'text-blue-600' : 'text-slate-400 hover:text-slate-650'}`}
                 >
-                  <span className={`w-1.5 h-1.5 rounded-full ${currentTab === 'labs' || currentTab === 'lab-reports' || isLabReportPath ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                  <span className={`w-1.5 h-1.5 rounded-full ${currentTab === 'labs' || currentTab === 'lab-reports' || isLabReportPath ? 'bg-blue-500' : 'bg-slate-300'}`} />
                   <span>View Lab Reports</span>
                 </NavLink>
               </div>
@@ -1323,7 +1323,7 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
             <div className="space-y-1">
               <button
                 onClick={() => setPharmacyExpanded(!pharmacyExpanded)}
-                className="w-full flex items-center justify-between px-3.5 h-[46px] rounded-2xl text-[13px] font-bold text-slate-500 hover:bg-slate-50 hover:text-emerald-600 transition duration-150"
+                className="w-full flex items-center justify-between px-3.5 h-[46px] rounded-2xl text-[13px] font-bold text-slate-500 hover:bg-slate-50 hover:text-blue-600 transition duration-150"
               >
                 <div className="flex items-center gap-3">
                   <Pill size={20} className="text-slate-400" />
@@ -1335,17 +1335,17 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
                 <NavLink
                   to={`/portal?tab=buy-medicine&clinicId=${selectedClinicId}`}
                   onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
-                  className={`flex items-center gap-2 py-1.5 text-xs font-bold ${currentTab === 'buy-medicine' ? 'text-emerald-600' : 'text-slate-400 hover:text-slate-655'}`}
+                  className={`flex items-center gap-2 py-1.5 text-xs font-bold ${currentTab === 'buy-medicine' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-655'}`}
                 >
-                  <span className={`w-1.5 h-1.5 rounded-full ${currentTab === 'buy-medicine' ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                  <span className={`w-1.5 h-1.5 rounded-full ${currentTab === 'buy-medicine' ? 'bg-blue-500' : 'bg-slate-300'}`} />
                   <span>Buy Medicine</span>
                 </NavLink>
                 <NavLink
                   to={`/portal?tab=pharmacy-orders&clinicId=${selectedClinicId}`}
                   onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
-                  className={`flex items-center gap-2 py-1.5 text-xs font-bold ${currentTab === 'pharmacy-orders' ? 'text-emerald-600' : 'text-slate-400 hover:text-slate-655'}`}
+                  className={`flex items-center gap-2 py-1.5 text-xs font-bold ${currentTab === 'pharmacy-orders' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-655'}`}
                 >
-                  <span className={`w-1.5 h-1.5 rounded-full ${currentTab === 'pharmacy-orders' ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                  <span className={`w-1.5 h-1.5 rounded-full ${currentTab === 'pharmacy-orders' ? 'bg-blue-500' : 'bg-slate-300'}`} />
                   <span>My Orders</span>
                 </NavLink>
               </div>
@@ -1356,10 +1356,10 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
             to={`/portal?tab=documents&clinicId=${selectedClinicId}`}
             onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
             className={`flex items-center gap-3 px-3.5 h-[46px] rounded-2xl text-[13px] font-bold transition duration-150 ${
-              currentTab === 'documents' ? 'bg-gradient-to-r from-emerald-50/70 to-emerald-50/20 text-slate-805 border-l-4 border-emerald-500 shadow-[0_1px_2px_rgba(16,185,129,0.05)]' : 'text-slate-500 hover:bg-slate-50 hover:text-emerald-600'
+              currentTab === 'documents' ? 'bg-gradient-to-r from-blue-50/70 to-blue-50/20 text-slate-805 border-l-4 border-blue-500 shadow-[0_1px_2px_rgba(37,99,235,0.08)]' : 'text-slate-500 hover:bg-slate-50 hover:text-blue-600'
             }`}
           >
-            <FileText size={20} className={currentTab === 'documents' ? 'text-emerald-500' : 'text-slate-400'} />
+            <FileText size={20} className={currentTab === 'documents' ? 'text-blue-500' : 'text-slate-400'} />
             <span>Medical Documents</span>
           </NavLink>
 
@@ -1367,10 +1367,10 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
             to={`/portal?tab=billing&clinicId=${selectedClinicId}`}
             onClick={() => isMobileOrOverlay && onNavigate && onNavigate(false)}
             className={`flex items-center gap-3 px-3.5 h-[46px] rounded-2xl text-[13px] font-bold transition duration-150 ${
-              currentTab === 'billing' ? 'bg-gradient-to-r from-emerald-50/70 to-emerald-50/20 text-slate-805 border-l-4 border-emerald-500 shadow-[0_1px_2px_rgba(16,185,129,0.05)]' : 'text-slate-500 hover:bg-slate-50 hover:text-emerald-600'
+              currentTab === 'billing' ? 'bg-gradient-to-r from-blue-50/70 to-blue-50/20 text-slate-805 border-l-4 border-blue-500 shadow-[0_1px_2px_rgba(37,99,235,0.08)]' : 'text-slate-500 hover:bg-slate-50 hover:text-blue-600'
             }`}
           >
-            <CreditCard size={20} className={currentTab === 'billing' ? 'text-emerald-500' : 'text-slate-400'} />
+            <CreditCard size={20} className={currentTab === 'billing' ? 'text-blue-500' : 'text-slate-400'} />
             <span>Bills & Payments</span>
           </NavLink>
 
@@ -1429,7 +1429,7 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
                     ? 'bg-blue-50 text-blue-600 border-l-4 border-blue-500'
                     : patientContext.includes('PHARMACY')
                     ? 'bg-teal-50 text-teal-600 border-l-4 border-teal-500'
-                    : 'bg-emerald-50 text-emerald-600 border-l-4 border-emerald-500'
+                    : 'bg-blue-50 text-blue-600 border-l-4 border-blue-500'
                 }`}
               >
                 {patientContext.includes('LABORATORY') ? (
@@ -1450,11 +1450,11 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
                     to={item.path}
                     className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${
                       active 
-                        ? (isLabContext ? 'bg-gradient-to-r from-purple-50/70 to-purple-50/20 text-slate-800 border-l-4 border-purple-500 shadow-sm' : 'bg-gradient-to-r from-emerald-50/70 to-emerald-50/20 text-slate-800 border-l-4 border-emerald-500 shadow-sm') 
-                        : (isLabContext ? 'text-slate-400 hover:bg-slate-50 hover:text-purple-500' : 'text-slate-400 hover:bg-slate-50 hover:text-emerald-500')
+                        ? (isLabContext ? 'bg-gradient-to-r from-purple-50/70 to-purple-50/20 text-slate-800 border-l-4 border-purple-500 shadow-sm' : 'bg-gradient-to-r from-blue-50/70 to-blue-50/20 text-slate-800 border-l-4 border-blue-500 shadow-sm') 
+                        : (isLabContext ? 'text-slate-400 hover:bg-slate-50 hover:text-purple-500' : 'text-slate-400 hover:bg-slate-50 hover:text-blue-500')
                     }`}
                   >
-                    <span className={active ? (isLabContext ? 'text-purple-500' : 'text-emerald-500') : 'text-slate-400'}>
+                    <span className={active ? (isLabContext ? 'text-purple-500' : 'text-blue-500') : 'text-slate-400'}>
                       {ICON_MAP[item.iconKey] || <LayoutGrid size={20} />}
                     </span>
                   </NavLink>
@@ -1513,8 +1513,8 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
                       <div className="min-w-0">
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Current Branch</p>
                         <p className="text-xs font-black text-slate-800 truncate mt-0.5">{clinicName}</p>
-                        <span className="inline-flex items-center gap-1.5 text-[9px] font-black text-emerald-600 mt-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span> Active
+                        <span className="inline-flex items-center gap-1.5 text-[9px] font-black text-blue-600 mt-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-ping"></span> Active
                         </span>
                       </div>
                       <ChevronDown size={14} className="text-slate-405" />
@@ -1535,12 +1535,12 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
                                 onClick={() => toggleSubMenu(item.menuKey)}
                                 className={`w-full flex items-center justify-between px-3.5 h-[46px] rounded-2xl text-[13px] font-bold transition duration-150 ${
                                   active 
-                                    ? (isLabContext ? 'bg-gradient-to-r from-purple-50/70 to-purple-50/20 text-slate-800 border-l-4 border-purple-500' : 'bg-gradient-to-r from-emerald-50/70 to-emerald-50/20 text-slate-800 border-l-4 border-emerald-500') 
-                                    : `text-slate-500 hover:bg-slate-50 ${isLabContext ? 'hover:text-purple-650' : 'hover:text-emerald-650'}`
+                                    ? (isLabContext ? 'bg-gradient-to-r from-purple-50/70 to-purple-50/20 text-slate-800 border-l-4 border-purple-500' : 'bg-gradient-to-r from-blue-50/70 to-blue-50/20 text-slate-800 border-l-4 border-blue-500') 
+                                    : `text-slate-500 hover:bg-slate-50 ${isLabContext ? 'hover:text-purple-650' : 'hover:text-blue-650'}`
                                 }`}
                               >
                                 <div className="flex items-center gap-3">
-                                  <span className={active ? (isLabContext ? 'text-purple-500' : 'text-emerald-500') : 'text-slate-400'}>
+                                  <span className={active ? (isLabContext ? 'text-purple-500' : 'text-blue-500') : 'text-slate-400'}>
                                     {ICON_MAP[item.iconKey] || <LayoutGrid size={20} />}
                                   </span>
                                   <span>{item.label}</span>
@@ -1573,11 +1573,11 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
                                       onClick={() => onNavigate && onNavigate(false)}
                                       className={`flex items-center gap-2 py-1.5 text-xs font-bold px-3 rounded-xl transition duration-150 ${
                                         subActive 
-                                          ? (isLabContext ? 'bg-purple-50/50 text-purple-600' : 'bg-emerald-50/50 text-emerald-600') 
-                                          : `text-slate-450 hover:bg-slate-50/30 ${isLabContext ? 'hover:text-purple-655' : 'hover:text-emerald-655'}`
+                                          ? (isLabContext ? 'bg-purple-50/50 text-purple-600' : 'bg-blue-50/50 text-blue-600') 
+                                          : `text-slate-450 hover:bg-slate-50/30 ${isLabContext ? 'hover:text-purple-655' : 'hover:text-blue-655'}`
                                       }`}
                                     >
-                                      <span className={`w-1.5 h-1.5 rounded-full ${subActive ? (isLabContext ? 'bg-purple-500' : 'bg-emerald-500') : 'bg-slate-350'}`} />
+                                      <span className={`w-1.5 h-1.5 rounded-full ${subActive ? (isLabContext ? 'bg-purple-500' : 'bg-blue-500') : 'bg-slate-350'}`} />
                                       <span>{sub.label}</span>
                                     </NavLink>
                                   );
@@ -1590,11 +1590,11 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
                               onClick={() => onNavigate && onNavigate(false)}
                               className={`flex items-center gap-3 px-3.5 h-[46px] rounded-2xl text-[13px] font-bold transition duration-150 ${
                                 active
-                                  ? (isLabContext ? 'bg-gradient-to-r from-purple-50/70 to-purple-50/20 text-slate-805 border-l-4 border-purple-500 shadow-sm' : 'bg-gradient-to-r from-emerald-50/70 to-emerald-50/20 text-slate-855 border-l-4 border-emerald-500 shadow-sm')
-                                  : `text-slate-500 hover:bg-slate-50 ${isLabContext ? 'hover:text-purple-600' : 'hover:text-emerald-600'}`
+                                  ? (isLabContext ? 'bg-gradient-to-r from-purple-50/70 to-purple-50/20 text-slate-805 border-l-4 border-purple-500 shadow-sm' : 'bg-gradient-to-r from-blue-50/70 to-blue-50/20 text-slate-855 border-l-4 border-blue-500 shadow-sm')
+                                  : `text-slate-500 hover:bg-slate-50 ${isLabContext ? 'hover:text-purple-600' : 'hover:text-blue-600'}`
                               }`}
                             >
-                              <span className={active ? (isLabContext ? 'text-purple-500' : 'text-emerald-500') : 'text-slate-400'}>
+                              <span className={active ? (isLabContext ? 'text-purple-500' : 'text-blue-500') : 'text-slate-400'}>
                                 {ICON_MAP[item.iconKey] || <LayoutGrid size={20} />}
                               </span>
                               <span>{item.label}</span>
@@ -1618,7 +1618,7 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
                             if (onNavigate) onNavigate(false);
                             if (onAddWalkIn) onAddWalkIn();
                           }}
-                          className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs transition duration-150 shadow-md cursor-pointer uppercase tracking-wider"
+                          className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-blue-500 hover:bg-blue-600 text-white font-black text-xs transition duration-150 shadow-md cursor-pointer uppercase tracking-wider"
                         >
                           <Calendar size={15} />
                           <span>+ New Appointment</span>
@@ -1638,14 +1638,14 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
                     }}
                     className={`group w-full text-left rounded-3xl p-3.5 flex items-center gap-3.5 relative transition-all duration-200 cursor-pointer select-none ${
                       location.pathname.startsWith('/clinic/subscription')
-                        ? 'bg-emerald-50/90 border-2 border-emerald-500 shadow-sm'
-                        : 'bg-slate-50 hover:bg-slate-100/90 border border-slate-150 hover:border-emerald-300 hover:shadow-md hover:-translate-y-0.5'
+                        ? 'bg-blue-50/90 border-2 border-blue-500 shadow-sm'
+                        : 'bg-slate-50 hover:bg-slate-100/90 border border-slate-150 hover:border-blue-300 hover:shadow-md hover:-translate-y-0.5'
                     }`}
                   >
                     <div className={`w-[42px] h-[42px] shrink-0 rounded-2xl flex items-center justify-center border transition-all ${
                       location.pathname.startsWith('/clinic/subscription')
-                        ? 'bg-emerald-500 text-white border-emerald-600 shadow-2xs'
-                        : 'bg-emerald-50/70 group-hover:bg-emerald-100/80 text-emerald-600 border-emerald-100'
+                        ? 'bg-blue-500 text-white border-blue-600 shadow-2xs'
+                        : 'bg-blue-50/70 group-hover:bg-blue-100/80 text-blue-600 border-blue-100'
                     }`}>
                       {bottomCardInfo.icon}
                     </div>
@@ -1659,12 +1659,12 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
                         </span>
                         <ChevronRight
                           size={14}
-                          className={`text-slate-400 group-hover:text-emerald-600 group-hover:translate-x-0.5 transition-all shrink-0 ${
-                            location.pathname.startsWith('/clinic/subscription') ? 'text-emerald-600 translate-x-0.5' : ''
+                          className={`text-slate-400 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all shrink-0 ${
+                            location.pathname.startsWith('/clinic/subscription') ? 'text-blue-600 translate-x-0.5' : ''
                           }`}
                         />
                       </div>
-                      <p className="text-xs font-black text-slate-855 group-hover:text-emerald-950 mt-1 truncate">
+                      <p className="text-xs font-black text-slate-855 group-hover:text-blue-950 mt-1 truncate">
                         {bottomCardInfo.name}
                       </p>
                       <p className="text-[9px] text-slate-405 font-bold mt-1 truncate">
@@ -1674,7 +1674,7 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
                   </Link>
                 ) : (
                   <div className="bg-slate-50 border border-slate-100 rounded-3xl p-4 flex gap-3.5 relative shadow-sm">
-                    <div className="w-[42px] h-[42px] shrink-0 rounded-2xl bg-emerald-50/60 flex items-center justify-center border border-emerald-100">
+                    <div className="w-[42px] h-[42px] shrink-0 rounded-2xl bg-blue-50/60 flex items-center justify-center border border-blue-100">
                       {bottomCardInfo.icon}
                     </div>
                     <div className="min-w-0 flex-1 leading-none">
@@ -1740,7 +1740,7 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
                     ? 'bg-blue-50 text-blue-600 border-l-4 border-blue-500 shadow-sm'
                     : patientContext.includes('PHARMACY')
                     ? 'bg-teal-50 text-teal-600 border-l-4 border-teal-500 shadow-sm'
-                    : 'bg-emerald-50 text-emerald-600 border-l-4 border-emerald-500 shadow-sm'
+                    : 'bg-blue-50 text-blue-600 border-l-4 border-blue-500 shadow-sm'
                 }`}
               >
                 {patientContext.includes('LABORATORY') ? (
@@ -1767,12 +1767,12 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
                           onClick={() => toggleSubMenu(item.menuKey)}
                           className={`w-full flex items-center justify-between px-3.5 h-[46px] rounded-2xl text-[13px] font-bold transition duration-150 ${
                             active 
-                              ? (isLabContext ? 'bg-gradient-to-r from-purple-50/70 to-purple-50/20 text-slate-800 border-l-4 border-purple-500' : 'bg-gradient-to-r from-emerald-50/70 to-emerald-50/20 text-slate-800 border-l-4 border-emerald-500') 
-                              : `text-slate-500 hover:bg-slate-50 ${isLabContext ? 'hover:text-purple-650' : 'hover:text-emerald-650'}`
+                              ? (isLabContext ? 'bg-gradient-to-r from-purple-50/70 to-purple-50/20 text-slate-800 border-l-4 border-purple-500' : 'bg-gradient-to-r from-blue-50/70 to-blue-50/20 text-slate-800 border-l-4 border-blue-500') 
+                              : `text-slate-500 hover:bg-slate-50 ${isLabContext ? 'hover:text-purple-650' : 'hover:text-blue-650'}`
                           }`}
                         >
                           <div className="flex items-center gap-3">
-                            <span className={active ? (isLabContext ? 'text-purple-500' : 'text-emerald-500') : 'text-slate-400'}>
+                            <span className={active ? (isLabContext ? 'text-purple-500' : 'text-blue-500') : 'text-slate-400'}>
                               {ICON_MAP[item.iconKey] || <LayoutGrid size={20} />}
                             </span>
                             <span>{item.label}</span>
@@ -1788,11 +1788,11 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
                                 to={sub.path}
                                 className={`flex items-center gap-2 py-1.5 text-xs font-bold px-3 rounded-xl transition duration-150 ${
                                   subActive 
-                                    ? (isLabContext ? 'bg-purple-50/50 text-purple-600' : 'bg-emerald-50/50 text-emerald-600') 
-                                    : `text-slate-450 hover:bg-slate-50/30 ${isLabContext ? 'hover:text-purple-655' : 'hover:text-emerald-655'}`
+                                    ? (isLabContext ? 'bg-purple-50/50 text-purple-600' : 'bg-blue-50/50 text-blue-600') 
+                                    : `text-slate-450 hover:bg-slate-50/30 ${isLabContext ? 'hover:text-purple-655' : 'hover:text-blue-655'}`
                                 }`}
                               >
-                                <span className={`w-1.5 h-1.5 rounded-full ${subActive ? (isLabContext ? 'bg-purple-500' : 'bg-emerald-500') : 'bg-slate-350'}`} />
+                                <span className={`w-1.5 h-1.5 rounded-full ${subActive ? (isLabContext ? 'bg-purple-500' : 'bg-blue-500') : 'bg-slate-350'}`} />
                                 <span>{sub.label}</span>
                               </NavLink>
                             );
@@ -1804,11 +1804,11 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
                         to={item.path}
                         className={`flex items-center gap-3 px-3.5 h-[46px] rounded-2xl text-[13px] font-bold transition duration-150 ${
                           active
-                            ? (isLabContext ? 'bg-gradient-to-r from-purple-50/70 to-purple-50/20 text-slate-800 border-l-4 border-purple-500 shadow-sm' : 'bg-gradient-to-r from-emerald-50/70 to-emerald-50/20 text-slate-800 border-l-4 border-emerald-500 shadow-sm')
-                            : `text-slate-500 hover:bg-slate-50 ${isLabContext ? 'hover:text-purple-600' : 'hover:text-emerald-600'}`
+                            ? (isLabContext ? 'bg-gradient-to-r from-purple-50/70 to-purple-50/20 text-slate-800 border-l-4 border-purple-500 shadow-sm' : 'bg-gradient-to-r from-blue-50/70 to-blue-50/20 text-slate-800 border-l-4 border-blue-500 shadow-sm')
+                            : `text-slate-500 hover:bg-slate-50 ${isLabContext ? 'hover:text-purple-600' : 'hover:text-blue-600'}`
                         }`}
                       >
-                        <span className={active ? (isLabContext ? 'text-purple-500' : 'text-emerald-500') : 'text-slate-400'}>
+                        <span className={active ? (isLabContext ? 'text-purple-500' : 'text-blue-500') : 'text-slate-400'}>
                           {ICON_MAP[item.iconKey] || <LayoutGrid size={20} />}
                         </span>
                         <span>{item.label}</span>
@@ -1825,11 +1825,11 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
                         to={item.path}
                         className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${
                           active 
-                            ? (isLabContext ? 'bg-gradient-to-r from-purple-50/70 to-purple-50/20 text-slate-805 border-l-4 border-purple-500 shadow-sm' : 'bg-gradient-to-r from-emerald-50/70 to-emerald-50/20 text-slate-805 border-l-4 border-emerald-500 shadow-sm') 
-                            : (isLabContext ? 'text-slate-400 hover:bg-slate-50 hover:text-purple-555' : 'text-slate-400 hover:bg-slate-50 hover:text-emerald-555')
+                            ? (isLabContext ? 'bg-gradient-to-r from-purple-50/70 to-purple-50/20 text-slate-805 border-l-4 border-purple-500 shadow-sm' : 'bg-gradient-to-r from-blue-50/70 to-blue-50/20 text-slate-805 border-l-4 border-blue-500 shadow-sm') 
+                            : (isLabContext ? 'text-slate-400 hover:bg-slate-50 hover:text-purple-555' : 'text-slate-400 hover:bg-slate-50 hover:text-blue-555')
                         }`}
                       >
-                        <span className={active ? (isLabContext ? 'text-purple-500' : 'text-emerald-500') : 'text-slate-400'}>
+                        <span className={active ? (isLabContext ? 'text-purple-500' : 'text-blue-500') : 'text-slate-400'}>
                           {ICON_MAP[item.iconKey] || <LayoutGrid size={20} />}
                         </span>
                       </NavLink>
@@ -1864,7 +1864,7 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
                   <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 pb-2">QUICK ACTIONS</p>
                   <button
                     onClick={onAddWalkIn}
-                    className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs transition duration-150 shadow-md cursor-pointer uppercase tracking-wider"
+                    className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-blue-500 hover:bg-blue-600 text-white font-black text-xs transition duration-150 shadow-md cursor-pointer uppercase tracking-wider"
                   >
                     <Calendar size={15} />
                     <span>+ New Appointment</span>
@@ -1884,14 +1884,14 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
                 }}
                 className={`group w-full text-left rounded-3xl p-3.5 flex items-center gap-3.5 relative transition-all duration-200 cursor-pointer select-none ${
                   location.pathname.startsWith('/clinic/subscription')
-                    ? 'bg-emerald-50/90 border-2 border-emerald-500 shadow-sm ring-2 ring-emerald-500/20'
-                    : 'bg-slate-50 hover:bg-slate-100/90 border border-slate-150 hover:border-emerald-300 hover:shadow-md hover:-translate-y-0.5'
+                    ? 'bg-blue-50/90 border-2 border-blue-500 shadow-sm ring-2 ring-blue-500/20'
+                    : 'bg-slate-50 hover:bg-slate-100/90 border border-slate-150 hover:border-blue-300 hover:shadow-md hover:-translate-y-0.5'
                 }`}
               >
                 <div className={`w-[42px] h-[42px] shrink-0 rounded-2xl flex items-center justify-center border transition-all ${
                   location.pathname.startsWith('/clinic/subscription')
-                    ? 'bg-emerald-500 text-white border-emerald-600 shadow-2xs'
-                    : 'bg-emerald-50/70 group-hover:bg-emerald-100/80 text-emerald-600 border-emerald-100'
+                    ? 'bg-blue-500 text-white border-blue-600 shadow-2xs'
+                    : 'bg-blue-50/70 group-hover:bg-blue-100/80 text-blue-600 border-blue-100'
                 }`}>
                   {bottomCardInfo.icon}
                 </div>
@@ -1905,12 +1905,12 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
                     </span>
                     <ChevronRight
                       size={14}
-                      className={`text-slate-400 group-hover:text-emerald-600 group-hover:translate-x-0.5 transition-all shrink-0 ${
-                        location.pathname.startsWith('/clinic/subscription') ? 'text-emerald-600 translate-x-0.5' : ''
+                      className={`text-slate-400 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all shrink-0 ${
+                        location.pathname.startsWith('/clinic/subscription') ? 'text-blue-600 translate-x-0.5' : ''
                       }`}
                     />
                   </div>
-                  <p className="text-xs font-black text-slate-850 group-hover:text-emerald-950 mt-1 truncate">
+                  <p className="text-xs font-black text-slate-850 group-hover:text-blue-950 mt-1 truncate">
                     {bottomCardInfo.name}
                   </p>
                   <p className="text-[9px] text-slate-400 font-bold mt-1 truncate">
@@ -1920,7 +1920,7 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
               </Link>
             ) : (
               <div className="bg-slate-50 border border-slate-100 rounded-3xl p-4 flex gap-3.5 relative shadow-sm">
-                <div className="w-[42px] h-[42px] shrink-0 rounded-2xl bg-emerald-50/60 flex items-center justify-center border border-emerald-100">
+                <div className="w-[42px] h-[42px] shrink-0 rounded-2xl bg-blue-50/60 flex items-center justify-center border border-blue-100">
                   {bottomCardInfo.icon}
                 </div>
                 <div className="min-w-0 flex-1 leading-none">

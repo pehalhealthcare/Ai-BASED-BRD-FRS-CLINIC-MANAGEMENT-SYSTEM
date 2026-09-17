@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import {
   Bell, Building2, Calendar, CalendarPlus, CheckCircle2, ChevronLeft,
   ChevronRight, Clock, MapPin, RotateCcw, Search, Shield, Star,
@@ -187,8 +187,8 @@ export default function Appointments({
         {/* Header and Stats Block */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-navy-800">
           <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-xl bg-aura-500/10 border border-aura-500/20 flex items-center justify-center shrink-0">
-              <Calendar size={22} className="text-aura-500 dark:text-aura-400" />
+            <div className="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shrink-0">
+              <Calendar size={22} className="text-blue-500 dark:text-blue-400" />
             </div>
             <div>
               <h2 className="text-lg font-bold text-slate-900 dark:text-white">Appointments</h2>
@@ -198,7 +198,7 @@ export default function Appointments({
 
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-slate-50 dark:bg-navy-900/60 border border-slate-200 dark:border-white/10 text-center min-w-[76px]">
-              <span className="text-lg font-bold text-emerald-500 dark:text-emerald-400">{upcomingCount}</span>
+              <span className="text-lg font-bold text-blue-500 dark:text-blue-400">{upcomingCount}</span>
               <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 mt-1">Upcoming</span>
             </div>
             <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-slate-50 dark:bg-navy-900/60 border border-slate-200 dark:border-white/10 text-center min-w-[76px]">
@@ -213,7 +213,7 @@ export default function Appointments({
               onClick={() => alert('Integration to Google / Apple Calendar coming soon!')}
               className="flex flex-col items-center justify-center p-3 rounded-xl bg-slate-50 dark:bg-navy-900/60 hover:bg-slate-100 dark:hover:bg-white/5 border border-slate-200 dark:border-white/10 text-center min-w-[90px] transition"
             >
-              <CalendarPlus size={16} className="text-aura-500 dark:text-aura-400" />
+              <CalendarPlus size={16} className="text-blue-500 dark:text-blue-400" />
               <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 mt-1">Add to Calendar</span>
             </button>
           </div>
@@ -231,7 +231,7 @@ export default function Appointments({
               <button key={id} onClick={() => setApptFilterTab(id)}
                 className={`px-4 pb-3 text-sm font-semibold border-b-2 transition-all duration-150 mr-1
                   ${apptFilterTab === id
-                    ? 'border-aura-500 text-aura-500 dark:text-aura-400'
+                    ? 'border-blue-500 text-blue-500 dark:text-blue-400'
                     : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}>
                 {label}
               </button>
@@ -246,13 +246,13 @@ export default function Appointments({
                 placeholder="Search appointments, doctors..."
                 value={apptSearch}
                 onChange={e => setApptSearch(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-navy-900/60 text-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:border-aura-400"
+                className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-navy-900/60 text-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:border-blue-400"
               />
             </div>
             <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
               <button
                 onClick={() => setPickerOpen(!pickerOpen)}
-                className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-navy-900/60 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-white/5 transition ${pickerOpen ? 'border-aura-500 text-aura-550' : 'text-slate-600 dark:text-slate-300'}`}
+                className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-navy-900/60 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-white/5 transition ${pickerOpen ? 'border-blue-500 text-blue-550' : 'text-slate-600 dark:text-slate-300'}`}
               >
                 <Calendar size={13} className="text-slate-400" />
                 Date Range
@@ -261,7 +261,7 @@ export default function Appointments({
                 <Filter size={13} className="text-slate-400" />
                 Filter
               </button>
-              <select value={apptSort} onChange={e => setApptSort(e.target.value)} className="px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-navy-900/60 text-xs font-semibold text-slate-700 dark:text-slate-200 focus:outline-none focus:border-aura-400">
+              <select value={apptSort} onChange={e => setApptSort(e.target.value)} className="px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-navy-900/60 text-xs font-semibold text-slate-700 dark:text-slate-200 focus:outline-none focus:border-blue-400">
                 <option value="date">Sort by: Date</option>
                 <option value="doctor">Sort by: Doctor</option>
               </select>
@@ -276,7 +276,7 @@ export default function Appointments({
                   type="date"
                   value={startVal}
                   onChange={(e) => setStartVal(e.target.value)}
-                  className="rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-navy-900/60 text-xs text-slate-700 dark:text-slate-200 px-3 py-2 outline-none focus:border-aura-400"
+                  className="rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-navy-900/60 text-xs text-slate-700 dark:text-slate-200 px-3 py-2 outline-none focus:border-blue-400"
                 />
               </div>
               <div className="flex items-center gap-2">
@@ -285,7 +285,7 @@ export default function Appointments({
                   type="date"
                   value={endVal}
                   onChange={(e) => setEndVal(e.target.value)}
-                  className="rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-navy-900/60 text-xs text-slate-700 dark:text-slate-200 px-3 py-2 outline-none focus:border-aura-400"
+                  className="rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-navy-900/60 text-xs text-slate-700 dark:text-slate-200 px-3 py-2 outline-none focus:border-blue-400"
                 />
               </div>
               <button
@@ -379,7 +379,7 @@ export default function Appointments({
                       p-5 rounded-2xl border
                       bg-white dark:bg-navy-800
                       border-slate-200 dark:border-white/[0.08]
-                      hover:border-aura-400 dark:hover:border-aura-500/50
+                      hover:border-blue-400 dark:hover:border-blue-500/50
                       hover:shadow-sm transition-all duration-150 cursor-pointer
                       grid grid-cols-1 md:grid-cols-[110px_minmax(180px,_1fr)_200px_140px] gap-5 items-start md:items-center
                       ${isCancelled ? 'opacity-70' : ''}
@@ -387,7 +387,7 @@ export default function Appointments({
                   >
                     {/* Date Block */}
                     <div className="flex flex-col items-center justify-center p-3.5 bg-slate-50 dark:bg-navy-900/60 border border-slate-200 dark:border-white/10 rounded-2xl shrink-0 text-center min-w-[110px] w-full md:w-auto">
-                      <Calendar size={15} className="text-emerald-500 dark:text-emerald-400 mb-1.5" />
+                      <Calendar size={15} className="text-blue-500 dark:text-blue-400 mb-1.5" />
                       <span className="text-2xl font-extrabold text-slate-900 dark:text-white leading-none">{dayNum || '--'}</span>
                       <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 mt-1.5">
                         {monthYear}
@@ -395,7 +395,7 @@ export default function Appointments({
                       <span className="text-[9px] text-slate-400 dark:text-slate-500">
                         {dayName}
                       </span>
-                      <div className="mt-3 px-3 py-1.5 text-xs font-bold rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-center w-full">
+                      <div className="mt-3 px-3 py-1.5 text-xs font-bold rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 text-center w-full">
                         {timeString}
                       </div>
                     </div>
@@ -414,7 +414,7 @@ export default function Appointments({
                             : isCancelled
                               ? 'bg-rose-500/10 text-rose-500 border-rose-500/10'
                               : isCompleted
-                                ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/10'
+                                ? 'bg-blue-500/10 text-blue-500 border-blue-500/10'
                                 : apt.status === 'called'
                                   ? 'bg-violet-500/10 text-violet-600 border-violet-500/20 animate-pulse'
                                   : 'bg-indigo-500/10 text-indigo-500 border-indigo-500/10'
@@ -424,7 +424,7 @@ export default function Appointments({
                         <span className={`inline-block ml-2 px-2.5 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider mb-2 border ${
                           apt.consultationMode === 'ONLINE'
                             ? 'bg-blue-500/10 text-blue-500 border-blue-500/15'
-                            : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/15'
+                            : 'bg-blue-500/10 text-blue-500 border-blue-500/15'
                         }`}>
                           {apt.consultationMode === 'ONLINE' ? '📹 Online Video' : '🧑⚕️ Walk-In'}
                         </span>
@@ -440,7 +440,7 @@ export default function Appointments({
                         )}
                         {isCompleted && (
                           <span className={`inline-block ml-2 px-2.5 py-0.5 rounded-lg text-[9px] font-bold uppercase tracking-wider mb-2 border ${isPaid
-                              ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/10'
+                              ? 'bg-blue-500/10 text-blue-500 border-blue-500/10'
                               : 'bg-amber-500/10 text-amber-500 border-amber-500/10'
                             }`}>
                             {isPaid ? 'PAID' : 'PAYMENT PENDING'}
@@ -449,7 +449,7 @@ export default function Appointments({
 
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <h4 className="text-sm font-bold text-slate-900 dark:text-white">Dr. {apt.doctorId?.fullName || 'Unknown Doctor'}</h4>
-                          <CheckCircle2 size={13} className="text-emerald-500 shrink-0" />
+                          <CheckCircle2 size={13} className="text-blue-500 shrink-0" />
                         </div>
 
                         <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium">{apt.doctorId?.specialization || 'General Physician'}</p>
@@ -469,7 +469,7 @@ export default function Appointments({
                             <span className="font-bold text-slate-700 dark:text-slate-350">₹{apt.consultationFee || apt.doctorId?.consultationFee || 500}</span>
                           </div>
                           {apt.waiverAmount > 0 && (
-                            <div className="flex justify-between max-w-[280px] text-emerald-600 dark:text-emerald-400 font-semibold">
+                            <div className="flex justify-between max-w-[280px] text-blue-600 dark:text-blue-400 font-semibold">
                               <span>Waiver ({apt.waiverType === 'full' ? 'Full' : 'Partial'}):</span>
                               <span>-₹{apt.waiverAmount}</span>
                             </div>
@@ -481,7 +481,7 @@ export default function Appointments({
                           <div className="flex justify-between max-w-[280px] pt-1 border-t border-dashed border-slate-100 dark:border-white/[0.04]">
                             <span className="text-slate-400 dark:text-slate-500 font-medium">Payment Status:</span>
                             <span className={`font-black uppercase text-[10px] ${
-                              isPaid ? 'text-emerald-500' : 'text-amber-500'
+                              isPaid ? 'text-blue-500' : 'text-amber-500'
                             }`}>
                               {apt.paymentStatus ? apt.paymentStatus.replace(/_/g, ' ') : (isPaid ? 'Paid' : 'Pending')}
                             </span>
@@ -501,7 +501,7 @@ export default function Appointments({
                             </div>
                           )}
                           {apt.paymentTransferStatus === 'received_transfer' && (
-                            <div className="flex justify-between max-w-[280px] text-emerald-500 dark:text-emerald-400">
+                            <div className="flex justify-between max-w-[280px] text-blue-500 dark:text-blue-400">
                               <span className="font-medium">Transfer Status:</span>
                               <span className="font-extrabold text-[10px] uppercase">Already Paid (Transferred)</span>
                             </div>
@@ -522,7 +522,7 @@ export default function Appointments({
                       </div>
                       <button
                         onClick={(e) => { e.stopPropagation(); setSelectedApptDetails(apt); }}
-                        className="inline-flex items-center gap-1.5 text-[11px] font-bold text-aura-500 dark:text-aura-400 hover:underline mt-1 self-start"
+                        className="inline-flex items-center gap-1.5 text-[11px] font-bold text-blue-500 dark:text-blue-400 hover:underline mt-1 self-start"
                       >
                         <Eye size={12} />
                         View Details
@@ -563,7 +563,7 @@ export default function Appointments({
                                 e.stopPropagation();
                                 setSelectedApptDetails(apt);
                               }}
-                              className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-aura-600 dark:bg-aura-500 text-white hover:bg-aura-700 dark:hover:bg-aura-600 transition text-center shadow-md"
+                              className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-blue-600 dark:bg-blue-500 text-white hover:bg-blue-700 dark:hover:bg-blue-600 transition text-center shadow-md"
                             >
                               <Eye size={12} />
                               Consultation Details
@@ -578,7 +578,7 @@ export default function Appointments({
                             <>
                               <button
                                 onClick={(e) => { e.stopPropagation(); setReschedulingAppt(apt); }}
-                                className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-750 text-white shadow-sm transition"
+                                className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-750 text-white shadow-sm transition"
                               >
                                 <CalendarPlus size={12} />
                                 Reschedule (Uses Existing Payment)
@@ -608,7 +608,7 @@ export default function Appointments({
                           {!isCancelled && (
                             <button
                               onClick={(e) => { e.stopPropagation(); setReschedulingAppt(apt); }}
-                              className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-aura-600 dark:bg-aura-500 text-white hover:bg-aura-700 dark:hover:bg-aura-600 transition"
+                              className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-blue-600 dark:bg-blue-500 text-white hover:bg-blue-700 dark:hover:bg-blue-600 transition"
                             >
                               <CalendarPlus size={12} />
                               Reschedule
@@ -648,8 +648,8 @@ export default function Appointments({
               })
             ) : (
               <div className="flex flex-col items-center justify-center py-16 px-6 bg-white dark:bg-navy-800 rounded-2xl border border-slate-200 dark:border-white/[0.08]">
-                <div className="w-16 h-16 rounded-2xl bg-aura-500/10 flex items-center justify-center mb-4">
-                  <Calendar size={28} className="text-aura-400" />
+                <div className="w-16 h-16 rounded-2xl bg-blue-500/10 flex items-center justify-center mb-4">
+                  <Calendar size={28} className="text-blue-400" />
                 </div>
                 <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">No appointments found</h3>
                 <p className="text-xs text-slate-400 text-center max-w-xs">
@@ -678,8 +678,8 @@ export default function Appointments({
             {/* Calendar icon bell illustration on the right */}
             <div className="flex items-center gap-2 shrink-0">
               <div className="relative">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-aura-500/20 to-indigo-500/10 border border-aura-500/20 dark:border-white/10 flex flex-col items-center justify-center">
-                  <Calendar size={20} className="text-aura-500 dark:text-aura-400 mb-0.5" />
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500/20 to-indigo-500/10 border border-blue-500/20 dark:border-white/10 flex flex-col items-center justify-center">
+                  <Calendar size={20} className="text-blue-500 dark:text-blue-400 mb-0.5" />
                   <Bell size={10} className="text-amber-400" />
                 </div>
                 <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-amber-400 border-2 border-white dark:border-navy-800 flex items-center justify-center">
@@ -721,9 +721,9 @@ export default function Appointments({
               const hasAppt = apptDays.has(day);
               const today = isToday(day);
               return (
-                <div key={day} className={`relative flex items-center justify-center h-7 w-7 mx-auto rounded-full text-[11px] font-medium transition-colors ${today ? 'bg-aura-500 text-white font-bold' : hasAppt ? 'bg-aura-500/15 text-aura-400 font-semibold' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5'}`}>
+                <div key={day} className={`relative flex items-center justify-center h-7 w-7 mx-auto rounded-full text-[11px] font-medium transition-colors ${today ? 'bg-blue-500 text-white font-bold' : hasAppt ? 'bg-blue-500/15 text-blue-400 font-semibold' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5'}`}>
                   {day}
-                  {hasAppt && !today && <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-aura-400" />}
+                  {hasAppt && !today && <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-blue-400" />}
                 </div>
               );
             })}
@@ -734,7 +734,7 @@ export default function Appointments({
         <div className="rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-navy-800 p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-bold text-slate-900 dark:text-white">Upcoming (Next 7 Days)</h3>
-            <button onClick={() => { setApptFilterTab('all'); setApptSearch(''); }} className="text-[11px] text-aura-400 hover:text-aura-500 font-semibold">View All</button>
+            <button onClick={() => { setApptFilterTab('all'); setApptSearch(''); }} className="text-[11px] text-blue-400 hover:text-blue-500 font-semibold">View All</button>
           </div>
           {next7.length > 0 ? (
             <div className="space-y-2.5">
@@ -742,7 +742,7 @@ export default function Appointments({
                 const d = apt.appointmentDate ? new Date(apt.appointmentDate) : null;
                 return (
                   <div key={apt._id} className="flex items-start gap-2.5 p-2.5 rounded-xl bg-slate-50 dark:bg-navy-900/50 border border-slate-100 dark:border-white/[0.04]">
-                    <div className="w-8 h-8 rounded-xl bg-aura-500/10 flex items-center justify-center shrink-0"><Calendar size={14} className="text-aura-400" /></div>
+                    <div className="w-8 h-8 rounded-xl bg-blue-500/10 flex items-center justify-center shrink-0"><Calendar size={14} className="text-blue-400" /></div>
                     <div className="min-w-0 flex-1">
                       <p className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 truncate">
                         {d?.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })} {apt.startTime ? `• ${apt.startTime}` : ''}
@@ -759,7 +759,7 @@ export default function Appointments({
         {/* Reschedule */}
         <div className="rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-navy-800 p-4">
           <div className="flex items-start gap-2.5 mb-3">
-            <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0"><Calendar size={14} className="text-emerald-500" /></div>
+            <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0"><Calendar size={14} className="text-blue-500" /></div>
             <div>
               <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">Need to Reschedule?</h4>
               <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Can't make it to your appointment? Reschedule anytime, hassle-free.</p>
@@ -789,8 +789,8 @@ export default function Appointments({
               {/* Graphic/Image of the clinic */}
               <div className="w-full h-32 rounded-xl bg-slate-100 dark:bg-navy-900/60 overflow-hidden relative border border-slate-200 dark:border-white/10">
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 to-transparent z-10" />
-                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-aura-500/10 to-indigo-500/20">
-                  <Building2 size={48} className="text-aura-400/30 dark:text-aura-400/20" />
+                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-blue-500/10 to-indigo-500/20">
+                  <Building2 size={48} className="text-blue-400/30 dark:text-blue-400/20" />
                 </div>
                 <div className="absolute bottom-2.5 left-3 z-20">
                   <p className="text-xs font-bold text-white">{primaryClinic.name}</p>
@@ -805,7 +805,7 @@ export default function Appointments({
                 )}
               </div>
 
-              <Link to="/appointments" className="block text-center w-full py-2 rounded-xl text-xs font-bold border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 text-aura-500 dark:text-aura-400 transition">
+              <Link to="/appointments" className="block text-center w-full py-2 rounded-xl text-xs font-bold border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 text-blue-500 dark:text-blue-400 transition">
                 View Clinic Details
               </Link>
             </div>

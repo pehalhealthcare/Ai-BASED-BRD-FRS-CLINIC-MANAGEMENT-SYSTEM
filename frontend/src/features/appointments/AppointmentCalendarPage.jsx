@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
@@ -198,7 +198,7 @@ const AppointmentCalendarPage = () => {
     const total = patientCount + recepCount + doctorCount + adminCount || 1;
 
     return [
-      { name: 'Patient', count: patientCount, pct: Math.round((patientCount / total) * 100), color: 'bg-emerald-500', fill: '#10B981' },
+      { name: 'Patient', count: patientCount, pct: Math.round((patientCount / total) * 100), color: 'bg-blue-500', fill: '#2563EB' },
       { name: 'Receptionist', count: recepCount, pct: Math.round((recepCount / total) * 100), color: 'bg-indigo-500', fill: '#6366F1' },
       { name: 'Doctor', count: doctorCount, pct: Math.round((doctorCount / total) * 100), color: 'bg-amber-500', fill: '#F59E0B' },
       { name: 'Clinic Admin', count: adminCount, pct: Math.round((adminCount / total) * 100), color: 'bg-sky-500', fill: '#0EA5E9' }
@@ -287,7 +287,7 @@ const AppointmentCalendarPage = () => {
 
             <Link 
               to="/appointments/new"
-              className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl px-4.5 py-2 text-xs font-black transition flex items-center gap-1.5 shadow-sm"
+              className="bg-blue-500 hover:bg-blue-600 text-white rounded-xl px-4.5 py-2 text-xs font-black transition flex items-center gap-1.5 shadow-sm"
             >
               <Plus className="w-4 h-4" /> New Appointment
             </Link>
@@ -333,10 +333,10 @@ const AppointmentCalendarPage = () => {
               label: "CHECKED-IN", 
               count: stats.checkedIn, 
               status: "Live", 
-              statusColor: 'bg-emerald-50 text-emerald-650 border border-emerald-100', 
+              statusColor: 'bg-blue-50 text-blue-650 border border-blue-100', 
               icon: <UserCheck size={18} />, 
-              iconColor: 'bg-emerald-50 text-emerald-500 border border-emerald-100',
-              sparkColor: '#10B981',
+              iconColor: 'bg-blue-50 text-blue-500 border border-blue-100',
+              sparkColor: '#2563EB',
               trendData: (() => {
                 const hours = Array(8).fill(0);
                 allAppointments.filter(a => a.status === 'checked_in').forEach(a => {
@@ -367,10 +367,10 @@ const AppointmentCalendarPage = () => {
               label: "COMPLETED", 
               count: stats.completed, 
               status: "Healthy", 
-              statusColor: 'bg-emerald-50 text-emerald-650 border border-emerald-100', 
+              statusColor: 'bg-blue-50 text-blue-650 border border-blue-100', 
               icon: <CheckCircle size={18} />, 
-              iconColor: 'bg-emerald-50 text-emerald-500 border border-emerald-100',
-              sparkColor: '#10B981',
+              iconColor: 'bg-blue-50 text-blue-500 border border-blue-100',
+              sparkColor: '#2563EB',
               trendData: (() => {
                 const hours = Array(8).fill(0);
                 allAppointments.filter(a => a.status === 'completed').forEach(a => {
@@ -468,7 +468,7 @@ const AppointmentCalendarPage = () => {
                   <h3 className="text-[32px] font-black text-slate-900 leading-none mt-2">
                     {c.count}
                   </h3>
-                  <p className={`text-[10.5px] font-extrabold mt-1.5 leading-none ${diff === 0 ? 'text-slate-400' : (isUp ? 'text-emerald-600' : 'text-rose-600')}`}>
+                  <p className={`text-[10.5px] font-extrabold mt-1.5 leading-none ${diff === 0 ? 'text-slate-400' : (isUp ? 'text-blue-600' : 'text-rose-600')}`}>
                     {diff === 0 ? 'No change' : `${isUp ? '↑' : '↓'} ${pct}% vs yesterday`}
                   </p>
                 </div>
@@ -501,13 +501,13 @@ const AppointmentCalendarPage = () => {
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-1.5 pb-2.5 border-b-2 px-1.5 text-xs font-black transition shrink-0 ${
                 activeTab === tab.id 
-                  ? 'border-emerald-500 text-emerald-700' 
+                  ? 'border-blue-500 text-blue-700' 
                   : 'border-transparent text-slate-450 hover:text-slate-700'
               }`}
             >
               {tab.label}
               <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${
-                activeTab === tab.id ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-500'
+                activeTab === tab.id ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-500'
               }`}>
                 {tab.count}
               </span>
@@ -606,7 +606,7 @@ const AppointmentCalendarPage = () => {
                     <tr key={apt._id} className="hover:bg-slate-50/40 transition">
                       <td className="py-4 px-5 text-xs font-bold text-slate-900">{apt.startTime || '—'}</td>
                       <td className="py-4 px-4">
-                        <span className={`text-[10.5px] font-black ${apt.status !== 'booked' ? 'text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg' : 'text-slate-400'}`}>
+                        <span className={`text-[10.5px] font-black ${apt.status !== 'booked' ? 'text-blue-700 bg-blue-50 px-2 py-0.5 rounded-lg' : 'text-slate-400'}`}>
                           {apt.meta?.tokenNumber || apt.tokenNumber || '—'}
                         </span>
                       </td>
@@ -625,21 +625,21 @@ const AppointmentCalendarPage = () => {
                       <td className="py-4 px-4 text-[11px] text-slate-550 font-bold">{apt.doctorId?.specialization?.name || 'General Medicine'}</td>
                       <td className="py-4 px-4">
                         <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase ${
-                          apt.consultationMode === 'ONLINE' ? 'bg-blue-50 text-blue-700' : 'bg-emerald-50 text-emerald-700'
+                          apt.consultationMode === 'ONLINE' ? 'bg-blue-50 text-blue-700' : 'bg-blue-50 text-blue-700'
                         }`}>
                           {apt.consultationMode === 'ONLINE' ? '📹 Online' : '🏥 Offline'}
                         </span>
                       </td>
                       <td className="py-4 px-4">
                         <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
-                          apt.source === 'patient_app' ? 'bg-emerald-50 text-emerald-700' : 'bg-indigo-50 text-indigo-700'
+                          apt.source === 'patient_app' ? 'bg-blue-50 text-blue-700' : 'bg-indigo-50 text-indigo-700'
                         }`}>
                           {apt.source === 'patient_app' ? 'Patient' : 'Receptionist'}
                         </span>
                       </td>
                       <td className="py-4 px-4">
                         <span className={`px-2.5 py-0.5 rounded-lg text-[9.5px] font-black uppercase ${
-                          apt.paymentStatus === 'paid' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-50 text-rose-600'
+                          apt.paymentStatus === 'paid' ? 'bg-blue-100 text-blue-800' : 'bg-rose-50 text-rose-600'
                         }`}>
                           {apt.paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
                         </span>
@@ -647,9 +647,9 @@ const AppointmentCalendarPage = () => {
                       <td className="py-4 px-4">
                         <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[9px] font-black uppercase ${
                           apt.status === 'booked' ? 'bg-sky-50 text-sky-750' :
-                          apt.status === 'checked_in' ? 'bg-emerald-50 text-emerald-700' :
+                          apt.status === 'checked_in' ? 'bg-blue-50 text-blue-700' :
                           apt.status === 'in_consultation' ? 'bg-purple-50 text-purple-755' :
-                          apt.status === 'completed' ? 'bg-emerald-100 text-emerald-800' :
+                          apt.status === 'completed' ? 'bg-blue-100 text-blue-800' :
                           apt.status === 'cancelled' ? 'bg-rose-50 text-rose-755' :
                           'bg-orange-50 text-orange-755'
                         }`}>
@@ -660,7 +660,7 @@ const AppointmentCalendarPage = () => {
                         {apt.paymentStatus === 'waiver_pending' ? (
                           <span className="text-amber-600 font-extrabold text-[9px] bg-amber-50 px-2 py-0.5 rounded-lg">Requested</span>
                         ) : apt.paymentStatus === 'fully_waived' ? (
-                          <span className="text-emerald-600 font-extrabold text-[9px] bg-emerald-50 px-2 py-0.5 rounded-lg">Approved</span>
+                          <span className="text-blue-600 font-extrabold text-[9px] bg-blue-50 px-2 py-0.5 rounded-lg">Approved</span>
                         ) : '—'}
                       </td>
                       <td className="py-4 px-5 text-right" onClick={(e) => e.stopPropagation()}>
@@ -675,11 +675,11 @@ const AppointmentCalendarPage = () => {
                             <div className="absolute right-0 mt-1 w-44 bg-white border border-slate-150 rounded-xl shadow-lg z-50 py-1 text-left text-xs font-bold text-slate-700">
                               <Link to={`/appointments/${apt._id}`} className="block px-4 py-2 hover:bg-slate-50">View Details</Link>
                               {apt.status === 'booked' && (
-                                <button onClick={() => handleStatusChange(apt._id, 'checked_in')} className="w-full text-left px-4 py-2 hover:bg-slate-50 text-emerald-600">Check-In</button>
+                                <button onClick={() => handleStatusChange(apt._id, 'checked_in')} className="w-full text-left px-4 py-2 hover:bg-slate-50 text-blue-600">Check-In</button>
                               )}
                               {apt.paymentStatus === 'waiver_pending' && (
                                 <>
-                                  <button onClick={() => handleWaiverAction(apt._id, 'approve')} className="w-full text-left px-4 py-2 hover:bg-slate-50 text-emerald-600">Approve Waiver</button>
+                                  <button onClick={() => handleWaiverAction(apt._id, 'approve')} className="w-full text-left px-4 py-2 hover:bg-slate-50 text-blue-600">Approve Waiver</button>
                                   <button onClick={() => handleWaiverAction(apt._id, 'reject')} className="w-full text-left px-4 py-2 hover:bg-slate-50 text-rose-600">Reject Waiver</button>
                                 </>
                               )}
@@ -710,7 +710,7 @@ const AppointmentCalendarPage = () => {
           <div className="space-y-3.5">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-black text-slate-900 uppercase">Live Queue (Today)</h3>
-              <button onClick={() => navigate('/dashboard/appointments')} className="text-[10px] font-black text-emerald-600 hover:text-emerald-700 uppercase">View Full →</button>
+              <button onClick={() => navigate('/dashboard/appointments')} className="text-[10px] font-black text-blue-600 hover:text-blue-700 uppercase">View Full →</button>
             </div>
             <div className="space-y-2.5">
               {allAppointments.filter(a => ['checked_in', 'in_consultation'].includes(a.status)).length === 0 ? (
@@ -719,7 +719,7 @@ const AppointmentCalendarPage = () => {
                 allAppointments.filter(a => ['checked_in', 'in_consultation'].includes(a.status)).slice(0, 3).map(apt => (
                   <div key={apt._id} className="bg-slate-50/50 border border-slate-100 p-3 rounded-2xl flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-black text-[10px]">
+                      <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center font-black text-[10px]">
                         {apt.meta?.tokenNumber || apt.tokenNumber || '—'}
                       </div>
                       <div>
@@ -728,7 +728,7 @@ const AppointmentCalendarPage = () => {
                       </div>
                     </div>
                     <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase ${
-                      apt.status === 'in_consultation' ? 'bg-purple-50 text-purple-700' : 'bg-emerald-50 text-emerald-700'
+                      apt.status === 'in_consultation' ? 'bg-purple-50 text-purple-700' : 'bg-blue-50 text-blue-700'
                     }`}>
                       {apt.status === 'in_consultation' ? 'Consulting' : 'Checked-In'}
                     </span>
@@ -742,7 +742,7 @@ const AppointmentCalendarPage = () => {
           <div className="space-y-3.5 border-t border-slate-100 pt-5">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-black text-slate-900 uppercase">Fee Waiver</h3>
-              <button className="text-[10px] font-black text-emerald-600 hover:text-emerald-700 uppercase">View All →</button>
+              <button className="text-[10px] font-black text-blue-600 hover:text-blue-700 uppercase">View All →</button>
             </div>
             <div className="space-y-2.5">
               {allAppointments.filter(a => ['waiver_pending', 'fully_waived'].includes(a.paymentStatus)).length === 0 ? (
@@ -755,7 +755,7 @@ const AppointmentCalendarPage = () => {
                       <span className="text-[9px] text-slate-400 block mt-1">Requested by Receptionist</span>
                     </div>
                     <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase ${
-                      apt.paymentStatus === 'fully_waived' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                      apt.paymentStatus === 'fully_waived' ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'
                     }`}>
                       {apt.paymentStatus === 'fully_waived' ? 'Approved' : 'Pending'}
                     </span>

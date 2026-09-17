@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import SkeletonCard from './SkeletonCard';
 
@@ -7,7 +7,7 @@ const WaitTimeBadge = ({ minutes }) => {
     ? 'text-red-600 bg-red-50'
     : minutes > 15
     ? 'text-amber-600 bg-amber-50'
-    : 'text-emerald-600 bg-emerald-50';
+    : 'text-blue-600 bg-blue-50';
 
   return (
     <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${color}`}>
@@ -26,8 +26,8 @@ const CheckedInQueue = ({ queue, loading }) => {
       <div className="flex items-center justify-between px-5 py-4 border-b border-slate-50">
         <div className="flex items-center gap-2">
           <h2 className="text-sm font-black text-slate-900">Checked-In Patients</h2>
-          <span className="flex items-center gap-1 text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="flex items-center gap-1 text-[9px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
             Live Queue
           </span>
         </div>

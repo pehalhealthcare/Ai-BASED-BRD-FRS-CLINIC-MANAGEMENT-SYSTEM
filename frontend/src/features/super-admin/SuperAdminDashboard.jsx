@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+﻿import { useEffect, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Building2, Clock, CreditCard, AlertTriangle, XCircle,
@@ -20,7 +20,7 @@ const fmtDate = (d) => {
 const getInitials = (name = '') =>
   name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
 
-const AVATAR_COLORS = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899'];
+const AVATAR_COLORS = ['#2563EB', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899'];
 const getAvatarColor = (str = '') => AVATAR_COLORS[(str.charCodeAt(0) || 0) % AVATAR_COLORS.length];
 
 const MetricCard = ({ icon: Icon, iconBg, label, value, sub, subColor = 'text-slate-500' }) => (
@@ -36,7 +36,7 @@ const MetricCard = ({ icon: Icon, iconBg, label, value, sub, subColor = 'text-sl
   </div>
 );
 
-const LineChart = ({ data = [], color = '#10b981', height = 80 }) => {
+const LineChart = ({ data = [], color = '#2563EB', height = 80 }) => {
   if (!data.length) return <div className="flex items-center justify-center h-20 text-xs text-slate-400">No data</div>;
   const vals = data.map(d => d.value || 0);
   const max = Math.max(...vals, 1);
@@ -70,7 +70,7 @@ const LineChart = ({ data = [], color = '#10b981', height = 80 }) => {
   );
 };
 
-const BarChart = ({ data = [], color = '#10b981', height = 100 }) => {
+const BarChart = ({ data = [], color = '#2563EB', height = 100 }) => {
   if (!data.length) return <div className="flex items-center justify-center h-24 text-xs text-slate-400">No data</div>;
   const vals = data.map(d => d.value || 0);
   const max = Math.max(...vals, 1);
@@ -129,9 +129,9 @@ const DonutChart = ({ segments = [], total = 0 }) => {
 
 const StatusBadge = ({ status }) => {
   const map = {
-    active: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    active: 'bg-blue-50 text-blue-700 border-blue-200',
     PENDING_VERIFICATION: 'bg-amber-50 text-amber-700 border-amber-200',
-    VERIFIED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    VERIFIED: 'bg-blue-50 text-blue-700 border-blue-200',
     REJECTED: 'bg-red-50 text-red-700 border-red-200',
     Payment_Pending: 'bg-orange-50 text-orange-700 border-orange-200',
     Pending_Approval: 'bg-blue-50 text-blue-700 border-blue-200',
@@ -155,8 +155,8 @@ const VerifyModal = ({ payment, onClose, onConfirm, loading }) => {
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6" onClick={e => e.stopPropagation()}>
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center">
-            <ShieldCheck size={20} className="text-emerald-600" />
+          <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
+            <ShieldCheck size={20} className="text-blue-600" />
           </div>
           <div>
             <h3 className="font-bold text-slate-900">Verify Payment</h3>
@@ -165,12 +165,12 @@ const VerifyModal = ({ payment, onClose, onConfirm, loading }) => {
         </div>
         <div className="bg-slate-50 rounded-xl p-4 space-y-1.5 text-sm mb-4">
           <div className="flex justify-between"><span className="text-slate-500">Clinic</span><span className="font-semibold">{payment.clinicId?.name || payment.clinicName}</span></div>
-          <div className="flex justify-between"><span className="text-slate-500">Amount</span><span className="font-bold text-emerald-600">{fmt(payment.amount)}</span></div>
+          <div className="flex justify-between"><span className="text-slate-500">Amount</span><span className="font-bold text-blue-600">{fmt(payment.amount)}</span></div>
           <div className="flex justify-between"><span className="text-slate-500">UTR</span><span className="font-mono text-xs">{payment.utr}</span></div>
         </div>
         <div className="flex gap-3">
           <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition">Cancel</button>
-          <button onClick={() => onConfirm(payment._id)} disabled={loading} className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition flex items-center justify-center gap-2 disabled:opacity-60">
+          <button onClick={() => onConfirm(payment._id)} disabled={loading} className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2 disabled:opacity-60">
             {loading ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />}
             {loading ? 'Verifying...' : 'Confirm & Verify'}
           </button>
@@ -273,7 +273,7 @@ const SuperAdminDashboard = () => {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="flex flex-col items-center gap-3">
-          <Loader2 size={32} className="animate-spin text-emerald-600" />
+          <Loader2 size={32} className="animate-spin text-blue-600" />
           <p className="text-sm text-slate-500">Loading dashboard...</p>
         </div>
       </div>
@@ -285,7 +285,7 @@ const SuperAdminDashboard = () => {
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-center px-6">
         <AlertTriangle size={40} className="text-red-400" />
         <p className="text-sm font-semibold text-slate-700">{error}</p>
-        <button onClick={loadData} className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 flex items-center gap-2 transition">
+        <button onClick={loadData} className="px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 flex items-center gap-2 transition">
           <RefreshCw size={14} /> Retry
         </button>
       </div>
@@ -296,7 +296,7 @@ const SuperAdminDashboard = () => {
   const regData = data?.registrationsTimeSeries?.[regPeriod] || data?.registrations?.[regPeriod] || [];
   const revData = data?.revenueTimeSeries?.[revPeriod] || data?.revenue?.[revPeriod] || [];
   const statusSegments = [
-    { label: 'Active', value: stats.activeClinics || 0, color: '#10b981' },
+    { label: 'Active', value: stats.activeClinics || 0, color: '#2563EB' },
     { label: 'Pending Approval', value: stats.pendingApprovals || 0, color: '#3b82f6' },
     { label: 'Suspended', value: stats.suspendedClinics || 0, color: '#8b5cf6' },
     { label: 'Expired', value: stats.expiredClinics || 0, color: '#f87171' },
@@ -334,9 +334,9 @@ const SuperAdminDashboard = () => {
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          <MetricCard icon={Building2} iconBg="bg-emerald-50 text-emerald-600" label="Total Clinics" value={stats.totalClinics || 0} sub={stats.activeClinics ? `Active: ${stats.activeClinics}` : undefined} />
+          <MetricCard icon={Building2} iconBg="bg-blue-50 text-blue-600" label="Total Clinics" value={stats.totalClinics || 0} sub={stats.activeClinics ? `Active: ${stats.activeClinics}` : undefined} />
           <MetricCard icon={CheckCircle2} iconBg="bg-green-50 text-green-600" label="Active Clinics" value={stats.activeClinics || 0} sub={stats.totalClinics ? `${Math.round((stats.activeClinics / stats.totalClinics) * 100)}% of total` : undefined} />
-          <MetricCard icon={Clock} iconBg="bg-amber-50 text-amber-600" label="Pending Approvals" value={stats.pendingApprovals || 0} sub={stats.pendingApprovals > 0 ? 'Needs attention' : 'All clear'} subColor={stats.pendingApprovals > 0 ? 'text-amber-600' : 'text-emerald-600'} />
+          <MetricCard icon={Clock} iconBg="bg-amber-50 text-amber-600" label="Pending Approvals" value={stats.pendingApprovals || 0} sub={stats.pendingApprovals > 0 ? 'Needs attention' : 'All clear'} subColor={stats.pendingApprovals > 0 ? 'text-amber-600' : 'text-blue-600'} />
           <MetricCard icon={CreditCard} iconBg="bg-blue-50 text-blue-600" label="Payments Pending" value={stats.paymentsPending || 0} sub="Verify UTR / Txn" subColor="text-blue-600" />
           <MetricCard icon={AlertTriangle} iconBg="bg-orange-50 text-orange-600" label="Expiring Soon" value={stats.expiringSoon || 0} sub="Within 30 days" subColor="text-orange-600" />
           <MetricCard icon={XCircle} iconBg="bg-red-50 text-red-600" label="Expired" value={stats.expiredClinics || 0} sub="Subscription ended" subColor="text-red-600" />
@@ -349,7 +349,7 @@ const SuperAdminDashboard = () => {
                 <h3 className="text-sm font-bold text-slate-900">Clinic Registrations</h3>
                 <p className="text-xs text-slate-400">New clinic registrations over time</p>
               </div>
-              <select value={regPeriod} onChange={e => setRegPeriod(e.target.value)} className="text-xs border border-slate-200 rounded-lg px-2 py-1 text-slate-600 bg-white focus:outline-none focus:border-emerald-400 transition">
+              <select value={regPeriod} onChange={e => setRegPeriod(e.target.value)} className="text-xs border border-slate-200 rounded-lg px-2 py-1 text-slate-600 bg-white focus:outline-none focus:border-blue-400 transition">
                 <option value="7d">Last 7 Days</option>
                 <option value="30d">Last 30 Days</option>
                 <option value="6m">Last 6 Months</option>
@@ -357,7 +357,7 @@ const SuperAdminDashboard = () => {
               </select>
             </div>
             <div className="mt-3">
-              <LineChart data={regData} color="#10b981" height={90} />
+              <LineChart data={regData} color="#2563EB" height={90} />
               {regData.length > 0 && (
                 <div className="flex justify-between mt-1">
                   {[regData[0], regData[Math.floor(regData.length / 2)], regData[regData.length - 1]].filter(Boolean).map((d, i) => (
@@ -374,12 +374,12 @@ const SuperAdminDashboard = () => {
                 <h3 className="text-sm font-bold text-slate-900">Revenue Overview</h3>
                 <p className="text-xs text-slate-400">Estimated revenue from active subscriptions</p>
               </div>
-              <select value={revPeriod} onChange={e => setRevPeriod(e.target.value)} className="text-xs border border-slate-200 rounded-lg px-2 py-1 text-slate-600 bg-white focus:outline-none focus:border-emerald-400 transition">
+              <select value={revPeriod} onChange={e => setRevPeriod(e.target.value)} className="text-xs border border-slate-200 rounded-lg px-2 py-1 text-slate-600 bg-white focus:outline-none focus:border-blue-400 transition">
                 <option value="6m">Last 6 Months</option>
                 <option value="1y">Last 1 Year</option>
               </select>
             </div>
-            <div className="mt-3"><BarChart data={revData} color="#10b981" height={100} /></div>
+            <div className="mt-3"><BarChart data={revData} color="#2563EB" height={100} /></div>
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
@@ -406,14 +406,14 @@ const SuperAdminDashboard = () => {
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { label: 'Create New Clinic', sub: 'Manually create and onboard a new clinic', icon: Plus, bg: 'bg-emerald-600', path: '/clinics', primary: true },
+            { label: 'Create New Clinic', sub: 'Manually create and onboard a new clinic', icon: Plus, bg: 'bg-blue-600', path: '/clinics', primary: true },
             { label: 'Manage Plans', sub: 'View and edit subscription plans', icon: CreditCard, bg: 'bg-blue-50', tc: 'text-blue-700', path: '/plans' },
             { label: 'Verify Payments', sub: 'Review pending payment verifications', icon: ShieldCheck, bg: 'bg-amber-50', tc: 'text-amber-700', badge: stats.paymentsPending || 0, path: '/payments' },
             { label: 'View Reports', sub: 'Platform usage, revenue and analytics', icon: BarChart3, bg: 'bg-purple-50', tc: 'text-purple-700', path: '/dashboard/revenue' },
           ].map(a => {
             const Icon = a.icon;
             return (
-              <Link key={a.label} to={a.path} className={`rounded-2xl p-4 border border-slate-100 shadow-sm hover:shadow-md transition-all group flex flex-col gap-2 ${a.primary ? 'bg-emerald-600' : 'bg-white'}`}>
+              <Link key={a.label} to={a.path} className={`rounded-2xl p-4 border border-slate-100 shadow-sm hover:shadow-md transition-all group flex flex-col gap-2 ${a.primary ? 'bg-blue-600' : 'bg-white'}`}>
                 <div className="flex items-center justify-between">
                   <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${a.primary ? 'bg-white/20' : a.bg}`}>
                     <Icon size={16} className={a.primary ? 'text-white' : a.tc} />
@@ -439,7 +439,7 @@ const SuperAdminDashboard = () => {
                 <h3 className="text-sm font-bold text-slate-900">Recent Clinic Registrations</h3>
                 <p className="text-[10px] text-slate-400">Latest clinic registration requests and setup progress</p>
               </div>
-              <Link to="/clinics" className="text-xs text-emerald-600 hover:text-emerald-700 font-semibold flex items-center gap-1">View All <ChevronRight size={12} /></Link>
+              <Link to="/clinics" className="text-xs text-blue-600 hover:text-blue-700 font-semibold flex items-center gap-1">View All <ChevronRight size={12} /></Link>
             </div>
             {recentClinics.length === 0 ? (
               <div className="flex items-center justify-center py-12 text-xs text-slate-400">No recent registrations</div>
@@ -497,11 +497,11 @@ const SuperAdminDashboard = () => {
                 </h3>
                 <p className="text-[10px] text-slate-400">Clinic payments awaiting verification</p>
               </div>
-              <Link to="/payments" className="text-xs text-emerald-600 hover:text-emerald-700 font-semibold flex items-center gap-1">View All <ChevronRight size={12} /></Link>
+              <Link to="/payments" className="text-xs text-blue-600 hover:text-blue-700 font-semibold flex items-center gap-1">View All <ChevronRight size={12} /></Link>
             </div>
             {pendingPayments.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center px-6">
-                <CheckCircle2 size={28} className="text-emerald-400 mb-2" />
+                <CheckCircle2 size={28} className="text-blue-400 mb-2" />
                 <p className="text-xs font-semibold text-slate-600">No pending payment verifications</p>
                 <p className="text-[10px] text-slate-400 mt-0.5">All submitted clinic payments have been reviewed.</p>
               </div>
@@ -529,15 +529,15 @@ const SuperAdminDashboard = () => {
                             <div className="flex items-center gap-2">
                               <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-[10px] font-bold shrink-0" style={{ background: getAvatarColor(cName) }}>{getInitials(cName)}</div>
                               <div>
-                                <p className="text-xs font-semibold text-slate-900 group-hover:text-emerald-600 transition leading-tight flex items-center gap-1">
+                                <p className="text-xs font-semibold text-slate-900 group-hover:text-blue-600 transition leading-tight flex items-center gap-1">
                                   {cName}
-                                  <ArrowUpRight size={10} className="opacity-0 group-hover:opacity-100 transition text-emerald-500" />
+                                  <ArrowUpRight size={10} className="opacity-0 group-hover:opacity-100 transition text-blue-500" />
                                 </p>
                                 <p className="text-[9px] text-slate-400">{p.clinicId?.code || p.clinicCode || '--'}</p>
                               </div>
                             </div>
                           </td>
-                          <td className="px-3 py-3 font-bold text-emerald-600 text-xs">{fmt(p.amount)}</td>
+                          <td className="px-3 py-3 font-bold text-blue-600 text-xs">{fmt(p.amount)}</td>
                           <td className="px-3 py-3"><span className="font-mono text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">{p.utr || '--'}</span></td>
                           <td className="px-4 py-3 text-right">
                             <div className="flex items-center justify-end gap-1">
@@ -569,7 +569,7 @@ const SuperAdminDashboard = () => {
                 <h3 className="text-sm font-bold text-slate-900">Recent Feedback</h3>
                 <p className="text-[10px] text-slate-400">Latest feedback from clinics</p>
               </div>
-              <Link to="/clinics" className="text-xs text-emerald-600 hover:text-emerald-700 font-semibold">View All</Link>
+              <Link to="/clinics" className="text-xs text-blue-600 hover:text-blue-700 font-semibold">View All</Link>
             </div>
             {recentFeedback.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 text-center">
@@ -600,11 +600,11 @@ const SuperAdminDashboard = () => {
                 <h3 className="text-sm font-bold text-slate-900">Recent Complaints</h3>
                 <p className="text-[10px] text-slate-400">Open and unresolved complaints</p>
               </div>
-              <Link to="/clinics" className="text-xs text-emerald-600 hover:text-emerald-700 font-semibold">View All</Link>
+              <Link to="/clinics" className="text-xs text-blue-600 hover:text-blue-700 font-semibold">View All</Link>
             </div>
             {recentComplaints.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 text-center">
-                <CheckCircle2 size={20} className="text-emerald-400 mb-2" />
+                <CheckCircle2 size={20} className="text-blue-400 mb-2" />
                 <p className="text-xs text-slate-400">No open complaints</p>
               </div>
             ) : (
@@ -636,11 +636,11 @@ const SuperAdminDashboard = () => {
                 <h3 className="text-sm font-bold text-slate-900">Upcoming Expiries</h3>
                 <p className="text-[10px] text-slate-400">Clinics with subscription expiring soon</p>
               </div>
-              <Link to="/clinics" className="text-xs text-emerald-600 hover:text-emerald-700 font-semibold">View All</Link>
+              <Link to="/clinics" className="text-xs text-blue-600 hover:text-blue-700 font-semibold">View All</Link>
             </div>
             {upcomingExpiries.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 text-center">
-                <CheckCircle2 size={20} className="text-emerald-400 mb-2" />
+                <CheckCircle2 size={20} className="text-blue-400 mb-2" />
                 <p className="text-xs text-slate-400">No expiries in 30 days</p>
               </div>
             ) : (
@@ -660,7 +660,7 @@ const SuperAdminDashboard = () => {
                           Expires in {daysLeft} days
                         </p>
                       </div>
-                      <Link to={`/clinics/${e._id}`} className="text-[10px] text-emerald-600 hover:text-emerald-700 font-semibold shrink-0">View</Link>
+                      <Link to={`/clinics/${e._id}`} className="text-[10px] text-blue-600 hover:text-blue-700 font-semibold shrink-0">View</Link>
                     </div>
                   );
                 })}

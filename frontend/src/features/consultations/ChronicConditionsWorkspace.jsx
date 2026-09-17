@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import {
   Search, Eye, Printer, ChevronDown, ChevronUp, FileDown, PlusCircle, Check, X,
   AlertTriangle, Play, Calendar, Clock, RefreshCw, Trash2, Edit2, AlertCircle
@@ -197,7 +197,7 @@ export default function ChronicConditionsWorkspace({
       {/* Summary Cards Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         {[
-          { label: 'Ongoing Conditions', count: 2, color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+          { label: 'Ongoing Conditions', count: 2, color: 'bg-blue-50 text-blue-700 border-blue-200' },
           { label: 'Managed Conditions', count: 0, color: 'bg-blue-50 text-blue-700 border-blue-200' },
           { label: 'Resolved Conditions', count: 1, color: 'bg-purple-50 text-purple-700 border-purple-200' },
           { label: 'Ended Conditions', count: 1, color: 'bg-rose-50 text-rose-700 border-rose-200' },
@@ -291,7 +291,7 @@ export default function ChronicConditionsWorkspace({
                     </td>
                     <td className="p-4">{c.lastReviewed}</td>
                     <td className="p-4">
-                      <span className="px-2 py-0.5 rounded font-black text-[9px] bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      <span className="px-2 py-0.5 rounded font-black text-[9px] bg-blue-50 text-blue-700 border border-blue-200">
                         {c.currentStatus}
                       </span>
                     </td>
@@ -332,7 +332,7 @@ export default function ChronicConditionsWorkspace({
                               {c.currentMedicines.length > 0 ? c.currentMedicines.map((med, i) => (
                                 <div key={i} className="flex justify-between items-center bg-white p-2.5 border border-slate-200 rounded-xl">
                                   <strong>{med}</strong>
-                                  <span className="text-[10px] bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded">Linked Active</span>
+                                  <span className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded">Linked Active</span>
                                 </div>
                               )) : <p className="text-slate-400 italic">No linked medicines found.</p>}
                             </div>
@@ -484,7 +484,7 @@ export default function ChronicConditionsWorkspace({
                   {selectedCondition.currentMedicines.map((med, i) => (
                     <div key={i} className="flex justify-between items-center bg-white p-2.5 border border-slate-200 rounded-xl">
                       <strong>{med}</strong>
-                      <span className="text-[10px] bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded font-bold">Active</span>
+                      <span className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded font-bold">Active</span>
                     </div>
                   ))}
                 </div>

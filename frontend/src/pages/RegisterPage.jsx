@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 
 import Button from '../components/common/Button';
@@ -395,7 +395,7 @@ const RegisterPage = () => {
               { label: 'Security Standard', value: 'AES-256', icon: <Shield size={14} className="text-teal-600" /> },
               { label: 'Compliance Ready', value: 'NABH', icon: <CheckCircle2 size={14} className="text-blue-600" /> },
               { label: 'Role-Based Access', value: 'RBAC', icon: <Users size={14} className="text-purple-600" /> },
-              { label: 'Cloud Hosted', value: '24×7', icon: <Building2 size={14} className="text-emerald-600" /> }
+              { label: 'Cloud Hosted', value: '24×7', icon: <Building2 size={14} className="text-blue-600" /> }
             ].map((stat, idx) => (
               <div key={idx} className="text-center sm:text-left">
                 <div className="flex items-center justify-center sm:justify-start gap-1 text-slate-900 font-black text-lg">
@@ -449,7 +449,7 @@ const RegisterPage = () => {
                 )}
               </div>
               {extractionMessage && (
-                <p className="mt-2 text-xs font-semibold text-emerald-700">{extractionMessage}</p>
+                <p className="mt-2 text-xs font-semibold text-blue-700">{extractionMessage}</p>
               )}
             </div>
 
@@ -498,7 +498,7 @@ const RegisterPage = () => {
                       <select
                         value={form.gender}
                         onChange={(event) => updateField('gender', event.target.value)}
-                        className="w-full rounded-2xl border border-stone-300 bg-white text-stone-900 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                        className="w-full rounded-2xl border border-stone-300 bg-white text-stone-900 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                       >
                         <option value="male">Male</option>
                         <option value="female">Female</option>
@@ -537,7 +537,7 @@ const RegisterPage = () => {
                         setMapTarget('current');
                         setShowMapPicker(true);
                       }}
-                      className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 hover:text-emerald-700 hover:underline"
+                      className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 hover:underline"
                     >
                       📍 Locate on Map
                     </button>
@@ -601,7 +601,7 @@ const RegisterPage = () => {
                           setPermanentAddress({ ...form.address });
                         }
                       }}
-                      className="w-4 h-4 accent-emerald-600 rounded cursor-pointer"
+                      className="w-4 h-4 accent-blue-600 rounded cursor-pointer"
                     />
                     <span>Permanent address is same as current address</span>
                   </label>
@@ -617,7 +617,7 @@ const RegisterPage = () => {
                             setMapTarget('permanent');
                             setShowMapPicker(true);
                           }}
-                          className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 hover:text-emerald-700 hover:underline"
+                          className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 hover:underline"
                         >
                           📍 Locate on Map
                         </button>
@@ -723,7 +723,7 @@ const RegisterPage = () => {
                             : prev.chronicDiseases.filter(d => d !== disease)
                         }));
                       }}
-                      className="w-4 h-4 accent-emerald-600 rounded"
+                      className="w-4 h-4 accent-blue-600 rounded"
                     />
                     <span>{disease}</span>
                   </label>
@@ -757,7 +757,7 @@ const RegisterPage = () => {
                             : prev.allergies.filter(a => a !== allergy)
                         }));
                       }}
-                      className="w-4 h-4 accent-emerald-600 rounded"
+                      className="w-4 h-4 accent-blue-600 rounded"
                     />
                     <span>{allergy}</span>
                   </label>
@@ -783,7 +783,7 @@ const RegisterPage = () => {
                     ...prev,
                     currentMedications: [...prev.currentMedications, { name: '', frequency: '' }]
                   }))}
-                  className="text-xs font-bold text-emerald-600 hover:text-emerald-700"
+                  className="text-xs font-bold text-blue-600 hover:text-blue-700"
                 >
                   + Add Medication
                 </button>
@@ -834,7 +834,7 @@ const RegisterPage = () => {
                     ...prev,
                     pastSurgeries: [...prev.pastSurgeries, { name: '', year: '' }]
                   }))}
-                  className="text-xs font-bold text-emerald-600 hover:text-emerald-700"
+                  className="text-xs font-bold text-blue-600 hover:text-blue-700"
                 >
                   + Add Surgery
                 </button>
@@ -885,7 +885,7 @@ const RegisterPage = () => {
                     ...prev,
                     familyHistory: [...prev.familyHistory, { relation: '', condition: '' }]
                   }))}
-                  className="text-xs font-bold text-emerald-600 hover:text-emerald-700"
+                  className="text-xs font-bold text-blue-600 hover:text-blue-700"
                 >
                   + Add Record
                 </button>
@@ -937,7 +937,7 @@ const RegisterPage = () => {
                     ...prev,
                     lifestyle: { ...prev.lifestyle, smoking: e.target.value }
                   }))}
-                  className="w-full rounded-2xl border border-stone-300 bg-white text-stone-900 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                  className="w-full rounded-2xl border border-stone-300 bg-white text-stone-900 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 >
                   <option value="no">No</option>
                   <option value="yes">Yes</option>
@@ -953,7 +953,7 @@ const RegisterPage = () => {
                     ...prev,
                     lifestyle: { ...prev.lifestyle, alcohol: e.target.value }
                   }))}
-                  className="w-full rounded-2xl border border-stone-300 bg-white text-stone-900 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                  className="w-full rounded-2xl border border-stone-300 bg-white text-stone-900 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 >
                   <option value="no">No</option>
                   <option value="yes">Yes</option>

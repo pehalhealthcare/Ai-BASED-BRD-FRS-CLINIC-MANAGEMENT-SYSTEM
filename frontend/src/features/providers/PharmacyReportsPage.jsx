@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Calendar, Filter, Download, DollarSign, ShoppingCart, Package,
@@ -115,7 +115,7 @@ export default function PharmacyReportsPage() {
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-6 gap-4">
         {[
-          { label: 'Total Revenue', val: `₹${(kpis.totalRevenue || 0).toLocaleString('en-IN')}`, icon: DollarSign, bg: 'bg-emerald-100 text-emerald-650', change: '↑ 18.6%' },
+          { label: 'Total Revenue', val: `₹${(kpis.totalRevenue || 0).toLocaleString('en-IN')}`, icon: DollarSign, bg: 'bg-blue-100 text-blue-650', change: '↑ 18.6%' },
           { label: 'Total Orders', val: kpis.totalOrders, icon: ShoppingCart, bg: 'bg-blue-105 text-blue-700', change: '↑ 15.3%' },
           { label: 'Total Medicines Sold', val: kpis.medicinesSold, icon: Package, bg: 'bg-rose-100 text-rose-650', change: '↑ 22.1%' },
           { label: 'Average Order Value', val: `₹${(kpis.averageOrderValue || 0).toLocaleString('en-IN')}`, icon: TrendingUp, bg: 'bg-purple-100 text-purple-650', change: '↑ 8.8%' },
@@ -129,7 +129,7 @@ export default function PharmacyReportsPage() {
                 <div className={`w-8 h-8 rounded-lg ${card.bg} flex items-center justify-center`}>
                   <Icon className="w-4.5 h-4.5" />
                 </div>
-                <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-md">{card.change}</span>
+                <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-md">{card.change}</span>
               </div>
               <p className="text-xl font-black text-slate-850 mt-2">{card.val}</p>
               <p className="text-[10px] font-bold text-slate-455 uppercase tracking-wider">{card.label}</p>
@@ -240,7 +240,7 @@ export default function PharmacyReportsPage() {
                             </div>
                             <div className="text-right">
                               <p className="font-black text-slate-855">₹{med.revenue.toLocaleString()}</p>
-                              <p className="text-[9px] text-emerald-600 font-semibold mt-0.5">Profit: ₹{med.profit}</p>
+                              <p className="text-[9px] text-blue-600 font-semibold mt-0.5">Profit: ₹{med.profit}</p>
                             </div>
                           </div>
                         ))
@@ -253,7 +253,7 @@ export default function PharmacyReportsPage() {
                     <h3 className="text-xs font-black text-slate-855 uppercase tracking-wider">Payment Status</h3>
                     <div className="space-y-4">
                       {[
-                        { label: 'Paid Orders', val: reportsData.paymentStatus.paid, total: kpis.totalOrders, color: 'bg-emerald-500' },
+                        { label: 'Paid Orders', val: reportsData.paymentStatus.paid, total: kpis.totalOrders, color: 'bg-blue-500' },
                         { label: 'Pending Payments', val: reportsData.paymentStatus.pending, total: kpis.totalOrders, color: 'bg-amber-500' },
                         { label: 'Cancelled Orders', val: reportsData.paymentStatus.cancelled, total: kpis.totalOrders, color: 'bg-rose-500' }
                       ].map(bar => {
@@ -348,7 +348,7 @@ export default function PharmacyReportsPage() {
               <h4 className="text-xs font-black text-slate-805 uppercase tracking-wider">Recent Activity</h4>
               <div className="space-y-3.5 text-[11px] font-bold text-slate-600">
                 <div className="flex gap-2">
-                  <span className="text-emerald-500">●</span>
+                  <span className="text-blue-500">●</span>
                   <div>
                     <p className="text-slate-800">Sales report generated</p>
                     <p className="text-[9px] text-slate-400 font-semibold mt-0.5">10:30 AM</p>

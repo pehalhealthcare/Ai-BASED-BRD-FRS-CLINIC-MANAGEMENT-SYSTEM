@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   X, Calendar, Clock, MapPin, Copy, Star, CheckCircle2, Shield, Video,
@@ -538,7 +538,7 @@ export default function AppointmentDetailsModal({ appointment, invoices = [], on
                 </div>
                 <div>
                   <span className="text-slate-400 font-extrabold text-[9px] uppercase tracking-wider block">Payment Status</span>
-                  {appointment?.paymentStatus==='paid'?<span className="inline-block bg-emerald-50 border border-emerald-150 text-emerald-700 font-bold px-2 py-0.5 rounded-lg text-[10px] mt-1 uppercase">Paid</span>:<span className="inline-block bg-red-50 border border-red-150 text-red-700 font-bold px-2 py-0.5 rounded-lg text-[10px] mt-1 uppercase">unpaid</span>}
+                  {appointment?.paymentStatus==='paid'?<span className="inline-block bg-blue-50 border border-blue-150 text-blue-700 font-bold px-2 py-0.5 rounded-lg text-[10px] mt-1 uppercase">Paid</span>:<span className="inline-block bg-red-50 border border-red-150 text-red-700 font-bold px-2 py-0.5 rounded-lg text-[10px] mt-1 uppercase">unpaid</span>}
                 </div>
                 <div>
                   <span className="text-slate-400 font-extrabold text-[9px] uppercase tracking-wider block">Amount Paid</span>
@@ -758,7 +758,7 @@ export default function AppointmentDetailsModal({ appointment, invoices = [], on
                 </div>
                 <div>
                   <span className="text-slate-400 font-extrabold text-[9px] uppercase tracking-wider block">Payment Status</span>
-                  {appointment?.paymentStatus==='paid'?<span className="inline-block bg-emerald-50 border border-emerald-150 text-emerald-700 font-bold px-2 py-0.5 rounded-lg text-[10px] mt-1 uppercase">Paid</span>:<span className="inline-block bg-red-50 border border-red-150 text-red-700 font-bold px-2 py-0.5 rounded-lg text-[10px] mt-1 uppercase">unpaid</span>}
+                  {appointment?.paymentStatus==='paid'?<span className="inline-block bg-blue-50 border border-blue-150 text-blue-700 font-bold px-2 py-0.5 rounded-lg text-[10px] mt-1 uppercase">Paid</span>:<span className="inline-block bg-red-50 border border-red-150 text-red-700 font-bold px-2 py-0.5 rounded-lg text-[10px] mt-1 uppercase">unpaid</span>}
                 </div>
                 <div>
                   <span className="text-slate-400 font-extrabold text-[9px] uppercase tracking-wider block">Amount Paid</span>
@@ -867,8 +867,8 @@ export default function AppointmentDetailsModal({ appointment, invoices = [], on
             </div>
             
             <div className="flex items-center gap-3">
-              <div className="bg-emerald-50 border border-emerald-250 text-emerald-700 rounded-full px-3 py-1 flex items-center gap-1.5 text-xs font-bold">
-                <CheckCircle2 size={13} className="text-emerald-600" />
+              <div className="bg-blue-50 border border-blue-250 text-blue-700 rounded-full px-3 py-1 flex items-center gap-1.5 text-xs font-bold">
+                <CheckCircle2 size={13} className="text-blue-600" />
                 <span>Completed</span>
               </div>
               <button
@@ -939,7 +939,7 @@ export default function AppointmentDetailsModal({ appointment, invoices = [], on
                 </div>
                 <div>
                   <span className="text-slate-400 font-extrabold text-[9px] uppercase tracking-wider block">Payment Status</span>
-                  <span className="inline-block bg-emerald-50 border border-emerald-150 text-emerald-700 font-bold px-2 py-0.5 rounded-lg text-[10px] mt-1 uppercase">{paymentStatus}</span>
+                  <span className="inline-block bg-blue-50 border border-blue-150 text-blue-700 font-bold px-2 py-0.5 rounded-lg text-[10px] mt-1 uppercase">{paymentStatus}</span>
                 </div>
                 <div>
                   <span className="text-slate-400 font-extrabold text-[9px] uppercase tracking-wider block">Amount Paid</span>
@@ -949,12 +949,12 @@ export default function AppointmentDetailsModal({ appointment, invoices = [], on
             </div>
 
             {/* Completion Banner */}
-            <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 flex justify-between items-center text-xs">
-              <div className="flex items-center gap-3 text-emerald-800">
-                <CheckCircle2 size={16} className="text-emerald-600" />
+            <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex justify-between items-center text-xs">
+              <div className="flex items-center gap-3 text-blue-800">
+                <CheckCircle2 size={16} className="text-blue-600" />
                 <div>
-                  <p className="font-extrabold text-emerald-950">Appointment Completed</p>
-                  <p className="text-[11px] text-emerald-700 mt-0.5">This consultation was conducted in {appointment?.appointmentType === 'teleconsultation' ? 'Online' : 'Offline'} mode on {consultationDateStr} at {appointment?.startTime ? fmt12(appointment.startTime) : '10:30 AM'}.</p>
+                  <p className="font-extrabold text-blue-950">Appointment Completed</p>
+                  <p className="text-[11px] text-blue-700 mt-0.5">This consultation was conducted in {appointment?.appointmentType === 'teleconsultation' ? 'Online' : 'Offline'} mode on {consultationDateStr} at {appointment?.startTime ? fmt12(appointment.startTime) : '10:30 AM'}.</p>
                 </div>
               </div>
               <div className="text-right text-[10px] font-bold text-slate-400">
@@ -1264,14 +1264,14 @@ export default function AppointmentDetailsModal({ appointment, invoices = [], on
                                   <td className="py-3 px-3 font-bold text-slate-800">Complete Blood Count (CBC)</td>
                                   <td className="py-3 px-3 text-slate-550">Blood Test</td>
                                   <td className="py-3 px-3">
-                                    <span className="inline-block bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full text-[9px] font-bold">Available</span>
+                                    <span className="inline-block bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full text-[9px] font-bold">Available</span>
                                   </td>
                                 </tr>
                                 <tr>
                                   <td className="py-3 px-3 font-bold text-slate-800">C-Reactive Protein (CRP)</td>
                                   <td className="py-3 px-3 text-slate-550">Blood Test</td>
                                   <td className="py-3 px-3">
-                                    <span className="inline-block bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full text-[9px] font-bold">Available</span>
+                                    <span className="inline-block bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full text-[9px] font-bold">Available</span>
                                   </td>
                                 </tr>
                               </>
@@ -1332,7 +1332,7 @@ export default function AppointmentDetailsModal({ appointment, invoices = [], on
 
                         <div className="p-4 rounded-2xl border border-slate-200 bg-white flex items-center justify-between shadow-sm">
                           <div className="flex items-center gap-3">
-                            <div className="p-2.5 bg-emerald-50 text-emerald-650 rounded-xl">
+                            <div className="p-2.5 bg-blue-50 text-blue-650 rounded-xl">
                               <FileText size={18} />
                             </div>
                             <div>
@@ -1355,7 +1355,7 @@ export default function AppointmentDetailsModal({ appointment, invoices = [], on
                           <span className="font-bold text-slate-800 dark:text-slate-200">₹{appointment?.consultationFee || 500}</span>
                         </div>
                         {appointment?.waiverAmount > 0 && (
-                          <div className="flex justify-between border-b border-slate-100 dark:border-white/[0.06] pb-2 text-emerald-600 dark:text-emerald-400">
+                          <div className="flex justify-between border-b border-slate-100 dark:border-white/[0.06] pb-2 text-blue-600 dark:text-blue-400">
                             <span>Waiver ({appointment?.waiverType})</span>
                             <span className="font-bold">-₹{appointment?.waiverAmount}</span>
                           </div>
@@ -1386,7 +1386,7 @@ export default function AppointmentDetailsModal({ appointment, invoices = [], on
                           </div>
                         )}
                         {appointment?.transferredFromAppointmentId && (
-                          <div className="flex justify-between text-emerald-500">
+                          <div className="flex justify-between text-blue-500">
                             <span>Payment Transferred From:</span>
                             <span className="font-mono font-semibold">{appointment.transferredFromAppointmentId}</span>
                           </div>
@@ -1446,7 +1446,7 @@ export default function AppointmentDetailsModal({ appointment, invoices = [], on
       desc: 'Your appointment has been scheduled.',
       completed: true,
       active: true,
-      color: 'bg-emerald-500'
+      color: 'bg-blue-500'
     },
     ...(isRescheduled ? [
       {
@@ -1494,14 +1494,14 @@ export default function AppointmentDetailsModal({ appointment, invoices = [], on
           <div className="flex flex-col sm:flex-row sm:items-center gap-6 w-full">
             {/* Doctor Info */}
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-full bg-aura-500/20 border border-aura-500/30 flex items-center justify-center text-xl font-bold text-aura-400 shrink-0">
+              <div className="w-14 h-14 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-xl font-bold text-blue-400 shrink-0">
                 {(doctor?.fullName || 'D').charAt(0).toUpperCase()}
               </div>
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Consultation with</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-blue-400">Consultation with</p>
                 <h3 className="text-base font-extrabold text-white flex items-center gap-1.5 mt-0.5">
                   Dr. {doctor?.fullName || 'Alpha Doctor'}
-                  <CheckCircle2 size={14} className="text-emerald-400" />
+                  <CheckCircle2 size={14} className="text-blue-400" />
                 </h3>
                 <p className="text-xs text-slate-400 mt-0.5">{doctor?.specialization || 'General Physician'}</p>
                 <p className="text-[10px] text-slate-500">{doctor?.qualifications?.join(', ') || 'MBBS, MD'}</p>
@@ -1517,7 +1517,7 @@ export default function AppointmentDetailsModal({ appointment, invoices = [], on
                   <button onClick={handleCopyId} className="text-slate-500 hover:text-white transition">
                     <Copy size={12} />
                   </button>
-                  {copied && <span className="text-[9px] text-emerald-400 font-bold ml-1">Copied!</span>}
+                  {copied && <span className="text-[9px] text-blue-400 font-bold ml-1">Copied!</span>}
                 </div>
               </div>
               <div>
@@ -1552,14 +1552,14 @@ export default function AppointmentDetailsModal({ appointment, invoices = [], on
             <div className="flex gap-2.5 mb-5">
               <button
                 onClick={() => setMode('offline')}
-                className={`flex-1 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border transition ${mode === 'offline' ? 'bg-emerald-500/10 border-emerald-500 text-emerald-400' : 'border-white/[0.08] text-slate-400 hover:bg-white/5'}`}
+                className={`flex-1 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border transition ${mode === 'offline' ? 'bg-blue-500/10 border-blue-500 text-blue-400' : 'border-white/[0.08] text-slate-400 hover:bg-white/5'}`}
               >
                 <Building size={14} />
                 Offline (In-Clinic)
               </button>
               <button
                 onClick={() => setMode('online')}
-                className={`flex-1 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border transition ${mode === 'online' ? 'bg-emerald-500/10 border-emerald-500 text-emerald-400' : 'border-white/[0.08] text-slate-400 hover:bg-white/5'}`}
+                className={`flex-1 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border transition ${mode === 'online' ? 'bg-blue-500/10 border-blue-500 text-blue-400' : 'border-white/[0.08] text-slate-400 hover:bg-white/5'}`}
               >
                 <Video size={14} />
                 Online (Video Call)
@@ -1591,7 +1591,7 @@ export default function AppointmentDetailsModal({ appointment, invoices = [], on
                     <span className="font-extrabold text-slate-200">₹{appointment?.consultationFee || 500}</span>
                   </div>
                   {appointment?.waiverAmount > 0 && (
-                    <div className="flex justify-between text-emerald-400 font-bold">
+                    <div className="flex justify-between text-blue-400 font-bold">
                       <span>Waiver ({appointment?.waiverType === 'full' ? 'Full' : 'Partial'}):</span>
                       <span>-₹{appointment?.waiverAmount}</span>
                     </div>
@@ -1639,7 +1639,7 @@ export default function AppointmentDetailsModal({ appointment, invoices = [], on
                           </div>
                         ))}
                       </div>
-                      <span className="text-[9px] text-emerald-450 block font-bold mt-1">This OTP is valid for 03:00 minutes</span>
+                      <span className="text-[9px] text-blue-450 block font-bold mt-1">This OTP is valid for 03:00 minutes</span>
                     </div>
 
                     <div className="w-full flex items-start gap-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 text-left">
@@ -1766,7 +1766,7 @@ export default function AppointmentDetailsModal({ appointment, invoices = [], on
                         </button>
                         <button
                           onClick={joinMeetingRoom}
-                          className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition shadow-lg shadow-emerald-900/30"
+                          className="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold transition shadow-lg shadow-blue-900/30"
                         >
                           Accept Call
                         </button>
@@ -1777,15 +1777,15 @@ export default function AppointmentDetailsModal({ appointment, invoices = [], on
                       <div className="w-16 h-16 rounded-full bg-slate-800/80 border border-white/[0.05] flex items-center justify-center text-slate-500 relative">
                         <Video size={28} />
                         {doctorReady && (
-                          <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-[#0c1524] animate-ping" />
+                          <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-blue-500 rounded-full border-2 border-[#0c1524] animate-ping" />
                         )}
                       </div>
                       
                       <h5 className="text-sm font-bold text-white">Online Video Consultation</h5>
                       
                       {doctorReady ? (
-                        <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 text-left w-full space-y-2">
-                          <p className="text-[11px] text-emerald-400 font-bold">🟢 Doctor is Ready</p>
+                        <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 text-left w-full space-y-2">
+                          <p className="text-[11px] text-blue-400 font-bold">🟢 Doctor is Ready</p>
                           <p className="text-[10px] text-slate-400">The doctor is waiting in the call room. Please join now.</p>
                         </div>
                       ) : (
@@ -1810,9 +1810,9 @@ export default function AppointmentDetailsModal({ appointment, invoices = [], on
                           return (
                             <button
                               disabled
-                              className="w-full py-2.5 rounded-xl text-xs font-bold bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 cursor-not-allowed flex items-center justify-center gap-1.5"
+                              className="w-full py-2.5 rounded-xl text-xs font-bold bg-blue-500/10 border border-blue-500/20 text-blue-400 cursor-not-allowed flex items-center justify-center gap-1.5"
                             >
-                              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                              <span className="w-2 h-2 rounded-full bg-blue-400 animate-ping" />
                               In Consultation
                             </button>
                           );
@@ -1837,7 +1837,7 @@ export default function AppointmentDetailsModal({ appointment, invoices = [], on
                             disabled={!isDoctorInvited}
                             className={`w-full py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-md ${
                               isDoctorInvited
-                                ? 'bg-emerald-600 hover:bg-emerald-500 text-white animate-pulse shadow-emerald-500/25 ring-2 ring-emerald-400/50'
+                                ? 'bg-blue-600 hover:bg-blue-500 text-white animate-pulse shadow-blue-500/25 ring-2 ring-blue-400/50'
                                 : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-white/[0.05]'
                             }`}
                           >
@@ -1867,7 +1867,7 @@ export default function AppointmentDetailsModal({ appointment, invoices = [], on
                   <div className={`absolute -left-[23px] w-[13px] h-[13px] rounded-full border-2 border-[#0c1524] ${step.color} shrink-0 mt-1`} />
                   
                   <div className="min-w-0">
-                    <h5 className={`text-xs font-bold ${step.active ? 'text-emerald-400' : 'text-white'}`}>{step.title}</h5>
+                    <h5 className={`text-xs font-bold ${step.active ? 'text-blue-400' : 'text-white'}`}>{step.title}</h5>
                     <p className="text-[9px] text-slate-500 font-semibold mt-0.5">{step.time}</p>
                     <p className="text-[11px] text-slate-450 mt-1.5 leading-relaxed">{step.desc}</p>
                   </div>
@@ -1905,7 +1905,7 @@ export default function AppointmentDetailsModal({ appointment, invoices = [], on
                   <Star size={13} className="text-amber-400 fill-amber-400 shrink-0" />
                   <span className="font-bold text-slate-300">4.8</span>
                   <span className="text-[10px] text-slate-500">(1250+ Reviews)</span>
-                  <button className="text-[10px] font-bold text-emerald-400 ml-auto flex items-center gap-0.5 hover:underline">
+                  <button className="text-[10px] font-bold text-blue-400 ml-auto flex items-center gap-0.5 hover:underline">
                     View on Map
                     <ExternalLink size={10} />
                   </button>
@@ -1968,7 +1968,7 @@ export default function AppointmentDetailsModal({ appointment, invoices = [], on
                   <div className="flex items-center gap-1.5 mt-1">
                     <div className="flex gap-0.5">
                       {Array.from({ length: 5 }).map((_, i) => (
-                        <Star key={i} size={10} className="text-emerald-400 fill-emerald-400" />
+                        <Star key={i} size={10} className="text-blue-400 fill-blue-400" />
                       ))}
                     </div>
                   </div>
@@ -1985,7 +1985,7 @@ export default function AppointmentDetailsModal({ appointment, invoices = [], on
                 const Icon = fac.icon;
                 return (
                   <div key={fac.name} className="flex items-center gap-2.5 p-3 rounded-xl border border-white/[0.05] bg-white/[0.01]">
-                    <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0 text-emerald-400">
+                    <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shrink-0 text-blue-400">
                       <Icon size={14} />
                     </div>
                     <div className="min-w-0">
@@ -2016,7 +2016,7 @@ export default function AppointmentDetailsModal({ appointment, invoices = [], on
             </button>
             <button
               onClick={() => alert('Appointment details shared!')}
-              className="px-5 py-2.5 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-white shadow-lg shadow-emerald-500/20 transition flex items-center gap-1.5"
+              className="px-5 py-2.5 rounded-xl text-xs font-bold bg-blue-500 hover:bg-blue-400 text-white shadow-lg shadow-blue-500/20 transition flex items-center gap-1.5"
             >
               <Share2 size={14} />
               Share Appointment

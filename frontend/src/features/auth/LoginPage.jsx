@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Mail, Lock, Stethoscope, Shield, Zap, HeartPulse } from 'lucide-react';
 
@@ -56,9 +56,9 @@ const LoginPage = () => {
       ">
         {/* Animated gradient blobs */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-aura-500/20 blur-3xl animate-pulse" />
+          <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-blue-500/20 blur-3xl animate-pulse" />
           <div className="absolute top-1/2 -right-24 w-80 h-80 rounded-full bg-indigo-600/20 blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
-          <div className="absolute -bottom-24 left-1/3 w-72 h-72 rounded-full bg-aura-400/10 blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
+          <div className="absolute -bottom-24 left-1/3 w-72 h-72 rounded-full bg-blue-400/10 blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
           {/* Grid pattern */}
           <div className="absolute inset-0 opacity-30"
             style={{
@@ -70,11 +70,11 @@ const LoginPage = () => {
 
         {/* Logo */}
         <div className="relative flex items-center gap-3 animate-fade-in">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-aura-500 to-indigo-600 flex items-center justify-center shadow-glow-teal">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-glow-teal">
             <HeartPulse size={20} className="text-white" />
           </div>
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-aura-400">AI-CMS</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-blue-400">AI-CMS</p>
             <p className="text-white font-semibold text-sm leading-tight">Clinic Management</p>
           </div>
         </div>
@@ -99,7 +99,7 @@ const LoginPage = () => {
                 className="flex items-center gap-3 text-sm text-white/70 animate-slide-up"
                 style={{ animationDelay: `${200 + i * 80}ms` }}
               >
-                <span className="w-7 h-7 rounded-lg bg-aura-500/15 border border-aura-500/20 flex items-center justify-center text-aura-400 shrink-0">
+                <span className="w-7 h-7 rounded-lg bg-blue-500/15 border border-blue-500/20 flex items-center justify-center text-blue-400 shrink-0">
                   {f.icon}
                 </span>
                 {f.text}
@@ -120,14 +120,14 @@ const LoginPage = () => {
 
           {/* Mobile logo */}
           <div className="flex lg:hidden items-center gap-3 mb-8">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-aura-500 to-indigo-600 flex items-center justify-center">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
               <HeartPulse size={18} className="text-white" />
             </div>
             <p className="font-bold text-slate-900 dark:text-white">AI-CMS</p>
           </div>
 
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-aura-600 dark:text-aura-400">Welcome back</p>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400">Welcome back</p>
             <h2 className="mt-2 text-3xl font-bold text-slate-900 dark:text-white">Sign in to your account</h2>
             <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
               Access the clinic platform with your registered credentials.
@@ -157,7 +157,7 @@ const LoginPage = () => {
                     border border-slate-200 dark:border-white/10
                     text-slate-900 dark:text-slate-100
                     placeholder:text-slate-400 dark:placeholder:text-slate-600
-                    focus:outline-none focus:border-aura-500 focus:ring-2 focus:ring-aura-500/20
+                    focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20
                     transition
                   "
                 />
@@ -186,7 +186,7 @@ const LoginPage = () => {
                     border border-slate-200 dark:border-white/10
                     text-slate-900 dark:text-slate-100
                     placeholder:text-slate-400 dark:placeholder:text-slate-600
-                    focus:outline-none focus:border-aura-500 focus:ring-2 focus:ring-aura-500/20
+                    focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20
                     transition
                   "
                 />
@@ -215,8 +215,8 @@ const LoginPage = () => {
               disabled={loading}
               className="
                 w-full mt-2 py-2.5 px-4 rounded-xl
-                bg-aura-600 hover:bg-aura-700 active:bg-aura-800
-                dark:bg-aura-500 dark:hover:bg-aura-600
+                bg-blue-600 hover:bg-blue-700 active:bg-blue-800
+                dark:bg-blue-500 dark:hover:bg-blue-600
                 text-white font-semibold text-sm
                 shadow-sm hover:shadow-glow-teal
                 transition-all duration-150
@@ -236,7 +236,7 @@ const LoginPage = () => {
 
           <p className="mt-6 text-center text-sm text-slate-500 dark:text-slate-400">
             Need an account?{' '}
-            <Link to="/register" className="font-semibold text-aura-600 dark:text-aura-400 hover:text-aura-700 dark:hover:text-aura-300 transition">
+            <Link to="/register" className="font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition">
               Create one here
             </Link>
           </p>

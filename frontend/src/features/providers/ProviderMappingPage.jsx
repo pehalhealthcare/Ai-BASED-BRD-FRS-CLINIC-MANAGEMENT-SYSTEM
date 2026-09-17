@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, Search, Plus, Upload, Download, Check, AlertCircle, X, 
@@ -368,7 +368,7 @@ const ProviderMappingPage = () => {
     return (
       <div className="min-h-screen bg-slate-900 text-slate-100 flex items-center justify-center">
         <div className="flex flex-col items-center space-y-2">
-          <RefreshCw className="w-8 h-8 animate-spin text-emerald-400" />
+          <RefreshCw className="w-8 h-8 animate-spin text-blue-400" />
           <span>Configuring mapping context...</span>
         </div>
       </div>
@@ -378,7 +378,7 @@ const ProviderMappingPage = () => {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans pb-20">
       {/* Top Gradient Header */}
-      <div className="bg-gradient-to-r from-indigo-900/60 via-slate-900 to-emerald-950/60 border-b border-slate-800 p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="bg-gradient-to-r from-indigo-900/60 via-slate-900 to-blue-950/60 border-b border-slate-800 p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex items-center gap-4">
           <button 
             onClick={() => navigate('/admin/providers')}
@@ -388,7 +388,7 @@ const ProviderMappingPage = () => {
           </button>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded font-black tracking-wider uppercase">
+              <span className="text-[10px] bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded font-black tracking-wider uppercase">
                 {provider?.providerType}
               </span>
               <span className="text-slate-500 text-xs">Mapping Engine</span>
@@ -422,8 +422,8 @@ const ProviderMappingPage = () => {
           <span className="text-3xl font-black text-slate-200 mt-2">{stats.total}</span>
         </div>
         <div className="bg-slate-900/40 border border-slate-800/80 rounded-3xl p-5 flex flex-col justify-between">
-          <span className="text-[10px] font-black uppercase text-emerald-500 tracking-wider">Active</span>
-          <span className="text-3xl font-black text-emerald-400 mt-2">{stats.active}</span>
+          <span className="text-[10px] font-black uppercase text-blue-500 tracking-wider">Active</span>
+          <span className="text-3xl font-black text-blue-400 mt-2">{stats.active}</span>
         </div>
         <div className="bg-slate-900/40 border border-slate-800/80 rounded-3xl p-5 flex flex-col justify-between">
           <span className="text-[10px] font-black uppercase text-amber-500 tracking-wider">Pending Review</span>
@@ -454,7 +454,7 @@ const ProviderMappingPage = () => {
             <span className="font-bold text-slate-400">{selectedItems.length} selected</span>
             <button 
               onClick={() => handleBulkStatusChange('Active')}
-              className="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 transition font-bold"
+              className="px-2.5 py-1 rounded bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition font-bold"
             >
               Activate
             </button>
@@ -555,7 +555,7 @@ const ProviderMappingPage = () => {
                         </td>
                         <td className="py-4 px-5">
                           <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                            m.status === 'Active' ? 'bg-emerald-500/10 text-emerald-400' :
+                            m.status === 'Active' ? 'bg-blue-500/10 text-blue-400' :
                             m.status === 'Inactive' ? 'bg-slate-800 text-slate-500' :
                             'bg-amber-500/10 text-amber-400'
                           }`}>
@@ -933,7 +933,7 @@ const ProviderMappingPage = () => {
 
               {/* Right Column: Provider Information */}
               <div className="p-6 space-y-4">
-                <h4 className="text-sm font-black text-emerald-400 uppercase tracking-wider">Provider Local profile</h4>
+                <h4 className="text-sm font-black text-blue-400 uppercase tracking-wider">Provider Local profile</h4>
 
                 <div className="space-y-3">
                   <div>
@@ -991,7 +991,7 @@ const ProviderMappingPage = () => {
                     <div>
                       <span className="text-[10px] text-slate-500 font-bold block uppercase tracking-wider">Mapping Status</span>
                       <span className={`px-1.5 py-0.5 rounded text-[9px] font-black inline-block mt-0.5 ${
-                        selectedMapping.status === 'Active' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-800 text-slate-500'
+                        selectedMapping.status === 'Active' ? 'bg-blue-500/10 text-blue-400' : 'bg-slate-800 text-slate-500'
                       }`}>
                         {selectedMapping.status}
                       </span>
@@ -1023,7 +1023,7 @@ const ProviderMappingPage = () => {
           <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
             <div className="px-6 py-5 border-b border-slate-800 flex items-center justify-between">
               <h3 className="text-lg font-black text-slate-100 flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-emerald-400 animate-pulse" /> Smart Excel Mapping Assistant
+                <Sparkles className="w-5 h-5 text-blue-400 animate-pulse" /> Smart Excel Mapping Assistant
               </h3>
               <button 
                 type="button" 
@@ -1092,7 +1092,7 @@ const ProviderMappingPage = () => {
                             </td>
                             <td className="py-3 px-4">
                               {row.matchStatus === 'EXISTING' && (
-                                <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-bold">Auto Matched</span>
+                                <span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 font-bold">Auto Matched</span>
                               )}
                               {row.matchStatus === 'MAPPED' && (
                                 <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-500 font-bold">Already Mapped</span>

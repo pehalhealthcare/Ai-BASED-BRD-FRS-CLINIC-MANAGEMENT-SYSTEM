@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import LoadingState from '../../components/common/LoadingState';
 import ErrorState from '../../components/common/ErrorState';
 import PageHeader from '../../components/layout/PageHeader';
 import { organizationApi } from '../../lib/api';
 
 const FIELD_CLASS =
-  'w-full rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 text-black dark:bg-navy-800 dark:border-white/[0.08] dark:text-white';
+  'w-full rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-black dark:bg-navy-800 dark:border-white/[0.08] dark:text-white';
 
 const OrganizationSettingsPage = () => {
   const [loading, setLoading] = useState(true);
@@ -141,7 +141,7 @@ const OrganizationSettingsPage = () => {
       />
 
       <form onSubmit={handleSave} className="space-y-8 max-w-4xl">
-        {success && <p className="p-4 rounded-2xl bg-emerald-50 text-emerald-800 text-sm font-semibold border border-emerald-100">{success}</p>}
+        {success && <p className="p-4 rounded-2xl bg-blue-50 text-blue-800 text-sm font-semibold border border-blue-100">{success}</p>}
         {error && <p className="p-4 rounded-2xl bg-rose-50 text-rose-800 text-sm font-semibold border border-rose-100">{error}</p>}
 
         {/* Branding & Logo */}
@@ -162,7 +162,7 @@ const OrganizationSettingsPage = () => {
                 type="file"
                 accept="image/*"
                 onChange={(e) => handleImageUpload(e, 'logo')}
-                className="w-full text-xs text-stone-500 mt-3 file:mr-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer"
+                className="w-full text-xs text-stone-500 mt-3 file:mr-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
               />
             </div>
 
@@ -211,7 +211,7 @@ const OrganizationSettingsPage = () => {
                 type="file"
                 accept="image/*"
                 onChange={(e) => handleImageUpload(e, 'headOfficeImage')}
-                className="w-full text-xs text-stone-500 mt-3 file:mr-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer"
+                className="w-full text-xs text-stone-500 mt-3 file:mr-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
               />
             </div>
 
@@ -406,7 +406,7 @@ const OrganizationSettingsPage = () => {
         <div className="flex justify-end pt-4 border-t border-stone-200 dark:border-white/[0.08]">
           <button
             type="submit"
-            className="rounded-2xl bg-emerald-600 px-8 py-4 text-sm font-semibold text-white hover:bg-emerald-700 shadow-lg shadow-emerald-600/20 hover:shadow-emerald-700/35 transition-all duration-200 cursor-pointer"
+            className="rounded-2xl bg-blue-600 px-8 py-4 text-sm font-semibold text-white hover:bg-blue-700 shadow-lg shadow-blue-600/20 hover:shadow-blue-700/35 transition-all duration-200 cursor-pointer"
           >
             Save All Changes
           </button>

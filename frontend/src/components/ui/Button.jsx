@@ -1,13 +1,13 @@
-import { forwardRef } from 'react';
+﻿import { forwardRef } from 'react';
 import { clsx } from 'clsx';
 
 const variants = {
   primary: [
-    'bg-aura-600 text-white',
-    'hover:bg-aura-700 active:bg-aura-800',
+    'bg-blue-600 text-white',
+    'hover:bg-blue-700 active:bg-blue-800',
     'shadow-sm hover:shadow-glow-teal',
-    'border border-aura-700/30',
-    'dark:bg-aura-500 dark:hover:bg-aura-600 dark:border-aura-400/20',
+    'border border-blue-700/30',
+    'dark:bg-blue-500 dark:hover:bg-blue-600 dark:border-blue-400/20',
   ],
   secondary: [
     'bg-white text-slate-800 border border-slate-200',
@@ -34,9 +34,9 @@ const variants = {
     'dark:bg-indigo-500 dark:hover:bg-indigo-600',
   ],
   outline: [
-    'bg-transparent text-aura-600 border border-aura-500',
-    'hover:bg-aura-50 active:bg-aura-100',
-    'dark:text-aura-400 dark:border-aura-500/50 dark:hover:bg-aura-500/10',
+    'bg-transparent text-blue-600 border border-blue-500',
+    'hover:bg-blue-50 active:bg-blue-100',
+    'dark:text-blue-400 dark:border-blue-500/50 dark:hover:bg-blue-500/10',
   ],
 };
 
@@ -88,7 +88,7 @@ const Button = forwardRef(function Button(
         'inline-flex items-center justify-center',
         'font-semibold select-none cursor-pointer',
         'transition-all duration-150 ease-out',
-        'focus:outline-none focus-visible:ring-2 focus-visible:ring-aura-500 focus-visible:ring-offset-2',
+        'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2',
         'dark:focus-visible:ring-offset-navy-900',
 
         // Size

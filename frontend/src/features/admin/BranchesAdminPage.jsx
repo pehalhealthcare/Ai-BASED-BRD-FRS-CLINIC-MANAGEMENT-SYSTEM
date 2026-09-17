@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+﻿import { useState, useEffect, useMemo } from 'react';
 import {
   Building2,
   Users,
@@ -578,9 +578,9 @@ const BranchesAdminPage = () => {
         </div>
 
         {/* Subscription Info Alert Banner */}
-        <div className="bg-gradient-to-r from-[#ECFDF5] to-[#F0FDFA] border border-emerald-100 rounded-3xl p-6 flex flex-col md:flex-row items-center justify-between gap-4 shadow-sm">
+        <div className="bg-gradient-to-r from-[#ECFDF5] to-[#F0FDFA] border border-blue-100 rounded-3xl p-6 flex flex-col md:flex-row items-center justify-between gap-4 shadow-sm">
           <div className="flex items-center gap-4">
-            <div className="bg-emerald-100 p-3.5 rounded-2xl text-emerald-600 shrink-0">
+            <div className="bg-blue-100 p-3.5 rounded-2xl text-blue-600 shrink-0">
               <Building2 size={24} />
             </div>
             <div>
@@ -629,7 +629,7 @@ const BranchesAdminPage = () => {
                       <span className="bg-indigo-50 text-indigo-650 text-[9px] font-black uppercase px-2 py-0.5 rounded-full border border-indigo-150 shadow-sm">
                         Main Branch
                       </span>
-                      <span className="bg-emerald-50 text-emerald-600 text-[9px] font-black uppercase px-2 py-0.5 rounded-full border border-emerald-250 shadow-sm">
+                      <span className="bg-blue-50 text-blue-600 text-[9px] font-black uppercase px-2 py-0.5 rounded-full border border-blue-250 shadow-sm">
                         Active
                       </span>
                     </div>
@@ -658,7 +658,7 @@ const BranchesAdminPage = () => {
                       <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Doctors</p>
                       <h4 className="text-xl font-black text-slate-800 mt-1">{mainBranch.stats.doctors}</h4>
                     </div>
-                    <Stethoscope size={18} className="text-emerald-550" />
+                    <Stethoscope size={18} className="text-blue-550" />
                   </div>
                   <div className="bg-slate-50/50 border border-slate-100 p-4 rounded-2xl flex items-center justify-between">
                     <div>
@@ -877,13 +877,13 @@ const BranchesAdminPage = () => {
         </div>
 
         <div className="bg-white border border-slate-200 rounded-[28px] p-5 space-y-2 shadow-sm relative overflow-hidden group">
-          <div className="h-9 w-9 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-600">
+          <div className="h-9 w-9 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600">
             <CheckCircle2 size={18} />
           </div>
           <div>
             <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Active Branches</p>
             <h3 className="text-2xl font-extrabold text-slate-800 mt-1">{overallStats.active}</h3>
-            <span className="text-[9px] font-semibold text-emerald-650 bg-emerald-50 px-1.5 py-0.5 rounded-md">
+            <span className="text-[9px] font-semibold text-blue-650 bg-blue-50 px-1.5 py-0.5 rounded-md">
               {overallStats.active} Operational
             </span>
           </div>
@@ -1083,7 +1083,7 @@ const BranchesAdminPage = () => {
                 </div>
 
                 {branch.isPrimary && (
-                  <span className="absolute top-3 left-3 bg-emerald-500 text-white text-[8px] font-black uppercase px-2 py-0.5 rounded-full border border-emerald-450/30 shadow-sm tracking-wider">
+                  <span className="absolute top-3 left-3 bg-blue-500 text-white text-[8px] font-black uppercase px-2 py-0.5 rounded-full border border-blue-450/30 shadow-sm tracking-wider">
                     Main Branch
                   </span>
                 )}
@@ -1091,7 +1091,7 @@ const BranchesAdminPage = () => {
                 <div className="absolute top-3 right-3 flex items-center gap-1.5">
                   <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full border shadow-sm tracking-wider ${
                     branch.isActive
-                      ? 'bg-emerald-50 text-emerald-600 border-emerald-250'
+                      ? 'bg-blue-50 text-blue-600 border-blue-250'
                       : 'bg-rose-50 text-rose-600 border-rose-250'
                   }`}>
                     {branch.isActive ? 'Active' : 'Inactive'}
@@ -1138,7 +1138,7 @@ const BranchesAdminPage = () => {
                             <button
                               onClick={() => handleDeactivate(branch.id)}
                               className={`w-full text-left px-2.5 py-1.5 rounded-xl transition flex items-center gap-2 ${
-                                branch.isActive ? 'text-amber-600 hover:bg-amber-50' : 'text-emerald-600 hover:bg-emerald-50'
+                                branch.isActive ? 'text-amber-600 hover:bg-amber-50' : 'text-blue-600 hover:bg-blue-50'
                               }`}
                             >
                               {branch.isActive ? (
@@ -1289,7 +1289,7 @@ const BranchesAdminPage = () => {
                           <div className="flex items-center gap-1.5">
                             <span className="font-extrabold text-slate-800 text-[13px]">{branch.branchName}</span>
                             {branch.isPrimary && (
-                              <span className="bg-emerald-50 text-emerald-600 text-[8px] font-black uppercase px-1.5 py-0.2 rounded border border-emerald-200">
+                              <span className="bg-blue-50 text-blue-600 text-[8px] font-black uppercase px-1.5 py-0.2 rounded border border-blue-200">
                                 HQ
                               </span>
                             )}
@@ -1335,7 +1335,7 @@ const BranchesAdminPage = () => {
                     <td className="py-4 px-4 text-center">
                       <span className={`inline-block text-[8px] font-black uppercase px-2 py-0.5 rounded-full border shadow-sm tracking-wider ${
                         branch.isActive
-                          ? 'bg-emerald-50 text-emerald-600 border-emerald-250'
+                          ? 'bg-blue-50 text-blue-600 border-blue-250'
                           : 'bg-rose-50 text-rose-600 border-rose-250'
                       }`}>
                         {branch.isActive ? 'Active' : 'Inactive'}
@@ -1401,7 +1401,7 @@ const BranchesAdminPage = () => {
                 <div className="flex items-center gap-2">
                   <h2 className="text-base font-black text-slate-800">{selectedBranch.branchName}</h2>
                   <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full border shadow-sm ${
-                    selectedBranch.isActive ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
+                    selectedBranch.isActive ? 'bg-blue-50 text-blue-600' : 'bg-rose-50 text-rose-600'
                   }`}>
                     {selectedBranch.isActive ? 'Active' : 'Inactive'}
                   </span>
@@ -1456,7 +1456,7 @@ const BranchesAdminPage = () => {
               <h4 className="text-xs font-black text-slate-500 uppercase tracking-wider">Clinical Departments</h4>
               <div className="flex flex-wrap gap-1.5">
                 {selectedBranch.departments.map(dept => (
-                  <span key={dept} className="bg-emerald-50 text-emerald-600 border border-emerald-250 text-[9px] font-black uppercase px-2.5 py-1 rounded-lg">
+                  <span key={dept} className="bg-blue-50 text-blue-600 border border-blue-250 text-[9px] font-black uppercase px-2.5 py-1 rounded-lg">
                     {dept}
                   </span>
                 ))}

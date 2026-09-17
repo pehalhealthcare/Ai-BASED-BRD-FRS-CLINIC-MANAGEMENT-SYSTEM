@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { X, Upload, CheckCircle2, AlertTriangle, HelpCircle, RefreshCw, FileText, Download } from 'lucide-react';
 import { healthcareCatalogApi } from '../../lib/api';
 import toast from 'react-hot-toast';
@@ -238,9 +238,9 @@ const ImportModal = ({ isOpen, onClose, importType, onImportComplete }) => {
             <div className="space-y-6">
               {/* Summary Metrics */}
               <div className="grid grid-cols-3 gap-4">
-                <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl text-center">
-                  <span className="text-emerald-600 font-bold block text-xl">{cleanRows}</span>
-                  <span className="text-xs text-emerald-800 font-semibold">New Records (🟢)</span>
+                <div className="bg-blue-50 border border-blue-100 p-4 rounded-2xl text-center">
+                  <span className="text-blue-600 font-bold block text-xl">{cleanRows}</span>
+                  <span className="text-xs text-blue-800 font-semibold">New Records (🟢)</span>
                 </div>
                 <div className="bg-blue-50 border border-blue-100 p-4 rounded-2xl text-center">
                   <span className="text-blue-600 font-bold block text-xl">{exactMatches}</span>
@@ -287,7 +287,7 @@ const ImportModal = ({ isOpen, onClose, importType, onImportComplete }) => {
                         </div>
 
                         {row.matchStatus === 'NEW' && (
-                          <span className="flex items-center gap-1 text-xs text-emerald-600 font-bold bg-emerald-50 px-2.5 py-1 rounded-lg">
+                          <span className="flex items-center gap-1 text-xs text-blue-600 font-bold bg-blue-50 px-2.5 py-1 rounded-lg">
                             🟢 New Test
                           </span>
                         )}
@@ -359,7 +359,7 @@ const ImportModal = ({ isOpen, onClose, importType, onImportComplete }) => {
           {step === 3 && summary && (
             <div className="py-8 space-y-6 max-w-md mx-auto">
               <div className="text-center space-y-2">
-                <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-2">
+                <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-2">
                   <CheckCircle2 className="w-10 h-10" />
                 </div>
                 <h4 className="text-lg font-black text-slate-900">Import Completed Successfully</h4>
@@ -375,8 +375,8 @@ const ImportModal = ({ isOpen, onClose, importType, onImportComplete }) => {
                   <span className="text-slate-800 font-bold">{summary.totalRead}</span>
                 </div>
                 <div className="flex justify-between items-center text-sm font-semibold border-t border-slate-50 pt-3">
-                  <span className="text-emerald-600 font-bold">🟢 Imported</span>
-                  <span className="text-emerald-700 font-black">{summary.created}</span>
+                  <span className="text-blue-600 font-bold">🟢 Imported</span>
+                  <span className="text-blue-700 font-black">{summary.created}</span>
                 </div>
                 <div className="flex justify-between items-center text-sm font-semibold border-t border-slate-50 pt-3">
                   <span className="text-blue-600 font-bold">🟡 Mapped</span>

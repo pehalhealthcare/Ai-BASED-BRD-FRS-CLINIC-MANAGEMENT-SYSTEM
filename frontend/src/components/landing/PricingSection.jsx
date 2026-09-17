@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+﻿import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Check, Sparkles, ArrowRight, ShieldCheck, Zap, 
@@ -200,7 +200,7 @@ export default function PricingSection({ onSelectPlan, isAuthenticated = false }
 
     if (code.includes('ENTERPRISE') || name.includes('enterprise') || plan.isEnterprise) {
       return (
-        <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
+        <div className="w-12 h-12 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
           <Building size={22} strokeWidth={2.2} />
         </div>
       );
@@ -299,7 +299,7 @@ export default function PricingSection({ onSelectPlan, isAuthenticated = false }
                   <span className={`relative z-10 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-tight transition-colors ${
                     billingCycle === 'yearly' 
                       ? 'bg-white text-blue-700 shadow-xs' 
-                      : 'bg-emerald-100 text-emerald-700'
+                      : 'bg-blue-100 text-blue-700'
                   }`}>
                     SAVE UP TO {maxSavingsPercent}%
                   </span>
@@ -459,7 +459,7 @@ export default function PricingSection({ onSelectPlan, isAuthenticated = false }
                                 </span>
                               </div>
                               {billedAnnuallyText && (
-                                <span className="text-[11px] text-emerald-600 font-semibold mt-1">
+                                <span className="text-[11px] text-blue-600 font-semibold mt-1">
                                   {billedAnnuallyText}
                                 </span>
                               )}
@@ -493,7 +493,7 @@ export default function PricingSection({ onSelectPlan, isAuthenticated = false }
                             {Array.isArray(plan.features) && plan.features.length > 0 ? (
                               plan.features.map((feature, fIdx) => (
                                 <li key={fIdx} className="flex items-center gap-2.5 leading-snug">
-                                  <Check size={14} className="text-emerald-500 shrink-0" strokeWidth={2.5} />
+                                  <Check size={14} className="text-blue-500 shrink-0" strokeWidth={2.5} />
                                   <span className="font-normal text-slate-700">{formatFeatureText(feature)}</span>
                                 </li>
                               ))

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
@@ -27,7 +27,7 @@ const STATUSES = [
 
 const STATUS_META = {
   PENDING_VERIFICATION: { label: 'Pending', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', icon: Clock },
-  VERIFIED: { label: 'Verified', bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', icon: CheckCircle2 },
+  VERIFIED: { label: 'Verified', bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', icon: CheckCircle2 },
   REJECTED: { label: 'Rejected', bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', icon: XCircle },
   REPAYMENT_REQUIRED: { label: 'Repayment Required', bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', icon: AlertTriangle },
   SUBMITTED: { label: 'Submitted', bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', icon: FileText },
@@ -36,7 +36,7 @@ const STATUS_META = {
 const getInitials = (name = '') =>
   name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
 
-const AVATAR_COLORS = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899'];
+const AVATAR_COLORS = ['#2563EB', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899'];
 const getAvatarColor = (str = '') => AVATAR_COLORS[str.charCodeAt(0) % AVATAR_COLORS.length];
 
 const REJECTION_REASONS = [
@@ -71,8 +71,8 @@ const PaymentTypeBadge = ({ type }) => {
   }
   if (type === 'RENEWAL') {
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
-        <RefreshCw size={10} className="text-emerald-500" />
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-50 text-blue-700 border border-blue-200">
+        <RefreshCw size={10} className="text-blue-500" />
         RENEWAL
       </span>
     );
@@ -94,8 +94,8 @@ const VerifyModal = ({ payment, onClose, onConfirm, loading }) => {
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 border border-slate-100" onClick={e => e.stopPropagation()}>
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center">
-            <ShieldCheck size={20} className="text-emerald-600" />
+          <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
+            <ShieldCheck size={20} className="text-blue-600" />
           </div>
           <div>
             <h3 className="text-base font-bold text-slate-900">Verify Payment</h3>
@@ -110,7 +110,7 @@ const VerifyModal = ({ payment, onClose, onConfirm, loading }) => {
           )}
           <div className="flex justify-between"><span className="text-slate-500">{isUpgrade ? 'Requested Plan' : 'Plan'}</span><span className="font-bold text-slate-900">{requestedPlanName}</span></div>
           <div className="flex justify-between"><span className="text-slate-500">Billing Cycle</span><span className="font-medium text-slate-800 capitalize">{payment.requestedBillingCycle || payment.billingCycle || '--'}</span></div>
-          <div className="flex justify-between"><span className="text-slate-500">Amount</span><span className="font-bold text-emerald-600">{fmt(payment.amount)}</span></div>
+          <div className="flex justify-between"><span className="text-slate-500">Amount</span><span className="font-bold text-blue-600">{fmt(payment.amount)}</span></div>
           <div className="flex justify-between"><span className="text-slate-500">UTR / Ref</span><span className="font-mono text-xs text-slate-700">{payment.utr || '--'}</span></div>
           <div className="flex justify-between"><span className="text-slate-500">Submitted</span><span className="text-slate-700">{fmtDate(payment.submittedAt || payment.createdAt)}</span></div>
         </div>
@@ -122,7 +122,7 @@ const VerifyModal = ({ payment, onClose, onConfirm, loading }) => {
           <button
             onClick={() => onConfirm(payment._id)}
             disabled={loading}
-            className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition flex items-center justify-center gap-2 disabled:opacity-60"
+            className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2 disabled:opacity-60"
           >
             {loading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
             {loading ? 'Verifying...' : 'Confirm & Verify'}
@@ -275,7 +275,7 @@ const SuperAdminPaymentsPage = () => {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div>
             <h1 className="text-xl font-black text-slate-900 flex items-center gap-2">
-              <CreditCard size={20} className="text-emerald-600" />
+              <CreditCard size={20} className="text-blue-600" />
               Payment Verifications
               {pendingCount > 0 && (
                 <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-500 text-white text-xs font-bold">{pendingCount}</span>
@@ -309,7 +309,7 @@ const SuperAdminPaymentsPage = () => {
         <div className="bg-white border border-slate-100 rounded-2xl p-4 mb-4 shadow-sm">
           <div className="relative max-w-md">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by UTR, clinic name, transaction ID..." className="w-full pl-9 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition" />
+            <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by UTR, clinic name, transaction ID..." className="w-full pl-9 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition" />
           </div>
         </div>
 
@@ -364,9 +364,9 @@ const SuperAdminPaymentsPage = () => {
                                 {getInitials(clinicName)}
                               </div>
                               <div>
-                                <p className="font-semibold text-slate-900 group-hover:text-emerald-600 transition text-xs leading-tight flex items-center gap-1">
+                                <p className="font-semibold text-slate-900 group-hover:text-blue-600 transition text-xs leading-tight flex items-center gap-1">
                                   {clinicName}
-                                  <ArrowUpRight size={11} className="opacity-0 group-hover:opacity-100 transition text-emerald-500" />
+                                  <ArrowUpRight size={11} className="opacity-0 group-hover:opacity-100 transition text-blue-500" />
                                 </p>
                                 {clinicCode && <p className="text-[10px] text-slate-400">{clinicCode}</p>}
                               </div>
@@ -379,7 +379,7 @@ const SuperAdminPaymentsPage = () => {
                               <PaymentTypeBadge type={p.paymentType} />
                             </div>
                           </td>
-                          <td className="px-4 py-3"><span className="font-bold text-emerald-600">{fmt(p.amount)}</span></td>
+                          <td className="px-4 py-3"><span className="font-bold text-blue-600">{fmt(p.amount)}</span></td>
                           <td className="px-4 py-3"><span className="font-mono text-xs bg-slate-100 px-2 py-0.5 rounded-lg text-slate-700">{p.utr || '--'}</span></td>
                           <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">{fmtDate(p.submittedAt || p.createdAt)}</td>
                           <td className="px-4 py-3"><StatusBadge status={p.status} /></td>
@@ -387,14 +387,14 @@ const SuperAdminPaymentsPage = () => {
                             <div className="flex items-center justify-end gap-1.5">
                               <button
                                 onClick={() => navigate(`/payments/verify/${p._id}`)}
-                                className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 hover:text-emerald-600 transition"
+                                className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 hover:text-blue-600 transition"
                                 title="Open Verification Workspace"
                               >
                                 <Eye size={13} />
                               </button>
                               {p.status === 'PENDING_VERIFICATION' && (
                                 <>
-                                  <button onClick={() => setVerifyingPayment(p)} className="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-700 text-xs font-bold hover:bg-emerald-200 transition flex items-center gap-1"><Check size={11} /> Verify</button>
+                                  <button onClick={() => setVerifyingPayment(p)} className="px-2.5 py-1 rounded-lg bg-blue-100 text-blue-700 text-xs font-bold hover:bg-blue-200 transition flex items-center gap-1"><Check size={11} /> Verify</button>
                                   <button onClick={() => setRejectingPayment(p)} className="px-2.5 py-1 rounded-lg bg-red-100 text-red-700 text-xs font-bold hover:bg-red-200 transition flex items-center gap-1"><X size={11} /> Reject</button>
                                 </>
                               )}

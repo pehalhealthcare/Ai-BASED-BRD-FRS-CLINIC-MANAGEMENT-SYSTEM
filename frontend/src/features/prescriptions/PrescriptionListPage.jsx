@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import EmptyState from '../../components/common/EmptyState';
@@ -85,7 +85,7 @@ const PrescriptionListPage = () => {
     <section className="grid gap-6">
       <div className="flex flex-col gap-4 rounded-3xl border border-stone-200 bg-white p-6 shadow-lg shadow-stone-200/40 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">Prescription list</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">Prescription list</p>
           <h1 className="mt-2 text-3xl font-semibold text-stone-900">{contextTitle}</h1>
         </div>
         {patientId ? (
@@ -102,7 +102,7 @@ const PrescriptionListPage = () => {
 
               setSearchParams(next);
             }}
-            className="rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+            className="rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
           >
             <option value="">All statuses</option>
             <option value="draft">Draft</option>

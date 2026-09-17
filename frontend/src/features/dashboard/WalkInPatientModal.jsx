@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { X, Calendar, Upload, Camera, Shield, FileText, CheckCircle2, User, Plus, Search, Check, Bot, Clock, CreditCard, Receipt, Tag, AlertCircle, Printer, Download, Send, ArrowLeft, Video, VideoOff, Laptop } from 'lucide-react';
 import { patientApi, doctorApi, appointmentApi, receptionistApi } from '../../lib/api';
 import { aiApi } from '../../api/aiApi';
@@ -1492,7 +1492,7 @@ export default function WalkInPatientModal({ isOpen, onClose, onSuccess }) {
                       {
                         label: 'Approved Today',
                         val: pendingApprovals.filter(a => a.discountRequest?.status === 'approved').length,
-                        color: 'text-emerald-600 bg-emerald-50 border-emerald-100',
+                        color: 'text-blue-600 bg-blue-50 border-blue-100',
                         icon: <CheckCircle2 size={16} />
                       },
                       {
@@ -1636,7 +1636,7 @@ export default function WalkInPatientModal({ isOpen, onClose, onSuccess }) {
                           let badgeColor = 'bg-amber-50 text-amber-700 border-amber-100';
                           if (discountReq.status === 'approved') {
                             statusLabel = 'Approved';
-                            badgeColor = 'bg-emerald-50 text-emerald-700 border-emerald-100';
+                            badgeColor = 'bg-blue-50 text-blue-700 border-blue-100';
                           } else if (discountReq.status === 'rejected') {
                             statusLabel = 'Rejected';
                             badgeColor = 'bg-rose-50 text-rose-700 border-rose-100';
@@ -1745,10 +1745,10 @@ export default function WalkInPatientModal({ isOpen, onClose, onSuccess }) {
                                   {/* Case 2: Approved */}
                                   {statusLabel === 'Approved' && (
                                     <div className="space-y-1.5">
-                                      <p className="text-[9px] text-emerald-800 font-bold leading-tight">✓ Approved by Admin. Please collect payment.</p>
+                                      <p className="text-[9px] text-blue-800 font-bold leading-tight">✓ Approved by Admin. Please collect payment.</p>
                                       <button
                                         onClick={() => handleProceedToPayment(appt)}
-                                        className="w-full py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold rounded-lg transition shadow-xs"
+                                        className="w-full py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold rounded-lg transition shadow-xs"
                                       >
                                         Proceed to Payment
                                       </button>
@@ -2258,7 +2258,7 @@ export default function WalkInPatientModal({ isOpen, onClose, onSuccess }) {
                                 )}
 
                                 {scanSuccess ? (
-                                  <CheckCircle2 size={24} className="text-emerald-555 animate-pulse" />
+                                  <CheckCircle2 size={24} className="text-blue-555 animate-pulse" />
                                 ) : (
                                   <Camera size={20} className="text-teal-505/40" />
                                 )}
@@ -2401,7 +2401,7 @@ export default function WalkInPatientModal({ isOpen, onClose, onSuccess }) {
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <h4 className="text-sm font-extrabold text-slate-800 leading-tight truncate">{name}</h4>
                               <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
-                                isConsultant ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'
+                                isConsultant ? 'bg-blue-50 text-blue-600' : 'bg-blue-50 text-blue-600'
                               }`}>
                                 {isConsultant ? 'Consultant' : 'Specialist'}
                               </span>
@@ -2427,8 +2427,8 @@ export default function WalkInPatientModal({ isOpen, onClose, onSuccess }) {
                             <p className="text-[10px] text-slate-400 font-medium">Availability</p>
                             {doctorAvailabilityInfo[doc._id] ? (
                               doctorAvailabilityInfo[doc._id].status === 'Available Now' ? (
-                                <span className="flex items-center gap-1 justify-end text-emerald-600 mt-0.5">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                <span className="flex items-center gap-1 justify-end text-blue-600 mt-0.5">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
                                   Available Now
                                 </span>
                               ) : doctorAvailabilityInfo[doc._id].status === 'Not Available' ? (
@@ -2736,7 +2736,7 @@ export default function WalkInPatientModal({ isOpen, onClose, onSuccess }) {
                           <div className="text-right">
                             <span className="text-slate-905 font-bold text-xs">₹{followUpInfo.fee}</span>
                             {followUpInfo.isFollowUp ? (
-                              <span className="ml-2 bg-emerald-50 text-emerald-600 border border-emerald-100 text-[8px] font-black uppercase px-1.5 py-0.5 rounded">
+                              <span className="ml-2 bg-blue-50 text-blue-600 border border-blue-100 text-[8px] font-black uppercase px-1.5 py-0.5 rounded">
                                 Follow-up Visit (₹{followUpInfo.fee})
                               </span>
                             ) : (
@@ -2863,7 +2863,7 @@ export default function WalkInPatientModal({ isOpen, onClose, onSuccess }) {
                         <>
                           <div className="flex justify-between items-center text-xs">
                             <span className="text-slate-550 font-bold">Discount Applied</span>
-                            <span className="text-emerald-600 font-bold">- ₹{
+                            <span className="text-blue-600 font-bold">- ₹{
                               discountType === 'percentage'
                                 ? Math.round((parseFloat(discountValue) / 100) * (createdAppointment.consultationFee || 0))
                                 : discountType === 'full_waiver'
@@ -2953,7 +2953,7 @@ export default function WalkInPatientModal({ isOpen, onClose, onSuccess }) {
                   {/* Right: Payment Method */}
                   <div className="flex flex-col gap-5">
                     <div className="flex items-center gap-2">
-                      <div className="p-2 bg-emerald-50 rounded-xl text-emerald-600"><Receipt size={16} /></div>
+                      <div className="p-2 bg-blue-50 rounded-xl text-blue-600"><Receipt size={16} /></div>
                       <h3 className="text-sm font-bold text-slate-800">Payment Collection</h3>
                     </div>
 
@@ -3144,13 +3144,13 @@ export default function WalkInPatientModal({ isOpen, onClose, onSuccess }) {
           {activeStep === 5 && (finalAppointment || createdAppointment) && (
             <div className="flex flex-col gap-5 flex-1 min-h-0 items-center">
               {/* Success Banner */}
-              <div className="w-full max-w-3xl bg-emerald-50 border border-emerald-200 rounded-2xl p-5 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-emerald-500 flex items-center justify-center shrink-0">
+              <div className="w-full max-w-3xl bg-blue-50 border border-blue-200 rounded-2xl p-5 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center shrink-0">
                   <CheckCircle2 size={24} className="text-white" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-extrabold text-emerald-900">Appointment Booked Successfully!</h3>
-                  <p className="text-[11px] text-emerald-700 mt-1 font-semibold">
+                  <h3 className="text-sm font-extrabold text-blue-900">Appointment Booked Successfully!</h3>
+                  <p className="text-[11px] text-blue-700 mt-1 font-semibold">
                     {selectedPatient?.firstName || selectedPatient?.fullName} has been registered for consultation.
                     {selectedDate === new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).split('/').reverse().join('-')
                       ? ' Patient can be checked in now to receive a token number.'
@@ -3255,7 +3255,7 @@ export default function WalkInPatientModal({ isOpen, onClose, onSuccess }) {
                   {/* Appointment & Billing Info */}
                   <div className="space-y-4">
                     <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-                      <Receipt size={14} className="text-emerald-600" />
+                      <Receipt size={14} className="text-blue-600" />
                       <h4 className="text-xs font-extrabold text-slate-700 uppercase tracking-wider">Appointment & Billing</h4>
                     </div>
                     {((() => {
@@ -3284,7 +3284,7 @@ export default function WalkInPatientModal({ isOpen, onClose, onSuccess }) {
                               📹 Online Video Consultation
                             </span>
                           ) : (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black bg-emerald-50 text-emerald-600 border border-emerald-100">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black bg-blue-50 text-blue-600 border border-blue-100">
                               🧑⚕️ Walk-In Consultation
                             </span>
                           )
@@ -3438,11 +3438,11 @@ export default function WalkInPatientModal({ isOpen, onClose, onSuccess }) {
 
                 {slotCheckMessage.status === 'available' ? (
                   <div className="space-y-4">
-                    <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center gap-3">
-                      <CheckCircle2 className="text-emerald-600 shrink-0" size={24} />
+                    <div className="p-4 bg-blue-50 border border-blue-100 rounded-2xl flex items-center gap-3">
+                      <CheckCircle2 className="text-blue-600 shrink-0" size={24} />
                       <div>
-                        <p className="text-xs font-extrabold text-emerald-900">Original Slot Available</p>
-                        <p className="text-[11px] text-emerald-700 mt-0.5">{slotCheckMessage.slot}</p>
+                        <p className="text-xs font-extrabold text-blue-900">Original Slot Available</p>
+                        <p className="text-[11px] text-blue-700 mt-0.5">{slotCheckMessage.slot}</p>
                       </div>
                     </div>
                     <p className="text-xs text-slate-550 leading-relaxed">

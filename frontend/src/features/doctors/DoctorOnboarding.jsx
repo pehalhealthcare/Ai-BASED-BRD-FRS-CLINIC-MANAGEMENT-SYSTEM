@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import LoadingState from '../../components/common/LoadingState';
 import ErrorState from '../../components/common/ErrorState';
 import { doctorApi, specializationApi, organizationApi, clinicApi } from '../../lib/api';
@@ -6,7 +6,7 @@ import { OpenStreetMapProvider } from 'leaflet-geosearch';
 import MapPicker from '../../components/common/MapPicker';
 
 const FIELD_CLASS =
-  'w-full rounded-2xl border border-stone-300 bg-white dark:bg-stone-700 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 text-stone-900 dark:text-white dark:border-stone-600 dark:placeholder-stone-400';
+  'w-full rounded-2xl border border-stone-300 bg-white dark:bg-stone-700 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-stone-900 dark:text-white dark:border-stone-600 dark:placeholder-stone-400';
 
 const StepsProgress = ({ currentStatus }) => {
   const steps = [
@@ -36,7 +36,7 @@ const StepsProgress = ({ currentStatus }) => {
           key={idx} 
           className={`relative p-4 rounded-2xl border text-center transition-all duration-300 ${
             step.completed 
-              ? 'bg-emerald-50 border-emerald-200 text-emerald-900 shadow-sm shadow-emerald-100/30' 
+              ? 'bg-blue-50 border-blue-200 text-blue-900 shadow-sm shadow-blue-100/30' 
               : step.waiting 
               ? 'bg-amber-50 border-amber-200 text-amber-900 animate-pulse' 
               : step.active 
@@ -215,12 +215,12 @@ const DynamicMap = ({ id, lat, lng, onChange }) => {
           placeholder="Search any road, locality, bank branch, landmark..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="flex-1 rounded-xl border border-stone-300 px-3 py-2 text-xs text-stone-900 bg-white dark:bg-stone-850 dark:text-grey-600 outline-none focus:border-emerald-500"
+          className="flex-1 rounded-xl border border-stone-300 px-3 py-2 text-xs text-stone-900 bg-white dark:bg-stone-850 dark:text-grey-600 outline-none focus:border-blue-500"
         />
         <button
           type="button"
           onClick={handleSearch}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl px-4 py-2 text-xs font-semibold shrink-0"
+          className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-4 py-2 text-xs font-semibold shrink-0"
         >
           Search Map
         </button>
@@ -250,7 +250,7 @@ const DynamicMap = ({ id, lat, lng, onChange }) => {
         )}
       </div>
       {lat && lng ? (
-        <p className="text-[10px] text-emerald-600 font-mono font-semibold">
+        <p className="text-[10px] text-blue-600 font-mono font-semibold">
           Coordinates Selected: {lat.toFixed(6)}, {lng.toFixed(6)}
         </p>
       ) : (
@@ -605,11 +605,11 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
         : 'bg-violet-100 text-violet-700 border-violet-200';
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950 flex items-start justify-center py-10 px-4">
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950 flex items-start justify-center py-10 px-4">
         <div className="w-full max-w-3xl">
 
           {/* ── Hero Banner ── */}
-          <div className="relative rounded-3xl overflow-hidden mb-6 bg-gradient-to-r from-emerald-500 via-teal-500 to-indigo-600 p-8 text-center shadow-2xl shadow-emerald-900/40">
+          <div className="relative rounded-3xl overflow-hidden mb-6 bg-gradient-to-r from-blue-500 via-teal-500 to-indigo-600 p-8 text-center shadow-2xl shadow-blue-900/40">
             <div className="absolute inset-0 opacity-10" style={{backgroundImage:"radial-gradient(circle at 20% 50%, white 1px, transparent 1px), radial-gradient(circle at 80% 20%, white 1px, transparent 1px)", backgroundSize:"30px 30px"}} />
             <div className="relative z-10">
               <div className="w-20 h-20 mx-auto rounded-full bg-white/20 border-2 border-white/40 flex items-center justify-center mb-4 shadow-lg">
@@ -618,7 +618,7 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
                 </svg>
               </div>
               <h1 className="text-3xl md:text-4xl font-black text-white mb-2 tracking-tight">Congratulations, Doctor!</h1>
-              <p className="text-emerald-100 text-base font-medium">You have been successfully verified and approved by the admin.</p>
+              <p className="text-blue-100 text-base font-medium">You have been successfully verified and approved by the admin.</p>
               <p className="text-white/70 text-sm mt-1">Please review your offer letter carefully before accepting.</p>
             </div>
           </div>
@@ -629,7 +629,7 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
             {/* Header strip */}
             <div className="bg-gradient-to-r from-slate-800 to-slate-900 px-6 py-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center">
                   <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
@@ -639,7 +639,7 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
                   <p className="text-slate-400 text-[10px] uppercase tracking-wider">AI-CMS Healthcare Network</p>
                 </div>
               </div>
-              <span className="text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2.5 py-1 rounded-full uppercase tracking-wider">
+              <span className="text-[10px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30 px-2.5 py-1 rounded-full uppercase tracking-wider">
                 ✓ Verified
               </span>
             </div>
@@ -664,7 +664,7 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
                       <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" /></svg>
                       Code: <span className="font-mono font-black text-slate-900">{clinic.code || 'N/A'}</span>
                     </div>
-                    <div className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold ${profile.isOnlineAvailable ? 'bg-emerald-100 text-emerald-800' : 'bg-stone-100 text-stone-600'}`}>
+                    <div className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold ${profile.isOnlineAvailable ? 'bg-blue-100 text-blue-800' : 'bg-stone-100 text-stone-600'}`}>
                       <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17H3a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2h-2" /></svg>
                       Teleconsultation: {profile.isOnlineAvailable ? '✓ Enabled' : '✗ Disabled'}
                     </div>
@@ -707,11 +707,11 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
               {/* ── Practice Slots ── */}
               <div className="rounded-2xl border border-stone-200 overflow-hidden">
                 <div className="px-5 py-3 bg-gradient-to-r from-slate-800 to-slate-700 flex items-center gap-2">
-                  <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                   <span className="text-[11px] font-bold text-slate-300 uppercase tracking-widest">Assigned Practice Schedule</span>
-                  <span className="ml-auto text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold">
+                  <span className="ml-auto text-[10px] bg-blue-500/20 text-blue-400 border border-blue-500/30 px-2 py-0.5 rounded-full font-bold">
                     {availableSlots.length} slots
                   </span>
                 </div>
@@ -758,7 +758,7 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
                                       {slot.consultationMode === 'online' ? '🌐 Online' : '🏥 In-Clinic'}
                                     </span>
                                     {matchedClinic && (
-                                      <span className="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-md border bg-emerald-50 text-emerald-700 border-emerald-200" title={matchedClinic.name}>
+                                      <span className="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-md border bg-blue-50 text-blue-700 border-blue-200" title={matchedClinic.name}>
                                         📍 {matchedClinic.name}
                                       </span>
                                     )}
@@ -798,7 +798,7 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
                     id="acceptTerms"
                     checked={acceptedTerms}
                     onChange={(e) => setAcceptedTerms(e.target.checked)}
-                    className="w-5 h-5 accent-emerald-600 cursor-pointer rounded"
+                    className="w-5 h-5 accent-blue-600 cursor-pointer rounded"
                   />
                   <span className="text-sm font-bold text-amber-900 group-hover:text-amber-700 transition-colors select-none">
                     I have read and agree to all the terms &amp; conditions of this appointment
@@ -812,7 +812,7 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
                 disabled={!acceptedTerms}
                 className={`w-full py-4 rounded-2xl text-sm font-black tracking-wide shadow-lg transition-all duration-200 flex items-center justify-center gap-2 ${
                   acceptedTerms
-                    ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-emerald-300 cursor-pointer scale-100 hover:scale-[1.01]'
+                    ? 'bg-gradient-to-r from-blue-600 to-teal-600 hover:from-blue-700 hover:to-teal-700 text-white shadow-blue-200 cursor-pointer scale-100 hover:scale-[1.01]'
                     : 'bg-stone-200 text-stone-400 cursor-not-allowed shadow-none'
                 }`}
               >
@@ -857,7 +857,7 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
         <p className="text-stone-500 dark:text-stone-400 text-sm mt-1">Please enter your professional details and upload verification documents to submit your application.</p>
       </div>
 
-      {successMsg && <p className="mb-5 p-3.5 rounded-2xl bg-emerald-50 text-emerald-700 text-sm font-semibold border border-emerald-100">{successMsg}</p>}
+      {successMsg && <p className="mb-5 p-3.5 rounded-2xl bg-blue-50 text-blue-700 text-sm font-semibold border border-blue-100">{successMsg}</p>}
       {error && <p className="mb-5 p-3.5 rounded-2xl bg-rose-50 text-rose-700 text-sm font-semibold border border-rose-100">{error}</p>}
 
       {currentStatus === 're_edit' && profile?.reEditComments && (
@@ -894,7 +894,7 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
             <button
               onClick={() => setFormStep(1)}
               className={`flex-1 pb-3 text-center font-bold transition-all border-b-2 ${
-                formStep === 1 ? 'border-emerald-600 text-emerald-700 dark:text-emerald-400' : 'border-transparent text-stone-400 hover:text-stone-600 dark:hover:text-stone-300'
+                formStep === 1 ? 'border-blue-600 text-blue-700 dark:text-blue-400' : 'border-transparent text-stone-400 hover:text-stone-600 dark:hover:text-stone-300'
               }`}
             >
               1. Credentials & Fees
@@ -902,7 +902,7 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
             <button
               onClick={() => setFormStep(2)}
               className={`flex-1 pb-3 text-center font-bold transition-all border-b-2 ${
-                formStep === 2 ? 'border-emerald-600 text-emerald-700 dark:text-emerald-400' : 'border-transparent text-stone-400 hover:text-stone-600 dark:hover:text-stone-300'
+                formStep === 2 ? 'border-blue-600 text-blue-700 dark:text-blue-400' : 'border-transparent text-stone-400 hover:text-stone-600 dark:hover:text-stone-300'
               }`}
             >
               2. Upload Documents
@@ -910,7 +910,7 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
             <button
               onClick={() => setFormStep(3)}
               className={`flex-1 pb-3 text-center font-bold transition-all border-b-2 ${
-                formStep === 3 ? 'border-emerald-600 text-emerald-700 dark:text-emerald-400' : 'border-transparent text-stone-400 hover:text-stone-600 dark:hover:text-stone-300'
+                formStep === 3 ? 'border-blue-600 text-blue-700 dark:text-blue-400' : 'border-transparent text-stone-400 hover:text-stone-600 dark:hover:text-stone-300'
               }`}
             >
               3. Address & Practice Venue
@@ -1035,7 +1035,7 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
                         id="isOnlineAvailable"
                         checked={isOnlineAvailable}
                         onChange={(e) => setIsOnlineAvailable(e.target.checked)}
-                        className="w-5 h-5 accent-emerald-600 cursor-pointer"
+                        className="w-5 h-5 accent-blue-600 cursor-pointer"
                       />
                       <label htmlFor="isOnlineAvailable" className="text-sm font-semibold text-stone-700 dark:text-stone-200 cursor-pointer">
                         Available for Teleconsultation / Online Consultations
@@ -1081,7 +1081,7 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
                         onChange={(e) => handleFileChange(e, 'pdf')}
                         className="w-full text-xs text-stone-500 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-stone-50 file:text-stone-700 hover:file:bg-stone-100 cursor-pointer"
                       />
-                      {pdfName && <p className="text-xs text-emerald-600 mt-2 font-semibold">✓ {pdfName}</p>}
+                      {pdfName && <p className="text-xs text-blue-600 mt-2 font-semibold">✓ {pdfName}</p>}
                     </div>
                   </div>
                 </div>
@@ -1101,15 +1101,15 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
                         placeholder="House / Apartment no, Street"
                         value={currentAddress.line1}
                         onChange={(e) => setCurrentAddress({ ...currentAddress, line1: e.target.value })}
-                        className="w-full rounded-2xl border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-700 px-4 py-3 text-sm text-stone-900 dark:text-white dark:placeholder-stone-400 outline-none focus:border-emerald-500"
+                        className="w-full rounded-2xl border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-700 px-4 py-3 text-sm text-stone-900 dark:text-white dark:placeholder-stone-400 outline-none focus:border-blue-500"
                         required={formStep === 3}
                       />
                       <div className="flex flex-wrap items-center gap-2 mt-2">
-                        <button type="button" onClick={() => openMap('current')} className="map-button px-4 py-2 rounded-md text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer transition-colors shadow-sm">
+                        <button type="button" onClick={() => openMap('current')} className="map-button px-4 py-2 rounded-md text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 cursor-pointer transition-colors shadow-sm">
                           Select on Map
                         </button>
                         {currentAddress.latitude && currentAddress.longitude ? (
-                          <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-1 rounded-lg border border-emerald-200 dark:border-emerald-900/50 flex items-center gap-1">
+                          <span className="text-xs font-semibold text-blue-600 bg-blue-50 dark:bg-blue-950/30 px-2.5 py-1 rounded-lg border border-blue-200 dark:border-blue-900/50 flex items-center gap-1">
                             📍 Located on Map ({currentAddress.latitude.toFixed(4)}, {currentAddress.longitude.toFixed(4)})
                           </span>
                         ) : (
@@ -1126,7 +1126,7 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
                         placeholder="Locality / Landmark"
                         value={currentAddress.line2}
                         onChange={(e) => setCurrentAddress({ ...currentAddress, line2: e.target.value })}
-                        className="w-full rounded-2xl border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-700 px-4 py-3 text-sm text-stone-900 dark:text-white dark:placeholder-stone-400 outline-none focus:border-emerald-500"
+                        className="w-full rounded-2xl border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-700 px-4 py-3 text-sm text-stone-900 dark:text-white dark:placeholder-stone-400 outline-none focus:border-blue-500"
                       />
                     </div>
                     <div>
@@ -1136,7 +1136,7 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
                         placeholder="City"
                         value={currentAddress.city}
                         onChange={(e) => setCurrentAddress({ ...currentAddress, city: e.target.value })}
-                        className="w-full rounded-2xl border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-700 px-4 py-3 text-sm text-stone-900 dark:text-white dark:placeholder-stone-400 outline-none focus:border-emerald-500"
+                        className="w-full rounded-2xl border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-700 px-4 py-3 text-sm text-stone-900 dark:text-white dark:placeholder-stone-400 outline-none focus:border-blue-500"
                         required={formStep === 3}
                       />
                     </div>
@@ -1147,7 +1147,7 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
                         placeholder="State"
                         value={currentAddress.state}
                         onChange={(e) => setCurrentAddress({ ...currentAddress, state: e.target.value })}
-                        className="w-full rounded-2xl border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-700 px-4 py-3 text-sm text-stone-900 dark:text-white dark:placeholder-stone-400 outline-none focus:border-emerald-500"
+                        className="w-full rounded-2xl border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-700 px-4 py-3 text-sm text-stone-900 dark:text-white dark:placeholder-stone-400 outline-none focus:border-blue-500"
                         required={formStep === 3}
                       />
                     </div>
@@ -1158,7 +1158,7 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
                         placeholder="Pincode"
                         value={currentAddress.pincode}
                         onChange={(e) => setCurrentAddress({ ...currentAddress, pincode: e.target.value })}
-                        className="w-full rounded-2xl border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-700 px-4 py-3 text-sm text-stone-900 dark:text-white dark:placeholder-stone-400 outline-none focus:border-emerald-500"
+                        className="w-full rounded-2xl border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-700 px-4 py-3 text-sm text-stone-900 dark:text-white dark:placeholder-stone-400 outline-none focus:border-blue-500"
                         required={formStep === 3}
                       />
                     </div>
@@ -1168,7 +1168,7 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
                         type="text"
                         value={currentAddress.country}
                         onChange={(e) => setCurrentAddress({ ...currentAddress, country: e.target.value })}
-                        className="w-full rounded-2xl border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-700 px-4 py-3 text-sm text-stone-900 dark:text-white dark:placeholder-stone-400 outline-none focus:border-emerald-500"
+                        className="w-full rounded-2xl border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-700 px-4 py-3 text-sm text-stone-900 dark:text-white dark:placeholder-stone-400 outline-none focus:border-blue-500"
                         required={formStep === 3}
                       />
                     </div>
@@ -1185,7 +1185,7 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
                         id="same_address"
                         checked={isSameAddress}
                         onChange={(e) => setIsSameAddress(e.target.checked)}
-                        className="w-4 h-4 accent-emerald-600 cursor-pointer"
+                        className="w-4 h-4 accent-blue-600 cursor-pointer"
                       />
                       <label htmlFor="same_address" className="text-xs font-semibold text-stone-700 cursor-pointer">
                         Same as current address
@@ -1202,15 +1202,15 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
                           placeholder="House / Apartment no, Street"
                           value={permanentAddress.line1}
                           onChange={(e) => setPermanentAddress({ ...permanentAddress, line1: e.target.value })}
-                          className="w-full rounded-2xl border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-700 px-4 py-3 text-sm text-stone-900 dark:text-white dark:placeholder-stone-400 outline-none focus:border-emerald-500"
+                          className="w-full rounded-2xl border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-700 px-4 py-3 text-sm text-stone-900 dark:text-white dark:placeholder-stone-400 outline-none focus:border-blue-500"
                           required={formStep === 3 && !isSameAddress}
                         />
                         <div className="flex flex-wrap items-center gap-2 mt-2">
-                          <button type="button" onClick={() => openMap('permanent')} className="map-button px-4 py-2 rounded-md text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer transition-colors shadow-sm">
+                          <button type="button" onClick={() => openMap('permanent')} className="map-button px-4 py-2 rounded-md text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 cursor-pointer transition-colors shadow-sm">
                             Select on Map
                           </button>
                           {permanentAddress.latitude && permanentAddress.longitude ? (
-                            <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-1 rounded-lg border border-emerald-200 dark:border-emerald-900/50 flex items-center gap-1">
+                            <span className="text-xs font-semibold text-blue-600 bg-blue-50 dark:bg-blue-950/30 px-2.5 py-1 rounded-lg border border-blue-200 dark:border-blue-900/50 flex items-center gap-1">
                               📍 Located on Map ({permanentAddress.latitude.toFixed(4)}, {permanentAddress.longitude.toFixed(4)})
                             </span>
                           ) : (
@@ -1227,7 +1227,7 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
                           placeholder="Locality / Landmark"
                           value={permanentAddress.line2}
                           onChange={(e) => setPermanentAddress({ ...permanentAddress, line2: e.target.value })}
-                          className="w-full rounded-2xl border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-700 px-4 py-3 text-sm text-stone-900 dark:text-white dark:placeholder-stone-400 outline-none focus:border-emerald-500"
+                          className="w-full rounded-2xl border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-700 px-4 py-3 text-sm text-stone-900 dark:text-white dark:placeholder-stone-400 outline-none focus:border-blue-500"
                         />
                       </div>
                       <div>
@@ -1237,7 +1237,7 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
                           placeholder="City"
                           value={permanentAddress.city}
                           onChange={(e) => setPermanentAddress({ ...permanentAddress, city: e.target.value })}
-                          className="w-full rounded-2xl border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-700 px-4 py-3 text-sm text-stone-900 dark:text-white dark:placeholder-stone-400 outline-none focus:border-emerald-500"
+                          className="w-full rounded-2xl border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-700 px-4 py-3 text-sm text-stone-900 dark:text-white dark:placeholder-stone-400 outline-none focus:border-blue-500"
                           required={formStep === 3 && !isSameAddress}
                         />
                       </div>
@@ -1248,7 +1248,7 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
                           placeholder="State"
                           value={permanentAddress.state}
                           onChange={(e) => setPermanentAddress({ ...permanentAddress, state: e.target.value })}
-                          className="w-full rounded-2xl border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-700 px-4 py-3 text-sm text-stone-900 dark:text-white dark:placeholder-stone-400 outline-none focus:border-emerald-500"
+                          className="w-full rounded-2xl border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-700 px-4 py-3 text-sm text-stone-900 dark:text-white dark:placeholder-stone-400 outline-none focus:border-blue-500"
                           required={formStep === 3 && !isSameAddress}
                         />
                       </div>
@@ -1259,7 +1259,7 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
                           placeholder="Pincode"
                           value={permanentAddress.pincode}
                           onChange={(e) => setPermanentAddress({ ...permanentAddress, pincode: e.target.value })}
-                          className="w-full rounded-2xl border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-700 px-4 py-3 text-sm text-stone-900 dark:text-white dark:placeholder-stone-400 outline-none focus:border-emerald-500"
+                          className="w-full rounded-2xl border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-700 px-4 py-3 text-sm text-stone-900 dark:text-white dark:placeholder-stone-400 outline-none focus:border-blue-500"
                           required={formStep === 3 && !isSameAddress}
                         />
                       </div>
@@ -1269,7 +1269,7 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
                           type="text"
                           value={permanentAddress.country}
                           onChange={(e) => setPermanentAddress({ ...permanentAddress, country: e.target.value })}
-                          className="w-full rounded-2xl border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-700 px-4 py-3 text-sm text-stone-900 dark:text-white dark:placeholder-stone-400 outline-none focus:border-emerald-500"
+                          className="w-full rounded-2xl border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-700 px-4 py-3 text-sm text-stone-900 dark:text-white dark:placeholder-stone-400 outline-none focus:border-blue-500"
                           required={formStep === 3 && !isSameAddress}
                         />
                       </div>
@@ -1301,7 +1301,7 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
                         <select
                           value={preferredPracticeLocation}
                           onChange={(e) => setPreferredPracticeLocation(e.target.value)}
-                          className="w-full rounded-2xl border border-stone-300 dark:border-stone-600 px-4 py-3 text-sm text-stone-900 dark:text-white bg-white dark:bg-stone-700 outline-none focus:border-emerald-500"
+                          className="w-full rounded-2xl border border-stone-300 dark:border-stone-600 px-4 py-3 text-sm text-stone-900 dark:text-white bg-white dark:bg-stone-700 outline-none focus:border-blue-500"
                           required={formStep === 3}
                         >
                           <option value="" disabled>Choose preferred branch...</option>
@@ -1322,7 +1322,7 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
                               key={clinic._id}
                               onClick={() => setPreferredPracticeLocation(clinic._id)}
                               className={`rounded-2xl border-2 overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer ${
-                                isSelected ? 'border-emerald-600 bg-emerald-50/10' : 'border-stone-200 bg-white'
+                                isSelected ? 'border-blue-600 bg-blue-50/10' : 'border-stone-200 bg-white'
                               }`}
                             >
                               <img 
@@ -1351,7 +1351,7 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
                                     }}
                                     className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${
                                       isSelected 
-                                        ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
+                                        ? 'bg-blue-600 text-white hover:bg-blue-700' 
                                         : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
                                     }`}
                                   >
@@ -1413,7 +1413,7 @@ const DoctorOnboarding = ({ onProfileStatusChange }) => {
                 {formStep === 3 && (
                   <button
                     type="submit"
-                    className="rounded-2xl bg-emerald-600 px-6 py-3 text-xs font-bold text-white hover:bg-emerald-700 shadow-lg shadow-emerald-600/15 transition cursor-pointer"
+                    className="rounded-2xl bg-blue-600 px-6 py-3 text-xs font-bold text-white hover:bg-blue-700 shadow-lg shadow-blue-600/15 transition cursor-pointer"
                   >
                     Submit for Approval
                   </button>

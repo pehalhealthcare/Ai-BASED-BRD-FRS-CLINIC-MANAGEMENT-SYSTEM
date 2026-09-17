@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback } from 'react';
+﻿import { useEffect, useState, useMemo, useCallback } from 'react';
 import {
   Calendar, Filter, Download, TrendingUp, Users, IndianRupee,
   FlaskConical, Pill, BarChart2, ChevronDown, Eye, FileDown,
@@ -46,7 +46,7 @@ const StatCard = ({ label, value, sub, icon: Icon, color, up = true }) => (
     </div>
     <p className="text-2xl font-black text-slate-900 tracking-tight">{value}</p>
     <p className="text-xs font-semibold text-slate-500">{label}</p>
-    {sub && <p className={`text-[11px] font-semibold ${up ? 'text-emerald-600' : 'text-rose-500'}`}>{sub}</p>}
+    {sub && <p className={`text-[11px] font-semibold ${up ? 'text-blue-600' : 'text-rose-500'}`}>{sub}</p>}
   </div>
 );
 
@@ -239,7 +239,7 @@ const ReportsPage = () => {
     const revenueSegments = [
       { label: 'Consultation', value: byType.CONSULTATION || 0, color: '#8b5cf6' },
       { label: 'Laboratory',   value: byType.LAB || 0,          color: '#0ea5e9' },
-      { label: 'Pharmacy',     value: byType.PHARMACY || 0,     color: '#10b981' },
+      { label: 'Pharmacy',     value: byType.PHARMACY || 0,     color: '#2563EB' },
       { label: 'Other',        value: byType.other || 0,        color: '#94a3b8' },
     ].filter(s => s.value > 0);
 
@@ -303,7 +303,7 @@ const ReportsPage = () => {
       {activeTab !== 'Procedures' && (
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           <StatCard label="Total Appointments" value={fmtNum(stats.totalAppts)} sub="↑ 18% vs Apr 2025" icon={Calendar} color="#6366f1" />
-          <StatCard label="Total Patients"     value={fmtNum(stats.totalPatients)} sub="↑ 12% vs Apr 2025" icon={Users} color="#10b981" />
+          <StatCard label="Total Patients"     value={fmtNum(stats.totalPatients)} sub="↑ 12% vs Apr 2025" icon={Users} color="#2563EB" />
           <StatCard label="Total Revenue"      value={fmt(stats.totalRevenue)} sub="↑ 15% vs Apr 2025" icon={IndianRupee} color="#f59e0b" />
           <StatCard label="Lab Tests Conducted" value={fmtNum(stats.labTests)} sub="↑ 18% vs Apr 2025" icon={FlaskConical} color="#0ea5e9" />
           <StatCard label="Medicines Sold"     value={fmtNum(stats.medSold)} sub="↑ 20% vs Apr 2025" icon={Pill} color="#ec4899" />
@@ -369,14 +369,14 @@ const ReportsPage = () => {
               </div>
               <div className="flex items-center gap-5">
                 <Donut size={120} total={stats.totalAppts} segments={[
-                  { value: stats.completed, color: '#10b981' },
+                  { value: stats.completed, color: '#2563EB' },
                   { value: stats.upcoming,  color: '#6366f1' },
                   { value: stats.cancelled, color: '#ef4444' },
                   { value: stats.noShow,    color: '#f59e0b' },
                 ]} />
                 <div className="space-y-2 flex-1">
                   {[
-                    { label: 'Completed', value: stats.completed, color: '#10b981' },
+                    { label: 'Completed', value: stats.completed, color: '#2563EB' },
                     { label: 'Upcoming',  value: stats.upcoming,  color: '#6366f1' },
                     { label: 'Cancelled', value: stats.cancelled, color: '#ef4444' },
                     { label: 'No Show',   value: stats.noShow,    color: '#f59e0b' },
@@ -399,12 +399,12 @@ const ReportsPage = () => {
               </div>
               <div className="flex items-center gap-5">
                 <Donut size={120} total={stats.totalPatients} segments={[
-                  { value: stats.newPatients, color: '#10b981' },
+                  { value: stats.newPatients, color: '#2563EB' },
                   { value: stats.returning,   color: '#6366f1' },
                 ]} />
                 <div className="space-y-3 flex-1">
                   {[
-                    { label: 'New Patients',       value: stats.newPatients, color: '#10b981' },
+                    { label: 'New Patients',       value: stats.newPatients, color: '#2563EB' },
                     { label: 'Returning Patients', value: stats.returning,   color: '#6366f1' },
                   ].map(row => (
                     <div key={row.label} className="flex items-center gap-2 text-xs">
@@ -441,7 +441,7 @@ const ReportsPage = () => {
                         <td className="py-2 pr-3 text-slate-600">{fmtNum(row.total)}</td>
                         <td className="py-2 pr-3 text-slate-600">{fmtNum(row.completed)}</td>
                         <td className="py-2">
-                          <span className={`font-extrabold ${row.rate >= 80 ? 'text-emerald-600' : row.rate >= 50 ? 'text-amber-600' : 'text-rose-500'}`}>
+                          <span className={`font-extrabold ${row.rate >= 80 ? 'text-blue-600' : row.rate >= 50 ? 'text-amber-600' : 'text-rose-500'}`}>
                             ↑ {row.rate}%
                           </span>
                         </td>
@@ -550,7 +550,7 @@ const ReportsPage = () => {
               <p className="text-sm font-bold text-slate-800 mb-4">Insights & Highlights</p>
               <div className="space-y-4">
                 {[
-                  { icon: '📈', color: 'text-emerald-600 bg-emerald-50',
+                  { icon: '📈', color: 'text-blue-600 bg-blue-50',
                     text: `Revenue increased by 15% compared to last month. Great job! Keep it up.` },
                   { icon: '👥', color: 'text-blue-600 bg-blue-50',
                     text: `New patient registrations increased by 12%. Your clinic is growing!` },

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 import ErrorState from '../../components/common/ErrorState';
@@ -307,7 +307,7 @@ const PrescriptionCreatePage = () => {
     <section className="grid gap-6">
       <div className="flex flex-col gap-4 rounded-3xl border border-stone-200 bg-white p-6 shadow-lg shadow-stone-200/40 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">Phase 7</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">Phase 7</p>
           <h1 className="mt-2 text-3xl font-semibold text-stone-900">Create prescription</h1>
           <p className="mt-2 text-sm text-stone-600">
             Prescription draft is doctor-controlled. AI formatting only helps reword advice and never prescribes medicines automatically.

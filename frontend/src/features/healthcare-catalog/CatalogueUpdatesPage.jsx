@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Sparkles, ArrowRight, CheckCircle2, AlertTriangle, AlertCircle, RefreshCw, Layers, Check, X, ShieldAlert } from 'lucide-react';
 import { healthcareCatalogApi } from '../../lib/api';
 import toast from 'react-hot-toast';
@@ -129,7 +129,7 @@ const CatalogueUpdatesPage = () => {
                 <h4 className="font-extrabold text-slate-800 text-sm">ICMR NEDL</h4>
                 <p className="text-xs text-slate-500">2nd Edition (2025)</p>
               </div>
-              <span className="p-2 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center">
+              <span className="p-2 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center">
                 <CheckCircle2 className="w-5 h-5" />
               </span>
             </div>
@@ -153,7 +153,7 @@ const CatalogueUpdatesPage = () => {
                 <div key={u._id} className="p-3 bg-slate-50 rounded-2xl border border-slate-100 space-y-2">
                   <div className="flex justify-between items-center">
                     <span className="text-[10px] font-black text-slate-500 uppercase">{u.source}</span>
-                    <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold ${u.status === 'APPLIED' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600 animate-pulse'}`}>
+                    <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold ${u.status === 'APPLIED' ? 'bg-blue-50 text-blue-600' : 'bg-amber-50 text-amber-600 animate-pulse'}`}>
                       {u.status}
                     </span>
                   </div>
@@ -221,7 +221,7 @@ const CatalogueUpdatesPage = () => {
                               className="rounded text-indigo-600 w-4 h-4"
                             />
                             <div>
-                              <span className="font-black text-emerald-600 mr-2 uppercase text-[9px] bg-emerald-50 px-1.5 py-0.5 rounded">New</span>
+                              <span className="font-black text-blue-600 mr-2 uppercase text-[9px] bg-blue-50 px-1.5 py-0.5 rounded">New</span>
                               <span className="font-extrabold text-slate-800">{item.name}</span>
                               {item.shortName && <span className="text-slate-400 ml-1.5">({item.shortName})</span>}
                               <span className="text-[10px] text-slate-400 block mt-0.5">{item.type} • {item.data?.department || 'Haematology'}</span>
@@ -277,7 +277,7 @@ const CatalogueUpdatesPage = () => {
                                 <span className="flex items-center gap-1.5 text-slate-700">
                                   <span className="line-through text-red-500">{item.changes[field].old}</span>
                                   <ArrowRight className="w-3 h-3 text-slate-400" />
-                                  <span className="font-bold text-emerald-600">{item.changes[field].new}</span>
+                                  <span className="font-bold text-blue-600">{item.changes[field].new}</span>
                                 </span>
                               </div>
                             ))}

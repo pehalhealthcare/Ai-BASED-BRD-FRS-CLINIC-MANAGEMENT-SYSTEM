@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
 import { clinicApi } from '../../lib/api';
@@ -58,7 +58,7 @@ const ClinicCorrectionsPortal = () => {
 
   const refundStatusColor = {
     Pending: 'bg-amber-100 text-amber-700 border-amber-200',
-    Approved: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+    Approved: 'bg-blue-100 text-blue-700 border-blue-200',
     Rejected: 'bg-red-100 text-red-700 border-red-200',
     Refunded: 'bg-blue-100 text-blue-700 border-blue-200',
   };
@@ -121,7 +121,7 @@ const ClinicCorrectionsPortal = () => {
         </div>
 
         {success && (
-          <div className="mb-5 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center gap-3 text-emerald-700 font-medium text-sm">
+          <div className="mb-5 p-4 rounded-2xl bg-blue-50 border border-blue-200 flex items-center gap-3 text-blue-700 font-medium text-sm">
             <CheckCircle className="w-5 h-5 shrink-0" /> {success}
           </div>
         )}
@@ -244,7 +244,7 @@ const ClinicCorrectionsPortal = () => {
             <button
               onClick={handleResubmit}
               disabled={submitting}
-              className="w-full flex items-center justify-center gap-2 py-4 px-6 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-2xl font-bold text-sm shadow-lg shadow-emerald-200 hover:opacity-90 transition-all disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-2 py-4 px-6 bg-gradient-to-r from-blue-600 to-green-600 text-white rounded-2xl font-bold text-sm shadow-lg shadow-blue-100 hover:opacity-90 transition-all disabled:opacity-50"
             >
               {submitting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
               {submitting ? 'Resubmitting...' : 'Resubmit for Approval'}

@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SkeletonRow } from './SkeletonCard';
 
 const STATUS_CONFIG = {
   booked: { label: 'Booked', bg: 'bg-blue-50', text: 'text-blue-700', dot: 'bg-blue-500' },
   confirmed: { label: 'Confirmed', bg: 'bg-sky-50', text: 'text-sky-700', dot: 'bg-sky-500' },
-  checked_in: { label: 'Checked-In', bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
+  checked_in: { label: 'Checked-In', bg: 'bg-blue-50', text: 'text-blue-700', dot: 'bg-blue-500' },
   waiting: { label: 'Waiting', bg: 'bg-yellow-50', text: 'text-yellow-700', dot: 'bg-yellow-500' },
   in_consultation: { label: 'In Consultation', bg: 'bg-violet-50', text: 'text-violet-700', dot: 'bg-violet-500' },
   completed: { label: 'Completed', bg: 'bg-slate-50', text: 'text-slate-600', dot: 'bg-slate-400' },
@@ -19,7 +19,7 @@ const STATUS_CONFIG = {
 };
 
 const PAYMENT_CONFIG = {
-  paid: { label: 'Paid', bg: 'bg-emerald-50', text: 'text-emerald-700' },
+  paid: { label: 'Paid', bg: 'bg-blue-50', text: 'text-blue-700' },
   unpaid: { label: 'Unpaid', bg: 'bg-rose-50', text: 'text-rose-600' },
   partial: { label: 'Partial', bg: 'bg-amber-50', text: 'text-amber-700' },
   waived: { label: 'Waived', bg: 'bg-blue-50', text: 'text-blue-600' },

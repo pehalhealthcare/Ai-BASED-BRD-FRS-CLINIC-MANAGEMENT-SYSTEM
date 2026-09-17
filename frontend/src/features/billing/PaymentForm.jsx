@@ -1,7 +1,7 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 
 const FIELD_CLASS =
-  'w-full rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100';
+  'w-full rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100';
 
 const paymentModes = ['cash', 'upi', 'card', 'netbanking', 'insurance', 'wallet', 'other'];
 
@@ -90,7 +90,7 @@ const PaymentForm = ({ dueAmount = 0, onSubmit, loading = false, disabled = fals
       <button
         type="submit"
         disabled={disabled || loading}
-        className="rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:bg-stone-300"
+        className="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-stone-300"
       >
         {loading ? 'Recording...' : 'Record payment'}
       </button>

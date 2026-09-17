@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import {
   Search, Eye, Printer, ChevronDown, ChevronUp, FileDown, PlusCircle, Check, X,
   AlertTriangle, Play, Calendar, Clock, RefreshCw, Trash2, Edit2, AlertCircle,
@@ -178,7 +178,7 @@ export default function VaccinationsWorkspace({
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         {[
           { label: 'Total Vaccinations', count: vaccinations.length, color: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
-          { label: 'Up To Date', count: vaccinations.filter(v => v.status === 'Up To Date' || v.status === 'Completed').length, color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+          { label: 'Up To Date', count: vaccinations.filter(v => v.status === 'Up To Date' || v.status === 'Completed').length, color: 'bg-blue-50 text-blue-700 border-blue-200' },
           { label: 'Due / Overdue', count: vaccinations.filter(v => v.status === 'Overdue').length, color: 'bg-orange-50 text-orange-700 border-orange-200' },
           { label: 'Recommended', count: recommendedList.length, color: 'bg-blue-50 text-blue-700 border-blue-200' },
           { label: 'Next Due', count: '15 Sep 2026', color: 'bg-slate-50 text-slate-700 border-slate-200' }
@@ -238,7 +238,7 @@ export default function VaccinationsWorkspace({
           </thead>
           <tbody>
             {filteredVaccinations.map((vac) => {
-              let statusBadge = "bg-emerald-50 text-emerald-707 border border-emerald-200";
+              let statusBadge = "bg-blue-50 text-blue-707 border border-blue-200";
               if (vac.status === 'Overdue') statusBadge = "bg-rose-50 text-rose-707 border border-rose-200";
               if (vac.status === 'Up To Date') statusBadge = "bg-blue-50 text-blue-707 border border-blue-200";
 
@@ -409,7 +409,7 @@ export default function VaccinationsWorkspace({
                 <div><span className="text-slate-400">Dose Index:</span> <strong className="text-slate-700 float-right">{selectedVaccine.dose}</strong></div>
                 <div><span className="text-slate-400">Administered On:</span> <strong className="text-slate-700 float-right">{selectedVaccine.dateGiven}</strong></div>
                 <div><span className="text-slate-400">Administered By:</span> <strong className="text-slate-700 float-right">{selectedVaccine.administeredBy}</strong></div>
-                <div><span className="text-slate-400">Verification Status:</span> <strong className="text-emerald-600 float-right font-black">Verified Clinic Entry</strong></div>
+                <div><span className="text-slate-400">Verification Status:</span> <strong className="text-blue-600 float-right font-black">Verified Clinic Entry</strong></div>
               </div>
 
               <div>

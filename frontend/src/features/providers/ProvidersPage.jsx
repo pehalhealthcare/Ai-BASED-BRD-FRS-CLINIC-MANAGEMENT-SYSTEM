@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus, Search, Edit2, Trash2, Eye, SlidersHorizontal, MapPin, Phone, Mail,
@@ -21,7 +21,7 @@ const initials = (name = '') =>
     .join('');
 
 const statusColor = {
-  Active: 'bg-emerald-100 text-emerald-700',
+  Active: 'bg-blue-100 text-blue-700',
   Inactive: 'bg-slate-100 text-slate-500',
   Suspended: 'bg-red-100 text-red-600',
 };
@@ -29,7 +29,7 @@ const statusColor = {
 const AVATAR_PALETTE = [
   'from-violet-500 to-indigo-600',
   'from-blue-500 to-cyan-600',
-  'from-emerald-500 to-teal-600',
+  'from-blue-500 to-teal-600',
   'from-orange-500 to-red-500',
   'from-pink-500 to-rose-600',
 ];
@@ -374,7 +374,7 @@ const ProvidersPage = () => {
       {activeTab === 'Laboratory' ? (
         <div className="grid grid-cols-5 gap-4">
           <StatCard icon={Building2} iconBg="bg-violet-100 text-violet-600" value={inv.totalLaboratories ?? '0'} label="Total Laboratories" sub="Across all branches" />
-          <StatCard icon={CheckCircle2} iconBg="bg-emerald-100 text-emerald-600" value={inv.activeLaboratories ?? '0'} label="Active Laboratories" sub="Currently operational" />
+          <StatCard icon={CheckCircle2} iconBg="bg-blue-100 text-blue-600" value={inv.activeLaboratories ?? '0'} label="Active Laboratories" sub="Currently operational" />
           <StatCard icon={Shield} iconBg="bg-blue-100 text-blue-600" value={inv.inactiveLaboratories ?? '0'} label="Inactive Laboratories" sub="Not operational" />
           <StatCard icon={Users} iconBg="bg-amber-100 text-amber-600" value={inv.laboratoryStaff ?? '0'} label="Laboratory Staff" sub="Across all laboratories" />
           <StatCard icon={Package} iconBg="bg-indigo-100 text-indigo-600" value={inv.testsInInventory ?? '0'} label="Tests in Inventory" sub="Total available tests" />
@@ -388,7 +388,7 @@ const ProvidersPage = () => {
       ) : (
         <div className="grid grid-cols-5 gap-4">
           <StatCard icon={Building2} iconBg="bg-violet-100 text-violet-600" value={providerStats.total} label="Total Pharmacies" sub="Across all branches" />
-          <StatCard icon={CheckCircle2} iconBg="bg-emerald-100 text-emerald-600" value={providerStats.active} label="Active Pharmacies" sub="Currently operational" />
+          <StatCard icon={CheckCircle2} iconBg="bg-blue-100 text-blue-600" value={providerStats.active} label="Active Pharmacies" sub="Currently operational" />
           <StatCard icon={Shield} iconBg="bg-blue-100 text-blue-600" value={providerStats.internal} label="Internal Pharmacies" sub="Clinic Owned" />
           <StatCard icon={Users} iconBg="bg-amber-100 text-amber-600" value={providerStats.external} label="External Partners" sub="Third Party Providers" />
           <StatCard icon={Package} iconBg="bg-indigo-100 text-indigo-600" value={inv.totalMedicines ?? '0'} label="Medicines in Stock" sub="Total Medicine SKUs" />

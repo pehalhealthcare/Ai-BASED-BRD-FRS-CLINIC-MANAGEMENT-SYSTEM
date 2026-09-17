@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+﻿import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { clsx } from 'clsx';
 import { CheckCircle2, AlertCircle, Info, XCircle, X } from 'lucide-react';
 
@@ -66,14 +66,14 @@ export const useToast = () => {
 // ============================================================
 
 const iconMap = {
-  success: <CheckCircle2 size={18} className="text-aura-500 dark:text-aura-400 shrink-0" />,
+  success: <CheckCircle2 size={18} className="text-blue-500 dark:text-blue-400 shrink-0" />,
   error:   <XCircle     size={18} className="text-rose-500 dark:text-rose-400 shrink-0" />,
   warning: <AlertCircle size={18} className="text-amber-500 dark:text-amber-400 shrink-0" />,
   info:    <Info        size={18} className="text-sky-500 dark:text-sky-400 shrink-0" />,
 };
 
 const borderMap = {
-  success: 'border-l-aura-500',
+  success: 'border-l-blue-500',
   error:   'border-l-rose-500',
   warning: 'border-l-amber-500',
   info:    'border-l-sky-500',

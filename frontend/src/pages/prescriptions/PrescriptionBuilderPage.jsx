@@ -1,4 +1,4 @@
-import { Link, useSearchParams } from 'react-router-dom';
+﻿import { Link, useSearchParams } from 'react-router-dom';
 
 import Card from '../../components/common/Card';
 import EmptyState from '../../components/common/EmptyState';
@@ -35,7 +35,7 @@ const PrescriptionBuilderPage = () => {
               <Link className="rounded-2xl border border-stone-300 px-4 py-3 text-sm font-semibold text-stone-700 hover:bg-stone-50" to="/consultations">
                 Open consultations
               </Link>
-              <Link className="rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700" to="/patients">
+              <Link className="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700" to="/patients">
                 Open patients
               </Link>
             </div>

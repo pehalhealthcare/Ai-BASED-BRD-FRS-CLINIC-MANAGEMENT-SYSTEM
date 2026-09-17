@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback } from 'react';
+﻿import { useEffect, useState, useMemo, useCallback } from 'react';
 import { specializationApi, doctorApi, dashboardApi, clinicApi } from '../../lib/api';
 import useAuth from '../../hooks/useAuth';
 import PageHeader from '../../components/layout/PageHeader';
@@ -19,7 +19,7 @@ const DEPT_COLORS = [
   { bg: '#6366f1', light: '#eef2ff' }, // indigo
   { bg: '#ec4899', light: '#fdf2f8' }, // pink
   { bg: '#f59e0b', light: '#fffbeb' }, // amber
-  { bg: '#10b981', light: '#ecfdf5' }, // emerald
+  { bg: '#2563EB', light: '#ecfdf5' }, // emerald
   { bg: '#3b82f6', light: '#eff6ff' }, // blue
   { bg: '#8b5cf6', light: '#f5f3ff' }, // violet
   { bg: '#ef4444', light: '#fef2f2' }, // red
@@ -115,7 +115,7 @@ const DonutChart = ({ data, total }) => {
 };
 
 /* ─── Mini Sparkline (SVG) ─────────────────────────────────── */
-const Sparkline = ({ color = '#10b981' }) => {
+const Sparkline = ({ color = '#2563EB' }) => {
   const pts = [10, 6, 14, 8, 16, 10, 18].map((y, x) => `${x * 10 + 2},${22 - y}`).join(' ');
   return (
     <svg width="72" height="24" viewBox="0 0 72 24" fill="none">
@@ -135,12 +135,12 @@ const StatCard = ({ label, value, sub, icon: Icon, color, sparkColor }) => (
     </div>
     <p className="text-2xl font-black text-slate-900 tracking-tight">{value}</p>
     <p className="text-xs font-semibold text-slate-500">{label}</p>
-    {sub && <p className="text-[11px] text-emerald-600 font-semibold">{sub}</p>}
+    {sub && <p className="text-[11px] text-blue-600 font-semibold">{sub}</p>}
   </div>
 );
 
 /* ─── Field class ──────────────────────────────────────────── */
-const FC = 'w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 text-slate-800 bg-white';
+const FC = 'w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-slate-800 bg-white';
 
 /* ════════════════════════════════════════════════════════════ */
 /*  Main Component                                              */
@@ -427,7 +427,7 @@ const DepartmentsPage = () => {
           </button>
           <button
             onClick={openCreate}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 text-sm font-bold text-white shadow-lg shadow-emerald-600/25 hover:bg-emerald-700 transition cursor-pointer"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 text-sm font-bold text-white shadow-lg shadow-blue-600/25 hover:bg-blue-700 transition cursor-pointer"
           >
             <Plus size={16} />
             Add New Department
@@ -456,7 +456,7 @@ const DepartmentsPage = () => {
           value={activeDepts.length}
           sub={`${departments.length - activeDepts.length} inactive`}
           icon={Activity}
-          color="#10b981"
+          color="#2563EB"
         />
         <StatCard
           label="Top Department"
@@ -491,7 +491,7 @@ const DepartmentsPage = () => {
                 placeholder="Search department by name, services..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-8 pr-3 py-2 text-sm rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition text-slate-800 placeholder-slate-400"
+                className="w-full pl-8 pr-3 py-2 text-sm rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition text-slate-800 placeholder-slate-400"
               />
             </div>
 
@@ -502,7 +502,7 @@ const DepartmentsPage = () => {
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="appearance-none pl-3 pr-8 py-2 text-sm rounded-xl border border-slate-200 bg-white focus:border-emerald-500 outline-none cursor-pointer text-slate-700 font-medium"
+                  className="appearance-none pl-3 pr-8 py-2 text-sm rounded-xl border border-slate-200 bg-white focus:border-blue-500 outline-none cursor-pointer text-slate-700 font-medium"
                 >
                   <option value="all">All Status</option>
                   <option value="active">Active Only</option>
@@ -519,7 +519,7 @@ const DepartmentsPage = () => {
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
-                  className="appearance-none pl-3 pr-8 py-2 text-sm rounded-xl border border-slate-200 bg-white focus:border-emerald-500 outline-none cursor-pointer text-slate-700 font-medium"
+                  className="appearance-none pl-3 pr-8 py-2 text-sm rounded-xl border border-slate-200 bg-white focus:border-blue-500 outline-none cursor-pointer text-slate-700 font-medium"
                 >
                   <option value="name_az">Department Name (A–Z)</option>
                   <option value="name_za">Department Name (Z–A)</option>
@@ -601,7 +601,7 @@ const DepartmentsPage = () => {
                             title="Click to toggle status"
                             className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border cursor-pointer transition-all ${
                               dept.isActive
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                                ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
                                 : 'bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200'
                             }`}
                           >
@@ -668,7 +668,7 @@ const DepartmentsPage = () => {
                   <button className="px-3 py-1 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer transition disabled:opacity-40" disabled>
                     ‹
                   </button>
-                  <button className="px-3 py-1 rounded-lg border border-emerald-500 bg-emerald-600 text-white font-bold cursor-pointer">
+                  <button className="px-3 py-1 rounded-lg border border-blue-500 bg-blue-600 text-white font-bold cursor-pointer">
                     1
                   </button>
                   <button className="px-3 py-1 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer transition disabled:opacity-40" disabled>
@@ -743,7 +743,7 @@ const DepartmentsPage = () => {
           </div>
 
           {/* Quick info */}
-          <div className="bg-gradient-to-br from-emerald-600 to-teal-600 rounded-2xl p-5 text-white">
+          <div className="bg-gradient-to-br from-blue-600 to-teal-600 rounded-2xl p-5 text-white">
             <p className="text-sm font-bold mb-1">Clinic Overview</p>
             <p className="text-xs opacity-80 mb-3">Department health at a glance</p>
             <div className="space-y-2 text-xs">
@@ -813,7 +813,7 @@ const DepartmentsPage = () => {
           <label className="flex items-center gap-3 cursor-pointer group">
             <div
               onClick={() => setForm((p) => ({ ...p, isActive: !p.isActive }))}
-              className={`relative w-10 h-5.5 rounded-full transition-all cursor-pointer ${form.isActive ? 'bg-emerald-500' : 'bg-slate-200'}`}
+              className={`relative w-10 h-5.5 rounded-full transition-all cursor-pointer ${form.isActive ? 'bg-blue-500' : 'bg-slate-200'}`}
               style={{ height: '22px' }}
             >
               <span
@@ -835,7 +835,7 @@ const DepartmentsPage = () => {
             <button
               type="submit"
               disabled={submitting}
-              className="px-6 py-2.5 rounded-xl bg-emerald-600 text-sm font-bold text-white hover:bg-emerald-700 shadow-md shadow-emerald-600/20 transition cursor-pointer disabled:opacity-60"
+              className="px-6 py-2.5 rounded-xl bg-blue-600 text-sm font-bold text-white hover:bg-blue-700 shadow-md shadow-blue-600/20 transition cursor-pointer disabled:opacity-60"
             >
               {submitting ? 'Saving…' : crudMode === 'create' ? 'Add Department' : 'Save Changes'}
             </button>
@@ -855,7 +855,7 @@ const DepartmentsPage = () => {
         <div className="p-6">
           {analyticsLoading && (
             <div className="flex items-center justify-center py-16">
-              <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+              <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
             </div>
           )}
           {analyticsError && (
@@ -900,9 +900,9 @@ const DepartmentsPage = () => {
                     <p className="text-2xl font-black text-amber-700">{analyticsData.labTests?.length || 0}</p>
                     <p className="text-xs text-amber-500 font-semibold mt-1">Lab Tests</p>
                   </div>
-                  <div className="bg-emerald-50 rounded-2xl p-4 text-center border border-emerald-100">
-                    <p className="text-2xl font-black text-emerald-700">{fmt(analyticsData.revenue?.totalRevenue || 0)}</p>
-                    <p className="text-xs text-emerald-500 font-semibold mt-1">Total Revenue</p>
+                  <div className="bg-blue-50 rounded-2xl p-4 text-center border border-blue-100">
+                    <p className="text-2xl font-black text-blue-700">{fmt(analyticsData.revenue?.totalRevenue || 0)}</p>
+                    <p className="text-xs text-blue-500 font-semibold mt-1">Total Revenue</p>
                   </div>
 
                   {/* Clinics */}
@@ -943,7 +943,7 @@ const DepartmentsPage = () => {
                         <p className="text-xs text-slate-400">{doc.qualification || 'Qualification N/A'} · {doc.experienceYears || 0} yrs exp</p>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="text-sm font-bold text-emerald-700">{fmt(doc.consultationFee || 0)}</p>
+                        <p className="text-sm font-bold text-blue-700">{fmt(doc.consultationFee || 0)}</p>
                         <p className="text-xs text-slate-400">Consultation fee</p>
                       </div>
                     </div>
@@ -983,7 +983,7 @@ const DepartmentsPage = () => {
               {analyticsTab === 'revenue' && (
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-5 text-white">
+                    <div className="bg-gradient-to-br from-blue-500 to-teal-600 rounded-2xl p-5 text-white">
                       <p className="text-xs opacity-80 font-semibold mb-1">Total Revenue Collected</p>
                       <p className="text-2xl font-black">{fmt(analyticsData.revenue?.totalRevenue || 0)}</p>
                     </div>
@@ -998,7 +998,7 @@ const DepartmentsPage = () => {
                       <p className="text-sm font-bold text-slate-700 mb-3">Collection Rate</p>
                       <div className="h-3 rounded-full bg-slate-100 overflow-hidden">
                         <div
-                          className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-700"
+                          className="h-full rounded-full bg-gradient-to-r from-blue-500 to-teal-400 transition-all duration-700"
                           style={{
                             width: `${Math.min(100, Math.round((analyticsData.revenue.totalRevenue / analyticsData.revenue.totalBilled) * 100))}%`
                           }}

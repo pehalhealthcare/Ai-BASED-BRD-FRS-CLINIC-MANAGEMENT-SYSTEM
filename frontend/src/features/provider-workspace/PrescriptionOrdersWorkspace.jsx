@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   TrendingUp, Pill, ShoppingBag, Users, AlertTriangle,
   Search, Scan, RefreshCw, Barcode, Plus, Minus, Trash2,
@@ -36,7 +36,7 @@ const STATUS_BADGES = {
   ready_for_pickup:   { label: 'Ready for Pickup', cls: 'bg-purple-50 text-purple-700 border border-purple-200' },
   ready_for_delivery: { label: 'Ready for Delivery',cls: 'bg-sky-50 text-sky-700 border border-sky-200' },
   out_for_delivery:   { label: 'Out for Delivery', cls: 'bg-orange-50 text-orange-700 border border-orange-200' },
-  completed:          { label: 'Completed',        cls: 'bg-emerald-100 text-emerald-800 border border-emerald-300' },
+  completed:          { label: 'Completed',        cls: 'bg-blue-100 text-blue-800 border border-blue-300' },
   cancelled:          { label: 'Cancelled',        cls: 'bg-rose-50 text-rose-700 border border-rose-200' },
   rejected:           { label: 'Rejected',         cls: 'bg-red-50 text-red-700 border border-red-200' }
 };
@@ -350,10 +350,10 @@ const PrescriptionOrdersWorkspace = () => {
                 <button
                   onClick={() => setAutoRefresh(!autoRefresh)}
                   className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition ${
-                    autoRefresh ? 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100' : 'bg-white border-slate-200 text-slate-500'
+                    autoRefresh ? 'bg-blue-50 border-blue-200 text-blue-600 hover:bg-blue-100' : 'bg-white border-slate-200 text-slate-500'
                   }`}
                 >
-                  <span className={`w-1.5 h-1.5 rounded-full ${autoRefresh ? 'bg-emerald-500 animate-ping' : 'bg-slate-400'}`} />
+                  <span className={`w-1.5 h-1.5 rounded-full ${autoRefresh ? 'bg-blue-500 animate-ping' : 'bg-slate-400'}`} />
                   Auto Refresh
                 </button>
                 <button onClick={() => window.print()} className="px-3 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl text-xs font-bold transition">
@@ -381,7 +381,7 @@ const PrescriptionOrdersWorkspace = () => {
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
               {[
                 { label: 'New Orders', val: stats.newOrders, sub: 'Needs verification', bg: 'bg-blue-50 text-blue-600 border border-blue-100' },
-                { label: 'Takeaway', val: stats.takeaway, sub: 'Self pickup', bg: 'bg-emerald-50 text-emerald-600 border border-emerald-100' },
+                { label: 'Takeaway', val: stats.takeaway, sub: 'Self pickup', bg: 'bg-blue-50 text-blue-600 border border-blue-100' },
                 { label: 'Delivery', val: stats.delivery, sub: 'Home delivery orders', bg: 'bg-purple-50 text-purple-600 border border-purple-100' },
                 { label: 'Urgent Alert', val: stats.urgent, sub: 'Priority orders', bg: 'bg-amber-50 text-amber-600 border border-amber-100' },
                 { label: 'Today\'s Value', val: fmt(stats.value), sub: 'Gross valuation', bg: 'bg-indigo-50 text-indigo-600 border border-indigo-100' }
@@ -582,7 +582,7 @@ const PrescriptionOrdersWorkspace = () => {
                             </td>
                             <td className="px-4 py-3.5">
                               <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                order.paymentStatus === 'Paid' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                                order.paymentStatus === 'Paid' ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'
                               }`}>
                                 {order.paymentStatus || 'Pending'}
                               </span>
@@ -610,7 +610,7 @@ const PrescriptionOrdersWorkspace = () => {
                                   <>
                                     <button
                                       onClick={() => handleUpdateStatus(order._id, 'confirmed')}
-                                      className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-[10px] transition"
+                                      className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-[10px] transition"
                                     >
                                       Accept
                                     </button>
@@ -750,7 +750,7 @@ const PrescriptionOrdersWorkspace = () => {
                     <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 space-y-1">
                       <p className="text-[9px] text-slate-400 uppercase font-bold">Payment Details</p>
                       <p className="font-extrabold text-slate-800 flex items-center gap-1.5">
-                        <span className={`w-1.5 h-1.5 rounded-full ${selectedOrder.paymentStatus === 'Paid' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                        <span className={`w-1.5 h-1.5 rounded-full ${selectedOrder.paymentStatus === 'Paid' ? 'bg-blue-500' : 'bg-amber-500'}`} />
                         {selectedOrder.paymentStatus || 'Pending'}
                       </p>
                     </div>
@@ -804,7 +804,7 @@ const PrescriptionOrdersWorkspace = () => {
                     </div>
                     <div className="flex justify-between items-center text-[10px] text-slate-400 font-bold uppercase border-b border-slate-800 pb-2">
                       <span>Discount / Coupons</span>
-                      <span className="text-emerald-400">₹0</span>
+                      <span className="text-blue-400">₹0</span>
                     </div>
                     <div className="flex justify-between items-center pt-1">
                       <span className="text-xs font-black">Gross Total</span>
@@ -825,7 +825,7 @@ const PrescriptionOrdersWorkspace = () => {
                           handleUpdateStatus(selectedOrder._id, 'confirmed');
                           setShowDetailsDrawer(false);
                         }}
-                        className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-sm transition"
+                        className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black shadow-sm transition"
                       >
                         Accept & Verify Prescription
                       </button>
@@ -932,7 +932,7 @@ const PrescriptionOrdersWorkspace = () => {
                       onClick={() => {
                         handleUpdateStatus(selectedOrder._id, 'completed');
                       }}
-                      className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-sm transition"
+                      className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black shadow-sm transition"
                     >
                       Mark Delivered (Complete Order)
                     </button>

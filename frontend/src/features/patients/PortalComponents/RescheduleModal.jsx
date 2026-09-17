@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import {
   X, Calendar, Clock, MapPin, ChevronLeft, ChevronRight,
   AlertCircle, CheckCircle2, RotateCcw, Info, AlertTriangle, Shield
@@ -101,13 +101,13 @@ function ConfirmRescheduleDialog({ appointment, newDate, newTime, onConfirm, onC
 
             {/* New slot */}
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-500/70 mb-1.5">New Appointment</p>
-              <div className="flex items-center gap-2 text-emerald-300 text-sm font-semibold">
-                <Calendar size={13} className="text-emerald-400 shrink-0" />
+              <p className="text-[10px] font-bold uppercase tracking-wider text-blue-500/70 mb-1.5">New Appointment</p>
+              <div className="flex items-center gap-2 text-blue-300 text-sm font-semibold">
+                <Calendar size={13} className="text-blue-400 shrink-0" />
                 <span>{newDateLabel}</span>
               </div>
-              <div className="flex items-center gap-2 text-emerald-300 text-sm font-semibold mt-1">
-                <Clock size={13} className="text-emerald-400 shrink-0" />
+              <div className="flex items-center gap-2 text-blue-300 text-sm font-semibold mt-1">
+                <Clock size={13} className="text-blue-400 shrink-0" />
                 <span>{newTimeLabel}</span>
               </div>
             </div>
@@ -121,9 +121,9 @@ function ConfirmRescheduleDialog({ appointment, newDate, newTime, onConfirm, onC
                 Your current slot on <strong>{currentDateLabel}</strong> at <strong>{currentTimeLabel}</strong> will be freed and made available for other patients.
               </p>
             </div>
-            <div className="flex items-start gap-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-3 py-2.5">
-              <Shield size={13} className="text-emerald-400 shrink-0 mt-0.5" />
-              <p className="text-[12px] text-emerald-300 leading-relaxed">
+            <div className="flex items-start gap-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 px-3 py-2.5">
+              <Shield size={13} className="text-blue-400 shrink-0 mt-0.5" />
+              <p className="text-[12px] text-blue-300 leading-relaxed">
                 <strong>No rescheduling charges</strong> — this is completely free of cost.
               </p>
             </div>
@@ -149,7 +149,7 @@ function ConfirmRescheduleDialog({ appointment, newDate, newTime, onConfirm, onC
           <button
             onClick={onConfirm}
             disabled={submitting}
-            className="px-6 py-2.5 rounded-xl text-sm font-bold bg-emerald-500 hover:bg-emerald-400 text-white shadow-lg shadow-emerald-500/30 transition flex items-center gap-2"
+            className="px-6 py-2.5 rounded-xl text-sm font-bold bg-blue-500 hover:bg-blue-400 text-white shadow-lg shadow-blue-500/30 transition flex items-center gap-2"
           >
             {submitting && <RotateCcw size={14} className="animate-spin" />}
             {submitting ? 'Rescheduling...' : 'Yes, Reschedule'}
@@ -279,15 +279,15 @@ export default function RescheduleModal({ appointment, appointmentApi, onClose, 
             {/* LEFT: Current Appointment */}
             <div className="md:w-72 shrink-0 p-5 border-r border-white/[0.07] flex flex-col gap-4">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 mb-3">Current Appointment</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-blue-400 mb-3">Current Appointment</p>
                 <div className="rounded-xl border border-white/[0.07] bg-white/[0.03] p-3 flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-full bg-aura-500/20 flex items-center justify-center text-lg font-bold text-aura-400 shrink-0">
+                  <div className="w-11 h-11 rounded-full bg-blue-500/20 flex items-center justify-center text-lg font-bold text-blue-400 shrink-0">
                     {(doctor?.fullName || 'D').charAt(0).toUpperCase()}
                   </div>
                   <div className="min-w-0">
                     <p className="text-sm font-bold text-white truncate">
                       Dr. {doctor?.fullName || 'Unknown'}
-                      {doctor?.isVerified && <CheckCircle2 size={12} className="inline ml-1 text-emerald-400" />}
+                      {doctor?.isVerified && <CheckCircle2 size={12} className="inline ml-1 text-blue-400" />}
                     </p>
                     <p className="text-xs text-slate-400 truncate">{doctor?.specialization || 'General Physician'}</p>
                   </div>
@@ -325,7 +325,7 @@ export default function RescheduleModal({ appointment, appointmentApi, onClose, 
                 <select
                   value={reason}
                   onChange={e => { setReason(e.target.value); setCustomReason(''); }}
-                  className="w-full rounded-xl border border-white/[0.08] bg-white/[0.04] text-slate-200 text-xs px-3 py-2.5 focus:outline-none focus:border-emerald-500/50 transition"
+                  className="w-full rounded-xl border border-white/[0.08] bg-white/[0.04] text-slate-200 text-xs px-3 py-2.5 focus:outline-none focus:border-blue-500/50 transition"
                   style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center', backgroundSize: '14px', appearance: 'none' }}
                 >
                   <option value="" style={{ background: '#0f172a' }}>Select a reason</option>
@@ -336,7 +336,7 @@ export default function RescheduleModal({ appointment, appointmentApi, onClose, 
                 {reason === 'Other' && (
                   <textarea rows={2} placeholder="Describe your reason..." value={customReason}
                     onChange={e => setCustomReason(e.target.value)}
-                    className="mt-2 w-full rounded-xl border border-white/[0.08] bg-white/[0.04] text-slate-200 text-xs px-3 py-2.5 resize-none focus:outline-none focus:border-emerald-500/50 transition placeholder:text-slate-600"
+                    className="mt-2 w-full rounded-xl border border-white/[0.08] bg-white/[0.04] text-slate-200 text-xs px-3 py-2.5 resize-none focus:outline-none focus:border-blue-500/50 transition placeholder:text-slate-600"
                   />
                 )}
               </div>
@@ -376,7 +376,7 @@ export default function RescheduleModal({ appointment, appointmentApi, onClose, 
                       className={[
                         'relative mx-auto flex w-9 h-9 items-center justify-center rounded-full text-sm font-semibold transition-all duration-150',
                         past ? 'text-slate-700 cursor-not-allowed' :
-                        isSel ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30 scale-110' :
+                        isSel ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30 scale-110' :
                         isCurrent ? 'text-slate-400 ring-1 ring-slate-600' :
                         'text-slate-300 hover:bg-white/10 cursor-pointer',
                       ].join(' ')}
@@ -389,8 +389,8 @@ export default function RescheduleModal({ appointment, appointmentApi, onClose, 
               </div>
 
               <div className="flex items-center gap-4 mt-5 pt-4 border-t border-white/[0.05]">
-                <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500" /><span className="text-[10px] text-slate-500">Available</span></div>
-                <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-500/30" /><span className="text-[10px] text-slate-500">Selected Date</span></div>
+                <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-500" /><span className="text-[10px] text-slate-500">Available</span></div>
+                <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-500 ring-2 ring-blue-500/30" /><span className="text-[10px] text-slate-500">Selected Date</span></div>
                 <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-slate-600" /><span className="text-[10px] text-slate-500">Current Appointment</span></div>
               </div>
             </div>
@@ -400,12 +400,12 @@ export default function RescheduleModal({ appointment, appointmentApi, onClose, 
               {selectedDate ? (
                 <>
                   <div className="flex items-center gap-2 mb-3">
-                    <Calendar size={13} className="text-emerald-400" />
+                    <Calendar size={13} className="text-blue-400" />
                     <p className="text-xs font-bold text-white">{selectedDateLabel}</p>
                   </div>
                   <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-3">Available Time Slots</p>
                   {loadingSlots ? (
-                    <div className="flex-1 flex items-center justify-center"><RotateCcw size={20} className="text-emerald-400 animate-spin" /></div>
+                    <div className="flex-1 flex items-center justify-center"><RotateCcw size={20} className="text-blue-400 animate-spin" /></div>
                   ) : (
                     <div className="flex-1 overflow-y-auto space-y-2 pr-0.5" style={{ maxHeight: '280px' }}>
                       {availableSlots.map(slot => {
@@ -414,8 +414,8 @@ export default function RescheduleModal({ appointment, appointmentApi, onClose, 
                           <button key={slot} onClick={() => setSelectedSlot(slot)}
                             className={[
                               'w-full py-2.5 rounded-xl text-xs font-bold transition-all duration-150 border',
-                              isSel ? 'bg-emerald-500 text-white border-emerald-500 shadow-lg shadow-emerald-500/20'
-                                     : 'border-white/[0.08] text-slate-300 hover:border-emerald-500/40 hover:bg-emerald-500/10 hover:text-emerald-300',
+                              isSel ? 'bg-blue-500 text-white border-blue-500 shadow-lg shadow-blue-500/20'
+                                     : 'border-white/[0.08] text-slate-300 hover:border-blue-500/40 hover:bg-blue-500/10 hover:text-blue-300',
                             ].join(' ')}
                           >
                             {fmt12(slot)}
@@ -454,7 +454,7 @@ export default function RescheduleModal({ appointment, appointmentApi, onClose, 
                 disabled={!canConfirm}
                 className={[
                   'px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-150',
-                  canConfirm ? 'bg-emerald-500 hover:bg-emerald-400 text-white shadow-lg shadow-emerald-500/30'
+                  canConfirm ? 'bg-blue-500 hover:bg-blue-400 text-white shadow-lg shadow-blue-500/30'
                                : 'bg-slate-700 text-slate-500 cursor-not-allowed',
                 ].join(' ')}
               >

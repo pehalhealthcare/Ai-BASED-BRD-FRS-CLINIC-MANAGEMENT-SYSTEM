@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+﻿import { useEffect, useState, useCallback } from 'react';
 import { 
   Activity, Play, CheckCircle, XCircle, Search, Clock, 
   MapPin, User, AlertTriangle, ShieldCheck, RefreshCw, FileText, ArrowRight, Loader2, Undo2
@@ -248,7 +248,7 @@ export default function ProcedureQueuePage() {
               {/* Status and Receipt Badge */}
               <div className="flex items-center gap-2.5 flex-wrap">
                 {proc.receiptNumber ? (
-                  <span className="inline-flex items-center gap-1 text-[10px] font-extrabold bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full border border-emerald-200">
+                  <span className="inline-flex items-center gap-1 text-[10px] font-extrabold bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full border border-blue-200">
                     <ShieldCheck size={12} /> Payment Verified ✔ (Ref: {proc.receiptNumber})
                   </span>
                 ) : (

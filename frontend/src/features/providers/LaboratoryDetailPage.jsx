@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   ArrowLeft, Edit2, LogOut, CheckCircle2, Shield, Building2, Package,
@@ -12,7 +12,7 @@ import toast from 'react-hot-toast';
 
 /* ─── Helpers ─────────────────────────────────────────────────────────────── */
 const statusColor = {
-  Active: 'bg-emerald-100 text-emerald-700',
+  Active: 'bg-blue-100 text-blue-700',
   Inactive: 'bg-slate-100 text-slate-500',
   Suspended: 'bg-red-100 text-red-600',
 };
@@ -27,7 +27,7 @@ const initials = (name = '') =>
 const AVATAR_PALETTE = [
   'from-violet-500 to-indigo-600',
   'from-blue-500 to-cyan-600',
-  'from-emerald-500 to-teal-600',
+  'from-blue-500 to-teal-600',
   'from-orange-500 to-red-500',
   'from-pink-500 to-rose-600',
 ];

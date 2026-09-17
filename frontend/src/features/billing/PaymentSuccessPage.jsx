@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getInvoiceById } from './billing.api';
 import LoadingState from '../../components/common/LoadingState';
@@ -35,7 +35,7 @@ const PaymentSuccessPage = () => {
 
   return (
     <div className="max-w-md mx-auto my-12 p-8 bg-white rounded-3xl shadow-xl border border-stone-100 text-center space-y-6">
-      <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-4xl shadow-inner">
+      <div className="w-20 h-20 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto text-4xl shadow-inner">
         ✓
       </div>
       <div className="space-y-2">
@@ -58,14 +58,14 @@ const PaymentSuccessPage = () => {
         </div>
         <div className="flex justify-between">
           <span className="text-stone-500">Status:</span>
-          <span className="px-2 py-0.5 text-xs font-bold bg-emerald-100 text-emerald-800 rounded-full">PAID</span>
+          <span className="px-2 py-0.5 text-xs font-bold bg-blue-100 text-blue-800 rounded-full">PAID</span>
         </div>
       </div>
 
       <div className="pt-4 flex flex-col gap-2">
         <Link
           to="/portal?tab=billing"
-          className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition text-center shadow-lg"
+          className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition text-center shadow-lg"
         >
           Go to Billing Dashboard
         </Link>

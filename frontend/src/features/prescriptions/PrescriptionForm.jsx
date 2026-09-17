@@ -1,7 +1,7 @@
-import MedicineItemForm from './MedicineItemForm';
+﻿import MedicineItemForm from './MedicineItemForm';
 
 const FIELD_CLASS =
-  'rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100';
+  'rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100';
 
 const PrescriptionForm = ({
   form,
@@ -22,7 +22,7 @@ const PrescriptionForm = ({
   <form className="grid gap-6 rounded-3xl border border-stone-200 bg-white p-6 shadow-lg shadow-stone-200/40" onSubmit={onSubmitDraft}>
     <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">Prescription workspace</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">Prescription workspace</p>
         <h2 className="mt-2 text-2xl font-semibold text-stone-900">
           {isDraft ? 'Create or update prescription draft' : 'Finalized prescription'}
         </h2>
@@ -31,7 +31,7 @@ const PrescriptionForm = ({
         <button
           type="submit"
           disabled={!isDraft || saving}
-          className="rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:bg-stone-300"
+          className="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:bg-stone-300"
         >
           {saving ? 'Saving...' : 'Save draft'}
         </button>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import ErrorState from '../../components/common/ErrorState';
@@ -9,7 +9,7 @@ import { sendNotification } from './notificationsApi';
 import NotificationStatusBadge from './NotificationStatusBadge';
 
 const FIELD_CLASS =
-  'w-full rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100';
+  'w-full rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100';
 
 const createInitialForm = () => ({
   patientId: '',
@@ -176,7 +176,7 @@ const SendNotificationPage = () => {
           <button
             type="submit"
             disabled={saving}
-            className="rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:bg-stone-300"
+            className="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-stone-300"
           >
             {saving ? 'Processing...' : 'Send or schedule notification'}
           </button>
@@ -189,14 +189,14 @@ const SendNotificationPage = () => {
           </div>
 
           {result ? (
-            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+            <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
               <div className="flex flex-wrap items-center gap-3">
-                <h3 className="text-lg font-semibold text-emerald-900">Notification processed</h3>
+                <h3 className="text-lg font-semibold text-blue-900">Notification processed</h3>
                 <NotificationStatusBadge status={result.status} />
               </div>
-              <p className="mt-3 text-sm text-emerald-800">Subject: {result.subject || 'No subject'}</p>
-              <p className="mt-2 text-sm text-emerald-800">{result.body || 'No message body recorded.'}</p>
-              <p className="mt-3 text-xs uppercase tracking-[0.16em] text-emerald-700">
+              <p className="mt-3 text-sm text-blue-800">Subject: {result.subject || 'No subject'}</p>
+              <p className="mt-2 text-sm text-blue-800">{result.body || 'No message body recorded.'}</p>
+              <p className="mt-3 text-xs uppercase tracking-[0.16em] text-blue-700">
                 Scheduled {(result.scheduledFor || '').slice?.(0, 16).replace('T', ' ') || 'Immediately'}
               </p>
             </div>

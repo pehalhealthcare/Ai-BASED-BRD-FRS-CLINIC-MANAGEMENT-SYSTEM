@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import EmptyState from '../../components/common/EmptyState';
@@ -16,7 +16,7 @@ import {
 import FollowUpStatusBadge from './FollowUpStatusBadge';
 
 const FIELD_CLASS =
-  'w-full rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 text-white';
+  'w-full rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-white';
 
 const createInitialForm = () => ({
   patientId: '',
@@ -220,7 +220,7 @@ const FollowUpTasksPage = () => {
             <button
               type="submit"
               disabled={saving}
-              className="rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:bg-stone-300"
+              className="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-stone-300"
             >
               {saving ? 'Saving...' : 'Create follow-up'}
             </button>
@@ -274,7 +274,7 @@ const FollowUpTasksPage = () => {
                           type="button"
                           onClick={() => handleStatusUpdate(task._id, 'completed')}
                           disabled={actionState === task._id}
-                          className="rounded-2xl border border-emerald-300 px-4 py-3 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 disabled:border-stone-200 disabled:text-stone-400"
+                          className="rounded-2xl border border-blue-300 px-4 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-50 disabled:border-stone-200 disabled:text-stone-400"
                         >
                           {actionState === task._id ? 'Updating...' : 'Mark completed'}
                         </button>

@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback } from 'react';
+﻿import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus, Search, Package, AlertTriangle, Clock, TrendingUp, IndianRupee,
@@ -35,7 +35,7 @@ const getStockStatus = (medicine) => {
 };
 
 const STATUS_CONFIG = {
-  in:       { label: 'In Stock',      cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  in:       { label: 'In Stock',      cls: 'bg-blue-50 text-blue-700 border-blue-200' },
   low:      { label: 'Low Stock',     cls: 'bg-amber-50 text-amber-700 border-amber-200' },
   out:      { label: 'Out of Stock',  cls: 'bg-rose-50 text-rose-700 border-rose-200' },
   expiring: { label: 'Expiring Soon', cls: 'bg-orange-50 text-orange-700 border-orange-200' },
@@ -465,7 +465,7 @@ const PharmacyAdminPage = () => {
                     <h4 className="font-black text-slate-900 text-sm">{sup.name}</h4>
                     <p className="text-[10px] text-slate-400">GST: {sup.gstNumber || 'N/A'}</p>
                   </div>
-                  <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${sup.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-stone-100 text-stone-500'}`}>
+                  <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${sup.isActive ? 'bg-blue-50 text-blue-700' : 'bg-stone-100 text-stone-500'}`}>
                     {sup.isActive ? 'Active' : 'Inactive'}
                   </span>
                 </div>
@@ -540,7 +540,7 @@ const PharmacyAdminPage = () => {
                     <td className="px-4 py-3 font-semibold text-slate-800">{po.supplierId?.name || 'N/A'}</td>
                     <td className="px-4 py-3">
                       <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                        po.status === 'Received' ? 'bg-emerald-50 text-emerald-700' :
+                        po.status === 'Received' ? 'bg-blue-50 text-blue-700' :
                         po.status === 'Cancelled' ? 'bg-rose-50 text-rose-700' :
                         'bg-amber-50 text-amber-700'
                       }`}>
@@ -552,7 +552,7 @@ const PharmacyAdminPage = () => {
                       {['Draft', 'Pending Approval', 'Submitted', 'Partially Received'].includes(po.status) && (
                         <button
                           onClick={() => handleOpenReceivePo(po)}
-                          className="px-3 py-1 bg-emerald-600 text-white rounded text-[10px] font-black hover:bg-emerald-700 transition"
+                          className="px-3 py-1 bg-blue-600 text-white rounded text-[10px] font-black hover:bg-blue-700 transition"
                         >
                           Receive Stock
                         </button>
@@ -634,7 +634,7 @@ const PharmacyAdminPage = () => {
               onClick={() => toast.success('Current Stock Report generated successfully!')}
               className="p-4 bg-white hover:bg-slate-50 rounded-2xl border border-slate-200 text-left space-y-1"
             >
-              <FileText className="w-5 h-5 text-emerald-600" />
+              <FileText className="w-5 h-5 text-blue-600" />
               <h4 className="text-xs font-black text-slate-900">Current Stock Report</h4>
               <p className="text-[10px] text-slate-400">Total units per medicine across all branches</p>
             </button>
@@ -1010,7 +1010,7 @@ const PharmacyAdminPage = () => {
 
             <div className="pt-2 flex justify-end gap-2 text-xs">
               <button type="button" onClick={() => setIsReceivePoOpen(false)} className="px-4 py-2 border rounded-xl">Cancel</button>
-              <button type="submit" className="px-5 py-2 bg-emerald-600 text-white rounded-xl font-bold">Approve & update stock</button>
+              <button type="submit" className="px-5 py-2 bg-blue-600 text-white rounded-xl font-bold">Approve & update stock</button>
             </div>
           </form>
         </div>
@@ -1176,7 +1176,7 @@ const ProcurementRequestsTab = ({ loadData, suppliers }) => {
                 </td>
                 <td className="px-4 py-3">
                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                    req.status === 'Added to Inventory' ? 'bg-emerald-50 text-emerald-700' :
+                    req.status === 'Added to Inventory' ? 'bg-blue-50 text-blue-700' :
                     req.status === 'Reviewed' ? 'bg-amber-50 text-amber-700' : 'bg-rose-50 text-rose-700'
                   }`}>
                     {req.status}
@@ -1194,7 +1194,7 @@ const ProcurementRequestsTab = ({ loadData, suppliers }) => {
                   {req.status !== 'Added to Inventory' && (
                     <button
                       onClick={() => handleOpenAddInventory(req)}
-                      className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[10px] font-bold"
+                      className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-[10px] font-bold"
                     >
                       Add to Inventory
                     </button>
@@ -1278,7 +1278,7 @@ const ProcurementRequestsTab = ({ loadData, suppliers }) => {
 
             <div className="flex justify-end gap-2 pt-2 text-xs font-bold">
               <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2.5 border rounded-xl text-slate-650 hover:bg-slate-50">Cancel</button>
-              <button type="submit" className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-md">Save into inventory</button>
+              <button type="submit" className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-md">Save into inventory</button>
             </div>
           </form>
         </div>

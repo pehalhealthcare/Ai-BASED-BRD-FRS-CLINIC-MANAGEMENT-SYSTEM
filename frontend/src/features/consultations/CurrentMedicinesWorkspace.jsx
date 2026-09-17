@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import {
   Search, Eye, Printer, ChevronDown, ChevronUp, FileDown, PlusCircle, Check, X,
   AlertTriangle, Play, Calendar, Clock, RefreshCw, Trash2
@@ -306,7 +306,7 @@ export default function CurrentMedicinesWorkspace({
       {/* Counters Grid Banner */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         {[
-          { label: 'Active Medicines', count: 4, color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+          { label: 'Active Medicines', count: 4, color: 'bg-blue-50 text-blue-700 border-blue-200' },
           { label: 'Completed Medicines', count: 0, color: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
           { label: 'Stopped Medicines', count: 3, color: 'bg-orange-50 text-orange-700 border-orange-200' },
           { label: 'Doctor Discontinued', count: 0, color: 'bg-rose-50 text-rose-700 border-rose-200' },
@@ -404,7 +404,7 @@ export default function CurrentMedicinesWorkspace({
                     <td className="p-4">
                       <span className={`px-2 py-0.5 rounded font-black text-[9px] ${
                         med.currentStatus === 'Active' 
-                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
+                          ? 'bg-blue-50 text-blue-700 border border-blue-200' 
                           : 'bg-indigo-50 text-indigo-700 border border-indigo-200'
                       }`}>{med.currentStatus}</span>
                     </td>
@@ -469,7 +469,7 @@ export default function CurrentMedicinesWorkspace({
                               {med.timeline?.map((step, idx) => (
                                 <div key={idx} className="flex items-center gap-3">
                                   <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-black border ${
-                                    step.done ? 'bg-emerald-50 border-emerald-400 text-emerald-600' : 'bg-slate-50 border-slate-200 text-slate-400'
+                                    step.done ? 'bg-blue-50 border-blue-400 text-blue-600' : 'bg-slate-50 border-slate-200 text-slate-400'
                                   }`}>{step.done ? '✓' : idx + 1}</span>
                                   <div>
                                     <strong className={`font-bold ${step.done ? 'text-slate-700' : 'text-slate-400'}`}>{step.status}</strong>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { X, Calendar, Clock, AlertTriangle, Info, Shield, RotateCcw, AlertCircle } from 'lucide-react';
 
 function fmt12(time24) {
@@ -91,9 +91,9 @@ export default function CancelConfirmDialog({ appointment, appointmentApi, onClo
                 Your appointment slot on <strong>{dateLabel}</strong>{timeLabel ? ` at ${timeLabel}` : ''} will be freed and made available for other patients to book.
               </p>
             </div>
-            <div className="flex items-start gap-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-3 py-2.5">
-              <Shield size={13} className="text-emerald-400 shrink-0 mt-0.5" />
-              <p className="text-[12px] text-emerald-300 leading-relaxed">
+            <div className="flex items-start gap-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 px-3 py-2.5">
+              <Shield size={13} className="text-blue-400 shrink-0 mt-0.5" />
+              <p className="text-[12px] text-blue-300 leading-relaxed">
                 <strong>No cancellation charges</strong> — your cancellation is completely free of cost.
               </p>
             </div>

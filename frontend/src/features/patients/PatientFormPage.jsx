@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import ErrorState from '../../components/common/ErrorState';
@@ -322,10 +322,10 @@ const PatientFormPage = () => {
     <section className="grid gap-6 pb-12">
       <div className="flex flex-col gap-3 rounded-3xl border border-stone-200 bg-white p-6 shadow-lg shadow-stone-200/40 md:flex-row md:items-center md:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">Patients</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-700">Patients</p>
           <h2 className="mt-2 text-2xl font-semibold text-stone-900">{pageTitle}</h2>
         </div>
-        <Link className="text-sm font-semibold text-emerald-700 hover:text-emerald-800" to="/patients">
+        <Link className="text-sm font-semibold text-blue-700 hover:text-blue-800" to="/patients">
           Back to patient list
         </Link>
       </div>
@@ -359,7 +359,7 @@ const PatientFormPage = () => {
             <button
               type="button"
               onClick={() => navigate(`/appointments/new?patientId=${existingPatient._id}`)}
-              className="px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition"
+              className="px-5 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-sm transition"
             >
               Book Appointment
             </button>
@@ -383,15 +383,15 @@ const PatientFormPage = () => {
           
           <label className="grid gap-2 text-sm text-stone-700">
             First name
-            <input className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" value={form.firstName} onChange={(event) => updateField('firstName', event.target.value)} required />
+            <input className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" value={form.firstName} onChange={(event) => updateField('firstName', event.target.value)} required />
           </label>
           <label className="grid gap-2 text-sm text-stone-700">
             Last name
-            <input className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" value={form.lastName} onChange={(event) => updateField('lastName', event.target.value)} />
+            <input className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" value={form.lastName} onChange={(event) => updateField('lastName', event.target.value)} />
           </label>
           <label className="grid gap-2 text-sm text-stone-700">
             Gender
-            <select className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" value={form.gender} onChange={(event) => updateField('gender', event.target.value)}>
+            <select className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" value={form.gender} onChange={(event) => updateField('gender', event.target.value)}>
               <option value="male">Male</option>
               <option value="female">Female</option>
               <option value="other">Other</option>
@@ -399,20 +399,20 @@ const PatientFormPage = () => {
           </label>
           <label className="grid gap-2 text-sm text-stone-700">
             Date of birth
-            <input type="date" className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" value={form.dateOfBirth} onChange={(event) => updateField('dateOfBirth', event.target.value)} />
+            <input type="date" className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" value={form.dateOfBirth} onChange={(event) => updateField('dateOfBirth', event.target.value)} />
           </label>
           <label className="grid gap-2 text-sm text-stone-700">
             Phone
-            <input className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" value={form.phone} onChange={(event) => handlePhoneChange(event.target.value)} required />
+            <input className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" value={form.phone} onChange={(event) => handlePhoneChange(event.target.value)} required />
             {checkingExists && <span className="text-xs text-stone-400">Checking patient database...</span>}
           </label>
           <label className="grid gap-2 text-sm text-stone-700">
             Email
-            <input type="email" className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" value={form.email} onChange={(event) => updateField('email', event.target.value)} />
+            <input type="email" className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" value={form.email} onChange={(event) => updateField('email', event.target.value)} />
           </label>
           <label className="grid gap-2 text-sm text-stone-700 md:col-span-2">
             Blood group
-            <input className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" value={form.bloodGroup} onChange={(event) => updateField('bloodGroup', event.target.value)} />
+            <input className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" value={form.bloodGroup} onChange={(event) => updateField('bloodGroup', event.target.value)} />
           </label>
         </div>
 
@@ -438,7 +438,7 @@ const PatientFormPage = () => {
                           : prev.chronicConditions.filter(d => d !== disease)
                       }));
                     }}
-                    className="w-4 h-4 accent-emerald-600 rounded"
+                    className="w-4 h-4 accent-blue-600 rounded"
                   />
                   <span>{disease}</span>
                 </label>
@@ -447,7 +447,7 @@ const PatientFormPage = () => {
             <label className="grid gap-2 text-sm text-stone-700 mt-2">
               <span>Other Chronic Conditions (comma separated)</span>
               <input
-                className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 value={form.otherChronicCondition}
                 onChange={(e) => updateField('otherChronicCondition', e.target.value)}
                 placeholder="e.g. Migraine, Arthritis"
@@ -473,7 +473,7 @@ const PatientFormPage = () => {
                           : prev.allergies.filter(a => a !== allergy)
                       }));
                     }}
-                    className="w-4 h-4 accent-emerald-600 rounded"
+                    className="w-4 h-4 accent-blue-600 rounded"
                   />
                   <span>{allergy}</span>
                 </label>
@@ -482,7 +482,7 @@ const PatientFormPage = () => {
             <label className="grid gap-2 text-sm text-stone-700 mt-2">
               <span>Other Allergies (comma separated)</span>
               <input
-                className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 value={form.otherAllergy}
                 onChange={(e) => updateField('otherAllergy', e.target.value)}
                 placeholder="e.g. Pollen, Soy"
@@ -500,7 +500,7 @@ const PatientFormPage = () => {
                   ...prev,
                   currentMedications: [...prev.currentMedications, { name: '', frequency: '' }]
                 }))}
-                className="text-xs font-bold text-emerald-600 hover:text-emerald-700"
+                className="text-xs font-bold text-blue-600 hover:text-blue-700"
               >
                 + Add Medication
               </button>
@@ -508,7 +508,7 @@ const PatientFormPage = () => {
             {form.currentMedications.map((med, idx) => (
               <div key={idx} className="flex gap-3 items-center">
                 <input
-                  className="w-1/2 rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                  className="w-1/2 rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                   value={med.name}
                   onChange={(e) => {
                     const updated = [...form.currentMedications];
@@ -518,7 +518,7 @@ const PatientFormPage = () => {
                   placeholder="Medication name (e.g. Metformin 500mg)"
                 />
                 <input
-                  className="w-1/2 rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                  className="w-1/2 rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                   value={med.frequency}
                   onChange={(e) => {
                     const updated = [...form.currentMedications];
@@ -553,7 +553,7 @@ const PatientFormPage = () => {
                   ...prev,
                   pastSurgeries: [...prev.pastSurgeries, { name: '', year: '' }]
                 }))}
-                className="text-xs font-bold text-emerald-600 hover:text-emerald-700"
+                className="text-xs font-bold text-blue-600 hover:text-blue-700"
               >
                 + Add Surgery
               </button>
@@ -561,7 +561,7 @@ const PatientFormPage = () => {
             {form.pastSurgeries.map((surg, idx) => (
               <div key={idx} className="flex gap-3 items-center">
                 <input
-                  className="w-1/2 rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                  className="w-1/2 rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                   value={surg.name}
                   onChange={(e) => {
                     const updated = [...form.pastSurgeries];
@@ -571,7 +571,7 @@ const PatientFormPage = () => {
                   placeholder="Surgery name (e.g. Appendix Removal)"
                 />
                 <input
-                  className="w-1/2 rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                  className="w-1/2 rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                   value={surg.year}
                   onChange={(e) => {
                     const updated = [...form.pastSurgeries];
@@ -606,7 +606,7 @@ const PatientFormPage = () => {
                   ...prev,
                   familyHistory: [...prev.familyHistory, { relation: '', condition: '' }]
                 }))}
-                className="text-xs font-bold text-emerald-600 hover:text-emerald-700"
+                className="text-xs font-bold text-blue-600 hover:text-blue-700"
               >
                 + Add Record
               </button>
@@ -614,7 +614,7 @@ const PatientFormPage = () => {
             {form.familyHistory.map((fam, idx) => (
               <div key={idx} className="flex gap-3 items-center">
                 <input
-                  className="w-1/2 rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                  className="w-1/2 rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                   value={fam.relation}
                   onChange={(e) => {
                     const updated = [...form.familyHistory];
@@ -624,7 +624,7 @@ const PatientFormPage = () => {
                   placeholder="Relation (e.g. Father)"
                 />
                 <input
-                  className="w-1/2 rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                  className="w-1/2 rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                   value={fam.condition}
                   onChange={(e) => {
                     const updated = [...form.familyHistory];
@@ -660,7 +660,7 @@ const PatientFormPage = () => {
                   ...prev,
                   lifestyle: { ...prev.lifestyle, smoking: e.target.value }
                 }))}
-                className="w-full rounded-2xl border border-stone-300 bg-white text-stone-900 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                className="w-full rounded-2xl border border-stone-300 bg-white text-stone-900 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               >
                 <option value="no">No</option>
                 <option value="yes">Yes</option>
@@ -676,7 +676,7 @@ const PatientFormPage = () => {
                   ...prev,
                   lifestyle: { ...prev.lifestyle, alcohol: e.target.value }
                 }))}
-                className="w-full rounded-2xl border border-stone-300 bg-white text-stone-900 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                className="w-full rounded-2xl border border-stone-300 bg-white text-stone-900 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               >
                 <option value="no">No</option>
                 <option value="yes">Yes</option>
@@ -687,7 +687,7 @@ const PatientFormPage = () => {
             <label className="grid gap-2 text-sm text-stone-700">
               <span>Exercise Frequency</span>
               <input
-                className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 value={form.lifestyle.exerciseFrequency}
                 onChange={(e) => setForm(prev => ({
                   ...prev,
@@ -700,7 +700,7 @@ const PatientFormPage = () => {
             <label className="grid gap-2 text-sm text-stone-700">
               <span>Diet Type</span>
               <input
-                className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 value={form.lifestyle.dietType}
                 onChange={(e) => setForm(prev => ({
                   ...prev,
@@ -718,7 +718,7 @@ const PatientFormPage = () => {
               <label className="grid gap-2 text-sm text-stone-700">
                 <span>Pregnancy History</span>
                 <input
-                  className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                  className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                   value={form.pregnancyHistory}
                   onChange={(e) => updateField('pregnancyHistory', e.target.value)}
                   placeholder="Details (e.g. G2P1A0)"
@@ -728,7 +728,7 @@ const PatientFormPage = () => {
                 <span>LMP Date</span>
                 <input
                   type="date"
-                  className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                  className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                   value={form.lmpDate}
                   onChange={(e) => updateField('lmpDate', e.target.value)}
                 />
@@ -744,7 +744,7 @@ const PatientFormPage = () => {
             <label key={field} className="grid gap-2 text-sm capitalize text-stone-700">
               {field}
               <input
-                className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 value={form.address[field]}
                 onChange={(event) => updateNestedField('address', field, event.target.value)}
               />
@@ -759,7 +759,7 @@ const PatientFormPage = () => {
             <label key={field} className="grid gap-2 text-sm capitalize text-stone-700">
               {field}
               <input
-                className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                className="rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 value={form.emergencyContact[field]}
                 onChange={(event) => updateNestedField('emergencyContact', field, event.target.value)}
               />
@@ -768,13 +768,13 @@ const PatientFormPage = () => {
         </div>
 
         {error ? <p className="rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p> : null}
-        {successMessage ? <p className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{successMessage}</p> : null}
+        {successMessage ? <p className="rounded-2xl bg-blue-50 px-4 py-3 text-sm text-blue-700">{successMessage}</p> : null}
 
         <div className="flex flex-wrap gap-3">
           <button
             type="submit"
             disabled={submitting}
-            className="rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded-2xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {submitting ? 'Saving...' : isEditMode ? 'Save changes' : 'Create patient'}
           </button>

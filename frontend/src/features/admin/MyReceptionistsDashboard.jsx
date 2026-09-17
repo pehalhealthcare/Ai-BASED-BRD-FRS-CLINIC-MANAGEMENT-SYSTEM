@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+﻿import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import LoadingState from '../../components/common/LoadingState';
 import ErrorState from '../../components/common/ErrorState';
@@ -270,7 +270,7 @@ const MyReceptionistsDashboard = () => {
             <div className="w-9 h-9 bg-blue-50 text-blue-650 rounded-xl flex items-center justify-center">
               <CheckCircle size={16} />
             </div>
-            <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+            <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
               100% of total
             </span>
           </div>
@@ -426,7 +426,7 @@ const MyReceptionistsDashboard = () => {
                       staff.approvalStatus !== 'approved'
                         ? 'bg-amber-50 text-amber-600 border-amber-200'
                         : staff.isActive 
-                          ? 'bg-emerald-50 text-emerald-600 border-emerald-100' 
+                          ? 'bg-blue-50 text-blue-600 border-blue-100' 
                           : 'bg-slate-100 text-slate-500 border-slate-200'
                     }`}>
                       {staff.approvalStatus !== 'approved'
@@ -470,7 +470,7 @@ const MyReceptionistsDashboard = () => {
                           className={`px-3 py-1.5 rounded-xl text-[10px] font-bold transition cursor-pointer ${
                             staff.isActive
                               ? 'bg-rose-50 text-rose-600 hover:bg-rose-100'
-                              : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
+                              : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
                           }`}
                         >
                           {staff.isActive ? 'Suspend' : 'Activate'}
@@ -701,7 +701,7 @@ const MyReceptionistsDashboard = () => {
                 </div>
                 <div className="flex justify-between items-center">
                   <span>Active Status</span>
-                  <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase ${selectedStaffDetails.isActive ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>
+                  <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase ${selectedStaffDetails.isActive ? 'bg-blue-50 text-blue-600' : 'bg-slate-100 text-slate-500'}`}>
                     {selectedStaffDetails.isActive ? 'Active' : 'Suspended'}
                   </span>
                 </div>
@@ -773,7 +773,7 @@ const MyReceptionistsDashboard = () => {
             </button>
 
             <div className="space-y-2 border-b border-slate-100 pb-4 text-center">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 mb-2">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 text-blue-600 mb-2">
                 <Check size={24} />
               </div>
               <h4 className="text-lg font-black text-slate-900 leading-snug">Staff Account Created</h4>

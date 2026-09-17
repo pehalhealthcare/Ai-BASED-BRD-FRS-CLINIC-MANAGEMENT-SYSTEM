@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   Plus, Search, Package, AlertTriangle, Clock, TrendingUp, IndianRupee,
@@ -32,7 +32,7 @@ const getStockStatus = (medicine) => {
 };
 
 const STATUS_CONFIG = {
-  in:       { label: 'In Stock',      cls: 'bg-emerald-50 text-emerald-700 border-emerald-250' },
+  in:       { label: 'In Stock',      cls: 'bg-blue-50 text-blue-700 border-blue-250' },
   low:      { label: 'Low Stock',     cls: 'bg-amber-50 text-amber-700 border-amber-250' },
   out:      { label: 'Out of Stock',  cls: 'bg-rose-50 text-rose-700 border-rose-250' },
   expiring: { label: 'Expiring Soon', cls: 'bg-orange-50 text-orange-700 border-orange-250' },
@@ -277,7 +277,7 @@ const PharmacyInventoryPage = () => {
                 <span>Type: {provider?.providerSubtype || 'Internal'}</span>
                 <span>•</span>
                 <span className={`px-2 py-0.5 rounded-md text-[10px] font-black ${
-                  provider?.status === 'Active' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-550'
+                  provider?.status === 'Active' ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-550'
                 }`}>{provider?.status || 'Active'}</span>
               </div>
             </div>
@@ -307,7 +307,7 @@ const PharmacyInventoryPage = () => {
         ) : (
           <>
             <DetailKpiCard icon={Package} value={stats.totalMedicines ?? '452'} label="Total Medicines" sub="In this Pharmacy" color="bg-blue-50 text-blue-600" />
-            <DetailKpiCard icon={CheckCircle2} value={stats.availableStock ?? '312'} label="In Stock" sub="Healthy items" color="bg-emerald-50 text-emerald-600" />
+            <DetailKpiCard icon={CheckCircle2} value={stats.availableStock ?? '312'} label="In Stock" sub="Healthy items" color="bg-blue-50 text-blue-600" />
             <DetailKpiCard icon={AlertTriangle} value={stats.lowStock ?? '87'} label="Low Stock" sub="Needs Reorder" color="bg-orange-50 text-orange-600" />
             <DetailKpiCard icon={XCircle} value={stats.outOfStock ?? '28'} label="Out of Stock" sub="Unavailable" color="bg-rose-50 text-rose-600" />
             <DetailKpiCard icon={Calendar} value={stats.expiring30Days ?? '25'} label="Expiring Soon" sub="Within 30 Days" color="bg-purple-50 text-purple-600" />
@@ -567,7 +567,7 @@ const PharmacyInventoryPage = () => {
                         <td className="p-3">₹{po.totalAmount}</td>
                         <td className="p-3">
                           <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${
-                            po.status === 'Received' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                            po.status === 'Received' ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'
                           }`}>{po.status}</span>
                         </td>
                       </tr>
@@ -615,7 +615,7 @@ const PharmacyInventoryPage = () => {
                 </div>
               ) : (
                 <div className="p-8 text-center bg-slate-50/50 rounded-2xl border border-dashed border-slate-200 text-slate-400 font-semibold text-xs">
-                  <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
+                  <CheckCircle2 className="w-8 h-8 text-blue-500 mx-auto mb-2" />
                   All medicine stocks are at healthy levels.
                 </div>
               )}
@@ -657,7 +657,7 @@ const PharmacyInventoryPage = () => {
                 </div>
               ) : (
                 <div className="p-8 text-center bg-slate-50/50 rounded-2xl border border-dashed border-slate-200 text-slate-400 font-semibold text-xs">
-                  <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
+                  <CheckCircle2 className="w-8 h-8 text-blue-500 mx-auto mb-2" />
                   No batches are expiring soon.
                 </div>
               )}

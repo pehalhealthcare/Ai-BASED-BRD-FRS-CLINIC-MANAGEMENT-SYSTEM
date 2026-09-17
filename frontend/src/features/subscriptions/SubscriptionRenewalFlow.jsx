@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import {
   ArrowLeft, Check, Copy, UploadCloud, Trash2, Clock, CheckCircle2,
@@ -494,7 +494,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex flex-col font-sans text-slate-800 antialiased selection:bg-emerald-100 selection:text-emerald-900">
+    <div className="min-h-screen bg-[#F8FAFC] flex flex-col font-sans text-slate-800 antialiased selection:bg-blue-100 selection:text-blue-900">
       
       {/* ── TOP BILLING HEADER (No Sidebar) ── */}
       <header className="bg-white border-b border-slate-200/90 sticky top-0 z-40 shadow-xs">
@@ -528,9 +528,9 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
             {/* 24/7 Support Pill */}
             <a
               href={`tel:${supportPhone}`}
-              className="px-3 py-1.5 bg-emerald-50/80 hover:bg-emerald-100 border border-emerald-200/80 rounded-xl text-xs font-bold text-emerald-800 transition flex items-center gap-1.5 shadow-2xs"
+              className="px-3 py-1.5 bg-blue-50/80 hover:bg-blue-100 border border-blue-200/80 rounded-xl text-xs font-bold text-blue-800 transition flex items-center gap-1.5 shadow-2xs"
             >
-              <HeadsetCustomIcon className="w-3.5 h-3.5 text-emerald-600" />
+              <HeadsetCustomIcon className="w-3.5 h-3.5 text-blue-600" />
               <span>24/7 Support</span>
             </a>
 
@@ -561,7 +561,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                   <div className="p-2.5 border-b border-slate-100">
                     <span className="text-xs font-bold text-slate-900 block truncate">{user?.name || 'Clinic Admin'}</span>
                     <span className="text-[11px] text-slate-400 block truncate">{user?.email || 'admin@clinic.local'}</span>
-                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full inline-block mt-1.5">
+                    <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full inline-block mt-1.5">
                       {clinic?.name || 'Active Clinic'}
                     </span>
                   </div>
@@ -630,7 +630,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                   type="button"
                   aria-label="Renew subscription"
                   onClick={() => setCurrentScreen('plan_selection')}
-                  className="w-full py-3.5 px-6 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full py-3.5 px-6 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <Crown size={16} className="text-white" />
                   <span>Renew Subscription</span>
@@ -661,8 +661,8 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
               </div>
 
               {/* Need Assistance Informational Box */}
-              <div className="bg-emerald-50/70 border border-emerald-200/70 rounded-2xl p-4 flex items-start gap-3 text-left">
-                <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
+              <div className="bg-blue-50/70 border border-blue-200/70 rounded-2xl p-4 flex items-start gap-3 text-left">
+                <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
                   <Sparkles size={16} />
                 </div>
                 <div>
@@ -690,7 +690,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 text-left">
                 {/* Feature 1: Manage Patients */}
                 <div className="bg-white/90 backdrop-blur-sm border border-slate-200/80 rounded-2xl p-4 flex items-center gap-3.5 shadow-2xs hover:border-slate-300 transition">
-                  <div className="w-11 h-11 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+                  <div className="w-11 h-11 rounded-full bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center shrink-0">
                     <Users size={20} />
                   </div>
                   <div>
@@ -705,7 +705,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
 
                 {/* Feature 2: Book Appointments */}
                 <div className="bg-white/90 backdrop-blur-sm border border-slate-200/80 rounded-2xl p-4 flex items-center gap-3.5 shadow-2xs hover:border-slate-300 transition">
-                  <div className="w-11 h-11 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+                  <div className="w-11 h-11 rounded-full bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center shrink-0">
                     <Calendar size={20} />
                   </div>
                   <div>
@@ -720,7 +720,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
 
                 {/* Feature 3: Generate Reports */}
                 <div className="bg-white/90 backdrop-blur-sm border border-slate-200/80 rounded-2xl p-4 flex items-center gap-3.5 shadow-2xs hover:border-slate-300 transition">
-                  <div className="w-11 h-11 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+                  <div className="w-11 h-11 rounded-full bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center shrink-0">
                     <BarChart3 size={20} />
                   </div>
                   <div>
@@ -735,7 +735,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
 
                 {/* Feature 4: All-in-One Solution */}
                 <div className="bg-white/90 backdrop-blur-sm border border-slate-200/80 rounded-2xl p-4 flex items-center gap-3.5 shadow-2xs hover:border-slate-300 transition">
-                  <div className="w-11 h-11 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+                  <div className="w-11 h-11 rounded-full bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center shrink-0">
                     <Heart size={20} />
                   </div>
                   <div>
@@ -830,9 +830,9 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
               </div>
 
               {/* Right Top Card: Keep Your Clinic Running (Col 5) */}
-              <div className="lg:col-span-5 bg-emerald-50/60 border border-emerald-200/70 rounded-3xl p-5 sm:p-6 shadow-xs flex items-center justify-between gap-4">
+              <div className="lg:col-span-5 bg-blue-50/60 border border-blue-200/70 rounded-3xl p-5 sm:p-6 shadow-xs flex items-center justify-between gap-4">
                 <div className="flex items-start gap-3">
-                  <div className="w-9 h-9 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 shadow-2xs mt-0.5">
+                  <div className="w-9 h-9 rounded-2xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0 shadow-2xs mt-0.5">
                     <Clock size={18} />
                   </div>
                   <div>
@@ -846,13 +846,13 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                 </div>
 
                 {/* Stylized Browser Graphic */}
-                <div className="hidden sm:flex flex-col items-center justify-center p-2.5 bg-white rounded-2xl border border-emerald-100 shadow-2xs shrink-0">
-                  <div className="w-12 h-9 bg-emerald-50 rounded-lg flex items-center justify-center relative mb-1">
-                    <div className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-xs">
+                <div className="hidden sm:flex flex-col items-center justify-center p-2.5 bg-white rounded-2xl border border-blue-100 shadow-2xs shrink-0">
+                  <div className="w-12 h-9 bg-blue-50 rounded-lg flex items-center justify-center relative mb-1">
+                    <div className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-xs">
                       <ArrowRight size={11} className="-rotate-45" />
                     </div>
                   </div>
-                  <span className="text-[8.5px] font-black text-emerald-800">Auto-Extend</span>
+                  <span className="text-[8.5px] font-black text-blue-800">Auto-Extend</span>
                 </div>
               </div>
 
@@ -880,7 +880,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                       onClick={() => setBillingCycle('monthly')}
                       className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition cursor-pointer ${
                         billingCycle === 'monthly'
-                          ? 'bg-emerald-600 text-white shadow-xs'
+                          ? 'bg-blue-600 text-white shadow-xs'
                           : 'text-slate-600 hover:text-slate-900'
                       }`}
                     >
@@ -891,12 +891,12 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                       onClick={() => setBillingCycle('yearly')}
                       className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer ${
                         billingCycle === 'yearly'
-                          ? 'bg-emerald-600 text-white shadow-xs'
+                          ? 'bg-blue-600 text-white shadow-xs'
                           : 'text-slate-600 hover:text-slate-900'
                       }`}
                     >
                       <span>Yearly</span>
-                      <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-emerald-100 text-emerald-800">
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-blue-100 text-blue-800">
                         Save up to 20%
                       </span>
                     </button>
@@ -959,13 +959,13 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                           onClick={() => setSelectedPlan(plan)}
                           className={`w-[290px] sm:w-[300px] min-w-[290px] sm:min-w-[300px] snap-start bg-white rounded-3xl p-5 flex flex-col justify-between transition-all duration-200 relative ${
                             isSelected
-                              ? 'border-2 border-emerald-500 shadow-md ring-4 ring-emerald-50 bg-white'
+                              ? 'border-2 border-blue-500 shadow-md ring-4 ring-blue-50 bg-white'
                               : 'border border-slate-200/90 hover:border-slate-300 shadow-xs hover:shadow-sm'
                           }`}
                         >
                           {/* Current Plan Badge */}
                           {isCurrent && (
-                            <span className="absolute top-4 right-4 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-600 text-white shadow-xs">
+                            <span className="absolute top-4 right-4 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-600 text-white shadow-xs">
                               Current Plan
                             </span>
                           )}
@@ -973,7 +973,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                           <div className="space-y-3.5">
                             {/* Icon */}
                             <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shadow-2xs ${
-                              isPro ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
+                              isPro ? 'bg-blue-50 text-blue-600 border border-blue-100' :
                               isEnt ? 'bg-purple-50 text-purple-600 border border-purple-100' :
                               'bg-blue-50 text-blue-600 border border-blue-100'
                             }`}>
@@ -1003,7 +1003,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                                   {formatINR(yearlyP)} per year
                                 </span>
                                 {billingCycle === 'yearly' && (
-                                  <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
+                                  <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
                                     Save 20%
                                   </span>
                                 )}
@@ -1014,7 +1014,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                             <div className="space-y-2 pt-1">
                               {featuresList.map((feat, fIdx) => (
                                 <div key={fIdx} className="flex items-start gap-2">
-                                  <div className="w-4 h-4 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5 font-black">
+                                  <div className="w-4 h-4 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 mt-0.5 font-black">
                                     <Check size={11} strokeWidth={3} />
                                   </div>
                                   <span className="text-xs text-slate-700 font-semibold leading-tight">
@@ -1032,7 +1032,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                               onClick={(e) => { e.stopPropagation(); setSelectedPlan(plan); }}
                               className={`w-full py-2.5 px-4 rounded-xl text-xs font-black transition shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer ${
                                 isSelected
-                                  ? 'bg-emerald-100 text-emerald-900 border border-emerald-300 font-black'
+                                  ? 'bg-blue-100 text-blue-900 border border-blue-300 font-black'
                                   : 'bg-white hover:bg-slate-50 text-slate-800 border border-slate-200'
                               }`}
                             >
@@ -1086,7 +1086,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                             'SLA support'
                           ].map((feat, fIdx) => (
                             <div key={fIdx} className="flex items-start gap-2">
-                              <div className="w-4 h-4 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5 font-black">
+                              <div className="w-4 h-4 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 mt-0.5 font-black">
                                 <Check size={11} strokeWidth={3} />
                               </div>
                               <span className="text-xs text-slate-700 font-semibold leading-tight">
@@ -1120,7 +1120,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                         aria-label={`Go to slide ${dotIdx + 1}`}
                         className={`h-2 rounded-full transition-all cursor-pointer ${
                           activeSlideIndex === dotIdx
-                            ? 'w-6 bg-emerald-600'
+                            ? 'w-6 bg-blue-600'
                             : 'w-2 bg-slate-300 hover:bg-slate-400'
                         }`}
                       />
@@ -1155,7 +1155,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                       <button
                         type="button"
                         onClick={() => setBillingCycle(billingCycle === 'monthly' ? 'yearly' : 'monthly')}
-                        className="px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-black hover:bg-emerald-100 transition cursor-pointer"
+                        className="px-2 py-0.5 rounded-lg bg-blue-50 text-blue-800 border border-blue-200 text-[10px] font-black hover:bg-blue-100 transition cursor-pointer"
                       >
                         Change
                       </button>
@@ -1173,7 +1173,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                   {/* Total Payable */}
                   <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
                     <span className="text-sm font-black text-slate-900">Total Payable</span>
-                    <span className="text-2xl font-black text-emerald-600 tracking-tight">
+                    <span className="text-2xl font-black text-blue-600 tracking-tight">
                       {formatINR(totalPayable)}
                     </span>
                   </div>
@@ -1181,7 +1181,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                   {/* Renewal Period & Extension Inset Card */}
                   <div className="p-3.5 bg-slate-50/80 border border-slate-200/80 rounded-2xl space-y-2.5 text-xs">
                     <div className="flex items-center gap-2.5">
-                      <Calendar size={15} className="text-emerald-600 shrink-0" />
+                      <Calendar size={15} className="text-blue-600 shrink-0" />
                       <div>
                         <span className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">Renewal Period</span>
                         <span className="font-black text-slate-800 block">
@@ -1191,7 +1191,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                     </div>
 
                     <div className="flex items-center gap-2.5">
-                      <Clock size={15} className="text-emerald-600 shrink-0" />
+                      <Clock size={15} className="text-blue-600 shrink-0" />
                       <div>
                         <span className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">New Expected Expiry Date</span>
                         <span className="font-black text-slate-900 block">
@@ -1243,7 +1243,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                 onClick={() => setShowCompareModal(true)}
                 className="px-4 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-800 text-xs font-black rounded-xl transition shadow-2xs flex items-center gap-1.5 shrink-0 self-start sm:self-auto cursor-pointer"
               >
-                <BarChart3 size={14} className="text-emerald-600" />
+                <BarChart3 size={14} className="text-blue-600" />
                 <span>Compare Plan Features</span>
               </button>
             </div>
@@ -1261,7 +1261,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
               <button
                 type="button"
                 onClick={() => setCurrentScreen('renewal_payment')}
-                className="px-8 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black transition shadow-md hover:shadow flex items-center justify-center gap-2 cursor-pointer"
+                className="px-8 py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black transition shadow-md hover:shadow flex items-center justify-center gap-2 cursor-pointer"
               >
                 <span>Continue to Payment</span>
                 <ArrowRight size={14} />
@@ -1355,14 +1355,14 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                 </div>
               </div>
             ) : isPaymentVerified ? (
-              <div className="bg-gradient-to-r from-emerald-600 to-teal-700 rounded-3xl p-6 text-white shadow-md flex items-center justify-between gap-4">
+              <div className="bg-gradient-to-r from-blue-600 to-teal-700 rounded-3xl p-6 text-white shadow-md flex items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center shrink-0">
                     <CheckCircle2 size={28} />
                   </div>
                   <div>
                     <h3 className="text-lg font-black">Subscription Renewed Successfully!</h3>
-                    <p className="text-xs text-emerald-100 font-medium">
+                    <p className="text-xs text-blue-100 font-medium">
                       Your payment has been verified and your subscription has been extended.
                     </p>
                   </div>
@@ -1370,7 +1370,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                 <button
                   type="button"
                   onClick={() => navigate('/dashboard')}
-                  className="px-5 py-2.5 bg-white hover:bg-emerald-50 text-emerald-900 text-xs font-black rounded-xl shadow transition"
+                  className="px-5 py-2.5 bg-white hover:bg-blue-50 text-blue-900 text-xs font-black rounded-xl shadow transition"
                 >
                   Go to Clinic Dashboard
                 </button>
@@ -1415,7 +1415,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                     <div className="flex flex-col justify-between space-y-4">
                       <div>
                         <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                          <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
                             <Zap size={15} />
                           </div>
                           <h3 className="text-sm font-black text-slate-900">Scan & Pay (UPI)</h3>
@@ -1441,12 +1441,12 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                           )}
                           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                             <div className="bg-white px-2 py-0.5 rounded shadow border border-slate-100 flex items-center">
-                              <span className="text-[9px] font-black tracking-widest text-emerald-800">UPI</span>
+                              <span className="text-[9px] font-black tracking-widest text-blue-800">UPI</span>
                             </div>
                           </div>
                         </div>
 
-                        <span className="text-xl font-black text-emerald-600 block tracking-tight">
+                        <span className="text-xl font-black text-blue-600 block tracking-tight">
                           {formatINR(totalPayable)}
                         </span>
                         <span className="text-[11px] font-bold text-slate-600 block capitalize">
@@ -1472,7 +1472,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                             onClick={() => handleCopy(upiId, 'upi', 'UPI ID')}
                             className="px-3.5 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-xl transition shadow-2xs flex items-center gap-1.5 shrink-0 cursor-pointer"
                           >
-                            {copiedKey === 'upi' ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
+                            {copiedKey === 'upi' ? <Check size={13} className="text-blue-600" /> : <Copy size={13} />}
                             <span>{copiedKey === 'upi' ? 'Copied' : 'Copy'}</span>
                           </button>
                         </div>
@@ -1525,7 +1525,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                               className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-white rounded-lg transition"
                               title={`Copy ${b.label}`}
                             >
-                              {copiedKey === b.key ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
+                              {copiedKey === b.key ? <Check size={13} className="text-blue-600" /> : <Copy size={13} />}
                             </button>
                           </div>
                         ))}
@@ -1571,7 +1571,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                         value={utr}
                         onChange={(e) => setUtr(e.target.value)}
                         placeholder="Enter UTR or Reference Number"
-                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition outline-hidden"
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition outline-hidden"
                       />
                     </div>
 
@@ -1585,7 +1585,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                         value={transactionId}
                         onChange={(e) => setTransactionId(e.target.value)}
                         placeholder="Enter Transaction ID"
-                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition outline-hidden"
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition outline-hidden"
                       />
                     </div>
 
@@ -1598,7 +1598,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                         type="date"
                         value={paymentDate}
                         onChange={(e) => setPaymentDate(e.target.value)}
-                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition outline-hidden"
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition outline-hidden"
                       />
                     </div>
 
@@ -1617,7 +1617,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                         onDrop={handleDrop}
                         onClick={() => fileInputRef.current?.click()}
                         className={`border-2 border-dashed rounded-2xl p-4 text-center cursor-pointer transition flex items-center justify-between gap-4 ${
-                          isDragOver ? 'border-emerald-500 bg-emerald-50/50' : 'border-slate-200 bg-slate-50/50 hover:bg-slate-50'
+                          isDragOver ? 'border-blue-500 bg-blue-50/50' : 'border-slate-200 bg-slate-50/50 hover:bg-slate-50'
                         }`}
                       >
                         <input
@@ -1634,7 +1634,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                           </div>
                           <div className="text-left">
                             <span className="text-xs font-bold text-slate-700 block">
-                              Drag &amp; drop your file here, or <span className="text-emerald-600 underline">click to browse</span>
+                              Drag &amp; drop your file here, or <span className="text-blue-600 underline">click to browse</span>
                             </span>
                             <span className="text-[10px] text-slate-400 block mt-0.5">
                               Supported formats: JPG, JPEG, PNG, PDF (Max 5 MB)
@@ -1668,7 +1668,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                               {proofFile.name}
                             </span>
                             <span className="text-[10px] text-slate-400 block">
-                              {(proofFile.size / 1024 / 1024).toFixed(2)} MB • <span className="text-emerald-600 font-bold">✓ Attached</span>
+                              {(proofFile.size / 1024 / 1024).toFixed(2)} MB • <span className="text-blue-600 font-bold">✓ Attached</span>
                             </span>
                           </div>
                         </div>
@@ -1699,7 +1699,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                     <button
                       type="submit"
                       disabled={submitting || !utr.trim()}
-                      className="w-full py-3.5 px-6 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-black rounded-2xl shadow-sm hover:shadow transition flex items-center justify-center gap-2 cursor-pointer"
+                      className="w-full py-3.5 px-6 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-black rounded-2xl shadow-sm hover:shadow transition flex items-center justify-center gap-2 cursor-pointer"
                     >
                       {submitting ? (
                         <>
@@ -1715,7 +1715,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                     </button>
 
                     <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400 font-medium">
-                      <Lock size={12} className="text-emerald-600" />
+                      <Lock size={12} className="text-blue-600" />
                       <span>Your payment details are secure and encrypted</span>
                     </div>
                   </div>
@@ -1737,7 +1737,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                     <button
                       type="button"
                       onClick={() => setCurrentScreen('plan_selection')}
-                      className="px-3 py-1 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 text-xs font-black rounded-xl transition cursor-pointer"
+                      className="px-3 py-1 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-800 text-xs font-black rounded-xl transition cursor-pointer"
                     >
                       Change Plan
                     </button>
@@ -1745,7 +1745,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
 
                   {/* Plan Badge */}
                   <div className="flex items-center gap-3 p-3 bg-slate-50/80 rounded-2xl border border-slate-200/70">
-                    <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shadow-2xs">
+                    <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shadow-2xs">
                       <Crown size={20} />
                     </div>
                     <div>
@@ -1775,7 +1775,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                       }`}
                     >
                       <span>Yearly</span>
-                      <span className="text-[9px] font-black bg-emerald-500 text-white px-1.5 py-0.2 rounded-full">Save 20%</span>
+                      <span className="text-[9px] font-black bg-blue-500 text-white px-1.5 py-0.2 rounded-full">Save 20%</span>
                     </button>
                   </div>
 
@@ -1788,7 +1788,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
 
                     <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
                       <span className="font-black text-slate-900">Total Payable</span>
-                      <span className="text-xl font-black text-emerald-600 tracking-tight">
+                      <span className="text-xl font-black text-blue-600 tracking-tight">
                         {formatINR(totalPayable)}
                       </span>
                     </div>
@@ -1797,7 +1797,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                   {/* Expected Extension Period */}
                   <div className="pt-3 border-t border-slate-100 space-y-2 text-xs">
                     <div className="flex items-center gap-2.5">
-                      <Calendar size={15} className="text-emerald-600 shrink-0" />
+                      <Calendar size={15} className="text-blue-600 shrink-0" />
                       <div>
                         <span className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">Renewal Period</span>
                         <span className="font-black text-slate-800 block">
@@ -1807,7 +1807,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                     </div>
 
                     <div className="flex items-center gap-2.5">
-                      <Clock size={15} className="text-emerald-600 shrink-0" />
+                      <Clock size={15} className="text-blue-600 shrink-0" />
                       <div>
                         <span className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">New Expected Expiry Date</span>
                         <span className="font-black text-slate-900 block">
@@ -1826,7 +1826,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                 {/* Why Renew Your Subscription? Card */}
                 <div className="bg-white border border-slate-200/90 rounded-3xl p-5 sm:p-6 shadow-xs space-y-3.5">
                   <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold">
+                    <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center font-bold">
                       <Settings size={15} />
                     </div>
                     <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
@@ -1845,7 +1845,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                       'Your subscription will be renewed after verification.'
                     ].map((step, idx) => (
                       <div key={idx} className="flex items-start gap-2.5">
-                        <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 font-black text-[10px] flex items-center justify-center shrink-0 mt-0.5">
+                        <div className="w-5 h-5 rounded-full bg-blue-100 text-blue-800 font-black text-[10px] flex items-center justify-center shrink-0 mt-0.5">
                           {idx + 1}
                         </div>
                         <p className="text-[11px] text-slate-600 font-medium leading-snug">
@@ -1859,7 +1859,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                 {/* Need Help? Support Card */}
                 <div className="bg-white border border-slate-200/90 rounded-3xl p-5 sm:p-6 shadow-xs space-y-3.5">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
                       <HeadsetCustomIcon className="w-4 h-4" />
                     </div>
                     <div>
@@ -1873,16 +1873,16 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                   <div className="space-y-1.5 pt-1 text-xs">
                     <a
                       href={`mailto:${supportEmail}`}
-                      className="flex items-center gap-2 font-bold text-slate-700 hover:text-emerald-700 transition"
+                      className="flex items-center gap-2 font-bold text-slate-700 hover:text-blue-700 transition"
                     >
-                      <Mail size={13} className="text-emerald-600 shrink-0" />
+                      <Mail size={13} className="text-blue-600 shrink-0" />
                       <span className="truncate">{supportEmail}</span>
                     </a>
                     <a
                       href={`tel:${supportPhone}`}
-                      className="flex items-center gap-2 font-bold text-slate-700 hover:text-emerald-700 transition"
+                      className="flex items-center gap-2 font-bold text-slate-700 hover:text-blue-700 transition"
                     >
-                      <Phone size={13} className="text-emerald-600 shrink-0" />
+                      <Phone size={13} className="text-blue-600 shrink-0" />
                       <span>{supportPhone}</span>
                     </a>
                   </div>
@@ -1916,13 +1916,13 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
               
               {/* Soft Decorative Background Elements (Watermark Atmosphere) */}
               <div className="absolute left-4 top-4 bottom-4 w-48 pointer-events-none opacity-20 hidden lg:flex flex-col justify-between select-none">
-                <div className="border border-emerald-200 rounded-2xl p-3">
-                  <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center font-bold text-emerald-700 text-xs">+</div>
+                <div className="border border-blue-200 rounded-2xl p-3">
+                  <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center font-bold text-blue-700 text-xs">+</div>
                   <span className="text-[10px] font-black text-slate-400 tracking-wider block mt-2">CLINIC<br/>OUR PRIORITY</span>
                 </div>
               </div>
               <div className="absolute right-6 top-8 pointer-events-none opacity-30 hidden lg:block select-none text-right">
-                <span className="font-serif italic text-emerald-700/80 text-lg font-bold tracking-wide block rotate-6">
+                <span className="font-serif italic text-blue-700/80 text-lg font-bold tracking-wide block rotate-6">
                   Better<br/>Healthcare<br/>Together
                 </span>
               </div>
@@ -1930,7 +1930,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
               {/* STATE 1: VERIFIED */}
               {isPaymentVerified ? (
                 <div className="text-center space-y-6 py-6 animate-fadeIn relative z-10">
-                  <div className="w-20 h-20 rounded-full bg-emerald-100 border-2 border-emerald-400 text-emerald-600 flex items-center justify-center mx-auto shadow-md animate-bounce">
+                  <div className="w-20 h-20 rounded-full bg-blue-100 border-2 border-blue-400 text-blue-600 flex items-center justify-center mx-auto shadow-md animate-bounce">
                     <CheckCircle2 size={44} strokeWidth={2.5} />
                   </div>
 
@@ -1938,7 +1938,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                     <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
                       ✓ Payment Verified Successfully
                     </h2>
-                    <p className="text-sm sm:text-base font-bold text-emerald-700">
+                    <p className="text-sm sm:text-base font-bold text-blue-700">
                       Your renewal payment has been verified by AICMS.
                     </p>
                     <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto">
@@ -1947,13 +1947,13 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                   </div>
 
                   {/* Auto Redirect Progress Bar */}
-                  <div className="max-w-md mx-auto bg-emerald-50 border border-emerald-200/90 rounded-2xl p-4 text-center space-y-2">
-                    <div className="flex items-center justify-center gap-2 text-xs font-bold text-emerald-800">
-                      <RefreshCw size={14} className="animate-spin text-emerald-600" />
+                  <div className="max-w-md mx-auto bg-blue-50 border border-blue-200/90 rounded-2xl p-4 text-center space-y-2">
+                    <div className="flex items-center justify-center gap-2 text-xs font-bold text-blue-800">
+                      <RefreshCw size={14} className="animate-spin text-blue-600" />
                       <span>Redirecting you to your clinic dashboard...</span>
                     </div>
-                    <div className="w-full bg-emerald-200/60 h-1.5 rounded-full overflow-hidden">
-                      <div className="bg-emerald-600 h-full rounded-full animate-[pulse_1s_infinite] w-full" />
+                    <div className="w-full bg-blue-200/60 h-1.5 rounded-full overflow-hidden">
+                      <div className="bg-blue-600 h-full rounded-full animate-[pulse_1s_infinite] w-full" />
                     </div>
                   </div>
 
@@ -1969,11 +1969,11 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                     </div>
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-slate-500 font-bold">New Expiry Date</span>
-                      <span className="font-black text-emerald-700">{formatExpiryDate(clinic?.subscription?.expiryDate || latestPayment?.verifiedAt)}</span>
+                      <span className="font-black text-blue-700">{formatExpiryDate(clinic?.subscription?.expiryDate || latestPayment?.verifiedAt)}</span>
                     </div>
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-slate-500 font-bold">Status</span>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 uppercase">
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-blue-800 uppercase">
                         Active
                       </span>
                     </div>
@@ -1983,7 +1983,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                     <button
                       type="button"
                       onClick={() => navigate('/dashboard')}
-                      className="py-3.5 px-8 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-black rounded-2xl shadow-md hover:shadow-lg transition cursor-pointer"
+                      className="py-3.5 px-8 bg-blue-600 hover:bg-blue-700 text-white text-sm font-black rounded-2xl shadow-md hover:shadow-lg transition cursor-pointer"
                     >
                       Go to Clinic Dashboard Now
                     </button>
@@ -2058,7 +2058,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                     <button
                       type="button"
                       onClick={handleRetryPayment}
-                      className="py-3 px-8 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-2xl shadow-md transition cursor-pointer flex items-center gap-2"
+                      className="py-3 px-8 bg-blue-600 hover:bg-blue-700 text-white text-xs font-black rounded-2xl shadow-md transition cursor-pointer flex items-center gap-2"
                     >
                       <RefreshCw size={14} />
                       <span>Retry Payment</span>
@@ -2113,7 +2113,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                       <div className="absolute top-4 left-[12%] right-[12%] h-0.5 -z-0">
                         <div className="w-full h-full flex">
                           {/* Step 1 to 2: Green solid */}
-                          <div className="w-1/3 bg-emerald-500 h-0.5"></div>
+                          <div className="w-1/3 bg-blue-500 h-0.5"></div>
                           {/* Step 2 to 3: Slate dashed */}
                           <div className="w-1/3 border-t-2 border-dashed border-slate-300 h-0.5"></div>
                           {/* Step 3 to 4: Slate dashed */}
@@ -2123,13 +2123,13 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
 
                       {/* Stage 1: Payment Details Submitted */}
                       <div className="flex flex-col items-center text-center space-y-2 relative z-10">
-                        <div className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center font-black shadow-xs ring-4 ring-white">
+                        <div className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-black shadow-xs ring-4 ring-white">
                           <Check size={16} strokeWidth={3} />
                         </div>
                         <div>
                           <h4 className="text-xs font-black text-slate-900">Payment Details</h4>
-                          <span className="text-[11px] font-bold text-emerald-700 block">Submitted</span>
-                          <span className="text-[10px] font-semibold text-emerald-800 block mt-0.5">
+                          <span className="text-[11px] font-bold text-blue-700 block">Submitted</span>
+                          <span className="text-[10px] font-semibold text-blue-800 block mt-0.5">
                             {formatDateTime(latestPayment?.submittedAt || latestPayment?.paymentDate || new Date())}
                           </span>
                         </div>
@@ -2179,11 +2179,11 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                     {/* Mobile Vertical Tracker */}
                     <div className="sm:hidden space-y-4 border-l-2 border-slate-200 pl-4 ml-2">
                       <div className="relative">
-                        <div className="absolute -left-[25px] top-0 w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center font-black text-xs">
+                        <div className="absolute -left-[25px] top-0 w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center font-black text-xs">
                           ✓
                         </div>
                         <h4 className="text-xs font-black text-slate-900">Payment Details Submitted</h4>
-                        <span className="text-[10px] text-emerald-700 font-bold block">
+                        <span className="text-[10px] text-blue-700 font-bold block">
                           {formatDateTime(latestPayment?.submittedAt || latestPayment?.paymentDate || new Date())}
                         </span>
                       </div>
@@ -2282,7 +2282,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
 
                       {/* Status Note inside Payment Info */}
                       <div className="p-3 bg-slate-50 rounded-xl text-[11px] text-slate-500 flex items-center gap-2">
-                        <Lock size={13} className="text-emerald-600 shrink-0" />
+                        <Lock size={13} className="text-blue-600 shrink-0" />
                         <span>Verified securely by AICMS platform administrators</span>
                       </div>
 
@@ -2322,9 +2322,9 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                       </div>
 
                       {/* Card 2: Need Help? (Green Card) */}
-                      <div className="bg-emerald-50/50 border border-emerald-200/80 rounded-2xl p-4 sm:p-5 shadow-2xs space-y-3">
+                      <div className="bg-blue-50/50 border border-blue-200/80 rounded-2xl p-4 sm:p-5 shadow-2xs space-y-3">
                         <div className="flex items-center gap-2">
-                          <ShieldCheck size={18} className="text-emerald-700" />
+                          <ShieldCheck size={18} className="text-blue-700" />
                           <h3 className="text-xs sm:text-sm font-black text-slate-900">
                             Need Help?
                           </h3>
@@ -2337,9 +2337,9 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                         <div>
                           <a
                             href={`tel:${supportPhone}`}
-                            className="inline-flex items-center justify-center gap-1.5 py-2 px-4 rounded-xl bg-white hover:bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs font-black shadow-2xs transition"
+                            className="inline-flex items-center justify-center gap-1.5 py-2 px-4 rounded-xl bg-white hover:bg-blue-50 border border-blue-300 text-blue-800 text-xs font-black shadow-2xs transition"
                           >
-                            <HeadsetCustomIcon className="w-3.5 h-3.5 text-emerald-600" />
+                            <HeadsetCustomIcon className="w-3.5 h-3.5 text-blue-600" />
                             <span>Contact Support</span>
                           </a>
                         </div>
@@ -2363,9 +2363,9 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                     <button
                       type="button"
                       onClick={() => setShowPaymentDetailsModal(true)}
-                      className="py-3 px-6 rounded-2xl bg-white hover:bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs font-black shadow-2xs transition flex items-center justify-center gap-1.5 cursor-pointer"
+                      className="py-3 px-6 rounded-2xl bg-white hover:bg-blue-50 border border-blue-300 text-blue-800 text-xs font-black shadow-2xs transition flex items-center justify-center gap-1.5 cursor-pointer"
                     >
-                      <FileText size={14} className="text-emerald-600" />
+                      <FileText size={14} className="text-blue-600" />
                       <span>View Payment Details</span>
                     </button>
                   </div>
@@ -2397,7 +2397,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
             </button>
 
             <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-              <div className="w-10 h-10 rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center font-bold">
+              <div className="w-10 h-10 rounded-2xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center font-bold">
                 <FileText size={20} />
               </div>
               <div>
@@ -2411,7 +2411,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
               <div>
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Verification Status</span>
                 <span className={`text-xs font-black block mt-0.5 ${
-                  latestPayment?.status === 'VERIFIED' ? 'text-emerald-700' :
+                  latestPayment?.status === 'VERIFIED' ? 'text-blue-700' :
                   latestPayment?.status === 'REJECTED' ? 'text-rose-700' :
                   'text-amber-700'
                 }`}>
@@ -2421,7 +2421,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                 </span>
               </div>
               <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase ${
-                latestPayment?.status === 'VERIFIED' ? 'bg-emerald-100 text-emerald-800' :
+                latestPayment?.status === 'VERIFIED' ? 'bg-blue-100 text-blue-800' :
                 latestPayment?.status === 'REJECTED' ? 'bg-rose-100 text-rose-800' :
                 'bg-amber-100 text-amber-800'
               }`}>
@@ -2447,7 +2447,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
               </div>
               <div className="flex justify-between py-1.5">
                 <span className="text-slate-500 font-medium">Payment Amount:</span>
-                <span className="font-black text-emerald-600">{formatINR(latestPayment?.amount || totalPayable)}</span>
+                <span className="font-black text-blue-600">{formatINR(latestPayment?.amount || totalPayable)}</span>
               </div>
               <div className="flex justify-between py-1.5 items-center">
                 <span className="text-slate-500 font-medium">UTR Reference:</span>
@@ -2458,7 +2458,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                     onClick={() => handleCopy(latestPayment?.utr || utr, 'modal_utr', 'UTR')}
                     className="p-1 hover:bg-slate-100 rounded text-slate-400"
                   >
-                    {copiedKey === 'modal_utr' ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
+                    {copiedKey === 'modal_utr' ? <Check size={12} className="text-blue-600" /> : <Copy size={12} />}
                   </button>
                 </div>
               </div>
@@ -2484,7 +2484,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Attached Payment Proof</span>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <FileText size={16} className="text-emerald-600" />
+                    <FileText size={16} className="text-blue-600" />
                     <span className="text-xs font-bold text-slate-800 truncate max-w-[220px]">
                       {proofFile?.name || 'payment_proof_receipt.png'}
                     </span>
@@ -2523,7 +2523,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
           <div className="bg-white rounded-3xl max-w-4xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
-                <BarChart3 size={18} className="text-emerald-600" />
+                <BarChart3 size={18} className="text-blue-600" />
                 <h3 className="text-base font-black text-slate-900">Compare Plan Features</h3>
               </div>
               <button
@@ -2542,7 +2542,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                   <tr>
                     <th className="p-3">Feature</th>
                     <th className="p-3 text-center">Starter</th>
-                    <th className="p-3 text-center bg-emerald-50 text-emerald-900">Professional</th>
+                    <th className="p-3 text-center bg-blue-50 text-blue-900">Professional</th>
                     <th className="p-3 text-center">Enterprise</th>
                     <th className="p-3 text-center">Custom</th>
                   </tr>
@@ -2551,56 +2551,56 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                   <tr>
                     <td className="p-3 font-bold">Max Doctors</td>
                     <td className="p-3 text-center">Up to 2</td>
-                    <td className="p-3 text-center bg-emerald-50/50 font-bold text-emerald-900">Up to 10</td>
+                    <td className="p-3 text-center bg-blue-50/50 font-bold text-blue-900">Up to 10</td>
                     <td className="p-3 text-center">Unlimited</td>
                     <td className="p-3 text-center">Custom</td>
                   </tr>
                   <tr>
                     <td className="p-3 font-bold">Max Staff Members</td>
                     <td className="p-3 text-center">Up to 3</td>
-                    <td className="p-3 text-center bg-emerald-50/50 font-bold text-emerald-900">Up to 20</td>
+                    <td className="p-3 text-center bg-blue-50/50 font-bold text-blue-900">Up to 20</td>
                     <td className="p-3 text-center">Unlimited</td>
                     <td className="p-3 text-center">Custom</td>
                   </tr>
                   <tr>
                     <td className="p-3 font-bold">Max Patients</td>
                     <td className="p-3 text-center">500</td>
-                    <td className="p-3 text-center bg-emerald-50/50 font-bold text-emerald-900">5,000</td>
+                    <td className="p-3 text-center bg-blue-50/50 font-bold text-blue-900">5,000</td>
                     <td className="p-3 text-center">Unlimited</td>
                     <td className="p-3 text-center">Custom</td>
                   </tr>
                   <tr>
                     <td className="p-3 font-bold">AI Consultation Assistant</td>
                     <td className="p-3 text-center text-slate-300">—</td>
-                    <td className="p-3 text-center bg-emerald-50/50 text-emerald-600 font-bold">✓ Standard</td>
+                    <td className="p-3 text-center bg-blue-50/50 text-blue-600 font-bold">✓ Standard</td>
                     <td className="p-3 text-center text-purple-600 font-bold">✓ Advanced</td>
                     <td className="p-3 text-center text-amber-600 font-bold">✓ Dedicated</td>
                   </tr>
                   <tr>
                     <td className="p-3 font-bold">Pharmacy &amp; Inventory</td>
                     <td className="p-3 text-center text-slate-300">—</td>
-                    <td className="p-3 text-center bg-emerald-50/50 text-emerald-600 font-bold">✓ Yes</td>
-                    <td className="p-3 text-center text-emerald-600 font-bold">✓ Yes</td>
-                    <td className="p-3 text-center text-emerald-600 font-bold">✓ Yes</td>
+                    <td className="p-3 text-center bg-blue-50/50 text-blue-600 font-bold">✓ Yes</td>
+                    <td className="p-3 text-center text-blue-600 font-bold">✓ Yes</td>
+                    <td className="p-3 text-center text-blue-600 font-bold">✓ Yes</td>
                   </tr>
                   <tr>
                     <td className="p-3 font-bold">Laboratory Management</td>
                     <td className="p-3 text-center text-slate-300">—</td>
-                    <td className="p-3 text-center bg-emerald-50/50 text-emerald-600 font-bold">✓ Yes</td>
-                    <td className="p-3 text-center text-emerald-600 font-bold">✓ Yes</td>
-                    <td className="p-3 text-center text-emerald-600 font-bold">✓ Yes</td>
+                    <td className="p-3 text-center bg-blue-50/50 text-blue-600 font-bold">✓ Yes</td>
+                    <td className="p-3 text-center text-blue-600 font-bold">✓ Yes</td>
+                    <td className="p-3 text-center text-blue-600 font-bold">✓ Yes</td>
                   </tr>
                   <tr>
                     <td className="p-3 font-bold">Telemedicine / Online Consult</td>
                     <td className="p-3 text-center text-slate-300">—</td>
-                    <td className="p-3 text-center bg-emerald-50/50 text-emerald-600 font-bold">✓ Yes</td>
-                    <td className="p-3 text-center text-emerald-600 font-bold">✓ Yes</td>
-                    <td className="p-3 text-center text-emerald-600 font-bold">✓ Yes</td>
+                    <td className="p-3 text-center bg-blue-50/50 text-blue-600 font-bold">✓ Yes</td>
+                    <td className="p-3 text-center text-blue-600 font-bold">✓ Yes</td>
+                    <td className="p-3 text-center text-blue-600 font-bold">✓ Yes</td>
                   </tr>
                   <tr>
                     <td className="p-3 font-bold">Support SLA</td>
                     <td className="p-3 text-center">Email</td>
-                    <td className="p-3 text-center bg-emerald-50/50 font-bold text-emerald-900">Priority (24/7)</td>
+                    <td className="p-3 text-center bg-blue-50/50 font-bold text-blue-900">Priority (24/7)</td>
                     <td className="p-3 text-center">Dedicated Account Mgr</td>
                     <td className="p-3 text-center">Custom SLA</td>
                   </tr>
@@ -2612,7 +2612,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
               <button
                 type="button"
                 onClick={() => setShowCompareModal(false)}
-                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition cursor-pointer"
+                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black transition cursor-pointer"
               >
                 Close Comparison
               </button>
@@ -2645,11 +2645,11 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
 
             <div className="space-y-2 bg-slate-50 p-3.5 rounded-2xl border border-slate-200 text-xs">
               <div className="flex items-center gap-2">
-                <Mail size={14} className="text-emerald-600" />
+                <Mail size={14} className="text-blue-600" />
                 <span className="font-bold text-slate-800">{supportEmail}</span>
               </div>
               <div className="flex items-center gap-2">
-                <Phone size={14} className="text-emerald-600" />
+                <Phone size={14} className="text-blue-600" />
                 <span className="font-bold text-slate-800">{supportPhone}</span>
               </div>
             </div>
@@ -2657,7 +2657,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
             <div className="pt-2 flex gap-2">
               <a
                 href={`mailto:${supportEmail}?subject=AICMS%20Custom%20Plan%20Inquiry%20-${clinic?.code || ''}`}
-                className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-xl text-center shadow-xs transition"
+                className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-black rounded-xl text-center shadow-xs transition"
               >
                 Email Sales Team
               </a>
@@ -2686,7 +2686,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
             </button>
 
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-2xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center">
                 <FileText size={20} />
               </div>
               <div>
@@ -2703,7 +2703,7 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-slate-900">{item.invoiceNumber || `INV-${item.utr?.slice(-6) || idx + 1}`}</span>
                         <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
-                          item.status === 'VERIFIED' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                          item.status === 'VERIFIED' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
                           item.status === 'REJECTED' ? 'bg-rose-50 text-rose-700 border border-rose-200' :
                           'bg-amber-50 text-amber-700 border border-amber-200'
                         }`}>
@@ -2756,7 +2756,7 @@ function TrustBadgesSection() {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-6 border-t border-slate-200/80">
       <div className="bg-white/80 border border-slate-200/80 rounded-2xl p-3.5 flex items-center gap-3 shadow-2xs">
-        <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+        <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center shrink-0">
           <ShieldCheck size={18} />
         </div>
         <div>
@@ -2766,7 +2766,7 @@ function TrustBadgesSection() {
       </div>
 
       <div className="bg-white/80 border border-slate-200/80 rounded-2xl p-3.5 flex items-center gap-3 shadow-2xs">
-        <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+        <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center shrink-0">
           <Lock size={18} />
         </div>
         <div>
@@ -2776,7 +2776,7 @@ function TrustBadgesSection() {
       </div>
 
       <div className="bg-white/80 border border-slate-200/80 rounded-2xl p-3.5 flex items-center gap-3 shadow-2xs">
-        <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+        <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center shrink-0">
           <Zap size={18} />
         </div>
         <div>
@@ -2786,8 +2786,8 @@ function TrustBadgesSection() {
       </div>
 
       <div className="bg-white/80 border border-slate-200/80 rounded-2xl p-3.5 flex items-center gap-3 shadow-2xs">
-        <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
-          <HeadsetCustomIcon className="w-4 h-4 text-emerald-600" />
+        <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+          <HeadsetCustomIcon className="w-4 h-4 text-blue-600" />
         </div>
         <div>
           <span className="text-xs font-black text-slate-900 block leading-tight">24/7 Support</span>

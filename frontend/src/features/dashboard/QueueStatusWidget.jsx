@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import appointmentApi from '../../api/appointmentApi';
 import { doctorApi } from '../../lib/api';
 import ErrorState from '../../components/common/ErrorState';
@@ -79,7 +79,7 @@ const QueueStatusWidget = () => {
           <div className="mt-2 rounded bg-white p-2 border border-stone-200">
             <span className="block text-xs font-semibold text-stone-500 uppercase mb-1">In Consultation</span>
             {queueStatus.queue?.inConsultation ? (
-              <span className="font-semibold text-emerald-700">Patient #{queueStatus.queue.inConsultation.patientId?.slice(-4)}</span>
+              <span className="font-semibold text-blue-700">Patient #{queueStatus.queue.inConsultation.patientId?.slice(-4)}</span>
             ) : (
               <span className="text-stone-500 italic">None currently</span>
             )}

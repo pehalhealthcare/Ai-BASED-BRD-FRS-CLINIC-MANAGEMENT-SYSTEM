@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+﻿import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   FlaskConical, Search, Scan, RefreshCw, CheckCircle, CheckCircle2,
@@ -1004,7 +1004,7 @@ const SampleCollectionDesk = ({ laboratoryId, clinicId, user }) => {
           <div className="min-w-0">
             <h1 className="text-base font-black text-slate-900 tracking-tight flex items-center gap-2 truncate">
               <span>Sample Collection Desk</span>
-              <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/80 shrink-0">
+              <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200/80 shrink-0">
                 Live Queue Active
               </span>
             </h1>
@@ -1120,10 +1120,10 @@ const SampleCollectionDesk = ({ laboratoryId, clinicId, user }) => {
         <div className="bg-white p-3 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
           <div>
             <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">Samples Collected</span>
-            <span className="text-xl font-black text-emerald-600 leading-tight block mt-0.5">{dashboardData.metrics.samplesCollected ?? 0}</span>
+            <span className="text-xl font-black text-blue-600 leading-tight block mt-0.5">{dashboardData.metrics.samplesCollected ?? 0}</span>
             <span className="text-[10px] font-medium text-slate-400 block">Today</span>
           </div>
-          <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600 shrink-0">
+          <div className="p-2 rounded-xl bg-blue-50 text-blue-600 shrink-0">
             <CheckCircle2 size={16} />
           </div>
         </div>
@@ -1274,7 +1274,7 @@ const SampleCollectionDesk = ({ laboratoryId, clinicId, user }) => {
                 if (item.status === 'Waiting') statusBadgeClasses = 'bg-amber-50 text-amber-700 border-amber-300';
                 else if (item.status === 'Called') statusBadgeClasses = 'bg-blue-50 text-blue-700 border-blue-200';
                 else if (item.status === 'Collecting') statusBadgeClasses = 'bg-purple-50 text-purple-700 border-purple-200';
-                else if (item.status === 'Collected') statusBadgeClasses = 'bg-emerald-100 text-emerald-800 border-emerald-300';
+                else if (item.status === 'Collected') statusBadgeClasses = 'bg-blue-100 text-blue-800 border-blue-300';
 
                 return (
                   <div
@@ -1358,7 +1358,7 @@ const SampleCollectionDesk = ({ laboratoryId, clinicId, user }) => {
                       <span className={`px-2.5 py-0.5 rounded-full text-xs font-black border ${
                         currentOrder.status === 'ordered'
                           ? 'bg-blue-50 text-blue-700 border-blue-200'
-                          : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          : 'bg-blue-50 text-blue-700 border-blue-200'
                       }`}>
                         ● {getStatusDisplayLabel(currentOrder.status)}
                       </span>
@@ -1400,7 +1400,7 @@ const SampleCollectionDesk = ({ laboratoryId, clinicId, user }) => {
                       <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">PAYMENT STATUS</span>
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-black ${
                         ['PAID', 'paid', 'COMPLETED', 'completed'].includes(currentOrder.paymentStatus)
-                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                          ? 'bg-blue-50 text-blue-700 border border-blue-200'
                           : 'bg-amber-50 text-amber-700 border border-amber-200'
                       } mt-0.5`}>
                         {['PAID', 'paid', 'COMPLETED', 'completed'].includes(currentOrder.paymentStatus) ? '✓ PAID' : currentOrder.paymentStatus ? String(currentOrder.paymentStatus).toUpperCase() : 'PAID'}
@@ -1573,19 +1573,19 @@ const SampleCollectionDesk = ({ laboratoryId, clinicId, user }) => {
                       )}
 
                       {activeStep >= 2 && (
-                        <div className="p-4 bg-emerald-50/70 border border-emerald-200/80 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
+                        <div className="p-4 bg-blue-50/70 border border-blue-200/80 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
                           <div className="flex items-center gap-3">
-                            <div className="p-2.5 bg-emerald-600 text-white rounded-xl shrink-0 shadow-xs">
+                            <div className="p-2.5 bg-blue-600 text-white rounded-xl shrink-0 shadow-xs">
                               <CheckCircle2 size={20} />
                             </div>
                             <div>
-                              <h3 className="text-sm font-black text-emerald-950 flex items-center gap-2">
+                              <h3 className="text-sm font-black text-blue-950 flex items-center gap-2">
                                 <span>Sample Collection Completed</span>
-                                <span className="font-mono text-xs font-bold text-emerald-800 bg-emerald-100/80 px-2 py-0.5 rounded-md">
+                                <span className="font-mono text-xs font-bold text-blue-800 bg-blue-100/80 px-2 py-0.5 rounded-md">
                                   {displaySampleId}
                                 </span>
                               </h3>
-                              <p className="text-xs text-emerald-800 mt-0.5">
+                              <p className="text-xs text-blue-800 mt-0.5">
                                 Specimen collected & registered. Transferred to laboratory processing workflow.
                               </p>
                             </div>
@@ -1605,7 +1605,7 @@ const SampleCollectionDesk = ({ laboratoryId, clinicId, user }) => {
                                 }]);
                                 setShowLabelModal(true);
                               }}
-                              className="px-3.5 py-2 bg-white border border-emerald-300 hover:bg-emerald-50 text-emerald-800 font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                              className="px-3.5 py-2 bg-white border border-blue-300 hover:bg-blue-50 text-blue-800 font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
                             >
                               <Printer size={13} />
                               <span>Print Label</span>
@@ -1789,7 +1789,7 @@ const SampleCollectionDesk = ({ laboratoryId, clinicId, user }) => {
                           </div>
                           <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black border ${
                             activeStep >= 2
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              ? 'bg-blue-50 text-blue-700 border-blue-200'
                               : 'bg-purple-50 text-purple-700 border-purple-200'
                           }`}>
                             {activeStep >= 2 ? 'In Progress' : 'In Progress'}
@@ -1833,7 +1833,7 @@ const SampleCollectionDesk = ({ laboratoryId, clinicId, user }) => {
                           </div>
                           <div className="flex justify-between items-center pt-1 border-t border-slate-200/70">
                             <span className="text-[10px] font-bold text-slate-400 uppercase">Status</span>
-                            <span className={`font-black ${activeStep >= 2 ? 'text-emerald-700' : 'text-purple-700'}`}>
+                            <span className={`font-black ${activeStep >= 2 ? 'text-blue-700' : 'text-purple-700'}`}>
                               {activeStep >= 2 ? 'In Progress' : 'In Progress'}
                             </span>
                           </div>
@@ -1907,12 +1907,12 @@ const SampleCollectionDesk = ({ laboratoryId, clinicId, user }) => {
                         {/* If in SAMPLE_COLLECTED state: show post-collection actions */}
                         {activeStep >= 2 && (
                           <div className="space-y-2.5">
-                            <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs space-y-1">
-                              <div className="flex items-center gap-1.5 font-black text-emerald-800">
-                                <CheckCircle2 size={15} className="text-emerald-600 shrink-0" />
+                            <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-blue-900 text-xs space-y-1">
+                              <div className="flex items-center gap-1.5 font-black text-blue-800">
+                                <CheckCircle2 size={15} className="text-blue-600 shrink-0" />
                                 <span>Sample Collection Complete</span>
                               </div>
-                              <p className="text-[11px] font-medium text-emerald-700">
+                              <p className="text-[11px] font-medium text-blue-700">
                                 Specimen collected and registered. Processing & results entry are managed in Lab Orders.
                               </p>
                             </div>
@@ -2090,7 +2090,7 @@ const SampleCollectionDesk = ({ laboratoryId, clinicId, user }) => {
                                 </p>
                               </div>
                               <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black ${
-                                att.status === 'COLLECTED' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                                att.status === 'COLLECTED' ? 'bg-blue-100 text-blue-800' : 'bg-rose-100 text-rose-800'
                               }`}>
                                 {att.status}
                               </span>
@@ -2293,17 +2293,17 @@ const SampleCollectionDesk = ({ laboratoryId, clinicId, user }) => {
                             <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-between p-6">
                               <div className="w-full flex justify-between items-center text-white/80 text-[10px] font-black uppercase tracking-wider bg-black/40 backdrop-blur-xs px-2.5 py-1 rounded-lg">
                                 <span className="flex items-center gap-1.5">
-                                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                                  <span className="w-2 h-2 rounded-full bg-blue-400 animate-ping" />
                                   Live Camera
                                 </span>
                                 <span>Align QR in box</span>
                               </div>
 
-                              <div className="w-48 h-48 border-2 border-dashed border-emerald-400 rounded-2xl relative shadow-2xl">
-                                <div className="absolute top-0 left-0 w-4 h-4 border-t-4 border-l-4 border-emerald-400 -mt-1 -ml-1 rounded-tl" />
-                                <div className="absolute top-0 right-0 w-4 h-4 border-t-4 border-r-4 border-emerald-400 -mt-1 -mr-1 rounded-tr" />
-                                <div className="absolute bottom-0 left-0 w-4 h-4 border-b-4 border-l-4 border-emerald-400 -mb-1 -ml-1 rounded-bl" />
-                                <div className="absolute bottom-0 right-0 w-4 h-4 border-b-4 border-r-4 border-emerald-400 -mb-1 -mr-1 rounded-br" />
+                              <div className="w-48 h-48 border-2 border-dashed border-blue-400 rounded-2xl relative shadow-2xl">
+                                <div className="absolute top-0 left-0 w-4 h-4 border-t-4 border-l-4 border-blue-400 -mt-1 -ml-1 rounded-tl" />
+                                <div className="absolute top-0 right-0 w-4 h-4 border-t-4 border-r-4 border-blue-400 -mt-1 -mr-1 rounded-tr" />
+                                <div className="absolute bottom-0 left-0 w-4 h-4 border-b-4 border-l-4 border-blue-400 -mb-1 -ml-1 rounded-bl" />
+                                <div className="absolute bottom-0 right-0 w-4 h-4 border-b-4 border-r-4 border-blue-400 -mb-1 -mr-1 rounded-br" />
                               </div>
 
                               <div className="bg-black/60 text-white text-[11px] font-bold px-3 py-1 rounded-full">
@@ -2375,7 +2375,7 @@ const SampleCollectionDesk = ({ laboratoryId, clinicId, user }) => {
                                 <div className="p-4 bg-indigo-50/90 border border-indigo-200 rounded-2xl text-left space-y-2.5 animate-fade-in shadow-2xs">
                                   <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-1.5 text-indigo-950 font-black text-xs">
-                                      <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+                                      <CheckCircle2 size={16} className="text-blue-600 shrink-0" />
                                       <span>✓ QR Code Detected</span>
                                     </div>
                                     <span className="text-[10px] font-mono px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-md font-bold">
@@ -2767,12 +2767,12 @@ const SampleCollectionDesk = ({ laboratoryId, clinicId, user }) => {
               {workflowStep === 2 && (
                 <div className="space-y-4">
                   {/* Verified Header Badge */}
-                  <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-center space-y-1">
-                    <div className="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center mx-auto shadow-xs">
+                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-2xl text-center space-y-1">
+                    <div className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center mx-auto shadow-xs">
                       <Check size={20} className="stroke-[3]" />
                     </div>
-                    <h4 className="text-xs font-black text-emerald-950 pt-1">✓ Patient Verified</h4>
-                    <p className="text-[11px] text-emerald-800 font-medium">
+                    <h4 className="text-xs font-black text-blue-950 pt-1">✓ Patient Verified</h4>
+                    <p className="text-[11px] text-blue-800 font-medium">
                       Sample ID and collection barcode generated successfully.
                     </p>
                   </div>
@@ -2796,7 +2796,7 @@ const SampleCollectionDesk = ({ laboratoryId, clinicId, user }) => {
 
                     <div className="flex justify-between items-center text-xs">
                       <span className="font-bold text-slate-500">Verified via:</span>
-                      <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 font-black text-[11px]">
+                      <span className="px-2 py-0.5 rounded-md bg-blue-100 text-blue-800 font-black text-[11px]">
                         {verificationMethod === 'OTP' ? 'OTP Verification' : 'QR Code'}
                       </span>
                     </div>
@@ -2944,11 +2944,11 @@ const SampleCollectionDesk = ({ laboratoryId, clinicId, user }) => {
               {/* ── MODAL STEP 4: COMPLETE CONFIRMATION ── */}
               {workflowStep === 4 && (
                 <div className="space-y-4 text-xs">
-                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2 text-emerald-950 font-bold">
-                    <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-center gap-2 text-blue-950 font-bold">
+                    <CheckCircle2 size={16} className="text-blue-600 shrink-0" />
                     <div>
                       <span>Mark the sample collection as completed.</span>
-                      <p className="text-[11px] text-emerald-800 font-normal">
+                      <p className="text-[11px] text-blue-800 font-normal">
                         This will update the order status to Sample Collected.
                       </p>
                     </div>
@@ -3097,7 +3097,7 @@ const SampleCollectionDesk = ({ laboratoryId, clinicId, user }) => {
           <div className="bg-white rounded-3xl max-w-lg w-full max-h-[calc(100vh-5.5rem)] border border-slate-200 shadow-2xl flex flex-col overflow-hidden">
             <div className="p-5 border-b border-slate-100 flex justify-between items-start shrink-0 bg-white">
               <div>
-                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-100">
+                <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-100">
                   Barcode Label Generated
                 </span>
                 <h3 className="text-base font-black text-slate-900 mt-1">Sample Barcode Labels</h3>
@@ -3224,7 +3224,7 @@ const SampleCollectionDesk = ({ laboratoryId, clinicId, user }) => {
                 <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs space-y-4 animate-fade-in">
                   <div className="flex justify-between items-center border-b border-slate-200/80 pb-2.5">
                     <div className="flex items-center gap-2">
-                      <ShieldCheck size={16} className="text-emerald-600" />
+                      <ShieldCheck size={16} className="text-blue-600" />
                       <span className="font-black text-slate-900 uppercase text-xs tracking-wider">Verify Collection</span>
                     </div>
                   </div>
@@ -3305,7 +3305,7 @@ const SampleCollectionDesk = ({ laboratoryId, clinicId, user }) => {
                   <div className="text-7xl font-black font-mono tracking-tight text-white">
                     {publicDisplayData.currentServing[0].tokenNumber}
                   </div>
-                  <div className="text-base font-black text-emerald-400 uppercase tracking-wider">
+                  <div className="text-base font-black text-blue-400 uppercase tracking-wider">
                     Please Proceed To {publicDisplayData.currentServing[0].deskNumber || 'Collection Desk 1'}
                   </div>
                 </div>

@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+﻿import { useEffect, useState, useMemo } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { 
@@ -12,7 +12,7 @@ import LoadingState from '../../components/common/LoadingState';
 
 const DetailItem = ({ label, value, icon: Icon }) => (
   <div className="rounded-2xl bg-slate-50 border border-slate-100 p-4.5 flex items-start gap-3">
-    {Icon && <Icon className="text-emerald-600 shrink-0 mt-0.5" size={16} />}
+    {Icon && <Icon className="text-blue-600 shrink-0 mt-0.5" size={16} />}
     <div>
       <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">{label}</span>
       <p className="mt-1.5 text-xs font-semibold text-slate-800">{value || 'Not provided'}</p>
@@ -34,7 +34,7 @@ const DoctorDetailPage = () => {
 
   if (isLoading) return <LoadingState label="Loading doctor profile..." />;
   if (error || !doctor) {
-    return <ErrorState title="Doctor unavailable" description={error?.message || 'No doctor profile found.'} action={<button className="rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white" onClick={() => navigate('/doctors')}>Back to Doctors</button>} />;
+    return <ErrorState title="Doctor unavailable" description={error?.message || 'No doctor profile found.'} action={<button className="rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white" onClick={() => navigate('/doctors')}>Back to Doctors</button>} />;
   }
 
   return (
@@ -43,12 +43,12 @@ const DoctorDetailPage = () => {
       {/* Banner & Actions Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
         <div className="flex items-center gap-4.5">
-          <div className="w-16 h-16 rounded-full bg-emerald-50 text-emerald-650 font-black text-xl flex items-center justify-center border border-emerald-100">
+          <div className="w-16 h-16 rounded-full bg-blue-50 text-blue-650 font-black text-xl flex items-center justify-center border border-blue-100">
             {doctor.fullName?.slice(0, 2).toUpperCase() || 'DR'}
           </div>
           <div className="space-y-1">
             <h1 className="text-xl font-black text-slate-800 flex items-center gap-1.5">
-              {doctor.fullName} <ShieldCheck className="text-emerald-500 fill-emerald-50 rounded-full" size={18} />
+              {doctor.fullName} <ShieldCheck className="text-blue-500 fill-blue-50 rounded-full" size={18} />
             </h1>
             <p className="text-xs text-slate-400 font-semibold">
               Doctor Code: <span className="text-slate-700 font-bold">{doctor.doctorCode || 'N/A'}</span> • {doctor.specialization || 'General Practitioner'}
@@ -65,7 +65,7 @@ const DoctorDetailPage = () => {
           </button>
           <button
             onClick={() => navigate(`/doctors/${doctor._id}/edit`)}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition shadow-sm flex items-center gap-1.5"
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition shadow-sm flex items-center gap-1.5"
           >
             <Edit size={14} /> Edit Doctor
           </button>
@@ -78,7 +78,7 @@ const DoctorDetailPage = () => {
         <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">
           <div className="flex justify-between items-center border-b border-slate-55 pb-2">
             <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-              <User size={14} className="text-emerald-600" /> Profile Details
+              <User size={14} className="text-blue-600" /> Profile Details
             </h3>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -98,11 +98,11 @@ const DoctorDetailPage = () => {
         <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">
           <div className="flex justify-between items-center border-b border-slate-55 pb-2">
             <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-              <Clock size={14} className="text-emerald-600" /> Availability Slots
+              <Clock size={14} className="text-blue-600" /> Availability Slots
             </h3>
             <button
               onClick={() => navigate(`/doctors/${doctor._id}/availability`)}
-              className="text-[10px] font-bold text-emerald-650 hover:text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg transition"
+              className="text-[10px] font-bold text-blue-650 hover:text-blue-700 bg-blue-50 px-2.5 py-1 rounded-lg transition"
             >
               Configure
             </button>
@@ -116,7 +116,7 @@ const DoctorDetailPage = () => {
                     <span className="text-[9px] text-slate-400 block mt-1 font-semibold">Slot Duration: {item.slotDurationMinutes || 30} mins</span>
                   </div>
                   <span className={`px-2.5 py-0.5 rounded-lg text-[10px] font-bold ${
-                    item.isAvailable ? 'bg-emerald-50 text-emerald-650' : 'bg-slate-100 text-slate-500'
+                    item.isAvailable ? 'bg-blue-50 text-blue-650' : 'bg-slate-100 text-slate-500'
                   }`}>
                     {item.isAvailable ? `${item.startTime} - ${item.endTime}` : 'Unavailable'}
                   </span>

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+﻿import React, { useState, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
@@ -643,12 +643,12 @@ export default function BookDemoPage() {
             animate={{ opacity: 1, scale: 1 }}
             className="py-8 sm:py-10 text-center space-y-4"
           >
-            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-emerald-50 border-2 border-emerald-400 text-emerald-600 flex items-center justify-center mx-auto shadow-md shadow-emerald-500/15">
+            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-blue-50 border-2 border-blue-400 text-blue-600 flex items-center justify-center mx-auto shadow-md shadow-blue-500/15">
               <CheckCircle2 size={30} />
             </div>
 
             <div className="space-y-2">
-              <span className="text-[10px] sm:text-[11px] 2xl:text-xs font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full inline-block">
+              <span className="text-[10px] sm:text-[11px] 2xl:text-xs font-black uppercase tracking-wider text-blue-700 bg-blue-50 border border-blue-200 px-3 py-1 rounded-full inline-block">
                 DEMO SCHEDULED SUCCESSFULLY • {successData.bookingId}
               </span>
               <h3 className="text-xl sm:text-2xl 2xl:text-3xl font-black text-[#0B1E3B]">

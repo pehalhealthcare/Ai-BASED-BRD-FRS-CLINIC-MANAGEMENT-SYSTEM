@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { promoApi, subscriptionApi } from '../../lib/api';
 import {
   Plus, Edit3, Trash2, ToggleLeft, ToggleRight,
@@ -26,7 +26,7 @@ const statusBadge = (promo) => {
   const now = new Date();
   if (now < new Date(promo.startDate)) return <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-600 text-xs font-bold">Upcoming</span>;
   if (now > new Date(promo.endDate)) return <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-600 text-xs font-bold">Expired</span>;
-  return <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold">Active</span>;
+  return <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-bold">Active</span>;
 };
 
 const SuperAdminPromoCodes = () => {
@@ -133,7 +133,7 @@ const SuperAdminPromoCodes = () => {
       </div>
 
       {error && <div className="mb-4 p-4 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-sm flex items-center gap-2"><X className="w-4 h-4" />{error}</div>}
-      {success && <div className="mb-4 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm flex items-center gap-2"><Check className="w-4 h-4" />{success}</div>}
+      {success && <div className="mb-4 p-4 rounded-2xl bg-blue-50 border border-blue-200 text-blue-700 text-sm flex items-center gap-2"><Check className="w-4 h-4" />{success}</div>}
 
       {/* Search */}
       <div className="relative mb-6">
@@ -170,7 +170,7 @@ const SuperAdminPromoCodes = () => {
                     <div className="flex items-center gap-1.5">
                       {promo.discountType === 'percentage'
                         ? <Percent className="w-3.5 h-3.5 text-purple-500" />
-                        : <IndianRupee className="w-3.5 h-3.5 text-emerald-500" />}
+                        : <IndianRupee className="w-3.5 h-3.5 text-blue-500" />}
                       <span className="font-bold text-slate-800 text-sm">
                         {promo.discountType === 'percentage' ? `${promo.discountValue}%` : `₹${promo.discountValue}`}
                       </span>
@@ -188,7 +188,7 @@ const SuperAdminPromoCodes = () => {
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-2">
                       <button onClick={() => handleToggle(promo)} title={promo.isActive ? 'Deactivate' : 'Activate'}>
-                        {promo.isActive ? <ToggleRight className="w-6 h-6 text-emerald-500" /> : <ToggleLeft className="w-6 h-6 text-slate-300" />}
+                        {promo.isActive ? <ToggleRight className="w-6 h-6 text-blue-500" /> : <ToggleLeft className="w-6 h-6 text-slate-300" />}
                       </button>
                       <button onClick={() => openEdit(promo)} className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-500 transition">
                         <Edit3 className="w-4 h-4" />
@@ -310,7 +310,7 @@ const SuperAdminPromoCodes = () => {
                   <p className="text-xs text-slate-400">Inactive codes cannot be applied during checkout.</p>
                 </div>
                 <button onClick={() => setEditingPromo(p => ({ ...p, isActive: !p.isActive }))}>
-                  {editingPromo.isActive ? <ToggleRight className="w-8 h-8 text-emerald-500" /> : <ToggleLeft className="w-8 h-8 text-slate-300" />}
+                  {editingPromo.isActive ? <ToggleRight className="w-8 h-8 text-blue-500" /> : <ToggleLeft className="w-8 h-8 text-slate-300" />}
                 </button>
               </div>
 

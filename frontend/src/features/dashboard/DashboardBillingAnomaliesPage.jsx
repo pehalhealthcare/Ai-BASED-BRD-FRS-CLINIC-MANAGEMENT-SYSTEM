@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 
 import Badge from '../../components/common/Badge';
 import ErrorState from '../../components/common/ErrorState';
@@ -273,7 +273,7 @@ const DashboardBillingAnomaliesPage = () => {
             <label className="grid gap-2 text-sm font-medium text-stone-700">
               <span>Review note</span>
               <textarea
-                className="min-h-28 rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                className="min-h-28 rounded-2xl border border-stone-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 value={reviewNotes}
                 onChange={(event) => setReviewNotes(event.target.value)}
                 placeholder="Add the outcome of the admin review here."

@@ -1,4 +1,4 @@
-// src/features/admin/DoctorReview.jsx
+﻿// src/features/admin/DoctorReview.jsx
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { adminApi, clinicApi } from '../../lib/api';
@@ -714,7 +714,7 @@ const DoctorReview = () => {
                 step === s.id
                   ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
                   : step > s.id
-                    ? 'bg-emerald-100 text-emerald-700 border border-emerald-250'
+                    ? 'bg-blue-100 text-blue-700 border border-blue-250'
                     : 'bg-slate-200 border border-slate-300 text-slate-600'
               }`}>
                 {step > s.id ? '✓' : s.id}
@@ -753,7 +753,7 @@ const DoctorReview = () => {
             <button
               onClick={handleApproveSubmit}
               disabled={isSubmitting}
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition flex items-center gap-1"
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition flex items-center gap-1"
             >
               {isSubmitting ? 'Approving...' : 'Approve Doctor'}
             </button>
@@ -815,7 +815,7 @@ const DoctorReview = () => {
               {/* Registration Details */}
               <div className="bg-white border border-slate-200 rounded-3xl p-6 space-y-4 shadow-sm">
                 <h3 className="text-xs font-black text-slate-500 uppercase tracking-wider flex items-center gap-2">
-                  <CheckCircle size={13} className="text-emerald-600" /> Registration Details
+                  <CheckCircle size={13} className="text-blue-600" /> Registration Details
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
                   <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl space-y-3">
@@ -857,7 +857,7 @@ const DoctorReview = () => {
                   </div>
 
                   <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl flex items-center gap-3">
-                    <Users size={16} className="text-emerald-600 shrink-0" />
+                    <Users size={16} className="text-blue-600 shrink-0" />
                     <div>
                       <p className="text-[10px] text-slate-400 font-bold uppercase">Phone Number</p>
                       <p className="text-slate-800 font-bold mt-0.5">{doctor.phone || '9876543210'}</p>
@@ -914,10 +914,10 @@ const DoctorReview = () => {
                         {doctor.profile?.currentAddress?.line1 || 'Indirapuram, Ghaziabad, Uttar Pradesh - 201010'}
                       </p>
                     </div>
-                    <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-xl flex items-center gap-2">
-                      <Check size={12} className="text-emerald-600 shrink-0" />
+                    <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl flex items-center gap-2">
+                      <Check size={12} className="text-blue-600 shrink-0" />
                       <div>
-                        <p className="font-bold text-emerald-650">Same as Permanent Address</p>
+                        <p className="font-bold text-blue-650">Same as Permanent Address</p>
                         <p className="text-[9px] text-slate-450 mt-0.5">Confirmed by doctor during application.</p>
                       </div>
                     </div>
@@ -1033,7 +1033,7 @@ const DoctorReview = () => {
                             </td>
                             <td className="py-3 px-3 text-center">
                               {hasOnline ? (
-                                <span className="inline-flex items-center gap-0.5 text-emerald-600 font-extrabold text-[9px] bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+                                <span className="inline-flex items-center gap-0.5 text-blue-600 font-extrabold text-[9px] bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">
                                   ✅ Included in Plan
                                 </span>
                               ) : (
@@ -1055,7 +1055,7 @@ const DoctorReview = () => {
                                 />
                                 <span className={`px-2 py-0.5 rounded text-[9px] font-bold transition-all ${
                                   isPrimary
-                                    ? 'bg-emerald-550/10 text-emerald-600 border border-emerald-550/15'
+                                    ? 'bg-blue-550/10 text-blue-600 border border-blue-550/15'
                                     : 'bg-slate-100 text-slate-500 border border-slate-200 hover:bg-slate-200'
                                 }`}>
                                   {isPrimary ? 'Primary' : 'Secondary'}
@@ -1129,7 +1129,7 @@ const DoctorReview = () => {
                                 <p className="font-extrabold text-slate-800 text-xs">{clinic.name}</p>
                                 <span className={`inline-block px-1.5 py-0.5 rounded text-[8px] font-black mt-1 ${
                                   isPrimary
-                                    ? 'bg-emerald-550/10 text-emerald-600 border border-emerald-550/15'
+                                    ? 'bg-blue-550/10 text-blue-600 border border-blue-550/15'
                                     : 'bg-indigo-50 text-indigo-650 border border-indigo-100'
                                 }`}>
                                   {isPrimary ? 'Primary (0 km)' : `Secondary (${dist.toFixed(1)} km)`}
@@ -1342,7 +1342,7 @@ const DoctorReview = () => {
                   </table>
                 </div>
                 <div className="flex items-center gap-4 text-[9px] text-slate-505 pt-2 border-t border-slate-100">
-                  <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" /> Offline & Online Allowed</div>
+                  <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0" /> Offline & Online Allowed</div>
                   <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0" /> Online Only (Auto-set by Rule)</div>
                   <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-slate-300 shrink-0" /> Not Available</div>
                 </div>
@@ -1594,7 +1594,7 @@ const DoctorReview = () => {
                             </td>
                             <td className="py-2.5 px-3 text-center">
                               {isPrimary ? (
-                                <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded text-[9px] font-bold">Primary</span>
+                                <span className="px-2 py-0.5 bg-blue-50 text-blue-600 border border-blue-100 rounded text-[9px] font-bold">Primary</span>
                               ) : (
                                 <span className="px-2 py-0.5 bg-indigo-50 text-indigo-650 border border-indigo-100 rounded text-[9px] font-bold">Secondary</span>
                               )}
@@ -1604,7 +1604,7 @@ const DoctorReview = () => {
                             <td className="py-2.5 px-3 text-center text-slate-800 font-bold">₹{policy.consultationFee}</td>
                             <td className="py-2.5 px-3 text-center text-slate-600 font-bold">{policyDesc}</td>
                             <td className="py-2.5 px-3 text-right">
-                              <button type="button" onClick={() => setStep(2)} className="text-emerald-650 hover:underline font-extrabold flex items-center gap-0.5 ml-auto">
+                              <button type="button" onClick={() => setStep(2)} className="text-blue-650 hover:underline font-extrabold flex items-center gap-0.5 ml-auto">
                                 <Eye size={12} /> View
                               </button>
                             </td>
@@ -1646,7 +1646,7 @@ const DoctorReview = () => {
                                   <p className="font-bold text-slate-808 text-[10px] truncate">{clinic?.name || 'Clinic'}</p>
                                   <p className="text-[9px] text-indigo-650 font-bold">{ds.startTime} - {ds.endTime}</p>
                                   <span className={`inline-block text-[8px] px-1 py-0.2 rounded font-black ${
-                                    mode === 'online' ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                                    mode === 'online' ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'bg-blue-50 text-blue-600 border border-blue-100'
                                   }`}>
                                     {mode === 'online' ? 'Online' : 'Offline'}
                                   </span>
@@ -1662,8 +1662,8 @@ const DoctorReview = () => {
                   })}
                 </div>
 
-                <div className="p-3.5 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center gap-2">
-                  <CheckCircle size={14} className="text-emerald-600 shrink-0" />
+                <div className="p-3.5 bg-blue-50 border border-blue-100 rounded-2xl flex items-center gap-2">
+                  <CheckCircle size={14} className="text-blue-600 shrink-0" />
                   <p className="text-[10px] text-slate-600 font-medium">All time gap (&ge; 1.5 hrs) and distance rules are satisfied for this schedule.</p>
                 </div>
               </div>
@@ -1689,7 +1689,7 @@ const DoctorReview = () => {
                     <p className="font-bold text-slate-800">Medical Registration Certificate</p>
                     <p className="text-[9px] text-slate-400 mt-0.5">Uploaded on 28 May 2025</p>
                   </div>
-                  <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded text-[8px] font-black uppercase">Verified</span>
+                  <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 border border-blue-100 rounded text-[8px] font-black uppercase">Verified</span>
                 </div>
 
                 <div className="relative border border-slate-200 rounded-2xl overflow-hidden bg-slate-100">
@@ -1802,21 +1802,21 @@ const DoctorReview = () => {
 
                     {/* Allowed */}
                     <div className="space-y-1">
-                      <p className="text-emerald-600 font-bold uppercase tracking-wider text-[9px]">Allowed (No Errors)</p>
-                      <div className="p-2 bg-emerald-50 border border-emerald-100 rounded-xl space-y-1 text-slate-500 flex justify-between items-center">
+                      <p className="text-blue-600 font-bold uppercase tracking-wider text-[9px]">Allowed (No Errors)</p>
+                      <div className="p-2 bg-blue-50 border border-blue-100 rounded-xl space-y-1 text-slate-500 flex justify-between items-center">
                         <div>
                           <p className="font-semibold text-slate-700">Clinic A &rarr; Clinic B (12 km)</p>
                           <p className="text-[8px] text-slate-450 mt-0.5">Gap &ge; 1.5 hrs</p>
                         </div>
-                        <span className="text-emerald-600 font-bold flex items-center gap-0.5 text-[9px] shrink-0">Offline Same Day ✓</span>
+                        <span className="text-blue-600 font-bold flex items-center gap-0.5 text-[9px] shrink-0">Offline Same Day ✓</span>
                       </div>
 
-                      <div className="p-2 bg-emerald-50 border border-emerald-100 rounded-xl space-y-1 text-slate-500 flex justify-between items-center">
+                      <div className="p-2 bg-blue-50 border border-blue-100 rounded-xl space-y-1 text-slate-500 flex justify-between items-center">
                         <div>
                           <p className="font-semibold text-slate-700">Clinic A &rarr; Clinic C (18 km)</p>
                           <p className="text-[8px] text-slate-450 mt-0.5">Any Gap</p>
                         </div>
-                        <span className="text-emerald-600 font-bold flex items-center gap-0.5 text-[9px] shrink-0">Online Same Day ✓</span>
+                        <span className="text-blue-600 font-bold flex items-center gap-0.5 text-[9px] shrink-0">Online Same Day ✓</span>
                       </div>
                     </div>
 
@@ -1850,19 +1850,19 @@ const DoctorReview = () => {
                 <div className="space-y-2 text-xs">
                   <div className="flex justify-between py-1.5 border-b border-slate-100">
                     <span className="text-slate-500">Profile & Documents</span>
-                    <span className="text-emerald-600 font-bold flex items-center gap-1"><Check size={12} /> Verified</span>
+                    <span className="text-blue-600 font-bold flex items-center gap-1"><Check size={12} /> Verified</span>
                   </div>
                   <div className="flex justify-between py-1.5 border-b border-slate-100">
                     <span className="text-slate-500">Clinic Assignments</span>
-                    <span className="text-emerald-600 font-bold flex items-center gap-1"><Check size={12} /> Configured</span>
+                    <span className="text-blue-600 font-bold flex items-center gap-1"><Check size={12} /> Configured</span>
                   </div>
                   <div className="flex justify-between py-1.5 border-b border-slate-100">
                     <span className="text-slate-500">Availability Schedule</span>
-                    <span className="text-emerald-600 font-bold flex items-center gap-1"><Check size={12} /> Configured</span>
+                    <span className="text-blue-600 font-bold flex items-center gap-1"><Check size={12} /> Configured</span>
                   </div>
                   <div className="flex justify-between py-1.5">
                     <span className="text-slate-500">Rules Validation</span>
-                    <span className="text-emerald-600 font-bold flex items-center gap-1"><Check size={12} /> No Errors</span>
+                    <span className="text-blue-600 font-bold flex items-center gap-1"><Check size={12} /> No Errors</span>
                   </div>
                 </div>
               </div>
@@ -1877,15 +1877,15 @@ const DoctorReview = () => {
                 <div className="space-y-2 text-xs">
                   <div className="flex justify-between py-1.5 border-b border-slate-100">
                     <span className="text-slate-500">Distance & Location Rules</span>
-                    <span className="text-emerald-600 font-bold">Valid</span>
+                    <span className="text-blue-600 font-bold">Valid</span>
                   </div>
                   <div className="flex justify-between py-1.5 border-b border-slate-100">
                     <span className="text-slate-500">Time Gap Between Sessions</span>
-                    <span className="text-emerald-600 font-bold">Valid</span>
+                    <span className="text-blue-600 font-bold">Valid</span>
                   </div>
                   <div className="flex justify-between py-1.5">
                     <span className="text-slate-500">Mode Restrictions</span>
-                    <span className="text-emerald-600 font-bold">Valid</span>
+                    <span className="text-blue-600 font-bold">Valid</span>
                   </div>
                 </div>
               </div>
@@ -1971,7 +1971,7 @@ const DoctorReview = () => {
             type="button"
             onClick={handleApproveSubmit}
             disabled={isSubmitting}
-            className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5"
+            className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5"
           >
             {isSubmitting ? 'Approving...' : 'Approve Doctor'}
           </button>

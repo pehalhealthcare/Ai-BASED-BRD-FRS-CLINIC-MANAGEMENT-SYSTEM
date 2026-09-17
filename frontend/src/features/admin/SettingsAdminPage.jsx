@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import {
   Save, Camera, Globe, Facebook, Twitter, Instagram, Mail, Phone,
   ToggleLeft, ToggleRight, Shield, Database, Activity, User, Key,
@@ -178,7 +178,7 @@ const SettingsAdminPage = () => {
       </div>
 
       {success && (
-        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold">
+        <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold">
           {success}
         </div>
       )}
@@ -403,7 +403,7 @@ const SettingsAdminPage = () => {
                     <button
                       onClick={() => item.setVal(!item.val)}
                       className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold cursor-pointer border ${item.val
-                          ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                          ? 'bg-blue-50 border-blue-200 text-blue-700'
                           : 'bg-slate-50 border-slate-200 text-slate-500'
                         }`}
                     >
@@ -430,7 +430,7 @@ const SettingsAdminPage = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-5 gap-4">
               {[
                 { label: 'Auto Invoice Generation', desc: 'Automatically generate invoice after appointment completion', val: autoInvoice, set: setAutoInvoice, icon: CreditCard, color: '#3b82f6', bg: '#eff6ff' },
-                { label: 'Inventory Alerts', desc: 'Get notified when medicine stock is running low', val: inventoryAlerts, set: setInventoryAlerts, icon: Pill, color: '#10b981', bg: '#ecfdf5' },
+                { label: 'Inventory Alerts', desc: 'Get notified when medicine stock is running low', val: inventoryAlerts, set: setInventoryAlerts, icon: Pill, color: '#2563EB', bg: '#ecfdf5' },
                 { label: 'Lab Report Approval', desc: 'Require approval before sending lab reports', val: labApproval, set: setLabApproval, icon: FlaskConical, color: '#eab308', bg: '#fef9c3' },
                 { label: 'Data Encryption', desc: 'Encrypt sensitive data for better security', val: dataEncryption, set: setDataEncryption, icon: Shield, color: '#ef4444', bg: '#fef2f2' },
                 { label: 'Dark Mode', desc: 'Enable dark mode for the application (Locked)', val: false, set: () => { }, icon: Lock, color: '#94a3b8', bg: '#f1f5f9', isLocked: true }
@@ -484,7 +484,7 @@ const SettingsAdminPage = () => {
                   </div>
                   <button 
                     onClick={() => setAllowRescheduleMissed(!allowRescheduleMissed)}
-                    className={`px-3 py-1 rounded-full text-[10px] font-extrabold border ${allowRescheduleMissed ? 'bg-emerald-50 border-emerald-250 text-emerald-700' : 'bg-slate-100 border-slate-200 text-slate-500'}`}
+                    className={`px-3 py-1 rounded-full text-[10px] font-extrabold border ${allowRescheduleMissed ? 'bg-blue-50 border-blue-250 text-blue-700' : 'bg-slate-100 border-slate-200 text-slate-500'}`}
                   >
                     {allowRescheduleMissed ? 'Enabled' : 'Disabled'}
                   </button>
@@ -527,7 +527,7 @@ const SettingsAdminPage = () => {
                   </div>
                   <button 
                     onClick={() => setEnablePatientReschedule(!enablePatientReschedule)}
-                    className={`px-3 py-1 rounded-full text-[10px] font-extrabold border ${enablePatientReschedule ? 'bg-emerald-50 border-emerald-255 text-emerald-700' : 'bg-slate-100 border-slate-200 text-slate-500'}`}
+                    className={`px-3 py-1 rounded-full text-[10px] font-extrabold border ${enablePatientReschedule ? 'bg-blue-50 border-blue-255 text-blue-700' : 'bg-slate-100 border-slate-200 text-slate-500'}`}
                   >
                     {enablePatientReschedule ? 'ON' : 'OFF'}
                   </button>
@@ -540,7 +540,7 @@ const SettingsAdminPage = () => {
                   </div>
                   <button 
                     onClick={() => setEnableReceptionistReschedule(!enableReceptionistReschedule)}
-                    className={`px-3 py-1 rounded-full text-[10px] font-extrabold border ${enableReceptionistReschedule ? 'bg-emerald-50 border-emerald-255 text-emerald-700' : 'bg-slate-100 border-slate-200 text-slate-500'}`}
+                    className={`px-3 py-1 rounded-full text-[10px] font-extrabold border ${enableReceptionistReschedule ? 'bg-blue-50 border-blue-255 text-blue-700' : 'bg-slate-100 border-slate-200 text-slate-500'}`}
                   >
                     {enableReceptionistReschedule ? 'ON' : 'OFF'}
                   </button>
@@ -556,7 +556,7 @@ const SettingsAdminPage = () => {
                   </div>
                   <button 
                     onClick={() => setAutoMarkNoShow(!autoMarkNoShow)}
-                    className={`px-3 py-1 rounded-full text-[10px] font-extrabold border ${autoMarkNoShow ? 'bg-emerald-50 border-emerald-250 text-emerald-700' : 'bg-slate-100 border-slate-200 text-slate-500'}`}
+                    className={`px-3 py-1 rounded-full text-[10px] font-extrabold border ${autoMarkNoShow ? 'bg-blue-50 border-blue-250 text-blue-700' : 'bg-slate-100 border-slate-200 text-slate-500'}`}
                   >
                     {autoMarkNoShow ? 'Enabled' : 'Disabled'}
                   </button>

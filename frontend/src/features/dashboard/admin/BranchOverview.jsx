@@ -1,8 +1,8 @@
-import React from 'react';
+﻿import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const STATUS_CONFIG = {
-  Healthy: { bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
+  Healthy: { bg: 'bg-blue-50', text: 'text-blue-700', dot: 'bg-blue-500' },
   Busy: { bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500' },
   Open: { bg: 'bg-blue-50', text: 'text-blue-700', dot: 'bg-blue-500' },
   Closed: { bg: 'bg-slate-100', text: 'text-slate-500', dot: 'bg-slate-400' },

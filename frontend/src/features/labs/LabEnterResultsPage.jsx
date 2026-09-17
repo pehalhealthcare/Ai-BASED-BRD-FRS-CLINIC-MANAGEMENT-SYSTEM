@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+﻿import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -74,8 +74,8 @@ const FLAG_OPTIONS = [
     value: 'normal',
     label: 'Normal',
     icon: '🟢',
-    badgeClass: 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100',
-    dotClass: 'bg-emerald-500'
+    badgeClass: 'bg-blue-50 text-blue-800 border-blue-300 hover:bg-blue-100',
+    dotClass: 'bg-blue-500'
   },
   {
     value: 'abnormal',
@@ -136,7 +136,7 @@ const FlagDropdown = ({
   if (flag === 'normal') {
     displayLabel = 'Normal';
     displayIcon = '🟢';
-    badgeStyle = 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100';
+    badgeStyle = 'bg-blue-50 text-blue-800 border-blue-300 hover:bg-blue-100';
   } else if (flag === 'low') {
     displayLabel = 'Low';
     displayIcon = '🟠';
@@ -1252,7 +1252,7 @@ const LabEnterResultsPage = () => {
             {/* Connecting line */}
             <div className="absolute left-8 right-8 top-4 -translate-y-1/2 h-0.5 bg-stone-200 z-0">
               <div
-                className="h-full bg-emerald-500 transition-all duration-300"
+                className="h-full bg-blue-500 transition-all duration-300"
                 style={{
                   width: order?.status === 'completed' ? '100%' : order?.status === 'ready_for_review' ? '80%' : '60%'
                 }}
@@ -1270,7 +1270,7 @@ const LabEnterResultsPage = () => {
                       isCurrentStep
                         ? 'h-9 w-9 bg-purple-700 text-white ring-4 ring-purple-100 text-sm font-extrabold'
                         : step.isDone
-                        ? 'h-8 w-8 bg-emerald-600 text-white text-xs'
+                        ? 'h-8 w-8 bg-blue-600 text-white text-xs'
                         : 'h-8 w-8 border-2 border-stone-200 bg-white text-stone-400 text-xs'
                     }`}
                   >
@@ -1341,7 +1341,7 @@ const LabEnterResultsPage = () => {
 
               <div>
                 <span className="text-[10px] text-stone-400 block font-medium">Payment Status</span>
-                <span className="inline-flex items-center font-bold px-2 py-0.5 rounded-lg text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-200">
+                <span className="inline-flex items-center font-bold px-2 py-0.5 rounded-lg text-[10px] bg-blue-50 text-blue-800 border border-blue-200">
                   ✓ {paymentStatusDisplay}
                 </span>
               </div>
@@ -1435,7 +1435,7 @@ const LabEnterResultsPage = () => {
               <div><span className="text-stone-400 text-[10px] block">Collection Date/Time</span><span className="font-semibold text-stone-800">{collectionDateDisplay}</span></div>
               <div><span className="text-stone-400 text-[10px] block">Collected By</span><span className="font-semibold text-stone-800">{order?.sampleCollectedByName || 'Rajesh Sharma'}</span></div>
               <div><span className="text-stone-400 text-[10px] block">Container</span><span className="font-bold text-stone-900">EDTA Tube (Lavender)</span></div>
-              <div><span className="text-stone-400 text-[10px] block">Status</span><span className="font-bold text-emerald-700">Collected & Verified</span></div>
+              <div><span className="text-stone-400 text-[10px] block">Status</span><span className="font-bold text-blue-700">Collected & Verified</span></div>
             </div>
           </div>
         )}
@@ -1536,8 +1536,8 @@ const LabEnterResultsPage = () => {
                       onClick={() => { setFlagFilter('NORMAL'); setCurrentPage(1); }}
                       className={`rounded-xl px-3 py-1 text-xs font-semibold transition cursor-pointer ${
                         flagFilter === 'NORMAL'
-                          ? 'bg-emerald-600 text-white shadow-xs'
-                          : 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100'
+                          ? 'bg-blue-600 text-white shadow-xs'
+                          : 'bg-blue-50 text-blue-800 border border-blue-200 hover:bg-blue-100'
                       }`}
                     >
                       Normal {overallStats.normalCount}
@@ -1575,7 +1575,7 @@ const LabEnterResultsPage = () => {
                     </span>
                     <div className="h-2 w-32 overflow-hidden rounded-full bg-stone-200/80 border border-stone-200">
                       <div
-                        className={`h-full rounded-full transition-all duration-300 ${overallStats.pct === 100 ? 'bg-emerald-500' : 'bg-purple-600'}`}
+                        className={`h-full rounded-full transition-all duration-300 ${overallStats.pct === 100 ? 'bg-blue-500' : 'bg-purple-600'}`}
                         style={{ width: `${overallStats.pct}%` }}
                       />
                     </div>
@@ -1976,9 +1976,9 @@ const LabEnterResultsPage = () => {
                     <span className="text-sm font-extrabold text-stone-900">{overallStats.pendingCount}</span>
                   </div>
 
-                  <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-100">
-                    <span className="text-[10px] text-emerald-600 block">Normal</span>
-                    <span className="text-sm font-extrabold text-emerald-700">{overallStats.normalCount}</span>
+                  <div className="p-2 rounded-xl bg-blue-50 border border-blue-100">
+                    <span className="text-[10px] text-blue-600 block">Normal</span>
+                    <span className="text-sm font-extrabold text-blue-700">{overallStats.normalCount}</span>
                   </div>
 
                   <div className="p-2 rounded-xl bg-amber-50 border border-amber-100">
@@ -2033,7 +2033,7 @@ const LabEnterResultsPage = () => {
                         <span>All required parameters must be completed before marking ready for review.</span>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-1.5 text-[11px] text-emerald-700 font-bold pt-1">
+                      <div className="flex items-center gap-1.5 text-[11px] text-blue-700 font-bold pt-1">
                         <span>✓</span>
                         <span>All required parameters completed.</span>
                       </div>
@@ -2047,7 +2047,7 @@ const LabEnterResultsPage = () => {
                     <button
                       type="button"
                       onClick={() => setIsApproveResultsModalOpen(true)}
-                      className="w-full flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 text-xs font-bold shadow-md shadow-emerald-200 transition cursor-pointer"
+                      className="w-full flex items-center justify-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 text-xs font-bold shadow-md shadow-blue-100 transition cursor-pointer"
                     >
                       <span>✓</span>
                       <span>Approve Results & Publish</span>
@@ -2068,7 +2068,7 @@ const LabEnterResultsPage = () => {
                 {isOrderCompleted && (
                   <Link
                     to={`/labs/orders/${order?._id || id}/reports`}
-                    className="w-full flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 text-xs font-bold shadow-md shadow-emerald-200 transition cursor-pointer"
+                    className="w-full flex items-center justify-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 text-xs font-bold shadow-md shadow-blue-100 transition cursor-pointer"
                   >
                     <span>📄</span>
                     <span>View & Download Report</span>
@@ -2130,7 +2130,7 @@ const LabEnterResultsPage = () => {
                 <button
                   type="button"
                   onClick={() => setIsApproveResultsModalOpen(true)}
-                  className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 text-xs font-bold shadow-md shadow-emerald-200 cursor-pointer"
+                  className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 text-xs font-bold shadow-md shadow-blue-100 cursor-pointer"
                 >
                   ✓ Approve Results
                 </button>
@@ -2140,7 +2140,7 @@ const LabEnterResultsPage = () => {
             {isOrderCompleted && (
               <Link
                 to={`/labs/orders/${order?._id || id}/reports`}
-                className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 text-xs font-bold shadow-md shadow-emerald-200"
+                className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 text-xs font-bold shadow-md shadow-blue-100"
               >
                 📄 View Report
               </Link>
@@ -2172,7 +2172,7 @@ const LabEnterResultsPage = () => {
               </div>
               <div className="flex justify-between">
                 <span className="text-stone-400 font-medium">Completed Parameters:</span>
-                <span className="font-bold text-emerald-700">{overallStats.completed} / {overallStats.total}</span>
+                <span className="font-bold text-blue-700">{overallStats.completed} / {overallStats.total}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-stone-400 font-medium">Normal / Abnormal / Critical:</span>
@@ -2260,9 +2260,9 @@ const LabEnterResultsPage = () => {
       {/* ========================================================= */}
       {isApproveResultsModalOpen && (
         <div className="fixed top-16 right-0 bottom-0 left-0 z-50 flex items-center justify-center bg-stone-900/60 backdrop-blur-xs p-4 overflow-hidden animate-in fade-in">
-          <div className="w-full max-w-md max-h-[calc(100vh-5.5rem)] flex flex-col rounded-3xl bg-white p-6 shadow-2xl border border-emerald-200 space-y-4 overflow-y-auto">
+          <div className="w-full max-w-md max-h-[calc(100vh-5.5rem)] flex flex-col rounded-3xl bg-white p-6 shadow-2xl border border-blue-200 space-y-4 overflow-y-auto">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700 text-lg font-bold">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-100 text-blue-700 text-lg font-bold">
                 ✓
               </div>
               <div>
@@ -2271,14 +2271,14 @@ const LabEnterResultsPage = () => {
               </div>
             </div>
 
-            <div className="bg-emerald-50/80 rounded-2xl border border-emerald-200 p-3.5 space-y-1.5 text-xs text-emerald-950 font-medium">
+            <div className="bg-blue-50/80 rounded-2xl border border-blue-200 p-3.5 space-y-1.5 text-xs text-blue-950 font-medium">
               <div className="flex justify-between">
                 <span>Patient:</span>
                 <span className="font-bold">{patientNameDisplay}</span>
               </div>
               <div className="flex justify-between">
                 <span>All Required Parameters:</span>
-                <span className="font-bold text-emerald-800">Completed ({overallStats.completed} / {overallStats.total})</span>
+                <span className="font-bold text-blue-800">Completed ({overallStats.completed} / {overallStats.total})</span>
               </div>
             </div>
 
@@ -2291,7 +2291,7 @@ const LabEnterResultsPage = () => {
                 placeholder="e.g. Findings correlate with clinical diagnosis. Verified."
                 value={reviewerNotes}
                 onChange={(e) => setReviewerNotes(e.target.value)}
-                className="w-full rounded-2xl border border-stone-200 p-2.5 text-xs outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                className="w-full rounded-2xl border border-stone-200 p-2.5 text-xs outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               />
             </div>
 
@@ -2307,7 +2307,7 @@ const LabEnterResultsPage = () => {
                 type="button"
                 disabled={isSubmittingWorkflow}
                 onClick={handleConfirmApproveResults}
-                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-md shadow-emerald-200 cursor-pointer"
+                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-md shadow-blue-100 cursor-pointer"
               >
                 {isSubmittingWorkflow ? 'Approving...' : 'Confirm Approval & Publish'}
               </button>

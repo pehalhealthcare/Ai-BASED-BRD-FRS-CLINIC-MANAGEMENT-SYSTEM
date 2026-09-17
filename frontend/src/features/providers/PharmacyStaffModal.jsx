@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import {
   X, Download, UserPlus, Search, Filter, Eye, Edit2, MoreVertical,
   Users, CheckCircle2, UserCheck, Briefcase, Clock, ShieldAlert,
@@ -210,7 +210,7 @@ export default function PharmacyStaffModal({ providerId, onClose }) {
               <div>
                 <div className="flex items-center gap-2">
                   <h2 className="text-xl font-black text-slate-900">{provider.name || 'Pharmacy Store'} Staff</h2>
-                  <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded-lg uppercase">
+                  <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-[10px] font-bold rounded-lg uppercase">
                     {provider.status || 'Active'}
                   </span>
                 </div>
@@ -250,7 +250,7 @@ export default function PharmacyStaffModal({ providerId, onClose }) {
           <div className="grid grid-cols-6 gap-4 shrink-0">
             {[
               { label: 'Total Staff', val: stats.total, icon: Users, bg: 'bg-blue-50/50 text-blue-650' },
-              { label: 'Active Staff', val: stats.active, icon: CheckCircle2, bg: 'bg-emerald-50/50 text-emerald-650' },
+              { label: 'Active Staff', val: stats.active, icon: CheckCircle2, bg: 'bg-blue-50/50 text-blue-650' },
               { label: 'Pharmacists', val: stats.pharmacists, icon: UserCheck, bg: 'bg-teal-50/50 text-teal-650' },
               { label: 'Assistants', val: stats.assistants, icon: Briefcase, bg: 'bg-orange-50/50 text-orange-655' },
               { label: 'Cashiers', val: stats.cashiers, icon: Clock, bg: 'bg-purple-50/50 text-purple-650' },
@@ -399,7 +399,7 @@ export default function PharmacyStaffModal({ providerId, onClose }) {
                         </td>
                         <td className="p-4">
                           <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase ${
-                            member.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-400'
+                            member.isActive ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-400'
                           }`}>
                             {member.isActive ? 'Active' : 'Inactive'}
                           </span>
@@ -715,7 +715,7 @@ export default function PharmacyStaffModal({ providerId, onClose }) {
                 <ShieldCheck className="w-4 h-4 text-slate-400" />
                 <span className="text-slate-450 font-bold w-20">Status:</span>
                 <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
-                  selectedStaffMember.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-400'
+                  selectedStaffMember.isActive ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-400'
                 }`}>
                   {selectedStaffMember.isActive ? 'Active' : 'Inactive'}
                 </span>

@@ -1,9 +1,9 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 
 import aiApi from '../../api/aiApi';
 
 const FIELD_CLASS =
-  'rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100';
+  'rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100';
 
 const pickValue = (...values) => values.find((value) => typeof value === 'string' && value.trim())?.trim() || '';
 
@@ -70,7 +70,7 @@ const PatientDocumentOcrPanel = ({ onApply }) => {
         <input className={FIELD_CLASS} type="file" accept="image/*,.pdf" onChange={handleUpload} disabled={loading} />
       </label>
       {loading ? <p className="text-sm text-sky-700">Extracting document details...</p> : null}
-      {message ? <p className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{message}</p> : null}
+      {message ? <p className="rounded-2xl bg-blue-50 px-4 py-3 text-sm text-blue-700">{message}</p> : null}
       {error ? <p className="rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p> : null}
     </div>
   );

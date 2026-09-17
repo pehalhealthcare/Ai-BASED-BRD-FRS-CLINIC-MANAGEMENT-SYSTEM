@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { pharmacyApi } from '../../lib/api';
 
 // ─── Utility helpers ──────────────────────────────────────────────────────────
@@ -36,7 +36,7 @@ function AvailBadge({ stock, inClinic }) {
     <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-650 border border-amber-200 bg-amber-55/10">Low Stock</span>
   );
   return (
-    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200">Available in Clinic</span>
+    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-200">Available in Clinic</span>
   );
 }
 
@@ -121,7 +121,7 @@ function MedResultCard({ med, type, query, isSelected, onClick, onAddToCart, inC
       <div className="flex flex-col items-end gap-1 shrink-0">
         <AvailBadge stock={stockInfo.stock} inClinic={stockInfo.inClinic} />
         {inCart && (
-          <span className="text-[9px] font-bold text-emerald-600">✓ Added</span>
+          <span className="text-[9px] font-bold text-blue-600">✓ Added</span>
         )}
       </div>
     </button>
@@ -232,7 +232,7 @@ function MedicineDetailsPanel({ med, medType, cartItems, onAdd, searchResults })
         {infoRows.map(({ label, value }) => (
           <div key={label}>
             <p className="text-[9px] uppercase tracking-wider text-slate-400 font-bold">{label}</p>
-            <p className={`text-[11px] font-semibold mt-0.5 ${label === 'Availability' && inClinic ? 'text-emerald-600' : 'text-slate-700'}`}>{value}</p>
+            <p className={`text-[11px] font-semibold mt-0.5 ${label === 'Availability' && inClinic ? 'text-blue-600' : 'text-slate-700'}`}>{value}</p>
           </div>
         ))}
       </div>
@@ -365,7 +365,7 @@ function MedicineDetailsPanel({ med, medType, cartItems, onAdd, searchResults })
           disabled={adding}
           className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all
             ${added
-              ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+              ? 'bg-blue-50 text-blue-600 border border-blue-200'
               : alreadyInCart
               ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
               : 'bg-violet-600 hover:bg-violet-500 text-white border border-violet-750 shadow-md shadow-violet-900/10 active:scale-95'
@@ -450,7 +450,7 @@ function PrescriptionCart({ items, onRemove, onEdit, onSave, onClearAll }) {
           className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all
             ${items.length === 0
               ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
-              : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-900/10 active:scale-95'}`}
+              : 'bg-blue-600 hover:bg-blue-500 text-white shadow-md shadow-blue-900/10 active:scale-95'}`}
         >
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
           Save Prescription
@@ -1029,7 +1029,7 @@ export default function SmartPrescriptionSearch({ isOpen, onClose, onSavePrescri
 
       {/* Footer hint */}
       <div className="px-4 py-2 border-t border-slate-200 bg-slate-50 flex items-center gap-2">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-emerald-500 flex-shrink-0"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-blue-500 flex-shrink-0"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
         <p className="text-[10px] text-slate-500 font-semibold">Prescribing generic medicine is recommended for better affordability and availability.</p>
       </div>
     </div>

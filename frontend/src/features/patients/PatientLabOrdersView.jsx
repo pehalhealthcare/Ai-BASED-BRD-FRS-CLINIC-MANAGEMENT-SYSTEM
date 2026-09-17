@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Calendar, Clock, MapPin, Phone, Building2, Droplets, CheckCircle2,
@@ -286,7 +286,7 @@ export default function PatientLabOrdersView({
       return <span className="px-3 py-1 bg-orange-100 text-orange-800 text-[10px] font-black uppercase tracking-wider rounded-xl border border-orange-200">Recollection Required</span>;
     }
     if (ds === 'REPORT_AVAILABLE' || ds === 'COMPLETED') {
-      return <span className="px-3 py-1 bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase tracking-wider rounded-xl">Report Available</span>;
+      return <span className="px-3 py-1 bg-blue-100 text-blue-800 text-[10px] font-black uppercase tracking-wider rounded-xl">Report Available</span>;
     }
     if (ds === 'READY_FOR_REVIEW') {
       return <span className="px-3 py-1 bg-indigo-100 text-indigo-800 text-[10px] font-black uppercase tracking-wider rounded-xl">Ready for Review</span>;
@@ -382,7 +382,7 @@ export default function PatientLabOrdersView({
                 title={`${s.label}: ${isDone ? 'Completed' : isCurrent ? 'In Progress' : 'Pending'}`}
                 className={`w-4.5 h-4.5 rounded-full flex items-center justify-center text-[8px] font-black transition ${
                   isDone
-                    ? 'bg-emerald-100 text-emerald-700'
+                    ? 'bg-blue-100 text-blue-700'
                     : isCurrent
                     ? 'bg-blue-600 text-white ring-2 ring-blue-300 animate-pulse'
                     : 'bg-slate-100 text-slate-400'
@@ -391,7 +391,7 @@ export default function PatientLabOrdersView({
                 {isDone ? <Check size={10} className="stroke-[3]" /> : idx + 1}
               </div>
               {idx < steps.length - 1 && (
-                <div className={`w-2 h-0.5 ${activeIdx > s.id ? 'bg-emerald-400' : 'bg-slate-200'}`} />
+                <div className={`w-2 h-0.5 ${activeIdx > s.id ? 'bg-blue-400' : 'bg-slate-200'}`} />
               )}
             </React.Fragment>
           );
@@ -562,7 +562,7 @@ export default function PatientLabOrdersView({
                             <p className="text-[11px] text-slate-400 font-medium">
                               Booked on {formatOrderDateTime(order.orderedAt || order.createdAt)}
                             </p>
-                            <span className="inline-block px-2.5 py-0.5 bg-emerald-50 text-emerald-700 text-[9px] font-black uppercase tracking-wider rounded-md">
+                            <span className="inline-block px-2.5 py-0.5 bg-blue-50 text-blue-700 text-[9px] font-black uppercase tracking-wider rounded-md">
                               HOME COLLECTION
                             </span>
                           </div>
@@ -582,7 +582,7 @@ export default function PatientLabOrdersView({
                                     <div
                                       className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black transition shadow-2xs ${
                                         isDone
-                                          ? 'bg-emerald-100 text-emerald-700 ring-4 ring-white'
+                                          ? 'bg-blue-100 text-blue-700 ring-4 ring-white'
                                           : isCur
                                           ? 'bg-blue-600 text-white ring-4 ring-blue-100 animate-pulse'
                                           : 'bg-white text-slate-400 border-2 border-slate-200'
@@ -723,11 +723,11 @@ export default function PatientLabOrdersView({
                                   <button
                                     type="button"
                                     onClick={() => setSelectedOrderForToken(order)}
-                                    className="inline-flex flex-col items-center justify-center px-3 py-1 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 rounded-xl text-center shadow-2xs transition cursor-pointer"
+                                    className="inline-flex flex-col items-center justify-center px-3 py-1 bg-blue-50 hover:bg-blue-100 border border-blue-200/80 rounded-xl text-center shadow-2xs transition cursor-pointer"
                                     title="Click to view printable token pass"
                                   >
-                                    <span className="text-xs font-black text-emerald-800">{tokenVal}</span>
-                                    <span className="text-[9px] font-bold text-emerald-600">View Pass</span>
+                                    <span className="text-xs font-black text-blue-800">{tokenVal}</span>
+                                    <span className="text-[9px] font-bold text-blue-600">View Pass</span>
                                   </button>
                                 ) : (
                                   <div className="text-slate-400 text-xs">
@@ -797,7 +797,7 @@ export default function PatientLabOrdersView({
                                     <button
                                       type="button"
                                       onClick={() => setSelectedOrderForToken(order)}
-                                      className="p-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-bold text-xs rounded-xl transition cursor-pointer"
+                                      className="p-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 font-bold text-xs rounded-xl transition cursor-pointer"
                                       title="Print Queue Token"
                                     >
                                       <Printer size={13} />
@@ -1031,7 +1031,7 @@ export default function PatientLabOrdersView({
               {selectedOrderForDetails.tokenNumber && (
                 <div className="flex justify-between">
                   <span className="text-slate-500 font-bold">Queue Token:</span>
-                  <span className="font-black text-emerald-700">{selectedOrderForDetails.tokenNumber}</span>
+                  <span className="font-black text-blue-700">{selectedOrderForDetails.tokenNumber}</span>
                 </div>
               )}
             </div>
@@ -1045,7 +1045,7 @@ export default function PatientLabOrdersView({
                 {(selectedOrderForDetails.tests || []).map((t, idx) => (
                   <div key={idx} className="p-2.5 bg-slate-50 rounded-xl flex items-center justify-between text-xs border border-slate-100">
                     <div className="flex items-center gap-2">
-                      <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
+                      <CheckCircle2 size={14} className="text-blue-600 shrink-0" />
                       <span className="font-bold text-slate-800">{t.name || t.testName}</span>
                       {t.specimenType && (
                         <span className="text-[10px] text-slate-400 font-normal">({t.specimenType})</span>
@@ -1064,7 +1064,7 @@ export default function PatientLabOrdersView({
                 <span className="font-bold text-slate-800">₹{selectedOrderForDetails.price || selectedOrderForDetails.totalAmount}</span>
               </div>
               {selectedOrderForDetails.discountAmount > 0 && (
-                <div className="flex justify-between text-emerald-700 font-bold">
+                <div className="flex justify-between text-blue-700 font-bold">
                   <span>Discount Savings:</span>
                   <span>-₹{selectedOrderForDetails.discountAmount}</span>
                 </div>
@@ -1196,7 +1196,7 @@ export default function PatientLabOrdersView({
               </div>
               <div className="flex justify-between border-t border-slate-200/80 pt-1.5">
                 <span className="text-slate-500 font-bold">Payment:</span>
-                <span className="font-black text-emerald-600">✓ Payment Completed</span>
+                <span className="font-black text-blue-600">✓ Payment Completed</span>
               </div>
             </div>
 
@@ -1224,7 +1224,7 @@ export default function PatientLabOrdersView({
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="text-left">
-                <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest block">
+                <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest block">
                   Laboratory Queue Token
                 </span>
                 <h3 className="text-base font-black text-slate-900">
@@ -1241,21 +1241,21 @@ export default function PatientLabOrdersView({
             </div>
 
             {/* Printable Token Pass */}
-            <div className="bg-emerald-50/60 border-2 border-dashed border-emerald-300 rounded-3xl p-6 text-center space-y-4">
+            <div className="bg-blue-50/60 border-2 border-dashed border-blue-300 rounded-3xl p-6 text-center space-y-4">
               <div className="space-y-1">
-                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-800 block">
+                <span className="text-[10px] font-black uppercase tracking-widest text-blue-800 block">
                   {labName}
                 </span>
                 <p className="text-[11px] text-slate-500 font-medium">Sample Collection Desk Token</p>
               </div>
 
-              <div className="py-3 px-6 bg-white rounded-2xl border border-emerald-200 inline-block shadow-xs">
-                <span className="text-3xl font-black text-emerald-700 tracking-wider">
+              <div className="py-3 px-6 bg-white rounded-2xl border border-blue-200 inline-block shadow-xs">
+                <span className="text-3xl font-black text-blue-700 tracking-wider">
                   {selectedOrderForToken.tokenNumber || (selectedOrderForToken.collectionToken ? `T-${selectedOrderForToken.collectionToken.slice(-3)}` : 'T-026')}
                 </span>
               </div>
 
-              <div className="bg-white rounded-2xl p-4 text-left text-xs space-y-2 border border-emerald-100">
+              <div className="bg-white rounded-2xl p-4 text-left text-xs space-y-2 border border-blue-100">
                 <div className="flex justify-between">
                   <span className="text-slate-500 font-bold">Patient:</span>
                   <span className="font-black text-slate-900">{patientName}</span>
@@ -1284,7 +1284,7 @@ export default function PatientLabOrdersView({
                 </div>
               </div>
 
-              <p className="text-[10px] text-emerald-800 font-semibold leading-relaxed">
+              <p className="text-[10px] text-blue-800 font-semibold leading-relaxed">
                 Please present this token at the laboratory phlebotomy collection desk for prioritized sample draw.
               </p>
             </div>
@@ -1294,7 +1294,7 @@ export default function PatientLabOrdersView({
               <button
                 type="button"
                 onClick={() => window.print()}
-                className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl transition shadow-xs flex items-center justify-center gap-2 cursor-pointer"
+                className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-xl transition shadow-xs flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Printer size={14} />
                 <span>Print Token</span>

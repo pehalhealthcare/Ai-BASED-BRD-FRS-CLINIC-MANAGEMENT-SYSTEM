@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+﻿import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
@@ -794,7 +794,7 @@ const LabOrderDetailPage = () => {
                       <span className="text-stone-400 text-[9px] font-bold uppercase block">Payment</span>
                       <span className={`inline-flex items-center gap-1 font-bold rounded px-1.5 py-0.5 text-[10px] ${
                         order?.paymentStatus === 'PAID' || order?.paymentStatus === 'paid'
-                          ? 'text-emerald-700 bg-emerald-50 border border-emerald-200'
+                          ? 'text-blue-700 bg-blue-50 border border-blue-200'
                           : 'text-amber-800 bg-amber-50 border border-amber-200'
                       }`}>
                         <span>{order?.paymentStatus === 'PAID' || order?.paymentStatus === 'paid' ? '✓' : '⚠️'}</span>
@@ -827,7 +827,7 @@ const LabOrderDetailPage = () => {
                           {hasLineAfter && (
                             <div
                               className={`absolute top-3.5 left-[50%] right-[-50%] h-0.5 -z-0 transition-colors duration-300 ${
-                                isLineCompleted ? 'bg-emerald-500' : 'bg-stone-200'
+                                isLineCompleted ? 'bg-blue-500' : 'bg-stone-200'
                               }`}
                             />
                           )}
@@ -836,7 +836,7 @@ const LabOrderDetailPage = () => {
                           <div
                             className={`relative z-10 flex h-7 w-7 items-center justify-center rounded-full font-extrabold text-xs transition-all ${
                               step.isDone
-                                ? 'bg-emerald-600 text-white shadow-xs'
+                                ? 'bg-blue-600 text-white shadow-xs'
                                 : step.isActive
                                 ? 'bg-blue-600 text-white ring-4 ring-blue-100 border-2 border-blue-600 shadow-xs'
                                 : step.isLocked
@@ -1027,7 +1027,7 @@ const LabOrderDetailPage = () => {
                       type="button"
                       disabled={isSubmittingTransition}
                       onClick={() => setIsFinalizeModalOpen(true)}
-                      className="w-full sm:w-auto px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md shadow-emerald-200 transition cursor-pointer"
+                      className="w-full sm:w-auto px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md shadow-blue-100 transition cursor-pointer"
                       id="banner-finalize-btn"
                     >
                       <span>✓</span>
@@ -1039,7 +1039,7 @@ const LabOrderDetailPage = () => {
                 {order?.status === 'completed' && (
                   <Link
                     to={`/labs/orders/${order?._id}/reports`}
-                    className="w-full sm:w-auto px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md shadow-emerald-200 transition cursor-pointer"
+                    className="w-full sm:w-auto px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md shadow-blue-100 transition cursor-pointer"
                     id="banner-view-report-btn"
                   >
                     <span>📄</span>
@@ -1134,7 +1134,7 @@ const LabOrderDetailPage = () => {
                                 <div
                                   className={`h-full transition-all duration-300 ${
                                     order?.status === 'completed'
-                                      ? 'bg-emerald-500'
+                                      ? 'bg-blue-500'
                                       : 'bg-violet-600'
                                   }`}
                                   style={{ width: `${order?.status === 'ordered' ? 0 : order?.status === 'completed' ? 100 : testPct}%` }}
@@ -1279,7 +1279,7 @@ const LabOrderDetailPage = () => {
                       ) : order?.status === 'recollection_required' ? (
                         <span className="text-rose-700 font-black">Recollection Required</span>
                       ) : (
-                        <span className="text-emerald-800 font-bold">Collected & Active</span>
+                        <span className="text-blue-800 font-bold">Collected & Active</span>
                       )}
                     </div>
                   </div>
@@ -1311,13 +1311,13 @@ const LabOrderDetailPage = () => {
                                 className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                                   s.status === 'REJECTED'
                                     ? 'bg-rose-100 text-rose-800'
-                                    : 'bg-emerald-100 text-emerald-800'
+                                    : 'bg-blue-100 text-blue-800'
                                 }`}
                               >
                                 {s.status === 'REJECTED' ? 'Rejected' : 'Collected'}
                               </span>
                               {s._id === order.activeSample?._id && (
-                                <span className="text-emerald-700 font-black text-[10px]">✓ Active Sample</span>
+                                <span className="text-blue-700 font-black text-[10px]">✓ Active Sample</span>
                               )}
                             </div>
                             <div className="text-[11px] text-stone-500">
@@ -1400,7 +1400,7 @@ const LabOrderDetailPage = () => {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="rounded bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
+                        <span className="rounded bg-blue-50 border border-blue-200 px-2 py-0.5 text-[10px] font-bold text-blue-800">
                           {doc.type}
                         </span>
                         {doc.url && doc.url !== '#' && (
@@ -1462,7 +1462,7 @@ const LabOrderDetailPage = () => {
                       )}
                       {order?.finalizedAt && (
                         <div className="relative">
-                          <div className="font-bold text-emerald-800">{order?.finalizedByName || 'Reviewer'} • Order Finalized & Report Published</div>
+                          <div className="font-bold text-blue-800">{order?.finalizedByName || 'Reviewer'} • Order Finalized & Report Published</div>
                           <div className="text-stone-500">{new Date(order.finalizedAt).toLocaleString('en-GB')}</div>
                         </div>
                       )}
@@ -1580,7 +1580,7 @@ const LabOrderDetailPage = () => {
                     </div>
                   )
                 ) : (
-                  <div className="w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                  <div className="w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-bold bg-blue-50 text-blue-800 border border-blue-200">
                     <span className="flex items-center gap-1.5">
                       <span>✓</span>
                       <span>Sample Collected</span>
@@ -1605,7 +1605,7 @@ const LabOrderDetailPage = () => {
                     <span>→</span>
                   </button>
                 ) : ['processing', 'in_processing', 'in_analysis', 'results_entry', 'ready_for_review', 'completed'].includes(order?.status) ? (
-                  <div className="w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                  <div className="w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-bold bg-blue-50 text-blue-800 border border-blue-200">
                     <span className="flex items-center gap-1.5">
                       <span>✓</span>
                       <span>Processing Initiated</span>
@@ -1696,7 +1696,7 @@ const LabOrderDetailPage = () => {
                     <span>→</span>
                   </button>
                 ) : ['ready_for_review', 'completed'].includes(order?.status) ? (
-                  <div className="w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                  <div className="w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-bold bg-blue-50 text-blue-800 border border-blue-200">
                     <span className="flex items-center gap-1.5">
                       <span>✓</span>
                       <span>Results Reviewed</span>
@@ -1725,7 +1725,7 @@ const LabOrderDetailPage = () => {
                       type="button"
                       disabled={isSubmittingTransition}
                       onClick={() => setIsFinalizeModalOpen(true)}
-                      className="w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-bold bg-emerald-600 text-white shadow-md shadow-emerald-200 hover:bg-emerald-700 cursor-pointer transition transform active:scale-98"
+                      className="w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-bold bg-blue-600 text-white shadow-md shadow-blue-100 hover:bg-blue-700 cursor-pointer transition transform active:scale-98"
                       id="action-finalize-btn"
                     >
                       <span className="flex items-center gap-1.5">
@@ -1750,7 +1750,7 @@ const LabOrderDetailPage = () => {
                     </button>
                   </div>
                 ) : order?.status === 'completed' ? (
-                  <div className="w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                  <div className="w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-bold bg-blue-50 text-blue-800 border border-blue-200">
                     <span className="flex items-center gap-1.5">
                       <span>✓</span>
                       <span>Order Completed & Verified</span>
@@ -1776,7 +1776,7 @@ const LabOrderDetailPage = () => {
                 {order?.status === 'completed' && (
                   <Link
                     to={`/labs/orders/${order?._id}/reports`}
-                    className="w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-200 transition cursor-pointer"
+                    className="w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-100 transition cursor-pointer"
                     id="action-view-report-btn"
                   >
                     <span className="flex items-center gap-1.5">
@@ -1965,7 +1965,7 @@ const LabOrderDetailPage = () => {
         <div className="fixed top-16 right-0 bottom-0 left-0 z-40 flex items-center justify-center bg-stone-900/60 backdrop-blur-xs p-4 overflow-hidden">
           <div className="w-full max-w-md max-h-[calc(100vh-5.5rem)] flex flex-col rounded-3xl bg-white p-6 shadow-2xl border border-stone-200 space-y-4 overflow-y-auto">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700 text-lg">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-100 text-blue-700 text-lg">
                 ✓
               </div>
               <div>

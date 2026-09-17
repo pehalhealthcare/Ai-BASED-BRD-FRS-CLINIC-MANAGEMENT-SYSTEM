@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
 import { useQuery, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
@@ -190,7 +190,7 @@ const DashboardHeader = ({ user, selectedDate, onDateChange }) => {
       case 'appointment':
         return { iconBg: 'bg-blue-50 text-blue-600', dotBg: 'bg-blue-500' };
       case 'billing':
-        return { iconBg: 'bg-emerald-50 text-emerald-600', dotBg: 'bg-emerald-500' };
+        return { iconBg: 'bg-blue-50 text-blue-600', dotBg: 'bg-blue-500' };
       case 'alert':
         return { iconBg: 'bg-rose-50 text-rose-600', dotBg: 'bg-rose-500' };
       case 'lab':
@@ -198,7 +198,7 @@ const DashboardHeader = ({ user, selectedDate, onDateChange }) => {
       case 'inventory':
         return { iconBg: 'bg-amber-50 text-amber-600', dotBg: 'bg-amber-500' };
       case 'provider':
-        return { iconBg: 'bg-emerald-50 text-emerald-600', dotBg: 'bg-emerald-500' };
+        return { iconBg: 'bg-blue-50 text-blue-600', dotBg: 'bg-blue-500' };
       case 'ai_insight':
         return { iconBg: 'bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-indigo-500 text-indigo-600', dotBg: 'bg-indigo-500' };
       default:
@@ -307,7 +307,7 @@ const DashboardHeader = ({ user, selectedDate, onDateChange }) => {
               <div className="hidden sm:block leading-none">
                 <p className="text-[11px] font-black text-slate-900 leading-none">{user?.name || 'King!'}</p>
                 <span className="text-[9px] text-slate-400 block mt-1">Clinic Admin</span>
-                <span className="text-[9px] text-emerald-600 font-bold block mt-0.5">🟢 online</span>
+                <span className="text-[9px] text-blue-600 font-bold block mt-0.5">🟢 online</span>
               </div>
             </button>
           </div>
@@ -340,8 +340,8 @@ const DashboardHeader = ({ user, selectedDate, onDateChange }) => {
                         {user?.name || 'King!'}
                       </h3>
                       <p className="text-[10px] text-slate-400 font-bold mt-0.5">Clinic Admin</p>
-                      <span className="text-[10px] text-emerald-600 font-bold mt-1 inline-flex items-center gap-1">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500"></span> online
+                      <span className="text-[10px] text-blue-600 font-bold mt-1 inline-flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-blue-500"></span> online
                       </span>
                     </div>
                   </div>
@@ -352,7 +352,7 @@ const DashboardHeader = ({ user, selectedDate, onDateChange }) => {
 
                   <button 
                     onClick={() => { navigate('/clinic/settings'); setProfileOpen(false); }}
-                    className="w-full py-3 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 text-emerald-700 font-black text-xs rounded-2xl transition duration-150 uppercase flex items-center justify-center gap-2"
+                    className="w-full py-3 bg-blue-50 border border-blue-200 hover:bg-blue-100 text-blue-700 font-black text-xs rounded-2xl transition duration-150 uppercase flex items-center justify-center gap-2"
                   >
                     <Settings size={14} /> Clinic Settings
                   </button>
@@ -415,7 +415,7 @@ const DashboardHeader = ({ user, selectedDate, onDateChange }) => {
                 placeholder="Search Patients, Doctors, Appointments, Invoices..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-10 pr-4 py-3 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-emerald-600 transition"
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-10 pr-4 py-3 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-blue-600 transition"
               />
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
             </div>
@@ -458,7 +458,7 @@ const DashboardHeader = ({ user, selectedDate, onDateChange }) => {
               <div className="shrink-0 bg-white z-10">
                 <button
                   onClick={handleClearAll}
-                  className="w-full h-12 border border-slate-250 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 rounded-xl text-xs font-black text-slate-800 flex items-center justify-center gap-2 uppercase tracking-wider transition duration-150 active:scale-98"
+                  className="w-full h-12 border border-slate-250 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 rounded-xl text-xs font-black text-slate-800 flex items-center justify-center gap-2 uppercase tracking-wider transition duration-150 active:scale-98"
                 >
                   <Trash2 size={14} /> Clear All Notifications
                 </button>
@@ -541,8 +541,8 @@ const DashboardHeader = ({ user, selectedDate, onDateChange }) => {
 
                             {/* Actionable wrapper */}
                             {log.actionable && (
-                              <div className="mt-3.5 bg-emerald-50/60 border border-emerald-150 rounded-2xl p-4 space-y-3">
-                                <span className="text-[9px] font-black text-emerald-800 uppercase block tracking-wider">Action Required</span>
+                              <div className="mt-3.5 bg-blue-50/60 border border-blue-150 rounded-2xl p-4 space-y-3">
+                                <span className="text-[9px] font-black text-blue-800 uppercase block tracking-wider">Action Required</span>
                                 <p className="text-[12px] text-slate-700 font-medium leading-relaxed">
                                   {log.message}
                                 </p>
@@ -556,7 +556,7 @@ const DashboardHeader = ({ user, selectedDate, onDateChange }) => {
                                   {log.actionTask && (
                                     <button 
                                       onClick={() => { navigate(log.actionTask); setNotifOpen(false); }}
-                                      className="flex-1 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-[11px] font-black uppercase rounded-lg shadow-sm border border-emerald-450 transition text-center"
+                                      className="flex-1 py-2 bg-blue-500 hover:bg-blue-600 text-white text-[11px] font-black uppercase rounded-lg shadow-sm border border-blue-450 transition text-center"
                                     >
                                       Go to Task
                                     </button>

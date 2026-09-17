@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { specializationApi } from '../../lib/api';
 import PageHeader from '../../components/layout/PageHeader';
 import LoadingState from '../../components/common/LoadingState';
@@ -21,7 +21,7 @@ import {
 
 
 const FIELD_CLASS =
-  'w-full rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 text-black';
+  'w-full rounded-2xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-black';
 
 const SpecialitiesAdminPage = () => {
   const [specializations, setSpecializations] = useState([]);
@@ -155,7 +155,7 @@ const SpecialitiesAdminPage = () => {
         <button
           type="button"
           onClick={handleOpenCreate}
-          className="rounded-2xl bg-emerald-600 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 hover:shadow-emerald-700/35 transition-all duration-200 cursor-pointer"
+          className="rounded-2xl bg-blue-600 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-blue-600/20 hover:bg-blue-700 hover:shadow-blue-700/35 transition-all duration-200 cursor-pointer"
         >
           + Add Speciality
         </button>
@@ -189,7 +189,7 @@ const SpecialitiesAdminPage = () => {
                       }}
                       className={`px-3 py-1 rounded-full text-xs font-bold border cursor-pointer transition ${
                         spec.isActive
-                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                          ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
                           : 'bg-stone-100 text-stone-400 border-stone-200 hover:bg-stone-200'
                       }`}
                       title="Click to toggle status"
@@ -274,7 +274,7 @@ const SpecialitiesAdminPage = () => {
                   id="isActive"
                   checked={form.isActive}
                   onChange={(e) => setForm(prev => ({ ...prev, isActive: e.target.checked }))}
-                  className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-stone-300"
+                  className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-stone-300"
                 />
                 <label htmlFor="isActive" className="text-sm font-semibold text-stone-700 cursor-pointer">
                   Mark as Active Speciality
@@ -291,7 +291,7 @@ const SpecialitiesAdminPage = () => {
                 </button>
                 <button
                   type="submit"
-                  className="rounded-2xl bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 shadow-md shadow-emerald-600/10 cursor-pointer"
+                  className="rounded-2xl bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 shadow-md shadow-blue-600/10 cursor-pointer"
                 >
                   {modalMode === 'create' ? 'Add' : 'Save Changes'}
                 </button>
@@ -310,7 +310,7 @@ const SpecialitiesAdminPage = () => {
       >
         {analyticsLoading ? (
           <div className="flex flex-col items-center justify-center py-20">
-            <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+            <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
             <p className="mt-4 text-sm font-medium text-stone-500">Loading speciality analytics...</p>
           </div>
         ) : analyticsError ? (
@@ -329,13 +329,13 @@ const SpecialitiesAdminPage = () => {
 
             {/* Quick Stats Grid */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-emerald-50/50 border border-emerald-100 rounded-2xl p-4 flex items-center gap-3">
-                <div className="p-3 bg-emerald-100 text-emerald-700 rounded-xl">
+              <div className="bg-blue-50/50 border border-blue-100 rounded-2xl p-4 flex items-center gap-3">
+                <div className="p-3 bg-blue-100 text-blue-700 rounded-xl">
                   <Building2 className="w-5 h-5" />
                 </div>
                 <div>
                   <p className="text-xs font-semibold text-stone-500 uppercase">Branches</p>
-                  <p className="text-2xl font-bold text-emerald-950">{analyticsData.clinics?.length || 0}</p>
+                  <p className="text-2xl font-bold text-blue-950">{analyticsData.clinics?.length || 0}</p>
                 </div>
               </div>
 
@@ -389,7 +389,7 @@ const SpecialitiesAdminPage = () => {
                     onClick={() => setActiveTab(tab.id)}
                     className={`flex items-center gap-2 px-4 py-2.5 border-b-2 text-sm font-semibold whitespace-nowrap cursor-pointer transition-all duration-150 ${
                       activeTab === tab.id
-                        ? 'border-emerald-600 text-emerald-600 bg-emerald-50/35'
+                        ? 'border-blue-600 text-blue-600 bg-blue-50/35'
                         : 'border-transparent text-stone-500 hover:text-stone-700 hover:bg-stone-50/50'
                     } rounded-t-xl`}
                   >
@@ -407,7 +407,7 @@ const SpecialitiesAdminPage = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="bg-stone-50 border border-stone-200 rounded-2xl p-5 space-y-3">
                       <h4 className="font-bold text-stone-800 flex items-center gap-2">
-                        <DollarSign className="w-5 h-5 text-emerald-600" /> Billing Stats
+                        <DollarSign className="w-5 h-5 text-blue-600" /> Billing Stats
                       </h4>
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
@@ -418,7 +418,7 @@ const SpecialitiesAdminPage = () => {
                         </div>
                         <div className="flex justify-between">
                           <span className="text-stone-500">Total Collected:</span>
-                          <span className="font-semibold text-emerald-600">
+                          <span className="font-semibold text-blue-600">
                             {formatCurrency(analyticsData.revenue?.totalRevenue || 0)}
                           </span>
                         </div>
@@ -435,7 +435,7 @@ const SpecialitiesAdminPage = () => {
 
                     <div className="bg-stone-50 border border-stone-200 rounded-2xl p-5 space-y-3">
                       <h4 className="font-bold text-stone-800 flex items-center gap-2">
-                        <TrendingUp className="w-5 h-5 text-emerald-600" /> Quick Insights
+                        <TrendingUp className="w-5 h-5 text-blue-600" /> Quick Insights
                       </h4>
                       <div className="space-y-2 text-sm text-stone-600">
                         <p>

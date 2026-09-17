@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { CreditCard, ArrowUpRight, DollarSign, Clock, RefreshCw, XCircle, RotateCcw } from 'lucide-react';
 import { procedureApi } from '../../lib/api';
 import toast from 'react-hot-toast';
@@ -56,7 +56,7 @@ export default function ProcedureReportsPanel() {
         {/* Card 1: Revenue */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-col gap-2">
           <div className="flex items-start justify-between">
-            <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
+            <div className="p-2 rounded-xl bg-blue-50 text-blue-600">
               <DollarSign size={16} />
             </div>
             <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded-full">All-Time</span>

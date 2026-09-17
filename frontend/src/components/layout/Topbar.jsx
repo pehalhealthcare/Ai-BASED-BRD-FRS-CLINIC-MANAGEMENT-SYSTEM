@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+﻿import { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import io from 'socket.io-client';
@@ -131,7 +131,7 @@ const Topbar = ({ title, currentUser, sidebarOpen, onToggleSidebar, onLogout }) 
 
   const getNotificationIcon = (title = '') => {
     const lower = title.toLowerCase();
-    if (lower.includes('book') || lower.includes('appointment')) return <CheckCircle className="w-4 h-4 text-emerald-500" />;
+    if (lower.includes('book') || lower.includes('appointment')) return <CheckCircle className="w-4 h-4 text-blue-500" />;
     if (lower.includes('cancel')) return <ShieldAlert className="w-4 h-4 text-rose-500" />;
     if (lower.includes('check') || lower.includes('online')) return <RefreshCw className="w-4 h-4 text-blue-500" />;
     return <Info className="w-4 h-4 text-slate-400" />;
@@ -179,8 +179,8 @@ const Topbar = ({ title, currentUser, sidebarOpen, onToggleSidebar, onLogout }) 
                 <span className="block text-[8px] text-slate-400 font-bold mt-0.5">Indirapuram Branch</span>
               </div>
               <ChevronDown size={11} className="text-slate-400 group-hover:text-slate-600 transition-colors" />
-              <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-600 text-[8px] font-black px-1.5 lg:px-2 py-0.5 rounded-full border border-emerald-100/50">
-                <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-600 text-[8px] font-black px-1.5 lg:px-2 py-0.5 rounded-full border border-blue-100/50">
+                <span className="w-1 h-1 rounded-full bg-blue-500 animate-pulse" />
                 Active
               </span>
             </button>
@@ -252,7 +252,7 @@ const Topbar = ({ title, currentUser, sidebarOpen, onToggleSidebar, onLogout }) 
             <button
               onClick={() => setNotificationDropdownOpen(!notificationDropdownOpen)}
               aria-label="Notifications"
-              className="p-2 lg:p-2.5 rounded-full text-slate-500 bg-slate-50 hover:bg-emerald-50 hover:text-emerald-600 border border-slate-150 transition duration-200 active:scale-95 hover:shadow-[0_0_10px_rgba(16,185,129,0.05)] cursor-pointer relative"
+              className="p-2 lg:p-2.5 rounded-full text-slate-500 bg-slate-50 hover:bg-blue-50 hover:text-blue-600 border border-slate-150 transition duration-200 active:scale-95 hover:shadow-[0_0_10px_rgba(37,99,235,0.15)] cursor-pointer relative"
             >
               <Bell size={14} />
               {unreadCount > 0 && (

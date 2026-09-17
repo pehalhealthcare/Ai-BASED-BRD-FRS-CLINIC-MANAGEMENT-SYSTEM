@@ -1,4 +1,4 @@
-// src/features/admin/DoctorEditPage.jsx
+﻿// src/features/admin/DoctorEditPage.jsx
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { adminApi, clinicApi, doctorApi } from '../../lib/api';
@@ -530,7 +530,7 @@ const DoctorEditPage = () => {
           <button
             onClick={handleSaveChanges}
             disabled={isSubmitting || !rulesValidation.isValid}
-            className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition flex items-center gap-1 disabled:opacity-50"
+            className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition flex items-center gap-1 disabled:opacity-50"
           >
             {isSubmitting ? 'Saving...' : 'Save Changes'}
           </button>
@@ -583,7 +583,7 @@ const DoctorEditPage = () => {
               </div>
               <div>
                 <p className="text-slate-400 mb-0.5">Verification</p>
-                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">Verified</span>
+                <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">Verified</span>
               </div>
             </div>
             <p className="text-[10px] text-slate-400 mt-4 italic">Personal & professional details cannot be edited by clinic admin.</p>
@@ -890,7 +890,7 @@ const DoctorEditPage = () => {
                 <div>
                   <h4 className="text-xs font-bold text-slate-800">Distance & Location Conditions</h4>
                   <ul className="mt-2 space-y-3">
-                    <li className="text-[11px] text-slate-600 flex gap-2"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 mt-1.5"></div> <span><strong className="text-slate-800">Under 15 km:</strong> Offline mode is permitted. Minimum 1.5 hrs gap enforced.</span></li>
+                    <li className="text-[11px] text-slate-600 flex gap-2"><div className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0 mt-1.5"></div> <span><strong className="text-slate-800">Under 15 km:</strong> Offline mode is permitted. Minimum 1.5 hrs gap enforced.</span></li>
                     <li className="text-[11px] text-slate-600 flex gap-2"><div className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0 mt-1.5"></div> <span><strong className="text-slate-800">Over 15 km:</strong> Distance-based restrictions applied. Non-primary clinics are set to online.</span></li>
                   </ul>
                 </div>
@@ -1049,7 +1049,7 @@ const DoctorEditPage = () => {
 
             {/* Leave History / Upcoming */}
             <div>
-              <h4 className="text-xs font-bold text-slate-800 mb-4 flex items-center gap-2"><CalendarDays size={14} className="text-emerald-600"/> Doctor Leaves</h4>
+              <h4 className="text-xs font-bold text-slate-800 mb-4 flex items-center gap-2"><CalendarDays size={14} className="text-blue-600"/> Doctor Leaves</h4>
               
               {leaves && leaves.length > 0 ? (
                 <div className="space-y-3">
@@ -1060,7 +1060,7 @@ const DoctorEditPage = () => {
                         <p className="text-[10px] text-slate-500 mt-0.5">{new Date(leave.start_datetime).toLocaleDateString()} to {new Date(leave.end_datetime).toLocaleDateString()}</p>
                       </div>
                       <span className={`px-2 py-1 rounded-lg text-[9px] font-bold uppercase ${
-                        leave.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : 
+                        leave.status === 'approved' ? 'bg-blue-100 text-blue-700' : 
                         leave.status === 'rejected' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'
                       }`}>
                         {leave.status}

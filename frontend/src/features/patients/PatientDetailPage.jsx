@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef } from 'react';
+﻿import { useEffect, useState, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import io from 'socket.io-client';
@@ -170,7 +170,7 @@ const PatientDetailPage = () => {
         <body class="p-6 bg-slate-50 text-slate-800">
           <div class="max-w-md mx-auto bg-white rounded-3xl border border-slate-200 shadow-xl p-6">
             <div class="text-center border-b border-slate-100 pb-4">
-              <h2 class="text-lg font-black text-emerald-600">PEHEAL AICMS</h2>
+              <h2 class="text-lg font-black text-blue-600">PEHEAL AICMS</h2>
               <p class="text-xs text-slate-400">Appointment Confirmation Slip</p>
             </div>
             <div class="mt-4 space-y-3.5 text-xs">
@@ -186,13 +186,13 @@ const PatientDetailPage = () => {
                 <span class="text-slate-400 font-bold">Doctor:</span>
                 <span class="font-bold text-slate-800">${doctorName} (${doctorSpecialization})</span>
               </div>
-              <div class="flex justify-between p-3 bg-emerald-50 rounded-xl mt-3">
+              <div class="flex justify-between p-3 bg-blue-50 rounded-xl mt-3">
                 <div>
-                  <p class="text-[10px] font-bold text-emerald-800">Token Number</p>
-                  <p class="text-xl font-black text-emerald-600">${tokenNumber}</p>
+                  <p class="text-[10px] font-bold text-blue-800">Token Number</p>
+                  <p class="text-xl font-black text-blue-600">${tokenNumber}</p>
                 </div>
                 <div class="text-right">
-                  <p class="text-[10px] font-bold text-emerald-800">Scheduled Time</p>
+                  <p class="text-[10px] font-bold text-blue-800">Scheduled Time</p>
                   <p class="text-sm font-black text-slate-800">${aptTime}</p>
                 </div>
               </div>
@@ -209,7 +209,7 @@ const PatientDetailPage = () => {
   };
 
   if (patientLoading) return <LoadingState label="Loading patient registry..." />;
-  if (patientError || !patient) return <ErrorState title="Patient profile not found" description={patientError?.message} action={<button className="rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white" onClick={() => navigate('/patients')}>Back to Patients</button>} />;
+  if (patientError || !patient) return <ErrorState title="Patient profile not found" description={patientError?.message} action={<button className="rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white" onClick={() => navigate('/patients')}>Back to Patients</button>} />;
 
   return (
     <div className="space-y-6 bg-slate-50/50 p-2 min-h-screen">
@@ -222,7 +222,7 @@ const PatientDetailPage = () => {
           </div>
           <div className="space-y-1.5 text-center sm:text-left">
             <h1 className="text-xl font-black text-slate-850 flex items-center gap-1.5 justify-center sm:justify-start">
-              {patient.fullName} <ShieldCheck className="text-emerald-500 fill-emerald-50 bg-white rounded-full" size={18} />
+              {patient.fullName} <ShieldCheck className="text-blue-500 fill-blue-50 bg-white rounded-full" size={18} />
             </h1>
             <p className="text-xs font-semibold text-slate-400">
               UHID: <span className="text-slate-700 font-bold">{patient.patientId}</span> • Patient ID: <span className="text-slate-750 font-bold">PAT-2026-{patient.patientId?.slice(-6)}</span>
@@ -253,7 +253,7 @@ const PatientDetailPage = () => {
           <div className="flex items-center gap-2">
             <button
               onClick={() => navigate(`/appointments/new?patientId=${patient._id}`)}
-              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
+              className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
             >
               <PlusCircle size={14} /> Book Appointment
             </button>
@@ -276,7 +276,7 @@ const PatientDetailPage = () => {
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`pb-1.5 px-3.5 transition text-xs font-bold shrink-0 border-b-2 ${
-                isActive ? 'text-emerald-600 border-emerald-500 font-extrabold' : 'text-slate-400 border-transparent hover:text-slate-700'
+                isActive ? 'text-blue-600 border-blue-500 font-extrabold' : 'text-slate-400 border-transparent hover:text-slate-700'
               }`}
             >
               {tab}
@@ -302,7 +302,7 @@ const PatientDetailPage = () => {
                     <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider">Patient Information</h3>
                     <button
                       onClick={() => navigate(`/patients/${patient._id}/edit`)}
-                      className="text-[10px] font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg transition"
+                      className="text-[10px] font-bold text-blue-600 hover:text-blue-700 bg-blue-50 px-2.5 py-1 rounded-lg transition"
                     >
                       Edit
                     </button>
@@ -405,9 +405,9 @@ const PatientDetailPage = () => {
 
               {/* Today's Active Appointment Widget if scheduled */}
               {todayAppointment && (
-                <div className="bg-emerald-50/50 border border-emerald-100 rounded-3xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div className="bg-blue-50/50 border border-blue-100 rounded-3xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                   <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-full bg-emerald-500 text-white flex flex-col items-center justify-center shadow-md">
+                    <div className="w-16 h-16 rounded-full bg-blue-500 text-white flex flex-col items-center justify-center shadow-md">
                       <span className="text-[10px] font-bold uppercase opacity-80">Token</span>
                       <span className="text-lg font-black">{todayAppointment.tokenNumber || 'T-105'}</span>
                     </div>
@@ -421,13 +421,13 @@ const PatientDetailPage = () => {
                   <div className="flex items-center gap-3">
                     <button
                       onClick={() => handlePrintSlip(todayAppointment)}
-                      className="px-3.5 py-2 bg-white hover:bg-slate-50 border border-emerald-200 text-emerald-600 text-xs font-bold rounded-xl transition shadow-sm flex items-center gap-1.5"
+                      className="px-3.5 py-2 bg-white hover:bg-slate-50 border border-blue-200 text-blue-600 text-xs font-bold rounded-xl transition shadow-sm flex items-center gap-1.5"
                     >
                       <Printer size={13} /> Print Slip
                     </button>
                     <button
                       onClick={() => navigate(`/consultations/${todayAppointment._id}`)}
-                      className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition shadow-sm"
+                      className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition shadow-sm"
                     >
                       Start Consult
                     </button>
@@ -439,7 +439,7 @@ const PatientDetailPage = () => {
               <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-4">
                 <div className="flex justify-between items-center border-b border-slate-50 pb-2">
                   <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider">Recent Consultations</h3>
-                  <button onClick={() => setActiveTab('Appointments')} className="text-[10px] font-bold text-emerald-600 hover:text-emerald-700">View All</button>
+                  <button onClick={() => setActiveTab('Appointments')} className="text-[10px] font-bold text-blue-600 hover:text-blue-700">View All</button>
                 </div>
                 <div className="space-y-3">
                   {allAppointments.slice(0, 3).map((appt) => (
@@ -456,7 +456,7 @@ const PatientDetailPage = () => {
                       <div className="flex items-center gap-4 text-xs">
                         <span className="text-slate-450 font-bold">{new Date(appt.appointmentDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>
                         <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${
-                          appt.status === 'completed' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'
+                          appt.status === 'completed' ? 'bg-blue-50 text-blue-600' : 'bg-blue-50 text-blue-600'
                         }`}>{appt.status}</span>
                       </div>
                     </div>
@@ -473,7 +473,7 @@ const PatientDetailPage = () => {
                     <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1">
                       <ClipboardList size={14} className="text-blue-500" /> Recent Lab Reports
                     </h3>
-                    <button onClick={() => setActiveTab('Lab Reports')} className="text-[10px] font-bold text-emerald-600 hover:text-emerald-700">View All</button>
+                    <button onClick={() => setActiveTab('Lab Reports')} className="text-[10px] font-bold text-blue-600 hover:text-blue-700">View All</button>
                   </div>
                   {recentLabReports.length === 0 ? (
                     <p className="text-[10px] text-slate-400 font-semibold py-4 text-center">No lab test history</p>
@@ -485,7 +485,7 @@ const PatientDetailPage = () => {
                             <p className="font-bold text-slate-700">{lab.testName || 'Blood Sugar Test'}</p>
                             <span className="text-[9px] text-slate-400 block mt-0.5">Order ID: L-{idx}</span>
                           </div>
-                          <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded-lg text-[9px] font-bold">Completed</span>
+                          <span className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded-lg text-[9px] font-bold">Completed</span>
                         </div>
                       ))}
                     </div>
@@ -498,7 +498,7 @@ const PatientDetailPage = () => {
                     <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1">
                       <ShoppingBag size={14} className="text-purple-500" /> Pharmacy Purchases
                     </h3>
-                    <button onClick={() => setActiveTab('Pharmacy Purchases')} className="text-[10px] font-bold text-emerald-600 hover:text-emerald-700">View All</button>
+                    <button onClick={() => setActiveTab('Pharmacy Purchases')} className="text-[10px] font-bold text-blue-600 hover:text-blue-700">View All</button>
                   </div>
                   <p className="text-[10px] text-slate-400 font-semibold py-4 text-center">No pharmacy purchase records found</p>
                 </div>
@@ -529,12 +529,12 @@ const PatientDetailPage = () => {
                       <tr key={appt._id} className="hover:bg-slate-50/50">
                         <td className="py-3 px-1 font-semibold text-slate-650">{new Date(appt.appointmentDate).toLocaleDateString('en-GB')}</td>
                         <td className="py-3 px-1 font-bold text-slate-700">{appt.doctorId?.fullName || 'Dr. Amit Sharma'}</td>
-                        <td className="py-3 px-1 font-bold text-emerald-600">{appt.tokenNumber || appt.queueToken || 'N/A'}</td>
+                        <td className="py-3 px-1 font-bold text-blue-600">{appt.tokenNumber || appt.queueToken || 'N/A'}</td>
                         <td className="py-3 px-1 uppercase text-[10px] font-extrabold text-slate-500">{appt.appointmentType || 'walk_in'}</td>
                         <td className="py-3 px-1 text-slate-600">{appt.reasonForVisit || 'Regular checkup'}</td>
                         <td className="py-3 px-1">
                           <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${
-                            appt.status === 'completed' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'
+                            appt.status === 'completed' ? 'bg-blue-50 text-blue-600' : 'bg-blue-50 text-blue-600'
                           }`}>{appt.status}</span>
                         </td>
                       </tr>
@@ -572,7 +572,7 @@ const PatientDetailPage = () => {
                   <button
                     disabled={uploading}
                     onClick={handleUploadDocument}
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition disabled:opacity-50"
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition disabled:opacity-50"
                   >
                     {uploading ? 'Uploading...' : 'Upload'}
                   </button>
@@ -642,11 +642,11 @@ const PatientDetailPage = () => {
                         <td className="py-3 px-1 font-bold text-slate-800">{inv.invoiceNumber}</td>
                         <td className="py-3 px-1 text-slate-500">{new Date(inv.createdAt).toLocaleDateString()}</td>
                         <td className="py-3 px-1 text-slate-800">₹{inv.grandTotal}</td>
-                        <td className="py-3 px-1 text-emerald-600">₹{inv.amountPaid || 0}</td>
+                        <td className="py-3 px-1 text-blue-600">₹{inv.amountPaid || 0}</td>
                         <td className="py-3 px-1 text-rose-500">₹{inv.balanceDue || 0}</td>
                         <td className="py-3 px-1">
                           <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${
-                            inv.status === 'paid' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
+                            inv.status === 'paid' ? 'bg-blue-50 text-blue-600' : 'bg-rose-50 text-rose-600'
                           }`}>{inv.status}</span>
                         </td>
                       </tr>
@@ -665,7 +665,7 @@ const PatientDetailPage = () => {
                 
                 {/* Registration entry */}
                 <div className="relative">
-                  <div className="absolute -left-[31px] top-1 w-4 h-4 rounded-full bg-emerald-500 border-[3px] border-white shadow-sm" />
+                  <div className="absolute -left-[31px] top-1 w-4 h-4 rounded-full bg-blue-500 border-[3px] border-white shadow-sm" />
                   <div>
                     <h4 className="text-xs font-bold text-slate-800">Patient Registered</h4>
                     <p className="text-[10px] text-slate-400 mt-0.5">
@@ -709,7 +709,7 @@ const PatientDetailPage = () => {
               </div>
               <div className="flex justify-between items-center">
                 <span>Completed</span>
-                <span className="text-emerald-600">{allAppointments.filter(a => a.status === 'completed').length}</span>
+                <span className="text-blue-600">{allAppointments.filter(a => a.status === 'completed').length}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span>Cancelled</span>
@@ -746,7 +746,7 @@ const PatientDetailPage = () => {
             </div>
             <div className="space-y-3.5">
               <div className="flex gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
+                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" />
                 <div>
                   <p className="text-xs font-bold text-slate-700">Lab report is ready</p>
                   <span className="text-[9px] text-slate-400 font-semibold block mt-0.5">02 Aug 2026, 05:40 PM</span>

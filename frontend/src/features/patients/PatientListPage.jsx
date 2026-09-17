@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+﻿import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import io from 'socket.io-client';
@@ -175,7 +175,7 @@ const PatientListPage = () => {
   }, [patients, ageGroup]);
 
   if (isLoading) return <LoadingState label="Loading patient registry..." />;
-  if (error) return <ErrorState title="Patients unavailable" description={error.message} action={<button className="rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white" onClick={() => refetch()}>Retry</button>} />;
+  if (error) return <ErrorState title="Patients unavailable" description={error.message} action={<button className="rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white" onClick={() => refetch()}>Retry</button>} />;
 
   return (
     <div className="space-y-6 bg-slate-50/50 p-2 min-h-screen">
@@ -184,14 +184,14 @@ const PatientListPage = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-slate-805 tracking-tight flex items-center gap-2">
-            <Users className="text-emerald-500" size={24} /> Patients
+            <Users className="text-blue-500" size={24} /> Patients
           </h1>
           <p className="text-xs text-slate-400 mt-1">Manage and view all patients registered with your clinic.</p>
         </div>
         <div className="flex items-center gap-2.5 shrink-0 self-start sm:self-auto">
           <button
             onClick={() => navigate('/patients/new')}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-sm"
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-sm"
           >
             <UserPlus size={14} /> Add New Patient
           </button>
@@ -211,7 +211,7 @@ const PatientListPage = () => {
         <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between hover:scale-[1.02] transition-transform duration-250 min-h-[110px]">
           <div className="flex items-start justify-between">
             <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl"><Users size={16} /></div>
-            <span className="text-[10px] font-bold text-emerald-600 flex items-center gap-0.5 bg-emerald-50 px-1.5 py-0.5 rounded-full"><TrendingUp size={10} /> +12%</span>
+            <span className="text-[10px] font-bold text-blue-600 flex items-center gap-0.5 bg-blue-50 px-1.5 py-0.5 rounded-full"><TrendingUp size={10} /> +12%</span>
           </div>
           <div className="mt-2">
             <p className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider">Total Patients</p>
@@ -223,7 +223,7 @@ const PatientListPage = () => {
         <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between hover:scale-[1.02] transition-transform duration-250 min-h-[110px]">
           <div className="flex items-start justify-between">
             <div className="p-2.5 bg-purple-50 text-purple-650 rounded-xl"><UserPlus size={16} /></div>
-            <span className="text-[10px] font-bold text-emerald-600 flex items-center gap-0.5 bg-emerald-50 px-1.5 py-0.5 rounded-full"><TrendingUp size={10} /> +18%</span>
+            <span className="text-[10px] font-bold text-blue-600 flex items-center gap-0.5 bg-blue-50 px-1.5 py-0.5 rounded-full"><TrendingUp size={10} /> +18%</span>
           </div>
           <div className="mt-2">
             <p className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider">New Patients (Month)</p>
@@ -234,8 +234,8 @@ const PatientListPage = () => {
         {/* Active Patients */}
         <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between hover:scale-[1.02] transition-transform duration-250 min-h-[110px]">
           <div className="flex items-start justify-between">
-            <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl"><CheckCircle size={16} /></div>
-            <span className="text-[10px] font-bold text-emerald-600 flex items-center gap-0.5 bg-emerald-50 px-1.5 py-0.5 rounded-full"><TrendingUp size={10} /> +10%</span>
+            <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl"><CheckCircle size={16} /></div>
+            <span className="text-[10px] font-bold text-blue-600 flex items-center gap-0.5 bg-blue-50 px-1.5 py-0.5 rounded-full"><TrendingUp size={10} /> +10%</span>
           </div>
           <div className="mt-2">
             <p className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider">Active Patients</p>
@@ -247,7 +247,7 @@ const PatientListPage = () => {
         <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between hover:scale-[1.02] transition-transform duration-250 min-h-[110px]">
           <div className="flex items-start justify-between">
             <div className="p-2.5 bg-amber-50 text-amber-600 rounded-xl"><Activity size={16} /></div>
-            <span className="text-[10px] font-bold text-emerald-600 flex items-center gap-0.5 bg-emerald-50 px-1.5 py-0.5 rounded-full"><TrendingUp size={10} /> +6%</span>
+            <span className="text-[10px] font-bold text-blue-600 flex items-center gap-0.5 bg-blue-50 px-1.5 py-0.5 rounded-full"><TrendingUp size={10} /> +6%</span>
           </div>
           <div className="mt-2">
             <p className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider">Chronic Patients</p>
@@ -259,7 +259,7 @@ const PatientListPage = () => {
         <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between hover:scale-[1.02] transition-transform duration-250 min-h-[110px]">
           <div className="flex items-start justify-between">
             <div className="p-2.5 bg-teal-50 text-teal-650 rounded-xl"><FileText size={16} /></div>
-            <span className="text-[10px] font-bold text-emerald-600 flex items-center gap-0.5 bg-emerald-50 px-1.5 py-0.5 rounded-full"><TrendingUp size={10} /> +14%</span>
+            <span className="text-[10px] font-bold text-blue-600 flex items-center gap-0.5 bg-blue-50 px-1.5 py-0.5 rounded-full"><TrendingUp size={10} /> +14%</span>
           </div>
           <div className="mt-2">
             <p className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider">Total Visits (Month)</p>
@@ -280,7 +280,7 @@ const PatientListPage = () => {
               placeholder="Search by name, UHID, phone, email or Aadhaar..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-800 focus:outline-none focus:bg-white focus:border-emerald-500 transition"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-800 focus:outline-none focus:bg-white focus:border-blue-500 transition"
             />
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-450" />
           </div>
@@ -290,7 +290,7 @@ const PatientListPage = () => {
             <select
               value={ageGroup}
               onChange={(e) => setAgeGroup(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 font-semibold focus:outline-none focus:bg-white focus:border-emerald-500"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 font-semibold focus:outline-none focus:bg-white focus:border-blue-500"
             >
               <option value="">All Ages</option>
               <option value="0-18">0-18 Years (Child)</option>
@@ -305,7 +305,7 @@ const PatientListPage = () => {
             <select
               value={gender}
               onChange={(e) => setGender(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 font-semibold focus:outline-none focus:bg-white focus:border-emerald-500"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 font-semibold focus:outline-none focus:bg-white focus:border-blue-500"
             >
               <option value="">All Genders</option>
               <option value="male">Male</option>
@@ -319,7 +319,7 @@ const PatientListPage = () => {
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 font-semibold focus:outline-none focus:bg-white focus:border-emerald-500"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 font-semibold focus:outline-none focus:bg-white focus:border-blue-500"
             >
               <option value="">All Statuses</option>
               <option value="active">Active</option>
@@ -332,7 +332,7 @@ const PatientListPage = () => {
             <select
               value={lastVisitFilter}
               onChange={(e) => setLastVisitFilter(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 font-semibold focus:outline-none focus:bg-white focus:border-emerald-500"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 font-semibold focus:outline-none focus:bg-white focus:border-blue-500"
             >
               <option value="">Any Time</option>
               <option value="today">Today</option>
@@ -352,7 +352,7 @@ const PatientListPage = () => {
         <div className="lg:col-span-9 bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3 flex-wrap gap-2">
             <h3 className="text-sm font-bold text-slate-800">Registry list</h3>
-            <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded-lg text-[10px] font-bold">
+            <span className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-bold">
               {stats.total} Registered
             </span>
           </div>
@@ -426,7 +426,7 @@ const PatientListPage = () => {
                     <td className="py-4 px-2">
                       <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase ${
                         pat.isActive !== false
-                          ? 'bg-emerald-50 text-emerald-600'
+                          ? 'bg-blue-50 text-blue-600'
                           : 'bg-slate-100 text-slate-500'
                       }`}>
                         {pat.isActive !== false ? 'Active' : 'Inactive'}
@@ -515,7 +515,7 @@ const PatientListPage = () => {
             <h3 className="text-xs font-black text-slate-800 border-b border-slate-50 pb-2">Today's Activity</h3>
             <div className="space-y-3.5">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-emerald-50 text-emerald-600 rounded-xl"><UserPlus size={14} /></div>
+                <div className="p-2 bg-blue-50 text-blue-600 rounded-xl"><UserPlus size={14} /></div>
                 <div>
                   <p className="text-xs font-bold text-slate-700">{stats.newThisMonth} New Registered</p>
                   <span className="text-[9px] text-slate-400 font-semibold block mt-0.5">Today, 10:30 AM</span>
@@ -545,7 +545,7 @@ const PatientListPage = () => {
               <p className="text-[10px] text-slate-400 font-semibold py-4 text-center">No distribution data available</p>
             ) : (
               <div className="flex items-center gap-4 justify-between">
-                <div className="w-16 h-16 rounded-full border-[6px] border-emerald-500 border-t-purple-500 border-r-blue-500 flex items-center justify-center text-[10px] font-black text-slate-800">
+                <div className="w-16 h-16 rounded-full border-[6px] border-blue-500 border-t-purple-500 border-r-blue-500 flex items-center justify-center text-[10px] font-black text-slate-800">
                   {stats.total}
                 </div>
                 <div className="space-y-1.5 text-[9px] font-bold text-slate-500 flex-1 pl-2">
@@ -558,7 +558,7 @@ const PatientListPage = () => {
                     <span className="text-slate-900">{Math.round((stats.age.age35 / stats.total) * 100) || 0}%</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> 36-60 Years</span>
+                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-blue-500" /> 36-60 Years</span>
                     <span className="text-slate-900">{Math.round((stats.age.age60 / stats.total) * 100) || 0}%</span>
                   </div>
                   <div className="flex justify-between items-center">

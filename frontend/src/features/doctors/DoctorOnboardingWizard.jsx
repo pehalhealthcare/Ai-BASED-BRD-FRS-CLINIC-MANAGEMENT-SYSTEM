@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
 import { doctorApi, specializationApi } from '../../lib/api';
@@ -203,9 +203,9 @@ const DoctorOnboardingWizard = () => {
             const isCompleted = step > s.stepNum;
             return (
               <div key={s.stepNum} className="flex flex-col gap-2">
-                <div className={`h-1.5 rounded-full transition-all duration-300 ${isActive ? 'bg-blue-600' : isCompleted ? 'bg-emerald-500' : 'bg-slate-200'}`} />
+                <div className={`h-1.5 rounded-full transition-all duration-300 ${isActive ? 'bg-blue-600' : isCompleted ? 'bg-blue-500' : 'bg-slate-200'}`} />
                 <div className="hidden sm:flex items-center gap-1.5 mt-1">
-                  <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold ${isActive ? 'bg-blue-600 text-white' : isCompleted ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-600'}`}>
+                  <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold ${isActive ? 'bg-blue-600 text-white' : isCompleted ? 'bg-blue-500 text-white' : 'bg-slate-200 text-slate-600'}`}>
                     {isCompleted ? <Check className="w-2.5 h-2.5" /> : s.stepNum}
                   </span>
                   <span className={`text-[10px] font-bold transition-colors ${isActive ? 'text-slate-800' : 'text-slate-400'}`}>{s.label}</span>
@@ -454,7 +454,7 @@ const DoctorOnboardingWizard = () => {
               </button>
             ) : (
               <button type="button" onClick={handleSubmit} disabled={loading}
-                className="px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:opacity-95 text-white rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-lg shadow-emerald-50 disabled:opacity-50">
+                className="px-6 py-3 bg-gradient-to-r from-blue-600 to-teal-600 hover:opacity-95 text-white rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-lg shadow-blue-50 disabled:opacity-50">
                 {loading ? 'Submitting Credentials...' : 'Submit Profile for Verification'} <CheckCircle className="w-4 h-4" />
               </button>
             )}

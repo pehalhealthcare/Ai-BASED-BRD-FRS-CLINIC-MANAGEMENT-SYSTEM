@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Calendar as CalendarIcon, X, ChevronLeft, ChevronRight, Info } from 'lucide-react';
 import { clinicApi } from '../../lib/api';
@@ -83,10 +83,10 @@ const BottomFloatingNavBar = () => {
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-white/80 dark:bg-navy-900/80 backdrop-blur-lg border border-stone-200/60 dark:border-white/[0.08] shadow-2xl rounded-full px-5 py-2.5 flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 group">
         <button
           onClick={() => setIsOpen(true)}
-          className="flex items-center gap-2 text-stone-700 dark:text-stone-300 hover:text-emerald-600 dark:hover:text-emerald-400 font-bold text-xs cursor-pointer select-none transition-colors"
+          className="flex items-center gap-2 text-stone-700 dark:text-stone-300 hover:text-blue-600 dark:hover:text-blue-400 font-bold text-xs cursor-pointer select-none transition-colors"
           title="View Clinic Holidays"
         >
-          <CalendarIcon size={18} className="text-emerald-500 group-hover:rotate-6 transition-transform" />
+          <CalendarIcon size={18} className="text-blue-500 group-hover:rotate-6 transition-transform" />
           <span>Holidays Calendar</span>
         </button>
       </div>
@@ -99,7 +99,7 @@ const BottomFloatingNavBar = () => {
             {/* Modal Header */}
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-base font-bold text-stone-900 dark:text-white flex items-center gap-2">
-                <CalendarIcon className="text-emerald-500" size={20} />
+                <CalendarIcon className="text-blue-500" size={20} />
                 <span>Clinic Holidays Calendar</span>
               </h3>
               <button
