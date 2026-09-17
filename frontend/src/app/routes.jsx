@@ -224,6 +224,10 @@ export const router = createBrowserRouter([
     element: <ClinicRegister />
   },
   {
+    path: '/book-demo',
+    element: <ClinicRegister />
+  },
+  {
     path: '/login',
     element: <LoginPage />
   },

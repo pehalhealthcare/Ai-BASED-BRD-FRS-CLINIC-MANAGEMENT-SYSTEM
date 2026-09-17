@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   PhoneCall, Shield, HelpCircle, Building2, User, 
   ArrowRight, CheckCircle2, AlertTriangle, ArrowLeft, Mail, MapPin, 
-  Clock, ShieldAlert, Globe, MessageSquare, Plus, Check, Stethoscope, Sparkles
+  Clock, ShieldAlert, Globe, MessageSquare, Plus, Check, Stethoscope, Sparkles, Calendar
 } from 'lucide-react';
 import PehalLogo from '../components/common/PehalLogo';
 import axios from 'axios';
@@ -631,21 +631,43 @@ export default function ContactPage() {
               </div>
               {errors.agree && <span className="text-[10px] text-red-400 font-bold block">{errors.agree}</span>}
 
-              {/* Submit Button */}
-              <button 
-                type="submit" 
-                disabled={status === 'loading'}
-                className="w-full py-4.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-emerald-700/10 hover:shadow-emerald-700/20 disabled:bg-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed"
-              >
-                {status === 'loading' ? (
-                  <span>Sending Ticket...</span>
-                ) : (
-                  <>
-                    <span>Send Message</span>
-                    <span className="text-sm">→</span>
-                  </>
-                )}
-              </button>
+              {/* CTA Buttons: Book a Demo + Submit */}
+              <div className="flex flex-col sm:flex-row gap-3 pb-2">
+
+                {/* ── Book a Demo (navigates to /book-demo, never submits the form) ── */}
+                <button
+                  id="contact-book-demo-btn"
+                  type="button"
+                  onClick={() => navigate('/book-demo')}
+                  className="w-full sm:flex-1 min-h-[52px] py-3.5 px-5 rounded-xl font-black text-xs uppercase tracking-wider transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer border border-[#1455B8]/70 text-white focus:outline-none focus:ring-2 focus:ring-[#1455B8]/60 focus:ring-offset-1 focus:ring-offset-slate-950"
+                  style={{
+                    background: 'linear-gradient(135deg, #1455B8 0%, #0F4294 100%)',
+                    boxShadow: '0 4px 14px rgba(20, 85, 184, 0.35), 0 1px 3px rgba(20, 85, 184, 0.2)'
+                  }}
+                  aria-label="Book a Demo – navigate to the Book a Demo screen"
+                >
+                  <Calendar size={13} className="shrink-0" />
+                  <span>Book a Demo</span>
+                  <span className="text-sm">→</span>
+                </button>
+
+                {/* ── Submit (existing, untouched) ── */}
+                <button 
+                  type="submit" 
+                  disabled={status === 'loading'}
+                  className="w-full sm:flex-1 min-h-[52px] py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-emerald-700/10 hover:shadow-emerald-700/20 disabled:bg-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-emerald-500/60 focus:ring-offset-1 focus:ring-offset-slate-950"
+                >
+                  {status === 'loading' ? (
+                    <span>Sending Ticket...</span>
+                  ) : (
+                    <>
+                      <span>Send Message</span>
+                      <span className="text-sm">→</span>
+                    </>
+                  )}
+                </button>
+
+              </div>
             </form>
           </div>
         </div>
