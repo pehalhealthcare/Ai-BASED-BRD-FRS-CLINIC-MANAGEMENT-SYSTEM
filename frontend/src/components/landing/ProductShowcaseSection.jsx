@@ -1,12 +1,12 @@
 import React from 'react';
 import { 
   Play, ArrowRight, Sparkles, Check, Zap, Shield, Headphones, 
-  User, FileText, ClipboardCheck, Activity, ShieldCheck 
+  User, FileText, ClipboardCheck, Activity, ShieldCheck, Calendar 
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { responsiveAssets } from '../../constants/landingAssets';
 
-export default function ProductShowcaseSection({ onSetupClinic, onWatchVideo, onTryAssistant }) {
+export default function ProductShowcaseSection({ onSetupClinic, onWatchVideo, onBookDemo, onTryAssistant }) {
   const benefits = [
     { 
       label: 'Quick Setup', 
@@ -102,26 +102,38 @@ export default function ProductShowcaseSection({ onSetupClinic, onWatchVideo, on
               ))}
             </div>
 
-            {/* CTA Buttons: Primary blue pill + Secondary glass pill */}
-            <div className="flex flex-wrap items-center gap-3 w-full">
+            {/* CTA Buttons: Primary blue pill + Secondary glass pill + Book a Demo */}
+            <div className="flex flex-wrap xl:flex-nowrap items-center gap-2 sm:gap-2.5 w-full">
               <button
                 type="button"
+                id="product-setup-clinic-btn"
                 onClick={onSetupClinic}
-                className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-bold text-xs sm:text-sm shadow-lg shadow-blue-950/40 border border-blue-400/30 transition active:scale-95 cursor-pointer"
+                className="inline-flex items-center justify-center gap-1.5 px-4 sm:px-5 py-2.5 rounded-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-bold text-xs sm:text-sm shadow-lg shadow-blue-950/40 border border-blue-400/30 transition active:scale-95 cursor-pointer whitespace-nowrap"
               >
                 <span>Setup Your Clinic</span>
-                <ArrowRight size={15} />
+                <ArrowRight size={14} />
               </button>
 
               <button
                 type="button"
+                id="product-watch-video-btn"
                 onClick={onWatchVideo}
-                className="inline-flex items-center justify-center gap-2.5 px-5 py-2.5 rounded-full bg-blue-950/40 hover:bg-blue-950/60 text-white font-medium text-xs sm:text-sm border border-white/20 transition active:scale-95 backdrop-blur-sm cursor-pointer"
+                className="inline-flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2.5 rounded-full bg-blue-950/40 hover:bg-blue-950/60 text-white font-medium text-xs sm:text-sm border border-white/20 transition active:scale-95 backdrop-blur-sm cursor-pointer whitespace-nowrap"
               >
                 <div className="w-5 h-5 rounded-full bg-white flex items-center justify-center shrink-0">
                   <Play size={10} className="fill-blue-900 text-blue-900 ml-0.5" />
                 </div>
                 <span>Watch 2 Min Video</span>
+              </button>
+
+              <button
+                type="button"
+                id="product-book-demo-btn"
+                onClick={onBookDemo}
+                className="inline-flex items-center justify-center gap-1.5 px-3.5 sm:px-4 py-2.5 rounded-full bg-white hover:bg-blue-50 text-[#0070F3] hover:text-[#0051CC] font-bold text-xs sm:text-sm border-2 border-white shadow-md shadow-blue-950/30 transition hover:-translate-y-0.5 active:scale-95 cursor-pointer whitespace-nowrap"
+              >
+                <Calendar size={14} className="text-[#0070F3]" />
+                <span>Book a Demo</span>
               </button>
             </div>
           </div>
@@ -291,13 +303,25 @@ export default function ProductShowcaseSection({ onSetupClinic, onWatchVideo, on
           {/* ── SECONDARY CTA: WATCH 2 MIN VIDEO ── */}
           <button
             type="button"
+            id="mobile-product-watch-video-btn"
             onClick={onWatchVideo}
-            className="w-[92%] max-w-[390px] py-3 px-4 rounded-2xl bg-blue-950/40 hover:bg-blue-950/60 border border-white/20 text-white font-medium text-xs sm:text-sm flex items-center justify-center gap-2.5 mb-7 transition active:scale-95 backdrop-blur-sm cursor-pointer shadow-md shadow-blue-950/30"
+            className="w-[92%] max-w-[390px] py-3 px-4 rounded-2xl bg-blue-950/40 hover:bg-blue-950/60 border border-white/20 text-white font-medium text-xs sm:text-sm flex items-center justify-center gap-2.5 mb-2.5 transition active:scale-95 backdrop-blur-sm cursor-pointer shadow-md shadow-blue-950/30"
           >
             <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center shrink-0 shadow-xs">
               <Play size={10} className="fill-blue-900 text-blue-900 ml-0.5" />
             </div>
             <span>Watch 2 Min Video</span>
+          </button>
+
+          {/* ── TERTIARY CTA: BOOK A DEMO ── */}
+          <button
+            type="button"
+            id="mobile-product-book-demo-btn"
+            onClick={onBookDemo}
+            className="w-[92%] max-w-[390px] py-3 px-4 rounded-2xl bg-white hover:bg-blue-50 text-[#0070F3] font-bold text-xs sm:text-sm flex items-center justify-center gap-2 mb-7 transition active:scale-95 cursor-pointer shadow-md border-2 border-white"
+          >
+            <Calendar size={15} className="text-[#0070F3]" />
+            <span>Book a Demo</span>
           </button>
 
           {/* ── COMPACT 3-COLUMN BENEFIT ROW ── */}

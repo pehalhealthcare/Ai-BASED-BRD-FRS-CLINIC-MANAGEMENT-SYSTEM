@@ -162,6 +162,7 @@ export default function LandingPage() {
         <ProductShowcaseSection
           onSetupClinic={() => handleSetupClinicClick()}
           onWatchVideo={() => setIsVideoModalOpen(true)}
+          onBookDemo={() => navigate('/book-demo')}
           onTryAssistant={() => handleNavClick(null, 'pricing', '#pricing')}
         />
 

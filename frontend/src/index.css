@@ -2002,8 +2002,8 @@ body {
 
 @media (min-width: 1200px) {
   .product-showcase-grid {
-    grid-template-columns: 1.05fr 1.28fr 0.75fr;
-    gap: 24px;
+    grid-template-columns: 1.18fr 1.2fr 0.75fr;
+    gap: 20px;
     align-items: center;
   }
 }
