@@ -553,7 +553,7 @@ const LoginPage = () => {
       </svg>
 
       {/* ── DESKTOP HEADER (lg+) ── */}
-      <header className="hidden lg:flex relative z-30 w-full px-8 sm:px-12 lg:px-14 xl:px-16 items-center justify-between shrink-0 h-16 xl:h-20">
+      <header className="hidden lg:flex relative z-30 w-full max-w-[1600px] 2xl:max-w-[1800px] mx-auto px-8 sm:px-12 lg:px-14 xl:px-16 items-center justify-between shrink-0 h-16 xl:h-20">
         {/* Left: PEHAL Logo + AI-CMS text */}
         <div className="flex items-center gap-3 sm:gap-4">
           <Link to="/" className="flex items-center transition-opacity hover:opacity-90">
@@ -589,19 +589,19 @@ const LoginPage = () => {
       </header>
 
       {/* ════════ DESKTOP MAIN WORKSPACE (lg+) ════════ */}
-      <main className="hidden lg:flex relative z-10 w-full px-8 sm:px-12 lg:px-14 xl:px-16 flex-1 flex-col justify-center min-h-0 overflow-hidden py-1">
+      <main className="hidden lg:flex relative z-10 w-full max-w-[1600px] 2xl:max-w-[1800px] mx-auto px-8 sm:px-12 lg:px-14 xl:px-16 flex-1 flex-col justify-center min-h-0 overflow-hidden py-1">
 
         {/* TWO-COLUMN LAYOUT — Desktop (lg+) */}
-        <div className="flex w-full h-full max-h-full items-center justify-between gap-6 lg:gap-8 xl:gap-12 min-h-0">
+        <div className="flex w-full h-full max-h-[820px] 2xl:max-h-[900px] items-center justify-between gap-6 lg:gap-8 xl:gap-12 min-h-0">
 
           {/* ═══════════════════════════════════════
               LEFT HERO SECTION (50–55% width)
               Continuous canvas matching target design
               ═══════════════════════════════════════ */}
-          <section className="flex-[1.1] h-full max-h-full relative flex flex-col justify-between min-h-0 overflow-visible">
+          <section className="flex-1 h-full max-h-full relative flex flex-col justify-between min-h-0 overflow-visible">
 
             {/* ── TOP-LEFT CONTENT: Kicker + Heading + Subtitle + Script ── */}
-            <div className="relative shrink-0 pt-2 lg:pt-4 xl:pt-6 z-20 max-w-[340px] lg:max-w-[380px] xl:max-w-[400px]">
+            <div className="relative shrink-0 pt-2 lg:pt-4 xl:pt-6 z-20 max-w-[340px] lg:max-w-[380px] xl:max-w-[420px]">
               {/* Pill badge */}
               <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-[#E0F2FE] border border-[#BAE6FD] text-[#0284C7] text-[11px] xl:text-xs font-bold tracking-wide mb-2.5 shadow-xs whitespace-nowrap">
                 <span>Better Care</span>
@@ -636,9 +636,10 @@ const LoginPage = () => {
             <div
               className="absolute pointer-events-none select-none flex items-end justify-center"
               style={{
-                right: '0%',
+                right: '4%',
                 bottom: '0%',
-                width: '78%',
+                width: '74%',
+                maxWidth: '640px',
                 height: '100%',
                 maxHeight: '780px',
                 zIndex: 3,
@@ -657,9 +658,10 @@ const LoginPage = () => {
             <div
               className="absolute pointer-events-none select-none flex items-end justify-end"
               style={{
-                right: '0%',
+                right: '4%',
                 bottom: '0%',
-                width: '76%',
+                width: '72%',
+                maxWidth: '600px',
                 height: '100%',
                 maxHeight: '780px',
                 zIndex: 5,
@@ -677,9 +679,10 @@ const LoginPage = () => {
             <div
               className="absolute bottom-0 left-[0%] pointer-events-none select-none flex items-end"
               style={{
-                width: '62%',
-                maxWidth: '600px',
-                height: '52%',
+                width: '54%',
+                maxWidth: '520px',
+                height: '50%',
+                maxHeight: '340px',
                 zIndex: 12,
               }}
             >
@@ -1212,7 +1215,7 @@ const LoginPage = () => {
       </main>
 
       {/* ── DESKTOP FOOTER (lg+) ── */}
-      <footer className="hidden lg:flex relative z-20 w-full shrink-0 items-center justify-between min-h-[48px] px-8 sm:px-12 lg:px-14 xl:px-16 py-2.5">
+      <footer className="hidden lg:flex relative z-20 w-full max-w-[1600px] 2xl:max-w-[1800px] mx-auto shrink-0 items-center justify-between min-h-[48px] px-8 sm:px-12 lg:px-14 xl:px-16 py-2.5">
         {/* Left: One Platform text with blue dash */}
         <div className="flex items-center gap-3 select-none">
           <span className="w-5 h-[3px] bg-[#0070F3] rounded-full" />
