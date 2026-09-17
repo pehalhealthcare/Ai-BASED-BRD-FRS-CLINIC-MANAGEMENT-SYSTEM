@@ -150,6 +150,7 @@ export default function LandingPage() {
         <HeroSection
           onSetupClinic={() => handleSetupClinicClick()}
           onWatchVideo={() => setIsVideoModalOpen(true)}
+          onBookDemo={() => navigate('/book-demo')}
         />
 
         {/* 2. Why AI-CMS / Features Section */}
