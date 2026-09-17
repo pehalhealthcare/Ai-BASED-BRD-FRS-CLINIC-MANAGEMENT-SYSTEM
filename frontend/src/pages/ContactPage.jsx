@@ -135,9 +135,22 @@ export default function ContactPage() {
     <div className="min-h-screen bg-gradient-to-b from-[#F5F9FF] via-[#EBF3FE] to-[#F0F6FF] text-slate-800 font-sans antialiased overflow-x-hidden selection:bg-[#0070F3] selection:text-white flex flex-col justify-between">
       
       {/* 🧭 Top Navigation Header */}
-      <header className="w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-12 py-5 sm:py-6 flex items-center justify-between relative z-30">
-        <Link to="/" className="flex items-center gap-2 hover:opacity-90 transition-opacity">
+      <header className="w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-12 py-4 sm:py-5 flex items-center justify-between relative z-30 shrink-0">
+        <Link to="/" className="flex items-center gap-2.5 hover:opacity-90 transition-opacity">
           <PehalLogo variant="primary" height={36} />
+          <div className="flex flex-col justify-center leading-none shrink-0">
+            <div className="flex items-center gap-1.5 whitespace-nowrap">
+              <span className="text-base sm:text-xl lg:text-[22px] font-black tracking-tight text-slate-900 leading-none">
+                AI-CMS
+              </span>
+              <span className="text-[8.5px] sm:text-[9.5px] lg:text-[10px] font-black uppercase tracking-wider bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-1.5 sm:px-2 py-0.5 rounded-full shadow-xs leading-none">
+                SUPPORT
+              </span>
+            </div>
+            <span className="text-[10px] sm:text-[11px] font-medium text-slate-500 hidden md:inline-block tracking-tight mt-0.5 whitespace-nowrap">
+              24/7 Healthcare Assistance
+            </span>
+          </div>
         </Link>
         <button 
           type="button"
@@ -149,90 +162,89 @@ export default function ContactPage() {
       </header>
 
       {/* 🏢 Main Two-Column Container */}
-      <main className="max-w-[1480px] mx-auto px-4 sm:px-6 lg:px-10 py-2 sm:py-4 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start flex-grow w-full">
+      <main className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-12 py-2 sm:py-4 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 items-start flex-grow w-full">
         
         {/* ==========================================
-            LEFT COLUMN (50% on desktop): HERO, DOCTOR & SUPPORT CARDS
+            LEFT COLUMN (6 cols / ~50%): HERO + DOCTOR (TOP), 6 CARDS (MIDDLE), BADGES (BOTTOM)
             ========================================== */}
-        <div className="lg:col-span-6 xl:col-span-6 flex flex-col justify-between h-full space-y-6">
+        <div className="lg:col-span-6 xl:col-span-6 flex flex-col justify-between space-y-4">
           
           {/* Top Hero & Doctor Composition Area */}
-          <div className="relative min-h-[380px] sm:min-h-[420px] flex flex-col justify-between">
+          <div className="relative min-h-[290px] sm:min-h-[310px] flex flex-col justify-between">
             
             {/* Left-Aligned Text Content */}
-            <div className="max-w-[340px] sm:max-w-[380px] z-10 relative pt-1">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-blue-200/90 text-[#0070F3] text-[11px] font-bold shadow-xs mb-3">
+            <div className="max-w-[300px] sm:max-w-[340px] z-10 relative pt-1">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-blue-200/90 text-[#0070F3] text-[11px] font-bold shadow-xs mb-2.5">
                 <Headphones size={13} className="text-[#0070F3]" />
                 <span>CONTACT SUPPORT</span>
               </div>
 
-              <h1 className="text-3xl sm:text-[38px] xl:text-[42px] font-black text-[#0B1E3B] tracking-tight leading-[1.12] mb-3">
+              <h1 className="text-2xl sm:text-[34px] xl:text-[38px] font-black text-[#0B1E3B] tracking-tight leading-[1.12] mb-2.5">
                 Need Help? <br />
                 We're Here <span className="text-[#0070F3]">24/7.</span>
               </h1>
 
-              <p className="text-slate-500 text-xs sm:text-[12.5px] leading-relaxed font-medium">
+              <p className="text-slate-500 text-xs sm:text-[12px] leading-relaxed font-medium mb-3">
                 Whether you're setting up your clinic, migrating data, onboarding doctors, configuring branches, or upgrading plans, our healthcare specialists are ready to assist you.
               </p>
-            </div>
-
-            {/* Doctor + Petal Graphic Composition (Positioned on the Right side of the left column) */}
-            <div className="hidden sm:block absolute right-0 -top-4 w-[280px] md:w-[320px] xl:w-[360px] h-[420px] pointer-events-none select-none z-0">
-              {/* Petal strictly BEHIND doctor */}
-              <img 
-                src={petalBackground} 
-                alt="PEHAL Abstract Background"
-                className="absolute top-4 right-0 w-[270px] md:w-[310px] xl:w-[340px] h-auto object-contain z-0 opacity-95"
-              />
-              {/* Doctor with Headset SVG */}
-              <img 
-                src={doctorImage} 
-                alt="PEHAL Healthcare Support Specialist"
-                className="absolute top-0 right-4 w-[220px] md:w-[250px] xl:w-[280px] h-auto object-contain z-10 drop-shadow-[0_10px_25px_rgba(0,112,243,0.18)]"
-              />
-              
-              {/* Floating Doctor Badge: Always Here for a Healthier Tomorrow */}
-              <div className="absolute bottom-14 right-2 bg-white/95 backdrop-blur-md rounded-2xl p-2.5 sm:p-3 border border-slate-100/90 shadow-[0_8px_24px_rgba(0,112,243,0.14)] flex items-center gap-2.5 z-20 pointer-events-auto">
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-blue-50 border border-blue-100 text-[#0070F3] flex items-center justify-center shrink-0 shadow-xs">
-                  <Headphones size={15} />
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[11px] font-black text-[#0B1E3B] leading-none">Always Here</span>
-                  <span className="text-[10px] font-bold text-[#0070F3] leading-tight mt-0.5">for a Healthier Tomorrow</span>
-                </div>
-                <Heart size={13} className="text-[#0070F3] ml-1 shrink-0" />
-              </div>
 
               {/* Decorative Tagline with Cursive Treatment & Swoosh */}
-              <div className="absolute bottom-0 right-4 text-right z-20 flex flex-col items-end pointer-events-auto">
+              <div className="pt-0.5 select-none pointer-events-none">
                 <div 
-                  className="text-[#0070F3] font-bold text-2xl sm:text-[26px] leading-[1.05] tracking-wide"
-                  style={{ fontFamily: "'Caveat', cursive, sans-serif", transform: 'rotate(-4deg)' }}
+                  className="text-[#0070F3] font-bold text-2xl sm:text-[25px] leading-[1.05] tracking-wide inline-block"
+                  style={{ fontFamily: "'Caveat', cursive, sans-serif", transform: 'rotate(-3deg)', transformOrigin: 'left center' }}
                 >
-                  Better Care, <br />
-                  Brighter Tomorrows
+                  Better Care, Brighter Tomorrows
                 </div>
                 {/* Decorative underline swoosh SVG */}
-                <svg className="w-28 sm:w-32 h-3 text-[#0070F3] -mt-1 mr-1" viewBox="0 0 120 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <svg className="w-36 sm:w-40 h-2.5 text-[#0070F3] -mt-0.5 ml-0.5" viewBox="0 0 120 12" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M2 8.5C35 2 85 1.5 118 7" stroke="#0070F3" strokeWidth="2.2" strokeLinecap="round" />
                 </svg>
               </div>
             </div>
 
-            {/* Mobile View Doctor Composition */}
-            <div className="sm:hidden relative w-full h-[260px] flex items-center justify-center my-3">
+            {/* Doctor + Petal Graphic Composition (Positioned on the Right side of the left column) */}
+            <div className="hidden sm:block absolute right-0 -top-2 w-[250px] md:w-[280px] xl:w-[300px] h-[310px] pointer-events-none select-none z-0">
+              {/* Petal strictly BEHIND doctor */}
               <img 
                 src={petalBackground} 
                 alt="PEHAL Abstract Background"
-                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[240px] h-auto object-contain z-0 opacity-95"
+                className="absolute top-2 right-0 w-[240px] md:w-[270px] xl:w-[290px] h-auto object-contain z-0 opacity-95"
+              />
+              {/* Doctor SVG */}
+              <img 
+                src={doctorImage} 
+                alt="PEHAL Healthcare Support Specialist"
+                className="absolute top-0 right-2 w-[195px] md:w-[220px] xl:w-[240px] h-auto object-contain z-10 drop-shadow-[0_10px_25px_rgba(0,112,243,0.18)]"
+              />
+              
+              {/* Doctor Floating Badge */}
+              <div className="absolute bottom-12 -left-4 xl:-left-6 bg-white/95 backdrop-blur-md rounded-2xl p-2.5 border border-slate-100/90 shadow-[0_8px_24px_rgba(0,112,243,0.14)] flex items-center gap-2.5 z-20 pointer-events-auto">
+                <div className="w-7 h-7 rounded-xl bg-blue-50 border border-blue-100 text-[#0070F3] flex items-center justify-center shrink-0 shadow-xs">
+                  <Headphones size={14} />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[11px] font-black text-[#0B1E3B] leading-none">Always Here</span>
+                  <span className="text-[9.5px] font-bold text-[#0070F3] leading-tight mt-0.5">for a Healthier Tomorrow</span>
+                </div>
+                <Heart size={12} className="text-[#0070F3] ml-0.5 shrink-0" />
+              </div>
+            </div>
+
+            {/* Mobile View Doctor Composition */}
+            <div className="sm:hidden relative w-full h-[220px] flex items-center justify-center my-2">
+              <img 
+                src={petalBackground} 
+                alt="PEHAL Abstract Background"
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[200px] h-auto object-contain z-0 opacity-95"
               />
               <img 
                 src={doctorImage} 
                 alt="PEHAL Healthcare Support Specialist"
-                className="relative z-10 w-auto h-[240px] object-contain drop-shadow-md"
+                className="relative z-10 w-auto h-[200px] object-contain drop-shadow-md"
               />
-              <div className="absolute bottom-2 right-2 bg-white/95 backdrop-blur-md rounded-xl p-2 border border-slate-100 shadow-md flex items-center gap-2 z-20">
-                <div className="w-6 h-6 rounded-full bg-blue-50 text-[#0070F3] flex items-center justify-center shrink-0">
+              <div className="absolute bottom-1 right-2 bg-white/95 backdrop-blur-md rounded-xl p-2 border border-slate-100 shadow-md flex items-center gap-2 z-20">
+                <div className="w-6 h-6 rounded-lg bg-blue-50 text-[#0070F3] flex items-center justify-center shrink-0">
                   <Headphones size={13} />
                 </div>
                 <div className="flex flex-col">
@@ -245,133 +257,129 @@ export default function ContactPage() {
 
           </div>
 
-          {/* 6 SUPPORT INFORMATION CARDS (3 Rows of 2 Cards) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 max-w-[460px] z-10">
+          {/* 6 SUPPORT INFORMATION CARDS (Spacious 3-column Grid across full Left Column) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 z-10">
             
             {/* Card 1: Live Support */}
-            <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-[0_4px_16px_rgba(0,112,243,0.05)] hover:shadow-md transition-shadow flex flex-col justify-between">
+            <div className="bg-white rounded-2xl p-3 border border-slate-100 shadow-[0_3px_14px_rgba(0,112,243,0.05)] hover:shadow-md transition-shadow flex flex-col justify-between">
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="w-8 h-8 rounded-full bg-blue-50 border border-blue-100/80 text-[#0070F3] flex items-center justify-center shadow-xs">
-                    <MessageCircle size={16} />
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="w-6 h-6 rounded-lg bg-blue-50 border border-blue-100/80 text-[#0070F3] flex items-center justify-center shadow-xs">
+                    <MessageCircle size={13} />
                   </div>
-                  <span className="bg-emerald-50 border border-emerald-200 text-emerald-600 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                  <span className="bg-emerald-50 border border-emerald-200 text-emerald-600 text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider">
                     ONLINE
                   </span>
                 </div>
-                <h4 className="text-[13px] font-black text-[#0B1E3B] leading-tight mb-1">
+                <h4 className="text-xs font-black text-[#0B1E3B] leading-tight mb-0.5">
                   Live Support
                 </h4>
-                <p className="text-[11px] text-slate-500 leading-snug font-medium">
+                <p className="text-[10px] text-slate-500 leading-snug font-medium">
                   Average response under 5m
                 </p>
               </div>
             </div>
 
             {/* Card 2: Email Support */}
-            <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-[0_4px_16px_rgba(0,112,243,0.05)] hover:shadow-md transition-shadow flex flex-col justify-between">
+            <div className="bg-white rounded-2xl p-3 border border-slate-100 shadow-[0_3px_14px_rgba(0,112,243,0.05)] hover:shadow-md transition-shadow flex flex-col justify-between">
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="w-8 h-8 rounded-full bg-blue-50 border border-blue-100/80 text-[#0070F3] flex items-center justify-center shadow-xs">
-                    <Mail size={16} />
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="w-6 h-6 rounded-lg bg-blue-50 border border-blue-100/80 text-[#0070F3] flex items-center justify-center shadow-xs">
+                    <Mail size={13} />
                   </div>
-                  <span className="bg-blue-50 border border-blue-200 text-[#0070F3] text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                  <span className="bg-blue-50 border border-blue-200 text-[#0070F3] text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider">
                     24/7 SUPPORT
                   </span>
                 </div>
-                <h4 className="text-[13px] font-black text-[#0B1E3B] leading-tight mb-1">
+                <h4 className="text-xs font-black text-[#0B1E3B] leading-tight mb-0.5">
                   Email Support
                 </h4>
-                <p className="text-[11px] text-slate-500 leading-snug font-medium truncate">
+                <p className="text-[10px] text-slate-500 leading-snug font-medium truncate">
                   support@pehalhealth.com
                 </p>
               </div>
             </div>
 
             {/* Card 3: Sales Team */}
-            <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-[0_4px_16px_rgba(0,112,243,0.05)] hover:shadow-md transition-shadow flex flex-col justify-between">
+            <div className="bg-white rounded-2xl p-3 border border-slate-100 shadow-[0_3px_14px_rgba(0,112,243,0.05)] hover:shadow-md transition-shadow flex flex-col justify-between">
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="w-8 h-8 rounded-full bg-blue-50 border border-blue-100/80 text-[#0070F3] flex items-center justify-center shadow-xs">
-                    <Users size={16} />
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="w-6 h-6 rounded-lg bg-blue-50 border border-blue-100/80 text-[#0070F3] flex items-center justify-center shadow-xs">
+                    <Users size={13} />
                   </div>
-                  <span className="bg-blue-50 border border-blue-200 text-[#0070F3] text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                  <span className="bg-blue-50 border border-blue-200 text-[#0070F3] text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider">
                     CUSTOM QUOTE
                   </span>
                 </div>
-                <h4 className="text-[13px] font-black text-[#0B1E3B] leading-tight mb-1">
+                <h4 className="text-xs font-black text-[#0B1E3B] leading-tight mb-0.5">
                   Sales Team
                 </h4>
-                <p className="text-[11px] text-slate-500 leading-snug font-medium">
-                  Get pricing & personalized demo
+                <p className="text-[10px] text-slate-500 leading-snug font-medium">
+                  Get pricing & demo
                 </p>
               </div>
             </div>
 
             {/* Card 4: Emergency Support */}
-            <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-[0_4px_16px_rgba(0,112,243,0.05)] hover:shadow-md transition-shadow flex flex-col justify-between">
+            <div className="bg-white rounded-2xl p-3 border border-slate-100 shadow-[0_3px_14px_rgba(0,112,243,0.05)] hover:shadow-md transition-shadow flex flex-col justify-between">
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="w-8 h-8 rounded-full bg-blue-50 border border-blue-100/80 text-[#0070F3] flex items-center justify-center shadow-xs">
-                    <Shield size={16} />
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="w-6 h-6 rounded-lg bg-blue-50 border border-blue-100/80 text-[#0070F3] flex items-center justify-center shadow-xs">
+                    <Shield size={13} />
                   </div>
-                  <span className="bg-blue-50 border border-blue-200 text-[#0070F3] text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                  <span className="bg-blue-50 border border-blue-200 text-[#0070F3] text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider">
                     TIER-1 HELP
                   </span>
                 </div>
-                <h4 className="text-[13px] font-black text-[#0B1E3B] leading-tight mb-1">
+                <h4 className="text-xs font-black text-[#0B1E3B] leading-tight mb-0.5">
                   Emergency Support
                 </h4>
-                <p className="text-[11px] text-slate-500 leading-snug font-medium">
+                <p className="text-[10px] text-slate-500 leading-snug font-medium">
                   Immediate assistance
                 </p>
               </div>
             </div>
 
             {/* Card 5: Phone Support */}
-            <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-[0_4px_16px_rgba(0,112,243,0.05)] hover:shadow-md transition-shadow flex flex-col justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-blue-50 border border-blue-100/80 text-[#0070F3] flex items-center justify-center shadow-xs shrink-0">
-                  <Phone size={16} />
+            <div className="bg-white rounded-2xl p-3 border border-slate-100 shadow-[0_3px_14px_rgba(0,112,243,0.05)] hover:shadow-md transition-shadow flex flex-col justify-between">
+              <div>
+                <div className="w-6 h-6 rounded-lg bg-blue-50 border border-blue-100/80 text-[#0070F3] flex items-center justify-center mb-1.5 shadow-xs">
+                  <Phone size={13} />
                 </div>
-                <div>
-                  <h4 className="text-[13px] font-black text-[#0B1E3B] leading-tight mb-0.5">
-                    Phone Support
-                  </h4>
-                  <p className="text-[11px] text-slate-500 font-medium">
-                    +91 98765 43210
-                  </p>
-                </div>
+                <h4 className="text-xs font-black text-[#0B1E3B] leading-tight mb-0.5">
+                  Phone Support
+                </h4>
+                <p className="text-[10px] text-slate-500 font-medium">
+                  +91 98765 43210
+                </p>
               </div>
             </div>
 
             {/* Card 6: Office Location */}
-            <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-[0_4px_16px_rgba(0,112,243,0.05)] hover:shadow-md transition-shadow flex flex-col justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-blue-50 border border-blue-100/80 text-[#0070F3] flex items-center justify-center shadow-xs shrink-0">
-                  <MapPin size={16} />
+            <div className="bg-white rounded-2xl p-3 border border-slate-100 shadow-[0_3px_14px_rgba(0,112,243,0.05)] hover:shadow-md transition-shadow flex flex-col justify-between">
+              <div>
+                <div className="w-6 h-6 rounded-lg bg-blue-50 border border-blue-100/80 text-[#0070F3] flex items-center justify-center mb-1.5 shadow-xs">
+                  <MapPin size={13} />
                 </div>
-                <div>
-                  <h4 className="text-[13px] font-black text-[#0B1E3B] leading-tight mb-0.5">
-                    Office Location
-                  </h4>
-                  <p className="text-[11px] text-slate-500 font-medium truncate">
-                    Lucknow, Uttar Pradesh, IN
-                  </p>
-                </div>
+                <h4 className="text-xs font-black text-[#0B1E3B] leading-tight mb-0.5">
+                  Office Location
+                </h4>
+                <p className="text-[10px] text-slate-500 font-medium truncate">
+                  Lucknow, UP, India
+                </p>
               </div>
             </div>
 
           </div>
 
           {/* COMPLIANCE BADGES (Single Row) */}
-          <div className="flex flex-wrap items-center gap-2 pt-1 pb-1 z-10">
+          <div className="flex flex-wrap items-center gap-1.5 pt-0.5 z-10">
             {['HIPAA READY', 'NABH READY', 'GDPR READY', 'AES-256 ENCRYPTION'].map((badge) => (
               <span 
                 key={badge}
-                className="bg-white border border-blue-200/80 text-[#0070F3] px-3 py-1 rounded-full text-[10px] font-extrabold flex items-center gap-1.5 shadow-xs tracking-tight"
+                className="bg-white border border-blue-200/80 text-[#0070F3] px-2.5 py-1 rounded-full text-[9.5px] font-extrabold flex items-center gap-1 shadow-xs tracking-tight"
               >
-                <Check size={12} strokeWidth={3} className="text-[#0070F3]" />
+                <Check size={11} strokeWidth={3} className="text-[#0070F3]" />
                 <span>{badge}</span>
               </span>
             ))}
@@ -380,14 +388,14 @@ export default function ContactPage() {
         </div>
 
         {/* ==========================================
-            RIGHT COLUMN (50% on desktop): SUPPORT FORM CARD
+            RIGHT COLUMN (6 cols / ~50%): LARGE SUPPORT MESSAGE FORM CARD
             ========================================== */}
         <div className="lg:col-span-6 xl:col-span-6 w-full">
           
           <div className="bg-white rounded-3xl p-5 sm:p-7 xl:p-8 border border-slate-100 shadow-[0_12px_44px_rgba(0,112,243,0.07)] relative">
             
             {/* Header: Icon + Title + Subtitle */}
-            <div className="flex items-center gap-3 mb-6">
+            <div className="flex items-center gap-3 mb-5">
               <div className="w-10 h-10 rounded-2xl bg-blue-50 border border-blue-100/80 text-[#0070F3] flex items-center justify-center shrink-0 shadow-xs">
                 <Mail size={18} />
               </div>
@@ -449,10 +457,10 @@ export default function ContactPage() {
                 </div>
               </motion.div>
             ) : (
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} className="space-y-3.5">
                 
                 {/* ── ROW 1: FIRST NAME + LAST NAME ── */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {/* First Name */}
                   <div>
                     <label className="block text-[11px] font-bold text-[#0B1E3B] uppercase tracking-wider mb-1">
@@ -497,7 +505,7 @@ export default function ContactPage() {
                 </div>
 
                 {/* ── ROW 2: EMAIL ADDRESS + PHONE NUMBER ── */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {/* Email Address */}
                   <div>
                     <label className="block text-[11px] font-bold text-[#0B1E3B] uppercase tracking-wider mb-1">
@@ -563,7 +571,7 @@ export default function ContactPage() {
                 </div>
 
                 {/* ── ROW 4: PRIORITY + SUBJECT ── */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {/* Priority Dropdown */}
                   <div>
                     <label className="block text-[11px] font-bold text-[#0B1E3B] uppercase tracking-wider mb-1">
@@ -636,7 +644,7 @@ export default function ContactPage() {
                 )}
 
                 {/* Privacy & Terms Checkbox */}
-                <div className="pt-1">
+                <div className="pt-0.5">
                   <label className="flex items-center gap-2 cursor-pointer select-none text-xs text-slate-600 font-medium">
                     <input
                       type="checkbox"
@@ -673,7 +681,7 @@ export default function ContactPage() {
       </main>
 
       {/* 🛡️ Footer */}
-      <footer className="w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-12 py-5 text-xs text-slate-500 border-t border-slate-200/80 mt-6 relative z-20 flex flex-col sm:flex-row items-center justify-between gap-3">
+      <footer className="w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-12 py-4 text-xs text-slate-500 border-t border-slate-200/80 mt-4 relative z-20 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
         <div>
           © 2026 PEHAL Healthcare. All rights reserved. | Powered by AI
         </div>
