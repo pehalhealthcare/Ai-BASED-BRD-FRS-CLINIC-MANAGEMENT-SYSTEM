@@ -1,13 +1,17 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { 
-  PhoneCall, Shield, HelpCircle, Building2, User, 
-  ArrowRight, CheckCircle2, AlertTriangle, ArrowLeft, Mail, MapPin, 
-  Clock, ShieldAlert, Globe, MessageSquare, Plus, Check, Stethoscope, Sparkles, Calendar
+  Headphones, MessageCircle, Mail, Users, Shield, Phone, MapPin,
+  Building2, User, ArrowRight, ArrowLeft, Send, Check,
+  AlertCircle, CheckCircle2, Heart, Flag, FileText, MessageSquare
 } from 'lucide-react';
 import PehalLogo from '../components/common/PehalLogo';
 import axios from 'axios';
+
+// Existing SVG Assets from src/assets/
+import doctorImage from '../assets/pehal_doctor_headset.svg';
+import petalBackground from '../assets/pehal_blue_petal_background.svg';
 
 export default function ContactPage() {
   const navigate = useNavigate();
@@ -19,8 +23,6 @@ export default function ContactPage() {
     email: '',
     phone: '',
     clinicName: '',
-    role: '',
-    department: 'General Inquiry',
     priority: 'Normal',
     subject: '',
     message: '',
@@ -38,28 +40,27 @@ export default function ContactPage() {
     if (!formData.firstName.trim()) newErrors.firstName = 'First name is required';
     if (!formData.lastName.trim()) newErrors.lastName = 'Last name is required';
     
-    if (!formData.email) {
-      newErrors.email = 'Email is required';
+    if (!formData.email.trim()) {
+      newErrors.email = 'Email address is required';
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = 'Invalid email address';
     }
 
-    if (!formData.phone) {
+    if (!formData.phone.trim()) {
       newErrors.phone = 'Phone number is required';
     } else if (!/^[0-9]{10}$/.test(formData.phone.replace(/[^0-9]/g, ''))) {
-      newErrors.phone = 'Must be a 10 digit number';
+      newErrors.phone = 'Must be a 10-digit number';
     }
 
-    if (!formData.clinicName.trim()) newErrors.clinicName = 'Clinic / Hospital is required';
-    if (!formData.role) newErrors.role = 'Please select your role';
+    if (!formData.clinicName.trim()) newErrors.clinicName = 'Clinic or hospital name is required';
     if (!formData.subject.trim()) newErrors.subject = 'Subject is required';
     if (!formData.message.trim()) {
       newErrors.message = 'Message is required';
-    } else if (formData.message.length < 15) {
-      newErrors.message = 'Message must be at least 15 characters';
+    } else if (formData.message.trim().length < 10) {
+      newErrors.message = 'Message must be at least 10 characters';
     }
 
-    if (!formData.agree) newErrors.agree = 'You must agree to the privacy policy';
+    if (!formData.agree) newErrors.agree = 'You must agree to the Terms and Privacy Policy';
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -91,8 +92,8 @@ export default function ContactPage() {
         email: formData.email.trim(),
         phone: formData.phone.trim(),
         clinicName: formData.clinicName.trim(),
-        role: formData.role,
-        department: formData.department,
+        role: 'Clinic Owner',
+        department: 'Customer Support',
         priority: formData.priority,
         subject: formData.subject.trim(),
         message: formData.message.trim(),
@@ -102,9 +103,11 @@ export default function ContactPage() {
       if (response.data?.success) {
         setStatus('success');
         setSuccessInfo({
-          ticketId: response.data.ticketId,
-          estimatedResponse: formData.priority === 'Critical' ? 'Within 15 Minutes' : 'Within 1 Hour',
-          assignedTo: 'Priority Tier ' + (formData.priority === 'Critical' ? '1' : '2')
+          ticketId: response.data.ticketId || `PHL-${Date.now().toString().slice(-6)}`,
+          name: `${formData.firstName} ${formData.lastName}`.trim(),
+          clinicName: formData.clinicName,
+          priority: formData.priority,
+          estimatedResponse: formData.priority === 'Urgent' ? 'Within 15 Minutes' : formData.priority === 'High' ? 'Within 30 Minutes' : 'Within 1 Hour'
         });
 
         setFormData({
@@ -113,572 +116,571 @@ export default function ContactPage() {
           email: '',
           phone: '',
           clinicName: '',
-          role: '',
-          department: 'General Inquiry',
           priority: 'Normal',
           subject: '',
           message: '',
           agree: false
         });
-
-        setTimeout(() => {
-          setStatus('idle');
-          setSuccessInfo(null);
-        }, 8000);
       } else {
         throw new Error(response.data?.message || 'Submission failed');
       }
     } catch (err) {
-      console.error(err);
+      console.error('Contact submit error:', err);
       setStatus('error');
-      setErrorMessage(err.response?.data?.message || err.message || 'Something went wrong. Please try again.');
+      setErrorMessage(err.response?.data?.message || err.message || 'Something went wrong. Please check your connection and try again.');
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#08111D] text-white font-sans antialiased overflow-x-hidden relative flex flex-col justify-between">
+    <div className="min-h-screen bg-gradient-to-b from-[#F5F9FF] via-[#EBF3FE] to-[#F0F6FF] text-slate-800 font-sans antialiased overflow-x-hidden selection:bg-[#0070F3] selection:text-white flex flex-col justify-between">
       
-      {/* 🔮 Cosmic Healthcare Background Overlays */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-[5%] left-[5%] w-[600px] h-[600px] bg-emerald-500/[0.04] rounded-full blur-[140px] animate-[pulse_8s_ease-in-out_infinite]" />
-        <div className="absolute bottom-[15%] right-[5%] w-[600px] h-[600px] bg-cyan-500/[0.03] rounded-full blur-[140px] animate-[pulse_10s_ease-in-out_infinite]" />
-        <div className="absolute inset-0 opacity-[0.03]" style={{
-          backgroundImage: 'radial-gradient(#10b981 1.5px, transparent 1.5px)',
-          backgroundSize: '36px 36px'
-        }} />
-      </div>
-
-      {/* 🧭 Glass Navigation Header */}
-      <header className="w-full max-w-7xl mx-auto px-6 py-8 flex items-center justify-between relative z-20">
-        <Link to="/" className="flex items-center gap-2 hover:scale-[1.02] transition-transform">
-          <PehalLogo variant="dark" height={38} />
+      {/* 🧭 Top Navigation Header */}
+      <header className="w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-12 py-5 sm:py-6 flex items-center justify-between relative z-30">
+        <Link to="/" className="flex items-center gap-2 hover:opacity-90 transition-opacity">
+          <PehalLogo variant="primary" height={36} />
         </Link>
         <button 
+          type="button"
           onClick={() => navigate('/')} 
-          className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-slate-400 hover:text-white transition-colors cursor-pointer bg-slate-900/60 border border-slate-800/80 px-4 py-2.5 rounded-xl backdrop-blur-md hover:bg-slate-800/40"
+          className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-700 hover:text-[#0070F3] transition-all cursor-pointer bg-white hover:bg-blue-50/80 border border-slate-200/90 hover:border-blue-300 px-4 py-2.5 rounded-full shadow-xs"
         >
-          <ArrowLeft size={14} /> Back to Home
+          <ArrowLeft size={14} /> <span>BACK TO HOME</span>
         </button>
       </header>
 
-      {/* 🏢 Primary Contact Container */}
-      <main className="max-w-7xl mx-auto px-6 py-12 grid grid-cols-1 lg:grid-cols-[46%_54%] gap-16 relative z-10 w-full flex-grow items-center">
+      {/* 🏢 Main Two-Column Container */}
+      <main className="max-w-[1480px] mx-auto px-4 sm:px-6 lg:px-10 py-2 sm:py-4 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start flex-grow w-full">
         
         {/* ==========================================
-            LEFT COLUMN: TRUST METRICS & SVG PANEL
+            LEFT COLUMN (50% on desktop): HERO, DOCTOR & SUPPORT CARDS
             ========================================== */}
-        <div className="space-y-12">
-          {/* Badge & Heading */}
-          <div className="space-y-5">
-            <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-450 text-[10px] font-black uppercase tracking-widest shadow-sm">
-              <HelpCircle size={12} className="text-emerald-400 animate-bounce" />
-              <span>Contact Support</span>
-            </span>
-            <h1 className="text-4xl sm:text-5xl lg:text-[56px] font-black tracking-tight leading-none text-white">
-              Need Help? <br />We're <span className="bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">Here 24/7.</span>
-            </h1>
-            <p className="text-slate-400 text-[15px] leading-relaxed max-w-md font-medium">
-              Whether you're setting up your clinic, migrating data, onboarding doctors, configuring branches, or upgrading plans, our healthcare specialists are ready to assist you.
-            </p>
+        <div className="lg:col-span-6 xl:col-span-6 flex flex-col justify-between h-full space-y-6">
+          
+          {/* Top Hero & Doctor Composition Area */}
+          <div className="relative min-h-[380px] sm:min-h-[420px] flex flex-col justify-between">
+            
+            {/* Left-Aligned Text Content */}
+            <div className="max-w-[340px] sm:max-w-[380px] z-10 relative pt-1">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-blue-200/90 text-[#0070F3] text-[11px] font-bold shadow-xs mb-3">
+                <Headphones size={13} className="text-[#0070F3]" />
+                <span>CONTACT SUPPORT</span>
+              </div>
+
+              <h1 className="text-3xl sm:text-[38px] xl:text-[42px] font-black text-[#0B1E3B] tracking-tight leading-[1.12] mb-3">
+                Need Help? <br />
+                We're Here <span className="text-[#0070F3]">24/7.</span>
+              </h1>
+
+              <p className="text-slate-500 text-xs sm:text-[12.5px] leading-relaxed font-medium">
+                Whether you're setting up your clinic, migrating data, onboarding doctors, configuring branches, or upgrading plans, our healthcare specialists are ready to assist you.
+              </p>
+            </div>
+
+            {/* Doctor + Petal Graphic Composition (Positioned on the Right side of the left column) */}
+            <div className="hidden sm:block absolute right-0 -top-4 w-[280px] md:w-[320px] xl:w-[360px] h-[420px] pointer-events-none select-none z-0">
+              {/* Petal strictly BEHIND doctor */}
+              <img 
+                src={petalBackground} 
+                alt="PEHAL Abstract Background"
+                className="absolute top-4 right-0 w-[270px] md:w-[310px] xl:w-[340px] h-auto object-contain z-0 opacity-95"
+              />
+              {/* Doctor with Headset SVG */}
+              <img 
+                src={doctorImage} 
+                alt="PEHAL Healthcare Support Specialist"
+                className="absolute top-0 right-4 w-[220px] md:w-[250px] xl:w-[280px] h-auto object-contain z-10 drop-shadow-[0_10px_25px_rgba(0,112,243,0.18)]"
+              />
+              
+              {/* Floating Doctor Badge: Always Here for a Healthier Tomorrow */}
+              <div className="absolute bottom-14 right-2 bg-white/95 backdrop-blur-md rounded-2xl p-2.5 sm:p-3 border border-slate-100/90 shadow-[0_8px_24px_rgba(0,112,243,0.14)] flex items-center gap-2.5 z-20 pointer-events-auto">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-blue-50 border border-blue-100 text-[#0070F3] flex items-center justify-center shrink-0 shadow-xs">
+                  <Headphones size={15} />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[11px] font-black text-[#0B1E3B] leading-none">Always Here</span>
+                  <span className="text-[10px] font-bold text-[#0070F3] leading-tight mt-0.5">for a Healthier Tomorrow</span>
+                </div>
+                <Heart size={13} className="text-[#0070F3] ml-1 shrink-0" />
+              </div>
+
+              {/* Decorative Tagline with Cursive Treatment & Swoosh */}
+              <div className="absolute bottom-0 right-4 text-right z-20 flex flex-col items-end pointer-events-auto">
+                <div 
+                  className="text-[#0070F3] font-bold text-2xl sm:text-[26px] leading-[1.05] tracking-wide"
+                  style={{ fontFamily: "'Caveat', cursive, sans-serif", transform: 'rotate(-4deg)' }}
+                >
+                  Better Care, <br />
+                  Brighter Tomorrows
+                </div>
+                {/* Decorative underline swoosh SVG */}
+                <svg className="w-28 sm:w-32 h-3 text-[#0070F3] -mt-1 mr-1" viewBox="0 0 120 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M2 8.5C35 2 85 1.5 118 7" stroke="#0070F3" strokeWidth="2.2" strokeLinecap="round" />
+                </svg>
+              </div>
+            </div>
+
+            {/* Mobile View Doctor Composition */}
+            <div className="sm:hidden relative w-full h-[260px] flex items-center justify-center my-3">
+              <img 
+                src={petalBackground} 
+                alt="PEHAL Abstract Background"
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[240px] h-auto object-contain z-0 opacity-95"
+              />
+              <img 
+                src={doctorImage} 
+                alt="PEHAL Healthcare Support Specialist"
+                className="relative z-10 w-auto h-[240px] object-contain drop-shadow-md"
+              />
+              <div className="absolute bottom-2 right-2 bg-white/95 backdrop-blur-md rounded-xl p-2 border border-slate-100 shadow-md flex items-center gap-2 z-20">
+                <div className="w-6 h-6 rounded-full bg-blue-50 text-[#0070F3] flex items-center justify-center shrink-0">
+                  <Headphones size={13} />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-black text-[#0B1E3B] leading-none">Always Here</span>
+                  <span className="text-[9px] font-bold text-[#0070F3] leading-none mt-0.5">for a Healthier Tomorrow</span>
+                </div>
+                <Heart size={11} className="text-[#0070F3] ml-0.5" />
+              </div>
+            </div>
+
           </div>
 
-          {/* 6 Premium Glass Support Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-lg">
-            {[
-              {
-                title: 'Live Support',
-                val: 'Average response under 5m',
-                badge: 'Online',
-                icon: (
-                  <svg className="w-5 h-5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                  </svg>
-                )
-              },
-              {
-                title: 'Email Support',
-                val: 'support@pehalhealth.com',
-                badge: '24/7 Support',
-                icon: (
-                  <svg className="w-5 h-5 text-teal-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                )
-              },
-              {
-                title: 'Sales Team',
-                val: 'sales@pehalhealth.com',
-                badge: 'Custom Quote',
-                icon: (
-                  <svg className="w-5 h-5 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                  </svg>
-                )
-              },
-              {
-                title: 'Emergency Support',
-                val: 'Priority Enterprise Hotline',
-                badge: 'Tier-1 Help',
-                icon: (
-                  <svg className="w-5 h-5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                  </svg>
-                )
-              },
-              {
-                title: 'Phone Support',
-                val: '+91 98765 43210',
-                badge: 'Call Us',
-                icon: (
-                  <svg className="w-5 h-5 text-teal-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.94.725l.548 2.2a1 1 0 01-.321.988l-1.305.98a10.582 10.582 0 004.872 4.872l.98-1.305a1 1 0 01.988-.321l2.2.548a1 1 0 01.725.94V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                  </svg>
-                )
-              },
-              {
-                title: 'Office Location',
-                val: 'Lucknow, Uttar Pradesh, IN',
-                badge: 'HQ Office',
-                icon: (
-                  <svg className="w-5 h-5 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                )
-              }
-            ].map((card, i) => (
-              <motion.div 
-                key={i}
-                whileHover={{ y: -6, scale: 1.02 }}
-                className="p-5 rounded-2xl bg-slate-900/40 border border-slate-850/80 backdrop-blur-md hover:border-emerald-500/40 hover:shadow-lg hover:shadow-emerald-500/5 transition-all duration-300 relative group cursor-default"
-              >
-                <div className="absolute top-3 right-3">
-                  <span className="text-[8px] font-black tracking-widest text-slate-500 uppercase px-2 py-0.5 rounded bg-slate-950/80 border border-slate-850">
-                    {card.badge}
+          {/* 6 SUPPORT INFORMATION CARDS (3 Rows of 2 Cards) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 max-w-[460px] z-10">
+            
+            {/* Card 1: Live Support */}
+            <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-[0_4px_16px_rgba(0,112,243,0.05)] hover:shadow-md transition-shadow flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="w-8 h-8 rounded-full bg-blue-50 border border-blue-100/80 text-[#0070F3] flex items-center justify-center shadow-xs">
+                    <MessageCircle size={16} />
+                  </div>
+                  <span className="bg-emerald-50 border border-emerald-200 text-emerald-600 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                    ONLINE
                   </span>
                 </div>
-                <div className="w-9 h-9 rounded-xl bg-slate-950 flex items-center justify-center mb-3.5 border border-slate-850 shadow-inner group-hover:border-emerald-500/30 group-hover:text-emerald-400 transition-colors">
-                  {card.icon}
+                <h4 className="text-[13px] font-black text-[#0B1E3B] leading-tight mb-1">
+                  Live Support
+                </h4>
+                <p className="text-[11px] text-slate-500 leading-snug font-medium">
+                  Average response under 5m
+                </p>
+              </div>
+            </div>
+
+            {/* Card 2: Email Support */}
+            <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-[0_4px_16px_rgba(0,112,243,0.05)] hover:shadow-md transition-shadow flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="w-8 h-8 rounded-full bg-blue-50 border border-blue-100/80 text-[#0070F3] flex items-center justify-center shadow-xs">
+                    <Mail size={16} />
+                  </div>
+                  <span className="bg-blue-50 border border-blue-200 text-[#0070F3] text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                    24/7 SUPPORT
+                  </span>
                 </div>
-                <div className="text-[13px] font-black text-white">{card.title}</div>
-                <div className="text-[11px] text-slate-500 font-bold mt-1 group-hover:text-slate-400 transition-colors">{card.val}</div>
-              </motion.div>
+                <h4 className="text-[13px] font-black text-[#0B1E3B] leading-tight mb-1">
+                  Email Support
+                </h4>
+                <p className="text-[11px] text-slate-500 leading-snug font-medium truncate">
+                  support@pehalhealth.com
+                </p>
+              </div>
+            </div>
+
+            {/* Card 3: Sales Team */}
+            <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-[0_4px_16px_rgba(0,112,243,0.05)] hover:shadow-md transition-shadow flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="w-8 h-8 rounded-full bg-blue-50 border border-blue-100/80 text-[#0070F3] flex items-center justify-center shadow-xs">
+                    <Users size={16} />
+                  </div>
+                  <span className="bg-blue-50 border border-blue-200 text-[#0070F3] text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                    CUSTOM QUOTE
+                  </span>
+                </div>
+                <h4 className="text-[13px] font-black text-[#0B1E3B] leading-tight mb-1">
+                  Sales Team
+                </h4>
+                <p className="text-[11px] text-slate-500 leading-snug font-medium">
+                  Get pricing & personalized demo
+                </p>
+              </div>
+            </div>
+
+            {/* Card 4: Emergency Support */}
+            <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-[0_4px_16px_rgba(0,112,243,0.05)] hover:shadow-md transition-shadow flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="w-8 h-8 rounded-full bg-blue-50 border border-blue-100/80 text-[#0070F3] flex items-center justify-center shadow-xs">
+                    <Shield size={16} />
+                  </div>
+                  <span className="bg-blue-50 border border-blue-200 text-[#0070F3] text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                    TIER-1 HELP
+                  </span>
+                </div>
+                <h4 className="text-[13px] font-black text-[#0B1E3B] leading-tight mb-1">
+                  Emergency Support
+                </h4>
+                <p className="text-[11px] text-slate-500 leading-snug font-medium">
+                  Immediate assistance
+                </p>
+              </div>
+            </div>
+
+            {/* Card 5: Phone Support */}
+            <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-[0_4px_16px_rgba(0,112,243,0.05)] hover:shadow-md transition-shadow flex flex-col justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-blue-50 border border-blue-100/80 text-[#0070F3] flex items-center justify-center shadow-xs shrink-0">
+                  <Phone size={16} />
+                </div>
+                <div>
+                  <h4 className="text-[13px] font-black text-[#0B1E3B] leading-tight mb-0.5">
+                    Phone Support
+                  </h4>
+                  <p className="text-[11px] text-slate-500 font-medium">
+                    +91 98765 43210
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Card 6: Office Location */}
+            <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-[0_4px_16px_rgba(0,112,243,0.05)] hover:shadow-md transition-shadow flex flex-col justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-blue-50 border border-blue-100/80 text-[#0070F3] flex items-center justify-center shadow-xs shrink-0">
+                  <MapPin size={16} />
+                </div>
+                <div>
+                  <h4 className="text-[13px] font-black text-[#0B1E3B] leading-tight mb-0.5">
+                    Office Location
+                  </h4>
+                  <p className="text-[11px] text-slate-500 font-medium truncate">
+                    Lucknow, Uttar Pradesh, IN
+                  </p>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          {/* COMPLIANCE BADGES (Single Row) */}
+          <div className="flex flex-wrap items-center gap-2 pt-1 pb-1 z-10">
+            {['HIPAA READY', 'NABH READY', 'GDPR READY', 'AES-256 ENCRYPTION'].map((badge) => (
+              <span 
+                key={badge}
+                className="bg-white border border-blue-200/80 text-[#0070F3] px-3 py-1 rounded-full text-[10px] font-extrabold flex items-center gap-1.5 shadow-xs tracking-tight"
+              >
+                <Check size={12} strokeWidth={3} className="text-[#0070F3]" />
+                <span>{badge}</span>
+              </span>
             ))}
           </div>
 
-          {/* Compliance Glass Pills */}
-          <div className="flex flex-wrap items-center gap-3 pt-2 text-[9px] font-black text-slate-450 uppercase tracking-widest">
-            <span className="px-3.5 py-2 bg-slate-900/55 border border-slate-850 rounded-full hover:border-emerald-500/40 hover:shadow-md transition-all cursor-default">✓ HIPAA Ready</span>
-            <span className="px-3.5 py-2 bg-slate-900/55 border border-slate-850 rounded-full hover:border-emerald-500/40 hover:shadow-md transition-all cursor-default">✓ NABH Ready</span>
-            <span className="px-3.5 py-2 bg-slate-900/55 border border-slate-850 rounded-full hover:border-emerald-500/40 hover:shadow-md transition-all cursor-default">✓ GDPR Ready</span>
-            <span className="px-3.5 py-2 bg-slate-900/55 border border-slate-850 rounded-full hover:border-emerald-500/40 hover:shadow-md transition-all cursor-default">✓ AES-256 Encryption</span>
-          </div>
-
-          {/* ==========================================
-              🏆 100% CUSTOM SVG ILLUSTRATION COMPOSITION
-              ========================================== */}
-          <div className="relative w-full max-w-lg bg-slate-900/20 rounded-[32px] border border-slate-850/50 p-6 overflow-hidden shadow-2xl backdrop-blur-sm">
-            {/* Ambient glows behind vectors */}
-            <div className="absolute top-1/2 left-1/4 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-            <div className="absolute bottom-1/4 right-1/4 w-36 h-36 bg-cyan-500/10 rounded-full blur-2xl pointer-events-none" />
-
-            <svg viewBox="0 0 500 320" className="w-full h-auto relative z-10" fill="none" xmlns="http://www.w3.org/2000/svg">
-              {/* Background Network Nodes & Grid */}
-              <g className="opacity-25">
-                <circle cx="100" cy="80" r="1.5" fill="#10B981" />
-                <circle cx="160" cy="50" r="1.5" fill="#10B981" />
-                <circle cx="220" cy="90" r="1.5" fill="#10B981" />
-                <line x1="100" y1="80" x2="160" y2="50" stroke="#10B981" strokeWidth="0.5" strokeDasharray="2,2" />
-                <line x1="160" y1="50" x2="220" y2="90" stroke="#10B981" strokeWidth="0.5" strokeDasharray="2,2" />
-              </g>
-
-              {/* Heartbeat Line (Left Background) */}
-              <path d="M20 250 L80 250 L88 230 L96 280 L104 210 L112 290 L120 260 L128 250 L180 250" stroke="#10B981" strokeWidth="1.5" className="opacity-30" />
-
-              {/* Medical Cross (Floating background element) */}
-              <g className="opacity-15" transform="translate(420, 40)">
-                <rect x="10" y="0" width="8" height="28" fill="#10B981" rx="1.5" />
-                <rect x="0" y="10" width="28" height="8" fill="#10B981" rx="1.5" />
-              </g>
-
-              {/* Secure Cloud Shield (Center) */}
-              <g transform="translate(230, 20)" className="opacity-80">
-                <path d="M20,10 L35,15 L35,30 C35,42 20,50 20,50 C20,50 5,42 5,30 L5,15 Z" stroke="#10B981" strokeWidth="1.5" fill="#08111D" />
-                <path d="M16 28 L19 31 L25 23" stroke="#10B981" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              </g>
-
-              {/* Hospital Building Vector (Right) */}
-              <g transform="translate(340, 190)">
-                {/* Main structure */}
-                <rect x="10" y="30" width="80" height="60" rx="6" fill="#0B1C30" stroke="#1E293B" strokeWidth="1.5" />
-                <rect x="35" y="10" width="30" height="20" rx="4" fill="#0B1C30" stroke="#1E293B" strokeWidth="1.5" />
-                {/* Windows */}
-                <rect x="20" y="42" width="10" height="10" rx="2" fill="#0F2D4A" />
-                <rect x="68" y="42" width="10" height="10" rx="2" fill="#0F2D4A" />
-                {/* Doors */}
-                <rect x="42" y="65" width="16" height="25" rx="2" fill="#10B981" className="opacity-30" />
-                {/* Medical Cross on Roof */}
-                <path d="M50 16 V24 M46 20 H54" stroke="#10B981" strokeWidth="2" strokeLinecap="round" />
-              </g>
-
-              {/* AI Robot Assistant (Right-Center) */}
-              <g transform="translate(260, 100)">
-                {/* Floating Head */}
-                <rect x="15" y="10" width="50" height="40" rx="16" fill="#0B1C30" stroke="#10B981" strokeWidth="2" />
-                {/* Eye visor screen */}
-                <rect x="22" y="20" width="36" height="15" rx="8" fill="#040D17" />
-                {/* Glowing LED eyes */}
-                <circle cx="32" cy="27" r="3.5" fill="#10B981" />
-                <circle cx="48" cy="27" r="3.5" fill="#10B981" />
-                {/* Body base structure */}
-                <path d="M20 54 C20 54 10 70 15 90 H65 C70 70 60 54 60 54 Z" fill="#0B1C30" stroke="#1E293B" strokeWidth="1.5" />
-                {/* AI chest plate */}
-                <circle cx="40" cy="72" r="9" fill="#0F2D4A" stroke="#10B981" strokeWidth="1.5" />
-                <text x="36" y="75" fill="#10B981" fontSize="8" fontWeight="bold" fontFamily="sans-serif">AI</text>
-              </g>
-
-              {/* Doctor Avatar Card (Far Right) */}
-              <g transform="translate(390, 110)">
-                <rect x="0" y="0" width="85" height="70" rx="14" fill="#0B1C30" stroke="#1E293B" strokeWidth="1.5" />
-                {/* Head */}
-                <circle cx="42" cy="22" r="10" fill="#1E293B" stroke="#10B981" strokeWidth="1.5" />
-                {/* Hospital Badge Badge */}
-                <rect x="15" y="42" width="55" height="6" rx="3" fill="#10B981" className="opacity-20" />
-                <rect x="25" y="52" width="35" height="5" rx="2.5" fill="#0F2D4A" />
-                <circle cx="42" cy="22" r="3" fill="#10B981" />
-              </g>
-
-              {/* Professional Healthcare Support Executive (Left Foreground) */}
-              <g transform="translate(40, 130)">
-                {/* Desk/Laptop base */}
-                <path d="M0 160 L240 160" stroke="#1E293B" strokeWidth="2" />
-                {/* Hair/Head back */}
-                <path d="M80 50 C55 50 55 120 80 120 C105 120 105 50 80 50 Z" fill="#040D17" />
-                {/* Face skin */}
-                <circle cx="85" cy="75" r="22" fill="#F9DEC9" />
-                {/* Professional Jacket */}
-                <path d="M45 150 C45 110 125 110 125 150 Z" fill="#10B981" />
-                {/* Headset arc */}
-                <path d="M68 62 C70 50 95 50 98 62" stroke="#1E293B" strokeWidth="2.5" fill="none" />
-                {/* Headset mic */}
-                <path d="M85 85 L100 90" stroke="#1E293B" strokeWidth="2" strokeLinecap="round" />
-                <circle cx="102" cy="90" r="2.5" fill="#10B981" />
-                
-                {/* Laptop outline */}
-                <path d="M110 150 L125 115 L165 115 L180 150 Z" fill="#0B1C30" stroke="#1E293B" strokeWidth="2" />
-                {/* Medical symbol on laptop lid */}
-                <path d="M145 125 V137 M139 131 H151" stroke="#10B981" strokeWidth="2" strokeLinecap="round" />
-              </g>
-
-              {/* Floating Chat Bubble (Left center) */}
-              <g transform="translate(30, 45)">
-                <rect x="0" y="0" width="60" height="35" rx="12" fill="#0B1C30" stroke="#10B981" strokeWidth="1.5" />
-                <circle cx="18" cy="18" r="2" fill="#10B981" />
-                <circle cx="30" cy="18" r="2" fill="#10B981" />
-                <circle cx="42" cy="18" r="2" fill="#10B981" />
-                <path d="M20 35 L12 43 L18 35 Z" fill="#0B1C30" stroke="#10B981" strokeWidth="1.5" />
-              </g>
-            </svg>
-          </div>
         </div>
 
         {/* ==========================================
-            RIGHT COLUMN: PREMIUM GLASS FORM
+            RIGHT COLUMN (50% on desktop): SUPPORT FORM CARD
             ========================================== */}
-        <div className="relative">
-          {/* Morphing Success Overlay */}
-          <AnimatePresence>
-            {status === 'success' && successInfo && (
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9, y: -20 }}
-                className="absolute inset-0 bg-[#08111D]/95 border border-emerald-500/40 rounded-[32px] p-8 flex flex-col justify-center items-center text-center z-30 shadow-2xl backdrop-blur-xl"
-              >
-                <div className="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-500 text-emerald-400 flex items-center justify-center mb-6 shadow-lg shadow-emerald-500/10">
-                  <Check className="w-8 h-8" />
-                </div>
-                <h3 className="text-2xl font-black text-white mb-2">Message Sent Successfully</h3>
-                <p className="text-slate-400 text-sm max-w-sm mb-8 font-medium">
-                  We have received your ticket request. A confirmation email has been dispatched to your address.
-                </p>
-
-                <div className="w-full max-w-md bg-slate-900/80 border border-slate-800 rounded-2xl p-6 text-left space-y-4 shadow-inner">
-                  <div className="flex justify-between items-center text-xs font-bold text-slate-400">
-                    <span>Ticket Identifier:</span>
-                    <span className="text-white font-black">{successInfo.ticketId}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-xs font-bold text-slate-400">
-                    <span>Estimated Response:</span>
-                    <span className="text-emerald-400 font-black">{successInfo.estimatedResponse}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-xs font-bold text-slate-400">
-                    <span>Routing Queue:</span>
-                    <span className="text-teal-400 font-black">{successInfo.assignedTo}</span>
-                  </div>
-                </div>
-                
-                <button 
-                  onClick={() => setSuccessInfo(null)}
-                  className="mt-8 text-xs font-black uppercase tracking-wider text-emerald-400 hover:text-emerald-350 cursor-pointer"
-                >
-                  Send another message
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Form wrapper */}
-          <div className="rounded-[32px] bg-slate-900/40 border border-slate-850 p-8 md:p-10 shadow-2xl backdrop-blur-xl relative">
-            <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent" />
+        <div className="lg:col-span-6 xl:col-span-6 w-full">
+          
+          <div className="bg-white rounded-3xl p-5 sm:p-7 xl:p-8 border border-slate-100 shadow-[0_12px_44px_rgba(0,112,243,0.07)] relative">
             
-            <div className="mb-8 space-y-1">
-              <h3 className="text-2xl font-black text-white tracking-tight">Send us a Message</h3>
-              <p className="text-xs text-slate-500 font-bold">We will get back to you within one business hour.</p>
+            {/* Header: Icon + Title + Subtitle */}
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-2xl bg-blue-50 border border-blue-100/80 text-[#0070F3] flex items-center justify-center shrink-0 shadow-xs">
+                <Mail size={18} />
+              </div>
+              <div>
+                <h2 className="text-lg sm:text-xl xl:text-2xl font-black text-[#0B1E3B] tracking-tight leading-tight">
+                  Send us a Message
+                </h2>
+                <p className="text-xs text-slate-500 font-medium">
+                  We will get back to you within one business hour.
+                </p>
+              </div>
             </div>
 
-            {status === 'error' && (
-              <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-xs font-bold text-red-400">
-                {errorMessage}
-              </div>
+            {/* Success State View */}
+            {status === 'success' && successInfo ? (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.96 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="py-10 text-center space-y-5"
+              >
+                <div className="w-16 h-16 rounded-full bg-emerald-50 border-2 border-emerald-400 text-emerald-600 flex items-center justify-center mx-auto shadow-md shadow-emerald-500/15">
+                  <CheckCircle2 size={32} />
+                </div>
+
+                <div className="space-y-2">
+                  <span className="text-[11px] font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200 px-3.5 py-1 rounded-full">
+                    MESSAGE SENT SUCCESSFULLY • {successInfo.ticketId}
+                  </span>
+                  <h3 className="text-2xl sm:text-3xl font-black text-[#0B1E3B]">
+                    Message Sent Successfully
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-600 max-w-md mx-auto leading-relaxed">
+                    Thank you for contacting PEHAL Healthcare. Your ticket for <strong className="text-slate-900">{successInfo.clinicName}</strong> has been assigned to priority support queue ({successInfo.estimatedResponse}).
+                  </p>
+                  <p className="text-xs text-slate-500 pt-1">
+                    You'll receive a confirmation email with the ticket details.
+                  </p>
+                </div>
+
+                <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => navigate('/')}
+                    className="w-full sm:w-auto px-6 py-3 rounded-full bg-[#0070F3] hover:bg-[#005FE0] text-white font-bold text-xs sm:text-sm transition shadow-md shadow-blue-600/30 flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <span>Back to Home</span>
+                    <ArrowRight size={15} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStatus('idle');
+                      setSuccessInfo(null);
+                    }}
+                    className="w-full sm:w-auto px-6 py-3 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs sm:text-sm transition cursor-pointer"
+                  >
+                    <span>Send Another Message</span>
+                  </button>
+                </div>
+              </motion.div>
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-4">
+                
+                {/* ── ROW 1: FIRST NAME + LAST NAME ── */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  {/* First Name */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-[#0B1E3B] uppercase tracking-wider mb-1">
+                      FIRST NAME <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <User size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="text"
+                        name="firstName"
+                        value={formData.firstName}
+                        onChange={handleChange}
+                        placeholder="Enter first name"
+                        className={`w-full bg-slate-50/70 border rounded-xl pl-9 pr-3.5 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0070F3]/30 font-medium ${
+                          errors.firstName ? 'border-red-400 bg-red-50/30' : 'border-slate-200'
+                        }`}
+                      />
+                    </div>
+                    {errors.firstName && <p className="text-[10px] text-red-500 mt-1 font-bold">{errors.firstName}</p>}
+                  </div>
+
+                  {/* Last Name */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-[#0B1E3B] uppercase tracking-wider mb-1">
+                      LAST NAME <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <User size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="text"
+                        name="lastName"
+                        value={formData.lastName}
+                        onChange={handleChange}
+                        placeholder="Enter last name"
+                        className={`w-full bg-slate-50/70 border rounded-xl pl-9 pr-3.5 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0070F3]/30 font-medium ${
+                          errors.lastName ? 'border-red-400 bg-red-50/30' : 'border-slate-200'
+                        }`}
+                      />
+                    </div>
+                    {errors.lastName && <p className="text-[10px] text-red-500 mt-1 font-bold">{errors.lastName}</p>}
+                  </div>
+                </div>
+
+                {/* ── ROW 2: EMAIL ADDRESS + PHONE NUMBER ── */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  {/* Email Address */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-[#0B1E3B] uppercase tracking-wider mb-1">
+                      EMAIL ADDRESS <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <Mail size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleChange}
+                        placeholder="Enter your email"
+                        className={`w-full bg-slate-50/70 border rounded-xl pl-9 pr-3.5 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0070F3]/30 font-medium ${
+                          errors.email ? 'border-red-400 bg-red-50/30' : 'border-slate-200'
+                        }`}
+                      />
+                    </div>
+                    {errors.email && <p className="text-[10px] text-red-500 mt-1 font-bold">{errors.email}</p>}
+                  </div>
+
+                  {/* Phone Number */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-[#0B1E3B] uppercase tracking-wider mb-1">
+                      PHONE NUMBER <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <Phone size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="tel"
+                        name="phone"
+                        value={formData.phone}
+                        onChange={handleChange}
+                        placeholder="Enter phone number"
+                        className={`w-full bg-slate-50/70 border rounded-xl pl-9 pr-3.5 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0070F3]/30 font-medium ${
+                          errors.phone ? 'border-red-400 bg-red-50/30' : 'border-slate-200'
+                        }`}
+                      />
+                    </div>
+                    {errors.phone && <p className="text-[10px] text-red-500 mt-1 font-bold">{errors.phone}</p>}
+                  </div>
+                </div>
+
+                {/* ── ROW 3: CLINIC / HOSPITAL NAME (FULL WIDTH) ── */}
+                <div>
+                  <label className="block text-[11px] font-bold text-[#0B1E3B] uppercase tracking-wider mb-1">
+                    CLINIC / HOSPITAL NAME <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Building2 size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      name="clinicName"
+                      value={formData.clinicName}
+                      onChange={handleChange}
+                      placeholder="Enter your clinic or hospital name"
+                      className={`w-full bg-slate-50/70 border rounded-xl pl-9 pr-3.5 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0070F3]/30 font-medium ${
+                        errors.clinicName ? 'border-red-400 bg-red-50/30' : 'border-slate-200'
+                      }`}
+                    />
+                  </div>
+                  {errors.clinicName && <p className="text-[10px] text-red-500 mt-1 font-bold">{errors.clinicName}</p>}
+                </div>
+
+                {/* ── ROW 4: PRIORITY + SUBJECT ── */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  {/* Priority Dropdown */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-[#0B1E3B] uppercase tracking-wider mb-1">
+                      PRIORITY <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <Flag size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                      <select
+                        name="priority"
+                        value={formData.priority}
+                        onChange={handleChange}
+                        className="w-full bg-slate-50/70 border border-slate-200 rounded-xl pl-9 pr-8 py-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0070F3]/30 appearance-none font-medium cursor-pointer"
+                      >
+                        <option value="Normal">Normal</option>
+                        <option value="High">High</option>
+                        <option value="Urgent">Urgent</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Subject */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-[#0B1E3B] uppercase tracking-wider mb-1">
+                      SUBJECT <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <FileText size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="text"
+                        name="subject"
+                        value={formData.subject}
+                        onChange={handleChange}
+                        placeholder="Enter subject"
+                        className={`w-full bg-slate-50/70 border rounded-xl pl-9 pr-3.5 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0070F3]/30 font-medium ${
+                          errors.subject ? 'border-red-400 bg-red-50/30' : 'border-slate-200'
+                        }`}
+                      />
+                    </div>
+                    {errors.subject && <p className="text-[10px] text-red-500 mt-1 font-bold">{errors.subject}</p>}
+                  </div>
+                </div>
+
+                {/* ── ROW 5: MESSAGE (TEXTAREA) ── */}
+                <div>
+                  <label className="block text-[11px] font-bold text-[#0B1E3B] uppercase tracking-wider mb-1">
+                    MESSAGE <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <MessageSquare size={14} className="absolute left-3.5 top-3 text-slate-400" />
+                    <textarea
+                      name="message"
+                      rows={3}
+                      value={formData.message}
+                      onChange={handleChange}
+                      placeholder="Tell us about your requirement..."
+                      className={`w-full bg-slate-50/70 border rounded-xl pl-9 pr-3.5 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0070F3]/30 font-medium resize-none ${
+                        errors.message ? 'border-red-400 bg-red-50/30' : 'border-slate-200'
+                      }`}
+                    />
+                  </div>
+                  {errors.message && <p className="text-[10px] text-red-500 mt-1 font-bold">{errors.message}</p>}
+                </div>
+
+                {/* Error Banner */}
+                {errorMessage && (
+                  <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2">
+                    <AlertCircle size={15} className="text-red-500 shrink-0" />
+                    <span>{errorMessage}</span>
+                  </div>
+                )}
+
+                {/* Privacy & Terms Checkbox */}
+                <div className="pt-1">
+                  <label className="flex items-center gap-2 cursor-pointer select-none text-xs text-slate-600 font-medium">
+                    <input
+                      type="checkbox"
+                      name="agree"
+                      checked={formData.agree}
+                      onChange={handleChange}
+                      className="w-4 h-4 rounded border-slate-300 text-[#0070F3] focus:ring-[#0070F3]/40 cursor-pointer"
+                    />
+                    <span>
+                      I agree to the <Link to="/" className="text-[#0070F3] hover:underline font-semibold">Privacy Policy</Link> and <Link to="/" className="text-[#0070F3] hover:underline font-semibold">Terms of Service</Link>.
+                    </span>
+                  </label>
+                  {errors.agree && <p className="text-[10px] text-red-500 mt-1 font-bold">{errors.agree}</p>}
+                </div>
+
+                {/* ── SEND MESSAGE BUTTON ── */}
+                <button
+                  type="submit"
+                  disabled={status === 'loading'}
+                  className="w-full py-3.5 px-6 rounded-2xl bg-[#0070F3] hover:bg-[#005FE0] text-white font-black text-xs sm:text-sm uppercase tracking-wider transition-all duration-200 shadow-md shadow-blue-600/25 hover:shadow-lg hover:shadow-blue-600/35 hover:-translate-y-0.5 active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+                >
+                  <Send size={15} />
+                  <span>{status === 'loading' ? 'SENDING...' : 'SEND MESSAGE'}</span>
+                  <span>→</span>
+                </button>
+
+              </form>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* First & Last Name */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div className="relative">
-                  <label className="block text-[11px] font-black uppercase tracking-wider text-slate-400 mb-2">First Name *</label>
-                  <input 
-                    type="text" 
-                    name="firstName" 
-                    value={formData.firstName}
-                    onChange={handleChange}
-                    className={`w-full px-4 py-3.5 bg-slate-950/80 border rounded-xl text-xs font-semibold text-white focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/5 transition ${
-                      errors.firstName ? 'border-red-500' : 'border-slate-800'
-                    }`}
-                    placeholder="Enter first name"
-                  />
-                  {errors.firstName && <span className="text-[10px] text-red-400 font-bold block mt-1">{errors.firstName}</span>}
-                </div>
-                
-                <div className="relative">
-                  <label className="block text-[11px] font-black uppercase tracking-wider text-slate-400 mb-2">Last Name *</label>
-                  <input 
-                    type="text" 
-                    name="lastName" 
-                    value={formData.lastName}
-                    onChange={handleChange}
-                    className={`w-full px-4 py-3.5 bg-slate-950/80 border rounded-xl text-xs font-semibold text-white focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/5 transition ${
-                      errors.lastName ? 'border-red-500' : 'border-slate-800'
-                    }`}
-                    placeholder="Enter last name"
-                  />
-                  {errors.lastName && <span className="text-[10px] text-red-400 font-bold block mt-1">{errors.lastName}</span>}
-                </div>
-              </div>
-
-              {/* Email & Phone */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div className="relative">
-                  <label className="block text-[11px] font-black uppercase tracking-wider text-slate-400 mb-2">Email Address *</label>
-                  <input 
-                    type="email" 
-                    name="email" 
-                    value={formData.email}
-                    onChange={handleChange}
-                    className={`w-full px-4 py-3.5 bg-slate-950/80 border rounded-xl text-xs font-semibold text-white focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/5 transition ${
-                      errors.email ? 'border-red-500' : 'border-slate-800'
-                    }`}
-                    placeholder="Enter your email"
-                  />
-                  {errors.email && <span className="text-[10px] text-red-400 font-bold block mt-1">{errors.email}</span>}
-                </div>
-
-                <div className="relative">
-                  <label className="block text-[11px] font-black uppercase tracking-wider text-slate-400 mb-2">Phone Number *</label>
-                  <input 
-                    type="tel" 
-                    name="phone" 
-                    value={formData.phone}
-                    onChange={handleChange}
-                    className={`w-full px-4 py-3.5 bg-slate-950/80 border rounded-xl text-xs font-semibold text-white focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/5 transition ${
-                      errors.phone ? 'border-red-500' : 'border-slate-800'
-                    }`}
-                    placeholder="Enter phone number"
-                  />
-                  {errors.phone && <span className="text-[10px] text-red-400 font-bold block mt-1">{errors.phone}</span>}
-                </div>
-              </div>
-
-              {/* Clinic Name */}
-              <div className="relative">
-                <label className="block text-[11px] font-black uppercase tracking-wider text-slate-400 mb-2">Clinic / Hospital Name *</label>
-                <input 
-                  type="text" 
-                  name="clinicName" 
-                  value={formData.clinicName}
-                  onChange={handleChange}
-                  className={`w-full px-4 py-3.5 bg-slate-950/80 border rounded-xl text-xs font-semibold text-white focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/5 transition ${
-                    errors.clinicName ? 'border-red-500' : 'border-slate-800'
-                  }`}
-                  placeholder="Enter your clinic or hospital name"
-                />
-                {errors.clinicName && <span className="text-[10px] text-red-400 font-bold block mt-1">{errors.clinicName}</span>}
-              </div>
-
-              {/* Role & Department */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div className="relative">
-                  <label className="block text-[11px] font-black uppercase tracking-wider text-slate-400 mb-2">Your Role *</label>
-                  <select 
-                    name="role" 
-                    value={formData.role}
-                    onChange={handleChange}
-                    className={`w-full px-4 py-3.5 bg-slate-950/80 border rounded-xl text-xs font-semibold text-slate-400 focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/5 transition ${
-                      errors.role ? 'border-red-500' : 'border-slate-800'
-                    }`}
-                  >
-                    <option value="">Select your role</option>
-                    <option value="Clinic Owner">Clinic Owner</option>
-                    <option value="Clinic Admin">Clinic Admin</option>
-                    <option value="Doctor">Doctor</option>
-                    <option value="Receptionist">Receptionist</option>
-                    <option value="Hospital">Hospital</option>
-                    <option value="Other">Other</option>
-                  </select>
-                  {errors.role && <span className="text-[10px] text-red-400 font-bold block mt-1">{errors.role}</span>}
-                </div>
-
-                <div className="relative">
-                  <label className="block text-[11px] font-black uppercase tracking-wider text-slate-400 mb-2">Department *</label>
-                  <select 
-                    name="department" 
-                    value={formData.department}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3.5 bg-slate-950/80 border border-slate-800 rounded-xl text-xs font-semibold text-slate-450 focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/5 transition"
-                  >
-                    <option value="Sales">Sales</option>
-                    <option value="Technical Support">Technical Support</option>
-                    <option value="Billing">Billing</option>
-                    <option value="Migration">Migration</option>
-                    <option value="API Integration">API Integration</option>
-                    <option value="Feature Request">Feature Request</option>
-                    <option value="Bug Report">Bug Report</option>
-                    <option value="General Inquiry">General Inquiry</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Priority & Subject */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div className="relative">
-                  <label className="block text-[11px] font-black uppercase tracking-wider text-slate-400 mb-2">Priority *</label>
-                  <select 
-                    name="priority" 
-                    value={formData.priority}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3.5 bg-slate-950/80 border border-slate-800 rounded-xl text-xs font-semibold text-slate-455 focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/5 transition"
-                  >
-                    <option value="Normal">Normal</option>
-                    <option value="High">High</option>
-                    <option value="Critical">Critical</option>
-                  </select>
-                </div>
-
-                <div className="relative">
-                  <label className="block text-[11px] font-black uppercase tracking-wider text-slate-400 mb-2">Subject *</label>
-                  <input 
-                    type="text" 
-                    name="subject" 
-                    value={formData.subject}
-                    onChange={handleChange}
-                    className={`w-full px-4 py-3.5 bg-slate-950/80 border rounded-xl text-xs font-semibold text-white focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/5 transition ${
-                      errors.subject ? 'border-red-500' : 'border-slate-800'
-                    }`}
-                    placeholder="Enter subject"
-                  />
-                  {errors.subject && <span className="text-[10px] text-red-400 font-bold block mt-1">{errors.subject}</span>}
-                </div>
-              </div>
-
-              {/* Message */}
-              <div className="relative">
-                <label className="block text-[11px] font-black uppercase tracking-wider text-slate-400 mb-2">Message *</label>
-                <textarea 
-                  name="message" 
-                  value={formData.message}
-                  onChange={handleChange}
-                  rows={4}
-                  className={`w-full px-4 py-3.5 bg-slate-950/80 border rounded-xl text-xs font-semibold text-white focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/5 transition resize-none ${
-                    errors.message ? 'border-red-500' : 'border-slate-800'
-                  }`}
-                  placeholder="Tell us about your requirement..."
-                />
-                {errors.message && <span className="text-[10px] text-red-400 font-bold block mt-1">{errors.message}</span>}
-              </div>
-
-              {/* Consent checkbox */}
-              <div className="relative flex items-start gap-2.5">
-                <input 
-                  type="checkbox" 
-                  name="agree" 
-                  id="agree"
-                  checked={formData.agree}
-                  onChange={handleChange}
-                  className="mt-0.5"
-                />
-                <label htmlFor="agree" className="text-[11px] text-slate-400 font-semibold cursor-pointer">
-                  I agree to the <span className="text-emerald-400 hover:underline">Privacy Policy</span> and <span className="text-emerald-400 hover:underline">Terms of Service</span>.
-                </label>
-              </div>
-              {errors.agree && <span className="text-[10px] text-red-400 font-bold block">{errors.agree}</span>}
-
-              {/* CTA Buttons: Book a Demo + Submit */}
-              <div className="flex flex-col sm:flex-row gap-3 pb-2">
-
-                {/* ── Book a Demo (navigates to /book-demo, never submits the form) ── */}
-                <button
-                  id="contact-book-demo-btn"
-                  type="button"
-                  onClick={() => navigate('/book-demo')}
-                  className="w-full sm:flex-1 min-h-[52px] py-3.5 px-5 rounded-xl font-black text-xs uppercase tracking-wider transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer border border-[#1455B8]/70 text-white focus:outline-none focus:ring-2 focus:ring-[#1455B8]/60 focus:ring-offset-1 focus:ring-offset-slate-950"
-                  style={{
-                    background: 'linear-gradient(135deg, #1455B8 0%, #0F4294 100%)',
-                    boxShadow: '0 4px 14px rgba(20, 85, 184, 0.35), 0 1px 3px rgba(20, 85, 184, 0.2)'
-                  }}
-                  aria-label="Book a Demo – navigate to the Book a Demo screen"
-                >
-                  <Calendar size={13} className="shrink-0" />
-                  <span>Book a Demo</span>
-                  <span className="text-sm">→</span>
-                </button>
-
-                {/* ── Submit (existing, untouched) ── */}
-                <button 
-                  type="submit" 
-                  disabled={status === 'loading'}
-                  className="w-full sm:flex-1 min-h-[52px] py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-emerald-700/10 hover:shadow-emerald-700/20 disabled:bg-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-emerald-500/60 focus:ring-offset-1 focus:ring-offset-slate-950"
-                >
-                  {status === 'loading' ? (
-                    <span>Sending...</span>
-                  ) : (
-                    <>
-                      <span>Send Message</span>
-                      <span className="text-sm">→</span>
-                    </>
-                  )}
-                </button>
-
-              </div>
-            </form>
           </div>
+
         </div>
 
       </main>
 
-      {/* Footer */}
-      <footer className="w-full text-center py-8 text-xs text-slate-600 font-bold border-t border-slate-900 bg-slate-950/30">
-        &copy; 2026 PEHAL Healthcare. All rights reserved. | Powered by AI
+      {/* 🛡️ Footer */}
+      <footer className="w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-12 py-5 text-xs text-slate-500 border-t border-slate-200/80 mt-6 relative z-20 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div>
+          © 2026 PEHAL Healthcare. All rights reserved. | Powered by AI
+        </div>
+        <div className="flex items-center gap-1.5 text-slate-600 font-medium">
+          <span>Technology for a Healthier Tomorrow</span>
+          <Heart size={14} className="text-[#0070F3] fill-[#0070F3]/20" />
+        </div>
       </footer>
 
     </div>
