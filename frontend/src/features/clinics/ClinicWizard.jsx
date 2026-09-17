@@ -1220,6 +1220,7 @@ export default function ClinicWizard() {
       <div className="w-full px-5 pt-3 pb-2 shrink-0 z-40 bg-[#F8FAFC]/95 backdrop-blur-md">
         <header className="max-w-[1840px] mx-auto bg-white border border-slate-100 px-5 py-2.5 rounded-full flex items-center justify-between shadow-md">
           {/* Logo */}
+          <Link to={"/"}>
           <div className="flex items-center gap-2 shrink-0">
             <PehalLogo variant="primary" height={32} />
             <div className="h-5 w-[1px] bg-slate-200 mx-1.5" />
@@ -1228,6 +1229,7 @@ export default function ClinicWizard() {
               <span className="text-[8px] font-bold text-slate-400 block tracking-wider uppercase mt-0.5">AI-CMS Enterprise</span>
             </div>
           </div>
+          </Link>
 
           {/* Stepper Navigation */}
           <div className="hidden xl:flex items-center gap-1">

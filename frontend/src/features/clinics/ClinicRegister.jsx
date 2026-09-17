@@ -701,6 +701,7 @@ export default function ClinicRegister() {
       <div className="w-full px-5 pt-3 pb-2 shrink-0 z-40 bg-[#F5F9FE]/95 backdrop-blur-md">
         <header className="max-w-[1840px] mx-auto bg-white border border-[#D9E5F3] px-5 py-2.5 rounded-full flex items-center justify-between shadow-sm">
           {/* Logo */}
+          <Link to={"/"}>
           <div className="flex items-center gap-2 shrink-0">
             <PehalLogo variant="primary" height={32} />
             <div className="h-5 w-[1px] bg-[#D9E5F3] mx-1.5" />
@@ -709,6 +710,7 @@ export default function ClinicRegister() {
               <span className="text-[8px] font-bold text-[#647A9E] block tracking-wider uppercase mt-0.5">AI-CMS Enterprise</span>
             </div>
           </div>
+          </Link>
 
           {/* Stepper Navigation */}
           <div className="hidden xl:flex items-center gap-1">
@@ -761,13 +763,13 @@ export default function ClinicRegister() {
               <CheckSquare size={12} className="text-[#0066FF]" /> Save Draft
             </button>
             <Link
-              to="/set-your-clinic"
+              to="/contact-support"
               className="flex items-center gap-1.5 px-3 py-1.5 border border-[#D9E5F3] hover:bg-[#F8FBFF] hover:border-[#1683FF] hover:text-[#0066FF] text-[#071B3A] rounded-full text-[11px] font-extrabold transition bg-white"
             >
               <HelpCircle size={12} className="text-[#0066FF]" /> Help
             </Link>
             <Link
-              to="/"
+              to="/book-demo"
               className="flex items-center gap-1.5 px-3 py-1.5 border border-[#D9E5F3] hover:bg-[#F8FBFF] hover:border-[#1683FF] hover:text-[#0066FF] text-[#071B3A] rounded-full text-[11px] font-extrabold transition bg-white"
             >
               <PhoneCall size={12} className="text-[#0066FF]" /> Contact Sales
