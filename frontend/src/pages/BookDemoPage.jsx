@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
@@ -252,11 +252,11 @@ export default function BookDemoPage() {
           {/* Left Column (50% on desktop: Hero Text + Doctor Visual + 4 Feature Cards + Badges) */}
           <div className="xl:col-span-6 2xl:col-span-6 flex flex-col justify-between space-y-4 xl:space-y-5 2xl:space-y-6">
             
-            {/* Top Hero Composition: Left Text + Right Doctor */}
-            <div className="relative min-h-[340px] xl:min-h-[370px] 2xl:min-h-[420px] flex flex-col justify-between">
+            {/* Top Hero Composition: Left Text + Right Doctor — side-by-side flex row */}
+            <div className="relative flex flex-row items-start gap-0 w-full">
               
-              {/* Left-Aligned Text */}
-              <div className="w-full max-w-[340px] xl:max-w-[380px] 2xl:max-w-[430px] z-10 relative pt-1">
+              {/* Left-Aligned Text — takes its own width, no absolute positioning */}
+              <div className="flex-1 min-w-0 z-10 pt-1 pr-4">
                 <div className="inline-flex items-center gap-2 px-3 2xl:px-4 py-1 2xl:py-1.5 rounded-full bg-white border border-blue-200/90 text-[#0070F3] text-[11px] xl:text-[11.5px] 2xl:text-xs font-bold shadow-xs mb-2.5 2xl:mb-3">
                   <Calendar size={13} className="text-[#0070F3]" />
                   <span>BOOK A DEMO</span>
@@ -274,10 +274,23 @@ export default function BookDemoPage() {
                 <p className="text-slate-500 text-xs xl:text-[13px] 2xl:text-[15.5px] leading-relaxed font-medium">
                   A healthcare specialist will walk you through how PEHAL can streamline your clinic operations — from appointment management to EMR, billing, pharmacy, lab and AI-powered features tailored to your practice.
                 </p>
+
+                {/* Cursive Tagline — placed under text, not overlapping */}
+                <div className="mt-3 xl:mt-4 text-left">
+                  <div 
+                    className="text-[#0070F3] font-bold text-xl xl:text-[22px] 2xl:text-[26px] leading-[1.05] tracking-wide inline-block"
+                    style={{ fontFamily: "'Caveat', cursive, sans-serif", transform: 'rotate(-2deg)', transformOrigin: 'left center' }}
+                  >
+                    Better Care, Brighter Tomorrows
+                  </div>
+                  <svg className="w-36 xl:w-40 2xl:w-44 h-2 2xl:h-2.5 text-[#0070F3] mt-0.5" viewBox="0 0 120 10" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M2 7C35 1.5 85 1 118 6" stroke="#0070F3" strokeWidth="2.2" strokeLinecap="round" />
+                  </svg>
+                </div>
               </div>
 
-              {/* Right-Side Doctor Visual Composition */}
-              <div className="absolute right-0 -top-2 lg:-top-4 w-[280px] xl:w-[310px] 2xl:w-[370px] h-[340px] xl:h-[370px] 2xl:h-[430px] pointer-events-none select-none z-0">
+              {/* Right-Side Doctor Visual — fixed width, no negative left offsets */}
+              <div className="shrink-0 w-[260px] xl:w-[290px] 2xl:w-[350px] h-[320px] xl:h-[350px] 2xl:h-[420px] relative pointer-events-none select-none z-0">
                 {/* Dot Matrix Pattern */}
                 <div 
                   className="absolute top-2 right-2 w-28 2xl:w-36 h-32 2xl:h-40 opacity-35 z-0"
@@ -291,18 +304,18 @@ export default function BookDemoPage() {
                 <img 
                   src={petalBackground} 
                   alt="PEHAL Abstract Background"
-                  className="absolute top-2 right-0 w-[260px] xl:w-[290px] 2xl:w-[350px] h-auto object-contain z-0 opacity-95"
+                  className="absolute top-2 right-0 w-[240px] xl:w-[270px] 2xl:w-[330px] h-auto object-contain z-0 opacity-95"
                 />
 
                 {/* Doctor with Headset SVG */}
                 <img 
                   src={doctorImage} 
                   alt="PEHAL Healthcare Specialist"
-                  className="absolute top-0 right-2 w-[215px] xl:w-[240px] 2xl:w-[290px] h-auto object-contain z-10 drop-shadow-[0_10px_25px_rgba(0,112,243,0.18)]"
+                  className="absolute top-0 right-2 w-[195px] xl:w-[220px] 2xl:w-[270px] h-auto object-contain z-10 drop-shadow-[0_10px_25px_rgba(0,112,243,0.18)]"
                 />
 
-                {/* Floating Smarter Clinics Badge */}
-                <div className="absolute bottom-12 xl:bottom-14 2xl:bottom-16 -left-3 xl:-left-6 bg-white/95 backdrop-blur-md rounded-2xl p-2.5 xl:p-3 border border-slate-100/90 shadow-[0_8px_24px_rgba(0,112,243,0.14)] flex items-center gap-2 2xl:gap-2.5 z-20 pointer-events-auto">
+                {/* Floating Smarter Clinics Badge — kept inside doctor column */}
+                <div className="absolute bottom-10 xl:bottom-12 left-2 xl:left-4 bg-white/95 backdrop-blur-md rounded-2xl p-2.5 xl:p-3 border border-slate-100/90 shadow-[0_8px_24px_rgba(0,112,243,0.14)] flex items-center gap-2 2xl:gap-2.5 z-20 pointer-events-auto">
                   <div className="w-7 h-7 2xl:w-8 2xl:h-8 rounded-xl bg-blue-50 border border-blue-100 text-[#0070F3] flex items-center justify-center shrink-0 shadow-xs">
                     <BarChart2 size={14} />
                   </div>
@@ -310,19 +323,6 @@ export default function BookDemoPage() {
                     <span className="text-[11px] 2xl:text-xs font-black text-[#0B1E3B] leading-none">Smarter Clinics</span>
                     <span className="text-[9.5px] 2xl:text-[10.5px] font-bold text-[#0070F3] leading-tight mt-0.5">Healthier Tomorrows</span>
                   </div>
-                </div>
-
-                {/* Cursive Tagline with Underline Swoosh */}
-                <div className="absolute bottom-0 -left-1 xl:-left-3 text-left z-20 pointer-events-auto">
-                  <div 
-                    className="text-[#0070F3] font-bold text-2xl xl:text-[25px] 2xl:text-[29px] leading-[1.05] tracking-wide inline-block"
-                    style={{ fontFamily: "'Caveat', cursive, sans-serif", transform: 'rotate(-3deg)', transformOrigin: 'left center' }}
-                  >
-                    Better Care, Brighter Tomorrows
-                  </div>
-                  <svg className="w-36 xl:w-40 2xl:w-44 h-2 2xl:h-2.5 text-[#0070F3] mt-0.5" viewBox="0 0 120 10" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M2 7C35 1.5 85 1 118 6" stroke="#0070F3" strokeWidth="2.2" strokeLinecap="round" />
-                  </svg>
                 </div>
 
               </div>
