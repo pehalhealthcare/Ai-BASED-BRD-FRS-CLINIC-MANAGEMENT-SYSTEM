@@ -1,4 +1,4 @@
-﻿@tailwind base;
+@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
@@ -2303,4 +2303,38 @@ body {
     scroll-snap-align: start;
   }
 }
+
+/* ============================================================
+   Section Scroll Offset — compensates for the sticky header
+   so section headings are never hidden underneath it after
+   smooth-scroll navigation (works with both scrollIntoView
+   and window.scrollTo approaches).
+   ============================================================ */
+#hero,
+#product,
+#features,
+#pricing,
+#solutions,
+#footer {
+  scroll-margin-top: 72px; /* mobile default (matches --header-height) */
+}
+
+@media (min-width: 480px) {
+  #hero, #product, #features, #pricing, #solutions, #footer {
+    scroll-margin-top: 76px;
+  }
+}
+
+@media (min-width: 768px) {
+  #hero, #product, #features, #pricing, #solutions, #footer {
+    scroll-margin-top: 86px;
+  }
+}
+
+@media (min-width: 1200px) {
+  #hero, #product, #features, #pricing, #solutions, #footer {
+    scroll-margin-top: 96px;
+  }
+}
+
 

@@ -63,6 +63,7 @@ export default function LandingPage() {
   const handleNavClick = useCallback((e, sectionId, href) => {
     if (e && e.preventDefault) e.preventDefault();
 
+    // Always update the active section and push the hash to the URL.
     setActiveSection(sectionId);
     isClickScrollingRef.current = true;
 
@@ -70,16 +71,21 @@ export default function LandingPage() {
       window.history.pushState(null, '', href);
     }
 
-    const targetElement = document.getElementById(sectionId);
-    if (targetElement) {
-      const headerOffset = sectionId === 'hero' ? 0 : -85;
-      const elementPosition = targetElement.getBoundingClientRect().top;
-      const offsetPosition = elementPosition + window.pageYOffset + headerOffset;
+    // When e is null the Header component is already handling the scroll
+    // (it waits for the drawer animation to finish before scrollIntoView).
+    // In that case we skip the duplicate scrollTo here to avoid a conflict.
+    if (e !== null) {
+      const targetElement = document.getElementById(sectionId);
+      if (targetElement) {
+        const headerOffset = sectionId === 'hero' ? 0 : -85;
+        const elementPosition = targetElement.getBoundingClientRect().top;
+        const offsetPosition = elementPosition + window.pageYOffset + headerOffset;
 
-      window.scrollTo({
-        top: Math.max(0, offsetPosition),
-        behavior: 'smooth',
-      });
+        window.scrollTo({
+          top: Math.max(0, offsetPosition),
+          behavior: 'smooth',
+        });
+      }
     }
 
     setTimeout(() => {

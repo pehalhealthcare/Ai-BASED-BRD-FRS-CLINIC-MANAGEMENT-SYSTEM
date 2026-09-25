@@ -34,6 +34,178 @@ const SupportTicketSchema = new mongoose.Schema({
 const SupportTicket = mongoose.models.SupportTicket || mongoose.model('SupportTicket', SupportTicketSchema);
 
 /**
+ * Helper to check if a demo slot datetime in Asia/Kolkata timezone has already elapsed
+ */
+function isSlotInPastKolkata(selectedDateStr, selectedTimeStr) {
+  try {
+    const now = new Date();
+    const kolkataFormatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
+      second: 'numeric',
+      hour12: false
+    });
+    const parts = kolkataFormatter.formatToParts(now);
+    const partMap = {};
+    parts.forEach(p => { partMap[p.type] = parseInt(p.value, 10); });
+    const currentKolkataMs = new Date(partMap.year, partMap.month - 1, partMap.day, partMap.hour, partMap.minute, partMap.second).getTime();
+
+    // Parse requested time e.g. "12:30 PM", "10:00 AM", "5:00 PM"
+    const timeMatch = (selectedTimeStr || '').match(/(\d+):(\d+)\s*(AM|PM)/i);
+    if (!timeMatch) return false;
+
+    let hours = parseInt(timeMatch[1], 10);
+    const minutes = parseInt(timeMatch[2], 10);
+    const ampm = timeMatch[3].toUpperCase();
+
+    if (ampm === 'PM' && hours < 12) hours += 12;
+    if (ampm === 'AM' && hours === 12) hours = 0;
+
+    const parsedDate = new Date(selectedDateStr);
+    if (isNaN(parsedDate.getTime())) return false;
+
+    const slotKolkataMs = new Date(parsedDate.getFullYear(), parsedDate.getMonth(), parsedDate.getDate(), hours, minutes, 0).getTime();
+
+    return slotKolkataMs <= currentKolkataMs;
+  } catch (err) {
+    return false;
+  }
+}
+
+/**
+ * GET /api/v1/support/demo/availability
+ * Returns availability window, bookable dates for a given month/year, and available time slots.
+ */
+router.get('/demo/availability', async (req, res) => {
+  try {
+    const now = new Date();
+    const kolkataFormatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
+      second: 'numeric',
+      hour12: false
+    });
+    const parts = kolkataFormatter.formatToParts(now);
+    const partMap = {};
+    parts.forEach(p => { partMap[p.type] = parseInt(p.value, 10); });
+
+    const currentYear = partMap.year;
+    const currentMonth = partMap.month - 1; // 0-indexed
+    const todayDate = partMap.day;
+
+    const maxMonthsAhead = 3; // Allows booking up to 3 future months ahead
+    const minNavDate = new Date(currentYear, currentMonth, 1);
+    const maxNavDate = new Date(currentYear, currentMonth + maxMonthsAhead, 1);
+
+    const reqYear = parseInt(req.query.year, 10) || currentYear;
+    const reqMonth = req.query.month !== undefined ? parseInt(req.query.month, 10) : currentMonth;
+
+    const targetDate = new Date(reqYear, reqMonth, 1);
+    const isBeforeMin = targetDate < minNavDate;
+    const isAfterMax = targetDate > maxNavDate;
+
+    // Standard demo time slots
+    const standardTimeSlots = [
+      { label: '10:00 AM', minute: 0, hour: 10 },
+      { label: '11:00 AM', minute: 0, hour: 11 },
+      { label: '12:30 PM', minute: 30, hour: 12 },
+      { label: '2:00 PM', minute: 0, hour: 14 },
+      { label: '3:30 PM', minute: 30, hour: 15 },
+      { label: '5:00 PM', minute: 0, hour: 17 }
+    ];
+
+    // Check if today has any remaining slots in Asia/Kolkata
+    const remainingTodaySlots = standardTimeSlots.filter(slot => {
+      if (slot.hour < partMap.hour) return false;
+      if (slot.hour === partMap.hour && slot.minute <= partMap.minute) return false;
+      return true;
+    });
+    const hasRemainingToday = remainingTodaySlots.length > 0;
+
+    // Determine nearest available date across booking window (checking all future dates with slots)
+    let nextAvailable = null;
+    if (hasRemainingToday) {
+      nextAvailable = {
+        year: currentYear,
+        month: currentMonth,
+        day: todayDate,
+        isToday: true
+      };
+    } else {
+      let found = false;
+      for (let mOffset = 0; mOffset <= maxMonthsAhead && !found; mOffset++) {
+        const checkDate = new Date(currentYear, currentMonth + mOffset, 1);
+        const cYear = checkDate.getFullYear();
+        const cMonth = checkDate.getMonth();
+        const totalDays = new Date(cYear, cMonth + 1, 0).getDate();
+        const startDay = (mOffset === 0) ? todayDate + 1 : 1;
+
+        for (let d = startDay; d <= totalDays; d++) {
+          nextAvailable = {
+            year: cYear,
+            month: cMonth,
+            day: d,
+            isToday: false
+          };
+          found = true;
+          break;
+        }
+      }
+    }
+
+    // Find days in requested month
+    const daysInMonth = new Date(reqYear, reqMonth + 1, 0).getDate();
+    const availableDates = [];
+    const dateSlots = {};
+
+    // Populate availability for all valid future dates in the window (including Sundays)
+    for (let day = 1; day <= daysInMonth; day++) {
+      const d = new Date(reqYear, reqMonth, day);
+      d.setHours(0, 0, 0, 0);
+
+      const isPast = d < new Date(currentYear, currentMonth, todayDate);
+      const isWithinWindow = !isBeforeMin && !isAfterMax;
+
+      if (!isPast && isWithinWindow) {
+        availableDates.push(day);
+        dateSlots[day] = standardTimeSlots;
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        year: reqYear,
+        month: reqMonth,
+        minYear: currentYear,
+        minMonth: currentMonth,
+        maxYear: maxNavDate.getFullYear(),
+        maxMonth: maxNavDate.getMonth(),
+        maxMonthsAhead,
+        availableDates,
+        dateSlots,
+        hasAvailableDates: availableDates.length > 0,
+        timeSlots: standardTimeSlots,
+        hasRemainingToday,
+        remainingTodaySlotsCount: remainingTodaySlots.length,
+        nextAvailableDate: nextAvailable
+      }
+    });
+  } catch (err) {
+    logger.error('[support/demo/availability] Error fetching demo availability:', err);
+    return res.status(500).json({ success: false, message: 'Failed to fetch demo availability.' });
+  }
+});
+
+/**
  * POST /api/v1/support/demo
  * Dedicated endpoint for Book a Demo form submissions.
  */
@@ -42,24 +214,38 @@ router.post('/demo', async (req, res) => {
     const {
       fullName,
       email,
+      workEmail,
       phone,
+      phoneNumber,
       clinicName,
       doctorsCount,
       selectedDate,
+      preferredDate,
       selectedTime,
+      preferredTime,
       topics,
-      agree
+      agree,
+      privacyConsent
     } = req.body;
 
-    // Strict validation
-    if (!fullName || !fullName.trim()) {
+    const rawFullName = (fullName || '').trim();
+    const cleanEmail = (email || workEmail || '').trim();
+    const cleanPhone = (phone || phoneNumber || '').replace(/\D/g, '');
+    const effectiveDate = (selectedDate || preferredDate || '').trim();
+    const effectiveTime = (selectedTime || preferredTime || '').trim();
+    const effectiveAgree = agree !== undefined ? agree : (privacyConsent !== undefined ? privacyConsent : true);
+
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    const phoneRegex = /^[6-9][0-9]{9}$/;
+
+    if (!rawFullName) {
       return res.status(400).json({ success: false, message: 'Full name is required.' });
     }
-    if (!email || !email.trim() || !/\S+@\S+\.\S+/.test(email)) {
+    if (!cleanEmail || !emailRegex.test(cleanEmail)) {
       return res.status(400).json({ success: false, message: 'Valid work email is required.' });
     }
-    if (!phone || !phone.trim() || phone.replace(/[^0-9]/g, '').length < 10) {
-      return res.status(400).json({ success: false, message: 'Valid 10-digit phone number is required.' });
+    if (!cleanPhone || !phoneRegex.test(cleanPhone)) {
+      return res.status(400).json({ success: false, message: 'Valid 10-digit mobile number starting with 6-9 is required.' });
     }
     if (!clinicName || !clinicName.trim()) {
       return res.status(400).json({ success: false, message: 'Clinic or hospital name is required.' });
@@ -67,13 +253,19 @@ router.post('/demo', async (req, res) => {
     if (!doctorsCount) {
       return res.status(400).json({ success: false, message: 'Number of doctors is required.' });
     }
-    if (!selectedDate) {
+    if (!effectiveDate) {
       return res.status(400).json({ success: false, message: 'Please select an appointment date.' });
     }
-    if (!selectedTime) {
+    if (!effectiveTime) {
       return res.status(400).json({ success: false, message: 'Please select an appointment time slot.' });
     }
-    if (!agree && agree !== undefined) {
+    if (isSlotInPastKolkata(effectiveDate, effectiveTime)) {
+      return res.status(400).json({
+        success: false,
+        message: 'The selected time slot has already elapsed. Please choose an upcoming time slot or another date.'
+      });
+    }
+    if (!effectiveAgree) {
       return res.status(400).json({ success: false, message: 'You must agree to the Terms of Service and Privacy Policy.' });
     }
 
@@ -178,14 +370,25 @@ router.post('/', async (req, res) => {
       if (!effectiveFullName) {
         return res.status(400).json({ success: false, message: 'Full name is required.' });
       }
-      if (!email || !/\S+@\S+\.\S+/.test(email)) {
+      const cleanEmail = (email || '').trim();
+      const cleanPhone = (phone || '').replace(/\D/g, '');
+      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      const phoneRegex = /^[6-9][0-9]{9}$/;
+
+      if (!cleanEmail || !emailRegex.test(cleanEmail)) {
         return res.status(400).json({ success: false, message: 'Valid work email is required.' });
       }
-      if (!phone || phone.replace(/[^0-9]/g, '').length < 10) {
-        return res.status(400).json({ success: false, message: 'Valid 10-digit phone number is required.' });
+      if (!cleanPhone || !phoneRegex.test(cleanPhone)) {
+        return res.status(400).json({ success: false, message: 'Valid 10-digit mobile number starting with 6-9 is required.' });
       }
       if (!clinicName || !clinicName.trim()) {
         return res.status(400).json({ success: false, message: 'Clinic or hospital name is required.' });
+      }
+      if (selectedDate && selectedTime && isSlotInPastKolkata(selectedDate, selectedTime)) {
+        return res.status(400).json({
+          success: false,
+          message: 'The selected time slot has already elapsed. Please choose an upcoming time slot or another date.'
+        });
       }
 
       const ticketId = `DEMO-${Date.now().toString().slice(-6)}`;

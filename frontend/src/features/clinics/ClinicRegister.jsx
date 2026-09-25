@@ -901,7 +901,7 @@ export default function ClinicRegister() {
               <div className="grid grid-cols-2 gap-2 text-[10px] font-bold text-[#647A9E]">
                 <Link to={'/contact-support'} className="flex items-center gap-1.5 py-2 justify-center bg-white border border-[#D9E5F3] rounded-xl hover:text-[#0066FF] hover:border-[#1683FF] transition"><MessageSquare size={11} className="text-[#0066FF]" /> Customer Support</Link>
                 <Link to={'/book-demo'} className="flex items-center gap-1.5 py-2 justify-center bg-white border border-[#D9E5F3] rounded-xl hover:text-[#0066FF] hover:border-[#1683FF] transition"><Calendar size={11} className="text-[#0066FF]" /> Book Demo</Link>
-                {/* <a href="#" className="flex items-center gap-1.5 py-2 justify-center bg-white border border-[#D9E5F3] rounded-xl hover:text-[#0066FF] hover:border-[#1683FF] transition"><Globe size={11} className="text-[#0066FF]" /> Documentation</a> */}
+                <Link to={'https://api.whatsapp.com/send/?phone=8130916134&text&type=phone_number&app_absent=0'} className="flex items-center gap-1.5 py-2 justify-center bg-white border border-[#D9E5F3] rounded-xl hover:text-[#0066FF] hover:border-[#1683FF] transition"><Globe size={11} className="text-[#0066FF]" />Chat</Link>
                 {/* <a href="#" className="flex items-center gap-1.5 py-2 justify-center bg-white border border-[#D9E5F3] rounded-xl hover:text-[#0066FF] hover:border-[#1683FF] transition"><Clock size={11} className="text-[#0066FF]" /> Video Guide</a> */}
               </div>
             </div>

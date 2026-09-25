@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
@@ -7,7 +7,7 @@ import {
   AlertCircle, CheckCircle2, Heart, Flag, FileText, MessageSquare
 } from 'lucide-react';
 import PehalLogo from '../components/common/PehalLogo';
-import axios from 'axios';
+import { supportApi } from '../lib/api';
 
 // Existing SVG Assets from src/assets/
 import doctorImage from '../assets/pehal_doctor_headset.svg';
@@ -85,8 +85,7 @@ export default function ContactPage() {
     setErrorMessage('');
 
     try {
-      const apiBase = import.meta.env.VITE_API_BASE_URL || '/api/v1';
-      const response = await axios.post(`${apiBase}/support`, {
+      const data = await supportApi.submitTicket({
         firstName: formData.firstName.trim(),
         lastName: formData.lastName.trim(),
         email: formData.email.trim(),
@@ -100,10 +99,10 @@ export default function ContactPage() {
         agree: formData.agree
       });
 
-      if (response.data?.success) {
+      if (data?.success) {
         setStatus('success');
         setSuccessInfo({
-          ticketId: response.data.ticketId || `PHL-${Date.now().toString().slice(-6)}`,
+          ticketId: data.ticketId || `PHL-${Date.now().toString().slice(-6)}`,
           name: `${formData.firstName} ${formData.lastName}`.trim(),
           clinicName: formData.clinicName,
           priority: formData.priority,

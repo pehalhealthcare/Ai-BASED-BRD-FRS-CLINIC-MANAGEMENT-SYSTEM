@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
@@ -8,7 +8,7 @@ import {
   BarChart2, ChevronLeft, ChevronRight, ChevronDown
 } from 'lucide-react';
 import PehalLogo from '../components/common/PehalLogo';
-import axios from 'axios';
+import { supportApi } from '../lib/api';
 
 // Existing SVG Assets from src/assets/
 import doctorImage from '../assets/pehal_doctor_headset.svg';
@@ -24,67 +24,299 @@ const AVAILABLE_TIME_SLOTS = [
   { label: '5:00 PM', minute: 0, hour: 17 }
 ];
 
+// Date State Enum
+const DATE_STATE = {
+  PAST: 'PAST',
+  TODAY_WITH_SLOTS: 'TODAY_WITH_SLOTS',
+  TODAY_NO_SLOTS: 'TODAY_NO_SLOTS',
+  FUTURE_WITH_SLOTS: 'FUTURE_WITH_SLOTS',
+  FUTURE_NO_SLOTS: 'FUTURE_NO_SLOTS',
+  LOADING: 'LOADING'
+};
+
 export default function BookDemoPage() {
   const navigate = useNavigate();
+  const errorSummaryRef = useRef(null);
 
-  // Current calendar view (month & year)
-  const today = useMemo(() => {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    return d;
+  // Form input states (TC-16: All fields preserved on error)
+  const [formData, setFormData] = useState({
+    fullName: '',
+    workEmail: '',
+    phoneNumber: '',
+    clinicName: '',
+    doctorsCount: '',
+    topics: '',
+    privacyConsent: false
+  });
+
+  const [errors, setErrors] = useState({});
+  const [touched, setTouched] = useState({});
+  const [status, setStatus] = useState('idle'); // idle | loading | success | error
+  const [successData, setSuccessData] = useState(null);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [autoSelectedNotice, setAutoSelectedNotice] = useState('');
+  const [dateUnavailableMessage, setDateUnavailableMessage] = useState('');
+  const [hasAutoAdvancedDate, setHasAutoAdvancedDate] = useState(false);
+
+  // Validation Patterns & Helpers
+  const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  const PHONE_REGEX = /^[6-9][0-9]{9}$/;
+
+  const getPhoneValidation = (phoneStr) => {
+    const digits = (phoneStr || '').replace(/\D/g, '');
+    if (!digits) return { state: 'empty', message: 'Phone number is required' };
+    if (digits.length < 10) return { state: 'incomplete', message: 'Must be a 10-digit number' };
+    if (!PHONE_REGEX.test(digits)) return { state: 'invalid', message: 'Must start with 6, 7, 8, or 9' };
+    return { state: 'valid', message: '' };
+  };
+
+  const getEmailValidation = (emailStr, isBlur = false) => {
+    const trimmed = (emailStr || '').trim();
+    if (!trimmed) return { state: 'empty', message: 'Work email is required' };
+    if (EMAIL_REGEX.test(trimmed)) return { state: 'valid', message: '' };
+
+    if (!isBlur) {
+      if (/\s/.test(trimmed) || (trimmed.match(/@/g) || []).length > 1) {
+        return { state: 'invalid', message: 'Invalid work email address' };
+      }
+      const atIndex = trimmed.indexOf('@');
+      if (atIndex === -1) {
+        return { state: 'incomplete', message: '' };
+      }
+      const domainPart = trimmed.slice(atIndex + 1);
+      if (!domainPart || !domainPart.includes('.')) {
+        return { state: 'incomplete', message: '' };
+      }
+      const dotIndex = domainPart.lastIndexOf('.');
+      const tld = domainPart.slice(dotIndex + 1);
+      if (tld.length < 2) {
+        return { state: 'incomplete', message: '' };
+      }
+    }
+
+    return { state: 'invalid', message: 'Please enter a valid work email address' };
+  };
+
+  // Real-time valid states for UI feedback
+  const isPhoneValid = useMemo(() => getPhoneValidation(formData.phoneNumber).state === 'valid', [formData.phoneNumber]);
+  const isEmailValid = useMemo(() => getEmailValidation(formData.workEmail, false).state === 'valid', [formData.workEmail]);
+
+  // System Booking Timezone (Asia/Kolkata)
+  const BOOKING_TIMEZONE = 'Asia/Kolkata';
+
+  const getNowInBookingTimezone = () => {
+    const now = new Date();
+    const options = {
+      timeZone: BOOKING_TIMEZONE,
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
+      second: 'numeric',
+      hour12: false
+    };
+    const formatter = new Intl.DateTimeFormat('en-US', options);
+    const parts = formatter.formatToParts(now);
+    const map = {};
+    parts.forEach(p => { map[p.type] = parseInt(p.value, 10); });
+
+    return {
+      year: map.year,
+      month: map.month - 1, // 0-indexed
+      day: map.day,
+      hour: map.hour,
+      minute: map.minute,
+      second: map.second
+    };
+  };
+
+  // Real-time clock ticker to dynamically invalidate elapsed slots as time passes
+  const [currentTimeTick, setCurrentTimeTick] = useState(Date.now());
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTimeTick(Date.now());
+    }, 30000); // Check every 30 seconds
+    return () => clearInterval(interval);
   }, []);
 
+  // Current system date (00:00:00) in booking timezone
+  const today = useMemo(() => {
+    const nowInfo = getNowInBookingTimezone();
+    const d = new Date(nowInfo.year, nowInfo.month, nowInfo.day);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, [currentTimeTick]);
+
+  // Minimum navigable month based on current system date
+  const minBookingMonthDate = useMemo(() => {
+    const d = new Date(today.getFullYear(), today.getMonth(), 1);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, [today]);
+
   const [currentMonthDate, setCurrentMonthDate] = useState(() => {
-    const d = new Date();
-    d.setDate(1);
+    const nowInfo = getNowInBookingTimezone();
+    const d = new Date(nowInfo.year, nowInfo.month, 1);
+    d.setHours(0, 0, 0, 0);
     return d;
   });
 
   // Selected date and time
   const [selectedDate, setSelectedDate] = useState(() => {
-    const d = new Date();
+    const nowInfo = getNowInBookingTimezone();
+    const d = new Date(nowInfo.year, nowInfo.month, nowInfo.day);
     d.setHours(0, 0, 0, 0);
     return d;
   });
 
-  const [selectedTimeSlot, setSelectedTimeSlot] = useState(AVAILABLE_TIME_SLOTS[2]); // Default 12:30 PM
+  const [availabilityData, setAvailabilityData] = useState(null);
+  const [loadingAvailability, setLoadingAvailability] = useState(false);
 
-  // Form input states
-  const [formData, setFormData] = useState({
-    fullName: '',
-    email: '',
-    phone: '',
-    clinicName: '',
-    doctorsCount: '',
-    topics: '',
-    agree: false
-  });
-
-  const [errors, setErrors] = useState({});
-  const [status, setStatus] = useState('idle'); // idle | loading | success | error
-  const [successData, setSuccessData] = useState(null);
-  const [errorMessage, setErrorMessage] = useState('');
+  // Check if selected date is today in booking timezone
+  const isSelectedDateToday = useMemo(() => {
+    if (!selectedDate) return false;
+    const nowInfo = getNowInBookingTimezone();
+    return (
+      selectedDate.getFullYear() === nowInfo.year &&
+      selectedDate.getMonth() === nowInfo.month &&
+      selectedDate.getDate() === nowInfo.day
+    );
+  }, [selectedDate, currentTimeTick]);
 
   // Calendar calculations
   const year = currentMonthDate.getFullYear();
   const month = currentMonthDate.getMonth();
   const monthName = currentMonthDate.toLocaleDateString('en-US', { month: 'long' });
 
-  // Generate calendar days
+  // Fetch real demo availability from API for the displayed month/year
+  const fetchAvailability = async (y, m) => {
+    setLoadingAvailability(true);
+    try {
+      const res = await supportApi.getDemoAvailability({ year: y ?? year, month: m ?? month });
+      if (res?.data) {
+        setAvailabilityData(res.data);
+      }
+    } catch (err) {
+      console.warn('Could not fetch real demo availability:', err);
+    } finally {
+      setLoadingAvailability(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAvailability(year, month);
+  }, [year, month]);
+
+  // Automatically advance ONLY FOR TODAY when today has zero remaining slots
+  useEffect(() => {
+    if (!availabilityData) return;
+    if (hasAutoAdvancedDate) return;
+
+    const nowInfo = getNowInBookingTimezone();
+    const isToday = selectedDate && (
+      selectedDate.getFullYear() === nowInfo.year &&
+      selectedDate.getMonth() === nowInfo.month &&
+      selectedDate.getDate() === nowInfo.day
+    );
+
+    if (isToday) {
+      const rawSlots = availabilityData.timeSlots || AVAILABLE_TIME_SLOTS;
+      const remainingTodaySlots = rawSlots.filter(slot => {
+        if (slot.hour < nowInfo.hour) return false;
+        if (slot.hour === nowInfo.hour && slot.minute <= nowInfo.minute) return false;
+        return true;
+      });
+
+      if (remainingTodaySlots.length === 0 && availabilityData.nextAvailableDate) {
+        const { year: nextY, month: nextM, day: nextD } = availabilityData.nextAvailableDate;
+        const nextDate = new Date(nextY, nextM, nextD);
+        nextDate.setHours(0, 0, 0, 0);
+
+        if (nextDate.getTime() !== selectedDate.getTime()) {
+          setSelectedDate(nextDate);
+          if (nextY !== year || nextM !== month) {
+            setCurrentMonthDate(new Date(nextY, nextM, 1));
+          }
+          setAutoSelectedNotice("Today’s available slots have ended. We selected the next available date for you.");
+          setHasAutoAdvancedDate(true);
+        }
+      }
+    }
+  }, [availabilityData, selectedDate, year, month, hasAutoAdvancedDate, currentTimeTick]);
+
+  // Is calendar currently displaying the minimum navigable month (current system month)?
+  const isAtOrBeforeMinMonth = useMemo(() => {
+    const currentViewDate = new Date(year, month, 1);
+    return currentViewDate <= minBookingMonthDate;
+  }, [year, month, minBookingMonthDate]);
+
+  // Maximum navigable month (from API maxMonth/maxYear or default 3 months ahead)
+  const maxBookingMonthDate = useMemo(() => {
+    if (availabilityData?.maxYear !== undefined && availabilityData?.maxMonth !== undefined) {
+      return new Date(availabilityData.maxYear, availabilityData.maxMonth, 1);
+    }
+    return new Date(today.getFullYear(), today.getMonth() + 3, 1);
+  }, [availabilityData, today]);
+
+  const isAtOrAfterMaxMonth = useMemo(() => {
+    const currentViewDate = new Date(year, month, 1);
+    return currentViewDate >= maxBookingMonthDate;
+  }, [year, month, maxBookingMonthDate]);
+
+  // Dynamic available time slots based on selected date & current local time in Asia/Kolkata
+  const availableTimeSlots = useMemo(() => {
+    const rawSlots = (availabilityData?.dateSlots && selectedDate && availabilityData.dateSlots[selectedDate.getDate()]) ||
+                     availabilityData?.timeSlots ||
+                     AVAILABLE_TIME_SLOTS;
+    const nowInfo = getNowInBookingTimezone();
+
+    if (!isSelectedDateToday) {
+      // Future dates: all API slots available
+      return rawSlots.map(s => ({ ...s, isAvailable: true }));
+    }
+
+    // For today: strictly filter out all elapsed slots
+    return rawSlots.filter(slot => {
+      if (slot.hour < nowInfo.hour) return false;
+      if (slot.hour === nowInfo.hour && slot.minute <= nowInfo.minute) return false;
+      return true;
+    }).map(s => ({ ...s, isAvailable: true }));
+  }, [availabilityData, isSelectedDateToday, selectedDate, currentTimeTick]);
+
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState(null);
+
+  // Automatically adjust selectedTimeSlot whenever availableTimeSlots changes
+  useEffect(() => {
+    if (availableTimeSlots.length === 0) {
+      setSelectedTimeSlot(null);
+      return;
+    }
+    const currentMatched = availableTimeSlots.find(s => s.label === selectedTimeSlot?.label);
+    if (!currentMatched) {
+      setSelectedTimeSlot(availableTimeSlots[0]); // Default to earliest upcoming slot
+    }
+  }, [availableTimeSlots, selectedTimeSlot]);
+
+  // Generate calendar days with explicit Calendar State Model
   const calendarDays = useMemo(() => {
     const firstDayIndex = new Date(year, month, 1).getDay();
     const lastDate = new Date(year, month + 1, 0).getDate();
     const prevMonthLastDate = new Date(year, month, 0).getDate();
 
+    const availableDateNums = availabilityData?.availableDates;
+    const nowInfo = getNowInBookingTimezone();
     const days = [];
 
-    // Previous month filler days
+    // Previous month filler days (always PAST)
     for (let i = firstDayIndex - 1; i >= 0; i--) {
       days.push({
         dayNumber: prevMonthLastDate - i,
         isCurrentMonth: false,
         date: new Date(year, month - 1, prevMonthLastDate - i),
-        isPast: true
+        state: DATE_STATE.PAST,
+        isClickable: false
       });
     }
 
@@ -92,12 +324,41 @@ export default function BookDemoPage() {
     for (let i = 1; i <= lastDate; i++) {
       const dayDate = new Date(year, month, i);
       dayDate.setHours(0, 0, 0, 0);
+
+      const isPast = dayDate < today;
+      const isTodayDate = dayDate.getTime() === today.getTime();
+
+      let state = DATE_STATE.FUTURE_WITH_SLOTS;
+
+      if (loadingAvailability) {
+        state = DATE_STATE.LOADING;
+      } else if (isPast) {
+        state = DATE_STATE.PAST;
+      } else if (isTodayDate) {
+        const rawSlots = availabilityData?.timeSlots || AVAILABLE_TIME_SLOTS;
+        const remainingSlots = rawSlots.filter(slot => {
+          if (slot.hour < nowInfo.hour) return false;
+          if (slot.hour === nowInfo.hour && slot.minute <= nowInfo.minute) return false;
+          return true;
+        });
+        state = remainingSlots.length > 0 ? DATE_STATE.TODAY_WITH_SLOTS : DATE_STATE.TODAY_NO_SLOTS;
+      } else {
+        // Future date: check API availability (Sundays supported if in availableDates)
+        const hasSlotsInApi = availableDateNums && Array.isArray(availableDateNums)
+          ? availableDateNums.includes(i)
+          : true;
+        state = hasSlotsInApi ? DATE_STATE.FUTURE_WITH_SLOTS : DATE_STATE.FUTURE_NO_SLOTS;
+      }
+
+      const isClickable = state === DATE_STATE.TODAY_WITH_SLOTS || state === DATE_STATE.FUTURE_WITH_SLOTS;
+
       days.push({
         dayNumber: i,
         isCurrentMonth: true,
         date: dayDate,
-        isPast: dayDate < today,
-        isToday: dayDate.getTime() === today.getTime()
+        state,
+        isClickable,
+        isToday: isTodayDate
       });
     }
 
@@ -109,60 +370,202 @@ export default function BookDemoPage() {
         dayNumber: i,
         isCurrentMonth: false,
         date: new Date(year, month + 1, i),
-        isPast: false
+        state: DATE_STATE.PAST,
+        isClickable: false
       });
     }
 
     return days;
-  }, [year, month, today]);
+  }, [year, month, today, availabilityData, loadingAvailability, currentTimeTick]);
 
   const handlePrevMonth = () => {
+    if (isAtOrBeforeMinMonth) return;
+    setDateUnavailableMessage('');
     setCurrentMonthDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
   };
 
   const handleNextMonth = () => {
+    if (isAtOrAfterMaxMonth) return;
+    setDateUnavailableMessage('');
     setCurrentMonthDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
   };
 
   const handleSelectDay = (dayObj) => {
-    if (dayObj.isPast) return;
+    if (!dayObj.isCurrentMonth) return;
+
+    if (dayObj.state === DATE_STATE.PAST) {
+      return;
+    }
+
+    // Requirement 8 & 10: When user manually clicks a date with NO SLOTS, show inline message and do NOT auto-jump
+    if (dayObj.state === DATE_STATE.FUTURE_NO_SLOTS || dayObj.state === DATE_STATE.TODAY_NO_SLOTS) {
+      setDateUnavailableMessage("This date has no available demo slots. Please choose another date.");
+      return;
+    }
+
+    // Selectable date with confirmed slots (Requirement 1, 4, 9)
+    setDateUnavailableMessage('');
+    setAutoSelectedNotice('');
     setSelectedDate(dayObj.date);
-    if (!dayObj.isCurrentMonth) {
-      setCurrentMonthDate(new Date(dayObj.date.getFullYear(), dayObj.date.getMonth(), 1));
+    if (errors.selectedDate) {
+      setErrors(prev => ({ ...prev, selectedDate: null }));
     }
   };
 
   // Clock Hand angles
-  const minuteAngle = (selectedTimeSlot.minute / 60) * 360;
-  const hourAngle = ((selectedTimeSlot.hour % 12) + selectedTimeSlot.minute / 60) * 30;
+  const minuteAngle = ((selectedTimeSlot?.minute || 0) / 60) * 360;
+  const hourAngle = (((selectedTimeSlot?.hour || 12) % 12) + (selectedTimeSlot?.minute || 0) / 60) * 30;
 
   // Form Validation
   const validate = () => {
     const newErrors = {};
     if (!formData.fullName.trim()) newErrors.fullName = 'Full name is required';
     
-    if (!formData.email.trim()) {
-      newErrors.email = 'Work email is required';
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Invalid work email address';
+    const emailVal = getEmailValidation(formData.workEmail, true);
+    if (emailVal.state !== 'valid') {
+      newErrors.workEmail = emailVal.message;
     }
 
-    if (!formData.phone.trim()) {
-      newErrors.phone = 'Phone number is required';
-    } else if (!/^[0-9]{10}$/.test(formData.phone.replace(/[^0-9]/g, ''))) {
-      newErrors.phone = 'Must be a 10-digit number';
+    const phoneVal = getPhoneValidation(formData.phoneNumber);
+    if (phoneVal.state !== 'valid') {
+      newErrors.phoneNumber = phoneVal.message;
     }
 
     if (!formData.clinicName.trim()) newErrors.clinicName = 'Clinic or hospital name is required';
     if (!formData.doctorsCount) newErrors.doctorsCount = 'Please select number of doctors';
-    if (!formData.agree) newErrors.agree = 'You must agree to the Terms and Privacy Policy';
+    if (!selectedDate) newErrors.selectedDate = 'Please select a date';
+    if (!selectedTimeSlot) {
+      newErrors.selectedTime = isSelectedDateToday
+        ? 'No time slots available for today. Please select another date.'
+        : 'Please select an appointment time slot.';
+      setErrorMessage(newErrors.selectedTime);
+    }
+    if (!formData.privacyConsent) newErrors.privacyConsent = 'You must agree to the Terms and Privacy Policy';
 
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    setTouched({
+      fullName: true,
+      workEmail: true,
+      phoneNumber: true,
+      clinicName: true,
+      doctorsCount: true,
+      privacyConsent: true
+    });
+
+    if (Object.keys(newErrors).length > 0) {
+      const firstMsg = Object.values(newErrors)[0];
+      setErrorMessage(firstMsg || 'Please complete all required fields correctly.');
+      setTimeout(() => {
+        if (errorSummaryRef.current) {
+          errorSummaryRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          errorSummaryRef.current.focus();
+        }
+      }, 50);
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleBlur = (e) => {
+    const { name } = e.target;
+    setTouched(prev => ({ ...prev, [name]: true }));
+
+    if (name === 'phoneNumber' || name === 'phone') {
+      const v = getPhoneValidation(formData.phoneNumber);
+      if (v.state !== 'valid') {
+        setErrors(prev => ({ ...prev, phoneNumber: v.message }));
+      } else {
+        setErrors(prev => ({ ...prev, phoneNumber: null }));
+      }
+    } else if (name === 'workEmail' || name === 'email') {
+      const v = getEmailValidation(formData.workEmail, true);
+      if (v.state !== 'valid') {
+        setErrors(prev => ({ ...prev, workEmail: v.message }));
+      } else {
+        setErrors(prev => ({ ...prev, workEmail: null }));
+      }
+    } else if (name === 'fullName' && !formData.fullName.trim()) {
+      setErrors(prev => ({ ...prev, fullName: 'Full name is required' }));
+    } else if (name === 'clinicName' && !formData.clinicName.trim()) {
+      setErrors(prev => ({ ...prev, clinicName: 'Clinic or hospital name is required' }));
+    } else if (name === 'doctorsCount' && !formData.doctorsCount) {
+      setErrors(prev => ({ ...prev, doctorsCount: 'Please select number of doctors' }));
+    }
+  };
+
+  const handlePhoneKeyDown = (e) => {
+    if (
+      ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key) ||
+      (e.ctrlKey || e.metaKey)
+    ) {
+      return;
+    }
+    if (!/^[0-9]$/.test(e.key)) {
+      e.preventDefault();
+      return;
+    }
+    const input = e.target;
+    const hasSelection = input.selectionStart !== input.selectionEnd;
+    if (input.value.length >= 10 && !hasSelection) {
+      e.preventDefault();
+    }
+  };
+
+  const handlePhonePaste = (e) => {
+    e.preventDefault();
+    const pasteText = (e.clipboardData || window.clipboardData).getData('text');
+    const cleaned = pasteText.replace(/\D/g, '');
+    const currentVal = formData.phoneNumber || '';
+    const input = e.target;
+    const start = input.selectionStart || 0;
+    const end = input.selectionEnd || 0;
+    const combined = (currentVal.slice(0, start) + cleaned + currentVal.slice(end)).slice(0, 10);
+    
+    setFormData(prev => ({ ...prev, phoneNumber: combined }));
+    const v = getPhoneValidation(combined);
+    if (v.state === 'valid') {
+      setErrors(prev => ({ ...prev, phoneNumber: null }));
+    } else if (combined.length === 10 && v.state === 'invalid') {
+      setErrors(prev => ({ ...prev, phoneNumber: v.message }));
+    }
   };
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
+
+    if (name === 'phoneNumber' || name === 'phone') {
+      const sanitized = value.replace(/\D/g, '').slice(0, 10);
+      setFormData(prev => ({ ...prev, phoneNumber: sanitized }));
+
+      const v = getPhoneValidation(sanitized);
+      if (v.state === 'valid') {
+        setErrors(prev => ({ ...prev, phoneNumber: null }));
+      } else if (sanitized.length === 10 && v.state === 'invalid') {
+        setErrors(prev => ({ ...prev, phoneNumber: v.message }));
+      } else if (touched.phoneNumber && (v.state === 'invalid' || v.state === 'incomplete')) {
+        setErrors(prev => ({ ...prev, phoneNumber: v.message }));
+      } else if (errors.phoneNumber && v.state === 'incomplete' && !touched.phoneNumber) {
+        setErrors(prev => ({ ...prev, phoneNumber: null }));
+      }
+      return;
+    }
+
+    if (name === 'workEmail' || name === 'email') {
+      setFormData(prev => ({ ...prev, workEmail: value }));
+      const v = getEmailValidation(value, false);
+      if (v.state === 'valid') {
+        setErrors(prev => ({ ...prev, workEmail: null }));
+      } else if (v.state === 'invalid') {
+        setErrors(prev => ({ ...prev, workEmail: v.message }));
+      } else if (v.state === 'incomplete') {
+        if (errors.workEmail && !touched.workEmail) {
+          setErrors(prev => ({ ...prev, workEmail: null }));
+        }
+      }
+      return;
+    }
+
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value
@@ -188,37 +591,68 @@ export default function BookDemoPage() {
 
     const payload = {
       fullName: formData.fullName.trim(),
-      email: formData.email.trim(),
-      phone: formData.phone.trim(),
+      workEmail: formData.workEmail.trim(),
+      email: formData.workEmail.trim(),
+      phoneNumber: formData.phoneNumber.trim(),
+      phone: formData.phoneNumber.trim(),
       clinicName: formData.clinicName.trim(),
       doctorsCount: formData.doctorsCount,
       selectedDate: formattedDate,
+      preferredDate: formattedDate,
       selectedTime: selectedTimeSlot.label,
+      preferredTime: selectedTimeSlot.label,
       topics: formData.topics.trim(),
-      agree: formData.agree
+      privacyConsent: formData.privacyConsent,
+      agree: formData.privacyConsent
     };
 
     try {
-      const apiBase = import.meta.env.VITE_API_BASE_URL || '/api/v1';
-      const response = await axios.post(`${apiBase}/support/demo`, payload);
+      const data = await supportApi.bookDemo(payload);
       
-      if (response.data?.success) {
+      if (data?.success) {
         setStatus('success');
         setSuccessData({
-          bookingId: response.data.ticketId || `DEMO-${Date.now().toString().slice(-6)}`,
+          bookingId: data.ticketId || `DEMO-${Date.now().toString().slice(-6)}`,
           dateText: formattedDate,
           timeText: selectedTimeSlot.label,
           fullName: formData.fullName,
           clinicName: formData.clinicName
         });
       } else {
-        throw new Error(response.data?.message || 'Demo scheduling failed');
+        throw new Error(data?.message || 'Unable to book your demo. Please try again.');
       }
     } catch (err) {
       console.error('Demo booking error:', err);
       setStatus('error');
-      setErrorMessage(err.response?.data?.message || err.message || 'Failed to schedule demo. Please check your connection and try again.');
+      const apiMsg = err.response?.data?.message || err.message || "We couldn't submit your request. Please try again.";
+      setErrorMessage(apiMsg);
+      setTimeout(() => {
+        if (errorSummaryRef.current) {
+          errorSummaryRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          errorSummaryRef.current.focus();
+        }
+      }, 50);
     }
+  };
+
+  const handleScheduleAnother = () => {
+    setStatus('idle');
+    setSuccessData(null);
+    setFormData({
+      fullName: '',
+      workEmail: '',
+      phoneNumber: '',
+      clinicName: '',
+      doctorsCount: '',
+      topics: '',
+      privacyConsent: false
+    });
+    setErrors({});
+    setTouched({});
+    setErrorMessage('');
+    setAutoSelectedNotice('');
+    setDateUnavailableMessage('');
+    setHasAutoAdvancedDate(false);
   };
 
   return (
@@ -241,42 +675,37 @@ export default function BookDemoPage() {
       {/* 🏢 Main Content Container */}
       <main className="max-w-[1600px] 2xl:max-w-[1880px] mx-auto px-3 min-[390px]:px-4 sm:px-6 lg:px-10 2xl:px-16 py-2 sm:py-4 flex-grow w-full flex flex-col justify-center box-border">
         
-        {/* =========================================================================
-            1. LARGE / DESKTOP LAYOUT (1280px+ / xl:grid xl:grid-cols-12):
-            Matches Desktop Composition:
-            - Left 50% Column: Hero text on left, Doctor visual on right, 4 feature cards in 2x2 grid below, Compliance badges
-            - Right 50% Column: Full Schedule Demo Card (Calendar + Clock + Form)
-            ========================================================================= */}
-        <div className="hidden xl:grid xl:grid-cols-12 gap-8 2xl:gap-14 items-start w-full relative">
+        {/* Responsive Grid: Stacks on mobile/tablet, 2 columns on desktop (xl:) */}
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 lg:gap-8 2xl:gap-14 items-start w-full">
           
-          {/* Left Column (50% on desktop: Hero Text + Doctor Visual + 4 Feature Cards + Badges) */}
-          <div className="xl:col-span-6 2xl:col-span-6 flex flex-col justify-between space-y-4 xl:space-y-5 2xl:space-y-6">
+          {/* Left Column (Hero Text + Doctor Visual + Feature Cards + Badges) */}
+          <div className="xl:col-span-6 2xl:col-span-6 flex flex-col justify-between space-y-4 xl:space-y-5 2xl:space-y-6 w-full">
             
-            {/* Top Hero Composition: Left Text + Right Doctor — side-by-side flex row */}
-            <div className="relative flex flex-row items-start gap-0 w-full">
+            {/* Top Hero Composition */}
+            <div className="relative flex flex-col sm:flex-row items-center sm:items-start gap-3 sm:gap-0 w-full">
               
-              {/* Left-Aligned Text — takes its own width, no absolute positioning */}
-              <div className="flex-1 min-w-0 z-10 pt-1 pr-4">
-                <div className="inline-flex items-center gap-2 px-3 2xl:px-4 py-1 2xl:py-1.5 rounded-full bg-white border border-blue-200/90 text-[#0070F3] text-[11px] xl:text-[11.5px] 2xl:text-xs font-bold shadow-xs mb-2.5 2xl:mb-3">
+              {/* Left-Aligned Text */}
+              <div className="flex-1 min-w-0 z-10 pt-1 sm:pr-4 text-center sm:text-left">
+                <div className="inline-flex items-center gap-2 px-3 2xl:px-4 py-1 2xl:py-1.5 rounded-full bg-white border border-blue-200/90 text-[#0070F3] text-[10.5px] sm:text-[11.5px] 2xl:text-xs font-bold shadow-xs mb-2.5 2xl:mb-3">
                   <Calendar size={13} className="text-[#0070F3]" />
                   <span>BOOK A DEMO</span>
                 </div>
 
-                <h1 className="text-3xl xl:text-[36px] 2xl:text-[44px] font-black text-[#0B1E3B] tracking-tight leading-[1.12] mb-2 2xl:mb-3">
-                  See PEHAL <br />
-                  Healthcare <br />
+                <h1 className="text-2xl min-[360px]:text-[28px] sm:text-3xl xl:text-[36px] 2xl:text-[44px] font-black text-[#0B1E3B] tracking-tight leading-[1.12] mb-2 2xl:mb-3">
+                  See PEHAL <br className="hidden sm:inline" />
+                  Healthcare <br className="hidden sm:inline" />
                   in Action
-                  <span className="block text-[#0070F3] mt-1 font-black text-2xl xl:text-[28px] 2xl:text-[34px]">
+                  <span className="block text-[#0070F3] mt-1 font-black text-xl min-[360px]:text-2xl sm:text-2xl xl:text-[28px] 2xl:text-[34px]">
                     Book Your Personalized Demo
                   </span>
                 </h1>
 
-                <p className="text-slate-500 text-xs xl:text-[13px] 2xl:text-[15.5px] leading-relaxed font-medium">
+                <p className="text-slate-500 text-xs sm:text-[13px] 2xl:text-[15.5px] leading-relaxed font-medium">
                   A healthcare specialist will walk you through how PEHAL can streamline your clinic operations — from appointment management to EMR, billing, pharmacy, lab and AI-powered features tailored to your practice.
                 </p>
 
-                {/* Cursive Tagline — placed under text, not overlapping */}
-                <div className="mt-3 xl:mt-4 text-left">
+                {/* Cursive Tagline (Desktop & Tablet) */}
+                <div className="hidden sm:block mt-3 xl:mt-4 text-left">
                   <div 
                     className="text-[#0070F3] font-bold text-xl xl:text-[22px] 2xl:text-[26px] leading-[1.05] tracking-wide inline-block"
                     style={{ fontFamily: "'Caveat', cursive, sans-serif", transform: 'rotate(-2deg)', transformOrigin: 'left center' }}
@@ -289,39 +718,39 @@ export default function BookDemoPage() {
                 </div>
               </div>
 
-              {/* Right-Side Doctor Visual — fixed width, no negative left offsets */}
-              <div className="shrink-0 w-[260px] xl:w-[290px] 2xl:w-[350px] h-[320px] xl:h-[350px] 2xl:h-[420px] relative pointer-events-none select-none z-0">
+              {/* Doctor Visual with Floating Badge */}
+              <div className="shrink-0 w-[240px] sm:w-[260px] xl:w-[290px] 2xl:w-[350px] h-[220px] sm:h-[300px] xl:h-[350px] 2xl:h-[420px] relative select-none z-0 my-1 sm:my-0 flex items-center justify-center">
                 {/* Dot Matrix Pattern */}
                 <div 
-                  className="absolute top-2 right-2 w-28 2xl:w-36 h-32 2xl:h-40 opacity-35 z-0"
+                  className="absolute top-2 right-2 w-24 sm:w-28 2xl:w-36 h-28 sm:h-32 2xl:h-40 opacity-35 z-0 pointer-events-none"
                   style={{
                     backgroundImage: 'radial-gradient(#0070F3 1.5px, transparent 1.5px)',
                     backgroundSize: '13px 13px'
                   }}
                 />
 
-                {/* Abstract Blue Petals behind Doctor */}
+                {/* Abstract Blue Petals */}
                 <img 
                   src={petalBackground} 
                   alt="PEHAL Abstract Background"
-                  className="absolute top-2 right-0 w-[240px] xl:w-[270px] 2xl:w-[330px] h-auto object-contain z-0 opacity-95"
+                  className="absolute top-1/2 sm:top-2 left-1/2 sm:left-auto -translate-x-1/2 sm:translate-x-0 -translate-y-1/2 sm:translate-y-0 right-auto sm:right-0 w-[220px] sm:w-[240px] xl:w-[270px] 2xl:w-[330px] h-auto object-contain z-0 opacity-95 pointer-events-none"
                 />
 
                 {/* Doctor with Headset SVG */}
                 <img 
                   src={doctorImage} 
                   alt="PEHAL Healthcare Specialist"
-                  className="absolute top-0 right-2 w-[195px] xl:w-[220px] 2xl:w-[270px] h-auto object-contain z-10 drop-shadow-[0_10px_25px_rgba(0,112,243,0.18)]"
+                  className="relative sm:absolute sm:top-0 sm:right-2 w-[170px] sm:w-[195px] xl:w-[220px] 2xl:w-[270px] h-auto object-contain z-10 drop-shadow-[0_10px_25px_rgba(0,112,243,0.18)] pointer-events-none"
                 />
 
-                {/* Floating Smarter Clinics Badge — kept inside doctor column */}
-                <div className="absolute bottom-10 xl:bottom-12 left-2 xl:left-4 bg-white/95 backdrop-blur-md rounded-2xl p-2.5 xl:p-3 border border-slate-100/90 shadow-[0_8px_24px_rgba(0,112,243,0.14)] flex items-center gap-2 2xl:gap-2.5 z-20 pointer-events-auto">
-                  <div className="w-7 h-7 2xl:w-8 2xl:h-8 rounded-xl bg-blue-50 border border-blue-100 text-[#0070F3] flex items-center justify-center shrink-0 shadow-xs">
-                    <BarChart2 size={14} />
+                {/* Floating Smarter Clinics Badge */}
+                <div className="absolute bottom-2 sm:bottom-10 xl:bottom-12 right-2 sm:left-2 xl:left-4 bg-white/95 backdrop-blur-md rounded-2xl p-2 sm:p-2.5 xl:p-3 border border-slate-100/90 shadow-[0_8px_24px_rgba(0,112,243,0.14)] flex items-center gap-2 2xl:gap-2.5 z-20 pointer-events-auto">
+                  <div className="w-6 h-6 sm:w-7 sm:h-7 2xl:w-8 2xl:h-8 rounded-xl bg-blue-50 border border-blue-100 text-[#0070F3] flex items-center justify-center shrink-0 shadow-xs">
+                    <BarChart2 size={13} />
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-[11px] 2xl:text-xs font-black text-[#0B1E3B] leading-none">Smarter Clinics</span>
-                    <span className="text-[9.5px] 2xl:text-[10.5px] font-bold text-[#0070F3] leading-tight mt-0.5">Healthier Tomorrows</span>
+                    <span className="text-[10px] sm:text-[11px] 2xl:text-xs font-black text-[#0B1E3B] leading-none">Smarter Clinics</span>
+                    <span className="text-[8.5px] sm:text-[9.5px] 2xl:text-[10.5px] font-bold text-[#0070F3] leading-tight mt-0.5">Healthier Tomorrows</span>
                   </div>
                 </div>
 
@@ -330,12 +759,25 @@ export default function BookDemoPage() {
             </div>
 
             {/* 4 Feature Cards (2x2 Grid) */}
-            <div className="grid grid-cols-2 gap-3 2xl:gap-4 z-10 w-full">
-              {renderFeatureCards(false)}
+            <div className="grid grid-cols-2 gap-2.5 sm:gap-3.5 2xl:gap-4 z-10 w-full">
+              {renderFeatureCards()}
+            </div>
+
+            {/* Mobile Cursive Tagline */}
+            <div className="sm:hidden text-center py-1">
+              <div 
+                className="text-[#0070F3] font-bold text-xl leading-none inline-block"
+                style={{ fontFamily: "'Caveat', cursive, sans-serif", transform: 'rotate(-2deg)' }}
+              >
+                Better Care, Brighter Tomorrows
+              </div>
+              <svg className="w-32 h-2 text-[#0070F3] mx-auto mt-0.5" viewBox="0 0 120 10" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M2 7C35 1.5 85 1 118 6" stroke="#0070F3" strokeWidth="2.2" strokeLinecap="round" />
+              </svg>
             </div>
 
             {/* Compliance Badges Row */}
-            <div className="flex flex-wrap items-center gap-1.5 2xl:gap-2 z-10 pt-0.5">
+            <div className="hidden sm:flex flex-wrap items-center gap-1.5 2xl:gap-2 z-10 pt-0.5">
               {['HIPAA READY', 'NABH READY', 'GDPR READY', 'AES-256 ENCRYPTION'].map((badge) => (
                 <span 
                   key={badge}
@@ -349,186 +791,9 @@ export default function BookDemoPage() {
 
           </div>
 
-          {/* Right Column (50% on desktop: Schedule Your Demo Card) */}
+          {/* Right Column: Single Schedule Demo Card */}
           <div className="xl:col-span-6 2xl:col-span-6 w-full">
-            {renderSchedulerCard(false)}
-          </div>
-
-        </div>
-
-
-        {/* =========================================================================
-            2. TABLET / MEDIUM SCREEN LAYOUT (768px – 1279px / hidden md:flex xl:hidden):
-            Balanced intermediate layout: Hero (Text + Doctor) -> Feature Cards (2x2) -> Tagline -> Schedule Card
-            ========================================================================= */}
-        <div className="hidden md:flex xl:hidden flex-col space-y-6 w-full max-w-[960px] mx-auto">
-          
-          {/* Tablet Hero: Text (Left) + Doctor Visual (Right) */}
-          <div className="grid grid-cols-12 gap-6 items-center w-full">
-            
-            {/* Hero Text */}
-            <div className="col-span-7">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-blue-200/90 text-[#0070F3] text-[11px] font-bold shadow-xs mb-3">
-                <Calendar size={13} className="text-[#0070F3]" />
-                <span>BOOK A DEMO</span>
-              </div>
-
-              <h1 className="text-3xl md:text-[34px] font-black text-[#0B1E3B] tracking-tight leading-[1.15] mb-2.5">
-                See PEHAL Healthcare in Action <br />
-                <span className="text-[#0070F3] text-2xl md:text-[26px]">
-                  Book Your Personalized Demo
-                </span>
-              </h1>
-
-              <p className="text-slate-500 text-xs md:text-sm leading-relaxed font-medium">
-                A healthcare specialist will walk you through how PEHAL can streamline your clinic operations — from appointment management to EMR, billing, pharmacy, lab and AI-powered features tailored to your practice.
-              </p>
-            </div>
-
-            {/* Tablet Doctor Visual */}
-            <div className="col-span-5 relative h-[250px] flex items-center justify-center select-none pointer-events-none">
-              <div 
-                className="absolute top-2 right-4 w-24 h-24 opacity-30 z-0"
-                style={{
-                  backgroundImage: 'radial-gradient(#0070F3 1.5px, transparent 1.5px)',
-                  backgroundSize: '12px 12px'
-                }}
-              />
-              <img 
-                src={petalBackground} 
-                alt="PEHAL Abstract Background"
-                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[250px] h-auto object-contain z-0 opacity-95"
-              />
-              <img 
-                src={doctorImage} 
-                alt="PEHAL Healthcare Specialist"
-                className="relative z-10 w-[200px] h-auto object-contain drop-shadow-[0_10px_24px_rgba(0,112,243,0.16)]"
-              />
-              <div className="absolute bottom-2 right-0 bg-white/95 backdrop-blur-md rounded-xl p-2 border border-slate-100 shadow-[0_6px_20px_rgba(0,112,243,0.12)] flex items-center gap-2 z-20 pointer-events-auto">
-                <div className="w-6 h-6 rounded-lg bg-blue-50 text-[#0070F3] flex items-center justify-center shrink-0">
-                  <BarChart2 size={13} />
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[10px] font-black text-[#0B1E3B] leading-none">Smarter Clinics</span>
-                  <span className="text-[9px] font-bold text-[#0070F3] leading-none mt-0.5">Healthier Tomorrows</span>
-                </div>
-              </div>
-            </div>
-
-          </div>
-
-          {/* Tablet 4 Feature Cards (2x2 Grid) */}
-          <div className="grid grid-cols-2 gap-3.5 w-full">
-            {renderFeatureCards(false)}
-          </div>
-
-          {/* Tagline Centered */}
-          <div className="text-center py-1">
-            <div 
-              className="text-[#0070F3] font-bold text-2xl leading-tight inline-block"
-              style={{ fontFamily: "'Caveat', cursive, sans-serif" }}
-            >
-              Better Care, Brighter Tomorrows
-            </div>
-            <svg className="w-36 h-2 text-[#0070F3] mx-auto mt-0.5" viewBox="0 0 120 10" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M2 7C35 1.5 85 1 118 6" stroke="#0070F3" strokeWidth="2.2" strokeLinecap="round" />
-            </svg>
-          </div>
-
-          {/* Tablet Schedule Card (Full Width) */}
-          <div className="w-full pt-2">
-            {renderSchedulerCard(false)}
-          </div>
-
-        </div>
-
-
-        {/* =========================================================================
-            3. SMALL / MOBILE LAYOUT (320px – 767px / block md:hidden):
-            Single Vertical Flow matching Mobile Reference Image:
-            Header -> Book Demo Badge -> Heading -> Description -> Doctor + Petals -> 
-            Smarter Clinics Card -> 4 Feature Cards (2 cols) -> Better Care Tagline -> Schedule Demo Card -> Footer
-            ========================================================================= */}
-        <div className="flex md:hidden flex-col space-y-3.5 min-[390px]:space-y-4 w-full box-border">
-          
-          {/* Book a Demo Badge */}
-          <div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-blue-200/90 text-[#0070F3] text-[10px] min-[375px]:text-[10.5px] font-bold shadow-xs">
-              <Calendar size={12} className="text-[#0070F3]" />
-              <span>BOOK A DEMO</span>
-            </div>
-          </div>
-
-          {/* Mobile Heading */}
-          <h1 className="text-[26px] min-[360px]:text-[28px] min-[390px]:text-[32px] sm:text-[36px] font-black text-[#0B1E3B] tracking-tight leading-[1.12]">
-            See PEHAL <br />
-            Healthcare <br />
-            in Action <br />
-            <span className="text-[#0070F3] font-black text-xl min-[360px]:text-[22px] min-[390px]:text-2xl sm:text-[26px] block mt-0.5">
-              Book Your Personalized Demo
-            </span>
-          </h1>
-
-          {/* Mobile Description */}
-          <p className="text-slate-500 text-[11.5px] min-[375px]:text-xs sm:text-[13px] leading-relaxed font-medium">
-            A healthcare specialist will walk you through how PEHAL can streamline your clinic operations — from appointment management to EMR, billing, pharmacy, lab and AI-powered features tailored to your practice.
-          </p>
-
-          {/* Mobile Doctor Visual Container */}
-          <div className="relative w-full max-w-[340px] mx-auto h-[210px] min-[375px]:h-[230px] sm:h-[250px] flex items-center justify-center my-1 select-none">
-            {/* Dot Matrix Pattern */}
-            <div 
-              className="absolute top-1 right-2 w-20 min-[375px]:w-24 h-20 min-[375px]:h-24 opacity-30 z-0"
-              style={{
-                backgroundImage: 'radial-gradient(#0070F3 1.5px, transparent 1.5px)',
-                backgroundSize: '12px 12px'
-              }}
-            />
-            {/* Abstract Blue Petals strictly behind Doctor */}
-            <img 
-              src={petalBackground} 
-              alt="PEHAL Abstract Background"
-              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[220px] min-[375px]:w-[250px] sm:w-[270px] max-w-[80vw] h-auto object-contain z-0 opacity-95 pointer-events-none"
-            />
-            {/* Doctor SVG */}
-            <img 
-              src={doctorImage} 
-              alt="PEHAL Healthcare Specialist"
-              className="relative z-10 w-[170px] min-[375px]:w-[195px] sm:w-[220px] h-auto object-contain drop-shadow-[0_8px_20px_rgba(0,112,243,0.15)]"
-            />
-            {/* Floating Smarter Clinics Badge on lower-right */}
-            <div className="absolute bottom-1 right-1 min-[375px]:right-2 sm:right-4 bg-white/95 backdrop-blur-md rounded-xl p-1.5 min-[375px]:p-2 border border-slate-100 shadow-[0_6px_20px_rgba(0,112,243,0.12)] flex items-center gap-1.5 z-20 pointer-events-auto">
-              <div className="w-5.5 h-5.5 min-[375px]:w-6 min-[375px]:h-6 rounded-lg bg-blue-50 text-[#0070F3] flex items-center justify-center shrink-0">
-                <BarChart2 size={12} />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[9.5px] min-[375px]:text-[10px] font-black text-[#0B1E3B] leading-none">Smarter Clinics</span>
-                <span className="text-[8px] min-[375px]:text-[8.5px] font-bold text-[#0070F3] leading-none mt-0.5">Healthier Tomorrows</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Mobile 4 Feature Cards (2 Columns Grid) */}
-          <div className="grid grid-cols-2 gap-2 min-[375px]:gap-2.5 sm:gap-3 w-full pt-0.5 box-border">
-            {renderFeatureCards(true)}
-          </div>
-
-          {/* Mobile Better Care Tagline (Centered) */}
-          <div className="text-center py-1.5">
-            <div 
-              className="text-[#0070F3] font-bold text-xl min-[375px]:text-2xl leading-none inline-block"
-              style={{ fontFamily: "'Caveat', cursive, sans-serif", transform: 'rotate(-2deg)' }}
-            >
-              Better Care, Brighter Tomorrows
-            </div>
-            <svg className="w-32 min-[375px]:w-36 h-2 text-[#0070F3] mx-auto mt-0.5" viewBox="0 0 120 10" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M2 7C35 1.5 85 1 118 6" stroke="#0070F3" strokeWidth="2.2" strokeLinecap="round" />
-            </svg>
-          </div>
-
-          {/* Mobile Schedule Demo Card */}
-          <div className="w-full pt-0.5 box-border">
-            {renderSchedulerCard(true)}
+            {renderSchedulerCard()}
           </div>
 
         </div>
@@ -550,64 +815,64 @@ export default function BookDemoPage() {
   );
 
   // Helper: Render 4 Feature Cards
-  function renderFeatureCards(isMobile = false) {
+  function renderFeatureCards() {
     return (
       <>
         {/* Card 1: Personalized Walkthrough */}
-        <div className={`bg-white rounded-2xl ${isMobile ? 'p-2 min-[375px]:p-2.5 sm:p-3' : 'p-3 xl:p-3.5 2xl:p-4'} border border-slate-100 shadow-[0_3px_14px_rgba(0,112,243,0.06)] hover:shadow-md transition-shadow flex flex-col justify-between w-full box-border min-w-0`}>
+        <div className="bg-white rounded-2xl p-2.5 sm:p-3 xl:p-3.5 2xl:p-4 border border-slate-100 shadow-[0_3px_14px_rgba(0,112,243,0.06)] hover:shadow-md transition-shadow flex flex-col justify-between w-full box-border min-w-0">
           <div>
-            <div className={`${isMobile ? 'w-5.5 h-5.5 min-[375px]:w-6 min-[375px]:h-6' : 'w-7 h-7 2xl:w-8 2xl:h-8'} rounded-lg bg-blue-50 border border-blue-100/80 text-[#0070F3] flex items-center justify-center mb-1.5 2xl:mb-2 shadow-xs shrink-0`}>
-              <Laptop size={isMobile ? 12 : 15} />
+            <div className="w-6 h-6 sm:w-7 sm:h-7 2xl:w-8 2xl:h-8 rounded-lg bg-blue-50 border border-blue-100/80 text-[#0070F3] flex items-center justify-center mb-1.5 2xl:mb-2 shadow-xs shrink-0">
+              <Laptop size={14} />
             </div>
-            <h4 className={`${isMobile ? 'text-[10px] min-[375px]:text-[11px] sm:text-xs' : 'text-xs xl:text-[13px] 2xl:text-[15px]'} font-black text-[#0B1E3B] leading-tight mb-0.5 truncate`}>
+            <h4 className="text-[11px] sm:text-xs xl:text-[13px] 2xl:text-[15px] font-black text-[#0B1E3B] leading-tight mb-0.5 truncate">
               Personalized Walkthrough
             </h4>
-            <p className={`${isMobile ? 'text-[8.5px] min-[375px]:text-[9.5px]' : 'text-[10.5px] xl:text-[11px] 2xl:text-[12.5px]'} text-slate-500 leading-tight font-medium line-clamp-2`}>
+            <p className="text-[9.5px] sm:text-[10.5px] xl:text-[11px] 2xl:text-[12.5px] text-slate-500 leading-tight font-medium line-clamp-2">
               See how PEHAL fits your clinic's unique workflow.
             </p>
           </div>
         </div>
 
         {/* Card 2: 30-Minute Demo */}
-        <div className={`bg-white rounded-2xl ${isMobile ? 'p-2 min-[375px]:p-2.5 sm:p-3' : 'p-3 xl:p-3.5 2xl:p-4'} border border-slate-100 shadow-[0_3px_14px_rgba(0,112,243,0.06)] hover:shadow-md transition-shadow flex flex-col justify-between w-full box-border min-w-0`}>
+        <div className="bg-white rounded-2xl p-2.5 sm:p-3 xl:p-3.5 2xl:p-4 border border-slate-100 shadow-[0_3px_14px_rgba(0,112,243,0.06)] hover:shadow-md transition-shadow flex flex-col justify-between w-full box-border min-w-0">
           <div>
-            <div className={`${isMobile ? 'w-5.5 h-5.5 min-[375px]:w-6 min-[375px]:h-6' : 'w-7 h-7 2xl:w-8 2xl:h-8'} rounded-lg bg-blue-50 border border-blue-100/80 text-[#0070F3] flex items-center justify-center mb-1.5 2xl:mb-2 shadow-xs shrink-0`}>
-              <Clock size={isMobile ? 12 : 15} />
+            <div className="w-6 h-6 sm:w-7 sm:h-7 2xl:w-8 2xl:h-8 rounded-lg bg-blue-50 border border-blue-100/80 text-[#0070F3] flex items-center justify-center mb-1.5 2xl:mb-2 shadow-xs shrink-0">
+              <Clock size={14} />
             </div>
-            <h4 className={`${isMobile ? 'text-[10px] min-[375px]:text-[11px] sm:text-xs' : 'text-xs xl:text-[13px] 2xl:text-[15px]'} font-black text-[#0B1E3B] leading-tight mb-0.5 truncate`}>
+            <h4 className="text-[11px] sm:text-xs xl:text-[13px] 2xl:text-[15px] font-black text-[#0B1E3B] leading-tight mb-0.5 truncate">
               30-Minute Demo
             </h4>
-            <p className={`${isMobile ? 'text-[8.5px] min-[375px]:text-[9.5px]' : 'text-[10.5px] xl:text-[11px] 2xl:text-[12.5px]'} text-slate-500 leading-tight font-medium line-clamp-2`}>
+            <p className="text-[9.5px] sm:text-[10.5px] xl:text-[11px] 2xl:text-[12.5px] text-slate-500 leading-tight font-medium line-clamp-2">
               A focused, no-pressure session with our product specialist.
             </p>
           </div>
         </div>
 
         {/* Card 3: AI-Powered Workflows */}
-        <div className={`bg-white rounded-2xl ${isMobile ? 'p-2 min-[375px]:p-2.5 sm:p-3' : 'p-3 xl:p-3.5 2xl:p-4'} border border-slate-100 shadow-[0_3px_14px_rgba(0,112,243,0.06)] hover:shadow-md transition-shadow flex flex-col justify-between w-full box-border min-w-0`}>
+        <div className="bg-white rounded-2xl p-2.5 sm:p-3 xl:p-3.5 2xl:p-4 border border-slate-100 shadow-[0_3px_14px_rgba(0,112,243,0.06)] hover:shadow-md transition-shadow flex flex-col justify-between w-full box-border min-w-0">
           <div>
-            <div className={`${isMobile ? 'w-5.5 h-5.5 min-[375px]:w-6 min-[375px]:h-6' : 'w-7 h-7 2xl:w-8 2xl:h-8'} rounded-lg bg-blue-50 border border-blue-100/80 text-[#0070F3] flex items-center justify-center mb-1.5 2xl:mb-2 shadow-xs shrink-0`}>
-              <Sparkles size={isMobile ? 12 : 15} />
+            <div className="w-6 h-6 sm:w-7 sm:h-7 2xl:w-8 2xl:h-8 rounded-lg bg-blue-50 border border-blue-100/80 text-[#0070F3] flex items-center justify-center mb-1.5 2xl:mb-2 shadow-xs shrink-0">
+              <Sparkles size={14} />
             </div>
-            <h4 className={`${isMobile ? 'text-[10px] min-[375px]:text-[11px] sm:text-xs' : 'text-xs xl:text-[13px] 2xl:text-[15px]'} font-black text-[#0B1E3B] leading-tight mb-0.5 truncate`}>
+            <h4 className="text-[11px] sm:text-xs xl:text-[13px] 2xl:text-[15px] font-black text-[#0B1E3B] leading-tight mb-0.5 truncate">
               AI-Powered Workflows
             </h4>
-            <p className={`${isMobile ? 'text-[8.5px] min-[375px]:text-[9.5px]' : 'text-[10.5px] xl:text-[11px] 2xl:text-[12.5px]'} text-slate-500 leading-tight font-medium line-clamp-2`}>
+            <p className="text-[9.5px] sm:text-[10.5px] xl:text-[11px] 2xl:text-[12.5px] text-slate-500 leading-tight font-medium line-clamp-2">
               Explore our latest AI features for smarter, faster healthcare.
             </p>
           </div>
         </div>
 
         {/* Card 4: No Commitment */}
-        <div className={`bg-white rounded-2xl ${isMobile ? 'p-2 min-[375px]:p-2.5 sm:p-3' : 'p-3 xl:p-3.5 2xl:p-4'} border border-slate-100 shadow-[0_3px_14px_rgba(0,112,243,0.06)] hover:shadow-md transition-shadow flex flex-col justify-between w-full box-border min-w-0`}>
+        <div className="bg-white rounded-2xl p-2.5 sm:p-3 xl:p-3.5 2xl:p-4 border border-slate-100 shadow-[0_3px_14px_rgba(0,112,243,0.06)] hover:shadow-md transition-shadow flex flex-col justify-between w-full box-border min-w-0">
           <div>
-            <div className={`${isMobile ? 'w-5.5 h-5.5 min-[375px]:w-6 min-[375px]:h-6' : 'w-7 h-7 2xl:w-8 2xl:h-8'} rounded-lg bg-blue-50 border border-blue-100/80 text-[#0070F3] flex items-center justify-center mb-1.5 2xl:mb-2 shadow-xs shrink-0`}>
-              <ShieldCheck size={isMobile ? 12 : 15} />
+            <div className="w-6 h-6 sm:w-7 sm:h-7 2xl:w-8 2xl:h-8 rounded-lg bg-blue-50 border border-blue-100/80 text-[#0070F3] flex items-center justify-center mb-1.5 2xl:mb-2 shadow-xs shrink-0">
+              <ShieldCheck size={14} />
             </div>
-            <h4 className={`${isMobile ? 'text-[10px] min-[375px]:text-[11px] sm:text-xs' : 'text-xs xl:text-[13px] 2xl:text-[15px]'} font-black text-[#0B1E3B] leading-tight mb-0.5 truncate`}>
+            <h4 className="text-[11px] sm:text-xs xl:text-[13px] 2xl:text-[15px] font-black text-[#0B1E3B] leading-tight mb-0.5 truncate">
               No Commitment
             </h4>
-            <p className={`${isMobile ? 'text-[8.5px] min-[375px]:text-[9.5px]' : 'text-[10.5px] xl:text-[11px] 2xl:text-[12.5px]'} text-slate-500 leading-tight font-medium line-clamp-2`}>
+            <p className="text-[9.5px] sm:text-[10.5px] xl:text-[11px] 2xl:text-[12.5px] text-slate-500 leading-tight font-medium line-clamp-2">
               Just a conversation to help you make the right decision.
             </p>
           </div>
@@ -617,24 +882,64 @@ export default function BookDemoPage() {
   }
 
   // Helper: Render Scheduler Card (Calendar + Clock + Form)
-  function renderSchedulerCard(isMobile = false) {
+  function renderSchedulerCard() {
     return (
-      <div className={`bg-white rounded-2xl sm:rounded-3xl ${isMobile ? 'p-3 min-[360px]:p-3.5 min-[390px]:p-4 sm:p-6' : 'p-5 lg:p-6 xl:p-7 2xl:p-9'} border border-slate-100 shadow-[0_12px_44px_rgba(0,112,243,0.07)] relative w-full box-border min-w-0`}>
+      <div className="bg-white rounded-2xl sm:rounded-3xl p-3.5 min-[390px]:p-4 sm:p-6 lg:p-6 xl:p-7 2xl:p-9 border border-slate-100 shadow-[0_12px_44px_rgba(0,112,243,0.07)] relative w-full box-border min-w-0">
         
         {/* Header: Icon + Title + Subtitle */}
-        <div className="flex items-center gap-2 min-[375px]:gap-2.5 sm:gap-3 2xl:gap-4 mb-3.5 min-[390px]:mb-4 sm:mb-5 2xl:mb-6">
-          <div className="w-8 h-8 min-[375px]:w-9 min-[375px]:h-9 sm:w-10 sm:h-10 2xl:w-12 2xl:h-12 rounded-xl sm:rounded-2xl bg-blue-50 border border-blue-100/80 text-[#0070F3] flex items-center justify-center shrink-0 shadow-xs">
-            <Calendar size={isMobile ? 16 : 18} />
+        <div className="flex items-center gap-2.5 sm:gap-3 2xl:gap-4 mb-3.5 sm:mb-4 2xl:mb-5">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 2xl:w-12 2xl:h-12 rounded-xl sm:rounded-2xl bg-blue-50 border border-blue-100/80 text-[#0070F3] flex items-center justify-center shrink-0 shadow-xs">
+            <Calendar size={18} />
           </div>
           <div className="min-w-0">
-            <h2 className="text-sm min-[375px]:text-base sm:text-xl xl:text-2xl 2xl:text-[28px] font-black text-[#0B1E3B] tracking-tight leading-tight truncate">
+            <h2 className="text-base sm:text-xl xl:text-2xl 2xl:text-[28px] font-black text-[#0B1E3B] tracking-tight leading-tight truncate">
               Schedule Your Demo
             </h2>
-            <p className="text-[10.5px] min-[375px]:text-[11px] sm:text-xs 2xl:text-sm text-slate-500 font-medium leading-snug truncate">
+            <p className="text-[11px] sm:text-xs 2xl:text-sm text-slate-500 font-medium leading-snug truncate">
               Choose a date and time that works for you.
             </p>
           </div>
         </div>
+
+        {/* Form-Level Error Summary directly below "Schedule Your Demo" heading */}
+        {errorMessage && status !== 'success' && (
+          <div 
+            ref={errorSummaryRef}
+            tabIndex={-1}
+            role="alert" 
+            aria-live="assertive"
+            className="mb-3.5 p-3 sm:p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs sm:text-sm flex items-start gap-2.5 shadow-xs focus:outline-none focus:ring-2 focus:ring-red-400"
+          >
+            <AlertCircle size={17} className="text-red-600 shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-red-900 leading-tight">Unable to book your demo</p>
+              <p className="text-red-700 text-[11px] sm:text-xs mt-0.5 leading-snug">{errorMessage}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Auto-selected Next Available Date Notice */}
+        {autoSelectedNotice && status !== 'success' && (
+          <div className="mb-3.5 flex items-center gap-2 p-2.5 sm:p-3 rounded-xl bg-blue-50/90 border border-blue-200/90 text-[#0070F3] text-[10.5px] sm:text-xs font-semibold shadow-2xs">
+            <Sparkles size={14} className="shrink-0 text-[#0070F3]" />
+            <span className="flex-1 leading-snug">{autoSelectedNotice}</span>
+          </div>
+        )}
+
+        {/* Inline Date Unavailable Error Notice (Requirement 8 & 10) */}
+        {dateUnavailableMessage && status !== 'success' && (
+          <div className="mb-3.5 flex items-center gap-2 p-2.5 sm:p-3 rounded-xl bg-red-50/90 border border-red-200/90 text-red-700 text-[10.5px] sm:text-xs font-semibold shadow-2xs">
+            <AlertCircle size={14} className="shrink-0 text-red-600" />
+            <span className="flex-1 leading-snug">{dateUnavailableMessage}</span>
+            <button 
+              type="button" 
+              onClick={() => setDateUnavailableMessage('')}
+              className="text-red-500 hover:text-red-700 text-xs font-bold px-1"
+            >
+              ✕
+            </button>
+          </div>
+        )}
 
         {/* Success State View */}
         {status === 'success' && successData ? (
@@ -673,10 +978,7 @@ export default function BookDemoPage() {
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  setStatus('idle');
-                  setSuccessData(null);
-                }}
+                onClick={handleScheduleAnother}
                 className="w-full sm:w-auto px-6 py-3 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs sm:text-sm 2xl:text-base transition cursor-pointer min-h-[44px] 2xl:min-h-[48px]"
               >
                 <span>Schedule Another Demo</span>
@@ -684,26 +986,37 @@ export default function BookDemoPage() {
             </div>
           </motion.div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-3 min-[390px]:space-y-3.5 sm:space-y-4 w-full box-border">
+          <form onSubmit={handleSubmit} noValidate className="space-y-3 min-[390px]:space-y-3.5 sm:space-y-4 w-full box-border">
             
-            {/* ── DATE & TIME SELECTOR SECTION (Stacked on <360px, 2-cols on 360px+) ── */}
+            {/* ── DATE & TIME SELECTOR SECTION ── */}
             <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-2 min-[375px]:gap-2.5 sm:gap-3 2xl:gap-4 w-full box-border">
               
-              {/* LEFT: Select a Date * */}
+              {/* LEFT: Select a Date */}
               <div className="space-y-1 w-full box-border min-w-0">
-                <label className="text-[10px] min-[375px]:text-[10.5px] sm:text-[11px] 2xl:text-xs font-bold text-[#0B1E3B] uppercase tracking-wider flex items-center gap-1">
+                <span id="demo-date-label" className="text-[10px] min-[375px]:text-[10.5px] sm:text-[11px] 2xl:text-xs font-bold text-[#0B1E3B] uppercase tracking-wider flex items-center gap-1">
                   <span>Select a Date</span>
                   <span className="text-red-500">*</span>
-                </label>
+                </span>
 
-                <div className="bg-slate-50/60 rounded-xl sm:rounded-2xl border border-slate-200/90 p-1.5 min-[375px]:p-2 sm:p-3 shadow-2xs w-full box-border">
+                <div 
+                  role="region" 
+                  aria-labelledby="demo-date-label"
+                  className="bg-slate-50/60 rounded-xl sm:rounded-2xl border border-slate-200/90 p-1.5 min-[375px]:p-2 sm:p-3 shadow-2xs w-full box-border"
+                >
                   {/* Month Navigation */}
                   <div className="flex items-center justify-between mb-1.5 px-0.5">
                     <button
                       type="button"
+                      disabled={isAtOrBeforeMinMonth}
                       onClick={handlePrevMonth}
-                      className="w-5 h-5 min-[375px]:w-6 min-[375px]:h-6 rounded-md hover:bg-slate-200/70 flex items-center justify-center text-slate-600 transition cursor-pointer"
-                      aria-label="Previous month"
+                      title={isAtOrBeforeMinMonth ? "No previous dates available" : "Previous month"}
+                      aria-label={isAtOrBeforeMinMonth ? "No previous dates available" : "Previous month"}
+                      aria-disabled={isAtOrBeforeMinMonth}
+                      className={`w-5 h-5 min-[375px]:w-6 min-[375px]:h-6 rounded-md flex items-center justify-center transition select-none ${
+                        isAtOrBeforeMinMonth
+                          ? 'opacity-30 cursor-not-allowed text-slate-400 hover:bg-transparent bg-transparent'
+                          : 'text-slate-600 hover:bg-slate-200/70 cursor-pointer active:scale-95'
+                      }`}
                     >
                       <ChevronLeft size={13} />
                     </button>
@@ -712,16 +1025,30 @@ export default function BookDemoPage() {
                     </span>
                     <button
                       type="button"
+                      disabled={isAtOrAfterMaxMonth}
                       onClick={handleNextMonth}
-                      className="w-5 h-5 min-[375px]:w-6 min-[375px]:h-6 rounded-md hover:bg-slate-200/70 flex items-center justify-center text-slate-600 transition cursor-pointer"
-                      aria-label="Next month"
+                      title={isAtOrAfterMaxMonth ? "No further dates available" : "Next month"}
+                      aria-label={isAtOrAfterMaxMonth ? "No further dates available" : "Next month"}
+                      aria-disabled={isAtOrAfterMaxMonth}
+                      className={`w-5 h-5 min-[375px]:w-6 min-[375px]:h-6 rounded-md flex items-center justify-center transition select-none ${
+                        isAtOrAfterMaxMonth
+                          ? 'opacity-30 cursor-not-allowed text-slate-400 hover:bg-transparent bg-transparent'
+                          : 'text-slate-600 hover:bg-slate-200/70 cursor-pointer active:scale-95'
+                      }`}
                     >
                       <ChevronRight size={13} />
                     </button>
                   </div>
 
+                  {/* Graceful banner if no dates available in a future month */}
+                  {availabilityData && !availabilityData.hasAvailableDates && (
+                    <div className="text-[8.5px] text-amber-700 bg-amber-50 border border-amber-200/90 rounded-md p-1 mb-1 text-center font-semibold leading-tight">
+                      No bookable dates in {monthName}. Please choose an upcoming month.
+                    </div>
+                  )}
+
                   {/* Day of Week Headers */}
-                  <div className="grid grid-cols-7 gap-0.5 text-center mb-0.5">
+                  <div className="grid grid-cols-7 gap-0.5 text-center mb-0.5" aria-hidden="true">
                     {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
                       <span key={d} className="text-[8px] min-[375px]:text-[8.5px] sm:text-[9.5px] font-semibold text-slate-400">
                         {d}
@@ -729,25 +1056,40 @@ export default function BookDemoPage() {
                     ))}
                   </div>
 
-                  {/* Calendar Day Numbers Grid */}
-                  <div className="grid grid-cols-7 gap-0.5 text-center">
+                  {/* Calendar Day Numbers Grid with Explicit State Model */}
+                  <div className="grid grid-cols-7 gap-0.5 text-center" role="grid" aria-label="Calendar dates">
                     {calendarDays.map((dayObj, i) => {
-                      const isSelected = selectedDate && selectedDate.toDateString() === dayObj.date.toDateString();
+                      const isSelected = selectedDate && selectedDate.toDateString() === dayObj.date.toDateString() && dayObj.isCurrentMonth;
+                      const isNoSlotsState = dayObj.state === DATE_STATE.FUTURE_NO_SLOTS || dayObj.state === DATE_STATE.TODAY_NO_SLOTS;
+
+                      let cellStyling = '';
+                      let cellTitle = '';
+
+                      if (isSelected) {
+                        cellStyling = 'bg-[#0070F3] text-white font-bold shadow-xs cursor-pointer';
+                        cellTitle = `Selected: ${dayObj.date.toLocaleDateString()}`;
+                      } else if (!dayObj.isCurrentMonth || dayObj.state === DATE_STATE.PAST) {
+                        cellStyling = 'text-slate-300 opacity-40 cursor-not-allowed';
+                        cellTitle = dayObj.isCurrentMonth ? 'Past date' : '';
+                      } else if (isNoSlotsState) {
+                        cellStyling = 'text-red-500/80 bg-red-50/50 hover:bg-red-100/60 border border-red-200/50 font-semibold cursor-pointer';
+                        cellTitle = "No demo slots available for this date";
+                      } else {
+                        // Selectable future date or today with slots (including Sundays)
+                        cellStyling = 'text-slate-700 hover:bg-blue-50 cursor-pointer font-medium';
+                        cellTitle = `Select ${dayObj.date.toLocaleDateString()}`;
+                      }
+
                       return (
                         <button
                           key={i}
                           type="button"
-                          disabled={dayObj.isPast}
+                          disabled={!dayObj.isCurrentMonth || dayObj.state === DATE_STATE.PAST}
                           onClick={() => handleSelectDay(dayObj)}
-                          className={`w-5 h-5 min-[375px]:w-5.5 min-[375px]:h-5.5 min-[390px]:w-6 min-[390px]:h-6 sm:w-7 sm:h-7 rounded-full text-[8.5px] min-[375px]:text-[9.5px] min-[390px]:text-[10px] sm:text-[11px] font-semibold flex items-center justify-center mx-auto transition-all ${
-                            isSelected
-                              ? 'bg-[#0070F3] text-white font-bold shadow-xs'
-                              : dayObj.isPast
-                              ? 'text-slate-300 cursor-not-allowed'
-                              : !dayObj.isCurrentMonth
-                              ? 'text-slate-400 hover:bg-slate-200/60 cursor-pointer'
-                              : 'text-slate-700 hover:bg-blue-50 cursor-pointer'
-                          }`}
+                          aria-selected={isSelected}
+                          aria-label={cellTitle}
+                          title={cellTitle}
+                          className={`w-5 h-5 min-[375px]:w-5.5 min-[375px]:h-5.5 min-[390px]:w-6 min-[390px]:h-6 sm:w-7 sm:h-7 rounded-full text-[8.5px] min-[375px]:text-[9.5px] min-[390px]:text-[10px] sm:text-[11px] flex items-center justify-center mx-auto transition-all ${cellStyling}`}
                         >
                           {dayObj.dayNumber}
                         </button>
@@ -755,19 +1097,24 @@ export default function BookDemoPage() {
                     })}
                   </div>
                 </div>
+                {errors.selectedDate && <p className="text-[9px] min-[375px]:text-[10px] 2xl:text-xs text-red-500 mt-0.5 font-bold">{errors.selectedDate}</p>}
               </div>
 
-              {/* RIGHT: Select a Time * */}
+              {/* RIGHT: Select a Time */}
               <div className="space-y-1 w-full box-border min-w-0">
-                <label className="text-[10px] min-[375px]:text-[10.5px] sm:text-[11px] 2xl:text-xs font-bold text-[#0B1E3B] uppercase tracking-wider flex items-center gap-1">
+                <span id="demo-time-label" className="text-[10px] min-[375px]:text-[10.5px] sm:text-[11px] 2xl:text-xs font-bold text-[#0B1E3B] uppercase tracking-wider flex items-center gap-1">
                   <span>Select a Time</span>
                   <span className="text-red-500">*</span>
-                </label>
+                </span>
 
-                <div className="bg-slate-50/60 rounded-xl sm:rounded-2xl border border-slate-200/90 p-1.5 min-[375px]:p-2 sm:p-3 shadow-2xs flex flex-col items-center justify-between min-h-[175px] min-[375px]:min-h-[185px] sm:min-h-[200px] w-full box-border">
+                <div 
+                  role="region"
+                  aria-labelledby="demo-time-label"
+                  className="bg-slate-50/60 rounded-xl sm:rounded-2xl border border-slate-200/90 p-1.5 min-[375px]:p-2 sm:p-3 shadow-2xs flex flex-col items-center justify-between min-h-[175px] min-[375px]:min-h-[185px] sm:min-h-[200px] w-full box-border"
+                >
                   
                   {/* ⏱️ Analog Clock Face */}
-                  <div className="relative w-16 h-16 min-[375px]:w-18 min-[375px]:h-18 sm:w-20 sm:h-20 2xl:w-22 2xl:h-22 rounded-full border border-slate-200 flex items-center justify-center my-0.5 bg-white shadow-2xs shrink-0">
+                  <div className="relative w-16 h-16 min-[375px]:w-18 min-[375px]:h-18 sm:w-20 sm:h-20 2xl:w-22 2xl:h-22 rounded-full border border-slate-200 flex items-center justify-center my-0.5 bg-white shadow-2xs shrink-0" aria-hidden="true">
                     {/* Clock Dial Markers */}
                     <div className="absolute top-0.5 text-[7.5px] min-[375px]:text-[8px] font-bold text-slate-400 leading-none">00</div>
                     <div className="absolute right-0.5 text-[7.5px] min-[375px]:text-[8px] font-bold text-slate-400 leading-none">15</div>
@@ -803,80 +1150,136 @@ export default function BookDemoPage() {
                   </div>
 
                   {/* Selected Time Pill Badge */}
-                  <div className="px-2.5 py-0.5 rounded-full bg-blue-50 border border-blue-200/90 text-[#0070F3] font-black text-[9.5px] min-[375px]:text-[10.5px] sm:text-[11px] my-0.5">
-                    {selectedTimeSlot.label}
+                  <div className={`px-2.5 py-0.5 rounded-full border font-black text-[9.5px] min-[375px]:text-[10.5px] sm:text-[11px] my-0.5 transition-colors ${
+                    selectedTimeSlot 
+                      ? 'bg-blue-50 border-blue-200/90 text-[#0070F3]' 
+                      : 'bg-amber-50 border-amber-200/90 text-amber-700'
+                  }`}>
+                    {selectedTimeSlot ? selectedTimeSlot.label : 'No slot selected'}
                   </div>
 
-                  {/* Available Time Slots Grid (3 columns) */}
-                  <div className="grid grid-cols-3 gap-0.5 min-[375px]:gap-1 w-full box-border">
-                    {AVAILABLE_TIME_SLOTS.map((slot) => {
-                      const isSelected = selectedTimeSlot.label === slot.label;
-                      return (
-                        <button
-                          key={slot.label}
-                          type="button"
-                          onClick={() => setSelectedTimeSlot(slot)}
-                          className={`py-0.5 min-[375px]:py-1 px-0.5 rounded-md text-[7.5px] min-[375px]:text-[8.5px] sm:text-[9.5px] font-bold border transition text-center cursor-pointer truncate ${
-                            isSelected
-                              ? 'bg-[#0070F3] text-white border-[#0070F3] shadow-xs'
-                              : 'bg-white border-slate-200 text-slate-700 hover:border-blue-300 hover:text-[#0070F3]'
-                          }`}
-                        >
-                          {slot.label}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  {/* Available Time Slots Grid or Empty Notice */}
+                  {availableTimeSlots.length > 0 ? (
+                    <div className="grid grid-cols-3 gap-0.5 min-[375px]:gap-1 w-full box-border" role="group" aria-label="Available demo time slots">
+                      {availableTimeSlots.map((slot) => {
+                        const isSelected = selectedTimeSlot?.label === slot.label;
+                        return (
+                          <button
+                            key={slot.label}
+                            type="button"
+                            onClick={() => {
+                              setSelectedTimeSlot(slot);
+                              if (errors.selectedTime) {
+                                setErrors(prev => ({ ...prev, selectedTime: null }));
+                              }
+                            }}
+                            aria-pressed={isSelected}
+                            aria-label={`Select ${slot.label}`}
+                            className={`py-0.5 min-[375px]:py-1 px-0.5 rounded-md text-[7.5px] min-[375px]:text-[8.5px] sm:text-[9.5px] font-bold border transition text-center truncate ${
+                              isSelected
+                                ? 'bg-[#0070F3] text-white border-[#0070F3] shadow-xs cursor-pointer'
+                                : 'bg-white border-slate-200 text-slate-700 hover:border-blue-300 hover:text-[#0070F3] cursor-pointer'
+                            }`}
+                          >
+                            {slot.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : isSelectedDateToday ? (
+                    <div className="w-full text-center px-1.5 py-2 bg-amber-50/90 border border-amber-200/90 rounded-xl my-0.5 box-border">
+                      <p className="text-[9px] min-[375px]:text-[9.5px] sm:text-[10.5px] font-bold text-amber-900 leading-tight">
+                        No time slots available for today.
+                      </p>
+                      <p className="text-[8px] min-[375px]:text-[8.5px] sm:text-[9.5px] text-amber-700 font-medium mt-0.5 leading-tight">
+                        Please select another date.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="w-full text-center px-1.5 py-2 bg-slate-50 border border-slate-200 rounded-xl my-0.5 box-border">
+                      <p className="text-[9px] min-[375px]:text-[9.5px] sm:text-[10.5px] font-bold text-slate-700 leading-tight">
+                        No demo slots are currently available.
+                      </p>
+                      <p className="text-[8px] min-[375px]:text-[8.5px] sm:text-[9.5px] text-slate-500 font-medium mt-0.5 leading-tight">
+                        Please check again later or contact support.
+                      </p>
+                    </div>
+                  )}
 
                 </div>
+                {errors.selectedTime && <p className="text-[9px] min-[375px]:text-[10px] 2xl:text-xs text-red-500 mt-0.5 font-bold">{errors.selectedTime}</p>}
               </div>
 
             </div>
 
-            {/* ── FORM FIELDS SECTION (Stacked on <360px, 2-cols on 360px+) ── */}
+            {/* ── FORM FIELDS SECTION (TC-18: Unique IDs, Labels, Required Attributes) ── */}
             
             {/* Row 1: Full Name + Work Email */}
             <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-2 min-[375px]:gap-2.5 sm:gap-3 2xl:gap-4 w-full box-border">
               {/* Full Name */}
               <div className="w-full box-border min-w-0">
-                <label className="block text-[9.5px] min-[375px]:text-[10.5px] sm:text-[11px] 2xl:text-xs font-bold text-[#0B1E3B] uppercase tracking-wider mb-1 truncate">
+                <label htmlFor="demo-full-name" className="block text-[9.5px] min-[375px]:text-[10.5px] sm:text-[11px] 2xl:text-xs font-bold text-[#0B1E3B] uppercase tracking-wider mb-1 truncate">
                   FULL NAME <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <User size={13} className="absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                   <input
-                    type="text"
+                    id="demo-full-name"
                     name="fullName"
+                    type="text"
+                    required
                     value={formData.fullName}
                     onChange={handleChange}
+                    onBlur={handleBlur}
                     placeholder="Enter full name"
-                    className={`w-full bg-slate-50/70 border rounded-xl pl-9 min-[375px]:pl-9.5 sm:pl-10 2xl:pl-11 pr-2.5 py-1.5 min-[375px]:py-2 sm:py-2.5 2xl:py-3 min-h-[36px] min-[375px]:min-h-[40px] sm:min-h-[44px] 2xl:min-h-[50px] text-[11px] min-[375px]:text-xs 2xl:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0070F3]/30 font-medium transition box-border ${
-                      errors.fullName ? 'border-red-400 bg-red-50/30' : 'border-slate-200 focus:border-blue-300'
+                    className={`w-full bg-slate-50/70 border rounded-xl pl-9 min-[375px]:pl-9.5 sm:pl-10 2xl:pl-11 pr-2.5 py-1.5 min-[375px]:py-2 sm:py-2.5 2xl:py-3 min-h-[36px] min-[375px]:min-h-[40px] sm:min-h-[44px] 2xl:min-h-[50px] text-[11px] min-[375px]:text-xs 2xl:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 font-medium transition box-border ${
+                      errors.fullName 
+                        ? 'border-red-400 bg-red-50/30 focus:border-red-400 focus:ring-red-400/20' 
+                        : formData.fullName.trim() && !errors.fullName
+                        ? 'border-emerald-400/80 bg-emerald-50/15 focus:border-emerald-500 focus:ring-emerald-500/20'
+                        : 'border-slate-200 focus:border-blue-300 focus:ring-[#0070F3]/30'
                     }`}
                   />
+                  {formData.fullName.trim() && !errors.fullName && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500 pointer-events-none flex items-center">
+                      <Check size={14} strokeWidth={2.5} />
+                    </div>
+                  )}
                 </div>
                 {errors.fullName && <p className="text-[9px] min-[375px]:text-[10px] 2xl:text-xs text-red-500 mt-0.5 font-bold">{errors.fullName}</p>}
               </div>
 
               {/* Work Email */}
               <div className="w-full box-border min-w-0">
-                <label className="block text-[9.5px] min-[375px]:text-[10.5px] sm:text-[11px] 2xl:text-xs font-bold text-[#0B1E3B] uppercase tracking-wider mb-1 truncate">
+                <label htmlFor="demo-work-email" className="block text-[9.5px] min-[375px]:text-[10.5px] sm:text-[11px] 2xl:text-xs font-bold text-[#0B1E3B] uppercase tracking-wider mb-1 truncate">
                   WORK EMAIL <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <Mail size={13} className="absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                   <input
+                    id="demo-work-email"
+                    name="workEmail"
                     type="email"
-                    name="email"
-                    value={formData.email}
+                    required
+                    value={formData.workEmail}
                     onChange={handleChange}
+                    onBlur={handleBlur}
                     placeholder="Enter work email"
-                    className={`w-full bg-slate-50/70 border rounded-xl pl-9 min-[375px]:pl-9.5 sm:pl-10 2xl:pl-11 pr-2.5 py-1.5 min-[375px]:py-2 sm:py-2.5 2xl:py-3 min-h-[36px] min-[375px]:min-h-[40px] sm:min-h-[44px] 2xl:min-h-[50px] text-[11px] min-[375px]:text-xs 2xl:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0070F3]/30 font-medium transition box-border ${
-                      errors.email ? 'border-red-400 bg-red-50/30' : 'border-slate-200 focus:border-blue-300'
+                    className={`w-full bg-slate-50/70 border rounded-xl pl-9 min-[375px]:pl-9.5 sm:pl-10 2xl:pl-11 pr-8 py-1.5 min-[375px]:py-2 sm:py-2.5 2xl:py-3 min-h-[36px] min-[375px]:min-h-[40px] sm:min-h-[44px] 2xl:min-h-[50px] text-[11px] min-[375px]:text-xs 2xl:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 font-medium transition box-border ${
+                      errors.workEmail 
+                        ? 'border-red-400 bg-red-50/30 focus:border-red-400 focus:ring-red-400/20' 
+                        : isEmailValid 
+                        ? 'border-emerald-400/80 bg-emerald-50/15 focus:border-emerald-500 focus:ring-emerald-500/20' 
+                        : 'border-slate-200 focus:border-blue-300 focus:ring-[#0070F3]/30'
                     }`}
                   />
+                  {isEmailValid && !errors.workEmail && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500 pointer-events-none flex items-center">
+                      <Check size={14} strokeWidth={2.5} />
+                    </div>
+                  )}
                 </div>
-                {errors.email && <p className="text-[9px] min-[375px]:text-[10px] 2xl:text-xs text-red-500 mt-0.5 font-bold">{errors.email}</p>}
+                {errors.workEmail && <p className="text-[9px] min-[375px]:text-[10px] 2xl:text-xs text-red-500 mt-0.5 font-bold">{errors.workEmail}</p>}
               </div>
             </div>
 
@@ -884,42 +1287,69 @@ export default function BookDemoPage() {
             <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-2 min-[375px]:gap-2.5 sm:gap-3 2xl:gap-4 w-full box-border">
               {/* Phone Number */}
               <div className="w-full box-border min-w-0">
-                <label className="block text-[9.5px] min-[375px]:text-[10.5px] sm:text-[11px] 2xl:text-xs font-bold text-[#0B1E3B] uppercase tracking-wider mb-1 truncate">
+                <label htmlFor="demo-phone-number" className="block text-[9.5px] min-[375px]:text-[10.5px] sm:text-[11px] 2xl:text-xs font-bold text-[#0B1E3B] uppercase tracking-wider mb-1 truncate">
                   PHONE NUMBER <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <Phone size={13} className="absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                   <input
+                    id="demo-phone-number"
+                    name="phoneNumber"
                     type="tel"
-                    name="phone"
-                    value={formData.phone}
+                    maxLength={10}
+                    required
+                    value={formData.phoneNumber}
                     onChange={handleChange}
-                    placeholder="Enter phone number"
-                    className={`w-full bg-slate-50/70 border rounded-xl pl-9 min-[375px]:pl-9.5 sm:pl-10 2xl:pl-11 pr-2.5 py-1.5 min-[375px]:py-2 sm:py-2.5 2xl:py-3 min-h-[36px] min-[375px]:min-h-[40px] sm:min-h-[44px] 2xl:min-h-[50px] text-[11px] min-[375px]:text-xs 2xl:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0070F3]/30 font-medium transition box-border ${
-                      errors.phone ? 'border-red-400 bg-red-50/30' : 'border-slate-200 focus:border-blue-300'
+                    onKeyDown={handlePhoneKeyDown}
+                    onPaste={handlePhonePaste}
+                    onBlur={handleBlur}
+                    placeholder="Enter 10-digit number"
+                    className={`w-full bg-slate-50/70 border rounded-xl pl-9 min-[375px]:pl-9.5 sm:pl-10 2xl:pl-11 pr-8 py-1.5 min-[375px]:py-2 sm:py-2.5 2xl:py-3 min-h-[36px] min-[375px]:min-h-[40px] sm:min-h-[44px] 2xl:min-h-[50px] text-[11px] min-[375px]:text-xs 2xl:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 font-medium transition box-border ${
+                      errors.phoneNumber 
+                        ? 'border-red-400 bg-red-50/30 focus:border-red-400 focus:ring-red-400/20' 
+                        : isPhoneValid 
+                        ? 'border-emerald-400/80 bg-emerald-50/15 focus:border-emerald-500 focus:ring-emerald-500/20' 
+                        : 'border-slate-200 focus:border-blue-300 focus:ring-[#0070F3]/30'
                     }`}
                   />
+                  {isPhoneValid && !errors.phoneNumber && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500 pointer-events-none flex items-center">
+                      <Check size={14} strokeWidth={2.5} />
+                    </div>
+                  )}
                 </div>
-                {errors.phone && <p className="text-[9px] min-[375px]:text-[10px] 2xl:text-xs text-red-500 mt-0.5 font-bold">{errors.phone}</p>}
+                {errors.phoneNumber && <p className="text-[9px] min-[375px]:text-[10px] 2xl:text-xs text-red-500 mt-0.5 font-bold">{errors.phoneNumber}</p>}
               </div>
 
               {/* Clinic / Hospital Name */}
               <div className="w-full box-border min-w-0">
-                <label className="block text-[9.5px] min-[375px]:text-[10.5px] sm:text-[11px] 2xl:text-xs font-bold text-[#0B1E3B] uppercase tracking-wider mb-1 truncate">
+                <label htmlFor="demo-clinic-name" className="block text-[9.5px] min-[375px]:text-[10.5px] sm:text-[11px] 2xl:text-xs font-bold text-[#0B1E3B] uppercase tracking-wider mb-1 truncate">
                   CLINIC / HOSPITAL NAME <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <Building2 size={13} className="absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                   <input
-                    type="text"
+                    id="demo-clinic-name"
                     name="clinicName"
+                    type="text"
+                    required
                     value={formData.clinicName}
                     onChange={handleChange}
+                    onBlur={handleBlur}
                     placeholder="Enter clinic name"
-                    className={`w-full bg-slate-50/70 border rounded-xl pl-9 min-[375px]:pl-9.5 sm:pl-10 2xl:pl-11 pr-2.5 py-1.5 min-[375px]:py-2 sm:py-2.5 2xl:py-3 min-h-[36px] min-[375px]:min-h-[40px] sm:min-h-[44px] 2xl:min-h-[50px] text-[11px] min-[375px]:text-xs 2xl:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0070F3]/30 font-medium transition box-border ${
-                      errors.clinicName ? 'border-red-400 bg-red-50/30' : 'border-slate-200 focus:border-blue-300'
+                    className={`w-full bg-slate-50/70 border rounded-xl pl-9 min-[375px]:pl-9.5 sm:pl-10 2xl:pl-11 pr-2.5 py-1.5 min-[375px]:py-2 sm:py-2.5 2xl:py-3 min-h-[36px] min-[375px]:min-h-[40px] sm:min-h-[44px] 2xl:min-h-[50px] text-[11px] min-[375px]:text-xs 2xl:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 font-medium transition box-border ${
+                      errors.clinicName 
+                        ? 'border-red-400 bg-red-50/30 focus:border-red-400 focus:ring-red-400/20' 
+                        : formData.clinicName.trim() && !errors.clinicName
+                        ? 'border-emerald-400/80 bg-emerald-50/15 focus:border-emerald-500 focus:ring-emerald-500/20'
+                        : 'border-slate-200 focus:border-blue-300 focus:ring-[#0070F3]/30'
                     }`}
                   />
+                  {formData.clinicName.trim() && !errors.clinicName && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500 pointer-events-none flex items-center">
+                      <Check size={14} strokeWidth={2.5} />
+                    </div>
+                  )}
                 </div>
                 {errors.clinicName && <p className="text-[9px] min-[375px]:text-[10px] 2xl:text-xs text-red-500 mt-0.5 font-bold">{errors.clinicName}</p>}
               </div>
@@ -929,13 +1359,15 @@ export default function BookDemoPage() {
             <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-2 min-[375px]:gap-2.5 sm:gap-3 2xl:gap-4 w-full box-border">
               {/* Number of Doctors Dropdown */}
               <div className="w-full box-border min-w-0">
-                <label className="block text-[9.5px] min-[375px]:text-[10.5px] sm:text-[11px] 2xl:text-xs font-bold text-[#0B1E3B] uppercase tracking-wider mb-1 truncate">
+                <label htmlFor="demo-doctors-count" className="block text-[9.5px] min-[375px]:text-[10.5px] sm:text-[11px] 2xl:text-xs font-bold text-[#0B1E3B] uppercase tracking-wider mb-1 truncate">
                   NUMBER OF DOCTORS <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <Users size={13} className="absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                   <select
+                    id="demo-doctors-count"
                     name="doctorsCount"
+                    required
                     value={formData.doctorsCount}
                     onChange={handleChange}
                     className={`w-full bg-slate-50/70 border rounded-xl pl-9 min-[375px]:pl-9.5 sm:pl-10 2xl:pl-11 pr-7 py-1.5 min-[375px]:py-2 sm:py-2.5 2xl:py-3 min-h-[36px] min-[375px]:min-h-[40px] sm:min-h-[44px] 2xl:min-h-[50px] text-[11px] min-[375px]:text-xs 2xl:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0070F3]/30 appearance-none font-medium cursor-pointer box-border truncate ${
@@ -956,14 +1388,15 @@ export default function BookDemoPage() {
 
               {/* What would you like to see? */}
               <div className="w-full box-border min-w-0">
-                <label className="block text-[9.5px] min-[375px]:text-[10.5px] sm:text-[11px] 2xl:text-xs font-bold text-[#0B1E3B] uppercase tracking-wider mb-1 truncate">
+                <label htmlFor="demo-topics" className="block text-[9.5px] min-[375px]:text-[10.5px] sm:text-[11px] 2xl:text-xs font-bold text-[#0B1E3B] uppercase tracking-wider mb-1 truncate">
                   WHAT WOULD YOU LIKE TO SEE? <span className="text-slate-400 font-normal lowercase text-[8.5px] min-[375px]:text-[9.5px]">(Optional)</span>
                 </label>
                 <div className="relative">
                   <FileText size={13} className="absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                   <input
-                    type="text"
+                    id="demo-topics"
                     name="topics"
+                    type="text"
                     value={formData.topics}
                     onChange={handleChange}
                     placeholder="e.g. EMR, Billing, Pharmacy..."
@@ -973,29 +1406,23 @@ export default function BookDemoPage() {
               </div>
             </div>
 
-            {/* Error Banner */}
-            {errorMessage && (
-              <div className="p-2.5 sm:p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-[11px] sm:text-xs 2xl:text-sm flex items-center gap-2">
-                <AlertCircle size={14} className="text-red-500 shrink-0" />
-                <span>{errorMessage}</span>
-              </div>
-            )}
-
-            {/* Privacy & Terms Checkbox */}
+            {/* Privacy & Terms Checkbox (TC-18: required, id="demo-privacy-consent", name="privacyConsent") */}
             <div className="pt-0.5">
-              <label className="flex items-start gap-2 cursor-pointer select-none text-[10px] min-[375px]:text-[11px] sm:text-xs 2xl:text-sm text-slate-600 font-medium">
+              <div className="flex items-start gap-2 select-none text-[10px] min-[375px]:text-[11px] sm:text-xs 2xl:text-sm text-slate-600 font-medium">
                 <input
+                  id="demo-privacy-consent"
+                  name="privacyConsent"
                   type="checkbox"
-                  name="agree"
-                  checked={formData.agree}
+                  required
+                  checked={formData.privacyConsent}
                   onChange={handleChange}
                   className="w-3.5 h-3.5 min-[375px]:w-4 min-[375px]:h-4 2xl:w-5 2xl:h-5 rounded border-slate-300 text-[#0070F3] focus:ring-[#0070F3]/40 cursor-pointer mt-0.5 shrink-0"
                 />
-                <span className="leading-snug">
+                <label htmlFor="demo-privacy-consent" className="leading-snug cursor-pointer">
                   I agree to the <Link to="/" className="text-[#0070F3] hover:underline font-semibold">Privacy Policy</Link> and <Link to="/" className="text-[#0070F3] hover:underline font-semibold">Terms of Service</Link>.
-                </span>
-              </label>
-              {errors.agree && <p className="text-[9px] min-[375px]:text-[10px] 2xl:text-xs text-red-500 mt-0.5 font-bold">{errors.agree}</p>}
+                </label>
+              </div>
+              {errors.privacyConsent && <p className="text-[9px] min-[375px]:text-[10px] 2xl:text-xs text-red-500 mt-0.5 font-bold">{errors.privacyConsent}</p>}
             </div>
 
             {/* ── CONFIRM DEMO BUTTON ── */}

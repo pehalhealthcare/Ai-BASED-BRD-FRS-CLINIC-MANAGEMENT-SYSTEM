@@ -68,7 +68,7 @@ export default function HeroSection({ onSetupClinic, onWatchVideo, onBookDemo })
               transition={{ duration: 0.5, delay: 0.06 }}
               className="hero-headline font-black text-[#071B3A] mb-4 sm:mb-5 tracking-tight leading-[1.08]"
             >
-              Modern Technology{' '}
+              AI Modern Technology{' '}
               <br />
               for{' '}
               <span className="bg-gradient-to-r from-[#0070F3] via-[#0060E6] to-[#0284C7] bg-clip-text text-transparent">

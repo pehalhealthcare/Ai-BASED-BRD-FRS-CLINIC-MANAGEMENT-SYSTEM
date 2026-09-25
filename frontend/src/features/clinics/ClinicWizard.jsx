@@ -1403,7 +1403,7 @@ export default function ClinicWizard() {
               <div className="grid grid-cols-2 gap-2 text-[10px] font-bold text-slate-600">
                 <Link to={'/contact-support'} className="flex items-center gap-1.5 py-2 justify-center bg-white border border-slate-200 rounded-xl hover:text-green-600 hover:border-green-200 transition"><MessageSquare size={11} /> Customer Support</Link>
                 <Link to={'/book-demo'} className="flex items-center gap-1.5 py-2 justify-center bg-white border border-slate-200 rounded-xl hover:text-green-600 hover:border-green-200 transition"><Calendar size={11} /> Book Demo</Link>
-                {/* <a href="#" className="flex items-center gap-1.5 py-2 justify-center bg-white border border-slate-200 rounded-xl hover:text-green-600 hover:border-green-200 transition"><FileText size={11} /> Documentation</a> */}
+                <a href="#" className="flex items-center gap-1.5 py-2 justify-center bg-white border border-slate-200 rounded-xl hover:text-green-600 hover:border-green-200 transition"><FileText size={11} /> Live Chat</a>
                 {/* <a href="#" className="flex items-center gap-1.5 py-2 justify-center bg-white border border-slate-200 rounded-xl hover:text-green-600 hover:border-green-200 transition"><Play size={11} /> Video Guide</a> */}
               </div>
             </div>

@@ -49,6 +49,9 @@ app.get('/', (_req, res) =>
 );
 app.use('/health', healthRoutes);
 app.use(env.apiPrefix, apiRoutes);
+if (env.apiPrefix !== '/api') {
+  app.use('/api', apiRoutes);
+}
 
 app.use(notFoundMiddleware);
 app.use(errorMiddleware);

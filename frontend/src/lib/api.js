@@ -726,6 +726,15 @@ const subscriptionPaymentApi = {
   getSetupStatus: () => extractData(apiClient.get('/clinics/setup-status'))
 };
 
+const supportApi = {
+  // Demo availability & booking window
+  getDemoAvailability: (params) => extractData(apiClient.get('/support/demo/availability', { params })),
+  // Book a demo request
+  bookDemo: (payload) => extractData(apiClient.post('/support/demo', payload)),
+  // Submit customer support ticket
+  submitTicket: (payload) => extractData(apiClient.post('/support', payload))
+};
+
 export {
   apiClient,
   chatApi,
@@ -763,5 +772,6 @@ export {
   faqApi,
   validationApi,
   paymentSettingsApi,
-  subscriptionPaymentApi
+  subscriptionPaymentApi,
+  supportApi
 };

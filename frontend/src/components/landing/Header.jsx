@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
   Search, LogIn, Menu, X, ArrowRight, User, Building2, 
@@ -90,17 +90,42 @@ export default function Header({
 
   const handleLinkClick = (e, item) => {
     e.preventDefault();
+
+    // Capture values synchronously — do NOT pass the SyntheticEvent into any
+    // async context (it gets nullified after the handler returns in React 16,
+    // and even in React 17+ it's safer to copy primitive values out).
+    const sectionId = item.id;
+    const href = item.href;
+
+    // 1. Immediately restore body scroll (synchronously, before React re-renders).
+    //    The useEffect that normally clears overflow only runs after the next render
+    //    so we must do it here to unblock window.scrollTo.
+    document.body.style.overflow = '';
+
+    // 2. Close the drawer (triggers Framer Motion exit animation: 250ms).
     setIsMobileMenuOpen(false);
+
+    // 3. Also notify parent so it can update activeSection state.
     if (onNavClick) {
-      onNavClick(e, item.id, item.href);
-    } else {
-      const el = document.getElementById(item.id);
-      if (el) {
-        const yOffset = item.id === 'hero' ? 0 : -85;
-        const y = el.getBoundingClientRect().top + window.pageYOffset + yOffset;
-        window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
-      }
+      // Pass null for event since we already called preventDefault above.
+      onNavClick(null, sectionId, href);
     }
+
+    // 4. Wait for the drawer exit animation to complete before scrolling.
+    //    If we scroll while the drawer is still collapsing, getBoundingClientRect
+    //    returns wrong positions because the drawer height is still shifting layout.
+    //    The exit animation duration is 250ms — we wait 300ms to be safe.
+    setTimeout(() => {
+      const el = document.getElementById(sectionId);
+      if (!el) return;
+
+      if (sectionId === 'hero') {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        // Use scrollIntoView so scroll-margin-top (set in CSS) handles header offset.
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 300);
   };
 
   const handleSearchSubmit = (e) => {
