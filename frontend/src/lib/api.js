@@ -729,8 +729,21 @@ const subscriptionPaymentApi = {
 const supportApi = {
   // Demo availability & booking window
   getDemoAvailability: (params) => extractData(apiClient.get('/support/demo/availability', { params })),
-  // Book a demo request
-  bookDemo: (payload) => extractData(apiClient.post('/support/demo', payload)),
+  // Book a demo request (with fallback to /support for backwards compatibility with un-redeployed servers)
+  bookDemo: async (payload) => {
+    try {
+      return await extractData(apiClient.post('/support/demo', payload));
+    } catch (err) {
+      if (err?.response?.status === 404) {
+        return await extractData(apiClient.post('/support', {
+          ...payload,
+          department: 'Product Demo',
+          message: payload?.message || `Demo Session Request\nClinic: ${payload?.clinicName || ''}\nSchedule: ${payload?.selectedDate || ''} at ${payload?.selectedTime || ''}`
+        }));
+      }
+      throw err;
+    }
+  },
   // Submit customer support ticket
   submitTicket: (payload) => extractData(apiClient.post('/support', payload))
 };

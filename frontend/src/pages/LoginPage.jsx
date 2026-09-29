@@ -218,6 +218,9 @@ const LoginPage = () => {
         if (otpInputRefs.current[0]) {
           otpInputRefs.current[0].focus();
         }
+        if (mobileOtpInputRefs.current[0]) {
+          mobileOtpInputRefs.current[0].focus();
+        }
       }, 100);
     } catch (err) {
       setError(err?.response?.data?.message || err?.message || "We couldn't send the OTP right now. Please try again.");
@@ -267,6 +270,9 @@ const LoginPage = () => {
       if (otpInputRefs.current[index + 1]) {
         otpInputRefs.current[index + 1].focus();
       }
+      if (mobileOtpInputRefs.current[index + 1]) {
+        mobileOtpInputRefs.current[index + 1].focus();
+      }
     }
   };
 
@@ -279,14 +285,23 @@ const LoginPage = () => {
         if (otpInputRefs.current[index - 1]) {
           otpInputRefs.current[index - 1].focus();
         }
+        if (mobileOtpInputRefs.current[index - 1]) {
+          mobileOtpInputRefs.current[index - 1].focus();
+        }
       }
     } else if (event.key === 'ArrowLeft' && index > 0) {
       if (otpInputRefs.current[index - 1]) {
         otpInputRefs.current[index - 1].focus();
       }
+      if (mobileOtpInputRefs.current[index - 1]) {
+        mobileOtpInputRefs.current[index - 1].focus();
+      }
     } else if (event.key === 'ArrowRight' && index < 5) {
       if (otpInputRefs.current[index + 1]) {
         otpInputRefs.current[index + 1].focus();
+      }
+      if (mobileOtpInputRefs.current[index + 1]) {
+        mobileOtpInputRefs.current[index + 1].focus();
       }
     }
   };
@@ -303,6 +318,9 @@ const LoginPage = () => {
       const targetIndex = Math.min(pasteData.length, 5);
       if (otpInputRefs.current[targetIndex]) {
         otpInputRefs.current[targetIndex].focus();
+      }
+      if (mobileOtpInputRefs.current[targetIndex]) {
+        mobileOtpInputRefs.current[targetIndex].focus();
       }
     }
   };
@@ -345,6 +363,9 @@ const LoginPage = () => {
         if (resetOtpInputRefs.current[0]) {
           resetOtpInputRefs.current[0].focus();
         }
+        if (mobileResetOtpInputRefs.current[0]) {
+          mobileResetOtpInputRefs.current[0].focus();
+        }
       }, 100);
     } catch (err) {
       setResetError(err.response?.data?.message || err.message || 'Failed to send password reset code.');
@@ -367,6 +388,9 @@ const LoginPage = () => {
       setResetOtpDigits(['', '', '', '', '', '']);
       if (resetOtpInputRefs.current[0]) {
         resetOtpInputRefs.current[0].focus();
+      }
+      if (mobileResetOtpInputRefs.current[0]) {
+        mobileResetOtpInputRefs.current[0].focus();
       }
     } catch (err) {
       setResetError(err.response?.data?.message || err.message || 'Failed to resend verification code.');
@@ -427,6 +451,9 @@ const LoginPage = () => {
       if (resetOtpInputRefs.current[index + 1]) {
         resetOtpInputRefs.current[index + 1].focus();
       }
+      if (mobileResetOtpInputRefs.current[index + 1]) {
+        mobileResetOtpInputRefs.current[index + 1].focus();
+      }
     }
   };
 
@@ -439,14 +466,23 @@ const LoginPage = () => {
         if (resetOtpInputRefs.current[index - 1]) {
           resetOtpInputRefs.current[index - 1].focus();
         }
+        if (mobileResetOtpInputRefs.current[index - 1]) {
+          mobileResetOtpInputRefs.current[index - 1].focus();
+        }
       }
     } else if (event.key === 'ArrowLeft' && index > 0) {
       if (resetOtpInputRefs.current[index - 1]) {
         resetOtpInputRefs.current[index - 1].focus();
       }
+      if (mobileResetOtpInputRefs.current[index - 1]) {
+        mobileResetOtpInputRefs.current[index - 1].focus();
+      }
     } else if (event.key === 'ArrowRight' && index < 5) {
       if (resetOtpInputRefs.current[index + 1]) {
         resetOtpInputRefs.current[index + 1].focus();
+      }
+      if (mobileResetOtpInputRefs.current[index + 1]) {
+        mobileResetOtpInputRefs.current[index + 1].focus();
       }
     }
   };
@@ -463,6 +499,9 @@ const LoginPage = () => {
       const targetIndex = Math.min(pasteData.length, 5);
       if (resetOtpInputRefs.current[targetIndex]) {
         resetOtpInputRefs.current[targetIndex].focus();
+      }
+      if (mobileResetOtpInputRefs.current[targetIndex]) {
+        mobileResetOtpInputRefs.current[targetIndex].focus();
       }
     }
   };
@@ -1833,7 +1872,7 @@ const LoginPage = () => {
                       <button
                         type="button"
                         disabled={resendCooldown > 0 || submitting}
-                        onClick={handleResendOtp}
+                        onClick={handleSendOtp}
                         className="font-bold text-[#0070F3] disabled:text-slate-400 hover:underline cursor-pointer"
                       >
                         {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend Code'}
@@ -1872,53 +1911,14 @@ const LoginPage = () => {
                         <input
                           type="email"
                           value={resetForm.email}
-                          onChange={(e) => setResetForm({ ...resetForm, email: e.target.value })}
+                          onChange={(e) => {
+                            setResetForm({ ...resetForm, email: e.target.value });
+                            setResetError('');
+                          }}
                           placeholder="Enter registered email"
                           required
                           className="mobile-input w-full text-xs min-[360px]:text-[13.5px] font-normal text-slate-800 bg-[#FAFCFB] hover:bg-white focus:bg-white pl-9 min-[360px]:pl-11 pr-3 min-[360px]:pr-4 h-11 min-[360px]:h-12 rounded-xl border border-[#E2E8F0] outline-none focus:border-[#0070F3] focus:ring-2 focus:ring-[#0070F3]/12"
                         />
-                      </div>
-                    </div>
-
-                    <button
-                      type="submit"
-                      disabled={resetSubmitting}
-                      className="mobile-submit-btn w-full h-11 min-[360px]:h-12 rounded-xl font-bold text-xs min-[360px]:text-sm text-white bg-gradient-to-r from-[#0070F3] to-[#0051CC] shadow-md shadow-[#087443]/20 flex items-center justify-center gap-1.5 min-[360px]:gap-2 cursor-pointer disabled:opacity-70 active:scale-[0.99] hover:brightness-105"
-                    >
-                      <span>Send Reset OTP</span>
-                      <ArrowRight size={14} className="mobile-btn-icon" />
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handleResetReturnToLogin}
-                      className="w-full text-center text-xs font-bold text-slate-600 hover:text-slate-800 pt-0.5 cursor-pointer"
-                    >
-                      Back to Sign In
-                    </button>
-                  </form>
-                )}
-
-                {resetStep === 'verify' && (
-                  <form onSubmit={handleResetChangePasswordSubmit} className="space-y-2.5 min-[360px]:space-y-3.5">
-                    <div>
-                      <label className="mobile-input-label block text-xs min-[360px]:text-[13px] font-semibold text-slate-800 mb-1">
-                        Enter 6-Digit Reset Code
-                      </label>
-                      <div className="flex items-center justify-between gap-1">
-                        {resetOtpDigits.map((digit, idx) => (
-                          <input
-                            key={idx}
-                            ref={(el) => (mobileResetOtpInputRefs.current[idx] = el)}
-                            type="text"
-                            inputMode="numeric"
-                            maxLength={1}
-                            value={digit}
-                            onChange={(e) => handleResetOtpDigitChange(idx, e.target.value)}
-                            onKeyDown={(e) => handleResetOtpKeyDown(idx, e)}
-                            className="mobile-otp-digit w-9 min-[360px]:w-11 h-11 min-[360px]:h-12 text-center text-sm min-[360px]:text-base font-bold text-slate-800 bg-white rounded-xl border border-[#E2E8F0] outline-none focus:border-[#0070F3] focus:ring-2 focus:ring-[#0070F3]/12"
-                          />
-                        ))}
                       </div>
                     </div>
 
@@ -1931,7 +1931,10 @@ const LoginPage = () => {
                         <input
                           type={showResetPassword ? 'text' : 'password'}
                           value={resetForm.password}
-                          onChange={(e) => setResetForm({ ...resetForm, password: e.target.value })}
+                          onChange={(e) => {
+                            setResetForm({ ...resetForm, password: e.target.value });
+                            setResetError('');
+                          }}
                           placeholder="At least 6 characters"
                           required
                           className="mobile-input w-full text-xs min-[360px]:text-[13.5px] font-normal text-slate-800 bg-[#FAFCFB] hover:bg-white focus:bg-white pl-9 min-[360px]:pl-11 pr-9 min-[360px]:pr-11 h-11 min-[360px]:h-12 rounded-xl border border-[#E2E8F0] outline-none focus:border-[#0070F3] focus:ring-2 focus:ring-[#0070F3]/12"
@@ -1955,7 +1958,10 @@ const LoginPage = () => {
                         <input
                           type={showResetConfirmPassword ? 'text' : 'password'}
                           value={resetForm.confirmPassword}
-                          onChange={(e) => setResetForm({ ...resetForm, confirmPassword: e.target.value })}
+                          onChange={(e) => {
+                            setResetForm({ ...resetForm, confirmPassword: e.target.value });
+                            setResetError('');
+                          }}
                           placeholder="Re-enter new password"
                           required
                           className="mobile-input w-full text-xs min-[360px]:text-[13.5px] font-normal text-slate-800 bg-[#FAFCFB] hover:bg-white focus:bg-white pl-9 min-[360px]:pl-11 pr-9 min-[360px]:pr-11 h-11 min-[360px]:h-12 rounded-xl border border-[#E2E8F0] outline-none focus:border-[#0070F3] focus:ring-2 focus:ring-[#0070F3]/12"
@@ -1975,8 +1981,73 @@ const LoginPage = () => {
                       disabled={resetSubmitting}
                       className="mobile-submit-btn w-full h-11 min-[360px]:h-12 rounded-xl font-bold text-xs min-[360px]:text-sm text-white bg-gradient-to-r from-[#0070F3] to-[#0051CC] shadow-md shadow-[#087443]/20 flex items-center justify-center gap-1.5 min-[360px]:gap-2 cursor-pointer disabled:opacity-70 active:scale-[0.99] hover:brightness-105"
                     >
-                      <CheckCircle2 size={15} className="mobile-btn-icon" />
-                      <span>Reset Password</span>
+                      {resetSubmitting ? (
+                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      ) : (
+                        <>
+                          <span>Continue &amp; Verify Email</span>
+                          <ArrowRight size={14} className="mobile-btn-icon" />
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleResetReturnToLogin}
+                      className="w-full text-center text-xs font-bold text-slate-600 hover:text-slate-800 pt-0.5 cursor-pointer"
+                    >
+                      Back to Sign In
+                    </button>
+                  </form>
+                )}
+
+                {resetStep === 'verify' && (
+                  <form onSubmit={handleResetVerifySubmit} className="space-y-2.5 min-[360px]:space-y-3.5">
+                    <div className="flex items-center justify-between bg-[#F1F5F9] border border-[#E2E8F0] rounded-xl px-3 py-1.5 text-xs">
+                      <span className="font-bold text-[#071B3A] truncate">{resetForm.email}</span>
+                      <button
+                        type="button"
+                        onClick={() => setResetStep('request')}
+                        className="font-bold text-[#0070F3] hover:underline text-xs"
+                      >
+                        Change
+                      </button>
+                    </div>
+
+                    <div>
+                      <label className="mobile-input-label block text-xs min-[360px]:text-[13px] font-semibold text-slate-800 mb-1">
+                        Enter 6-Digit Reset Code
+                      </label>
+                      <div className="flex items-center justify-between gap-1" onPaste={handleResetOtpPaste}>
+                        {resetOtpDigits.map((digit, idx) => (
+                          <input
+                            key={idx}
+                            ref={(el) => (mobileResetOtpInputRefs.current[idx] = el)}
+                            type="text"
+                            inputMode="numeric"
+                            maxLength={1}
+                            value={digit}
+                            onChange={(e) => handleResetOtpDigitChange(idx, e.target.value)}
+                            onKeyDown={(e) => handleResetOtpKeyDown(idx, e)}
+                            className="mobile-otp-digit w-9 min-[360px]:w-11 h-11 min-[360px]:h-12 text-center text-sm min-[360px]:text-base font-bold text-slate-800 bg-white rounded-xl border border-[#E2E8F0] outline-none focus:border-[#0070F3] focus:ring-2 focus:ring-[#0070F3]/12"
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={resetSubmitting || resetOtpDigits.join('').length !== 6}
+                      className="mobile-submit-btn w-full h-11 min-[360px]:h-12 rounded-xl font-bold text-xs min-[360px]:text-sm text-white bg-gradient-to-r from-[#0070F3] to-[#0051CC] shadow-md shadow-[#087443]/20 flex items-center justify-center gap-1.5 min-[360px]:gap-2 cursor-pointer disabled:opacity-70 active:scale-[0.99] hover:brightness-105"
+                    >
+                      {resetSubmitting ? (
+                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      ) : (
+                        <>
+                          <CheckCircle2 size={15} className="mobile-btn-icon" />
+                          <span>Confirm &amp; Update Password</span>
+                        </>
+                      )}
                     </button>
 
                     <div className="flex items-center justify-between text-[11px] min-[360px]:text-xs pt-0.5">
