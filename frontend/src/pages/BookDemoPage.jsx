@@ -5,9 +5,12 @@ import {
   Calendar, Clock, CheckCircle2, ArrowLeft, ArrowRight, 
   Sparkles, Building2, User, Mail, Phone, Users, FileText,
   ShieldCheck, Check, AlertCircle, Laptop, Heart,
-  BarChart2, ChevronLeft, ChevronRight, ChevronDown
+  BarChart2, ChevronLeft, ChevronRight, ChevronDown,
+  MessageCircle,
+  Globe
 } from 'lucide-react';
 import PehalLogo from '../components/common/PehalLogo';
+import FloatingWhatsApp from '../components/common/FloatingWhatsApp';
 import { supportApi } from '../lib/api';
 
 // Existing SVG Assets from src/assets/
@@ -811,6 +814,8 @@ export default function BookDemoPage() {
         </div>
       </footer>
 
+      {/* ── FLOATING WHATSAPP BUTTON ── */}
+      <FloatingWhatsApp />
     </div>
   );
 
@@ -818,7 +823,63 @@ export default function BookDemoPage() {
   function renderFeatureCards() {
     return (
       <>
-        {/* Card 1: Personalized Walkthrough */}
+      {/* Card 1: Live Support */}
+        <div className={`bg-white rounded-2xl ${'p-3 xl:p-3.5 2xl:p-4'} border border-slate-100 shadow-[0_3px_14px_rgba(0,112,243,0.06)] hover:shadow-md transition-shadow flex flex-col justify-between w-full`}>
+          <div>
+            <div className="flex items-center justify-between mb-1.5 2xl:mb-2">
+              <div className={`'w-7 h-7 2xl:w-8 2xl:h-8'} rounded-lg bg-blue-50 border border-blue-100/80 text-[#0070F3] flex items-center justify-center shadow-xs`}>
+                <MessageCircle size={14} />
+              </div>
+              <span className="bg-blue-50 border border-blue-200 text-blue-600 text-[7.5px] sm:text-[8px] 2xl:text-[9.5px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider">
+                ONLINE
+              </span>
+            </div>
+            <h4 className={`${'text-xs xl:text-[13px] 2xl:text-[15px]'} font-black text-[#0B1E3B] leading-tight mb-0.5`}>
+              Get Live Support on Whatsapp
+            </h4>
+            <p className={`${'text-[10.5px] xl:text-[11px] 2xl:text-[12.5px]'} text-slate-500 leading-tight font-medium`}>
+              Average response under 5m
+              <a 
+                  href={`https://api.whatsapp.com/send/?phone=${(import.meta.env.VITE_WHATSAPP_NUMBER || import.meta.env.VITE_COMPANY_PHONE).replace(/\D/g, '')}&text&type=phone_number&app_absent=0`} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="flex items-center gap-1.5 py-2 justify-center bg-white border border-[#D9E5F3] rounded-xl hover:text-[#0066FF] hover:border-[#1683FF] transition"
+                >
+                  <MessageCircle size={11} className="text-[#25D366]"/><p>Chat with us</p>
+                </a>
+            </p>
+          </div>
+        </div>
+
+        {/* Card 2: Email Support */}
+        <div className={`bg-white rounded-2xl ${'p-3 xl:p-3.5 2xl:p-4'} border border-slate-100 shadow-[0_3px_14px_rgba(0,112,243,0.06)] hover:shadow-md transition-shadow flex flex-col justify-between w-full`}>
+          <div>
+            <div className="flex items-center justify-between mb-1.5 2xl:mb-2">
+              <div className={`${'w-7 h-7 2xl:w-8 2xl:h-8'} rounded-lg bg-blue-50 border border-blue-100/80 text-[#0070F3] flex items-center justify-center shadow-xs`}>
+                <Mail size={14} />
+              </div>
+              <span className="bg-blue-50 border border-blue-200 text-[#0070F3] text-[7.5px] sm:text-[8px] 2xl:text-[9.5px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider">
+                24/7 SUPPORT
+              </span>
+            </div>
+            <h4 className={`${'text-xs xl:text-[13px] 2xl:text-[15px]'} font-black text-[#0B1E3B] leading-tight mb-0.5`}>
+              Email Support
+            </h4>
+            <p className={`${'text-[10.5px] xl:text-[11px] 2xl:text-[12.5px]'} text-slate-500 leading-tight font-medium break-all`}>
+               {import.meta.env.VITE_COMPANY_EMAIL}
+              <a 
+                  href={`mailto:${import.meta.env.VITE_COMPANY_EMAIL}`} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="flex items-center gap-1.5 py-2 justify-center bg-white border border-[#D9E5F3] rounded-xl hover:text-[#0066FF] hover:border-[#1683FF] transition"
+                >
+                  <Globe size={11} className="text-[#0066FF]" />Email Us
+                </a>
+            </p>
+          </div>
+        </div>
+
+        {/* Card 2: Personalized Walkthrough */}
         <div className="bg-white rounded-2xl p-2.5 sm:p-3 xl:p-3.5 2xl:p-4 border border-slate-100 shadow-[0_3px_14px_rgba(0,112,243,0.06)] hover:shadow-md transition-shadow flex flex-col justify-between w-full box-border min-w-0">
           <div>
             <div className="w-6 h-6 sm:w-7 sm:h-7 2xl:w-8 2xl:h-8 rounded-lg bg-blue-50 border border-blue-100/80 text-[#0070F3] flex items-center justify-center mb-1.5 2xl:mb-2 shadow-xs shrink-0">
@@ -833,7 +894,7 @@ export default function BookDemoPage() {
           </div>
         </div>
 
-        {/* Card 2: 30-Minute Demo */}
+        {/* Card 3: 30-Minute Demo */}
         <div className="bg-white rounded-2xl p-2.5 sm:p-3 xl:p-3.5 2xl:p-4 border border-slate-100 shadow-[0_3px_14px_rgba(0,112,243,0.06)] hover:shadow-md transition-shadow flex flex-col justify-between w-full box-border min-w-0">
           <div>
             <div className="w-6 h-6 sm:w-7 sm:h-7 2xl:w-8 2xl:h-8 rounded-lg bg-blue-50 border border-blue-100/80 text-[#0070F3] flex items-center justify-center mb-1.5 2xl:mb-2 shadow-xs shrink-0">
@@ -848,7 +909,7 @@ export default function BookDemoPage() {
           </div>
         </div>
 
-        {/* Card 3: AI-Powered Workflows */}
+        {/* Card 4: AI-Powered Workflows */}
         <div className="bg-white rounded-2xl p-2.5 sm:p-3 xl:p-3.5 2xl:p-4 border border-slate-100 shadow-[0_3px_14px_rgba(0,112,243,0.06)] hover:shadow-md transition-shadow flex flex-col justify-between w-full box-border min-w-0">
           <div>
             <div className="w-6 h-6 sm:w-7 sm:h-7 2xl:w-8 2xl:h-8 rounded-lg bg-blue-50 border border-blue-100/80 text-[#0070F3] flex items-center justify-center mb-1.5 2xl:mb-2 shadow-xs shrink-0">
@@ -863,7 +924,7 @@ export default function BookDemoPage() {
           </div>
         </div>
 
-        {/* Card 4: No Commitment */}
+        {/* Card 5: No Commitment */}
         <div className="bg-white rounded-2xl p-2.5 sm:p-3 xl:p-3.5 2xl:p-4 border border-slate-100 shadow-[0_3px_14px_rgba(0,112,243,0.06)] hover:shadow-md transition-shadow flex flex-col justify-between w-full box-border min-w-0">
           <div>
             <div className="w-6 h-6 sm:w-7 sm:h-7 2xl:w-8 2xl:h-8 rounded-lg bg-blue-50 border border-blue-100/80 text-[#0070F3] flex items-center justify-center mb-1.5 2xl:mb-2 shadow-xs shrink-0">

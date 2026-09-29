@@ -4,9 +4,11 @@ import { motion } from 'framer-motion';
 import { 
   Headphones, MessageCircle, Mail, Users, Shield, Phone, MapPin,
   Building2, User, ArrowRight, ArrowLeft, Send, Check,
-  AlertCircle, CheckCircle2, Heart, Flag, FileText, MessageSquare
+  AlertCircle, CheckCircle2, Heart, Flag, FileText, MessageSquare,
+  Globe,
 } from 'lucide-react';
 import PehalLogo from '../components/common/PehalLogo';
+import FloatingWhatsApp from '../components/common/FloatingWhatsApp';
 import { supportApi } from '../lib/api';
 
 // Existing SVG Assets from src/assets/
@@ -460,6 +462,8 @@ export default function ContactPage() {
         </div>
       </footer>
 
+      {/* ── FLOATING WHATSAPP BUTTON ── */}
+      <FloatingWhatsApp />
     </div>
   );
 
@@ -479,10 +483,18 @@ export default function ContactPage() {
               </span>
             </div>
             <h4 className={`${isMobile ? 'text-[11px] sm:text-xs' : 'text-xs xl:text-[13px] 2xl:text-[15px]'} font-black text-[#0B1E3B] leading-tight mb-0.5`}>
-              Live Support
+              Get Live Support on Whatsapp
             </h4>
             <p className={`${isMobile ? 'text-[9.5px]' : 'text-[10.5px] xl:text-[11px] 2xl:text-[12.5px]'} text-slate-500 leading-tight font-medium`}>
               Average response under 5m
+              <a 
+                  href={`https://api.whatsapp.com/send/?phone=${(import.meta.env.VITE_WHATSAPP_NUMBER || import.meta.env.VITE_COMPANY_PHONE).replace(/\D/g, '')}&text&type=phone_number&app_absent=0`} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="flex items-center gap-1.5 py-2 justify-center bg-white border border-[#D9E5F3] rounded-xl hover:text-[#0066FF] hover:border-[#1683FF] transition"
+                >
+                  <MessageCircle size={11} className="text-[#25D366]"/><p>Chat with us</p>
+                </a>
             </p>
           </div>
         </div>
@@ -502,7 +514,15 @@ export default function ContactPage() {
               Email Support
             </h4>
             <p className={`${isMobile ? 'text-[9.5px]' : 'text-[10.5px] xl:text-[11px] 2xl:text-[12.5px]'} text-slate-500 leading-tight font-medium break-all`}>
-              pehalhealthcare@gmail.com
+               {import.meta.env.VITE_COMPANY_EMAIL}
+              <a 
+                  href={`mailto:${import.meta.env.VITE_COMPANY_EMAIL}`} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="flex items-center gap-1.5 py-2 justify-center bg-white border border-[#D9E5F3] rounded-xl hover:text-[#0066FF] hover:border-[#1683FF] transition"
+                >
+                  <Globe size={11} className="text-[#0066FF]" />Email Us
+                </a>
             </p>
           </div>
         </div>
@@ -522,7 +542,12 @@ export default function ContactPage() {
               Sales Team
             </h4>
             <p className={`${isMobile ? 'text-[9.5px]' : 'text-[10.5px] xl:text-[11px] 2xl:text-[12.5px]'} text-slate-500 leading-tight font-medium`}>
-              Get pricing & demo
+              <Link 
+                  to={'/book-demo'}
+                  className="flex items-center gap-1.5 py-2 justify-center bg-white border border-[#D9E5F3] rounded-xl hover:text-[#0066FF] hover:border-[#1683FF] transition"
+                >
+                  <Globe size={11} className="text-[#0066FF]" />Get pricing & demo
+                </Link>
             </p>
           </div>
         </div>
@@ -542,7 +567,14 @@ export default function ContactPage() {
               Emergency Support
             </h4>
             <p className={`${isMobile ? 'text-[9.5px]' : 'text-[10.5px] xl:text-[11px] 2xl:text-[12.5px]'} text-slate-500 leading-tight font-medium`}>
-              Immediate assistance
+              <a 
+                  href={`tel:${import.meta.env.VITE_COMPANY_PHONE}`} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="flex items-center gap-1.5 py-2 justify-center bg-white border border-[#D9E5F3] rounded-xl hover:text-[#0066FF] hover:border-[#1683FF] transition"
+                >
+                  <Globe size={11} className="text-[#0066FF]" />Get Immediate assistance
+                </a>
             </p>
           </div>
         </div>
@@ -557,7 +589,7 @@ export default function ContactPage() {
               Phone Support
             </h4>
             <p className={`${isMobile ? 'text-[9.5px]' : 'text-[10.5px] xl:text-[11px] 2xl:text-[12.5px]'} text-slate-500 font-medium`}>
-              +91 8130916134
+              {(import.meta.env.VITE_COMPANY_PHONE).slice(0,3)+" "+(import.meta.env.VITE_COMPANY_PHONE).slice(3)}
             </p>
           </div>
         </div>

@@ -8,7 +8,7 @@ import {
   Check, ArrowRight, ArrowLeft, ShieldCheck,
   Clock, Globe, CheckCircle, HelpCircle, UploadCloud, Building2, X, RefreshCw,
   Eye, EyeOff, Shield, Sparkles, MessageSquare, CreditCard, PhoneCall, CheckSquare,
-  AlertTriangle, AlertCircle, Zap, Star, Crown, Package
+  AlertTriangle, AlertCircle, Zap, Star, Crown, Package, ChevronDown, ChevronUp
 } from 'lucide-react';
 import MapPicker from '../../components/common/MapPicker';
 import PehalLogo from '../../components/common/PehalLogo';
@@ -97,6 +97,7 @@ export default function ClinicRegister() {
   const [ownerPhoneValidation, setOwnerPhoneValidation] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isSummaryExpandedMobile, setIsSummaryExpandedMobile] = useState(false);
 
   const emailTimeout = useRef(null);
   const phoneTimeout = useRef(null);
@@ -616,6 +617,166 @@ export default function ClinicRegister() {
   const activePlanObj = plans.find(p => p._id === selectedPlanId);
   const progress = Math.round(((currentStep - 1) / (STEPS.length - 1)) * 100);
 
+  const renderSetupSummaryBody = () => (
+    <div className="space-y-4">
+      {/* Progress bar */}
+      <div className="space-y-2">
+        <div className="flex justify-between items-center text-[10px] font-extrabold text-[#64748B]">
+          <span>Progress</span>
+          <span>Step {currentStep} of 4 ({progress}%)</span>
+        </div>
+        <div className="w-full bg-[#E1EAF5] h-2 rounded-full overflow-hidden">
+          <div className="bg-[#0066FF] h-full rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
+        </div>
+      </div>
+
+      <div className="bg-[#F4F9FF] border border-[#D9E5F3] p-3.5 rounded-xl flex items-start gap-2 text-xs text-[#0066FF] font-bold">
+        <Building2 size={16} className="shrink-0 mt-0.5 text-[#0066FF]" />
+        <div>
+          <span className="block text-[11px] font-black text-[#071B3A]">You're setting up</span>
+          <span className="text-[10px] text-[#64748B] mt-0.5 block font-semibold">{clinicForm.name || 'New Clinic Workspace'}</span>
+        </div>
+      </div>
+
+      {/* Selected Plan Real-time Card */}
+      {activePlanObj ? (
+        <div className="bg-[#F4F9FF] border border-[#D9E5F3] rounded-xl p-3.5 space-y-2">
+          <div className="flex justify-between items-start">
+            <div>
+              <span className="text-[9px] font-black uppercase tracking-wider text-[#7890A5] block">Selected Plan</span>
+              <span className="text-xs font-black text-[#071B3A] block mt-0.5 leading-snug">{activePlanObj.name}</span>
+            </div>
+            <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded-md bg-[#EAF4FF] text-[#0066FF] font-mono shrink-0">
+              {activePlanObj.code || 'PLAN'}
+            </span>
+          </div>
+          <div className="flex justify-between items-center pt-2 border-t border-[#D9E5F3]/60 text-[11px]">
+            <span className="text-[#64748B] font-semibold capitalize">
+              Billing: <strong className="text-[#071B3A]">{billingCycle}</strong>
+            </span>
+            <span className="text-xs font-black text-[#0066FF]">
+              ₹{(billingCycle === 'monthly' ? activePlanObj.priceMonthly : activePlanObj.priceYearly)?.toLocaleString() || 0}
+              <span className="text-[9px] text-[#7890A5] font-bold">/{billingCycle === 'monthly' ? 'mo' : 'yr'}</span>
+            </span>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-[#F8FBFF] border border-dashed border-[#D9E5F3] rounded-xl p-3 text-center">
+          <span className="text-[10px] font-bold text-[#64748B]">No plan selected yet</span>
+        </div>
+      )}
+
+      {/* Requirements & Checklist */}
+      <div className="pt-3 border-t border-[#D9E5F3] space-y-2">
+        <span className="text-[10px] font-black text-[#7890A5] uppercase tracking-wider block">Requirements & Steps</span>
+        <ul className="space-y-1.5 text-[10px] font-bold text-[#071B3A]">
+          <li className="flex items-center gap-2">
+            <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
+              currentStep > 1 
+                ? 'bg-[#0066FF] border-[#0066FF] text-white' 
+                : currentStep === 1 
+                  ? 'border-2 border-[#0066FF] text-[#0066FF]' 
+                  : 'border-[#D9E5F3] text-[#94A3B8]'
+            }`}>
+              {currentStep > 1 ? <Check size={8} className="stroke-[3]" /> : currentStep === 1 ? <div className="w-1 h-1 rounded-full bg-[#0066FF]" /> : null}
+            </div>
+            <span className={currentStep > 1 ? 'line-through text-[#64748B]' : currentStep === 1 ? 'text-[#071B3A] font-black' : 'text-[#64748B]'}>Fill in owner & identity details</span>
+          </li>
+          <li className="flex items-center gap-2">
+            <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
+              currentStep > 2 
+                ? 'bg-[#0066FF] border-[#0066FF] text-white' 
+                : currentStep === 2 
+                  ? 'border-2 border-[#0066FF] text-[#0066FF]' 
+                  : 'border-[#D9E5F3] text-[#94A3B8]'
+            }`}>
+              {currentStep > 2 ? <Check size={8} className="stroke-[3]" /> : currentStep === 2 ? <div className="w-1 h-1 rounded-full bg-[#0066FF]" /> : null}
+            </div>
+            <span className={currentStep > 2 ? 'line-through text-[#64748B]' : currentStep === 2 ? 'text-[#071B3A] font-black' : 'text-[#64748B]'}>Fill in clinic details</span>
+          </li>
+          <li className="flex items-center gap-2">
+            <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
+              currentStep > 3 
+                ? 'bg-[#0066FF] border-[#0066FF] text-white' 
+                : currentStep === 3 
+                  ? 'border-2 border-[#0066FF] text-[#0066FF]' 
+                  : 'border-[#D9E5F3] text-[#94A3B8]'
+            }`}>
+              {currentStep > 3 ? <Check size={8} className="stroke-[3]" /> : currentStep === 3 ? <div className="w-1 h-1 rounded-full bg-[#0066FF]" /> : null}
+            </div>
+            <span className={currentStep > 3 ? 'line-through text-[#64748B]' : currentStep === 3 ? 'text-[#071B3A] font-black' : 'text-[#64748B]'}>Choose your subscription plan</span>
+          </li>
+          <li className="flex items-center gap-2">
+            <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
+              currentStep > 4 
+                ? 'bg-[#0066FF] border-[#0066FF] text-white' 
+                : currentStep === 4 
+                  ? 'border-2 border-[#0066FF] text-[#0066FF]' 
+                  : 'border-[#D9E5F3] text-[#94A3B8]'
+            }`}>
+              {currentStep > 4 ? <Check size={8} className="stroke-[3]" /> : currentStep === 4 ? <div className="w-1 h-1 rounded-full bg-[#0066FF]" /> : null}
+            </div>
+            <span className={currentStep === 4 ? 'text-[#071B3A] font-black' : 'text-[#64748B]'}>Review details & confirm</span>
+          </li>
+        </ul>
+      </div>
+
+      {/* Security & Compliance Checklist */}
+      <div className="pt-3 border-t border-[#D9E5F3] space-y-2">
+        <span className="text-[10px] font-black text-[#7890A5] uppercase tracking-wider block">Security & Compliance</span>
+        <ul className="grid grid-cols-2 gap-1.5 text-[10px] font-bold text-[#071B3A]">
+          <li className="flex items-center gap-1.5"><CheckCircle size={12} className="text-[#16A34A] shrink-0" /> 256-bit SSL</li>
+          <li className="flex items-center gap-1.5"><CheckCircle size={12} className="text-[#16A34A] shrink-0" /> HIPAA Ready</li>
+          <li className="flex items-center gap-1.5"><CheckCircle size={12} className="text-[#16A34A] shrink-0" /> Daily Backups</li>
+          <li className="flex items-center gap-1.5"><CheckCircle size={12} className="text-[#16A34A] shrink-0" /> Role Security</li>
+        </ul>
+      </div>
+
+      {/* Promo Code Input */}
+      <div className="pt-3 border-t border-[#D9E5F3]">
+        <span className="text-[10px] font-black text-[#7890A5] uppercase tracking-wider block mb-1.5">Apply Promo Code</span>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            placeholder="CODE100"
+            className="flex-1 px-3 py-1.5 bg-white border border-[#D9E5F3] rounded-lg text-xs font-bold outline-none uppercase text-[#071B3A] focus:border-[#0066FF] focus:ring-1 focus:ring-[#0066FF]"
+            value={promoCode}
+            onChange={(e) => setPromoCode(e.target.value)}
+          />
+          <button
+            type="button"
+            onClick={handleApplyPromo}
+            className="px-3 py-1.5 bg-[#0066FF] hover:bg-[#0057D9] text-white text-[10px] font-black rounded-lg transition cursor-pointer shrink-0"
+          >
+            Apply
+          </button>
+        </div>
+        {promoApplied && <p className="text-[10px] text-[#16A34A] font-bold mt-1">✓ Applied successfully!</p>}
+        {promoError && <p className="text-[10px] text-rose-500 font-bold mt-1">{promoError}</p>}
+      </div>
+
+      {/* Have Questions Card */}
+      <div className="mt-auto bg-[#F8FBFF] border border-[#D9E5F3] rounded-2xl p-3.5 space-y-2.5">
+        <div className="flex items-start gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-[#EAF4FF] text-[#0066FF] flex items-center justify-center shrink-0">
+            <PhoneCall size={15} className="text-[#0066FF]" />
+          </div>
+          <div className="space-y-0.5">
+            <span className="text-xs font-black text-[#071B3A] block">Have Questions?</span>
+            <p className="text-[10px] text-[#647A9E] leading-relaxed font-medium">Our onboarding team is here to assist.</p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => window.open('tel:+18005550199')}
+          className="w-full py-2 bg-[#071B3A] hover:bg-[#0066FF] text-white rounded-xl text-[11px] font-black transition flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
+        >
+          <PhoneCall size={11} /> Talk to Setup Expert
+        </button>
+      </div>
+    </div>
+  );
+
   // Success view
   if (submitSuccess) {
     return (
@@ -655,10 +816,8 @@ export default function ClinicRegister() {
 
   return (
     <div
-      className="flex flex-col font-sans"
+      className="flex flex-col font-sans min-h-screen lg:h-[100dvh] lg:overflow-hidden bg-[#F5F9FE]"
       style={{
-        height: '100dvh',
-        minHeight: '100vh',
         backgroundColor: '#F5F9FE',
         backgroundImage: [
           'radial-gradient(circle at 15% 15%, rgba(0, 102, 255, 0.04) 0%, transparent 45%)',
@@ -698,18 +857,18 @@ export default function ClinicRegister() {
       />
 
       {/* ── FIXED TOP NAVIGATION ── */}
-      <div className="w-full px-5 pt-3 pb-2 shrink-0 z-40 bg-[#F5F9FE]/95 backdrop-blur-md">
-        <header className="max-w-[1840px] mx-auto bg-white border border-[#D9E5F3] px-5 py-2.5 rounded-full flex items-center justify-between shadow-sm">
+      <div className="w-full px-3 sm:px-5 pt-2 sm:pt-3 pb-2 shrink-0 z-40 bg-[#F5F9FE]/95 backdrop-blur-md sticky top-0">
+        <header className="max-w-[1840px] mx-auto bg-white border border-[#D9E5F3] px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-full flex items-center justify-between shadow-sm">
           {/* Logo */}
           <Link to={"/"}>
-          <div className="flex items-center gap-2 shrink-0">
-            <PehalLogo variant="primary" height={32} />
-            <div className="h-5 w-[1px] bg-[#D9E5F3] mx-1.5" />
-            <div>
-              <span className="text-[11px] font-black text-[#071B3A] block leading-none">AICMS</span>
-              <span className="text-[8px] font-bold text-[#647A9E] block tracking-wider uppercase mt-0.5">AI-CMS Enterprise</span>
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              <PehalLogo variant="primary" height={28} className="sm:h-8 h-7 w-auto" />
+              <div className="h-4 sm:h-5 w-[1px] bg-[#D9E5F3] mx-1 sm:mx-1.5" />
+              <div>
+                <span className="text-[10px] sm:text-[11px] font-black text-[#071B3A] block leading-none">AICMS</span>
+                <span className="hidden min-[360px]:block text-[7.5px] sm:text-[8px] font-bold text-[#647A9E] tracking-wider uppercase mt-0.5">Clinic Setup</span>
+              </div>
             </div>
-          </div>
           </Link>
 
           {/* Stepper Navigation */}
@@ -753,49 +912,60 @@ export default function ClinicRegister() {
             })}
           </div>
 
+          {/* Mobile Current Step Tag */}
+          <div className="xl:hidden flex items-center gap-1.5 px-2.5 py-1 bg-[#F4F9FF] border border-[#D9E5F3] rounded-full">
+            <span className="w-4 h-4 rounded-full bg-[#0066FF] text-white text-[9px] font-black flex items-center justify-center">
+              {currentStep}
+            </span>
+            <span className="text-[10px] font-black text-[#071B3A]">
+              Step {currentStep}/4
+            </span>
+          </div>
+
           {/* Right Actions */}
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
             <button
               type="button"
               onClick={handleSaveDraft}
-              className="flex items-center gap-1.5 px-3 py-1.5 border border-[#D9E5F3] hover:bg-[#F8FBFF] hover:border-[#1683FF] hover:text-[#0066FF] text-[#071B3A] rounded-full text-[11px] font-extrabold transition shadow-xs bg-white cursor-pointer"
+              className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 border border-[#D9E5F3] hover:bg-[#F8FBFF] hover:border-[#1683FF] hover:text-[#0066FF] text-[#071B3A] rounded-full text-[10px] sm:text-[11px] font-extrabold transition shadow-xs bg-white cursor-pointer"
             >
-              <CheckSquare size={12} className="text-[#0066FF]" /> Save Draft
+              <CheckSquare size={12} className="text-[#0066FF]" />
+              <span className="hidden sm:inline">Save Draft</span>
             </button>
             <Link
               to="/contact-support"
-              className="flex items-center gap-1.5 px-3 py-1.5 border border-[#D9E5F3] hover:bg-[#F8FBFF] hover:border-[#1683FF] hover:text-[#0066FF] text-[#071B3A] rounded-full text-[11px] font-extrabold transition bg-white"
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 border border-[#D9E5F3] hover:bg-[#F8FBFF] hover:border-[#1683FF] hover:text-[#0066FF] text-[#071B3A] rounded-full text-[11px] font-extrabold transition bg-white"
             >
               <HelpCircle size={12} className="text-[#0066FF]" /> Help
             </Link>
             <Link
               to="/book-demo"
-              className="flex items-center gap-1.5 px-3 py-1.5 border border-[#D9E5F3] hover:bg-[#F8FBFF] hover:border-[#1683FF] hover:text-[#0066FF] text-[#071B3A] rounded-full text-[11px] font-extrabold transition bg-white"
+              className="hidden md:flex items-center gap-1.5 px-3 py-1.5 border border-[#D9E5F3] hover:bg-[#F8FBFF] hover:border-[#1683FF] hover:text-[#0066FF] text-[#071B3A] rounded-full text-[11px] font-extrabold transition bg-white"
             >
               <PhoneCall size={12} className="text-[#0066FF]" /> Contact Sales
             </Link>
             <Link
               to="/"
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 border border-red-200 hover:bg-red-100 text-red-600 rounded-full text-[11px] font-extrabold transition"
+              className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 bg-red-50 border border-red-200 hover:bg-red-100 text-red-600 rounded-full text-[10px] sm:text-[11px] font-extrabold transition"
             >
-              <X size={12} /> Exit Setup
+              <X size={12} />
+              <span>Exit</span>
             </Link>
           </div>
         </header>
       </div>
 
-      {/* ── 3-COLUMN WORKSPACE ── */}
-      <div className="flex-1 max-w-[1840px] w-full mx-auto px-5 py-3 flex flex-col lg:flex-row gap-4" style={{ minHeight: 0, overflow: 'hidden' }}>
+      {/* ── 3-COLUMN WORKSPACE (ADAPTIVE DESKTOP / TABLET / MOBILE) ── */}
+      <div className="flex-1 max-w-[1840px] w-full mx-auto px-3 sm:px-5 pt-2 sm:pt-3 pb-24 xl:pb-3 flex flex-col xl:flex-row gap-4 xl:min-h-0 xl:overflow-hidden overflow-y-auto">
 
-        {/* ==================== LEFT SIDEBAR ==================== */}
+        {/* ==================== LEFT SIDEBAR (DESKTOP ONLY ≥ 1280px) ==================== */}
         <div
-          className="cw-scroll w-full lg:w-[22%] shrink-0 flex flex-col gap-4 bg-white border border-[#D9E5F3] rounded-2xl p-5 shadow-xs"
-          style={{ overflowY: 'auto' }}
+          className="hidden xl:flex cw-scroll w-[22%] shrink-0 flex-col gap-4 bg-white border border-[#D9E5F3] rounded-2xl p-5 shadow-xs overflow-y-auto"
         >
           <div className="space-y-6">
             <div>
-              <h3 className="text-lg font-black text-[#071B3A] mb-1">Clinic Setup</h3>
-              <p className="text-[11px] text-[#647A9E] font-bold leading-normal">Complete all steps to launch your clinic on AICMS</p>
+              <h3 className="text-base sm:text-lg font-black text-[#071B3A] mb-0.5">Clinic Setup</h3>
+              <p className="text-[10px] sm:text-[11px] text-[#647A9E] font-bold leading-normal">Complete all steps to launch your clinic on AICMS</p>
             </div>
 
             {/* Circular Progress Ring */}
@@ -899,19 +1069,118 @@ export default function ClinicRegister() {
                 <span className="text-[10px] text-[#647A9E] mt-0.5 block leading-relaxed">We're here to help you set up your clinic.</span>
               </div>
               <div className="grid grid-cols-2 gap-2 text-[10px] font-bold text-[#647A9E]">
-                <Link to={'/contact-support'} className="flex items-center gap-1.5 py-2 justify-center bg-white border border-[#D9E5F3] rounded-xl hover:text-[#0066FF] hover:border-[#1683FF] transition"><MessageSquare size={11} className="text-[#0066FF]" /> Customer Support</Link>
-                <Link to={'/book-demo'} className="flex items-center gap-1.5 py-2 justify-center bg-white border border-[#D9E5F3] rounded-xl hover:text-[#0066FF] hover:border-[#1683FF] transition"><Calendar size={11} className="text-[#0066FF]" /> Book Demo</Link>
-                <Link to={'https://api.whatsapp.com/send/?phone=8130916134&text&type=phone_number&app_absent=0'} className="flex items-center gap-1.5 py-2 justify-center bg-white border border-[#D9E5F3] rounded-xl hover:text-[#0066FF] hover:border-[#1683FF] transition"><Globe size={11} className="text-[#0066FF]" />Chat</Link>
-                {/* <a href="#" className="flex items-center gap-1.5 py-2 justify-center bg-white border border-[#D9E5F3] rounded-xl hover:text-[#0066FF] hover:border-[#1683FF] transition"><Clock size={11} className="text-[#0066FF]" /> Video Guide</a> */}
+                <Link to={'/contact-support'} className="flex items-center gap-1.5 py-2 justify-center bg-white border border-[#D9E5F3] rounded-xl hover:text-[#0066FF] hover:border-[#1683FF] transition"><MessageSquare size={11} className="text-[#0066FF]" /> Support</Link>
+                <Link to={'/book-demo'} className="flex items-center gap-1.5 py-2 justify-center bg-white border border-[#D9E5F3] rounded-xl hover:text-[#0066FF] hover:border-[#1683FF] transition"><Calendar size={11} className="text-[#0066FF]" /> Demo</Link>
               </div>
             </div>
           </div>
         </div>
 
-        {/* ==================== CENTER SCROLLABLE FORM ==================== */}
-        <div className="flex-1 lg:w-[56%] flex flex-col bg-white rounded-2xl border border-[#D9E5F3] overflow-hidden" style={{ boxShadow: '0 8px 24px rgba(0, 102, 255, 0.08)' }}>
+        {/* ==================== CENTER FORM COLUMN (DESKTOP / TABLET / MOBILE) ==================== */}
+        <div className="flex-1 w-full xl:w-[56%] flex flex-col xl:min-h-0 xl:overflow-hidden">
+
+          {/* 1. TABLET STEP NAVIGATION (768px – 1279px) */}
+          <div className="hidden md:flex xl:hidden w-full bg-white border border-[#D9E5F3] rounded-2xl p-3 shadow-xs mb-3.5">
+            <div className="grid grid-cols-4 gap-2 w-full">
+              {STEPS.map((s) => {
+                const isActive = currentStep === s.id;
+                const isCompleted = currentStep > s.id;
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    disabled={!isCompleted && !isActive}
+                    onClick={() => setCurrentStep(s.id)}
+                    className={`flex items-center gap-2 p-2.5 rounded-xl border text-left transition cursor-pointer disabled:cursor-default ${
+                      isActive
+                        ? 'bg-[#F4F9FF] border-[#0066FF] shadow-xs ring-1 ring-[#0066FF]'
+                        : isCompleted
+                        ? 'bg-white border-[#D9E5F3] hover:border-[#0066FF]'
+                        : 'bg-[#F8FBFF]/60 border-[#E1EAF5] opacity-75'
+                    }`}
+                  >
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center font-black text-[10px] shrink-0 ${
+                      isCompleted
+                        ? 'bg-[#0066FF] text-white'
+                        : isActive
+                        ? 'bg-[#0066FF] text-white shadow-xs'
+                        : 'bg-white border border-[#D9E5F3] text-[#94A3B8]'
+                    }`}>
+                      {isCompleted ? <Check size={12} strokeWidth={3} /> : s.id}
+                    </div>
+                    <div className="min-w-0">
+                      <span className={`block text-[11px] font-black truncate leading-tight ${
+                        isActive ? 'text-[#0066FF]' : isCompleted ? 'text-[#071B3A]' : 'text-[#647A9E]'
+                      }`}>
+                        {s.name}
+                      </span>
+                      <span className="text-[9px] text-[#647A9E] font-medium block truncate">
+                        {isActive ? 'Active' : isCompleted ? '✓ Done' : `Step ${s.id}`}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 2. MOBILE COMPACT STEPPER (< 768px) */}
+          <div className="flex md:hidden w-full bg-white border border-[#D9E5F3] rounded-2xl p-3.5 shadow-xs mb-3 flex-col gap-2.5">
+            <div className="flex justify-between items-center">
+              <div>
+                <span className="text-xs font-black text-[#071B3A] block">Clinic Setup</span>
+                <span className="text-[10px] font-bold text-[#0066FF]">
+                  Step {currentStep} of 4: {STEPS[currentStep - 1]?.name}
+                </span>
+              </div>
+              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-[#EAF4FF] text-[#0066FF] border border-[#D9E5F3]">
+                {progress}%
+              </span>
+            </div>
+            
+            {/* Connected Stepper Dots */}
+            <div className="flex items-center justify-between px-2 pt-1">
+              {STEPS.map((s, idx) => {
+                const isCompleted = currentStep > s.id;
+                const isActive = currentStep === s.id;
+                return (
+                  <React.Fragment key={s.id}>
+                    <button
+                      type="button"
+                      disabled={!isCompleted && !isActive}
+                      onClick={() => setCurrentStep(s.id)}
+                      className="flex flex-col items-center gap-1 cursor-pointer disabled:cursor-default"
+                    >
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black transition-all ${
+                        isCompleted
+                          ? 'bg-[#0066FF] text-white shadow-xs'
+                          : isActive
+                          ? 'bg-[#0066FF] text-white ring-4 ring-[#EAF4FF] shadow-sm'
+                          : 'bg-white border border-[#D9E5F3] text-[#94A3B8]'
+                      }`}>
+                        {isCompleted ? <Check size={11} strokeWidth={3} /> : s.id}
+                      </div>
+                      <span className={`text-[8.5px] font-black leading-none ${
+                        isActive ? 'text-[#0066FF]' : isCompleted ? 'text-[#071B3A]' : 'text-[#94A3B8]'
+                      }`}>
+                        {s.name.split(' ')[0]}
+                      </span>
+                    </button>
+                    {idx < STEPS.length - 1 && (
+                      <div className={`flex-1 h-[2px] mx-1.5 -mt-3.5 rounded-full transition-colors ${
+                        isCompleted ? 'bg-[#0066FF]' : 'bg-[#D9E5F3]'
+                      }`} />
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 3. MAIN FORM CARD */}
+          <div className="flex-1 flex flex-col bg-white rounded-2xl border border-[#D9E5F3] shadow-[0_8px_24px_rgba(0,102,255,0.08)] xl:overflow-hidden">
           {/* Sticky step header inside card */}
-          <div className="shrink-0 px-8 pt-7 pb-5 border-b border-[#D9E5F3] bg-white">
+          <div className="shrink-0 px-4 sm:px-6 md:px-8 pt-4 sm:pt-6 pb-3 sm:pb-5 border-b border-[#D9E5F3] bg-white">
             <AnimatePresence mode="wait">
               <motion.div
                 key={`header-${currentStep}`}
@@ -922,11 +1191,11 @@ export default function ClinicRegister() {
               >
                 <div className="flex justify-between items-start">
                   <div>
-                    <h3 className="text-xl font-black text-[#071B3A]">Step {currentStep} of 4: {STEPS[currentStep - 1]?.name}</h3>
-                    <p className="text-xs text-[#647A9E] mt-1 font-medium">{STEPS[currentStep - 1]?.desc}</p>
+                    <h3 className="text-lg sm:text-xl font-black text-[#071B3A]">Step {currentStep} of 4: {STEPS[currentStep - 1]?.name}</h3>
+                    <p className="text-xs text-[#647A9E] mt-0.5 sm:mt-1 font-medium">{STEPS[currentStep - 1]?.desc}</p>
                   </div>
-                  <div className="w-11 h-11 bg-[#EAF4FF] text-[#0066FF] rounded-2xl flex items-center justify-center shrink-0">
-                    {currentStep === 1 ? <User className="w-5 h-5" /> : currentStep === 2 ? <Building2 className="w-5 h-5" /> : currentStep === 3 ? <CreditCard className="w-5 h-5" /> : <CheckCircle className="w-5 h-5" />}
+                  <div className="w-9 h-9 sm:w-11 sm:h-11 bg-[#EAF4FF] text-[#0066FF] rounded-2xl flex items-center justify-center shrink-0">
+                    {currentStep === 1 ? <User className="w-4 h-4 sm:w-5 sm:h-5" /> : currentStep === 2 ? <Building2 className="w-4 h-4 sm:w-5 sm:h-5" /> : currentStep === 3 ? <CreditCard className="w-4 h-4 sm:w-5 sm:h-5" /> : <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />}
                   </div>
                 </div>
               </motion.div>
@@ -934,7 +1203,7 @@ export default function ClinicRegister() {
           </div>
 
           {/* Scrollable form body */}
-          <div className="cw-scroll flex-1 px-8 py-5" style={{ overflowY: 'auto' }}>
+          <div className="cw-scroll flex-1 px-4 sm:px-6 md:px-8 py-4 sm:py-5 lg:overflow-y-auto">
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentStep}
@@ -947,7 +1216,7 @@ export default function ClinicRegister() {
                 {currentStep === 1 && (
                   <div className="space-y-4">
                     <div className="border border-[#D9E5F3] rounded-2xl overflow-hidden bg-white shadow-sm">
-                      <div className="flex items-center gap-3 px-5 py-3.5 bg-[#F8FBFF] border-b border-[#D9E5F3]">
+                      <div className="flex items-center gap-3 px-4 sm:px-5 py-3 sm:py-3.5 bg-[#F8FBFF] border-b border-[#D9E5F3]">
                         <div className="w-8 h-8 bg-[#EAF4FF] text-[#0066FF] rounded-xl flex items-center justify-center shrink-0">
                           <User size={15} />
                         </div>
@@ -956,8 +1225,8 @@ export default function ClinicRegister() {
                           <span className="text-[10px] text-[#647A9E] font-medium">Basic details about the clinic owner</span>
                         </div>
                       </div>
-                      <div className="p-5 space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
+                      <div className="p-4 sm:p-5 space-y-3.5 sm:space-y-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
                           <div>
                             <label className="block text-[11px] font-extrabold text-[#071B3A] mb-1.5">Owner Full Name <span className="text-red-500">*</span></label>
                             <div className="relative">
@@ -965,7 +1234,7 @@ export default function ClinicRegister() {
                               <input
                                 type="text"
                                 placeholder="Enter owner full name"
-                                className={`w-full pl-9 pr-3 py-3 bg-white border rounded-xl outline-none focus:bg-white focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10 transition text-sm text-[#071B3A] placeholder-[#8AA0BE] ${errors.name ? 'border-rose-500 bg-rose-50/10' : 'border-[#D9E5F3]'}`}
+                                className={`w-full pl-9 pr-3 py-2.5 sm:py-3 bg-white border rounded-xl outline-none focus:bg-white focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10 transition text-sm text-[#071B3A] placeholder-[#8AA0BE] ${errors.name ? 'border-rose-500 bg-rose-50/10' : 'border-[#D9E5F3]'}`}
                                 value={ownerForm.name}
                                 onChange={(e) => {
                                   setOwnerForm({ ...ownerForm, name: e.target.value });
@@ -982,7 +1251,7 @@ export default function ClinicRegister() {
                               <input
                                 type="text"
                                 placeholder="Enter designation (e.g., Doctor, Director)"
-                                className={`w-full pl-9 pr-3 py-3 bg-white border rounded-xl outline-none focus:bg-white focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10 transition text-sm text-[#071B3A] placeholder-[#8AA0BE] ${errors.designation ? 'border-rose-500 bg-rose-50/10' : 'border-[#D9E5F3]'}`}
+                                className={`w-full pl-9 pr-3 py-2.5 sm:py-3 bg-white border rounded-xl outline-none focus:bg-white focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10 transition text-sm text-[#071B3A] placeholder-[#8AA0BE] ${errors.designation ? 'border-rose-500 bg-rose-50/10' : 'border-[#D9E5F3]'}`}
                                 value={ownerForm.designation}
                                 onChange={(e) => {
                                   setOwnerForm({ ...ownerForm, designation: e.target.value });
@@ -994,12 +1263,12 @@ export default function ClinicRegister() {
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
                           <div>
                             <label className="block text-[11px] font-extrabold text-[#071B3A] mb-1.5">Date of Birth <span className="text-red-500">*</span></label>
                             <input
                               type="date"
-                              className={`w-full px-4 py-3 bg-white border rounded-xl outline-none focus:bg-white focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10 transition text-sm text-[#071B3A] ${errors.dob ? 'border-rose-500 bg-rose-50/10' : 'border-[#D9E5F3]'}`}
+                              className={`w-full px-3.5 sm:px-4 py-2.5 sm:py-3 bg-white border rounded-xl outline-none focus:bg-white focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10 transition text-sm text-[#071B3A] ${errors.dob ? 'border-rose-500 bg-rose-50/10' : 'border-[#D9E5F3]'}`}
                               value={ownerForm.dob}
                               onChange={(e) => {
                                 setOwnerForm({ ...ownerForm, dob: e.target.value });
@@ -1011,7 +1280,7 @@ export default function ClinicRegister() {
                           <div>
                             <label className="block text-[11px] font-extrabold text-[#071B3A] mb-1.5">Gender <span className="text-red-500">*</span></label>
                             <select
-                              className="w-full px-4 py-3 bg-white border border-[#D9E5F3] rounded-xl outline-none text-sm text-[#071B3A] font-semibold focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10"
+                              className="w-full px-3.5 sm:px-4 py-2.5 sm:py-3 bg-white border border-[#D9E5F3] rounded-xl outline-none text-sm text-[#071B3A] font-semibold focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10"
                               value={ownerForm.gender}
                               onChange={(e) => setOwnerForm({ ...ownerForm, gender: e.target.value })}
                             >
@@ -1025,7 +1294,7 @@ export default function ClinicRegister() {
                     </div>
 
                     <div className="border border-[#D9E5F3] rounded-2xl overflow-hidden bg-white shadow-sm">
-                      <div className="flex items-center gap-3 px-5 py-3.5 bg-[#F8FBFF] border-b border-[#D9E5F3]">
+                      <div className="flex items-center gap-3 px-4 sm:px-5 py-3 sm:py-3.5 bg-[#F8FBFF] border-b border-[#D9E5F3]">
                         <div className="w-8 h-8 bg-[#EAF4FF] text-[#0066FF] rounded-xl flex items-center justify-center shrink-0">
                           <Phone size={15} />
                         </div>
@@ -1034,8 +1303,8 @@ export default function ClinicRegister() {
                           <span className="text-[10px] text-[#647A9E] font-medium">We will use this information to contact you</span>
                         </div>
                       </div>
-                      <div className="p-5 space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
+                      <div className="p-4 sm:p-5 space-y-3.5 sm:space-y-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
                           <div>
                             <label className="block text-[11px] font-extrabold text-[#071B3A] mb-1.5">Email Address <span className="text-red-500">*</span></label>
                             <div className="relative">
@@ -1043,7 +1312,7 @@ export default function ClinicRegister() {
                               <input
                                 type="email"
                                 placeholder="Enter email address"
-                                className={`w-full pl-9 pr-24 py-3 bg-white border rounded-xl outline-none focus:bg-white focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10 transition text-sm text-[#071B3A] placeholder-[#8AA0BE] ${errors.email ? 'border-rose-500 bg-rose-50/10' : 'border-[#D9E5F3]'}`}
+                                className={`w-full pl-9 pr-24 py-2.5 sm:py-3 bg-white border rounded-xl outline-none focus:bg-white focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10 transition text-sm text-[#071B3A] placeholder-[#8AA0BE] ${errors.email ? 'border-rose-500 bg-rose-50/10' : 'border-[#D9E5F3]'}`}
                                 value={ownerForm.email}
                                 onChange={(e) => {
                                   setOwnerForm({ ...ownerForm, email: e.target.value });
@@ -1068,7 +1337,7 @@ export default function ClinicRegister() {
                               <input
                                 type="tel"
                                 placeholder="Enter mobile number"
-                                className={`w-full pl-9 pr-24 py-3 bg-white border rounded-xl outline-none focus:bg-white focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10 transition text-sm text-[#071B3A] placeholder-[#8AA0BE] ${errors.phone ? 'border-rose-500 bg-rose-50/10' : 'border-[#D9E5F3]'}`}
+                                className={`w-full pl-9 pr-24 py-2.5 sm:py-3 bg-white border rounded-xl outline-none focus:bg-white focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10 transition text-sm text-[#071B3A] placeholder-[#8AA0BE] ${errors.phone ? 'border-rose-500 bg-rose-50/10' : 'border-[#D9E5F3]'}`}
                                 value={ownerForm.phone}
                                 onChange={(e) => {
                                   setOwnerForm({ ...ownerForm, phone: e.target.value.replace(/\D/g, '').slice(0, 10) });
@@ -1091,7 +1360,7 @@ export default function ClinicRegister() {
                     </div>
 
                     <div className="border border-[#D9E5F3] rounded-2xl overflow-hidden bg-white shadow-sm">
-                      <div className="flex items-center gap-3 px-5 py-3.5 bg-[#F8FBFF] border-b border-[#D9E5F3]">
+                      <div className="flex items-center gap-3 px-4 sm:px-5 py-3 sm:py-3.5 bg-[#F8FBFF] border-b border-[#D9E5F3]">
                         <div className="w-8 h-8 bg-[#EAF4FF] text-[#0066FF] rounded-xl flex items-center justify-center shrink-0">
                           <Lock size={15} />
                         </div>
@@ -1100,8 +1369,8 @@ export default function ClinicRegister() {
                           <span className="text-[10px] text-[#647A9E] font-medium">Create a secure account to access AICMS</span>
                         </div>
                       </div>
-                      <div className="p-5 space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
+                      <div className="p-4 sm:p-5 space-y-3.5 sm:space-y-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
                           <div>
                             <label className="block text-[11px] font-extrabold text-[#071B3A] mb-1.5">Password <span className="text-red-500">*</span></label>
                             <div className="relative">
@@ -1109,7 +1378,7 @@ export default function ClinicRegister() {
                               <input
                                 type={showPassword ? 'text' : 'password'}
                                 placeholder="Enter owner account password"
-                                className={`w-full pl-9 pr-10 py-3 bg-white border rounded-xl outline-none focus:bg-white focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10 transition text-sm text-[#071B3A] placeholder-[#8AA0BE] ${errors.password ? 'border-rose-500 bg-rose-50/10' : 'border-[#D9E5F3]'}`}
+                                className={`w-full pl-9 pr-10 py-2.5 sm:py-3 bg-white border rounded-xl outline-none focus:bg-white focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10 transition text-sm text-[#071B3A] placeholder-[#8AA0BE] ${errors.password ? 'border-rose-500 bg-rose-50/10' : 'border-[#D9E5F3]'}`}
                                 value={ownerForm.password}
                                 onChange={(e) => {
                                   setOwnerForm({ ...ownerForm, password: e.target.value });
@@ -1133,7 +1402,7 @@ export default function ClinicRegister() {
                               <input
                                 type={showConfirmPassword ? 'text' : 'password'}
                                 placeholder="Re-enter password"
-                                className={`w-full pl-9 pr-10 py-3 bg-white border rounded-xl outline-none focus:bg-white focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10 transition text-sm text-[#071B3A] placeholder-[#8AA0BE] ${errors.confirmPassword ? 'border-rose-500 bg-rose-50/10' : 'border-[#D9E5F3]'}`}
+                                className={`w-full pl-9 pr-10 py-2.5 sm:py-3 bg-white border rounded-xl outline-none focus:bg-white focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10 transition text-sm text-[#071B3A] placeholder-[#8AA0BE] ${errors.confirmPassword ? 'border-rose-500 bg-rose-50/10' : 'border-[#D9E5F3]'}`}
                                 value={ownerForm.confirmPassword}
                                 onChange={(e) => {
                                   setOwnerForm({ ...ownerForm, confirmPassword: e.target.value });
@@ -1155,7 +1424,7 @@ export default function ClinicRegister() {
                     </div>
 
                     <div className="border border-[#D9E5F3] rounded-2xl overflow-hidden bg-white shadow-sm">
-                      <div className="flex items-center gap-3 px-5 py-3.5 bg-[#F8FBFF] border-b border-[#D9E5F3]">
+                      <div className="flex items-center gap-3 px-4 sm:px-5 py-3 sm:py-3.5 bg-[#F8FBFF] border-b border-[#D9E5F3]">
                         <div className="w-8 h-8 bg-[#EAF4FF] text-[#0066FF] rounded-xl flex items-center justify-center shrink-0">
                           <Shield size={15} />
                         </div>
@@ -1164,15 +1433,15 @@ export default function ClinicRegister() {
                           <span className="text-[10px] text-[#647A9E] font-medium">Official identification for verification</span>
                         </div>
                       </div>
-                      <div className="p-5 space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
+                      <div className="p-4 sm:p-5 space-y-3.5 sm:space-y-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
                           <div>
                             <label className="block text-[11px] font-extrabold text-[#071B3A] mb-1.5">PAN Number (Optional)</label>
                             <input
                               type="text"
                               maxLength="10"
                               placeholder="Enter PAN number"
-                              className={`w-full px-4 py-3 bg-white border rounded-xl outline-none focus:bg-white focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10 transition text-sm text-[#071B3A] placeholder-[#8AA0BE] ${errors.pan ? 'border-rose-500 bg-rose-50/10' : 'border-[#D9E5F3]'}`}
+                              className={`w-full px-3.5 sm:px-4 py-2.5 sm:py-3 bg-white border rounded-xl outline-none focus:bg-white focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10 transition text-sm text-[#071B3A] placeholder-[#8AA0BE] ${errors.pan ? 'border-rose-500 bg-rose-50/10' : 'border-[#D9E5F3]'}`}
                               value={ownerForm.pan}
                               onChange={(e) => {
                                 setOwnerForm({ ...ownerForm, pan: e.target.value.toUpperCase() });
@@ -1187,7 +1456,7 @@ export default function ClinicRegister() {
                               type="text"
                               maxLength="12"
                               placeholder="Enter Aadhaar number"
-                              className={`w-full px-4 py-3 bg-white border rounded-xl outline-none focus:bg-white focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10 transition text-sm text-[#071B3A] placeholder-[#8AA0BE] ${errors.aadhaar ? 'border-rose-500 bg-rose-50/10' : 'border-[#D9E5F3]'}`}
+                              className={`w-full px-3.5 sm:px-4 py-2.5 sm:py-3 bg-white border rounded-xl outline-none focus:bg-white focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10 transition text-sm text-[#071B3A] placeholder-[#8AA0BE] ${errors.aadhaar ? 'border-rose-500 bg-rose-50/10' : 'border-[#D9E5F3]'}`}
                               value={ownerForm.aadhaar}
                               onChange={(e) => {
                                 setOwnerForm({ ...ownerForm, aadhaar: e.target.value.replace(/\D/g, '').slice(0, 12) });
@@ -1214,7 +1483,7 @@ export default function ClinicRegister() {
                             <input
                               type="text"
                               placeholder="Enter owner residential address"
-                              className={`w-full pl-9 pr-3 py-3 bg-white border rounded-xl outline-none focus:bg-white focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10 transition text-sm text-[#071B3A] placeholder-[#8AA0BE] ${errors.address ? 'border-rose-500 bg-rose-50/10' : 'border-[#D9E5F3]'}`}
+                              className={`w-full pl-9 pr-3 py-2.5 sm:py-3 bg-white border rounded-xl outline-none focus:bg-white focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10 transition text-sm text-[#071B3A] placeholder-[#8AA0BE] ${errors.address ? 'border-rose-500 bg-rose-50/10' : 'border-[#D9E5F3]'}`}
                               value={ownerForm.address}
                               onChange={(e) => {
                                 setOwnerForm({ ...ownerForm, address: e.target.value });
@@ -1245,7 +1514,7 @@ export default function ClinicRegister() {
                     </div>
 
                     <div className="border border-[#D9E5F3] rounded-2xl overflow-hidden bg-white shadow-sm">
-                      <div className="flex items-center gap-3 px-5 py-3.5 bg-[#F8FBFF] border-b border-[#D9E5F3]">
+                      <div className="flex items-center gap-3 px-4 sm:px-5 py-3 sm:py-3.5 bg-[#F8FBFF] border-b border-[#D9E5F3]">
                         <div className="w-8 h-8 bg-[#EAF4FF] text-[#0066FF] rounded-xl flex items-center justify-center shrink-0">
                           <Globe size={15} />
                         </div>
@@ -1254,12 +1523,12 @@ export default function ClinicRegister() {
                           <span className="text-[10px] text-[#647A9E] font-medium">More information about the owner</span>
                         </div>
                       </div>
-                      <div className="p-5 space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
+                      <div className="p-4 sm:p-5 space-y-3.5 sm:space-y-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
                           <div>
                             <label className="block text-[11px] font-extrabold text-[#071B3A] mb-1.5">Nationality <span className="text-red-500">*</span></label>
                             <select
-                              className="w-full px-4 py-3 bg-white border border-[#D9E5F3] rounded-xl outline-none text-sm text-[#071B3A] font-semibold focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10"
+                              className="w-full px-3.5 sm:px-4 py-2.5 sm:py-3 bg-white border border-[#D9E5F3] rounded-xl outline-none text-sm text-[#071B3A] font-semibold focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10"
                               value={ownerForm.nationality}
                               onChange={(e) => setOwnerForm({ ...ownerForm, nationality: e.target.value })}
                             >
@@ -1270,7 +1539,7 @@ export default function ClinicRegister() {
                           <div>
                             <label className="block text-[11px] font-extrabold text-[#071B3A] mb-1.5">Preferred Language <span className="text-red-500">*</span></label>
                             <select
-                              className="w-full px-4 py-3 bg-white border border-[#D9E5F3] rounded-xl outline-none text-sm text-[#071B3A] font-semibold focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10"
+                              className="w-full px-3.5 sm:px-4 py-2.5 sm:py-3 bg-white border border-[#D9E5F3] rounded-xl outline-none text-sm text-[#071B3A] font-semibold focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10"
                               value={ownerForm.preferredLanguage}
                               onChange={(e) => setOwnerForm({ ...ownerForm, preferredLanguage: e.target.value })}
                             >
@@ -1291,7 +1560,7 @@ export default function ClinicRegister() {
                 {currentStep === 2 && (
                   <div className="space-y-4">
                     <div className="border border-[#D9E5F3] rounded-2xl overflow-hidden bg-white shadow-sm">
-                      <div className="flex items-center gap-3 px-5 py-3.5 bg-[#F8FBFF] border-b border-[#D9E5F3]">
+                      <div className="flex items-center gap-3 px-4 sm:px-5 py-3 sm:py-3.5 bg-[#F8FBFF] border-b border-[#D9E5F3]">
                         <div className="w-8 h-8 bg-[#EAF4FF] text-[#0066FF] rounded-xl flex items-center justify-center shrink-0">
                           <Building2 size={15} />
                         </div>
@@ -1300,14 +1569,14 @@ export default function ClinicRegister() {
                           <span className="text-[10px] text-[#647A9E] font-bold">Roster parameters and coordinates</span>
                         </div>
                       </div>
-                      <div className="p-5 space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
+                      <div className="p-4 sm:p-5 space-y-3.5 sm:space-y-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
                           <div>
                             <label className="block text-[11px] font-extrabold text-[#071B3A] mb-1.5">Clinic Name <span className="text-red-500">*</span></label>
                             <input
                               type="text"
                               placeholder="Enter clinic official name"
-                              className={`w-full px-4 py-3 bg-white border rounded-xl outline-none focus:bg-white focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10 transition text-sm text-[#071B3A] ${errors.clinicName ? 'border-rose-500 bg-rose-50/10' : 'border-[#D9E5F3]'}`}
+                              className={`w-full px-3.5 sm:px-4 py-2.5 sm:py-3 bg-white border rounded-xl outline-none focus:bg-white focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10 transition text-sm text-[#071B3A] ${errors.clinicName ? 'border-rose-500 bg-rose-50/10' : 'border-[#D9E5F3]'}`}
                               value={clinicForm.name}
                               onChange={(e) => {
                                 setClinicForm({ ...clinicForm, name: e.target.value });
@@ -1322,7 +1591,7 @@ export default function ClinicRegister() {
                               <input
                                 type="text"
                                 placeholder="e.g. REG-12345"
-                                className={`w-full px-4 py-3 bg-white border rounded-xl outline-none focus:bg-white focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10 transition text-sm text-[#071B3A] ${errors.registrationNumber ? 'border-rose-500 bg-rose-50/10' : 'border-[#D9E5F3]'}`}
+                                className={`w-full px-3.5 sm:px-4 py-2.5 sm:py-3 bg-white border rounded-xl outline-none focus:bg-white focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10 transition text-sm text-[#071B3A] ${errors.registrationNumber ? 'border-rose-500 bg-rose-50/10' : 'border-[#D9E5F3]'}`}
                                 value={clinicForm.registrationNumber}
                                 onChange={(e) => {
                                   setClinicForm({ ...clinicForm, registrationNumber: e.target.value });
@@ -1342,13 +1611,13 @@ export default function ClinicRegister() {
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-4">
                           <div>
                             <label className="block text-[11px] font-extrabold text-[#071B3A] mb-1.5">Established Year <span className="text-red-500">*</span></label>
                             <input
                               type="number"
                               placeholder="YYYY"
-                              className={`w-full px-4 py-3 bg-white border rounded-xl outline-none focus:bg-white focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10 transition text-sm text-[#071B3A] ${errors.establishedYear ? 'border-rose-500 bg-rose-50/10' : 'border-[#D9E5F3]'}`}
+                              className={`w-full px-3.5 sm:px-4 py-2.5 sm:py-3 bg-white border rounded-xl outline-none focus:bg-white focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10 transition text-sm text-[#071B3A] ${errors.establishedYear ? 'border-rose-500 bg-rose-50/10' : 'border-[#D9E5F3]'}`}
                               value={clinicForm.establishedYear}
                               onChange={(e) => {
                                 setClinicForm({ ...clinicForm, establishedYear: e.target.value.replace(/\D/g, '').slice(0, 4) });
@@ -1360,7 +1629,7 @@ export default function ClinicRegister() {
                           <div>
                             <label className="block text-[11px] font-extrabold text-[#071B3A] mb-1.5">Consultation Mode</label>
                             <select
-                              className="w-full px-4 py-3 bg-white border border-[#D9E5F3] rounded-xl outline-none text-sm text-[#071B3A] font-semibold focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10"
+                              className="w-full px-3.5 sm:px-4 py-2.5 sm:py-3 bg-white border border-[#D9E5F3] rounded-xl outline-none text-sm text-[#071B3A] font-semibold focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10"
                               value={clinicForm.consultationMode}
                               onChange={(e) => setClinicForm({ ...clinicForm, consultationMode: e.target.value })}
                             >
@@ -1374,20 +1643,20 @@ export default function ClinicRegister() {
                             <input
                               type="text"
                               placeholder="General Medicine, Cardiology"
-                              className="w-full px-4 py-3 bg-white border border-[#D9E5F3] rounded-xl text-sm outline-none font-semibold text-[#071B3A] focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10"
+                              className="w-full px-3.5 sm:px-4 py-2.5 sm:py-3 bg-white border border-[#D9E5F3] rounded-xl text-sm outline-none font-semibold text-[#071B3A] focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10"
                               value={clinicForm.specialties}
                               onChange={(e) => setClinicForm({ ...clinicForm, specialties: e.target.value })}
                             />
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
                           <div>
                             <label className="block text-[11px] font-extrabold text-[#071B3A] mb-1.5">Clinic Street Address <span className="text-red-500">*</span></label>
                             <input
                               type="text"
                               placeholder="123 MG Road"
-                              className={`w-full px-4 py-3 bg-white border rounded-xl outline-none focus:bg-white focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10 transition text-sm text-[#071B3A] ${errors.addressLine1 ? 'border-rose-500 bg-rose-50/10' : 'border-[#D9E5F3]'}`}
+                              className={`w-full px-3.5 sm:px-4 py-2.5 sm:py-3 bg-white border rounded-xl outline-none focus:bg-white focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10 transition text-sm text-[#071B3A] ${errors.addressLine1 ? 'border-rose-500 bg-rose-50/10' : 'border-[#D9E5F3]'}`}
                               value={clinicForm.addressLine1}
                               onChange={(e) => {
                                 setClinicForm({ ...clinicForm, addressLine1: e.target.value });
@@ -1411,7 +1680,7 @@ export default function ClinicRegister() {
                               type="text"
                               maxLength="6"
                               placeholder="560001"
-                              className={`w-full px-4 py-3 bg-white border rounded-xl outline-none focus:bg-white focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10 transition text-sm text-[#071B3A] ${errors.pincode ? 'border-rose-500 bg-rose-50/10' : 'border-[#D9E5F3]'}`}
+                              className={`w-full px-3.5 sm:px-4 py-2.5 sm:py-3 bg-white border rounded-xl outline-none focus:bg-white focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10 transition text-sm text-[#071B3A] ${errors.pincode ? 'border-rose-500 bg-rose-50/10' : 'border-[#D9E5F3]'}`}
                               value={clinicForm.pincode}
                               onChange={(e) => {
                                 setClinicForm({ ...clinicForm, pincode: e.target.value.replace(/\D/g, '').slice(0, 6) });
@@ -1422,13 +1691,13 @@ export default function ClinicRegister() {
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-4">
                           <div>
                             <label className="block text-[11px] font-extrabold text-[#071B3A] mb-1.5">City <span className="text-red-500">*</span></label>
                             <input
                               type="text"
                               placeholder="Bengaluru"
-                              className={`w-full px-4 py-3 bg-white border rounded-xl outline-none focus:bg-white focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10 transition text-sm text-[#071B3A] ${errors.city ? 'border-rose-500 bg-rose-50/10' : 'border-[#D9E5F3]'}`}
+                              className={`w-full px-3.5 sm:px-4 py-2.5 sm:py-3 bg-white border rounded-xl outline-none focus:bg-white focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10 transition text-sm text-[#071B3A] ${errors.city ? 'border-rose-500 bg-rose-50/10' : 'border-[#D9E5F3]'}`}
                               value={clinicForm.city}
                               onChange={(e) => {
                                 setClinicForm({ ...clinicForm, city: e.target.value });
@@ -1442,7 +1711,7 @@ export default function ClinicRegister() {
                             <input
                               type="text"
                               placeholder="Karnataka"
-                              className={`w-full px-4 py-3 bg-white border rounded-xl outline-none focus:bg-white focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10 transition text-sm text-[#071B3A] ${errors.state ? 'border-rose-500 bg-rose-50/10' : 'border-[#D9E5F3]'}`}
+                              className={`w-full px-3.5 sm:px-4 py-2.5 sm:py-3 bg-white border rounded-xl outline-none focus:bg-white focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10 transition text-sm text-[#071B3A] ${errors.state ? 'border-rose-500 bg-rose-50/10' : 'border-[#D9E5F3]'}`}
                               value={clinicForm.state}
                               onChange={(e) => {
                                 setClinicForm({ ...clinicForm, state: e.target.value });
@@ -1456,7 +1725,7 @@ export default function ClinicRegister() {
                             <input
                               type="tel"
                               placeholder="9876543210"
-                              className={`w-full px-4 py-3 bg-white border rounded-xl outline-none focus:bg-white focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10 transition text-sm text-[#071B3A] ${errors.contactNumber ? 'border-rose-500 bg-rose-50/10' : 'border-[#D9E5F3]'}`}
+                              className={`w-full px-3.5 sm:px-4 py-2.5 sm:py-3 bg-white border rounded-xl outline-none focus:bg-white focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10 transition text-sm text-[#071B3A] ${errors.contactNumber ? 'border-rose-500 bg-rose-50/10' : 'border-[#D9E5F3]'}`}
                               value={clinicForm.contactNumber}
                               onChange={(e) => {
                                 setClinicForm({ ...clinicForm, contactNumber: e.target.value.replace(/\D/g, '').slice(0, 10) });
@@ -1472,7 +1741,7 @@ export default function ClinicRegister() {
                           <textarea
                             rows="2"
                             placeholder="Brief overview of your clinic and healthcare practice."
-                            className={`w-full px-4 py-3 bg-white border rounded-xl outline-none focus:bg-white focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10 transition text-sm text-[#071B3A] ${errors.shortDescription ? 'border-rose-500 bg-rose-50/10' : 'border-[#D9E5F3]'}`}
+                            className={`w-full px-3.5 sm:px-4 py-2.5 sm:py-3 bg-white border rounded-xl outline-none focus:bg-white focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10 transition text-sm text-[#071B3A] ${errors.shortDescription ? 'border-rose-500 bg-rose-50/10' : 'border-[#D9E5F3]'}`}
                             value={clinicForm.shortDescription}
                             onChange={(e) => {
                               setClinicForm({ ...clinicForm, shortDescription: e.target.value });
@@ -1662,7 +1931,7 @@ export default function ClinicRegister() {
                                 setSelectedPlanId(p._id);
                                 if (stepThreeError) setStepThreeError('');
                               }}
-                              className={`flex flex-col h-[520px] rounded-2xl border-2 p-5 cursor-pointer transition-all duration-200 relative group select-none ${
+                              className={`flex flex-col h-[480px] sm:h-[520px] rounded-2xl border-2 p-4 sm:p-5 cursor-pointer transition-all duration-200 relative group select-none ${
                                 isSelected
                                   ? 'border-[#0066FF] bg-[#F8FBFF] shadow-[0_8px_24px_rgba(0,102,255,0.12)]'
                                   : 'border-[#D9E5F3] bg-white hover:border-[#B8D7FF] hover:shadow-sm'
@@ -1832,10 +2101,10 @@ export default function ClinicRegister() {
                   <div className="space-y-6">
                     <div className="space-y-4">
                       {/* Summary Owner Card */}
-                      <div className="bg-[#F8FBFF] p-5 rounded-2xl border border-[#D9E5F3] relative">
+                      <div className="bg-[#F8FBFF] p-4 sm:p-5 rounded-2xl border border-[#D9E5F3] relative">
                         <button onClick={() => setCurrentStep(1)} className="absolute right-4 top-4 text-xs font-black text-[#0066FF] hover:underline cursor-pointer">Edit</button>
                         <h4 className="text-xs font-black text-[#7890A5] uppercase tracking-widest mb-3">Owner Summary</h4>
-                        <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-xs font-semibold text-[#64748B]">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-4 text-xs font-semibold text-[#64748B]">
                           <div>Name: <span className="text-[#071B3A] font-bold">{ownerForm.name || '-'}</span></div>
                           <div>Designation: <span className="text-[#071B3A] font-bold">{ownerForm.designation || '-'}</span></div>
                           <div>Email: <span className="text-[#071B3A] font-bold">{ownerForm.email || '-'}</span></div>
@@ -1846,20 +2115,20 @@ export default function ClinicRegister() {
                       </div>
 
                       {/* Summary Clinic Card */}
-                      <div className="bg-[#F8FBFF] p-5 rounded-2xl border border-[#D9E5F3] relative">
+                      <div className="bg-[#F8FBFF] p-4 sm:p-5 rounded-2xl border border-[#D9E5F3] relative">
                         <button onClick={() => setCurrentStep(2)} className="absolute right-4 top-4 text-xs font-black text-[#0066FF] hover:underline cursor-pointer">Edit</button>
                         <h4 className="text-xs font-black text-[#7890A5] uppercase tracking-widest mb-3">Clinic Summary</h4>
-                        <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-xs font-semibold text-[#64748B]">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-4 text-xs font-semibold text-[#64748B]">
                           <div>Name: <span className="text-[#071B3A] font-bold">{clinicForm.name || '-'}</span></div>
                           <div>Reg Number: <span className="text-[#071B3A] font-bold">{clinicForm.registrationNumber || '-'}</span></div>
                           <div>Consultation Mode: <span className="text-[#071B3A] font-bold">{clinicForm.consultationMode || '-'}</span></div>
                           <div>Languages: <span className="text-[#071B3A] font-bold">{clinicForm.languagesSpoken || '-'}</span></div>
-                          <div className="col-span-2">Address: <span className="text-[#071B3A] font-bold">{clinicForm.addressLine1}, {clinicForm.city}, {clinicForm.state} - {clinicForm.pincode}</span></div>
+                          <div className="col-span-1 sm:col-span-2">Address: <span className="text-[#071B3A] font-bold">{clinicForm.addressLine1}, {clinicForm.city}, {clinicForm.state} - {clinicForm.pincode}</span></div>
                         </div>
                       </div>
 
                       {/* Subscription Summary */}
-                      <div className="bg-[#F4F9FF] p-5 rounded-2xl border-2 border-[#0066FF] relative">
+                      <div className="bg-[#F4F9FF] p-4 sm:p-5 rounded-2xl border-2 border-[#0066FF] relative">
                         <button onClick={() => setCurrentStep(3)} className="absolute right-4 top-4 text-xs font-black text-[#0066FF] hover:underline cursor-pointer">Edit</button>
                         <h4 className="text-xs font-black text-[#7890A5] uppercase tracking-widest mb-3">Selected Plan Summary</h4>
                         <div className="flex items-center justify-between">
@@ -1901,194 +2170,164 @@ export default function ClinicRegister() {
               </motion.div>
             </AnimatePresence>
           </div>
+
+          {/* ── IN-CARD FORM NAVIGATION FOOTER (Directly below form content across all devices) ── */}
+          <div className="shrink-0 px-4 sm:px-6 md:px-8 py-3.5 sm:py-4 border-t border-[#D9E5F3] bg-[#F8FBFF]/80 rounded-b-2xl flex items-center justify-between gap-2.5 sm:gap-4 mt-auto">
+            {/* Back / Save Draft Button */}
+            {currentStep > 1 ? (
+              <button
+                type="button"
+                onClick={handleBack}
+                className="flex items-center gap-1.5 px-3.5 sm:px-4 py-2 sm:py-2.5 border border-[#D9E5F3] rounded-xl text-xs font-black text-[#071B3A] bg-white hover:border-[#0066FF] hover:text-[#0066FF] transition cursor-pointer shadow-xs shrink-0"
+              >
+                <ArrowLeft size={14} /> <span>Back</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleSaveDraft}
+                className="flex items-center gap-1.5 px-3.5 sm:px-4 py-2 sm:py-2.5 border border-[#D9E5F3] rounded-xl text-xs font-black text-[#071B3A] bg-white hover:border-[#0066FF] hover:text-[#0066FF] transition cursor-pointer shadow-xs shrink-0"
+              >
+                <CheckSquare size={13} className="text-[#0066FF]" /> <span>Save Draft</span>
+              </button>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2 sm:gap-3 ml-auto">
+              {currentStep > 1 && (
+                <button
+                  type="button"
+                  onClick={handleSaveDraft}
+                  className="hidden sm:inline-flex items-center gap-1 px-3 sm:px-3.5 py-2 sm:py-2.5 border border-[#D9E5F3] rounded-xl text-xs font-black text-[#071B3A] bg-white hover:border-[#0066FF] hover:text-[#0066FF] transition cursor-pointer shadow-xs"
+                >
+                  Save Draft
+                </button>
+              )}
+
+              {currentStep < 4 ? (
+                <button
+                  type="button"
+                  onClick={handleNext}
+                  className="flex items-center justify-center gap-1.5 px-5 sm:px-7 py-2.5 text-white rounded-xl text-xs sm:text-sm font-black shadow-md transition cursor-pointer hover:opacity-95 active:scale-[0.99]"
+                  style={{ background: 'linear-gradient(135deg, #1683FF 0%, #0057D9 100%)', boxShadow: '0 4px 14px rgba(0, 102, 255, 0.25)' }}
+                >
+                  <span>Continue</span> <span className="hidden sm:inline">to Next Step</span> <ArrowRight size={14} />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={isSubmitting}
+                  className="flex items-center justify-center gap-1.5 px-5 sm:px-7 py-2.5 text-white rounded-xl text-xs sm:text-sm font-black shadow-md transition cursor-pointer hover:opacity-95 active:scale-[0.99]"
+                  style={{ background: 'linear-gradient(135deg, #1683FF 0%, #0057D9 100%)', boxShadow: '0 4px 14px rgba(0, 102, 255, 0.25)' }}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <RefreshCw size={14} className="animate-spin" />
+                      <span>Processing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Review &amp; Submit</span>
+                      <ArrowRight size={14} />
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
         </div>
 
-        {/* ==================== RIGHT SIDEBAR ==================== */}
+          {/* 4. TABLET SETUP SUMMARY (768px – 1279px) */}
+          <div className="hidden md:flex xl:hidden flex-col w-full bg-white border border-[#D9E5F3] rounded-2xl p-5 shadow-xs mt-4">
+            <div className="flex items-center justify-between pb-3 border-b border-[#D9E5F3] mb-4">
+              <div>
+                <h3 className="text-sm font-black text-[#071B3A] uppercase tracking-wider block">Setup Summary</h3>
+                <p className="text-[10px] text-[#647A9E] font-bold block mt-0.5">Overview of your clinic registration</p>
+              </div>
+              <span className="text-[11px] font-black px-2.5 py-1 rounded-full bg-[#EAF4FF] text-[#0066FF] border border-[#D9E5F3]">
+                {progress}% Complete
+              </span>
+            </div>
+            {renderSetupSummaryBody()}
+          </div>
+
+          {/* 5. MOBILE COLLAPSIBLE SETUP SUMMARY (< 768px) */}
+          <div className="flex md:hidden flex-col w-full bg-white border border-[#D9E5F3] rounded-2xl shadow-xs overflow-hidden mt-3.5">
+            <button
+              type="button"
+              onClick={() => setIsSummaryExpandedMobile(prev => !prev)}
+              className="w-full flex items-center justify-between p-3.5 bg-[#F8FBFF] hover:bg-[#F0F6FF] transition text-left cursor-pointer"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-[#EAF4FF] text-[#0066FF] flex items-center justify-center font-black text-xs shrink-0">
+                  📋
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-black text-[#071B3A]">Setup Summary</span>
+                    <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-[#EAF4FF] text-[#0066FF]">{progress}%</span>
+                  </div>
+                  <span className="text-[10px] text-[#647A9E] font-medium block truncate max-w-[200px]">
+                    {clinicForm.name || 'New Clinic'} • {activePlanObj?.name || 'No Plan Selected'}
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-1 text-[11px] font-black text-[#0066FF] bg-white px-2 py-1 rounded-lg border border-[#D9E5F3]">
+                <span>{isSummaryExpandedMobile ? 'Hide' : 'View'}</span>
+                {isSummaryExpandedMobile ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              </div>
+            </button>
+            {isSummaryExpandedMobile && (
+              <div className="p-4 border-t border-[#D9E5F3] bg-white">
+                {renderSetupSummaryBody()}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ==================== RIGHT SIDEBAR (DESKTOP ONLY ≥ 1280px) ==================== */}
         <div
-          className="cw-scroll w-full lg:w-[22%] shrink-0 flex flex-col bg-white rounded-2xl border border-[#D9E5F3] shadow-sm"
-          style={{ overflowY: 'auto' }}
+          className="hidden xl:flex cw-scroll w-[22%] shrink-0 flex-col bg-white rounded-2xl border border-[#D9E5F3] shadow-xs overflow-y-auto"
         >
           <div className="flex flex-col gap-4 p-5 flex-1">
             <div>
               <h3 className="text-sm font-black text-[#071B3A] uppercase tracking-wider block">Setup Summary</h3>
               <p className="text-[10px] text-[#647A9E] font-bold block mt-0.5">Real-time overview of your setup</p>
             </div>
-
-            {/* Progress bar */}
-            <div className="pt-3 border-t border-[#D9E5F3] space-y-2">
-              <div className="flex justify-between items-center text-[10px] font-extrabold text-[#64748B]">
-                <span>Progress</span>
-                <span>Step {currentStep} of 4 ({progress}%)</span>
-              </div>
-              <div className="w-full bg-[#E1EAF5] h-2 rounded-full overflow-hidden">
-                <div className="bg-[#0066FF] h-full rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
-              </div>
-            </div>
-
-            <div className="bg-[#F4F9FF] border border-[#D9E5F3] p-3.5 rounded-xl flex items-start gap-2 text-xs text-[#0066FF] font-bold">
-              <Building2 size={16} className="shrink-0 mt-0.5 text-[#0066FF]" />
-              <div>
-                <span className="block text-[11px] font-black text-[#071B3A]">You're setting up</span>
-                <span className="text-[10px] text-[#64748B] mt-0.5 block">{clinicForm.name || 'New Clinic'}</span>
-              </div>
-            </div>
-
-            {/* Selected Plan Real-time Card */}
-            {activePlanObj ? (
-              <div className="bg-[#F4F9FF] border border-[#D9E5F3] rounded-xl p-3.5 space-y-2">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <span className="text-[9px] font-black uppercase tracking-wider text-[#7890A5] block">Selected Plan</span>
-                    <span className="text-xs font-black text-[#071B3A] block mt-0.5 leading-snug">{activePlanObj.name}</span>
-                  </div>
-                  <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded-md bg-[#EAF4FF] text-[#0066FF] font-mono shrink-0">
-                    {activePlanObj.code || 'PLAN'}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center pt-2 border-t border-[#D9E5F3]/60 text-[11px]">
-                  <span className="text-[#64748B] font-semibold capitalize">
-                    Billing: <strong className="text-[#071B3A]">{billingCycle}</strong>
-                  </span>
-                  <span className="text-xs font-black text-[#0066FF]">
-                    ₹{(billingCycle === 'monthly' ? activePlanObj.priceMonthly : activePlanObj.priceYearly)?.toLocaleString() || 0}
-                    <span className="text-[9px] text-[#7890A5] font-bold">/{billingCycle === 'monthly' ? 'mo' : 'yr'}</span>
-                  </span>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-[#F8FBFF] border border-dashed border-[#D9E5F3] rounded-xl p-3 text-center">
-                <span className="text-[10px] font-bold text-[#64748B]">No plan selected yet</span>
-              </div>
-            )}
-
-            {/* What's Next Checklist */}
-            <div className="pt-3 border-t border-[#D9E5F3] space-y-2">
-              <span className="text-[10px] font-black text-[#7890A5] uppercase tracking-wider block">What's Next?</span>
-              <ul className="space-y-1.5 text-[10px] font-bold text-[#071B3A]">
-                <li className="flex items-center gap-2">
-                  <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
-                    currentStep > 1 
-                      ? 'bg-[#0066FF] border-[#0066FF] text-white' 
-                      : currentStep === 1 
-                        ? 'border-2 border-[#0066FF] text-[#0066FF]' 
-                        : 'border-[#D9E5F3] text-[#94A3B8]'
-                  }`}>
-                    {currentStep > 1 ? <Check size={8} className="stroke-[3]" /> : currentStep === 1 ? <div className="w-1 h-1 rounded-full bg-[#0066FF]" /> : null}
-                  </div>
-                  <span className={currentStep > 1 ? 'line-through text-[#64748B]' : currentStep === 1 ? 'text-[#071B3A] font-black' : 'text-[#64748B]'}>Fill in clinic details</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
-                    currentStep > 2 
-                      ? 'bg-[#0066FF] border-[#0066FF] text-white' 
-                      : currentStep === 2 
-                        ? 'border-2 border-[#0066FF] text-[#0066FF]' 
-                        : 'border-[#D9E5F3] text-[#94A3B8]'
-                  }`}>
-                    {currentStep > 2 ? <Check size={8} className="stroke-[3]" /> : currentStep === 2 ? <div className="w-1 h-1 rounded-full bg-[#0066FF]" /> : null}
-                  </div>
-                  <span className={currentStep > 2 ? 'line-through text-[#64748B]' : currentStep === 2 ? 'text-[#071B3A] font-black' : 'text-[#64748B]'}>Choose your plan</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
-                    currentStep > 3 
-                      ? 'bg-[#0066FF] border-[#0066FF] text-white' 
-                      : currentStep === 3 
-                        ? 'border-2 border-[#0066FF] text-[#0066FF]' 
-                        : 'border-[#D9E5F3] text-[#94A3B8]'
-                  }`}>
-                    {currentStep > 3 ? <Check size={8} className="stroke-[3]" /> : currentStep === 3 ? <div className="w-1 h-1 rounded-full bg-[#0066FF]" /> : null}
-                  </div>
-                  <span className={currentStep > 3 ? 'line-through text-[#64748B]' : currentStep === 3 ? 'text-[#071B3A] font-black' : 'text-[#64748B]'}>Review &amp; confirm</span>
-                </li>
-              </ul>
-            </div>
-
-            {/* Security & Compliance Checklist */}
-            <div className="pt-3 border-t border-[#D9E5F3] space-y-2">
-              <span className="text-[10px] font-black text-[#7890A5] uppercase tracking-wider block">Security &amp; Compliance</span>
-              <ul className="space-y-1.5 text-[10px] font-bold text-[#071B3A]">
-                <li className="flex items-center gap-1.5"><CheckCircle size={12} className="text-[#16A34A]" /> 256-bit SSL Encryption</li>
-                <li className="flex items-center gap-1.5"><CheckCircle size={12} className="text-[#16A34A]" /> HIPAA Compliant</li>
-                <li className="flex items-center gap-1.5"><CheckCircle size={12} className="text-[#16A34A]" /> Regular Backups</li>
-                <li className="flex items-center gap-1.5"><CheckCircle size={12} className="text-[#16A34A]" /> Role-based Access</li>
-              </ul>
-            </div>
-
-            {/* Promo Code Input */}
-            <div className="pt-3 border-t border-[#D9E5F3]">
-              <span className="text-[10px] font-black text-[#7890A5] uppercase tracking-wider block mb-1.5">Apply Promo Code</span>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="CODE100"
-                  className="flex-1 px-3 py-1.5 bg-white border border-[#D9E5F3] rounded-lg text-xs font-bold outline-none uppercase text-[#071B3A] focus:border-[#0066FF] focus:ring-1 focus:ring-[#0066FF]"
-                  value={promoCode}
-                  onChange={(e) => setPromoCode(e.target.value)}
-                />
-                <button
-                  type="button"
-                  onClick={handleApplyPromo}
-                  className="px-3 py-1.5 bg-[#0066FF] hover:bg-[#0057D9] text-white text-[10px] font-black rounded-lg transition cursor-pointer"
-                >
-                  Apply
-                </button>
-              </div>
-              {promoApplied && <p className="text-[10px] text-[#16A34A] font-bold mt-1">✓ Applied successfully!</p>}
-              {promoError && <p className="text-[10px] text-rose-500 font-bold mt-1">{promoError}</p>}
-            </div>
-
-            {/* Have Questions Card */}
-            <div className="mt-auto bg-[#F8FBFF] border border-[#D9E5F3] rounded-2xl p-4 space-y-3">
-              <div className="flex items-start gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-[#EAF4FF] text-[#0066FF] flex items-center justify-center shrink-0">
-                  <PhoneCall size={15} className="text-[#0066FF]" />
-                </div>
-                <div className="space-y-0.5">
-                  <span className="text-xs font-black text-[#071B3A] block">Have Questions?</span>
-                  <p className="text-[10px] text-[#647A9E] leading-relaxed font-medium">Our setup experts are ready.</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => window.open('tel:+18005550199')}
-                className="w-full py-2 bg-[#071B3A] hover:bg-[#0066FF] text-white rounded-xl text-[11px] font-black transition flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
-              >
-                <PhoneCall size={11} /> Talk to Expert
-              </button>
-            </div>
+            {renderSetupSummaryBody()}
           </div>
         </div>
       </div>
 
       {/* ── STICKY FOOTER BAR ── */}
-      <div className="shrink-0 w-full z-30" style={{ background: 'rgba(255,255,255,0.96)', backdropFilter: 'blur(12px)', borderTop: '1px solid #D9E5F3', boxShadow: '0 -4px 24px rgba(0,102,255,0.04)' }}>
-        <div className="max-w-[1840px] mx-auto px-5 py-3 flex items-center justify-between gap-4">
+      <div className="sticky bottom-0 shrink-0 w-full z-30 bg-white/95 backdrop-blur-md border-t border-[#D9E5F3] shadow-[0_-4px_24px_rgba(0,102,255,0.06)]">
+        <div className="max-w-[1840px] mx-auto px-3 sm:px-5 py-2.5 sm:py-3 flex items-center justify-between gap-2 sm:gap-4">
           {/* Back to Home / Prev Step */}
           {currentStep > 1 ? (
             <button
               type="button"
               onClick={handleBack}
-              className="flex items-center gap-1.5 text-xs font-extrabold text-[#071B3A] hover:text-[#0066FF] transition shrink-0 cursor-pointer"
+              className="flex items-center gap-1 sm:gap-1.5 text-xs font-extrabold text-[#071B3A] hover:text-[#0066FF] transition shrink-0 cursor-pointer px-2.5 py-2 rounded-xl hover:bg-[#F8FBFF] border border-[#D9E5F3] sm:border-transparent"
             >
-              <ArrowLeft size={14} /> Back
+              <ArrowLeft size={14} /> <span>Back</span>
             </button>
           ) : (
             <button
               type="button"
               onClick={() => navigate('/')}
-              className="flex items-center gap-1.5 text-xs font-extrabold text-[#071B3A] hover:text-[#0066FF] transition shrink-0 cursor-pointer"
+              className="flex items-center gap-1 sm:gap-1.5 text-xs font-extrabold text-[#071B3A] hover:text-[#0066FF] transition shrink-0 cursor-pointer px-2.5 py-2 rounded-xl hover:bg-[#F8FBFF] border border-[#D9E5F3] sm:border-transparent"
             >
-              <ArrowLeft size={14} /> Back to Home
+              <ArrowLeft size={14} /> <span className="hidden sm:inline">Back to Home</span><span className="sm:hidden">Home</span>
             </button>
           )}
 
-          {/* Secure Message */}
-          <div className="flex items-center gap-2 text-xs font-semibold text-[#64748B]">
+          {/* Secure Message (Desktop/Tablet) */}
+          <div className="hidden md:flex items-center gap-2 text-xs font-semibold text-[#64748B]">
             <ShieldCheck size={16} className="text-[#0066FF] shrink-0" />
             <span>
               <span className="font-black text-[#071B3A]">Your data is safe with us.</span>
-              <span className="hidden sm:inline text-[#64748B]"> We use industry-standard encryption.</span>
+              <span className="hidden lg:inline text-[#64748B]"> We use industry-standard encryption.</span>
             </span>
           </div>
 
@@ -2097,32 +2336,32 @@ export default function ClinicRegister() {
             <button
               type="button"
               onClick={handleSaveDraft}
-              className="px-4 py-2 border border-[#D9E5F3] rounded-xl text-xs font-black text-[#071B3A] bg-white hover:border-[#0066FF] hover:text-[#0066FF] transition cursor-pointer shadow-sm"
+              className="px-3 sm:px-4 py-2 border border-[#D9E5F3] rounded-xl text-xs font-black text-[#071B3A] bg-white hover:border-[#0066FF] hover:text-[#0066FF] transition cursor-pointer shadow-sm"
             >
-              Save &amp; Continue Later
+              Save Draft
             </button>
 
             {currentStep < 4 ? (
               <button
                 type="button"
                 onClick={handleNext}
-                className="flex items-center gap-1.5 px-5 py-2 text-white rounded-xl text-xs font-black shadow-md transition cursor-pointer hover:opacity-95 active:scale-[0.99]"
+                className="flex items-center gap-1.5 px-4 sm:px-6 py-2 text-white rounded-xl text-xs font-black shadow-md transition cursor-pointer hover:opacity-95 active:scale-[0.99]"
                 style={{ background: 'linear-gradient(135deg, #1683FF 0%, #0057D9 100%)', boxShadow: '0 4px 14px rgba(0, 102, 255, 0.25)' }}
               >
-                Continue to Next Step <ArrowRight size={13} />
+                <span>Continue</span> <span className="hidden sm:inline">to Next Step</span> <ArrowRight size={13} />
               </button>
             ) : (
               <button
                 type="button"
                 onClick={handleSubmit}
                 disabled={isSubmitting}
-                className="flex items-center gap-1.5 px-6 py-2.5 text-white rounded-xl text-xs font-black shadow-md transition cursor-pointer hover:opacity-95 active:scale-[0.99]"
+                className="flex items-center gap-1.5 px-4 sm:px-6 py-2 text-white rounded-xl text-xs font-black shadow-md transition cursor-pointer hover:opacity-95 active:scale-[0.99]"
                 style={{ background: 'linear-gradient(135deg, #1683FF 0%, #0057D9 100%)', boxShadow: '0 4px 14px rgba(0, 102, 255, 0.25)' }}
               >
                 {isSubmitting ? (
                   <>
                     <RefreshCw size={13} className="animate-spin" />
-                    <span>Sending Code...</span>
+                    <span>Processing...</span>
                   </>
                 ) : (
                   <>

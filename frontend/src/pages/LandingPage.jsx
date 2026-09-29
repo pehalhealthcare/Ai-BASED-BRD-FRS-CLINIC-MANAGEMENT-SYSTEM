@@ -12,6 +12,7 @@ import SolutionsSection from '../components/landing/SolutionsSection';
 import CTASection from '../components/landing/CTASection';
 import Footer from '../components/landing/Footer';
 import VideoModal from '../components/landing/VideoModal';
+import FloatingWhatsApp from '../components/common/FloatingWhatsApp';
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -198,6 +199,9 @@ export default function LandingPage() {
         onClose={() => setIsVideoModalOpen(false)}
         onSetupClinic={() => handleSetupClinicClick()}
       />
+
+      {/* ── FLOATING WHATSAPP BUTTON ── */}
+      <FloatingWhatsApp />
     </div>
   );
 }
