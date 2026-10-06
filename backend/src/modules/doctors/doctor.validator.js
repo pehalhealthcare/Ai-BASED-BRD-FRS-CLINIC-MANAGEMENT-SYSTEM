@@ -95,7 +95,7 @@ const doctorPayloadSchema = z.object({
   lastName: z.string().trim().optional(),
   gender: genderSchema.optional(),
   phone: phoneSchema.optional().or(z.literal('')),
-  email: z.string().trim().email('Invalid email address'),
+  email: z.string().trim().email('Invalid email address').optional().or(z.literal('')),
   specialization: z.string().trim().optional(),
   qualification: z.string().trim().optional(),
   experienceYears: z.coerce.number().min(0, 'Experience cannot be negative').optional(),

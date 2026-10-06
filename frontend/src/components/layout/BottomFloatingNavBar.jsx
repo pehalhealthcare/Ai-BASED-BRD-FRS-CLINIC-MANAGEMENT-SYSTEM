@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Calendar as CalendarIcon, X, ChevronLeft, ChevronRight, Info } from 'lucide-react';
 import { clinicApi } from '../../lib/api';
@@ -29,6 +29,21 @@ const BottomFloatingNavBar = () => {
       fetchHolidays();
     }
   }, [isOpen, isExcludedPage]);
+
+  // Keyboard accessibility: close modal on Escape (DEF-36)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && isOpen) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen]);
 
   if (isExcludedPage) return null;
 
@@ -93,7 +108,12 @@ const BottomFloatingNavBar = () => {
 
       {/* Calendar Modal */}
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsOpen(false);
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+        >
           <div className="bg-white dark:bg-navy-900 rounded-3xl border border-stone-200 dark:border-white/[0.08] p-6 max-w-md w-full shadow-2xl relative animate-in zoom-in-95 duration-200 flex flex-col">
             
             {/* Modal Header */}
@@ -141,6 +161,11 @@ const BottomFloatingNavBar = () => {
                 const day = i + 1;
                 const dayHolidays = getHolidaysForDay(day);
                 const isHoliday = dayHolidays.length > 0;
+                const todayObj = new Date();
+                const isToday =
+                  todayObj.getFullYear() === year &&
+                  todayObj.getMonth() === month &&
+                  todayObj.getDate() === day;
                 
                 return (
                   <div
@@ -150,6 +175,8 @@ const BottomFloatingNavBar = () => {
                     className={`aspect-square rounded-xl flex flex-col items-center justify-center relative cursor-default transition-all ${
                       isHoliday
                         ? 'bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/40 text-rose-600 dark:text-rose-400 font-extrabold shadow-sm'
+                        : isToday
+                        ? 'bg-blue-50 dark:bg-blue-900/30 border border-blue-500 text-blue-600 dark:text-blue-400 font-black shadow-xs'
                         : 'hover:bg-stone-50 dark:hover:bg-white/[0.04] text-stone-700 dark:text-stone-300'
                     }`}
                   >

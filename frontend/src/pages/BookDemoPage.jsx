@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { 
-  Calendar, Clock, CheckCircle2, ArrowLeft, ArrowRight, 
+import {
+  Calendar, Clock, CheckCircle2, ArrowLeft, ArrowRight,
   Sparkles, Building2, User, Mail, Phone, Users, FileText,
   ShieldCheck, Check, AlertCircle, Laptop, Heart,
   BarChart2, ChevronLeft, ChevronRight, ChevronDown,
@@ -271,8 +271,8 @@ export default function BookDemoPage() {
   // Dynamic available time slots based on selected date & current local time in Asia/Kolkata
   const availableTimeSlots = useMemo(() => {
     const rawSlots = (availabilityData?.dateSlots && selectedDate && availabilityData.dateSlots[selectedDate.getDate()]) ||
-                     availabilityData?.timeSlots ||
-                     AVAILABLE_TIME_SLOTS;
+      availabilityData?.timeSlots ||
+      AVAILABLE_TIME_SLOTS;
     const nowInfo = getNowInBookingTimezone();
 
     if (!isSelectedDateToday) {
@@ -423,7 +423,7 @@ export default function BookDemoPage() {
   const validate = () => {
     const newErrors = {};
     if (!formData.fullName.trim()) newErrors.fullName = 'Full name is required';
-    
+
     const emailVal = getEmailValidation(formData.workEmail, true);
     if (emailVal.state !== 'valid') {
       newErrors.workEmail = emailVal.message;
@@ -524,7 +524,7 @@ export default function BookDemoPage() {
     const start = input.selectionStart || 0;
     const end = input.selectionEnd || 0;
     const combined = (currentVal.slice(0, start) + cleaned + currentVal.slice(end)).slice(0, 10);
-    
+
     setFormData(prev => ({ ...prev, phoneNumber: combined }));
     const v = getPhoneValidation(combined);
     if (v.state === 'valid') {
@@ -611,7 +611,7 @@ export default function BookDemoPage() {
 
     try {
       const data = await supportApi.bookDemo(payload);
-      
+
       if (data?.success) {
         setStatus('success');
         setSuccessData({
@@ -660,15 +660,40 @@ export default function BookDemoPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#F5F9FF] via-[#EBF3FE] to-[#F0F6FF] text-slate-800 font-sans antialiased overflow-x-hidden selection:bg-[#0070F3] selection:text-white flex flex-col justify-between w-full box-border">
-      
+
       {/* 🧭 Top Navigation Header */}
       <header className="w-full max-w-[1600px] 2xl:max-w-[1880px] mx-auto px-3.5 min-[390px]:px-4 sm:px-6 lg:px-10 2xl:px-16 py-3 min-[390px]:py-3.5 sm:py-5 flex items-center justify-between relative z-30 shrink-0 box-border">
-        <Link to="/" className="flex items-center gap-2 hover:opacity-90 transition-opacity min-w-0">
-          <PehalLogo variant="primary" height={36} className="h-7 min-[375px]:h-8 sm:h-9 2xl:h-11 w-auto shrink-0" />
-        </Link>
-        <button 
+        <div className="site-header-brand">
+          <Link
+            to="/"
+            onClick={(e) => handleLinkClick(e, { id: 'hero', href: '#hero' })}
+            className="flex items-center gap-2 sm:gap-2.5 lg:gap-3 group focus:outline-none shrink-0"
+          >
+            <div className="h-8 sm:h-10 lg:h-11 flex items-center shrink-0">
+              <PehalLogo
+                variant="primary"
+                className="h-8 sm:h-10 lg:h-11 w-auto transition-transform duration-200 group-hover:scale-[1.03]"
+              />
+            </div>
+            <div className="h-6 sm:h-7 w-[1.5px] bg-slate-200 hidden sm:block mx-0.5 shrink-0" />
+            <div className="flex flex-col justify-center leading-none shrink-0">
+              <div className="flex items-center gap-1.5 whitespace-nowrap">
+                <span className="text-base sm:text-xl lg:text-[22px] font-black tracking-tight text-slate-900 leading-none">
+                  AI-CMS
+                </span>
+                <span className="text-[8.5px] sm:text-[9.5px] lg:text-[10px] font-black uppercase tracking-wider bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-1.5 sm:px-2 py-0.5 rounded-full shadow-xs leading-none">
+                  PRO
+                </span>
+              </div>
+              <span className="text-[10px] sm:text-[11px] font-medium text-slate-500 hidden md:inline-block tracking-tight mt-0.5 whitespace-nowrap">
+                AI-CMS Enterprise
+              </span>
+            </div>
+          </Link>
+        </div>
+        <button
           type="button"
-          onClick={() => navigate('/')} 
+          onClick={() => navigate('/')}
           className="flex items-center gap-1.5 sm:gap-2 text-[10px] min-[375px]:text-[11px] sm:text-xs 2xl:text-sm font-bold uppercase tracking-wider text-slate-700 hover:text-[#0070F3] transition-all cursor-pointer bg-white hover:bg-blue-50/80 border border-slate-200/90 hover:border-blue-300 px-2.5 min-[375px]:px-3.5 sm:px-4 2xl:px-6 py-1.5 sm:py-2.5 2xl:py-3 rounded-full shadow-xs shrink-0 whitespace-nowrap min-h-[36px] sm:min-h-[42px] 2xl:min-h-[48px]"
         >
           <ArrowLeft size={13} className="shrink-0" /> <span>BACK TO HOME</span>
@@ -677,16 +702,16 @@ export default function BookDemoPage() {
 
       {/* 🏢 Main Content Container */}
       <main className="max-w-[1600px] 2xl:max-w-[1880px] mx-auto px-3 min-[390px]:px-4 sm:px-6 lg:px-10 2xl:px-16 py-2 sm:py-4 flex-grow w-full flex flex-col justify-center box-border">
-        
+
         {/* Responsive Grid: Stacks on mobile/tablet, 2 columns on desktop (xl:) */}
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 lg:gap-8 2xl:gap-14 items-start w-full">
-          
+
           {/* Left Column (Hero Text + Doctor Visual + Feature Cards + Badges) */}
           <div className="xl:col-span-6 2xl:col-span-6 flex flex-col justify-between space-y-4 xl:space-y-5 2xl:space-y-6 w-full">
-            
+
             {/* Top Hero Composition */}
             <div className="relative flex flex-col sm:flex-row items-center sm:items-start gap-3 sm:gap-0 w-full">
-              
+
               {/* Left-Aligned Text */}
               <div className="flex-1 min-w-0 z-10 pt-1 sm:pr-4 text-center sm:text-left">
                 <div className="inline-flex items-center gap-2 px-3 2xl:px-4 py-1 2xl:py-1.5 rounded-full bg-white border border-blue-200/90 text-[#0070F3] text-[10.5px] sm:text-[11.5px] 2xl:text-xs font-bold shadow-xs mb-2.5 2xl:mb-3">
@@ -709,7 +734,7 @@ export default function BookDemoPage() {
 
                 {/* Cursive Tagline (Desktop & Tablet) */}
                 <div className="hidden sm:block mt-3 xl:mt-4 text-left">
-                  <div 
+                  <div
                     className="text-[#0070F3] font-bold text-xl xl:text-[22px] 2xl:text-[26px] leading-[1.05] tracking-wide inline-block"
                     style={{ fontFamily: "'Caveat', cursive, sans-serif", transform: 'rotate(-2deg)', transformOrigin: 'left center' }}
                   >
@@ -724,7 +749,7 @@ export default function BookDemoPage() {
               {/* Doctor Visual with Floating Badge */}
               <div className="shrink-0 w-[240px] sm:w-[260px] xl:w-[290px] 2xl:w-[350px] h-[220px] sm:h-[300px] xl:h-[350px] 2xl:h-[420px] relative select-none z-0 my-1 sm:my-0 flex items-center justify-center">
                 {/* Dot Matrix Pattern */}
-                <div 
+                <div
                   className="absolute top-2 right-2 w-24 sm:w-28 2xl:w-36 h-28 sm:h-32 2xl:h-40 opacity-35 z-0 pointer-events-none"
                   style={{
                     backgroundImage: 'radial-gradient(#0070F3 1.5px, transparent 1.5px)',
@@ -733,15 +758,15 @@ export default function BookDemoPage() {
                 />
 
                 {/* Abstract Blue Petals */}
-                <img 
-                  src={petalBackground} 
+                <img
+                  src={petalBackground}
                   alt="PEHAL Abstract Background"
                   className="absolute top-1/2 sm:top-2 left-1/2 sm:left-auto -translate-x-1/2 sm:translate-x-0 -translate-y-1/2 sm:translate-y-0 right-auto sm:right-0 w-[220px] sm:w-[240px] xl:w-[270px] 2xl:w-[330px] h-auto object-contain z-0 opacity-95 pointer-events-none"
                 />
 
                 {/* Doctor with Headset SVG */}
-                <img 
-                  src={doctorImage} 
+                <img
+                  src={doctorImage}
                   alt="PEHAL Healthcare Specialist"
                   className="relative sm:absolute sm:top-0 sm:right-2 w-[170px] sm:w-[195px] xl:w-[220px] 2xl:w-[270px] h-auto object-contain z-10 drop-shadow-[0_10px_25px_rgba(0,112,243,0.18)] pointer-events-none"
                 />
@@ -768,7 +793,7 @@ export default function BookDemoPage() {
 
             {/* Mobile Cursive Tagline */}
             <div className="sm:hidden text-center py-1">
-              <div 
+              <div
                 className="text-[#0070F3] font-bold text-xl leading-none inline-block"
                 style={{ fontFamily: "'Caveat', cursive, sans-serif", transform: 'rotate(-2deg)' }}
               >
@@ -782,7 +807,7 @@ export default function BookDemoPage() {
             {/* Compliance Badges Row */}
             <div className="hidden sm:flex flex-wrap items-center gap-1.5 2xl:gap-2 z-10 pt-0.5">
               {['HIPAA READY', 'NABH READY', 'GDPR READY', 'AES-256 ENCRYPTION'].map((badge) => (
-                <span 
+                <span
                   key={badge}
                   className="bg-white border border-blue-200/80 text-[#0070F3] px-2.5 2xl:px-3 py-1 rounded-full text-[9.5px] 2xl:text-[11px] font-extrabold flex items-center gap-1 shadow-xs tracking-tight whitespace-nowrap"
                 >
@@ -823,7 +848,7 @@ export default function BookDemoPage() {
   function renderFeatureCards() {
     return (
       <>
-      {/* Card 1: Live Support */}
+        {/* Card 1: Live Support */}
         <div className={`bg-white rounded-2xl ${'p-3 xl:p-3.5 2xl:p-4'} border border-slate-100 shadow-[0_3px_14px_rgba(0,112,243,0.06)] hover:shadow-md transition-shadow flex flex-col justify-between w-full`}>
           <div>
             <div className="flex items-center justify-between mb-1.5 2xl:mb-2">
@@ -839,14 +864,14 @@ export default function BookDemoPage() {
             </h4>
             <p className={`${'text-[10.5px] xl:text-[11px] 2xl:text-[12.5px]'} text-slate-500 leading-tight font-medium`}>
               Average response under 5m
-              <a 
-                  href={`https://api.whatsapp.com/send/?phone=${(import.meta.env.VITE_WHATSAPP_NUMBER || import.meta.env.VITE_COMPANY_PHONE).replace(/\D/g, '')}&text&type=phone_number&app_absent=0`} 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  className="flex items-center gap-1.5 py-2 justify-center bg-white border border-[#D9E5F3] rounded-xl hover:text-[#0066FF] hover:border-[#1683FF] transition"
-                >
-                  <MessageCircle size={11} className="text-[#25D366]"/><p>Chat with us</p>
-                </a>
+              <a
+                href={`https://api.whatsapp.com/send/?phone=${(import.meta.env.VITE_WHATSAPP_NUMBER || import.meta.env.VITE_COMPANY_PHONE).replace(/\D/g, '')}&text&type=phone_number&app_absent=0`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 py-2 justify-center bg-white border border-[#D9E5F3] rounded-xl hover:text-[#0066FF] hover:border-[#1683FF] transition"
+              >
+                <MessageCircle size={11} className="text-[#25D366]" /><p>Chat with us</p>
+              </a>
             </p>
           </div>
         </div>
@@ -866,15 +891,15 @@ export default function BookDemoPage() {
               Email Support
             </h4>
             <p className={`${'text-[10.5px] xl:text-[11px] 2xl:text-[12.5px]'} text-slate-500 leading-tight font-medium break-all`}>
-               {import.meta.env.VITE_COMPANY_EMAIL}
-              <a 
-                  href={`mailto:${import.meta.env.VITE_COMPANY_EMAIL}`} 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  className="flex items-center gap-1.5 py-2 justify-center bg-white border border-[#D9E5F3] rounded-xl hover:text-[#0066FF] hover:border-[#1683FF] transition"
-                >
-                  <Globe size={11} className="text-[#0066FF]" />Email Us
-                </a>
+              {import.meta.env.VITE_COMPANY_EMAIL}
+              <a
+                href={`mailto:${import.meta.env.VITE_COMPANY_EMAIL}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 py-2 justify-center bg-white border border-[#D9E5F3] rounded-xl hover:text-[#0066FF] hover:border-[#1683FF] transition"
+              >
+                <Globe size={11} className="text-[#0066FF]" />Email Us
+              </a>
             </p>
           </div>
         </div>
@@ -946,7 +971,7 @@ export default function BookDemoPage() {
   function renderSchedulerCard() {
     return (
       <div className="bg-white rounded-2xl sm:rounded-3xl p-3.5 min-[390px]:p-4 sm:p-6 lg:p-6 xl:p-7 2xl:p-9 border border-slate-100 shadow-[0_12px_44px_rgba(0,112,243,0.07)] relative w-full box-border min-w-0">
-        
+
         {/* Header: Icon + Title + Subtitle */}
         <div className="flex items-center gap-2.5 sm:gap-3 2xl:gap-4 mb-3.5 sm:mb-4 2xl:mb-5">
           <div className="w-9 h-9 sm:w-10 sm:h-10 2xl:w-12 2xl:h-12 rounded-xl sm:rounded-2xl bg-blue-50 border border-blue-100/80 text-[#0070F3] flex items-center justify-center shrink-0 shadow-xs">
@@ -964,10 +989,10 @@ export default function BookDemoPage() {
 
         {/* Form-Level Error Summary directly below "Schedule Your Demo" heading */}
         {errorMessage && status !== 'success' && (
-          <div 
+          <div
             ref={errorSummaryRef}
             tabIndex={-1}
-            role="alert" 
+            role="alert"
             aria-live="assertive"
             className="mb-3.5 p-3 sm:p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs sm:text-sm flex items-start gap-2.5 shadow-xs focus:outline-none focus:ring-2 focus:ring-red-400"
           >
@@ -992,8 +1017,8 @@ export default function BookDemoPage() {
           <div className="mb-3.5 flex items-center gap-2 p-2.5 sm:p-3 rounded-xl bg-red-50/90 border border-red-200/90 text-red-700 text-[10.5px] sm:text-xs font-semibold shadow-2xs">
             <AlertCircle size={14} className="shrink-0 text-red-600" />
             <span className="flex-1 leading-snug">{dateUnavailableMessage}</span>
-            <button 
-              type="button" 
+            <button
+              type="button"
               onClick={() => setDateUnavailableMessage('')}
               className="text-red-500 hover:text-red-700 text-xs font-bold px-1"
             >
@@ -1004,7 +1029,7 @@ export default function BookDemoPage() {
 
         {/* Success State View */}
         {status === 'success' && successData ? (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, scale: 0.96 }}
             animate={{ opacity: 1, scale: 1 }}
             className="py-8 sm:py-10 text-center space-y-4"
@@ -1048,10 +1073,10 @@ export default function BookDemoPage() {
           </motion.div>
         ) : (
           <form onSubmit={handleSubmit} noValidate className="space-y-3 min-[390px]:space-y-3.5 sm:space-y-4 w-full box-border">
-            
+
             {/* ── DATE & TIME SELECTOR SECTION ── */}
             <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-2 min-[375px]:gap-2.5 sm:gap-3 2xl:gap-4 w-full box-border">
-              
+
               {/* LEFT: Select a Date */}
               <div className="space-y-1 w-full box-border min-w-0">
                 <span id="demo-date-label" className="text-[10px] min-[375px]:text-[10.5px] sm:text-[11px] 2xl:text-xs font-bold text-[#0B1E3B] uppercase tracking-wider flex items-center gap-1">
@@ -1059,8 +1084,8 @@ export default function BookDemoPage() {
                   <span className="text-red-500">*</span>
                 </span>
 
-                <div 
-                  role="region" 
+                <div
+                  role="region"
                   aria-labelledby="demo-date-label"
                   className="bg-slate-50/60 rounded-xl sm:rounded-2xl border border-slate-200/90 p-1.5 min-[375px]:p-2 sm:p-3 shadow-2xs w-full box-border"
                 >
@@ -1073,11 +1098,10 @@ export default function BookDemoPage() {
                       title={isAtOrBeforeMinMonth ? "No previous dates available" : "Previous month"}
                       aria-label={isAtOrBeforeMinMonth ? "No previous dates available" : "Previous month"}
                       aria-disabled={isAtOrBeforeMinMonth}
-                      className={`w-5 h-5 min-[375px]:w-6 min-[375px]:h-6 rounded-md flex items-center justify-center transition select-none ${
-                        isAtOrBeforeMinMonth
+                      className={`w-5 h-5 min-[375px]:w-6 min-[375px]:h-6 rounded-md flex items-center justify-center transition select-none ${isAtOrBeforeMinMonth
                           ? 'opacity-30 cursor-not-allowed text-slate-400 hover:bg-transparent bg-transparent'
                           : 'text-slate-600 hover:bg-slate-200/70 cursor-pointer active:scale-95'
-                      }`}
+                        }`}
                     >
                       <ChevronLeft size={13} />
                     </button>
@@ -1091,11 +1115,10 @@ export default function BookDemoPage() {
                       title={isAtOrAfterMaxMonth ? "No further dates available" : "Next month"}
                       aria-label={isAtOrAfterMaxMonth ? "No further dates available" : "Next month"}
                       aria-disabled={isAtOrAfterMaxMonth}
-                      className={`w-5 h-5 min-[375px]:w-6 min-[375px]:h-6 rounded-md flex items-center justify-center transition select-none ${
-                        isAtOrAfterMaxMonth
+                      className={`w-5 h-5 min-[375px]:w-6 min-[375px]:h-6 rounded-md flex items-center justify-center transition select-none ${isAtOrAfterMaxMonth
                           ? 'opacity-30 cursor-not-allowed text-slate-400 hover:bg-transparent bg-transparent'
                           : 'text-slate-600 hover:bg-slate-200/70 cursor-pointer active:scale-95'
-                      }`}
+                        }`}
                     >
                       <ChevronRight size={13} />
                     </button>
@@ -1168,12 +1191,12 @@ export default function BookDemoPage() {
                   <span className="text-red-500">*</span>
                 </span>
 
-                <div 
+                <div
                   role="region"
                   aria-labelledby="demo-time-label"
                   className="bg-slate-50/60 rounded-xl sm:rounded-2xl border border-slate-200/90 p-1.5 min-[375px]:p-2 sm:p-3 shadow-2xs flex flex-col items-center justify-between min-h-[175px] min-[375px]:min-h-[185px] sm:min-h-[200px] w-full box-border"
                 >
-                  
+
                   {/* ⏱️ Analog Clock Face */}
                   <div className="relative w-16 h-16 min-[375px]:w-18 min-[375px]:h-18 sm:w-20 sm:h-20 2xl:w-22 2xl:h-22 rounded-full border border-slate-200 flex items-center justify-center my-0.5 bg-white shadow-2xs shrink-0" aria-hidden="true">
                     {/* Clock Dial Markers */}
@@ -1189,20 +1212,20 @@ export default function BookDemoPage() {
                     <div className="absolute top-2.5 left-2.5 w-0.5 h-0.5 rounded-full bg-slate-200" />
 
                     {/* Minute Hand Pointer */}
-                    <div 
+                    <div
                       className="absolute w-0.5 h-5 min-[375px]:h-6 sm:h-7 bg-[#0070F3] origin-bottom rounded-full transition-transform duration-300"
-                      style={{ 
+                      style={{
                         bottom: '50%',
-                        transform: `rotate(${minuteAngle}deg)` 
+                        transform: `rotate(${minuteAngle}deg)`
                       }}
                     />
 
                     {/* Hour Hand Pointer */}
-                    <div 
+                    <div
                       className="absolute w-1 h-3.5 min-[375px]:h-4 sm:h-5 bg-[#0B1E3B] origin-bottom rounded-full transition-transform duration-300"
-                      style={{ 
+                      style={{
                         bottom: '50%',
-                        transform: `rotate(${hourAngle}deg)` 
+                        transform: `rotate(${hourAngle}deg)`
                       }}
                     />
 
@@ -1211,11 +1234,10 @@ export default function BookDemoPage() {
                   </div>
 
                   {/* Selected Time Pill Badge */}
-                  <div className={`px-2.5 py-0.5 rounded-full border font-black text-[9.5px] min-[375px]:text-[10.5px] sm:text-[11px] my-0.5 transition-colors ${
-                    selectedTimeSlot 
-                      ? 'bg-blue-50 border-blue-200/90 text-[#0070F3]' 
+                  <div className={`px-2.5 py-0.5 rounded-full border font-black text-[9.5px] min-[375px]:text-[10.5px] sm:text-[11px] my-0.5 transition-colors ${selectedTimeSlot
+                      ? 'bg-blue-50 border-blue-200/90 text-[#0070F3]'
                       : 'bg-amber-50 border-amber-200/90 text-amber-700'
-                  }`}>
+                    }`}>
                     {selectedTimeSlot ? selectedTimeSlot.label : 'No slot selected'}
                   </div>
 
@@ -1236,11 +1258,10 @@ export default function BookDemoPage() {
                             }}
                             aria-pressed={isSelected}
                             aria-label={`Select ${slot.label}`}
-                            className={`py-0.5 min-[375px]:py-1 px-0.5 rounded-md text-[7.5px] min-[375px]:text-[8.5px] sm:text-[9.5px] font-bold border transition text-center truncate ${
-                              isSelected
+                            className={`py-0.5 min-[375px]:py-1 px-0.5 rounded-md text-[7.5px] min-[375px]:text-[8.5px] sm:text-[9.5px] font-bold border transition text-center truncate ${isSelected
                                 ? 'bg-[#0070F3] text-white border-[#0070F3] shadow-xs cursor-pointer'
                                 : 'bg-white border-slate-200 text-slate-700 hover:border-blue-300 hover:text-[#0070F3] cursor-pointer'
-                            }`}
+                              }`}
                           >
                             {slot.label}
                           </button>
@@ -1274,7 +1295,7 @@ export default function BookDemoPage() {
             </div>
 
             {/* ── FORM FIELDS SECTION (TC-18: Unique IDs, Labels, Required Attributes) ── */}
-            
+
             {/* Row 1: Full Name + Work Email */}
             <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-2 min-[375px]:gap-2.5 sm:gap-3 2xl:gap-4 w-full box-border">
               {/* Full Name */}
@@ -1293,13 +1314,12 @@ export default function BookDemoPage() {
                     onChange={handleChange}
                     onBlur={handleBlur}
                     placeholder="Enter full name"
-                    className={`w-full bg-slate-50/70 border rounded-xl pl-9 min-[375px]:pl-9.5 sm:pl-10 2xl:pl-11 pr-2.5 py-1.5 min-[375px]:py-2 sm:py-2.5 2xl:py-3 min-h-[36px] min-[375px]:min-h-[40px] sm:min-h-[44px] 2xl:min-h-[50px] text-[11px] min-[375px]:text-xs 2xl:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 font-medium transition box-border ${
-                      errors.fullName 
-                        ? 'border-red-400 bg-red-50/30 focus:border-red-400 focus:ring-red-400/20' 
+                    className={`w-full bg-slate-50/70 border rounded-xl pl-9 min-[375px]:pl-9.5 sm:pl-10 2xl:pl-11 pr-2.5 py-1.5 min-[375px]:py-2 sm:py-2.5 2xl:py-3 min-h-[36px] min-[375px]:min-h-[40px] sm:min-h-[44px] 2xl:min-h-[50px] text-[11px] min-[375px]:text-xs 2xl:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 font-medium transition box-border ${errors.fullName
+                        ? 'border-red-400 bg-red-50/30 focus:border-red-400 focus:ring-red-400/20'
                         : formData.fullName.trim() && !errors.fullName
-                        ? 'border-emerald-400/80 bg-emerald-50/15 focus:border-emerald-500 focus:ring-emerald-500/20'
-                        : 'border-slate-200 focus:border-blue-300 focus:ring-[#0070F3]/30'
-                    }`}
+                          ? 'border-emerald-400/80 bg-emerald-50/15 focus:border-emerald-500 focus:ring-emerald-500/20'
+                          : 'border-slate-200 focus:border-blue-300 focus:ring-[#0070F3]/30'
+                      }`}
                   />
                   {formData.fullName.trim() && !errors.fullName && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500 pointer-events-none flex items-center">
@@ -1326,13 +1346,12 @@ export default function BookDemoPage() {
                     onChange={handleChange}
                     onBlur={handleBlur}
                     placeholder="Enter work email"
-                    className={`w-full bg-slate-50/70 border rounded-xl pl-9 min-[375px]:pl-9.5 sm:pl-10 2xl:pl-11 pr-8 py-1.5 min-[375px]:py-2 sm:py-2.5 2xl:py-3 min-h-[36px] min-[375px]:min-h-[40px] sm:min-h-[44px] 2xl:min-h-[50px] text-[11px] min-[375px]:text-xs 2xl:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 font-medium transition box-border ${
-                      errors.workEmail 
-                        ? 'border-red-400 bg-red-50/30 focus:border-red-400 focus:ring-red-400/20' 
-                        : isEmailValid 
-                        ? 'border-emerald-400/80 bg-emerald-50/15 focus:border-emerald-500 focus:ring-emerald-500/20' 
-                        : 'border-slate-200 focus:border-blue-300 focus:ring-[#0070F3]/30'
-                    }`}
+                    className={`w-full bg-slate-50/70 border rounded-xl pl-9 min-[375px]:pl-9.5 sm:pl-10 2xl:pl-11 pr-8 py-1.5 min-[375px]:py-2 sm:py-2.5 2xl:py-3 min-h-[36px] min-[375px]:min-h-[40px] sm:min-h-[44px] 2xl:min-h-[50px] text-[11px] min-[375px]:text-xs 2xl:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 font-medium transition box-border ${errors.workEmail
+                        ? 'border-red-400 bg-red-50/30 focus:border-red-400 focus:ring-red-400/20'
+                        : isEmailValid
+                          ? 'border-emerald-400/80 bg-emerald-50/15 focus:border-emerald-500 focus:ring-emerald-500/20'
+                          : 'border-slate-200 focus:border-blue-300 focus:ring-[#0070F3]/30'
+                      }`}
                   />
                   {isEmailValid && !errors.workEmail && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500 pointer-events-none flex items-center">
@@ -1365,13 +1384,12 @@ export default function BookDemoPage() {
                     onPaste={handlePhonePaste}
                     onBlur={handleBlur}
                     placeholder="Enter 10-digit number"
-                    className={`w-full bg-slate-50/70 border rounded-xl pl-9 min-[375px]:pl-9.5 sm:pl-10 2xl:pl-11 pr-8 py-1.5 min-[375px]:py-2 sm:py-2.5 2xl:py-3 min-h-[36px] min-[375px]:min-h-[40px] sm:min-h-[44px] 2xl:min-h-[50px] text-[11px] min-[375px]:text-xs 2xl:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 font-medium transition box-border ${
-                      errors.phoneNumber 
-                        ? 'border-red-400 bg-red-50/30 focus:border-red-400 focus:ring-red-400/20' 
-                        : isPhoneValid 
-                        ? 'border-emerald-400/80 bg-emerald-50/15 focus:border-emerald-500 focus:ring-emerald-500/20' 
-                        : 'border-slate-200 focus:border-blue-300 focus:ring-[#0070F3]/30'
-                    }`}
+                    className={`w-full bg-slate-50/70 border rounded-xl pl-9 min-[375px]:pl-9.5 sm:pl-10 2xl:pl-11 pr-8 py-1.5 min-[375px]:py-2 sm:py-2.5 2xl:py-3 min-h-[36px] min-[375px]:min-h-[40px] sm:min-h-[44px] 2xl:min-h-[50px] text-[11px] min-[375px]:text-xs 2xl:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 font-medium transition box-border ${errors.phoneNumber
+                        ? 'border-red-400 bg-red-50/30 focus:border-red-400 focus:ring-red-400/20'
+                        : isPhoneValid
+                          ? 'border-emerald-400/80 bg-emerald-50/15 focus:border-emerald-500 focus:ring-emerald-500/20'
+                          : 'border-slate-200 focus:border-blue-300 focus:ring-[#0070F3]/30'
+                      }`}
                   />
                   {isPhoneValid && !errors.phoneNumber && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500 pointer-events-none flex items-center">
@@ -1398,13 +1416,12 @@ export default function BookDemoPage() {
                     onChange={handleChange}
                     onBlur={handleBlur}
                     placeholder="Enter clinic name"
-                    className={`w-full bg-slate-50/70 border rounded-xl pl-9 min-[375px]:pl-9.5 sm:pl-10 2xl:pl-11 pr-2.5 py-1.5 min-[375px]:py-2 sm:py-2.5 2xl:py-3 min-h-[36px] min-[375px]:min-h-[40px] sm:min-h-[44px] 2xl:min-h-[50px] text-[11px] min-[375px]:text-xs 2xl:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 font-medium transition box-border ${
-                      errors.clinicName 
-                        ? 'border-red-400 bg-red-50/30 focus:border-red-400 focus:ring-red-400/20' 
+                    className={`w-full bg-slate-50/70 border rounded-xl pl-9 min-[375px]:pl-9.5 sm:pl-10 2xl:pl-11 pr-2.5 py-1.5 min-[375px]:py-2 sm:py-2.5 2xl:py-3 min-h-[36px] min-[375px]:min-h-[40px] sm:min-h-[44px] 2xl:min-h-[50px] text-[11px] min-[375px]:text-xs 2xl:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 font-medium transition box-border ${errors.clinicName
+                        ? 'border-red-400 bg-red-50/30 focus:border-red-400 focus:ring-red-400/20'
                         : formData.clinicName.trim() && !errors.clinicName
-                        ? 'border-emerald-400/80 bg-emerald-50/15 focus:border-emerald-500 focus:ring-emerald-500/20'
-                        : 'border-slate-200 focus:border-blue-300 focus:ring-[#0070F3]/30'
-                    }`}
+                          ? 'border-emerald-400/80 bg-emerald-50/15 focus:border-emerald-500 focus:ring-emerald-500/20'
+                          : 'border-slate-200 focus:border-blue-300 focus:ring-[#0070F3]/30'
+                      }`}
                   />
                   {formData.clinicName.trim() && !errors.clinicName && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500 pointer-events-none flex items-center">
@@ -1431,9 +1448,8 @@ export default function BookDemoPage() {
                     required
                     value={formData.doctorsCount}
                     onChange={handleChange}
-                    className={`w-full bg-slate-50/70 border rounded-xl pl-9 min-[375px]:pl-9.5 sm:pl-10 2xl:pl-11 pr-7 py-1.5 min-[375px]:py-2 sm:py-2.5 2xl:py-3 min-h-[36px] min-[375px]:min-h-[40px] sm:min-h-[44px] 2xl:min-h-[50px] text-[11px] min-[375px]:text-xs 2xl:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0070F3]/30 appearance-none font-medium cursor-pointer box-border truncate ${
-                      errors.doctorsCount ? 'border-red-400 bg-red-50/30' : 'border-slate-200 focus:border-blue-300'
-                    }`}
+                    className={`w-full bg-slate-50/70 border rounded-xl pl-9 min-[375px]:pl-9.5 sm:pl-10 2xl:pl-11 pr-7 py-1.5 min-[375px]:py-2 sm:py-2.5 2xl:py-3 min-h-[36px] min-[375px]:min-h-[40px] sm:min-h-[44px] 2xl:min-h-[50px] text-[11px] min-[375px]:text-xs 2xl:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0070F3]/30 appearance-none font-medium cursor-pointer box-border truncate ${errors.doctorsCount ? 'border-red-400 bg-red-50/30' : 'border-slate-200 focus:border-blue-300'
+                      }`}
                   >
                     <option value="">Select doctors count</option>
                     <option value="Solo (1 Doctor)">Solo (1 Doctor)</option>

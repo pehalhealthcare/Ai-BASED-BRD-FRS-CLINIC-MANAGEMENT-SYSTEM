@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, Calendar, Download, Printer, Clock, User, Plus, 
@@ -63,41 +63,35 @@ const DoctorSchedulePage = () => {
       setLoading(true);
       try {
         const response = await doctorApi.get(id);
-        const doc = response.data?.doctor || response.doctor;
-        setDoctor({
-          ...doc,
-          experience: doc.experienceYears ? `${doc.experienceYears}+ Years` : '12+ Years',
-          qualification: doc.qualification || 'MBBS, MD (General Medicine)',
-          currentClinic: 'Main Clinic',
-          room: 'Consultation Room 1',
-          regNo: 'Reg. No. 12345 (UPMC)',
-          liveStatus: 'Available',
-          workingHours: '09:00 AM - 06:00 PM',
-          breakTime: '01:00 PM - 01:30 PM'
-        });
+        const doc = response.data?.doctor || response.doctor || response.data;
+        if (doc) {
+          setDoctor({
+            ...doc,
+            fullName: doc.fullName || doc.name || 'Doctor',
+            specialization: doc.specialization || 'Specialist',
+            experience: doc.experienceYears ? `${doc.experienceYears}+ Years` : (doc.experience || 'Experienced'),
+            qualification: doc.qualification || doc.specialization || 'Medical Specialist',
+            currentClinic: doc.clinicName || doc.organizationName || 'PEHAL Healthcare',
+            room: doc.room || doc.consultationRoom || 'Room 1',
+            regNo: doc.registrationNumber ? `Reg. No. ${doc.registrationNumber}` : (doc.licenseNumber ? `Lic. No. ${doc.licenseNumber}` : ''),
+            liveStatus: doc.isAvailable !== false ? 'Available' : 'Unavailable',
+            workingHours: doc.workingHours || '09:00 AM - 05:00 PM',
+            breakTime: doc.breakTime || '01:00 PM - 02:00 PM'
+          });
+        } else {
+          setDoctor(null);
+        }
       } catch (err) {
-        console.warn('Failed to load doctor from API, using fallback:', err);
-        // Fallback mock doctor details matching screenshot perfectly
-        setDoctor({
-          _id: id,
-          fullName: 'Dr. Rajesh Sharma',
-          doctorCode: 'DOC12345',
-          specialization: 'General Physician',
-          qualification: 'MBBS, MD (General Medicine)',
-          experience: '12+ Years',
-          currentClinic: 'Main Clinic',
-          room: 'Consultation Room 1',
-          regNo: 'Reg. No. 12345 (UPMC)',
-          liveStatus: 'Available',
-          workingHours: '09:00 AM - 06:00 PM',
-          breakTime: '01:00 PM - 01:30 PM'
-        });
+        console.error('Failed to load doctor from API:', err);
+        setDoctor(null);
       } finally {
         setLoading(false);
       }
     };
 
-    loadDoctor();
+    if (id) {
+      loadDoctor();
+    }
   }, [id]);
 
   const handlePrintSlip = (appt) => {

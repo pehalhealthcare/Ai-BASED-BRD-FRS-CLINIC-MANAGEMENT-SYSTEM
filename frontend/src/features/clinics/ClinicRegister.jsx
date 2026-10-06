@@ -900,7 +900,7 @@ export default function ClinicRegister() {
                       {s.name.split(' ')[0]} Step {s.id}
                     </span>
                   </div>
-                  {idx < STEPS.length - 1 && (
+                  {idx < ST - 1 && (
                     <div
                       className={`w-3.5 h-[2px] mx-1 rounded-full ${
                         isCompleted ? 'bg-[#0066FF]' : 'bg-[#D9E5F3]'

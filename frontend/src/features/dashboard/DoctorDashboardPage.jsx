@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useMemo, useRef } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { Link, useNavigate } from 'react-router-dom';
 import {
@@ -546,8 +546,10 @@ const DoctorDashboardPage = () => {
           </div>
           <div className="text-left">
             <p className="text-xs font-black text-slate-805 leading-none group-hover:text-blue-600 transition-colors">Dr. {profile?.fullName || 'Physician'}</p>
-            <span className="text-[10px] text-slate-500 font-bold block mt-1 leading-none">{profile?.specialization?.name || 'General Practitioner'}</span>
-            <span className="text-[9px] text-slate-400 font-medium block mt-0.5">Reg No. {profile?.registrationNumber || '98765'}</span>
+            <span className="text-[10px] text-slate-500 font-bold block mt-1 leading-none">{profile?.specialization?.name || profile?.specialization || 'Doctor'}</span>
+            <span className="text-[9px] text-slate-400 font-medium block mt-0.5">
+              {profile?.registrationNumber ? `Reg No. ${profile.registrationNumber}` : (profile?.qualification ? profile.qualification : 'Verified Physician')}
+            </span>
           </div>
         </Link>
       </div>
@@ -587,7 +589,7 @@ const DoctorDashboardPage = () => {
             <div className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg"><Users size={14} /></div>
           </div>
           <h3 className="text-2xl font-black text-slate-900 mt-3">{stats.waiting}</h3>
-          <span className="text-[9px] text-slate-400 font-bold mt-1">Avg wait: 15 min</span>
+          <span className="text-[9px] text-slate-400 font-bold mt-1">{stats.waiting > 0 ? `${stats.waiting} in live queue` : 'Queue empty'}</span>
         </div>
 
         {/* Follow-ups Due */}
@@ -597,7 +599,7 @@ const DoctorDashboardPage = () => {
             <div className="p-1.5 bg-purple-50 text-purple-600 rounded-lg"><CheckCircle2 size={14} /></div>
           </div>
           <h3 className="text-2xl font-black text-slate-900 mt-3">{followUps.length}</h3>
-          <span className="text-[9px] text-slate-400 font-bold mt-1">Next: 11:30 AM</span>
+          <span className="text-[9px] text-slate-400 font-bold mt-1">{followUps.length > 0 ? `${followUps.length} scheduled` : 'None pending'}</span>
         </div>
 
         {/* Unread Messages */}
@@ -749,9 +751,9 @@ const DoctorDashboardPage = () => {
                   <div>
                     <h3 className="text-sm font-black text-slate-850">{selectedToken?.appointmentId?.patientId?.fullName || selectedAppointment?.patientId?.fullName}</h3>
                     <p className="text-[10px] text-slate-500 mt-0.5 font-bold">
-                      {selectedToken?.appointmentId?.patientId?.age || selectedAppointment?.patientId?.age || 26} Years • {selectedToken?.appointmentId?.patientId?.gender || selectedAppointment?.patientId?.gender || 'Female'}
+                      {(selectedToken?.appointmentId?.patientId?.age || selectedAppointment?.patientId?.age) ? `${selectedToken?.appointmentId?.patientId?.age || selectedAppointment?.patientId?.age} Years` : 'Age N/A'} • {(selectedToken?.appointmentId?.patientId?.gender || selectedAppointment?.patientId?.gender) || 'N/A'}
                     </p>
-                    <p className="text-[9px] text-slate-400 font-medium mt-0.5">PID: {selectedToken?.appointmentId?.patientId?.uhid || selectedAppointment?.patientId?.uhid || 'PT-2025-0425'}</p>
+                    <p className="text-[9px] text-slate-400 font-medium mt-0.5">PID: {selectedToken?.appointmentId?.patientId?.patientId || selectedToken?.appointmentId?.patientId?.uhid || selectedAppointment?.patientId?.patientId || selectedAppointment?.patientId?.uhid || 'N/A'}</p>
                   </div>
                 </div>
 
@@ -759,11 +761,11 @@ const DoctorDashboardPage = () => {
                 <div className="bg-slate-50/50 border border-slate-100 rounded-2xl p-3.5 space-y-2 text-[10px] text-slate-500">
                   <div className="flex justify-between">
                     <span>Chief Complaint:</span>
-                    <strong className="text-slate-700">{selectedToken?.appointmentId?.reasonForVisit || selectedAppointment?.reasonForVisit || 'Shortness of breath / Cough'}</strong>
+                    <strong className="text-slate-700">{selectedToken?.appointmentId?.reasonForVisit || selectedAppointment?.reasonForVisit || 'General Consultation'}</strong>
                   </div>
                   <div className="flex justify-between">
-                    <span>Last Visit:</span>
-                    <strong className="text-slate-700">May 15, 2025</strong>
+                    <span>Consultation Mode:</span>
+                    <strong className="text-slate-700">{(selectedToken?.appointmentId?.consultationMode || selectedAppointment?.consultationMode) === 'ONLINE' ? 'Online Video' : 'In-Clinic Walk-In'}</strong>
                   </div>
                 </div>
 
@@ -771,11 +773,15 @@ const DoctorDashboardPage = () => {
                 <div className="grid grid-cols-2 gap-2 text-center">
                   <div className="bg-slate-50 border border-slate-150 rounded-xl p-2.5">
                     <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider block">BP</span>
-                    <strong className="text-xs font-black text-slate-800 mt-1 block">120/80</strong>
+                    <strong className="text-xs font-black text-slate-800 mt-1 block">
+                      {selectedToken?.appointmentId?.vitals?.bloodPressure || selectedAppointment?.vitals?.bloodPressure || selectedToken?.vitals?.bloodPressure || 'Pending'}
+                    </strong>
                   </div>
                   <div className="bg-slate-50 border border-slate-150 rounded-xl p-2.5">
                     <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider block">Pulse</span>
-                    <strong className="text-xs font-black text-slate-800 mt-1 block">82 bpm</strong>
+                    <strong className="text-xs font-black text-slate-800 mt-1 block">
+                      {selectedToken?.appointmentId?.vitals?.pulse || selectedAppointment?.vitals?.pulse || selectedToken?.vitals?.pulse ? `${selectedToken?.appointmentId?.vitals?.pulse || selectedAppointment?.vitals?.pulse || selectedToken?.vitals?.pulse} bpm` : 'Pending'}
+                    </strong>
                   </div>
                 </div>
               </div>
@@ -896,7 +902,7 @@ const DoctorDashboardPage = () => {
                             {token.appointmentId?.patientId?.fullName || 'Patient'}
                           </h5>
                           <p className="text-[9px] text-slate-550 mt-0.5 font-semibold">
-                            {token.appointmentId?.patientId?.age || 30} Y • {token.appointmentId?.patientId?.gender || 'M'} • <span className="text-slate-400 font-medium">Token {token.tokenNumber}</span>
+                            {token.appointmentId?.patientId?.age ? `${token.appointmentId.patientId.age} Y • ` : ''}{token.appointmentId?.patientId?.gender ? `${token.appointmentId.patientId.gender} • ` : ''}<span className="text-slate-400 font-medium">Token {token.tokenNumber}</span>
                           </p>
                         </div>
                       </div>

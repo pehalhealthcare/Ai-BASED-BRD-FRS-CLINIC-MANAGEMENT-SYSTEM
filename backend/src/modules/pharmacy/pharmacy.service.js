@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const { roundCurrency } = require('../../common/utils/billingCalculator');
 const { HTTP_STATUS } = require('../../common/constants/httpStatus');
 const { ROLES } = require('../../common/constants/roles');
@@ -27,6 +28,10 @@ const {
   isBatchExpired,
   recalculateTotalStock
 } = require('./pharmacy.utils');
+
+const generateSecurePickupCode = () => {
+  return String(crypto.randomInt(100000, 999999));
+};
 
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -1506,7 +1511,7 @@ const createPharmacyOrder = async ({ requester, payload, req }) => {
   const totalPrice = Number((medicine.sellingPrice || medicine.unitPrice || 0) * payload.quantity);
 
   const isPickup = (payload.deliveryMethod || 'Pickup') === 'Pickup';
-  const generatedPickupCode = isPickup ? `PKU-${Math.random().toString(36).substring(2, 8).toUpperCase()}` : '';
+  const generatedPickupCode = isPickup ? generateSecurePickupCode() : '';
 
   const order = await PharmacyOrder.create({
     clinicId,
@@ -2920,7 +2925,7 @@ module.exports = {
     }
     
     const oldCode = order.pickupCode;
-    order.pickupCode = `PKU-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+    order.pickupCode = generateSecurePickupCode();
     order.qrCode = JSON.stringify({ orderId: String(order._id), pickupCode: order.pickupCode });
     await order.save();
     

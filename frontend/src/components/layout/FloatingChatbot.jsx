@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Bot, X, Send, Calendar, HelpCircle, ArrowRight, Pill, User } from 'lucide-react';
 import { doctorApi, appointmentApi, patientApi } from '../../lib/api';
@@ -8,7 +8,12 @@ import useAuth from '../../hooks/useAuth';
 const FloatingChatbot = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(() => {
+    if (typeof sessionStorage !== 'undefined') {
+      return sessionStorage.getItem('auraCareClosed') !== 'true';
+    }
+    return true;
+  });
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -269,6 +274,19 @@ const FloatingChatbot = () => {
         known_conditions: conditions
       });
 
+      const lowerSymptoms = (symptoms || '').toLowerCase();
+      const isDental =
+        lowerSymptoms.includes('tooth') ||
+        lowerSymptoms.includes('teeth') ||
+        lowerSymptoms.includes('dental') ||
+        lowerSymptoms.includes('gum') ||
+        lowerSymptoms.includes('cavity') ||
+        lowerSymptoms.includes('oral');
+
+      if (isDental) {
+        triageRes.recommendedSpecialization = 'Dentist';
+      }
+
       let docs = [];
       try {
         const spec = triageRes.recommendedSpecialization || 'General Physician';
@@ -391,7 +409,9 @@ const FloatingChatbot = () => {
 
   const confirmBooking = async () => {
     if (!bookingDate) {
-      alert('Please choose a date');
+      addMessage('Please select a date before confirming your appointment booking.', 'bot', {
+        type: 'select_date_time'
+      });
       return;
     }
     setFlow('menu');
@@ -515,7 +535,12 @@ const FloatingChatbot = () => {
       {/* Floating Trigger Bubble */}
       {!isOpen && (
         <button
-          onClick={() => setIsOpen(true)}
+          onClick={() => {
+            if (typeof sessionStorage !== 'undefined') {
+              sessionStorage.setItem('auraCareClosed', 'false');
+            }
+            setIsOpen(true);
+          }}
           className="pointer-events-auto fixed bottom-6 right-6 w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 flex items-center justify-center text-white shadow-glow-teal hover:scale-105 active:scale-95 transition-all duration-150"
           title="Open AI Assistant"
         >
@@ -545,7 +570,12 @@ const FloatingChatbot = () => {
               </div>
             </div>
             <button
-              onClick={() => setIsOpen(false)}
+              onClick={() => {
+                if (typeof sessionStorage !== 'undefined') {
+                  sessionStorage.setItem('auraCareClosed', 'true');
+                }
+                setIsOpen(false);
+              }}
               className="no-drag p-1 rounded-lg hover:bg-white/10 text-white/70 hover:text-white transition"
             >
               <X size={16} />

@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Shield, CreditCard, CheckCircle2, TrendingUp, FileText,
@@ -192,10 +192,11 @@ export default function BillingInsurance({
                     </thead>
                     <tbody className="divide-y divide-slate-50 dark:divide-white/[0.04]">
                       {invoices.length > 0 ? invoices.slice(0, 5).map(inv => {
-                        const isPaid = inv.paymentStatus === 'paid';
+                        const isPaid = inv.paymentStatus === 'paid' || inv.paymentStatus === 'PAID';
                         const total = inv.totalAmount || 0;
-                        const insurancePaid = Math.round(total * (coveragePercent / 100));
-                        const youPaid = total - insurancePaid;
+                        const actualPaid = isPaid ? total : (inv.paidAmount || 0);
+                        const insurancePaid = isPaid ? Math.round(total * (coveragePercent / 100)) : 0;
+                        const youPaid = isPaid ? (total - insurancePaid) : actualPaid;
                         return (
                           <tr key={inv._id} className="hover:bg-slate-50/50 dark:hover:bg-navy-900/20 transition">
                             <td className="px-4 py-3.5 text-slate-500 dark:text-slate-400 whitespace-nowrap">
@@ -274,48 +275,20 @@ export default function BillingInsurance({
                 </div>
               </div>
 
-              {/* Info box for mock testing cards */}
-              <div className="p-4 rounded-xl bg-indigo-500/5 border border-indigo-500/20 text-xs text-indigo-400 space-y-2">
-                <p className="font-bold text-indigo-600 dark:text-indigo-300">Available Mock Insurance Cards for Testing:</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
-                  <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5">
-                    <p className="font-semibold text-slate-700 dark:text-slate-300">Star Health Insurance</p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Policy: <span className="font-mono text-slate-800 dark:text-slate-200">STAR12345</span></p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Subscriber: <span className="font-semibold text-slate-800 dark:text-slate-200">Rahul Sharma</span></p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Group: <span className="font-mono text-slate-800 dark:text-slate-200">GRP1001</span></p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Coverage: <span className="font-semibold text-blue-500">₹1,50,000</span></p>
-                  </div>
-                  <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5">
-                    <p className="font-semibold text-slate-700 dark:text-slate-300">Niva Bupa Health Insurance</p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Policy: <span className="font-mono text-slate-800 dark:text-slate-200">NIVA98765</span></p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Subscriber: <span className="font-semibold text-slate-800 dark:text-slate-200">Priya Patel</span></p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Group: <span className="font-mono text-slate-800 dark:text-slate-200">GRP1002</span></p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Coverage: <span className="font-semibold text-blue-500">₹2,50,000</span></p>
-                  </div>
-                  <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5">
-                    <p className="font-semibold text-slate-700 dark:text-slate-300">ICICI Lombard Insurance</p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Policy: <span className="font-mono text-slate-800 dark:text-slate-200">ICICI55555</span></p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Subscriber: <span className="font-semibold text-slate-800 dark:text-slate-200">Amit Kumar</span></p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Group: <span className="font-mono text-slate-800 dark:text-slate-200">GRP1003</span></p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Coverage: <span className="font-semibold text-blue-500">₹3,50,000</span></p>
-                  </div>
-                  <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5">
-                    <p className="font-semibold text-slate-700 dark:text-slate-300">HDFC Ergo Insurance</p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Policy: <span className="font-mono text-slate-800 dark:text-slate-200">HDFC44444</span></p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Subscriber: <span className="font-semibold text-slate-800 dark:text-slate-200">Siddharth Malhotra</span></p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Group: <span className="font-mono text-slate-800 dark:text-slate-200">GRP1004</span></p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Coverage: <span className="font-semibold text-blue-500">₹5,00,000</span></p>
-                  </div>
-                </div>
-              </div>
               <form onSubmit={handleSaveInsurance} className="space-y-4">
-                <InputRow label="Insurance Provider" value={insuranceForm.provider} onChange={(e) => setInsuranceForm({ ...insuranceForm, provider: e.target.value })} placeholder="e.g. Star Health Insurance" />
+                <InputRow label="Insurance Provider" value={insuranceForm.provider} onChange={(e) => setInsuranceForm({ ...insuranceForm, provider: e.target.value })} placeholder="e.g. Star Health Insurance" required />
                 <div className="grid sm:grid-cols-2 gap-4">
-                  <InputRow label="Policy Number" value={insuranceForm.policyNumber} onChange={(e) => setInsuranceForm({ ...insuranceForm, policyNumber: e.target.value })} placeholder="Policy #" />
+                  <InputRow label="Policy Number" value={insuranceForm.policyNumber} onChange={(e) => setInsuranceForm({ ...insuranceForm, policyNumber: e.target.value })} placeholder="Policy #" required />
                   <InputRow label="Group Number" value={insuranceForm.groupNumber} onChange={(e) => setInsuranceForm({ ...insuranceForm, groupNumber: e.target.value })} placeholder="Group #" />
                 </div>
                 <InputRow label="Subscriber Name" value={insuranceForm.subscriberName} onChange={(e) => setInsuranceForm({ ...insuranceForm, subscriberName: e.target.value })} placeholder="Name on card" />
-                <InputRow label="Subscriber Date of Birth" type="date" value={insuranceForm.subscriberDob ? insuranceForm.subscriberDob.slice(0, 10) : ''} onChange={(e) => setInsuranceForm({ ...insuranceForm, subscriberDob: e.target.value })} />
+                <InputRow
+                  label="Subscriber Date of Birth"
+                  type="date"
+                  max={new Date().toISOString().split('T')[0]}
+                  value={insuranceForm.subscriberDob ? insuranceForm.subscriberDob.slice(0, 10) : ''}
+                  onChange={(e) => setInsuranceForm({ ...insuranceForm, subscriberDob: e.target.value })}
+                />
                 <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/8">
                   <input type="checkbox" id="autoClaimAutomation" checked={insuranceForm.autoClaimAutomation} onChange={(e) => setInsuranceForm({ ...insuranceForm, autoClaimAutomation: e.target.checked })} className="w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500" />
                   <label htmlFor="autoClaimAutomation" className="text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer">Enable Auto Insurance Claims Automation</label>

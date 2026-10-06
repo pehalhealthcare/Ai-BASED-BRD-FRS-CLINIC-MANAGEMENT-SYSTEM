@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import io from 'socket.io-client';
@@ -141,7 +141,7 @@ const Topbar = ({ title, currentUser, sidebarOpen, onToggleSidebar, onLogout }) 
     <header className="sticky top-0 z-30 flex items-center justify-between px-4 h-16 bg-white border-b border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.02)] backdrop-blur-xl transition-all duration-300">
       
       {/* 1. Left Section: Sidebar Toggle & Dynamic Branding */}
-      <div className="flex items-center justify-between w-full xl:w-auto xl:justify-start gap-4 shrink-0">
+      <div className="flex items-center gap-2 sm:gap-3 shrink-0">
         <button
           type="button"
           onClick={onToggleSidebar}
@@ -152,26 +152,23 @@ const Topbar = ({ title, currentUser, sidebarOpen, onToggleSidebar, onLogout }) 
         </button>
 
         {/* Branding block */}
-        <div className="flex items-center justify-center flex-1 xl:flex-none gap-2.5">
-          <img src={pehalLogo} alt="Pehal" className="h-8 object-contain shrink-0" />
-          <div className="leading-none shrink-0 text-left">
-            <p className="text-[14px] font-black text-slate-955 tracking-tight">AICMS</p>
-            <p className="text-[8px] font-black text-slate-455 uppercase tracking-widest mt-0.5">AI-CMS Enterprise</p>
+        <div className="flex items-center gap-2 shrink-0">
+          <img src={pehalLogo} alt="Pehal" className="h-7 sm:h-8 object-contain shrink-0" />
+          <div className="leading-none shrink-0 text-left hidden sm:block">
+            <p className="text-[13px] sm:text-[14px] font-black text-slate-950 tracking-tight">AICMS</p>
+            <p className="text-[7px] sm:text-[8px] font-black text-slate-400 uppercase tracking-widest mt-0.5">AI-CMS Enterprise</p>
           </div>
         </div>
-
-        {/* Empty placeholder to keep branding centered on mobile */}
-        <div className="w-8 xl:hidden"></div>
 
         {/* Vertical divider visible only when branding is present */}
         <div className={`h-6 w-px bg-slate-200/60 transition-all duration-500 xl:block hidden ${!sidebarOpen ? 'opacity-100 mx-0.5 lg:mx-1' : 'opacity-0 w-0'}`} />
 
         {/* Clinic Info pill card — hidden for Super Admin and on mobile/tablet */}
         {!isPatient && !isSuperAdmin && (
-          <div className="relative hidden xl:block" ref={branchRef}>
+          <div className="relative hidden 2xl:block" ref={branchRef}>
             <button
               onClick={() => setBranchDropdownOpen(!branchDropdownOpen)}
-              className="flex items-center gap-2 lg:gap-2.5 bg-slate-55 bg-slate-50 hover:bg-slate-100/80 border border-slate-150 rounded-full px-2.5 lg:px-3.5 py-1.5 shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition duration-200 cursor-pointer active:scale-98 group"
+              className="flex items-center gap-2 lg:gap-2.5 bg-slate-50 hover:bg-slate-100/80 border border-slate-150 rounded-full px-2.5 lg:px-3.5 py-1.5 shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition duration-200 cursor-pointer active:scale-98 group"
             >
               <span className="text-xs">🏥</span>
               <div className="text-left leading-none">
@@ -198,9 +195,9 @@ const Topbar = ({ title, currentUser, sidebarOpen, onToggleSidebar, onLogout }) 
         )}
       </div>
 
-      {/* 2. Middle Section: Search Bar — hidden for Super Admin and smaller viewports */}
+      {/* 2. Middle Section: Search Bar */}
       {!isSuperAdmin && (
-        <div className="hidden lg:flex items-center gap-4 flex-1 max-w-lg mx-8 relative">
+        <div className="hidden md:flex items-center gap-2 flex-1 max-w-sm lg:max-w-md mx-2 sm:mx-4 relative min-w-0">
           <div className="relative w-full">
             <input
               id="global-search-input"
@@ -209,26 +206,26 @@ const Topbar = ({ title, currentUser, sidebarOpen, onToggleSidebar, onLogout }) 
               onChange={(e) => setSearchQuery(e.target.value)}
               onFocus={() => setSearchFocused(true)}
               onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
-              placeholder="Search patients, appointments, invoices, staff, doctors..."
-              className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-10 pr-12 py-2 text-xs text-slate-850 placeholder:text-slate-400/90 focus:outline-none focus:bg-white focus:border-blue-600 focus:shadow-[0_0_0_3px_rgba(37,99,235,0.08)] transition duration-200"
+              placeholder="Search patients, appointments..."
+              className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-9 pr-8 py-1.5 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-blue-600 transition duration-200"
             />
-            <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-            <div className="absolute right-3.5 top-1/2 -translate-y-1/2 bg-slate-200/60 border border-slate-300/40 rounded px-1.5 py-0.5 text-[8px] font-black text-slate-500 uppercase tracking-widest pointer-events-none select-none">
-              Ctrl + K
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <div className="hidden lg:block absolute right-2.5 top-1/2 -translate-y-1/2 bg-slate-200/60 border border-slate-300/40 rounded px-1 py-0.5 text-[7px] font-black text-slate-500 uppercase tracking-widest pointer-events-none select-none">
+              Ctrl+K
             </div>
           </div>
         </div>
       )}
 
       {/* 3. Right Section: Date, Actions, Profile Dropdown */}
-      <div className="hidden xl:flex items-center gap-2 lg:gap-3 shrink-0">
+      <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
         
-        {/* Today's Date card — hidden for Super Admin and on mobile/tablet */}
+        {/* Today's Date card */}
         {!isSuperAdmin && (
-          <div className="flex items-center gap-2.5 bg-slate-50 border border-slate-150 rounded-full px-3.5 py-1.5 shadow-[0_1px_2px_rgba(0,0,0,0.01)] hover:bg-slate-100/80 transition duration-200 select-none">
+          <div className="hidden 2xl:flex items-center gap-2.5 bg-slate-50 border border-slate-150 rounded-full px-3.5 py-1.5 shadow-[0_1px_2px_rgba(0,0,0,0.01)] hover:bg-slate-100/80 transition duration-200 select-none">
             <Calendar size={13} className="text-slate-500" />
             <div className="text-left leading-none">
-              <span className="text-[10px] font-black text-slate-805 tracking-tight">{todayStr.formatted}</span>
+              <span className="text-[10px] font-black text-slate-800 tracking-tight">{todayStr.formatted}</span>
               <span className="block text-[8px] text-slate-400 font-bold mt-0.5">{todayStr.dayName}</span>
             </div>
           </div>

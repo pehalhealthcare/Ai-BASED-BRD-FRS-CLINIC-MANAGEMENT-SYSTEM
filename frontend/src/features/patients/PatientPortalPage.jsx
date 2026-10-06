@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import {
@@ -21,7 +21,8 @@ import Modal from '../../components/ui/Modal';
 import { FullPageSpinner } from '../../components/ui/Spinner';
 import { appointmentApi, billingApi, patientApi, prescriptionApi, doctorApi, clinicApi, paymentApi, providersApi, labApi, pharmacyApi } from '../../lib/api';
 import aiApi from '../../api/aiApi';
-import PatientDocumentOcrPanel from './PatientDocumentOcrPanel';
+import PatientMedicalDocuments from './PortalComponents/PatientMedicalDocuments';
+import { formatDoctorName, getTimeBasedGreeting, normalizeCategory } from '../../utils/patientFormatters';
 import MyProfile from './PortalComponents/MyProfile';
 import MedicalHistory from './PortalComponents/MedicalHistory';
 import Appointments from './PortalComponents/Appointments';
@@ -204,7 +205,24 @@ const PatientPortalPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedLabId = searchParams.get('labId') || '';
   const selectedPharmacyId = searchParams.get('pharmacyId') || '';
-  const [activeTab, setActiveTab] = useState(() => searchParams.get('tab') || 'dashboard');
+  
+  const resolveValidTab = (rawTab) => {
+    if (!rawTab) return 'dashboard';
+    const t = rawTab.toLowerCase().trim();
+    if (t === 'consultations') return 'history';
+    if (t === 'lab-bookings' || t === 'lab-tests') return 'labs';
+    if (t === 'medicines') return 'pharmacy';
+    const valid = [
+      'dashboard', 'clinics', 'appointments', 'history', 'prescriptions', 'labs',
+      'pharmacy', 'documents', 'billing', 'records', 'profile', 'notifications',
+      'lab-prescriptions', 'lab-checkout', 'lab-orders', 'lab-reports'
+    ];
+    return valid.includes(t) ? t : 'dashboard';
+  };
+
+  const [activeTab, setActiveTab] = useState(() => resolveValidTab(searchParams.get('tab')));
+  const [patientLabOrders, setPatientLabOrders] = useState([]);
+  const [showOutstandingDueModal, setShowOutstandingDueModal] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [clinics, setClinics] = useState([]);
   const [clinicDoctors, setClinicDoctors] = useState([]);
@@ -470,19 +488,21 @@ const PatientPortalPage = () => {
       });
       setPaymentMethods(patient.paymentMethods || []);
 
-      const [apptRes, rxRes, invRes, notifRes, clinicsRes, paymentHistoryRes] = await Promise.all([
+      const [apptRes, rxRes, invRes, notifRes, clinicsRes, paymentHistoryRes, labOrdersRes] = await Promise.all([
         appointmentApi.getAppointments({ limit: 100 }),
         prescriptionApi.getByPatient(patient._id, { status: 'finalized', limit: 100 }),
         billingApi.getPatientInvoices(patient._id, { limit: 100 }),
         patientApi.notifications(patient._id).catch(() => ({ data: { notificationLogs: [] } })),
         patientApi.getMyClinics().catch(() => ({ data: { clinics: [] } })),
-        paymentApi.getHistory(patient._id).catch(() => ({ data: { payments: [] } }))
+        paymentApi.getHistory(patient._id).catch(() => ({ data: { payments: [] } })),
+        labApi.listOrders({ patientId: patient._id, limit: 100 }).catch(() => ({ data: { orders: [] } }))
       ]);
 
       setAppointments(apptRes.data?.appointments || apptRes.appointments || []);
       setPrescriptions(rxRes.data?.prescriptions || rxRes.prescriptions || []);
       setInvoices(invRes.data?.invoices || invRes.invoices || []);
       setNotifications(notifRes.data?.notificationLogs || notifRes.notificationLogs || []);
+      setPatientLabOrders(labOrdersRes?.data?.orders || labOrdersRes?.data?.labOrders || labOrdersRes?.orders || []);
 
       const fetchedClinics = clinicsRes.data?.clinics || clinicsRes.clinics || [];
       setClinics(fetchedClinics);
@@ -516,8 +536,8 @@ const PatientPortalPage = () => {
 
   useEffect(() => {
     const tab = searchParams.get('tab');
-    if (tab) {
-      setActiveTab(tab);
+    if (tab !== null) {
+      setActiveTab(resolveValidTab(tab));
     }
     const clinicId = searchParams.get('clinicId');
     if (clinicId) {
@@ -887,8 +907,14 @@ const PatientPortalPage = () => {
   // Metrics counts
   const upcomingCount = filteredAppointments.filter(a => a.status === 'booked' || a.status === 'checked_in' || a.status === 'waiting').length;
   const completedCount = filteredAppointments.filter(a => a.status === 'completed').length;
-  const activeRxCount = filteredPrescriptions.length;
-  const pendingLabsCount = 1; // Simulated CBC/Vitamin D status
+  const activeRxCount = filteredPrescriptions.filter(p => 
+    (Array.isArray(p.medicines) && p.medicines.length > 0) || 
+    (Array.isArray(p.labs) && p.labs.length > 0) ||
+    (Array.isArray(p.items) && p.items.length > 0)
+  ).length;
+  const pendingLabsCount = (patientLabOrders || []).filter(o => 
+    ['pending', 'sample_collected', 'processing', 'in_progress', 'ordered'].includes(String(o.status || '').toLowerCase())
+  ).length;
   const outstandingBillsSum = filteredInvoices
     .filter(i => i.paymentStatus === 'unpaid')
     .reduce((sum, i) => sum + (i.dueAmount || i.totalAmount || 0), 0);
@@ -984,7 +1010,7 @@ const PatientPortalPage = () => {
             <div>
               <h3 className="text-xs font-black text-yellow-905 uppercase tracking-wider">Join Live Consultation Session</h3>
               <p className="text-xs text-yellow-900 font-extrabold mt-1">
-                Dr. {readyOnlineAppt.doctorId?.fullName || 'Physician'} is waiting for you in the online video room.
+                {formatDoctorName(readyOnlineAppt.doctorId?.fullName || 'Physician')} is waiting for you in the online video room.
               </p>
             </div>
           </div>
@@ -1015,17 +1041,17 @@ const PatientPortalPage = () => {
             <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-600 to-blue-800 p-6 md:p-8 text-white flex justify-between items-center shadow-lg shadow-blue-905/10">
               <div className="space-y-4 max-w-md relative z-10">
                 <p className="text-xs font-black uppercase tracking-wider text-blue-200">Patient Dashboard</p>
-                <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight">Good Morning, {profile?.firstName || 'Kaishav'} 👋</h2>
-                <p className="text-xs text-blue-100/80 leading-relaxed">Welcome back to {activeClinic?.name || 'Garg Clinic'}. Select clinic in dropdown or clinics sidebar tab to view medical logs.</p>
+                <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight">{getTimeBasedGreeting()}, {profile?.firstName || user?.name || 'Patient'} 👋</h2>
+                <p className="text-xs text-blue-100/80 leading-relaxed">Welcome back{activeClinic?.name ? ` to ${activeClinic.name}` : ''}. Select clinic in dropdown or clinics sidebar tab to view medical logs.</p>
 
                 <div className="flex flex-wrap gap-4 pt-2">
                   <div className="flex items-center gap-2 bg-white/10 px-3.5 py-2 rounded-xl backdrop-blur-sm">
                     <User size={13} className="text-blue-200" />
-                    <span className="text-[10px] font-bold">ID: {profile?.patientId || 'PT123456'}</span>
+                    <span className="text-[10px] font-bold">ID: {profile?.patientId || profile?.uhid || user?.patientId || 'Not assigned'}</span>
                   </div>
                   <div className="flex items-center gap-2 bg-white/10 px-3.5 py-2 rounded-xl backdrop-blur-sm">
                     <Calendar size={13} className="text-blue-200" />
-                    <span className="text-[10px] font-bold">Since: 12 Jan 2024</span>
+                    <span className="text-[10px] font-bold">Since: {profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Recent'}</span>
                   </div>
                 </div>
               </div>
@@ -1042,7 +1068,7 @@ const PatientPortalPage = () => {
                   <rect x="45" y="35" width="10" height="10" rx="1" fill="#93c5fd" />
                   <rect x="60" y="35" width="10" height="10" rx="1" fill="#93c5fd" />
                   <rect x="30" y="50" width="10" height="10" rx="1" fill="#93c5fd" />
-                  <rect x="45" y="50" width="10" height="10" rx="1" fill="#3b82f6" />
+                  <rect x="45" y="50" width="10" height="10" rx="3" fill="#3b82f6" />
                   <rect x="60" y="50" width="10" height="10" rx="1" fill="#93c5fd" />
                 </svg>
               </div>
@@ -1061,7 +1087,13 @@ const PatientPortalPage = () => {
                 ].map((act, i) => (
                   <button
                     key={i}
-                    onClick={() => setActiveTab(act.tab)}
+                    onClick={() => {
+                      if (act.tab === 'appointments' && outstandingBillsSum > 0) {
+                        setShowOutstandingDueModal(true);
+                        return;
+                      }
+                      setActiveTab(act.tab);
+                    }}
                     className="bg-white border border-slate-200 hover:border-blue-400 hover:shadow-sm p-4 rounded-2xl flex flex-col items-center justify-center gap-3 text-center transition"
                   >
                     <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center border border-slate-100">
@@ -1113,7 +1145,7 @@ const PatientPortalPage = () => {
                   <div key={appt._id} className="relative pl-12 flex flex-col sm:flex-row justify-between sm:items-center gap-4 bg-slate-55/50 hover:bg-slate-50 p-4 rounded-2xl border border-slate-100 transition">
                     <div className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full border-4 border-white bg-blue-500" />
                     <div>
-                      <p className="text-xs font-black text-slate-900">Dr. {appt.doctorId?.fullName || 'Doctor'}</p>
+                      <p className="text-xs font-black text-slate-900">{formatDoctorName(appt.doctorId?.fullName || 'Doctor')}</p>
                       <p className="text-[10px] text-slate-400 font-medium mt-0.5">{appt.doctorId?.specialization || 'General Physician'} • {appt.appointmentDate ? new Date(appt.appointmentDate).toLocaleDateString() : 'Date'}</p>
                       <p className="text-[11px] text-slate-505 font-semibold mt-1">Diagnosis: {appt.reasonForVisit || 'General Health Check'}</p>
                     </div>
@@ -3387,7 +3419,7 @@ const PatientPortalPage = () => {
 
                 <div className="text-xs text-slate-500 space-y-1.5 bg-slate-50 p-3 rounded-2xl border border-slate-100">
                   <p><span className="font-bold text-slate-700">Address:</span> {[clinic.address?.line1, clinic.address?.city, clinic.address?.state].filter(Boolean).join(', ')}</p>
-                  <p><span className="font-bold text-slate-700">Membership Date:</span> 12 Jan 2024</p>
+                  <p><span className="font-bold text-slate-700">Membership Date:</span> {profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Recent'}</p>
                 </div>
 
                 <div className="flex gap-2">
@@ -3403,6 +3435,10 @@ const PatientPortalPage = () => {
                   <button
                     onClick={() => {
                       setSelectedClinicId(clinic._id);
+                      if (outstandingBillsSum > 0) {
+                        setShowOutstandingDueModal(true);
+                        return;
+                      }
                       setActiveTab('appointments');
                     }}
                     className="flex-1 py-2 text-center text-xs font-bold border border-slate-200 hover:bg-slate-50 rounded-xl transition"
@@ -3449,31 +3485,43 @@ const PatientPortalPage = () => {
             <p className="text-xs text-slate-500 mt-0.5">Timeline of all completed medical consultations at {activeClinic?.name || 'Clinic'}.</p>
           </div>
 
-          <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-6 relative before:absolute before:left-8 before:top-4 before:bottom-4 before:w-0.5 before:bg-slate-100">
-            {filteredAppointments.filter(a => a.status === 'completed').map((appt) => (
-              <div key={appt._id} className="relative pl-12 space-y-3">
-                <div className="absolute left-6 top-1.5 -translate-x-1/2 w-4.5 h-4.5 rounded-full border-4 border-white bg-blue-600 shadow-sm" />
-                <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                  <div>
-                    <p className="text-xs font-black text-slate-900">Dr. {appt.doctorId?.fullName || 'Physician'}</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">{appt.appointmentDate ? new Date(appt.appointmentDate).toLocaleDateString() : 'Date'} • {appt.startTime}</p>
-                    <div className="mt-2 text-xs text-slate-650 font-semibold space-y-1">
-                      <p><span className="text-slate-400">Chief Complaint:</span> {appt.reasonForVisit || 'N/A'}</p>
-                      <p><span className="text-slate-400">Diagnosis Summary:</span> Checked & completed</p>
+          {filteredAppointments.filter(a => a.status === 'completed').length === 0 ? (
+            <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center mx-auto text-slate-400">
+                <ClipboardList size={24} />
+              </div>
+              <h3 className="text-sm font-bold text-slate-700">No consultations yet.</h3>
+              <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                When you complete appointments with your doctors, your consultation summaries and diagnoses will appear here.
+              </p>
+            </div>
+          ) : (
+            <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-6 relative before:absolute before:left-8 before:top-4 before:bottom-4 before:w-0.5 before:bg-slate-100">
+              {filteredAppointments.filter(a => a.status === 'completed').map((appt) => (
+                <div key={appt._id} className="relative pl-12 space-y-3">
+                  <div className="absolute left-6 top-1.5 -translate-x-1/2 w-4.5 h-4.5 rounded-full border-4 border-white bg-blue-600 shadow-sm" />
+                  <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <div>
+                      <p className="text-xs font-black text-slate-900">{formatDoctorName(appt.doctorId?.fullName || 'Physician')}</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">{appt.appointmentDate ? new Date(appt.appointmentDate).toLocaleDateString() : 'Date'} • {appt.startTime || 'Scheduled'}</p>
+                      <div className="mt-2 text-xs text-slate-650 font-semibold space-y-1">
+                        <p><span className="text-slate-400">Chief Complaint:</span> {appt.reasonForVisit || 'General Health Check'}</p>
+                        <p><span className="text-slate-400">Diagnosis Summary:</span> Checked & completed</p>
+                      </div>
+                    </div>
+                    <div>
+                      <button
+                        onClick={() => setSelectedApptDetails(appt)}
+                        className="px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-bold transition"
+                      >
+                        View Details
+                      </button>
                     </div>
                   </div>
-                  <div>
-                    <button
-                      onClick={() => setSelectedApptDetails(appt)}
-                      className="px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-bold transition"
-                    >
-                      View Details
-                    </button>
-                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -3505,7 +3553,7 @@ const PatientPortalPage = () => {
           </button>
 
           <PatientLabReportsView
-            selectedClinic={clinics.find(c => String(c._id) === String(selectedClinicId)) || { _id: selectedClinicId, name: activeClinic?.name || "Ram's Dental Clinic" }}
+            selectedClinic={clinics.find(c => String(c._id) === String(selectedClinicId)) || { _id: selectedClinicId, name: activeClinic?.name || 'Clinic' }}
             selectedLab={activeLab}
             patient={profile || user}
             fromTab="labs"
@@ -3528,44 +3576,11 @@ const PatientPortalPage = () => {
             <p className="text-xs text-slate-500 mt-0.5">Upload and store prescriptions, MRI, CT scans, and lab results.</p>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-3xl p-6 space-y-6">
-            <PatientDocumentOcrPanel onApply={() => loadDocuments()} />
-
-            <div className="pt-4 border-t border-slate-100">
-              <SectionLabel>Your Files</SectionLabel>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                {documents.map((doc) => (
-                  <div key={doc._id} className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between gap-4">
-                    <div className="min-w-0">
-                      <p className="text-xs font-bold text-slate-900 truncate">{doc.file_name}</p>
-                      <p className="text-[10px] text-slate-400 mt-0.5">{doc.document_type || 'General Document'} • {doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleDateString() : 'N/A'}</p>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => alert('Download document')}
-                        className="w-8 h-8 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:text-blue-600 transition"
-                      >
-                        <FileText size={13} />
-                      </button>
-                      <button
-                        onClick={async () => {
-                          if (!window.confirm('Delete document?')) return;
-                          await patientApi.deleteDocument(profile._id, doc._id);
-                          loadDocuments();
-                        }}
-                        className="w-8 h-8 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:text-rose-600 transition"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-                {documents.length === 0 && (
-                  <p className="text-xs text-slate-400 italic">No custom uploaded files found.</p>
-                )}
-              </div>
-            </div>
-          </div>
+          <PatientMedicalDocuments
+            patientId={profile?._id || user?._id}
+            documents={documents}
+            onDocumentsChanged={() => loadDocuments()}
+          />
         </div>
       )}
 
@@ -3723,7 +3738,7 @@ const PatientPortalPage = () => {
               <span className="text-lg">🩺</span>
             </div>
             <div className="flex-1 min-w-0">
-              <h4 className="text-xs font-black text-slate-100">Dr. {activeCallInvite.doctorName || 'Shyam'} is calling you</h4>
+              <h4 className="text-xs font-black text-slate-100">{formatDoctorName(activeCallInvite.doctorName || 'Doctor')} is calling you</h4>
               <p className="text-[10px] text-slate-400 mt-0.5">Online consultation is ready.</p>
               <div className="mt-2.5 flex items-center justify-between gap-3">
                 <button
@@ -3746,6 +3761,43 @@ const PatientPortalPage = () => {
           </div>
         </div>
       )}
+
+      {/* Outstanding Balance Dues Modal (DEF-15) */}
+      <Modal open={showOutstandingDueModal} onClose={() => setShowOutstandingDueModal(false)} title="Outstanding Consultation Balance" size="sm">
+        <div className="p-5 space-y-4 font-sans">
+          <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-3">
+            <AlertTriangle size={20} className="text-amber-600 shrink-0 mt-0.5" />
+            <div className="text-xs text-amber-900 font-medium space-y-1.5">
+              <p className="font-black text-xs uppercase tracking-wide text-amber-950">Payment Required</p>
+              <p className="text-slate-700">
+                You have an outstanding consultation balance of <strong>₹{outstandingBillsSum}</strong>.
+              </p>
+              <p className="text-slate-500">
+                Please clear the outstanding payment before booking another appointment.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center justify-end gap-2.5 pt-2">
+            <button
+              type="button"
+              onClick={() => setShowOutstandingDueModal(false)}
+              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition"
+            >
+              Back
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowOutstandingDueModal(false);
+                setActiveTab('billing');
+              }}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition shadow-sm"
+            >
+              View Bill
+            </button>
+          </div>
+        </div>
+      </Modal>
 
     </div>
   );

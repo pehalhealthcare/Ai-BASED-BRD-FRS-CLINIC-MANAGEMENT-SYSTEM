@@ -249,7 +249,8 @@ const createDoctor = async ({ requester, payload, requestedClinicId = null, req 
   const { logger } = require('../../common/utils/logger');
 
   const fullName = payload.fullName || `${payload.firstName || 'Doctor'} ${payload.lastName || ''}`.trim();
-  const existingUser = await User.findOne({ email: payload.email.toLowerCase() });
+  const doctorEmail = (payload.email?.trim() || `doctor.${payload.phone || Date.now()}@clinic.local`).toLowerCase();
+  const existingUser = await User.findOne({ email: doctorEmail });
   let newUser;
 
   if (existingUser) {
@@ -266,11 +267,11 @@ const createDoctor = async ({ requester, payload, requestedClinicId = null, req 
       await newUser.save();
     }
   } else {
-    const hashedPassword = await bcrypt.hash(payload.phone, 10);
+    const hashedPassword = await bcrypt.hash(payload.phone || 'DoctorPass123!', 10);
     newUser = await User.create({
       name: fullName,
-      email: payload.email.toLowerCase(),
-      phone: payload.phone,
+      email: doctorEmail,
+      phone: payload.phone || '',
       password: hashedPassword,
       role: ROLES.DOCTOR,
       clinicId,
@@ -309,7 +310,7 @@ const createDoctor = async ({ requester, payload, requestedClinicId = null, req 
     clinicId,
     userId: newUser._id,
     assignedClinics,
-    email: payload.email.toLowerCase(),
+    email: doctorEmail,
     phone: payload.phone,
     approvalStatus: 'pending_profile',
     isActive: false,
@@ -411,7 +412,7 @@ const listDoctors = async ({ requester, query }) => {
     search: query.search,
     specialization: query.specialization,
     isActive: query.isActive,
-    approvalStatus: query.approvalStatus || (requester.role === ROLES.ADMIN || requester.role === ROLES.SUPER_ADMIN ? 'all' : 'approved')
+    approvalStatus: query.approvalStatus || (requester.role === ROLES.ADMIN || requester.role === ROLES.SUPER_ADMIN || requester.role === ROLES.RECEPTIONIST ? 'all' : 'approved')
   });
   const { doctors, total } = await doctorRepository.listDoctors({ filter, page, limit });
 
@@ -579,11 +580,11 @@ const updateDoctorAvailability = async ({ requester, doctorId, availability, req
     throw new AppError('At least one weekly slot must be marked as available.', HTTP_STATUS.BAD_REQUEST);
   }
 
-  await validateAvailabilitySlots(doctor, availability);
-
+  const normalized = normalizeAvailability(availability);
+  doctor.availability = normalized;
   doctor.pendingAssignment = {
     ...(doctor.pendingAssignment || {}),
-    availability: normalizeAvailability(availability)
+    availability: normalized
   };
   doctor.assignmentStatus = 'pending_acceptance';
   doctor.updatedBy = requester._id;

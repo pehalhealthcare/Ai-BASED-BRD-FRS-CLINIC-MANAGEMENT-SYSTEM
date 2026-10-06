@@ -1,13 +1,16 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getInvoiceById } from './billing.api';
 import { paymentApi, patientApi, billingApi } from '../../lib/api';
+import useAuth from '../../hooks/useAuth';
+import { ROLES } from '../../constants/roles';
 import LoadingState from '../../components/common/LoadingState';
 import ErrorState from '../../components/common/ErrorState';
 
 const PaymentCheckoutPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [invoice, setInvoice] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -351,7 +354,10 @@ const PaymentCheckoutPage = () => {
               {processing ? 'Processing...' : `Pay ₹${finalPayable}`}
             </button>
             <div className="text-center">
-              <Link to={`/billing/${id}`} className="text-xs font-semibold text-stone-500 hover:text-stone-800">
+              <Link
+                to={user?.role === ROLES.PATIENT ? '/portal?tab=billing' : `/billing/${id}`}
+                className="text-xs font-semibold text-stone-500 hover:text-stone-800"
+              >
                 Cancel & Go Back
               </Link>
             </div>

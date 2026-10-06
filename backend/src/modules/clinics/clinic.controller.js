@@ -85,11 +85,31 @@ const createClinic = asyncHandler(async (req, res) => {
   return sendSuccess(res, 'Clinic created successfully', { clinic, user }, 201);
 });
 
+const Appointment = require('../appointments/appointment.model');
+
 const listClinics = asyncHandler(async (req, res) => {
   // Super Admins see all clinics (including pending/inactive); other roles only see active ones
   const filter = req.user?.role === ROLES.SUPER_ADMIN ? {} : { isActive: true };
   if (req.user?.role === ROLES.ADMIN && req.user?.organizationId) {
     filter.organizationId = req.user.organizationId;
+  }
+  if (req.user?.role === ROLES.PATIENT) {
+    const patientRecord = req.user.patientId ? await Patient.findById(req.user.patientId) : null;
+    const clinicIds = new Set();
+    if (req.user.clinicId) clinicIds.add(req.user.clinicId.toString());
+    if (patientRecord?.clinicId) clinicIds.add(patientRecord.clinicId.toString());
+    if (req.user.patientId) {
+      const apptClinics = await Appointment.find({ patientId: req.user.patientId }).distinct('clinicId');
+      apptClinics.forEach((id) => id && clinicIds.add(id.toString()));
+    }
+    const clinicIdArray = Array.from(clinicIds).filter(Boolean);
+    if (clinicIdArray.length > 0) {
+      filter._id = { $in: clinicIdArray };
+    } else if (req.user.clinicId) {
+      filter._id = req.user.clinicId;
+    } else {
+      filter._id = { $in: [] };
+    }
   }
   const clinics = await Clinic.find(filter)
     .populate('parentClinicId', 'name code')

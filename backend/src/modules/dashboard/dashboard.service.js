@@ -1391,8 +1391,12 @@ const getSuperAdminOverview = async ({ requester } = {}) => {
   }
 
   const filter = {};
-  if (requester?.role === ROLES.ADMIN && requester?.organizationId) {
-    filter.organizationId = requester.organizationId;
+  if (requester?.role === ROLES.ADMIN) {
+    if (requester?.organizationId) {
+      filter.organizationId = requester.organizationId;
+    } else if (requester?.clinicId) {
+      filter._id = requester.clinicId;
+    }
   }
 
   const [allClinics, pendingPaymentsList, supportTickets] = await Promise.all([

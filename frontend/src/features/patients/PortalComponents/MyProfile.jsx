@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import {
   Camera, MapPin, Phone, CheckCircle2, User, Mail, Shield, Heart,
   Lock, ChevronRight, Download, Bell, FileText, Activity, Edit3, ShieldAlert,
@@ -25,16 +25,29 @@ export default function MyProfile({
 }) {
   const [isEditing, setIsEditing] = useState(false);
 
-  // Helper variables for fallback display
-  const username = profile?.fullName || `${profileForm.firstName} ${profileForm.lastName}`.trim() || 'Raj Sharma';
-  const age = profile?.age || 22;
-  const gender = profile?.gender ? profile.gender.charAt(0).toUpperCase() + profile.gender.slice(1) : 'Male';
-  const patientId = profile?.patientId || 'PAT-20260622-0001';
-  const bloodGroup = profile?.bloodGroup || 'O+';
-  
+  // Helper variables for clean display from real patient record (DEF-05, DEF-39)
+  const username =
+    profile?.fullName ||
+    `${profileForm.firstName || ''} ${profileForm.lastName || ''}`.trim() ||
+    'Not provided';
+  const age = profile?.age
+    ? `${profile.age} yrs`
+    : profile?.dateOfBirth
+    ? `${new Date().getFullYear() - new Date(profile.dateOfBirth).getFullYear()} yrs`
+    : 'Not provided';
+  const gender = profile?.gender
+    ? profile.gender.charAt(0).toUpperCase() + profile.gender.slice(1)
+    : 'Not provided';
+  const patientId = profile?.patientId || profile?.uhid || 'Not available';
+  const bloodGroup = profile?.bloodGroup || 'Not provided';
+
   const formattedDob = profile?.dateOfBirth
-    ? new Date(profile.dateOfBirth).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-    : 'June 22, 2003';
+    ? new Date(profile.dateOfBirth).toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric'
+      })
+    : 'Not provided';
 
   const addressString = [
     profile?.address?.line1 || profileForm.address?.line1,
@@ -42,16 +55,29 @@ export default function MyProfile({
     profile?.address?.city || profileForm.address?.city,
     profile?.address?.state || profileForm.address?.state,
     profile?.address?.pincode || profileForm.address?.pincode,
-    profile?.address?.country || profileForm.address?.country || 'India'
-  ].filter(Boolean).join(', ');
+    profile?.address?.country || profileForm.address?.country
+  ]
+    .filter(Boolean)
+    .join(', ');
 
-  const emergencyName = profile?.emergencyContact?.name || profileForm.emergencyContact?.name || 'Sunita Sharma';
-  const emergencyRelation = profile?.emergencyContact?.relation || profileForm.emergencyContact?.relation || 'Mother';
-  const emergencyPhone = profile?.emergencyContact?.phone || profileForm.emergencyContact?.phone || '+91 98765 43211';
+  const emergencyName =
+    profile?.emergencyContact?.name || profileForm.emergencyContact?.name || 'Not provided';
+  const emergencyRelation =
+    profile?.emergencyContact?.relation || profileForm.emergencyContact?.relation || 'Not provided';
+  const emergencyPhone =
+    profile?.emergencyContact?.phone || profileForm.emergencyContact?.phone || 'Not provided';
 
-  const insuranceProvider = profile?.insuranceDetails?.provider || 'Star Health Insurance';
-  const insurancePolicy = profile?.insuranceDetails?.policyNumber || 'SHI12345678901';
-  const insuranceValidTill = 'Dec 31, 2026';
+  const insuranceProvider =
+    profile?.insuranceDetails?.provider || profileForm.insuranceDetails?.provider || 'Not provided';
+  const insurancePolicy =
+    profile?.insuranceDetails?.policyNumber || profileForm.insuranceDetails?.policyNumber || 'Not provided';
+  const insuranceValidTill = profile?.insuranceDetails?.validTill
+    ? new Date(profile.insuranceDetails.validTill).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      })
+    : 'Not provided';
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -183,10 +209,44 @@ export default function MyProfile({
     );
   }
 
-  // Dashboard Read-Only view matching the design in the image
+  // Dashboard Read-Only view
   return (
     <div className="space-y-6 max-w-7xl mx-auto animate-fade-in">
       <div className="rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-navy-800 p-6 flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="flex items-center gap-4">
+          <Avatar
+            src={profile?.profileImage}
+            name={username}
+            size="xl"
+          />
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white">{username}</h2>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20">
+                UHID: {patientId}
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-2 flex-wrap">
+              <span>{gender}</span>
+              <span>•</span>
+              <span>{age}</span>
+              <span>•</span>
+              <span>Blood: {bloodGroup}</span>
+              <span>•</span>
+              <span>
+                Member Since:{' '}
+                {profile?.createdAt
+                  ? new Date(profile.createdAt).toLocaleDateString('en-US', {
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric'
+                    })
+                  : 'Not provided'}
+              </span>
+            </p>
+          </div>
+        </div>
+
         <div className="flex gap-4">
           <div className="px-5 py-3 rounded-2xl bg-slate-50 dark:bg-navy-900/60 border border-slate-200 dark:border-white/10 min-w-[120px]">
             <div className="flex items-center gap-2 text-blue-500 dark:text-blue-400 mb-1">
@@ -230,10 +290,10 @@ export default function MyProfile({
                 { label: 'Date of Birth', value: formattedDob },
                 { label: 'Gender', value: gender },
                 { label: 'Blood Group', value: bloodGroup },
-                { label: 'Nationality', value: profile?.nationality || 'Indian' },
-                { label: 'Marital Status', value: profile?.maritalStatus || 'Single' },
-                { label: 'Occupation', value: profile?.occupation || 'Student' },
-                { label: 'Language', value: profile?.language || 'English, Hindi' }
+                { label: 'Nationality', value: profile?.nationality || 'Not provided' },
+                { label: 'Marital Status', value: profile?.maritalStatus || 'Not provided' },
+                { label: 'Occupation', value: profile?.occupation || 'Not provided' },
+                { label: 'Language', value: profile?.language || 'Not provided' }
               ].map(item => (
                 <div key={item.label}>
                   <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">{item.label}</p>
@@ -255,17 +315,17 @@ export default function MyProfile({
               <div>
                 <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Phone Number</p>
                 <div className="flex items-center gap-2 mt-1.5">
-                  <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">{profile?.phone || profileForm.phone || '+91 98765 43210'}</p>
+                  <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">{profile?.phone || profileForm.phone || 'Not provided'}</p>
                   <span className="px-1.5 py-0.5 rounded text-[8px] font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/10">Primary</span>
                 </div>
               </div>
               <div>
                 <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Email Address</p>
-                <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 mt-1.5">{profile?.email || profileForm.email || 'raj.sharma@example.com'}</p>
+                <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 mt-1.5">{profile?.email || profileForm.email || 'Not provided'}</p>
               </div>
               <div>
                 <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Address</p>
-                <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 mt-1.5 leading-relaxed">{addressString || '123, Green Avenue, Sector 14, Gurugram, Haryana - 122001, India'}</p>
+                <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 mt-1.5 leading-relaxed">{addressString || 'Not provided'}</p>
               </div>
             </div>
           </div>
@@ -351,9 +411,9 @@ export default function MyProfile({
             <div className="grid grid-cols-2 gap-4">
               {[
                 { label: 'Blood Group', value: bloodGroup, badge: null },
-                { label: 'Height', value: profile?.height || '175 cm', badge: null },
-                { label: 'Weight', value: profile?.weight || '68 kg', badge: null },
-                { label: 'Body Mass Index', value: profile?.bmi || '22.2', badge: 'Normal' }
+                { label: 'Height', value: profile?.height ? `${profile.height} cm` : 'Not provided', badge: null },
+                { label: 'Weight', value: profile?.weight ? `${profile.weight} kg` : 'Not provided', badge: null },
+                { label: 'Body Mass Index', value: profile?.bmi ? String(profile.bmi) : 'Not provided', badge: null }
               ].map(box => (
                 <div key={box.label} className="p-3.5 rounded-xl bg-slate-50 dark:bg-navy-900/50 border border-slate-100 dark:border-white/[0.04]">
                   <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">{box.label}</p>

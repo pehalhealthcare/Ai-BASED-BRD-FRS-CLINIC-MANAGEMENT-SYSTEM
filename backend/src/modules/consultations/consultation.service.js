@@ -342,14 +342,13 @@ const createConsultation = async ({ requester, payload, requestedClinicId = null
     doctorId
   });
 
-  // Block starting consultation if appointment is not checked in
+  // Block starting consultation if appointment is in invalid terminal state (e.g. cancelled)
   if (
-    appointment.appointmentType !== 'teleconsultation' &&
-    appointment.appointmentType !== 'emergency' &&
-    appointment.status !== APPOINTMENT_STATUSES.CHECKED_IN &&
-    appointment.status !== APPOINTMENT_STATUSES.IN_CONSULTATION
+    appointment.status === APPOINTMENT_STATUSES.CANCELLED ||
+    appointment.status === APPOINTMENT_STATUSES.NO_SHOW ||
+    appointment.status === APPOINTMENT_STATUSES.COMPLETED
   ) {
-    throw new AppError('Consultation cannot be started. Patient has not checked in at reception.', HTTP_STATUS.BAD_REQUEST);
+    throw new AppError(`Consultation cannot be started for an appointment that is ${appointment.status}.`, HTTP_STATUS.BAD_REQUEST);
   }
 
   await assertDoctorCanMutate({

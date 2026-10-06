@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import {
   Bell, Building2, Calendar, CalendarPlus, CheckCircle2, ChevronLeft,
   ChevronRight, Clock, MapPin, RotateCcw, Search, Shield, Star,
@@ -9,6 +9,7 @@ import Avatar from '../../../components/ui/Avatar';
 import RescheduleModal from './RescheduleModal';
 import CancelConfirmDialog from './CancelConfirmDialog';
 import AppointmentDetailsModal from './AppointmentDetailsModal';
+import { formatDoctorName } from '../../../utils/patientFormatters';
 
 export default function Appointments({
   appointments,
@@ -34,6 +35,45 @@ export default function Appointments({
   const [startVal, setStartVal] = useState('');
   const [endVal, setEndVal] = useState('');
   const [pickerOpen, setPickerOpen] = useState(false);
+
+  const handleAddToCalendar = (apt) => {
+    const targetApt = apt || (appointments && appointments.find((a) => ['booked', 'confirmed', 'scheduled'].includes(a.status?.toLowerCase())));
+    if (!targetApt || !targetApt.appointmentDate) {
+      alert('Calendar event is not available for this appointment.');
+      return;
+    }
+    const dateStr =
+      typeof targetApt.appointmentDate === 'string'
+        ? targetApt.appointmentDate.split('T')[0]
+        : new Date(targetApt.appointmentDate).toISOString().split('T')[0];
+    const time = targetApt.startTime || '10:00';
+    const docName = formatDoctorName(targetApt.doctorId?.fullName);
+    const title = `Consultation with ${docName}`;
+    const description = `Doctor Consultation for ${targetApt.reasonForVisit || 'Medical Checkup'}`;
+
+    const icsData = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//AI-CMS//Patient Portal//EN',
+      'BEGIN:VEVENT',
+      `SUMMARY:${title}`,
+      `DESCRIPTION:${description}`,
+      `DTSTART:${dateStr.replace(/-/g, '')}T${time.replace(':', '')}00Z`,
+      `DTEND:${dateStr.replace(/-/g, '')}T${time.replace(':', '')}00Z`,
+      'STATUS:CONFIRMED',
+      'END:VEVENT',
+      'END:VCALENDAR'
+    ].join('\r\n');
+
+    const blob = new Blob([icsData], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `appointment-${targetApt._id || 'schedule'}.ics`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const handleRequestRefund = async (appointmentId) => {
     try {
@@ -210,8 +250,8 @@ export default function Appointments({
               <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 mt-1">Cancelled</span>
             </div>
             <button
-              onClick={() => alert('Integration to Google / Apple Calendar coming soon!')}
-              className="flex flex-col items-center justify-center p-3 rounded-xl bg-slate-50 dark:bg-navy-900/60 hover:bg-slate-100 dark:hover:bg-white/5 border border-slate-200 dark:border-white/10 text-center min-w-[90px] transition"
+              onClick={() => handleAddToCalendar(appointments[0])}
+              className="flex flex-col items-center justify-center p-3 rounded-xl bg-slate-50 dark:bg-navy-900/60 hover:bg-slate-100 dark:hover:bg-white/5 border border-slate-200 dark:border-white/10 text-center min-w-[90px] transition cursor-pointer"
             >
               <CalendarPlus size={16} className="text-blue-500 dark:text-blue-400" />
               <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 mt-1">Add to Calendar</span>
@@ -252,12 +292,15 @@ export default function Appointments({
             <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
               <button
                 onClick={() => setPickerOpen(!pickerOpen)}
-                className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-navy-900/60 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-white/5 transition ${pickerOpen ? 'border-blue-500 text-blue-550' : 'text-slate-600 dark:text-slate-300'}`}
+                className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-navy-900/60 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-white/5 transition ${pickerOpen ? 'border-blue-500 text-blue-500' : 'text-slate-600 dark:text-slate-300'}`}
               >
                 <Calendar size={13} className="text-slate-400" />
                 Date Range
               </button>
-              <button className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-navy-900/60 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 transition">
+              <button
+                onClick={() => setPickerOpen(!pickerOpen)}
+                className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-navy-900/60 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 transition"
+              >
                 <Filter size={13} className="text-slate-400" />
                 Filter
               </button>
@@ -269,7 +312,7 @@ export default function Appointments({
           </div>
 
           {pickerOpen && (
-            <div className="px-4 pb-4 pt-1 border-t border-slate-100 dark:border-white/[0.04] bg-slate-50/50 dark:bg-navy-900/10 flex flex-col sm:flex-row items-center gap-3">
+            <div className="px-4 pb-4 pt-1 border-t border-slate-100 dark:border-white/[0.04] bg-slate-50/50 dark:bg-navy-900/10 flex flex-col sm:flex-row items-center gap-3 flex-wrap">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold text-slate-500 dark:text-slate-400">From</span>
                 <input
@@ -288,6 +331,11 @@ export default function Appointments({
                   className="rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-navy-900/60 text-xs text-slate-700 dark:text-slate-200 px-3 py-2 outline-none focus:border-blue-400"
                 />
               </div>
+              {startVal && endVal && startVal > endVal && (
+                <p className="text-xs font-bold text-rose-500 w-full animate-shake">
+                  End date must be on or after start date.
+                </p>
+              )}
               <button
                 onClick={() => {
                   setStartVal('');
@@ -448,7 +496,9 @@ export default function Appointments({
                         )}
 
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <h4 className="text-sm font-bold text-slate-900 dark:text-white">Dr. {apt.doctorId?.fullName || 'Unknown Doctor'}</h4>
+                          <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                            {formatDoctorName(apt.doctorId?.fullName)}
+                          </h4>
                           <CheckCircle2 size={13} className="text-blue-500 shrink-0" />
                         </div>
 
@@ -628,14 +678,9 @@ export default function Appointments({
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              const event = {
-                                title: `Appt with Dr. ${apt.doctorId?.fullName || 'Doctor'}`,
-                                date: apt.appointmentDate,
-                                time: timeString
-                              };
-                              alert(`Adding to calendar:\n${event.title}\nDate: ${event.date}\nTime: ${event.time}`);
+                              handleAddToCalendar(apt);
                             }}
-                            className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 text-slate-700 dark:text-slate-300 transition"
+                            className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 text-slate-700 dark:text-slate-300 transition cursor-pointer"
                           >
                             <Calendar size={12} />
                             Add to Calendar
@@ -653,7 +698,11 @@ export default function Appointments({
                 </div>
                 <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">No appointments found</h3>
                 <p className="text-xs text-slate-400 text-center max-w-xs">
-                  {apptFilterTab === 'upcoming' ? "You don't have any upcoming appointments." : `No ${apptFilterTab} appointments found.`}
+                  {apptFilterTab === 'upcoming'
+                    ? "You don't have any upcoming appointments."
+                    : apptFilterTab === 'all'
+                    ? 'No appointments found.'
+                    : `No ${apptFilterTab} appointments found.`}
                 </p>
               </div>
             )}

@@ -150,7 +150,16 @@ const createLabOrderSchema = z.object({
       })
       .nullable()
       .optional(),
-    collectionDate: z.union([z.string(), z.date()]).optional(),
+    collectionDate: z.preprocess((val) => {
+      if (!val) return undefined;
+      return val;
+    }, z.union([z.string(), z.date()]).refine((val) => {
+      if (!val) return true;
+      const d = new Date(val);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      return d >= today;
+    }, { message: 'Collection date cannot be in the past' }).optional()),
     collectionSlot: z.string().optional(),
     homeCollectionFee: z.number().optional(),
     totalAmount: z.number().optional(),

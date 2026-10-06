@@ -29,11 +29,10 @@ const errorMiddleware = (error, _req, res, _next) => {
       field: issue.path.join('.') || undefined,
       message: issue.message
     }));
-    const message = issues.map((i) => (i.field ? `${i.field}: ${i.message}` : i.message)).join('; ') || RESPONSE_MESSAGES.VALIDATION_FAILED;
 
     return sendError(
       res,
-      message,
+      RESPONSE_MESSAGES.VALIDATION_FAILED,
       issues,
       HTTP_STATUS.BAD_REQUEST,
       includeStack(error)

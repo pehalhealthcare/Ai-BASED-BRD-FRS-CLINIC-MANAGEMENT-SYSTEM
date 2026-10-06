@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { 
+import {
   Headphones, MessageCircle, Mail, Users, Shield, Phone, MapPin,
   Building2, User, ArrowRight, ArrowLeft, Send, Check,
   AlertCircle, CheckCircle2, Heart, Flag, FileText, MessageSquare,
@@ -17,7 +17,7 @@ import petalBackground from '../assets/pehal_blue_petal_background.svg';
 
 export default function ContactPage() {
   const navigate = useNavigate();
-  
+
   // Form states
   const [formData, setFormData] = useState({
     firstName: '',
@@ -41,7 +41,7 @@ export default function ContactPage() {
     const newErrors = {};
     if (!formData.firstName.trim()) newErrors.firstName = 'First name is required';
     if (!formData.lastName.trim()) newErrors.lastName = 'Last name is required';
-    
+
     if (!formData.email.trim()) {
       newErrors.email = 'Email address is required';
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
@@ -134,28 +134,28 @@ export default function ContactPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#F5F9FF] via-[#EBF3FE] to-[#F0F6FF] text-slate-800 font-sans antialiased overflow-x-hidden selection:bg-[#0070F3] selection:text-white flex flex-col justify-between">
-      
+
       {/* 🧭 Top Navigation Header */}
       <header className="w-full max-w-[1600px] 2xl:max-w-[1880px] mx-auto px-4 sm:px-6 lg:px-10 2xl:px-16 py-3.5 sm:py-5 flex items-center justify-between relative z-30 shrink-0">
         <Link to="/" className="flex items-center gap-2 hover:opacity-90 transition-opacity min-w-0">
           <PehalLogo variant="primary" height={40} className="h-8 sm:h-9 2xl:h-11 w-auto shrink-0" />
           <div className="flex flex-col justify-center leading-none shrink-0">
-                <div className="flex items-center gap-1.5 whitespace-nowrap">
-                  <span className="text-base sm:text-xl lg:text-[22px] font-black tracking-tight text-slate-900 leading-none">
-                    AI-CMS
-                  </span>
-                  <span className="text-[8.5px] sm:text-[9.5px] lg:text-[10px] font-black uppercase tracking-wider bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-1.5 sm:px-2 py-0.5 rounded-full shadow-xs leading-none">
-                    PRO
-                  </span>
-                </div>
-                <span className="text-[10px] sm:text-[11px] font-medium text-slate-500 hidden md:inline-block tracking-tight mt-0.5 whitespace-nowrap">
-                  AI-CMS Enterprise
-                </span>
-              </div>
+            <div className="flex items-center gap-1.5 whitespace-nowrap">
+              <span className="text-base sm:text-xl lg:text-[22px] font-black tracking-tight text-slate-900 leading-none">
+                AI-CMS
+              </span>
+              <span className="text-[8.5px] sm:text-[9.5px] lg:text-[10px] font-black uppercase tracking-wider bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-1.5 sm:px-2 py-0.5 rounded-full shadow-xs leading-none">
+                PRO
+              </span>
+            </div>
+            <span className="text-[10px] sm:text-[11px] font-medium text-slate-500 hidden md:inline-block tracking-tight mt-0.5 whitespace-nowrap">
+              AI-CMS Enterprise
+            </span>
+          </div>
         </Link>
-        <button 
+        <button
           type="button"
-          onClick={() => navigate('/')} 
+          onClick={() => navigate('/')}
           className="flex items-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs 2xl:text-sm font-bold uppercase tracking-wider text-slate-700 hover:text-[#0070F3] transition-all cursor-pointer bg-white hover:bg-blue-50/80 border border-slate-200/90 hover:border-blue-300 px-3.5 sm:px-4 2xl:px-6 py-2 sm:py-2.5 2xl:py-3 rounded-full shadow-xs shrink-0 whitespace-nowrap min-h-[40px] sm:min-h-[44px] 2xl:min-h-[48px]"
         >
           <ArrowLeft size={14} className="shrink-0" /> <span>BACK TO HOME</span>
@@ -164,7 +164,7 @@ export default function ContactPage() {
 
       {/* 🏢 Main Content Container */}
       <main className="max-w-[1600px] 2xl:max-w-[1880px] mx-auto px-4 sm:px-6 lg:px-10 2xl:px-16 py-2 sm:py-4 flex-grow w-full flex flex-col justify-center">
-        
+
         {/* =========================================================================
             1. LARGE / DESKTOP LAYOUT (1024px+ / lg:grid lg:grid-cols-12):
             Matches Desktop Reference Image:
@@ -172,13 +172,13 @@ export default function ContactPage() {
             - Right 50% Column: Full Customer Support Form Card
             ========================================================================= */}
         <div className="hidden lg:grid lg:grid-cols-12 gap-6 lg:gap-8 xl:gap-10 2xl:gap-14 items-start w-full relative">
-          
+
           {/* Left Column (50% on desktop: Hero Text + Doctor Visual + 6 Cards + Badges) */}
           <div className="lg:col-span-6 xl:col-span-6 2xl:col-span-6 flex flex-col justify-between space-y-4 xl:space-y-5 2xl:space-y-6">
-            
+
             {/* Top Hero Composition: Left Text + Right Doctor */}
             <div className="relative min-h-[300px] lg:min-h-[330px] xl:min-h-[360px] 2xl:min-h-[410px] flex flex-col justify-between">
-              
+
               {/* Left-Aligned Text */}
               <div className="w-full max-w-[310px] lg:max-w-[340px] xl:max-w-[380px] 2xl:max-w-[430px] z-10 relative pt-1">
                 <div className="inline-flex items-center gap-2 px-3 2xl:px-4 py-1 2xl:py-1.5 rounded-full bg-white border border-blue-200/90 text-[#0070F3] text-[10.5px] xl:text-[11.5px] 2xl:text-xs font-bold shadow-xs mb-2.5 2xl:mb-3">
@@ -199,7 +199,7 @@ export default function ContactPage() {
               {/* Right-Side Doctor Visual Composition */}
               <div className="absolute right-0 -top-2 lg:-top-4 w-[230px] lg:w-[260px] xl:w-[300px] 2xl:w-[360px] h-[310px] lg:h-[340px] xl:h-[370px] 2xl:h-[430px] pointer-events-none select-none z-0">
                 {/* Dot Matrix Pattern */}
-                <div 
+                <div
                   className="absolute top-2 right-2 w-24 xl:w-28 2xl:w-36 h-28 xl:h-32 2xl:h-40 opacity-35 z-0"
                   style={{
                     backgroundImage: 'radial-gradient(#0070F3 1.5px, transparent 1.5px)',
@@ -208,15 +208,15 @@ export default function ContactPage() {
                 />
 
                 {/* Abstract Blue Petals behind Doctor */}
-                <img 
-                  src={petalBackground} 
+                <img
+                  src={petalBackground}
                   alt="PEHAL Abstract Background"
                   className="absolute top-2 right-0 w-[220px] lg:w-[250px] xl:w-[290px] 2xl:w-[350px] h-auto object-contain z-0 opacity-95"
                 />
 
                 {/* Doctor with Headset SVG */}
-                <img 
-                  src={doctorImage} 
+                <img
+                  src={doctorImage}
                   alt="PEHAL Healthcare Support Specialist"
                   className="absolute top-0 right-2 w-[180px] lg:w-[205px] xl:w-[240px] 2xl:w-[290px] h-auto object-contain z-10 drop-shadow-[0_10px_25px_rgba(0,112,243,0.18)]"
                 />
@@ -235,7 +235,7 @@ export default function ContactPage() {
 
                 {/* Cursive Tagline with Underline Swoosh */}
                 <div className="absolute bottom-0 -left-1 xl:-left-3 text-left z-20 pointer-events-auto">
-                  <div 
+                  <div
                     className="text-[#0070F3] font-bold text-xl lg:text-2xl xl:text-[25px] 2xl:text-[29px] leading-[1.05] tracking-wide inline-block"
                     style={{ fontFamily: "'Caveat', cursive, sans-serif", transform: 'rotate(-3deg)', transformOrigin: 'left center' }}
                   >
@@ -258,7 +258,7 @@ export default function ContactPage() {
             {/* Compliance Badges Row */}
             <div className="flex flex-wrap items-center gap-1.5 2xl:gap-2 z-10 pt-0.5">
               {['HIPAA READY', 'NABH READY', 'GDPR READY', 'AES-256 ENCRYPTION'].map((badge) => (
-                <span 
+                <span
                   key={badge}
                   className="bg-white border border-blue-200/80 text-[#0070F3] px-2.5 2xl:px-3 py-1 rounded-full text-[9px] xl:text-[9.5px] 2xl:text-[11px] font-extrabold flex items-center gap-1 shadow-xs tracking-tight whitespace-nowrap"
                 >
@@ -283,10 +283,10 @@ export default function ContactPage() {
             Balanced intermediate layout: Hero (Text + Doctor) -> Support Cards (2 cols) -> Badges -> Form
             ========================================================================= */}
         <div className="hidden md:flex lg:hidden flex-col space-y-6 w-full max-w-[960px] mx-auto">
-          
+
           {/* Tablet Hero: Text (Left) + Doctor Visual (Right) */}
           <div className="grid grid-cols-12 gap-6 items-center w-full">
-            
+
             {/* Hero Text */}
             <div className="col-span-7">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-blue-200/90 text-[#0070F3] text-[11px] font-bold shadow-xs mb-3">
@@ -306,20 +306,20 @@ export default function ContactPage() {
 
             {/* Tablet Doctor Visual */}
             <div className="col-span-5 relative h-[250px] flex items-center justify-center select-none pointer-events-none">
-              <div 
+              <div
                 className="absolute top-2 right-4 w-24 h-24 opacity-30 z-0"
                 style={{
                   backgroundImage: 'radial-gradient(#0070F3 1.5px, transparent 1.5px)',
                   backgroundSize: '12px 12px'
                 }}
               />
-              <img 
-                src={petalBackground} 
+              <img
+                src={petalBackground}
                 alt="PEHAL Abstract Background"
                 className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[250px] h-auto object-contain z-0 opacity-95"
               />
-              <img 
-                src={doctorImage} 
+              <img
+                src={doctorImage}
                 alt="PEHAL Healthcare Support Specialist"
                 className="relative z-10 w-[200px] h-auto object-contain drop-shadow-[0_10px_24px_rgba(0,112,243,0.16)]"
               />
@@ -345,7 +345,7 @@ export default function ContactPage() {
           {/* Tablet Compliance Badges */}
           <div className="flex flex-wrap items-center gap-2">
             {['HIPAA READY', 'NABH READY', 'GDPR READY', 'AES-256 ENCRYPTION'].map((badge) => (
-              <span 
+              <span
                 key={badge}
                 className="bg-white border border-blue-200/80 text-[#0070F3] px-3 py-1 rounded-full text-[10px] font-extrabold flex items-center gap-1.5 shadow-xs tracking-tight whitespace-nowrap"
               >
@@ -369,7 +369,7 @@ export default function ContactPage() {
             Header -> Contact Badge -> Heading -> Description -> Doctor + Petals -> 2-Col Cards -> Badges -> Form -> Footer
             ========================================================================= */}
         <div className="flex md:hidden flex-col space-y-4 w-full">
-          
+
           {/* Contact Support Badge */}
           <div>
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-blue-200/90 text-[#0070F3] text-[10.5px] font-bold shadow-xs">
@@ -392,7 +392,7 @@ export default function ContactPage() {
           {/* Mobile Doctor Visual Container */}
           <div className="relative w-full max-w-[340px] mx-auto h-[220px] sm:h-[250px] flex items-center justify-center my-2 select-none">
             {/* Dot Matrix Pattern */}
-            <div 
+            <div
               className="absolute top-1 right-2 w-24 h-24 opacity-30 z-0"
               style={{
                 backgroundImage: 'radial-gradient(#0070F3 1.5px, transparent 1.5px)',
@@ -400,14 +400,14 @@ export default function ContactPage() {
               }}
             />
             {/* Abstract Blue Petals strictly behind Doctor */}
-            <img 
-              src={petalBackground} 
+            <img
+              src={petalBackground}
               alt="PEHAL Abstract Background"
               className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[240px] sm:w-[270px] max-w-[85vw] h-auto object-contain z-0 opacity-95 pointer-events-none"
             />
             {/* Doctor SVG */}
-            <img 
-              src={doctorImage} 
+            <img
+              src={doctorImage}
               alt="PEHAL Healthcare Support Specialist"
               className="relative z-10 w-[185px] sm:w-[220px] h-auto object-contain drop-shadow-[0_8px_20px_rgba(0,112,243,0.15)]"
             />
@@ -432,7 +432,7 @@ export default function ContactPage() {
           {/* Mobile Compliance Badges */}
           <div className="flex flex-wrap items-center gap-1.5 pt-1">
             {['HIPAA READY', 'NABH READY', 'GDPR READY', 'AES-256 ENCRYPTION'].map((badge) => (
-              <span 
+              <span
                 key={badge}
                 className="bg-white border border-blue-200/80 text-[#0070F3] px-2 py-0.5 rounded-full text-[8.5px] min-[375px]:text-[9px] font-extrabold flex items-center gap-1 shadow-xs tracking-tight whitespace-nowrap"
               >
@@ -487,14 +487,14 @@ export default function ContactPage() {
             </h4>
             <p className={`${isMobile ? 'text-[9.5px]' : 'text-[10.5px] xl:text-[11px] 2xl:text-[12.5px]'} text-slate-500 leading-tight font-medium`}>
               Average response under 5m
-              <a 
-                  href={`https://api.whatsapp.com/send/?phone=${(import.meta.env.VITE_WHATSAPP_NUMBER || import.meta.env.VITE_COMPANY_PHONE).replace(/\D/g, '')}&text&type=phone_number&app_absent=0`} 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  className="flex items-center gap-1.5 py-2 justify-center bg-white border border-[#D9E5F3] rounded-xl hover:text-[#0066FF] hover:border-[#1683FF] transition"
-                >
-                  <MessageCircle size={11} className="text-[#25D366]"/><p>Chat with us</p>
-                </a>
+              <a
+                href={`https://api.whatsapp.com/send/?phone=${(import.meta.env.VITE_WHATSAPP_NUMBER || import.meta.env.VITE_COMPANY_PHONE).replace(/\D/g, '')}&text&type=phone_number&app_absent=0`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 py-2 justify-center bg-white border border-[#D9E5F3] rounded-xl hover:text-[#0066FF] hover:border-[#1683FF] transition"
+              >
+                <MessageCircle size={11} className="text-[#25D366]" /><p>Chat with us</p>
+              </a>
             </p>
           </div>
         </div>
@@ -507,22 +507,22 @@ export default function ContactPage() {
                 <Mail size={isMobile ? 12 : 14} />
               </div>
               <span className="bg-blue-50 border border-blue-200 text-[#0070F3] text-[7.5px] sm:text-[8px] 2xl:text-[9.5px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider">
-                24/7 SUPPORT
+             24/7 SUPPORT
               </span>
             </div>
             <h4 className={`${isMobile ? 'text-[11px] sm:text-xs' : 'text-xs xl:text-[13px] 2xl:text-[15px]'} font-black text-[#0B1E3B] leading-tight mb-0.5`}>
               Email Support
             </h4>
             <p className={`${isMobile ? 'text-[9.5px]' : 'text-[10.5px] xl:text-[11px] 2xl:text-[12.5px]'} text-slate-500 leading-tight font-medium break-all`}>
-               {import.meta.env.VITE_COMPANY_EMAIL}
-              <a 
-                  href={`mailto:${import.meta.env.VITE_COMPANY_EMAIL}`} 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  className="flex items-center gap-1.5 py-2 justify-center bg-white border border-[#D9E5F3] rounded-xl hover:text-[#0066FF] hover:border-[#1683FF] transition"
-                >
-                  <Globe size={11} className="text-[#0066FF]" />Email Us
-                </a>
+              {import.meta.env.VITE_COMPANY_EMAIL}
+              <a
+                href={`mailto:${import.meta.env.VITE_COMPANY_EMAIL}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 py-2 justify-center bg-white border border-[#D9E5F3] rounded-xl hover:text-[#0066FF] hover:border-[#1683FF] transition"
+              >
+                <Globe size={11} className="text-[#0066FF]" />Email Us
+              </a>
             </p>
           </div>
         </div>
@@ -542,12 +542,12 @@ export default function ContactPage() {
               Sales Team
             </h4>
             <p className={`${isMobile ? 'text-[9.5px]' : 'text-[10.5px] xl:text-[11px] 2xl:text-[12.5px]'} text-slate-500 leading-tight font-medium`}>
-              <Link 
-                  to={'/book-demo'}
-                  className="flex items-center gap-1.5 py-2 justify-center bg-white border border-[#D9E5F3] rounded-xl hover:text-[#0066FF] hover:border-[#1683FF] transition"
-                >
-                  <Globe size={11} className="text-[#0066FF]" />Get pricing & demo
-                </Link>
+              <Link
+                to={'/book-demo'}
+                className="flex items-center gap-1.5 py-2 justify-center bg-white border border-[#D9E5F3] rounded-xl hover:text-[#0066FF] hover:border-[#1683FF] transition"
+              >
+                <Globe size={11} className="text-[#0066FF]" />Get pricing & demo
+              </Link>
             </p>
           </div>
         </div>
@@ -567,14 +567,14 @@ export default function ContactPage() {
               Emergency Support
             </h4>
             <p className={`${isMobile ? 'text-[9.5px]' : 'text-[10.5px] xl:text-[11px] 2xl:text-[12.5px]'} text-slate-500 leading-tight font-medium`}>
-              <a 
-                  href={`tel:${import.meta.env.VITE_COMPANY_PHONE}`} 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  className="flex items-center gap-1.5 py-2 justify-center bg-white border border-[#D9E5F3] rounded-xl hover:text-[#0066FF] hover:border-[#1683FF] transition"
-                >
-                  <Globe size={11} className="text-[#0066FF]" />Get Immediate assistance
-                </a>
+              <a
+                href={`tel:${import.meta.env.VITE_COMPANY_PHONE}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 py-2 justify-center bg-white border border-[#D9E5F3] rounded-xl hover:text-[#0066FF] hover:border-[#1683FF] transition"
+              >
+                <Globe size={11} className="text-[#0066FF]" />Get Immediate assistance
+              </a>
             </p>
           </div>
         </div>
@@ -589,7 +589,7 @@ export default function ContactPage() {
               Phone Support
             </h4>
             <p className={`${isMobile ? 'text-[9.5px]' : 'text-[10.5px] xl:text-[11px] 2xl:text-[12.5px]'} text-slate-500 font-medium`}>
-              {(import.meta.env.VITE_COMPANY_PHONE).slice(0,3)+" "+(import.meta.env.VITE_COMPANY_PHONE).slice(3)}
+              {(import.meta.env.VITE_COMPANY_PHONE).slice(0, 3) + " " + (import.meta.env.VITE_COMPANY_PHONE).slice(3)}
             </p>
           </div>
         </div>
@@ -616,7 +616,7 @@ export default function ContactPage() {
   function renderFormCard(isMobile = false) {
     return (
       <div className={`bg-white rounded-2xl sm:rounded-3xl ${isMobile ? 'p-4 sm:p-6' : 'p-5 lg:p-6 xl:p-7 2xl:p-9'} border border-slate-100 shadow-[0_12px_44px_rgba(0,112,243,0.07)] relative w-full box-border`}>
-        
+
         {/* Header: Icon + Title + Subtitle */}
         <div className="flex items-center gap-2.5 sm:gap-3 2xl:gap-4 mb-4 sm:mb-5 2xl:mb-6">
           <div className="w-9 h-9 sm:w-10 sm:h-10 2xl:w-12 2xl:h-12 rounded-xl sm:rounded-2xl bg-blue-50 border border-blue-100/80 text-[#0070F3] flex items-center justify-center shrink-0 shadow-xs">
@@ -634,7 +634,7 @@ export default function ContactPage() {
 
         {/* Success State View */}
         {status === 'success' && successInfo ? (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, scale: 0.96 }}
             animate={{ opacity: 1, scale: 1 }}
             className="py-8 sm:py-10 text-center space-y-4"
@@ -681,7 +681,7 @@ export default function ContactPage() {
           </motion.div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-3.5 2xl:space-y-4 w-full">
-            
+
             {/* ── ROW 1: FIRST NAME + LAST NAME (2 cols on 375px+) ── */}
             <div className="grid grid-cols-1 min-[375px]:grid-cols-2 gap-2.5 sm:gap-3 2xl:gap-4">
               {/* First Name */}
@@ -697,9 +697,8 @@ export default function ContactPage() {
                     value={formData.firstName}
                     onChange={handleChange}
                     placeholder="Enter first name"
-                    className={`w-full bg-slate-50/70 border rounded-xl pl-9 pr-3.5 py-2 sm:py-2.5 2xl:py-3 min-h-[42px] sm:min-h-[44px] 2xl:min-h-[50px] text-xs 2xl:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0070F3]/30 font-medium transition ${
-                      errors.firstName ? 'border-red-400 bg-red-50/30' : 'border-slate-200 focus:border-blue-300'
-                    }`}
+                    className={`w-full bg-slate-50/70 border rounded-xl pl-9 pr-3.5 py-2 sm:py-2.5 2xl:py-3 min-h-[42px] sm:min-h-[44px] 2xl:min-h-[50px] text-xs 2xl:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0070F3]/30 font-medium transition ${errors.firstName ? 'border-red-400 bg-red-50/30' : 'border-slate-200 focus:border-blue-300'
+                      }`}
                   />
                 </div>
                 {errors.firstName && <p className="text-[10px] 2xl:text-xs text-red-500 mt-1 font-bold">{errors.firstName}</p>}
@@ -718,9 +717,8 @@ export default function ContactPage() {
                     value={formData.lastName}
                     onChange={handleChange}
                     placeholder="Enter last name"
-                    className={`w-full bg-slate-50/70 border rounded-xl pl-9 pr-3.5 py-2 sm:py-2.5 2xl:py-3 min-h-[42px] sm:min-h-[44px] 2xl:min-h-[50px] text-xs 2xl:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0070F3]/30 font-medium transition ${
-                      errors.lastName ? 'border-red-400 bg-red-50/30' : 'border-slate-200 focus:border-blue-300'
-                    }`}
+                    className={`w-full bg-slate-50/70 border rounded-xl pl-9 pr-3.5 py-2 sm:py-2.5 2xl:py-3 min-h-[42px] sm:min-h-[44px] 2xl:min-h-[50px] text-xs 2xl:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0070F3]/30 font-medium transition ${errors.lastName ? 'border-red-400 bg-red-50/30' : 'border-slate-200 focus:border-blue-300'
+                      }`}
                   />
                 </div>
                 {errors.lastName && <p className="text-[10px] 2xl:text-xs text-red-500 mt-1 font-bold">{errors.lastName}</p>}
@@ -742,9 +740,8 @@ export default function ContactPage() {
                     value={formData.email}
                     onChange={handleChange}
                     placeholder="Enter your email"
-                    className={`w-full bg-slate-50/70 border rounded-xl pl-9 pr-3.5 py-2 sm:py-2.5 2xl:py-3 min-h-[42px] sm:min-h-[44px] 2xl:min-h-[50px] text-xs 2xl:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0070F3]/30 font-medium transition ${
-                      errors.email ? 'border-red-400 bg-red-50/30' : 'border-slate-200 focus:border-blue-300'
-                    }`}
+                    className={`w-full bg-slate-50/70 border rounded-xl pl-9 pr-3.5 py-2 sm:py-2.5 2xl:py-3 min-h-[42px] sm:min-h-[44px] 2xl:min-h-[50px] text-xs 2xl:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0070F3]/30 font-medium transition ${errors.email ? 'border-red-400 bg-red-50/30' : 'border-slate-200 focus:border-blue-300'
+                      }`}
                   />
                 </div>
                 {errors.email && <p className="text-[10px] 2xl:text-xs text-red-500 mt-1 font-bold">{errors.email}</p>}
@@ -763,9 +760,8 @@ export default function ContactPage() {
                     value={formData.phone}
                     onChange={handleChange}
                     placeholder="Enter phone number"
-                    className={`w-full bg-slate-50/70 border rounded-xl pl-9 pr-3.5 py-2 sm:py-2.5 2xl:py-3 min-h-[42px] sm:min-h-[44px] 2xl:min-h-[50px] text-xs 2xl:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0070F3]/30 font-medium transition ${
-                      errors.phone ? 'border-red-400 bg-red-50/30' : 'border-slate-200 focus:border-blue-300'
-                    }`}
+                    className={`w-full bg-slate-50/70 border rounded-xl pl-9 pr-3.5 py-2 sm:py-2.5 2xl:py-3 min-h-[42px] sm:min-h-[44px] 2xl:min-h-[50px] text-xs 2xl:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0070F3]/30 font-medium transition ${errors.phone ? 'border-red-400 bg-red-50/30' : 'border-slate-200 focus:border-blue-300'
+                      }`}
                   />
                 </div>
                 {errors.phone && <p className="text-[10px] 2xl:text-xs text-red-500 mt-1 font-bold">{errors.phone}</p>}
@@ -785,9 +781,8 @@ export default function ContactPage() {
                   value={formData.clinicName}
                   onChange={handleChange}
                   placeholder="Enter your clinic or hospital name"
-                  className={`w-full bg-slate-50/70 border rounded-xl pl-9 pr-3.5 py-2 sm:py-2.5 2xl:py-3 min-h-[42px] sm:min-h-[44px] 2xl:min-h-[50px] text-xs 2xl:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0070F3]/30 font-medium transition ${
-                    errors.clinicName ? 'border-red-400 bg-red-50/30' : 'border-slate-200 focus:border-blue-300'
-                  }`}
+                  className={`w-full bg-slate-50/70 border rounded-xl pl-9 pr-3.5 py-2 sm:py-2.5 2xl:py-3 min-h-[42px] sm:min-h-[44px] 2xl:min-h-[50px] text-xs 2xl:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0070F3]/30 font-medium transition ${errors.clinicName ? 'border-red-400 bg-red-50/30' : 'border-slate-200 focus:border-blue-300'
+                    }`}
                 />
               </div>
               {errors.clinicName && <p className="text-[10px] 2xl:text-xs text-red-500 mt-1 font-bold">{errors.clinicName}</p>}
@@ -828,9 +823,8 @@ export default function ContactPage() {
                     value={formData.subject}
                     onChange={handleChange}
                     placeholder="Enter subject"
-                    className={`w-full bg-slate-50/70 border rounded-xl pl-9 pr-3.5 py-2 sm:py-2.5 2xl:py-3 min-h-[42px] sm:min-h-[44px] 2xl:min-h-[50px] text-xs 2xl:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0070F3]/30 font-medium transition ${
-                      errors.subject ? 'border-red-400 bg-red-50/30' : 'border-slate-200 focus:border-blue-300'
-                    }`}
+                    className={`w-full bg-slate-50/70 border rounded-xl pl-9 pr-3.5 py-2 sm:py-2.5 2xl:py-3 min-h-[42px] sm:min-h-[44px] 2xl:min-h-[50px] text-xs 2xl:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0070F3]/30 font-medium transition ${errors.subject ? 'border-red-400 bg-red-50/30' : 'border-slate-200 focus:border-blue-300'
+                      }`}
                   />
                 </div>
                 {errors.subject && <p className="text-[10px] 2xl:text-xs text-red-500 mt-1 font-bold">{errors.subject}</p>}
@@ -850,9 +844,8 @@ export default function ContactPage() {
                   value={formData.message}
                   onChange={handleChange}
                   placeholder="Tell us about your requirement..."
-                  className={`w-full bg-slate-50/70 border rounded-xl pl-9 pr-3.5 py-2.5 text-xs 2xl:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0070F3]/30 font-medium resize-y min-h-[85px] sm:min-h-[95px] 2xl:min-h-[120px] transition ${
-                    errors.message ? 'border-red-400 bg-red-50/30' : 'border-slate-200 focus:border-blue-300'
-                  }`}
+                  className={`w-full bg-slate-50/70 border rounded-xl pl-9 pr-3.5 py-2.5 text-xs 2xl:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0070F3]/30 font-medium resize-y min-h-[85px] sm:min-h-[95px] 2xl:min-h-[120px] transition ${errors.message ? 'border-red-400 bg-red-50/30' : 'border-slate-200 focus:border-blue-300'
+                    }`}
                 />
               </div>
               {errors.message && <p className="text-[10px] 2xl:text-xs text-red-500 mt-1 font-bold">{errors.message}</p>}

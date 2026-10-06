@@ -44,4 +44,36 @@ export const clearStoredUser = () => {
 export const clearAuthStorage = () => {
   clearStoredToken();
   clearStoredUser();
+  try {
+    localStorage.removeItem('patient_carts');
+    localStorage.removeItem('patientActiveClinicId');
+    localStorage.removeItem('patientActivePharmacyId');
+    localStorage.removeItem('patientActiveLaboratoryId');
+    localStorage.removeItem('pehal_patient_active_clinic_id');
+    localStorage.removeItem('pehal_patient_active_pharmacy_id');
+    localStorage.removeItem('patient_active_tab');
+
+    // Remove any keys starting with patient_lab_cart_ or patient_cart_
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (
+        key &&
+        (key.startsWith('patient_lab_cart_') ||
+          key.startsWith('patient_cart_') ||
+          key.startsWith('patient_') ||
+          key.startsWith('auraCare_'))
+      ) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach((k) => localStorage.removeItem(k));
+
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.removeItem('auraCareClosed');
+      sessionStorage.clear();
+    }
+  } catch (err) {
+    console.error('Error clearing patient storage on logout:', err);
+  }
 };

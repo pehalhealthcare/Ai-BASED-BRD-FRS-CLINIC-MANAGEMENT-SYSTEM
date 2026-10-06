@@ -70,7 +70,7 @@ const createPrescriptionSchema = z.object({
     appointmentId: objectIdSchema.optional(),
     doctorId: objectIdSchema.optional(),
     notes: z.string().trim().max(4000).optional(),
-    medicines: z.array(prescriptionItemSchema).optional(),
+    medicines: z.array(prescriptionItemSchema).min(1, 'At least one medicine is required'),
     labs: z.array(labItemSchema).optional(),
     procedures: z.array(procedureItemSchema).optional(),
     advice: z.string().trim().max(4000).optional(),

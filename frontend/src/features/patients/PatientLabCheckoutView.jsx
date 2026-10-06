@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   ChevronLeft, ChevronRight, ShoppingCart, Trash2, Plus, CheckCircle2,
   Calendar, Clock, MapPin, Phone, ShieldCheck, CreditCard, Lock,
@@ -202,14 +202,34 @@ export default function PatientLabCheckoutView({
     if (found) return found;
     return savedAddresses[0] || {
       tag: 'Home',
-      fullName: patientName,
-      line1: 'H-23, Indiranagar, Near Shanti Park',
-      city: 'Ghaziabad',
-      state: 'Uttar Pradesh',
-      pincode: '201001',
-      phone: patientPhone
+      fullName: patientName || '',
+      line1: '',
+      city: '',
+      state: '',
+      pincode: '',
+      phone: patientPhone || ''
     };
   }, [savedAddresses, selectedAddressId, patientName, patientPhone]);
+
+  const isAddressServiceable = useMemo(() => {
+    if (!selectedAddress || collectionMethod !== 'HOME_COLLECTION' || !selectedAddress.city) return true;
+    const patientPin = String(selectedAddress.pincode || selectedAddress.pinCode || '').trim();
+    const patientCity = String(selectedAddress.city || '').toLowerCase().trim();
+    const labPin = String(lab?.address?.pincode || lab?.address?.pinCode || lab?.pincode || '').trim();
+    const labCity = String(lab?.address?.city || lab?.city || '').toLowerCase().trim();
+    const serviceablePincodes = lab?.serviceablePincodes || lab?.serviceableAreas || [];
+    
+    // Explicit list
+    if (Array.isArray(serviceablePincodes) && serviceablePincodes.length > 0) {
+      return serviceablePincodes.some(p => String(p).trim() === patientPin);
+    }
+    
+    // If lab has a city specified and patient has a different city (e.g. Lucknow vs Ghaziabad)
+    if (labCity && patientCity && !labCity.includes(patientCity) && !patientCity.includes(labCity)) {
+      return false;
+    }
+    return true;
+  }, [selectedAddress, collectionMethod, lab]);
 
   // Handle adding new address to central patient address book
   const handleSaveNewAddress = async (e) => {
@@ -444,16 +464,10 @@ export default function PatientLabCheckoutView({
   }, [smartPackages, packageSearchQuery, packageCategoryFilter, packageSortBy]);
 
   // ============================================================
-  // 6. Promo Code State
+  // 6. Promo Code State (DEF-02: promo not pre-applied)
   // ============================================================
   const [promoCodeInput, setPromoCodeInput] = useState('');
-  const [appliedPromo, setAppliedPromo] = useState({
-    code: 'YAY20',
-    discountAmount: 240,
-    discountType: 'percentage',
-    discountValue: 20,
-    message: 'You saved ₹240 using this promo code.'
-  });
+  const [appliedPromo, setAppliedPromo] = useState(null);
   const [validatingPromo, setValidatingPromo] = useState(false);
 
   // ============================================================
@@ -466,14 +480,17 @@ export default function PatientLabCheckoutView({
     const packageDiscount = appliedPackage ? (appliedPackage.savings || 0) : 0;
     
     let promoDiscount = 0;
-    if (appliedPromo) {
-      if (appliedPromo.discountAmount) {
-        promoDiscount = appliedPromo.discountAmount;
-      } else if (appliedPromo.discountType === 'percentage') {
-        promoDiscount = Math.round((testsSubtotal * appliedPromo.discountValue) / 100);
-      } else if (appliedPromo.discountType === 'flat') {
-        promoDiscount = appliedPromo.discountValue;
+    if (appliedPromo && testsSubtotal > 0) {
+      if (appliedPromo.discountType === 'percentage') {
+        const pct = Number(appliedPromo.discountValue) || 0;
+        promoDiscount = Math.round((testsSubtotal * pct) / 100);
+      } else if (appliedPromo.discountAmount) {
+        promoDiscount = Number(appliedPromo.discountAmount);
+      } else if (appliedPromo.discountType === 'flat' || appliedPromo.discountType === 'fixed') {
+        promoDiscount = Number(appliedPromo.discountValue) || 0;
       }
+      // Never allow discount to exceed testsSubtotal (DEF-02)
+      promoDiscount = Math.min(promoDiscount, testsSubtotal);
     }
 
     const totalBeforePromo = testsSubtotal + homeCollectionFee + convenienceFee - packageDiscount;
@@ -572,10 +589,16 @@ export default function PatientLabCheckoutView({
       toast.error('Your cart is empty. Please add at least one test.');
       return;
     }
-    if (collectionMethod === 'HOME_COLLECTION' && (!selectedAddress || !selectedAddress.line1)) {
-      toast.error('Please select or add a delivery address for home collection.');
-      setShowAddressModal(true);
-      return;
+    if (collectionMethod === 'HOME_COLLECTION') {
+      if (!selectedAddress || !selectedAddress.line1) {
+        toast.error('Please select or add a delivery address for home collection.');
+        setShowAddressModal(true);
+        return;
+      }
+      if (!isAddressServiceable) {
+        toast.error('Home collection is not available at your address. Please choose Lab Visit.');
+        return;
+      }
     }
     setShowPaymentModal(true);
   };
@@ -744,7 +767,7 @@ export default function PatientLabCheckoutView({
           className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-800 transition"
         >
           <ChevronLeft size={16} />
-          <span>Back to Tests From Prescription</span>
+          <span>Back to Tests</span>
         </button>
 
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -1012,6 +1035,17 @@ export default function PatientLabCheckoutView({
                   </div>
                 </div>
 
+                {/* Serviceability Warning */}
+                {!isAddressServiceable && (
+                  <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 flex items-start gap-2.5 font-medium">
+                    <AlertCircle size={16} className="text-rose-600 shrink-0 mt-0.5" />
+                    <div>
+                      <strong className="block font-bold">Home collection is not available at your address.</strong>
+                      <span>The selected laboratory does not service this location. Please choose Lab Visit or select a different delivery address.</span>
+                    </div>
+                  </div>
+                )}
+
                 {/* Preferred Date & Time Slot Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
@@ -1021,6 +1055,7 @@ export default function PatientLabCheckoutView({
                     </label>
                     <input
                       type="date"
+                      min={new Date().toISOString().split('T')[0]}
                       value={collectionDate}
                       onChange={(e) => setCollectionDate(e.target.value)}
                       className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 shadow-2xs focus:ring-2 focus:ring-blue-500 focus:outline-none"

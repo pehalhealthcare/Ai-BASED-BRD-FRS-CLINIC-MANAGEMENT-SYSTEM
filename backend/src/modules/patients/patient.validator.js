@@ -22,13 +22,41 @@ const booleanQuerySchema = z.preprocess((value) => {
   return value;
 }, z.boolean().optional());
 
+const safeNameString = z
+  .string()
+  .trim()
+  .regex(/^[^<>]*$/, 'Value cannot contain HTML characters');
+
+const safeOptionalName = safeNameString.optional();
+
+const bloodGroupSchema = z
+  .enum(['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'], {
+    errorMap: () => ({ message: 'Invalid blood group. Supported: A+, A-, B+, B-, AB+, AB-, O+, O-' })
+  })
+  .optional()
+  .nullable();
+
+const pincodeSchema = z
+  .string()
+  .trim()
+  .regex(/^\d{6}$/, 'Pincode must contain 6 digits')
+  .optional()
+  .nullable();
+
+const pastOrPresentDateSchema = z.preprocess((val) => {
+  if (!val) return undefined;
+  return val;
+}, z.coerce.date().refine((date) => !date || date <= new Date(), {
+  message: 'Date of birth cannot be in the future'
+}).optional().nullable());
+
 const addressSchema = z
   .object({
     line1: optionalTrimmedString,
     line2: optionalTrimmedString,
     city: optionalTrimmedString,
     state: optionalTrimmedString,
-    pincode: optionalTrimmedString,
+    pincode: pincodeSchema,
     country: optionalTrimmedString
   })
   .partial()
@@ -36,9 +64,9 @@ const addressSchema = z
 
 const emergencyContactSchema = z
   .object({
-    name: optionalTrimmedString,
+    name: safeOptionalName,
     relation: optionalTrimmedString,
-    phone: phoneSchema.optional()
+    phone: phoneSchema.optional().nullable()
   })
   .partial()
   .optional();
@@ -55,15 +83,15 @@ const insuranceDetailsSchema = z
     provider: optionalTrimmedString,
     policyNumber: optionalTrimmedString,
     groupNumber: optionalTrimmedString,
-    subscriberName: optionalTrimmedString,
-    subscriberDob: z.coerce.string().nullable().optional(),
+    subscriberName: safeOptionalName,
+    subscriberDob: pastOrPresentDateSchema,
     autoClaimAutomation: z.boolean().optional()
   })
   .partial()
   .optional();
 
 const paymentMethodSchema = z.object({
-  cardholderName: optionalTrimmedString,
+  cardholderName: safeOptionalName,
   cardNumber: optionalTrimmedString,
   expiryDate: optionalTrimmedString,
   cardType: optionalTrimmedString
@@ -71,7 +99,7 @@ const paymentMethodSchema = z.object({
 
 const savedAddressSchema = z.object({
   _id: z.any().optional(),
-  fullName: z.string().trim().optional(),
+  fullName: safeOptionalName,
   mobileNumber: z.string().trim().optional(),
   phone: z.string().trim().optional(),
   alternateNumber: z.string().trim().optional().nullable(),
@@ -83,22 +111,22 @@ const savedAddressSchema = z.object({
   area: z.string().trim().optional().nullable(),
   city: z.string().trim().optional().nullable(),
   state: z.string().trim().optional().nullable(),
-  pinCode: z.string().trim().optional().nullable(),
-  pincode: z.string().trim().optional().nullable(),
+  pinCode: pincodeSchema,
+  pincode: pincodeSchema,
   addressType: z.string().trim().default('Home'),
   isDefault: z.boolean().default(false)
 }).passthrough();
 
 const patientPayloadSchema = z.object({
-  firstName: z.string().trim().min(1, 'First name is required').max(100),
-  lastName: z.string().trim().max(100).optional(),
+  firstName: safeNameString.min(1, 'First name is required').max(100),
+  lastName: safeNameString.max(100).optional(),
   gender: genderSchema,
-  dateOfBirth: z.coerce.date().optional(),
+  dateOfBirth: pastOrPresentDateSchema,
   phone: phoneSchema,
   email: z.string().trim().email('Invalid email address').optional(),
   address: addressSchema,
   profileImage: optionalTrimmedString,
-  bloodGroup: optionalTrimmedString,
+  bloodGroup: bloodGroupSchema,
   medicalHistoryPassword: z.string().trim().optional(),
   allergies: z.array(z.string().trim().min(1)).optional(),
   chronicConditions: z.array(z.string().trim().min(1)).optional(),

@@ -757,7 +757,7 @@ const createAppointment = async ({ requester, payload, requestedClinicId = null,
     durationMinutes: payload.durationMinutes,
     appointmentType: followUpDetails ? 'follow_up' : (payload.appointmentType || 'scheduled'),
     consultationMode: payload.consultationMode || 'WALK_IN',
-    status: APPOINTMENT_STATUSES.PAYMENT_PENDING,
+    status: (requester.role === ROLES.PATIENT && fee > 0) ? APPOINTMENT_STATUSES.PAYMENT_PENDING : (payload.status || APPOINTMENT_STATUSES.BOOKED),
     reasonForVisit: payload.reasonForVisit || '',
     symptomsSummary: payload.symptomsSummary || '',
     source: payload.source || (requester.role === ROLES.ADMIN ? 'admin' : 'reception'),
@@ -885,11 +885,11 @@ const createAppointment = async ({ requester, payload, requestedClinicId = null,
     };
   }
 
-  // For zero-fee appointments, finalize immediately (free follow-up, etc.)
-  if (fee === 0) {
+  // For zero-fee or pre-booked appointments, finalize immediately
+  if (appointment.status === APPOINTMENT_STATUSES.BOOKED || fee === 0) {
     const freshAppt = await appointmentRepository.findAppointmentByIdAndClinic({ appointmentId: appointment._id });
     if (freshAppt) {
-      freshAppt.paymentStatus = 'fully_waived';
+      if (fee === 0) freshAppt.paymentStatus = 'fully_waived';
       await finalizeBooking(freshAppt, requester);
     }
   } else {
@@ -904,8 +904,8 @@ const createAppointment = async ({ requester, payload, requestedClinicId = null,
     });
   }
 
-  // Do NOT trigger queue update here — appointment is payment_pending, not yet booked
-  return resData;
+  const freshRes = await appointmentRepository.findAppointmentByIdAndClinic({ appointmentId: appointment._id, clinicId: targetClinicId, populateDetails: true });
+  return freshRes ? resolveAppointmentDoctorImage(freshRes) : resData;
 };
 
 const listAppointments = async ({ requester, query }) => {
@@ -1250,7 +1250,7 @@ const cancelAppointment = async ({ requester, appointmentId, payload, requestedC
     throw new AppError('Only booked or confirmed appointments can be cancelled.', HTTP_STATUS.BAD_REQUEST);
   }
 
-  appointment.status = requester.role === ROLES.PATIENT ? APPOINTMENT_STATUSES.PATIENT_CANCELLED : APPOINTMENT_STATUSES.CLINIC_CANCELLED;
+  appointment.status = APPOINTMENT_STATUSES.CANCELLED;
   appointment.cancellationReason = payload.cancellationReason;
   await appointment.save();
 
@@ -1406,11 +1406,11 @@ const rescheduleAppointment = async ({ requester, appointmentId, payload, reques
   }
 
   if (transferPayment) {
-    appointment.status = APPOINTMENT_STATUSES.NOT_ATTENDED;
+    appointment.status = APPOINTMENT_STATUSES.RESCHEDULED;
     appointment.paymentTransferStatus = 'transferred';
     appointment.transferredToAppointmentId = newAppointment._id;
   } else {
-    appointment.status = requester.role === ROLES.PATIENT ? APPOINTMENT_STATUSES.PATIENT_RESCHEDULED : APPOINTMENT_STATUSES.CLINIC_RESCHEDULED;
+    appointment.status = APPOINTMENT_STATUSES.RESCHEDULED;
   }
   appointment.notes = appendNote(appointment.notes, `Rescheduled to ${formatDate(slot.appointmentDate)} ${payload.startTime}. Reason: ${payload.reason}`);
   await appointment.save();

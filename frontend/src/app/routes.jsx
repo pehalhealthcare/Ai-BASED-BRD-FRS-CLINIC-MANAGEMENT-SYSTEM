@@ -678,7 +678,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'appointments',
-        element: protect(<AppointmentCalendarPage />, [ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR, ROLES.PATIENT])
+        element: protect(<AppointmentCalendarPage />, [ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR])
       },
       {
         path: 'appointments/new',
@@ -686,7 +686,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'appointments/:id',
-        element: protect(<AppointmentDetailsPage />, [ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR, ROLES.PATIENT])
+        element: protect(<AppointmentDetailsPage />, [ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR])
       },
       {
         path: 'appointments/:appointmentId/consultation',
@@ -918,7 +918,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'billing/:id',
-        element: protect(<InvoiceDetailPage />, [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR, ROLES.PATIENT])
+        element: protect(<InvoiceDetailPage />, [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR])
       },
       {
         path: 'billing/:id/checkout',

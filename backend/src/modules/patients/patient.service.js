@@ -7,6 +7,7 @@ const { generatePatientId } = require('../../common/utils/generatePatientId');
 const { buildPaginationMeta, getPagination } = require('../../common/utils/pagination');
 const { createAuditLog } = require('../audit/audit.service');
 const patientRepository = require('./patient.repository');
+const Patient = require('./patient.model');
 const gridFsStorage = require('../../common/utils/gridFsStorage.service');
 
 const resolvePatientFiles = async (patient) => {
@@ -480,37 +481,6 @@ const getMyPatientProfile = async ({ requester, requestedClinicId = null }) => {
   return { patient: resolved };
 };
 
-const MOCK_INSURANCE_CARDS = [
-  {
-    provider: 'Star Health Insurance',
-    policyNumber: 'STAR12345',
-    groupNumber: 'GRP1001',
-    subscriberName: 'Rahul Sharma',
-    coverageAmount: 150000
-  },
-  {
-    provider: 'Niva Bupa Health Insurance',
-    policyNumber: 'NIVA98765',
-    groupNumber: 'GRP1002',
-    subscriberName: 'Priya Patel',
-    coverageAmount: 250000
-  },
-  {
-    provider: 'ICICI Lombard General Insurance',
-    policyNumber: 'ICICI55555',
-    groupNumber: 'GRP1003',
-    subscriberName: 'Amit Kumar',
-    coverageAmount: 350000
-  },
-  {
-    provider: 'HDFC Ergo General Insurance',
-    policyNumber: 'HDFC44444',
-    groupNumber: 'GRP1004',
-    subscriberName: 'Siddharth Malhotra',
-    coverageAmount: 500000
-  }
-];
-
 const updateMyPatientProfile = async ({ requester, payload, requestedClinicId = null, req }) => {
   const { ensureUserClinicContext } = require('../../common/utils/clinicContext');
   await ensureUserClinicContext(requester);
@@ -525,27 +495,21 @@ const updateMyPatientProfile = async ({ requester, payload, requestedClinicId = 
     await processAndSaveFile(patient, 'profileImage', payload.profileImage, 'patient_photo');
   }
 
-  // Validate insurance details if provided
+  // Validate and persist insurance details if provided
   if (payload.insuranceDetails) {
     const { provider, policyNumber, subscriberName } = payload.insuranceDetails;
     if (provider || policyNumber || subscriberName) {
-      const match = MOCK_INSURANCE_CARDS.find(card =>
-        card.provider.trim().toLowerCase() === provider?.trim().toLowerCase() &&
-        card.policyNumber.trim().toLowerCase() === policyNumber?.trim().toLowerCase() &&
-        card.subscriberName.trim().toLowerCase() === subscriberName?.trim().toLowerCase()
-      );
-
-      if (!match) {
-        throw new AppError('Invalid mock insurance card details. Please fill in matching details of a valid mock card.', HTTP_STATUS.BAD_REQUEST);
+      if (!provider || !policyNumber || !subscriberName) {
+        throw new AppError('Insurance provider, policy number, and subscriber name are required.', HTTP_STATUS.BAD_REQUEST);
       }
 
-      payload.insuranceDetails.coverageAmount = match.coverageAmount;
-      // If patient already has this policy linked, preserve their remainingCoverage if it's less than coverageAmount
+      const coverageAmount = Number(payload.insuranceDetails.coverageAmount) || 500000;
+      payload.insuranceDetails.coverageAmount = coverageAmount;
       const existingPolicy = patient.insuranceDetails?.policyNumber?.trim().toLowerCase() === policyNumber?.trim().toLowerCase();
       if (existingPolicy && patient.insuranceDetails?.remainingCoverage !== undefined) {
         payload.insuranceDetails.remainingCoverage = patient.insuranceDetails.remainingCoverage;
       } else {
-        payload.insuranceDetails.remainingCoverage = match.coverageAmount;
+        payload.insuranceDetails.remainingCoverage = coverageAmount;
       }
       payload.insuranceDetails.lastResetAt = patient.insuranceDetails?.lastResetAt || new Date();
     } else {
@@ -615,7 +579,12 @@ const updatePatient = async ({ requester, patientId, payload, requestedClinicId 
     user: requester,
     requestedClinicId
   });
-  const patient = await getScopedPatient({ requester, patientId, requestedClinicId });
+  const scopedData = await getScopedPatient({ requester, patientId, requestedClinicId });
+  const patient = await Patient.findById(scopedData._id);
+
+  if (!patient) {
+    throw new AppError('Patient not found', HTTP_STATUS.NOT_FOUND);
+  }
 
   const allowedGlobalUpdates = {
     firstName: payload.firstName,
@@ -660,7 +629,16 @@ const updatePatient = async ({ requester, patientId, payload, requestedClinicId 
 };
 
 const deletePatient = async ({ requester, patientId, requestedClinicId = null, req }) => {
-  const patient = await getScopedPatient({ requester, patientId, requestedClinicId });
+  const scopedData = await getScopedPatient({ requester, patientId, requestedClinicId });
+  const clinicId = resolveClinicContext({
+    user: requester,
+    requestedClinicId
+  });
+  const patient = await Patient.findById(scopedData._id);
+
+  if (!patient) {
+    throw new AppError('Patient not found', HTTP_STATUS.NOT_FOUND);
+  }
 
   patient.isActive = false;
   patient.updatedBy = requester._id;

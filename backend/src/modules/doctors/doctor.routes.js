@@ -69,6 +69,13 @@ router.put(
   validate(replaceDoctorAvailabilitySchema),
   doctorController.replaceDoctorAvailability
 );
+router.patch(
+  '/:doctorId/availability',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RECEPTIONIST),
+  validate(replaceDoctorAvailabilitySchema),
+  doctorController.replaceDoctorAvailability
+);
 router.post(
   '/:doctorId/blocked-slots',
   protect,
