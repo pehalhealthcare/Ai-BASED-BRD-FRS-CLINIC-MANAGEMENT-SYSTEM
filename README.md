@@ -1,290 +1,1182 @@
-# AI-CMS
+# AI-CMS — AI-Based Clinic Management System
 
-AI-CMS is an industry-ready AI-Based Clinic Management System. The current repository now covers Phase 0 through Phase 23: runtime infrastructure, health endpoints, Docker support, non-Docker local development, auth, RBAC, audit logging, patient management, doctor management, appointment scheduling, an MVP AI service, consultation workflows, doctor-approved digital prescriptions, billing/invoice management, clinic-scoped lab orders/results, pharmacy dispensing with inventory tracking, mock-first notifications plus follow-up task tracking, backend-owned dashboard analytics, pharmacy demand forecasting, and admin-only billing anomaly review.
+> An industry-ready, full-stack clinic management platform combining clinic operations, patient care workflows, billing, laboratory, pharmacy, analytics, and assistive AI capabilities in a single system.
 
-## Phase 22 Module Summary
+[![Frontend](https://img.shields.io/badge/Frontend-React%20%2B%20Vite-blue)](#tech-stack)
+[![Backend](https://img.shields.io/badge/Backend-Node.js%20%2B%20Express-green)](#tech-stack)
+[![Database](https://img.shields.io/badge/Database-MongoDB-brightgreen)](#tech-stack)
+[![AI Service](https://img.shields.io/badge/AI-FastAPI%20%2B%20Python-orange)](#tech-stack)
+[![API](https://img.shields.io/badge/API-REST-lightgrey)](#api-overview)
+[![Docker](https://img.shields.io/badge/Docker-Supported-2496ED)](#running-with-docker)
 
-Phase 22 adds:
+---
 
-- Assistive pharmacy demand forecasting in the FastAPI AI service with `POST /ai/pharmacy-demand` and `POST /ai/train/pharmacy-demand`
-- Safe time-series preference using StatsForecast `AutoARIMA` or `AutoETS` when enough medicine sales history is present
-- Honest fallback behavior with `model_status` set to `fallback`, `insufficient_data`, or `unavailable` instead of faking trained accuracy
-- Backend pharmacy stock-intelligence integration with prediction persistence, safe AI-service failure handling, and medicine-level forecast retrieval
-- Frontend pharmacy detail visibility for next 7-day and 30-day demand, stockout risk, reorder alerts, expiry risk, reason codes, and model status
+## Table of Contents
 
-Phase 22 does not block dispensing when forecasting is unavailable, and the forecast output must not be treated as a final procurement decision without admin or pharmacist review.
+- [Overview](#overview)
+- [What AI-CMS Solves](#what-ai-cms-solves)
+- [Core Capabilities](#core-capabilities)
+- [System Architecture](#system-architecture)
+- [Technology Stack](#technology-stack)
+- [Application Modules](#application-modules)
+- [AI Capabilities](#ai-capabilities)
+- [AI Safety and Human Oversight](#ai-safety-and-human-oversight)
+- [Business and Clinical Workflow](#business-and-clinical-workflow)
+- [Phase-by-Phase Development](#phase-by-phase-development)
+- [Services and Ports](#services-and-ports)
+- [Project Structure](#project-structure)
+- [Environment Configuration](#environment-configuration)
+- [Getting Started](#getting-started)
+- [Running with Docker](#running-with-docker)
+- [Running Without Docker](#running-without-docker)
+- [MongoDB Atlas Setup](#mongodb-atlas-setup)
+- [Database Seeding](#database-seeding)
+- [Demo Credentials](#demo-credentials)
+- [API Overview](#api-overview)
+- [Frontend Routes](#frontend-routes)
+- [Health Checks](#health-checks)
+- [Testing](#testing)
+- [Forecasting Logic](#forecasting-logic)
+- [Billing Anomaly Detection](#billing-anomaly-detection)
+- [Security and Data Integrity](#security-and-data-integrity)
+- [Error Handling and Troubleshooting](#error-handling-and-troubleshooting)
+- [Documentation](#documentation)
+- [VS Code Quick Start](#vs-code-quick-start)
+- [Current Scope and Limitations](#current-scope-and-limitations)
+- [Project Status](#project-status)
 
-## Phase 23 Module Summary
+---
 
-Phase 23 adds:
+# Overview
 
-- Assistive billing fraud and revenue leakage screening with `POST /ai/billing-anomaly` and `POST /ai/train/billing-anomaly`
-- Explainable billing audit rules first, with optional IsolationForest scoring when enough historical billing data exists
-- Honest fallback behavior when trained model artifacts or ML dependencies are unavailable
-- Backend billing anomaly persistence plus admin-only review APIs and dashboard visibility
-- Review actions for Admin and Super Admin users only, including review, dismiss, and confirm flows
+**AI-CMS** is an AI-based Clinic Management System designed to provide an end-to-end digital workflow for modern clinics.
 
-Phase 23 does not expose anomaly review data to patient, doctor, receptionist, or pharmacist UI, and the anomaly output is an admin review signal only rather than a final fraud judgment.
+The current repository covers **Phase 0 through Phase 23**, including:
 
-## Phase 3 Module Summary
+- Runtime infrastructure
+- Health endpoints
+- Docker support
+- Non-Docker local development
+- Authentication
+- Role-Based Access Control (RBAC)
+- Audit logging
+- Patient management
+- Doctor management
+- Appointment scheduling
+- Consultation and EMR workflows
+- Doctor-approved digital prescriptions
+- Billing and invoice management
+- Clinic-scoped laboratory workflows
+- Pharmacy dispensing and inventory tracking
+- Notifications and follow-up tasks
+- Backend-owned dashboard analytics
+- AI-assisted pharmacy demand forecasting
+- Admin-only billing anomaly screening
 
-Phase 3 adds:
+The system is intentionally designed so that important business and clinical rules remain **backend-owned** instead of relying on frontend calculations or client-side assumptions.
 
-- Clinic-scoped patient registration and profile management
-- Patient search, pagination, and history placeholders
-- Clinic-scoped doctor management
-- Doctor availability base management
-- Readable patient IDs and doctor codes backed by per-clinic counters
+---
 
-Phase 3 does not add appointment scheduling, EMR consultations, billing, prescription workflows, lab, pharmacy, or AI clinical logic yet.
+# What AI-CMS Solves
 
-## Phase 4 Module Summary
+Traditional clinic operations often require separate systems for:
 
-Phase 4 adds:
+- Patient registration
+- Appointment scheduling
+- Doctor availability
+- Consultation records
+- Prescriptions
+- Billing
+- Laboratory management
+- Pharmacy inventory
+- Notifications
+- Reporting and analytics
 
-- Doctor-wise appointment booking with slot conflict prevention
-- Walk-in, scheduled, follow-up, and teleconsultation appointment types
-- Available-slots and calendar APIs for day, week, and month views
-- Appointment status flow, cancellation, and rescheduling trail
-- AI-backed no-show prediction with safe rule-based fallback scoring
-- Frontend appointment list, create, calendar, and detail pages
+AI-CMS brings these workflows together into one connected platform.
 
-Phase 4 does not add EMR consultation workflows, prescription generation, billing, or SMS/WhatsApp reminders yet. The current repository baseline now upgrades no-show scoring beyond the original Phase 4 placeholder.
+### Key goals
 
-## Phase 5 Module Summary
+1. **Centralize clinic operations**
+2. **Maintain clinic-scoped data**
+3. **Reduce repetitive administrative work**
+4. **Improve appointment and consultation workflows**
+5. **Digitize prescriptions and clinical records**
+6. **Connect billing, laboratory, and pharmacy workflows**
+7. **Provide actionable clinic analytics**
+8. **Use AI as an assistive layer rather than an autonomous clinical decision-maker**
+9. **Keep critical calculations and validations on the backend**
+10. **Maintain auditability across important workflows**
 
-Phase 5 adds:
+---
 
-- FastAPI AI service health, symptom-check, trainable no-show prediction, OCR placeholder, transcription placeholder, and clinical note formatting endpoints
-- Backend AI proxy routes for validated symptom-check, no-show, and clinical note formatting requests
-- Safety guardrails, medical disclaimers, and output sanitization for AI responses
-- Lightweight file-upload validation for OCR and audio intake
-- AI service tests for health, symptom-check, no-show, guardrails, note formatting, and upload placeholders
+# Core Capabilities
 
-Phase 5 does not add trained medical models, OCR engines, Whisper transcription, medication advice, or autonomous clinical decision-making.
+## Clinic Operations
 
-## Phase 6 Module Summary
+- Authentication
+- JWT-based sessions
+- RBAC
+- Clinic-scoped data access
+- Audit logging
+- Dashboard analytics
+- Staff and workflow management
 
-Phase 6 adds:
+## Patient Management
 
-- Consultation creation, list, appointment-linked lookup, completion, and patient consultation history
-- Structured EMR consultation capture with symptom objects, vitals, diagnosis notes, treatment plan, follow-up, and SOAP note formatting
-- AI-assisted diagnosis suggestions with doctor accept, reject, and partially accept review flow
-  - AI prediction persistence for auditability and future model evaluation
-  - Frontend consultation workspace with vitals, diagnosis, notes, and AI suggestion review
-  - Safe appointment-to-consultation status progression hooks
+- Patient registration
+- Patient profiles
+- Search and pagination
+- Patient history
+- Clinical history
+- Consultation history
+- Prescription history
+- Lab history
+- Medicine history
+- Invoice history
 
-Phase 6 does not add prescription generation or billing workflows yet.
+## Doctor Management
 
-## Phase 7 Module Summary
+- Doctor registration and management
+- Doctor profiles
+- Doctor codes
+- Clinic-scoped doctor records
+- Availability management
+- Blocked slots
+- Doctor workload analytics
 
-Phase 7 adds:
+## Appointment Management
 
-- Clinic-scoped prescription drafts linked to patients, consultations, doctors, and appointments
-- Medicine-item capture with doctor-controlled dosage, frequency, route, duration, timing, and instructions
-- Prescription finalization lock with mandatory `doctorConfirmation: true`
-- PDF generation and authenticated PDF download endpoints
-- Patient history prescription integration
-- Safe AI advice-formatting helper that requires doctor review and never prescribes automatically
-- Frontend prescription create, detail, list, and PDF download flows
+- Scheduled appointments
+- Walk-in appointments
+- Follow-up appointments
+- Teleconsultation appointment type
+- Slot availability
+- Conflict prevention
+- Calendar views
+- Rescheduling
+- Cancellation
+- Appointment status workflow
+- AI-assisted no-show prediction
 
-Phase 7 does not add pharmacy inventory, billing, drug-interaction alerts, stock deduction, or automatic medical prescribing.
+## Consultation and EMR
 
-## Phase 8 Module Summary
+- Appointment-linked consultation
+- Symptoms
+- Vitals
+- Diagnosis notes
+- Treatment plans
+- Follow-up instructions
+- SOAP note formatting
+- AI-assisted diagnosis suggestions
+- Doctor review and approval
+- Consultation history
 
-Phase 8 adds:
+## Digital Prescriptions
 
-- Clinic-scoped invoice creation with backend-owned subtotal, discount, GST, total, paid, and due calculations
-- Payment recording with payment-status tracking across `unpaid`, `partial`, `paid`, and `cancelled`
-- Invoice PDF generation and authenticated PDF download
-- Billing summary APIs for dashboard widgets
-- Patient-linked invoice history integration in patient history and patient profile flows
-- Frontend billing list, create, detail, payment, and PDF download screens
-- Persistent invoice storage wiring for local and Docker development
+- Prescription drafts
+- Medicine items
+- Dosage
+- Frequency
+- Route
+- Duration
+- Timing
+- Instructions
+- Doctor confirmation
+- Prescription finalization lock
+- PDF generation
+- Authenticated PDF download
+- Patient prescription history
+- AI-assisted advice formatting
 
-Phase 8 does not add payment gateway integration, refunds, pharmacy stock deduction, lab/pharmacy modules, or AI fraud detection.
+## Billing
 
-## Phase 9 Module Summary
+- Invoice creation
+- Backend-owned calculations
+- Subtotal
+- Discounts
+- GST
+- Total
+- Paid amount
+- Due amount
+- Payment status
+- Partial payments
+- Invoice cancellation
+- Invoice PDFs
+- Patient billing history
+- Revenue analytics
+- Billing anomaly screening
 
-Phase 9 adds:
+## Laboratory
 
-- A protected React + Vite + JavaScript frontend shell with login, JWT session handling, sidebar navigation, topbar, and shared loading/error/empty states
-- Dashboard, patient, appointment, consultation, chatbot, prescription, and billing screens wired to live backend APIs where available
-- Safe frontend API adapters for inconsistent response shapes and missing dashboard metrics
-- Direct AI-service fallback support for symptom check, clinical note formatting, and transcription when backend AI proxy routes are unavailable
-- Docker and local-development compatibility updates so `frontend`, `backend`, `ai-service`, and `mongo` can run together cleanly
+- Clinic-scoped test catalog
+- Test codes
+- Categories
+- Specimen information
+- Units
+- Reference ranges
+- Pricing
+- Consultation-linked lab orders
+- Order numbers
+- Sample collection workflow
+- Processing workflow
+- Result entry
+- Abnormal flag detection
+- Report finalization
+- Patient lab history
+- Audit events
 
-Phase 9 does not replace backend business logic with frontend-only mock data. Where a dedicated backend endpoint is still missing, the frontend shows safe empty states or aggregates existing APIs.
+## Pharmacy
 
-## Phase 11 Module Summary
+- Medicine catalog
+- Searchable medicine metadata
+- Stock batches
+- Stock recalculation
+- Reorder levels
+- Low-stock detection
+- Near-expiry detection
+- Expired-stock blocking
+- Prescription-linked dispensing
+- FEFO-style batch allocation
+- Pharmacy sales
+- Patient medicine history
+- Demand forecasting
+- Stockout-risk analysis
+- Reorder recommendations
 
-Phase 11 adds:
+## Notifications and Follow-Ups
 
-- Clinic-scoped lab test catalog management with reusable code, category, specimen, unit, reference range, and price metadata
-- Consultation-linked lab order creation with readable clinic-scoped order numbers in `LAB-YYYYMMDD-XXXX` format
-- Lab order status workflow across `ordered`, `sample_collected`, `processing`, `completed`, and `cancelled`
-- Lab report creation, structured result entry editing, abnormal flag detection, and finalized review flow
-- Patient lab history integration in both the backend history summary and the frontend patient workspace
-- Audit events for lab catalog creation, order creation, order status changes, report creation, report updates, and finalization
+- Notification templates
+- Variable rendering
+- Notification logs
+- Pending/sent/failed/cancelled states
+- Mock-first provider abstraction
+- Follow-up tasks
+- Reminder logs
+- Patient notification history
+- Workflow-triggered notifications
 
-Phase 11 does not add external LIS integrations, OCR/CV report extraction, advanced ML interpretation, pharmacy workflows, or notification delivery.
+## Analytics
 
-## Phase 12 Module Summary
+Backend-owned dashboard analytics include:
 
-Phase 12 adds:
+- Overview metrics
+- Appointment analytics
+- Revenue analytics
+- Patient analytics
+- Laboratory analytics
+- Pharmacy analytics
+- Notification analytics
+- Doctor workload
+- No-show summaries
+- Recent activity
 
-- Clinic-scoped medicine catalog management with searchable metadata, stock batches, reorder levels, and prescription-required flags
-- Batch-aware stock tracking with total stock recalculation, low-stock detection, near-expiry detection, and expired stock blocking
-- Dispensing workflow linked to finalized prescriptions with FEFO-style batch allocation
-- Pharmacy sale record creation with a safe invoice hook for later billing alignment
-- Prescription dispensing status updates and patient medicine-history integration
-- Frontend medicine catalog, medicine detail, dispensing list/detail, patient medicine history, and prescription-linked dispense flows
-- Audit events for medicine creation/updates, batch addition, dispensing, sale creation, and cancellation-safe hooks
+---
 
-Phase 12 does not add supplier procurement, insurance claims, e-commerce ordering, advanced drug interaction engines, or external pharmacy/LIS integrations.
+# System Architecture
 
-## Phase 13 Module Summary
+AI-CMS uses a service-oriented full-stack architecture.
 
-Phase 13 adds:
+```text
+                         ┌──────────────────────┐
+                         │      End User        │
+                         │  Admin / Doctor /    │
+                         │ Patient / Staff      │
+                         └──────────┬───────────┘
+                                    │
+                                    ▼
+                         ┌──────────────────────┐
+                         │ React + Vite         │
+                         │ Frontend             │
+                         │ JavaScript           │
+                         └──────────┬───────────┘
+                                    │ REST / Axios
+                                    ▼
+                         ┌──────────────────────┐
+                         │ Node.js + Express    │
+                         │ Backend API          │
+                         │ JWT + RBAC + Zod     │
+                         └───────┬────────┬─────┘
+                                 │        │
+                    ┌────────────┘        └─────────────┐
+                    ▼                                  ▼
+          ┌──────────────────┐               ┌──────────────────┐
+          │ MongoDB          │               │ Python FastAPI   │
+          │ + Mongoose       │               │ AI Service       │
+          └──────────────────┘               └──────────────────┘
+                                                       │
+                                                       ▼
+                                           ┌──────────────────────┐
+                                           │ Assistive AI / ML     │
+                                           │ Services              │
+                                           └──────────────────────┘
+```
 
-- Clinic-scoped notification templates with safe variable rendering
-- Notification logs with `pending`, `sent`, `failed`, and `cancelled` delivery states
-- Mock-first provider abstraction with optional console/email placeholder behavior for local development
-- Follow-up task creation and status tracking with scheduled reminder logs
-- Patient notification history and follow-up visibility in backend history and frontend pages
-- Safe notification hooks from appointment booking, consultation completion, prescription finalization, invoice creation, and finalized lab reports
-- Frontend pages for notification templates, logs, manual sending, follow-up tasks, and patient notification history
-- Audit events for template creation, sending, scheduling, cancellation, follow-up creation, and follow-up status updates
+### Architectural principles
 
-Phase 13 does not add paid SMS/WhatsApp integrations, cron-based delivery infrastructure, marketing automation, telemedicine messaging, or autonomous clinical follow-up advice.
+- Backend owns business rules.
+- Frontend consumes backend APIs.
+- AI functionality is isolated in a dedicated FastAPI service.
+- MongoDB stores application data.
+- AI failures should degrade safely.
+- Clinical AI outputs require appropriate human review.
+- Sensitive administrative review features are role-restricted.
+- Client-side inventory and billing calculations are not trusted.
 
-## Phase 14 Module Summary
+---
 
-Phase 14 adds:
+# Technology Stack
 
-- Protected backend dashboard analytics endpoints under `/api/v1/dashboard`
-- Clinic-scoped date-range-aware overview metrics for patients, appointments, consultations, prescriptions, invoices, labs, pharmacy, and follow-ups
-- Dedicated appointment, revenue, patient, lab, pharmacy, and notification analytics endpoints
-- Doctor workload, no-show summary, and recent activity feed endpoints
-- Frontend dashboard section pages wired directly to the new backend analytics APIs
-- Shared frontend date-range filter and dashboard cards/tables instead of the old placeholder dashboard adapter
+## Frontend
 
-Phase 14 does not add external BI tooling, heavy charts, websockets, or ML forecasting.
+| Technology | Purpose |
+|---|---|
+| React | UI framework |
+| Vite | Frontend tooling and development server |
+| JavaScript | Application language |
+| Tailwind CSS | UI styling |
+| React Router | Client-side routing |
+| Axios | API communication |
 
-## Phase 15 Module Summary
+## Backend
 
-Phase 15 adds:
+| Technology | Purpose |
+|---|---|
+| Node.js | Runtime |
+| Express.js | REST API |
+| JavaScript | Application language |
+| MongoDB | Database |
+| Mongoose | MongoDB ODM |
+| JWT | Authentication |
+| RBAC | Authorization |
+| Zod | Validation |
 
-- Docker/runtime hardening for `docker-compose.yml` and service Dockerfiles
-- Backend and AI-service container healthchecks
-- Cleaner env-example alignment with actual config loaders
-- Seed/demo data refresh so demo flow now includes labs, pharmacy, and notifications in addition to the core clinic workflow
-- Postman collection cleanup for health, auth, patients, doctors, appointments, consultations, prescriptions, billing, labs, pharmacy, notifications, dashboard, and AI service endpoints
-- Source-of-truth docs refresh for the real post-dashboard baseline
-- Deployment/testing/operations docs for staging-readiness tracking
+## AI Service
 
-Phase 15 does not add new business modules. It is a stabilization pass.
+| Technology | Purpose |
+|---|---|
+| Python | AI/ML service language |
+| FastAPI | AI REST service |
+| StatsForecast | Pharmacy demand forecasting |
+| AutoARIMA | Time-series forecasting |
+| AutoETS | Time-series forecasting |
+| XGBoost | Trainable no-show prediction path |
+| IsolationForest | Optional billing anomaly scoring |
 
-## Tech Stack
+## Infrastructure
 
-Frontend:
+- Docker
+- Docker Compose
+- MongoDB local development
+- MongoDB Atlas
+- VS Code tasks
 
-- React
-- Vite
-- JavaScript
-- Tailwind CSS
-- React Router
-- Axios
+---
 
-Backend:
+# Application Modules
+
+## 1. Authentication and Authorization
+
+The backend provides:
+
+```text
+POST /api/v1/auth/register
+POST /api/v1/auth/login
+GET  /api/v1/auth/me
+POST /api/v1/auth/logout
+```
+
+Authentication uses JWT sessions.
+
+Authorization is implemented using RBAC and clinic-scoped access.
+
+---
+
+## 2. Patient Management
+
+Patients can be:
+
+- Registered
+- Searched
+- Viewed
+- Updated
+- Removed
+- Linked to appointments
+- Linked to consultations
+- Linked to prescriptions
+- Linked to invoices
+- Linked to laboratory orders/results
+- Linked to pharmacy records
+
+Readable patient IDs are backed by per-clinic counters.
+
+---
+
+## 3. Doctor Management
+
+Doctor management includes:
+
+- Doctor creation
+- Doctor listing
+- Doctor profile
+- Doctor updates
+- Doctor deletion
+- Availability
+- Blocked slots
+- Workload analytics
+
+Doctor records are clinic-scoped.
+
+---
+
+## 4. Appointment Scheduling
+
+Appointment scheduling supports:
+
+- Doctor-wise booking
+- Slot conflict prevention
+- Available slot lookup
+- Day/week/month calendar views
+- Walk-ins
+- Scheduled visits
+- Follow-ups
+- Teleconsultation appointments
+- Status transitions
+- Rescheduling history
+- Cancellation history
+- No-show prediction
+
+---
+
+## 5. Consultation and EMR
+
+A consultation can be linked directly to an appointment.
+
+The consultation workspace supports:
+
+```text
+Patient
+   │
+   ▼
+Appointment
+   │
+   ▼
+Consultation
+   ├── Symptoms
+   ├── Vitals
+   ├── Diagnosis
+   ├── Clinical Notes
+   ├── Treatment Plan
+   ├── Follow-up
+   └── AI Suggestions
+             │
+             ▼
+       Doctor Review
+```
+
+AI suggestions are persisted for auditability and future evaluation.
+
+---
+
+## 6. Prescription Management
+
+Prescription creation captures doctor-controlled medicine information:
+
+- Medicine
+- Dosage
+- Frequency
+- Route
+- Duration
+- Timing
+- Instructions
+
+A prescription cannot be finalized without explicit doctor confirmation.
+
+The system can generate a PDF and provide an authenticated download endpoint.
+
+---
+
+## 7. Billing and Invoices
+
+Billing calculations are performed by the backend.
+
+The invoice flow supports:
+
+```text
+Invoice
+ ├── Line Items
+ ├── Subtotal
+ ├── Discount
+ ├── GST
+ ├── Total
+ ├── Paid
+ └── Due
+```
+
+Payment statuses:
+
+- `unpaid`
+- `partial`
+- `paid`
+- `cancelled`
+
+The system also supports invoice PDFs and patient-linked invoice history.
+
+---
+
+## 8. Laboratory Management
+
+The laboratory module provides:
+
+```text
+Test Catalog
+     │
+     ▼
+Lab Order
+     │
+     ├── ordered
+     ├── sample_collected
+     ├── processing
+     ├── completed
+     └── cancelled
+             │
+             ▼
+        Lab Report
+             │
+             ▼
+         Finalized
+```
+
+The backend performs rule-based abnormal result detection.
+
+---
+
+## 9. Pharmacy Management
+
+The pharmacy module tracks:
+
+- Medicine catalog
+- Stock
+- Batches
+- Reorder levels
+- Expiry
+- Dispensing
+- Sales
+- Prescription linkage
+
+Expired stock is blocked from dispensing.
+
+Stock allocation and expiry checks are backend-owned.
+
+---
+
+# AI Capabilities
+
+AI-CMS uses AI/ML as an **assistive layer** around clinic workflows.
+
+## Current AI/ML areas
+
+### Symptom Checking
+
+```http
+POST /api/v1/ai/symptom-check
+```
+
+Provides assistive symptom analysis with safety guardrails and output sanitization.
+
+### No-Show Prediction
+
+```http
+POST /api/v1/ai/no-show
+POST /api/v1/ai/no-show-predict
+```
+
+The system supports a rule-based fallback and a trainable XGBoost path when historical data and dependencies are available.
+
+### Clinical Note Formatting
+
+```http
+POST /api/v1/ai/format-clinical-note
+```
+
+Formats clinical information into structured notes.
+
+### Diagnosis Suggestions
+
+```http
+POST /api/v1/ai/clinical/diagnosis-suggestions
+```
+
+Provides assistive diagnosis suggestions for doctor review.
+
+### Prescription Advice Formatting
+
+```http
+POST /api/v1/ai/prescription/format-advice
+```
+
+Formats doctor-provided advice text.
+
+It does **not** autonomously prescribe medication.
+
+### OCR / Document Intake
+
+```http
+POST /api/v1/ai/ocr-patient-document
+```
+
+The repository includes the intake endpoint and validation structure; it does not claim a production OCR engine by default.
+
+### Transcription
+
+```http
+POST /api/v1/ai/transcribe
+```
+
+The repository includes the transcription intake path; it does not claim production Whisper/transcription infrastructure by default.
+
+### Pharmacy Demand Forecasting
+
+```http
+POST /api/v1/ai/pharmacy-demand
+POST /api/v1/ai/train/pharmacy-demand
+```
+
+Forecasts:
+
+- Next 7-day demand
+- Next 30-day demand
+- Stockout risk
+- Reorder quantity
+- Expiry risk
+- Reason codes
+- Model status
+
+### Billing Anomaly Screening
+
+```http
+POST /api/v1/ai/billing-anomaly
+POST /api/v1/ai/train/billing-anomaly
+```
+
+Screens billing records for possible anomalies and revenue leakage using explainable rules first, with optional IsolationForest scoring when sufficient historical data and dependencies exist.
+
+---
+
+# AI Safety and Human Oversight
+
+AI-CMS intentionally does not treat AI output as an autonomous medical decision.
+
+### Clinical AI
+
+- Diagnosis suggestions require doctor review.
+- AI suggestions must be accepted, rejected, or partially accepted by the doctor.
+- Prescription assistance only formats doctor-provided advice.
+- AI does not automatically prescribe medication.
+- Medical outputs include safety guardrails and sanitization.
+
+### Pharmacy AI
+
+Pharmacy forecasting is assistive.
+
+Forecasts:
+
+- Do not block dispensing.
+- Do not represent validated production accuracy.
+- Do not automatically become procurement decisions.
+- Must be reviewed by an admin or pharmacist.
+
+### Billing AI
+
+Billing anomaly detection:
+
+- Is admin-facing.
+- Is not shown to patients, doctors, receptionists, or pharmacists.
+- Is an assistive review signal.
+- Is not a final fraud judgment.
+- Uses safe fallback behavior when ML artifacts/dependencies are unavailable.
+
+---
+
+# Business and Clinical Workflow
+
+A typical clinic workflow can be represented as:
+
+```text
+Patient Registration
+        │
+        ▼
+Appointment Booking
+        │
+        ▼
+Doctor Consultation
+        │
+        ├───────────────┐
+        ▼               ▼
+Diagnosis          Lab Orders
+        │               │
+        ▼               ▼
+Prescription       Lab Results
+        │               │
+        └───────┬───────┘
+                ▼
+             Billing
+                │
+                ▼
+       Pharmacy / Dispensing
+                │
+                ▼
+      Notifications / Follow-up
+                │
+                ▼
+        Dashboard Analytics
+```
+
+This creates a connected patient journey instead of isolated modules.
+
+---
+
+# Phase-by-Phase Development
+
+## Phase 0–2 — Foundation
+
+Established:
+
+- Runtime infrastructure
+- Health endpoints
+- Docker support
+- Non-Docker development
+- Authentication
+- RBAC
+- Audit logging
+
+## Phase 3 — Patient and Doctor Management
+
+Added:
+
+- Clinic-scoped patients
+- Patient search and pagination
+- Patient history foundation
+- Clinic-scoped doctors
+- Doctor availability
+- Readable patient IDs
+- Readable doctor codes
+
+## Phase 4 — Appointment Scheduling
+
+Added:
+
+- Doctor-wise booking
+- Conflict prevention
+- Appointment types
+- Calendar APIs
+- Available slots
+- Status workflow
+- Rescheduling
+- Cancellation
+- No-show prediction
+- Appointment UI
+
+## Phase 5 — AI Service Foundation
+
+Added:
+
+- FastAPI service
+- AI health endpoints
+- Symptom checking
+- No-show prediction
+- OCR intake placeholder
+- Transcription intake placeholder
+- Clinical note formatting
+- AI safety guardrails
+- Upload validation
+
+## Phase 6 — Consultation and EMR
+
+Added:
+
+- Consultation workflows
+- Structured EMR
+- Symptoms
+- Vitals
+- Diagnosis
+- Treatment plan
+- Follow-up
+- SOAP formatting
+- AI diagnosis suggestions
+- Doctor review flow
+- AI prediction persistence
+
+## Phase 7 — Digital Prescriptions
+
+Added:
+
+- Prescription drafts
+- Medicine items
+- Doctor-controlled instructions
+- Doctor confirmation
+- Finalization lock
+- PDF generation
+- Authenticated PDF downloads
+- Patient prescription history
+- AI advice formatting
+
+## Phase 8 — Billing
+
+Added:
+
+- Invoice creation
+- Backend-owned calculations
+- Payment recording
+- Payment status
+- Billing summaries
+- Invoice PDFs
+- Patient invoice history
+- Frontend billing screens
+
+## Phase 9 — Frontend Application Shell
+
+Added:
+
+- React + Vite application shell
+- Login
+- JWT handling
+- Sidebar
+- Topbar
+- Shared loading/error/empty states
+- Live backend API integration
+- Dashboard
+- Patient
+- Appointment
+- Consultation
+- Chatbot
+- Prescription
+- Billing screens
+
+The frontend does not replace missing backend business logic with fake mock data.
+
+## Phase 11 — Laboratory
+
+Added:
+
+- Test catalog
+- Lab orders
+- Order status workflow
+- Reports
+- Result editing
+- Abnormal flags
+- Report finalization
+- Patient lab history
+- Audit events
+
+## Phase 12 — Pharmacy
+
+Added:
+
+- Medicine catalog
+- Stock batches
+- Reorder levels
+- Low-stock detection
+- Expiry checks
+- FEFO-style dispensing
+- Pharmacy sales
+- Medicine history
+- Dispensing workflows
+
+## Phase 13 — Notifications and Follow-Ups
+
+Added:
+
+- Notification templates
+- Notification logs
+- Provider abstraction
+- Follow-up tasks
+- Reminder logs
+- Patient notification history
+- Workflow notification hooks
+- Audit events
+
+## Phase 14 — Dashboard Analytics
+
+Added:
+
+- Overview
+- Appointment analytics
+- Revenue analytics
+- Patient analytics
+- Lab analytics
+- Pharmacy analytics
+- Notification analytics
+- Doctor workload
+- No-show analytics
+- Activity feed
+
+## Phase 15 — Stabilization
+
+Added:
+
+- Docker/runtime hardening
+- Container health checks
+- Environment alignment
+- Refreshed demo seed data
+- Postman collection cleanup
+- Documentation refresh
+- Deployment-readiness documentation
+- Testing strategy
+- Operations documentation
+
+## Phase 22 — Pharmacy Demand Forecasting
+
+Added:
+
+- Pharmacy demand forecasting
+- StatsForecast integration
+- AutoARIMA / AutoETS preference
+- Moving-average fallback
+- Forecast persistence
+- Stockout risk
+- Reorder intelligence
+- Expiry risk
+- Forecast status visibility
+
+## Phase 23 — Billing Anomaly Review
+
+Added:
+
+- Billing anomaly screening
+- Explainable billing rules
+- Optional IsolationForest scoring
+- Anomaly persistence
+- Admin-only review APIs
+- Review/dismiss/confirm actions
+- Dashboard visibility
+- Safe fallback behavior
+
+---
+
+# Services and Ports
+
+| Service | URL |
+|---|---|
+| Frontend | `http://localhost:5173` |
+| Backend | `http://localhost:5000` |
+| Backend Health | `http://localhost:5000/health` |
+| Backend API Docs | `http://localhost:5000/api-docs` |
+| AI Service | `http://localhost:8000` |
+| AI Health | `http://localhost:8000/health` |
+
+---
+
+# Project Structure
+
+A typical repository structure is:
+
+```text
+AI-CMS/
+├── backend/
+│   ├── app/
+│   ├── storage/
+│   │   └── invoices/
+│   ├── .env.example
+│   ├── package.json
+│   └── ...
+│
+├── frontend/
+│   ├── src/
+│   ├── .env.example
+│   ├── package.json
+│   └── ...
+│
+├── ai-service/
+│   ├── app/
+│   ├── requirements.txt
+│   ├── .env.example
+│   └── ...
+│
+├── docs/
+│   ├── IMPLEMENTATION_REPORT.md
+│   ├── DASHBOARD_ANALYTICS.md
+│   ├── DEPLOYMENT_READINESS.md
+│   ├── TESTING_STRATEGY.md
+│   └── OPERATIONS_RUNBOOK.md
+│
+├── .vscode/
+│   └── tasks.json
+│
+├── docker-compose.yml
+└── README.md
+```
+
+---
+
+# Environment Configuration
+
+## Backend
+
+Copy the example environment:
+
+```bash
+cd backend
+cp .env.example .env
+```
+
+Validate the environment:
+
+```bash
+npm run check:env
+```
+
+The backend supports:
+
+```text
+MONGO_MODE=local
+```
+
+or:
+
+```text
+MONGO_MODE=atlas
+MONGO_URI_ATLAS=mongodb+srv://username:password@cluster-url/ai-cms?retryWrites=true&w=majority
+```
+
+---
+
+# Getting Started
+
+## Prerequisites
+
+Install:
 
 - Node.js
-- Express.js
-- JavaScript
-- MongoDB + Mongoose
-- JWT + RBAC
-- Zod validation
-
-AI Service:
-
+- npm
 - Python
-- FastAPI
-- `requirements.txt`-driven setup
+- MongoDB for local database mode, or MongoDB Atlas
+- Docker and Docker Compose if using Docker
 
-## Services And Ports
+---
 
-- Backend: `http://localhost:5000`
-- Backend health: `http://localhost:5000/health`
-- Backend docs: `http://localhost:5000/api-docs`
-- AI service: `http://localhost:8000`
-- AI health: `http://localhost:8000/health`
-- Frontend: `http://localhost:5173`
+# Running with Docker
 
-## Run Mode A: Docker
+From the repository root:
 
 ```bash
 cp .env.example .env
 docker compose up --build
 ```
 
+Then open:
+
+```text
+Frontend:
+http://localhost:5173
+
 Backend:
-`http://localhost:5000/health`
+http://localhost:5000
+
+Backend Health:
+http://localhost:5000/health
+
+API Docs:
+http://localhost:5000/api-docs
 
 AI Service:
-`http://localhost:8000/health`
+http://localhost:8000
 
-Frontend:
-`http://localhost:5173`
+AI Health:
+http://localhost:8000/health
+```
 
-## Run Mode B: Without Docker + Local MongoDB
+---
 
-Terminal 1:
-Start local MongoDB manually.
+# Running Without Docker
 
-Terminal 2:
+## Terminal 1 — MongoDB
+
+Start MongoDB locally.
+
+---
+
+## Terminal 2 — Backend
 
 ```bash
 cd backend
+
 cp .env.example .env
-# set MONGO_MODE=local
+
 npm install
+
 npm run check:env
+
 npm run seed:admin
+
 npm run dev
 ```
 
-Terminal 3:
+---
+
+## Terminal 3 — AI Service
+
+### Windows
 
 ```bash
 cd ai-service
+
 python -m venv .venv
-# Windows:
+
 .venv\Scripts\activate
-# macOS/Linux:
-source .venv/bin/activate
+
 pip install -r requirements.txt
+
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Terminal 4:
+### macOS/Linux
+
+```bash
+cd ai-service
+
+python -m venv .venv
+
+source .venv/bin/activate
+
+pip install -r requirements.txt
+
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+---
+
+## Terminal 4 — Frontend
 
 ```bash
 cd frontend
+
 cp .env.example .env
+
 npm install
+
 npm run dev
 ```
 
-## Run Mode C: Without Docker + MongoDB Atlas
+The frontend should then be available at:
 
-```bash
-cd backend
-cp .env.example .env
+```text
+http://localhost:5173
 ```
 
-Set:
+---
 
-```bash
+# MongoDB Atlas Setup
+
+1. Create a MongoDB Atlas cluster.
+2. Create a database user.
+3. Add your current public IP address to Atlas Network Access.
+4. Copy the SRV connection string.
+5. Replace the username, password, and cluster URL.
+6. Use `ai-cms` as the database name unless you intentionally choose another name.
+
+Example:
+
+```env
 MONGO_MODE=atlas
 MONGO_URI_ATLAS=mongodb+srv://username:password@cluster-url/ai-cms?retryWrites=true&w=majority
 ```
@@ -292,44 +1184,41 @@ MONGO_URI_ATLAS=mongodb+srv://username:password@cluster-url/ai-cms?retryWrites=t
 Then:
 
 ```bash
+cd backend
+
 npm run check:env
 npm run seed:admin
 npm run dev
 ```
 
-Run the AI service and frontend with the same non-Docker commands shown in Run Mode B.
+---
 
-## How To Create MongoDB Atlas URI
+# Database Seeding
 
-1. Create a cluster in MongoDB Atlas.
-2. Create a database user with a username and password.
-3. Add your current public IP address to the Atlas network access list.
-4. Copy the SRV connection string from Atlas.
-5. Replace `<username>`, `<password>`, and `<cluster-url>` in `MONGO_URI_ATLAS`.
-6. Keep the database name as `ai-cms` unless you intentionally want a different database.
-
-## How To Seed Admin
+## Seed Super Admin
 
 ```bash
 cd backend
-cp .env.example .env
+
 npm install
 npm run check:env
 npm run seed:admin
 ```
 
-The seed script creates the `SUPER_ADMIN` only if the configured email does not already exist.
+The seed script creates a `SUPER_ADMIN` only when the configured email does not already exist.
 
-## How To Seed Demo Data
+## Seed Demo Data
 
 ```bash
 cd backend
-cp .env.example .env
+
 npm install
 npm run seed
 ```
 
-The demo seed is idempotent and creates:
+The demo seed is idempotent.
+
+It creates:
 
 - 1 demo clinic
 - 1 super admin user
@@ -342,298 +1231,311 @@ The demo seed is idempotent and creates:
 - 1 completed consultation
 - 1 finalized prescription
 - 1 issued invoice with partial payment history
-- 1 completed lab order and finalized lab report
-- 1 medicine catalog item, 1 dispensing record, and 1 pharmacy sale
-- 1 notification template, 1 sent notification log, and 1 follow-up task
+- 1 completed lab order
+- 1 finalized lab report
+- 1 medicine catalog item
+- 1 dispensing record
+- 1 pharmacy sale
+- 1 notification template
+- 1 sent notification log
+- 1 follow-up task
 
-## Demo Credentials
+---
 
-- `admin@aicms.local` / `Admin123!`
-- `receptionist@aicms.local` / `Reception@12345`
-- `doctor@aicms.local` / `Doctor@12345`
-- `patient@aicms.local` / `Patient@12345`
+# Demo Credentials
 
-## How To Run Tests
+| Role | Email | Password |
+|---|---|---|
+| Super Admin | `admin@aicms.local` | `Admin123!` |
+| Receptionist | `receptionist@aicms.local` | `Reception@12345` |
+| Doctor | `doctor@aicms.local` | `Doctor@12345` |
+| Patient | `patient@aicms.local` | `Patient@12345` |
 
-Backend:
+> These credentials are intended for local/demo environments. Do not use them in production.
 
-```bash
-cd backend
-npm test
+---
+
+# API Overview
+
+The backend API is versioned under:
+
+```text
+/api/v1
 ```
 
-AI service:
+## Foundation
 
-```bash
-cd ai-service
-cp .env.example .env
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
-pytest
+```http
+GET  /health
+GET  /api/v1/health
+GET  /api-docs
+
+POST /api/v1/auth/register
+POST /api/v1/auth/login
+GET  /api/v1/auth/me
+POST /api/v1/auth/logout
 ```
 
-Phase 22 AI-service verification:
+## Patients
 
-```bash
-cd ai-service
-pytest
-python -m pytest
-python -m py_compile app/main.py
+```http
+POST   /api/v1/patients
+GET    /api/v1/patients
+GET    /api/v1/patients/:id
+PATCH  /api/v1/patients/:id
+DELETE /api/v1/patients/:id
+GET    /api/v1/patients/:id/history
+GET    /api/v1/patients/:patientId/labs
+GET    /api/v1/patients/:patientId/medicines
 ```
 
-Phase 23 billing anomaly verification:
+## Doctors
 
-```bash
-cd ai-service
-pytest
-cd ../backend
-npm test
-cd ../frontend
-npm run build
+```http
+POST   /api/v1/doctors
+GET    /api/v1/doctors
+GET    /api/v1/doctors/:id
+PATCH  /api/v1/doctors/:id
+DELETE /api/v1/doctors/:id
+PATCH  /api/v1/doctors/:id/availability
 ```
 
-Frontend:
+## Appointments
 
-```bash
-cd frontend
-npm run build
+```http
+POST   /api/v1/appointments
+GET    /api/v1/appointments
+GET    /api/v1/appointments/calendar
+GET    /api/v1/appointments/available-slots
+GET    /api/v1/appointments/:id
+PATCH  /api/v1/appointments/:id/status
+PATCH  /api/v1/appointments/:id/reschedule
+PATCH  /api/v1/appointments/:id/cancel
+GET    /api/v1/doctors/:doctorId/availability
+PUT    /api/v1/doctors/:doctorId/availability
+POST   /api/v1/doctors/:doctorId/blocked-slots
 ```
 
-## Backend Endpoints
+## AI
 
-Existing foundation endpoints:
+```http
+POST /api/v1/ai/symptom-check
+POST /api/v1/ai/no-show
+POST /api/v1/ai/format-clinical-note
 
-- `GET /health`
-- `GET /api/v1/health`
-- `GET /api-docs`
-- `POST /api/v1/auth/register`
-- `POST /api/v1/auth/login`
-- `GET /api/v1/auth/me`
-- `POST /api/v1/auth/logout`
+POST /api/v1/ai/clinical/diagnosis-suggestions
+POST /api/v1/ai/clinical/format-note
 
-Phase 3 patient endpoints:
+POST /api/v1/ai/prescription/format-advice
 
-- `POST /api/v1/patients`
-- `GET /api/v1/patients`
-- `GET /api/v1/patients/:id`
-- `PATCH /api/v1/patients/:id`
-- `DELETE /api/v1/patients/:id`
-- `GET /api/v1/patients/:id/history`
-- `GET /api/v1/patients/:patientId/labs`
-- `GET /api/v1/patients/:patientId/medicines`
+POST /api/v1/ai/pharmacy-demand
+POST /api/v1/ai/train/pharmacy-demand
 
-Phase 3 doctor endpoints:
+POST /api/v1/ai/billing-anomaly
+POST /api/v1/ai/train/billing-anomaly
+```
 
-- `POST /api/v1/doctors`
-- `GET /api/v1/doctors`
-- `GET /api/v1/doctors/:id`
-- `PATCH /api/v1/doctors/:id`
-- `DELETE /api/v1/doctors/:id`
-- `PATCH /api/v1/doctors/:id/availability`
+## Consultations
 
-Phase 4 appointment endpoints:
+```http
+POST /api/v1/consultations
+GET  /api/v1/consultations
+GET  /api/v1/consultations/:id
+PATCH /api/v1/consultations/:id
+POST /api/v1/consultations/:id/ai-suggestions
+POST /api/v1/consultations/:id/ai-review
+POST /api/v1/consultations/:id/format-note
+POST /api/v1/consultations/:id/complete
+GET  /api/v1/consultations/appointment/:appointmentId
+GET  /api/v1/consultations/patient/:patientId/history
+GET  /api/v1/patients/:patientId/clinical-history
+```
 
-- `POST /api/v1/appointments`
-- `GET /api/v1/appointments`
-- `GET /api/v1/appointments/calendar`
-- `GET /api/v1/appointments/available-slots`
-- `GET /api/v1/appointments/:id`
-- `PATCH /api/v1/appointments/:id/status`
-- `PATCH /api/v1/appointments/:id/reschedule`
-- `PATCH /api/v1/appointments/:id/cancel`
-- `GET /api/v1/doctors/:doctorId/availability`
-- `PUT /api/v1/doctors/:doctorId/availability`
-- `POST /api/v1/doctors/:doctorId/blocked-slots`
+## Prescriptions
 
-Phase 5 backend AI proxy endpoints:
+```http
+POST /api/v1/prescriptions
+GET  /api/v1/prescriptions/:id
+GET  /api/v1/prescriptions/patient/:patientId
+GET  /api/v1/prescriptions/consultation/:consultationId
+PATCH /api/v1/prescriptions/:id
+POST /api/v1/prescriptions/:id/finalize
+POST /api/v1/prescriptions/:id/cancel
+GET  /api/v1/prescriptions/:id/download
+```
 
-- `POST /api/v1/ai/symptom-check`
-- `POST /api/v1/ai/no-show`
-- `POST /api/v1/ai/format-clinical-note`
+## Billing
 
-Phase 5 AI service endpoints:
+```http
+POST  /api/v1/billing/invoices
+GET   /api/v1/billing/invoices
+GET   /api/v1/billing/invoices/:id
+PUT   /api/v1/billing/invoices/:id
+POST  /api/v1/billing/invoices/:id/payments
+POST  /api/v1/billing/invoices/:id/generate-pdf
+GET   /api/v1/billing/invoices/:id/pdf
+PATCH /api/v1/billing/invoices/:id/cancel
+POST  /api/v1/billing/invoices/:id/refund
+GET   /api/v1/billing/patient/:patientId/invoices
+GET   /api/v1/billing/summary
+```
 
-- `GET /health`
-- `GET /api/v1/health`
-- `POST /api/v1/ai/symptom-check`
-- `POST /api/v1/ai/no-show`
-- `POST /api/v1/ai/no-show-predict`
-- `POST /api/v1/ai/ocr-patient-document`
-- `POST /api/v1/ai/transcribe`
-- `POST /api/v1/ai/format-clinical-note`
+## Laboratory
 
-Phase 6 consultation endpoints:
+```http
+POST  /api/v1/labs/tests
+GET   /api/v1/labs/tests
+POST  /api/v1/labs/orders
+GET   /api/v1/labs/orders
+GET   /api/v1/labs/orders/:id
+PATCH /api/v1/labs/orders/:id/status
+POST  /api/v1/labs/reports
+GET   /api/v1/labs/reports/:id
+PATCH /api/v1/labs/reports/:id
+PATCH /api/v1/labs/reports/:id/finalize
+```
 
-- `POST /api/v1/consultations`
-- `GET /api/v1/consultations`
-- `GET /api/v1/consultations/:id`
-- `PATCH /api/v1/consultations/:id`
-- `POST /api/v1/consultations/:id/ai-suggestions`
-- `POST /api/v1/consultations/:id/ai-review`
-- `POST /api/v1/consultations/:id/format-note`
-- `POST /api/v1/consultations/:id/complete`
-- `GET /api/v1/consultations/appointment/:appointmentId`
-- `GET /api/v1/consultations/patient/:patientId/history`
-- `GET /api/v1/patients/:patientId/clinical-history`
+## Pharmacy
 
-Phase 7 prescription endpoints:
+```http
+POST  /api/v1/pharmacy/medicines
+GET   /api/v1/pharmacy/medicines
+GET   /api/v1/pharmacy/medicines/:id
+GET   /api/v1/pharmacy/medicines/:id/forecast
+PATCH /api/v1/pharmacy/medicines/:id
+POST  /api/v1/pharmacy/medicines/:id/batches
+POST  /api/v1/pharmacy/dispense
+GET   /api/v1/pharmacy/dispensings
+GET   /api/v1/pharmacy/dispensings/:id
+PATCH /api/v1/pharmacy/dispensings/:id/cancel
+```
 
-- `POST /api/v1/prescriptions`
-- `GET /api/v1/prescriptions/:id`
-- `GET /api/v1/prescriptions/patient/:patientId`
-- `GET /api/v1/prescriptions/consultation/:consultationId`
-- `PATCH /api/v1/prescriptions/:id`
-- `POST /api/v1/prescriptions/:id/finalize`
-- `POST /api/v1/prescriptions/:id/cancel`
-- `GET /api/v1/prescriptions/:id/download`
+## Admin Billing Anomaly Review
 
-Phase 7 AI helper endpoints:
+```http
+GET   /api/v1/admin/billing-anomalies
+GET   /api/v1/admin/billing-anomalies/:id
+PATCH /api/v1/admin/billing-anomalies/:id/review
+```
 
-- `POST /api/v1/ai/prescription/format-advice`
-- `POST /api/v1/prescription/format-advice`
+## Dashboard Analytics
 
-Phase 8 billing endpoints:
+```http
+GET /api/v1/dashboard/overview
+GET /api/v1/dashboard/appointments
+GET /api/v1/dashboard/revenue
+GET /api/v1/dashboard/patients
+GET /api/v1/dashboard/labs
+GET /api/v1/dashboard/pharmacy
+GET /api/v1/dashboard/notifications
+GET /api/v1/dashboard/doctor-workload
+GET /api/v1/dashboard/no-show
+GET /api/v1/dashboard/activity-feed
+```
 
-- `POST /api/v1/billing/invoices`
-- `GET /api/v1/billing/invoices`
-- `GET /api/v1/billing/invoices/:id`
-- `PUT /api/v1/billing/invoices/:id`
-- `POST /api/v1/billing/invoices/:id/payments`
-- `POST /api/v1/billing/invoices/:id/generate-pdf`
-- `GET /api/v1/billing/invoices/:id/pdf`
-- `PATCH /api/v1/billing/invoices/:id/cancel`
-- `GET /api/v1/billing/patient/:patientId/invoices`
-- `GET /api/v1/billing/summary`
+---
 
-Phase 11 lab endpoints:
+# Frontend Routes
 
-- `POST /api/v1/labs/tests`
-- `GET /api/v1/labs/tests`
-- `POST /api/v1/labs/orders`
-- `GET /api/v1/labs/orders`
-- `GET /api/v1/labs/orders/:id`
-- `PATCH /api/v1/labs/orders/:id/status`
-- `POST /api/v1/labs/reports`
-- `GET /api/v1/labs/reports/:id`
-- `PATCH /api/v1/labs/reports/:id`
-- `PATCH /api/v1/labs/reports/:id/finalize`
+## Dashboard
 
-Phase 12 pharmacy endpoints:
+```text
+/dashboard
+/dashboard/appointments
+/dashboard/revenue
+/dashboard/patients
+/dashboard/labs
+/dashboard/pharmacy
+/dashboard/billing-fraud
+/dashboard/notifications
+```
 
-- `POST /api/v1/pharmacy/medicines`
-- `GET /api/v1/pharmacy/medicines`
-- `GET /api/v1/pharmacy/medicines/:id`
-- `GET /api/v1/pharmacy/medicines/:id/forecast`
-- `PATCH /api/v1/pharmacy/medicines/:id`
-- `POST /api/v1/pharmacy/medicines/:id/batches`
-- `POST /api/v1/pharmacy/dispense`
-- `GET /api/v1/pharmacy/dispensings`
-- `GET /api/v1/pharmacy/dispensings/:id`
-- `PATCH /api/v1/pharmacy/dispensings/:id/cancel`
-- `POST /api/v1/billing/invoices/:id/refund`
-- `GET /api/v1/admin/billing-anomalies`
-- `GET /api/v1/admin/billing-anomalies/:id`
-- `PATCH /api/v1/admin/billing-anomalies/:id/review`
+## Appointments
 
-Phase 22 AI pharmacy endpoints:
+```text
+/appointments
+/appointments/new
+/appointments/:id
+/appointments/:appointmentId/consultation
+```
 
-- `POST /api/v1/ai/pharmacy-demand`
-- `POST /ai/pharmacy-demand`
-- `POST /api/v1/ai/train/pharmacy-demand`
-- `POST /ai/train/pharmacy-demand`
-- `POST /api/v1/ai/billing-anomaly`
-- `POST /ai/billing-anomaly`
-- `POST /api/v1/ai/train/billing-anomaly`
-- `POST /ai/train/billing-anomaly`
+## Consultations
 
-Phase 14 dashboard endpoints:
+```text
+/consultations/:consultationId
+```
 
-- `GET /api/v1/dashboard/overview`
-- `GET /api/v1/dashboard/appointments`
-- `GET /api/v1/dashboard/revenue`
-- `GET /api/v1/dashboard/patients`
-- `GET /api/v1/dashboard/labs`
-- `GET /api/v1/dashboard/pharmacy`
-- `GET /api/v1/dashboard/notifications`
-- `GET /api/v1/dashboard/doctor-workload`
-- `GET /api/v1/dashboard/no-show`
-- `GET /api/v1/dashboard/activity-feed`
+## Prescriptions
 
-Phase 6 AI clinical endpoints:
+```text
+/prescriptions
+/prescriptions/new
+/prescriptions/:id
+/prescriptions/:prescriptionId/dispense
+```
 
-- `POST /api/v1/ai/clinical/diagnosis-suggestions`
-- `POST /api/v1/ai/clinical/format-note`
-- `POST /api/v1/clinical/diagnosis-suggestions`
-- `POST /api/v1/clinical/consultation-suggestions`
-- `POST /api/v1/clinical/format-note`
+## Billing
 
-## Frontend Routes
+```text
+/billing
+/billing/create
+/billing/:id
+```
 
-- `/dashboard`
-- `/dashboard/appointments`
-- `/dashboard/revenue`
-- `/dashboard/patients`
-- `/dashboard/labs`
-- `/dashboard/pharmacy`
-- `/dashboard/billing-fraud`
-- `/dashboard/notifications`
-- `/appointments`
-- `/appointments/new`
-- `/appointments/:id`
-- `/appointments/:appointmentId/consultation`
-- `/consultations/:consultationId`
-- `/prescriptions`
-- `/prescriptions/new`
-- `/prescriptions/:id`
-- `/billing`
-- `/billing/create`
-- `/billing/:id`
-- `/patients`
-- `/patients/new`
-- `/patients/:id`
-- `/patients/:id/edit`
-- `/patients/:patientId/history`
-- `/patients/:patientId/labs`
-- `/patients/:patientId/medicines`
-- `/patients/:patientId/consultations`
-- `/doctors`
-- `/doctors/new`
-- `/doctors/:id`
-- `/doctors/:id/edit`
-- `/doctors/:id/availability`
-- `/consultations/:consultationId/labs/new`
-- `/labs/tests`
-- `/labs/orders`
-- `/labs/orders/:id`
-- `/labs/reports/:id`
-- `/pharmacy/medicines`
-- `/pharmacy/medicines/new`
-- `/pharmacy/medicines/:id`
-- `/prescriptions/:prescriptionId/dispense`
-- `/pharmacy/dispensings`
-- `/pharmacy/dispensings/:id`
+## Patients
 
-## Common Errors And Fixes
+```text
+/patients
+/patients/new
+/patients/:id
+/patients/:id/edit
+/patients/:patientId/history
+/patients/:patientId/labs
+/patients/:patientId/medicines
+/patients/:patientId/consultations
+```
 
-- `Local MongoDB connection failed...`
-  Start MongoDB locally or switch to `MONGO_MODE=atlas` and configure `MONGO_URI_ATLAS`.
+## Doctors
 
-- `MONGO_URI_ATLAS contains placeholder values...`
-  Replace `<username>`, `<password>`, and `<cluster-url>` with real Atlas values.
+```text
+/doctors
+/doctors/new
+/doctors/:id
+/doctors/:id/edit
+/doctors/:id/availability
+```
 
-- `MongoDB Atlas connection failed...`
-  Recheck the Atlas username, password, IP whitelist, and cluster URL.
+## Laboratory
 
-- `Environment validation failed.`
-  Run `npm run check:env` inside `backend` and fill in the missing variables.
+```text
+/consultations/:consultationId/labs/new
+/labs/tests
+/labs/orders
+/labs/orders/:id
+/labs/reports/:id
+```
 
-- Frontend API requests fail immediately in dev
-  Confirm `frontend/.env` contains `VITE_API_BASE_URL=http://localhost:5000/api/v1`.
+## Pharmacy
 
-## Health Contracts
+```text
+/pharmacy/medicines
+/pharmacy/medicines/new
+/pharmacy/medicines/:id
+/pharmacy/dispensings
+/pharmacy/dispensings/:id
+```
 
-Backend health:
+---
+
+# Health Checks
+
+## Backend
+
+```http
+GET /health
+```
+
+Expected response:
 
 ```json
 {
@@ -645,13 +1547,18 @@ Backend health:
     "database": {
       "status": "connected",
       "mode": "local"
-    },
-    "timestamp": "2026-04-21T00:00:00.000Z"
+    }
   }
 }
 ```
 
-AI health:
+## AI Service
+
+```http
+GET /health
+```
+
+Expected response:
 
 ```json
 {
@@ -665,70 +1572,510 @@ AI health:
 }
 ```
 
-## Foundation Notes
+---
+
+# Testing
+
+## Backend
+
+```bash
+cd backend
+npm test
+```
+
+## AI Service
+
+```bash
+cd ai-service
+
+pytest
+python -m pytest
+python -m py_compile app/main.py
+```
+
+## Frontend
+
+```bash
+cd frontend
+npm run build
+```
+
+## Full Phase 23 Verification
+
+```bash
+cd ai-service
+pytest
+
+cd ../backend
+npm test
+
+cd ../frontend
+npm run build
+```
+
+---
+
+# Pharmacy Forecasting Logic
+
+The pharmacy forecasting service uses the following data:
+
+```text
+medicine_id
+medicine_name
+current_stock
+reorder_level
+supplier_lead_time_days
+sales_history
+```
+
+## Model selection
+
+| Sales history | Behavior |
+|---|---|
+| `< 14` daily records | `insufficient_data` |
+| `14–29` records | Moving-average fallback |
+| `30+` records | Try StatsForecast AutoARIMA, then AutoETS |
+
+## Fallback behavior
+
+The fallback estimates:
+
+- Average daily sales
+- Next 7-day demand
+- Next 30-day demand
+- Reorder quantity
+- Stockout risk
+
+Forecasting never blocks pharmacy dispensing.
+
+When forecasting is unavailable, the UI should communicate:
+
+```text
+Forecast unavailable. Showing rule-based reorder status.
+```
+
+## Environment flags
+
+```env
+ENABLE_PHARMACY_FORECAST=true
+PHARMACY_FORECAST_MIN_RECORDS=30
+MODEL_DIR=app/models
+ENABLE_AI_FALLBACKS=true
+```
+
+Forecast confidence represents data sufficiency and model availability. It does **not** represent validated production accuracy.
+
+---
+
+# Billing Anomaly Detection
+
+Billing anomaly screening uses invoice and payment context such as:
+
+- Invoice totals
+- Payment state
+- Line items
+- Duplicate invoice count
+- Refund count
+- Historical invoice values
+
+## Training threshold
+
+Fewer than `300` billing records should produce:
+
+```text
+model_status: insufficient_data
+```
+
+The system must not pretend that a trained IsolationForest model is ready.
+
+If the model artifact or required dependencies are unavailable, the service continues using explainable rule-based scoring.
+
+## Environment flag
+
+```env
+BILLING_ANOMALY_MIN_TRAINING_RECORDS=300
+```
+
+Anomaly confidence is not validated fraud-detection accuracy.
+
+The result is a review signal, not a final fraud determination.
+
+---
+
+# Security and Data Integrity
+
+AI-CMS follows several backend-first integrity principles.
+
+## Authentication
+
+- JWT-based authentication
+- Protected API routes
+- Session handling
+- Authenticated file downloads
+
+## Authorization
+
+- RBAC
+- Clinic-scoped access
+- Admin-only billing anomaly review
+- Restricted clinical workflow actions
+
+## Validation
+
+- Zod validation in the backend
+- Upload validation
+- Environment validation
+- AI output sanitization
+
+## Billing Integrity
+
+Invoice totals are recalculated by the backend.
+
+Client-side totals are not trusted.
+
+## Pharmacy Integrity
+
+Stock allocation and expiry validation are backend-owned.
+
+Client-side inventory calculations are not trusted.
+
+## Auditability
+
+Audit events are generated for important operations across:
+
+- Patient workflows
+- Lab workflows
+- Pharmacy workflows
+- Notifications
+- Follow-ups
+- Prescriptions
+- Other administrative actions
+
+---
+
+# Error Handling and Troubleshooting
+
+## Local MongoDB connection failed
+
+```text
+Local MongoDB connection failed...
+```
+
+### Fix
+
+Start MongoDB locally or switch to Atlas:
+
+```env
+MONGO_MODE=atlas
+```
+
+and configure:
+
+```env
+MONGO_URI_ATLAS=...
+```
+
+---
+
+## Atlas placeholder error
+
+```text
+MONGO_URI_ATLAS contains placeholder values...
+```
+
+### Fix
+
+Replace:
+
+```text
+<username>
+<password>
+<cluster-url>
+```
+
+with real Atlas values.
+
+---
+
+## MongoDB Atlas connection failed
+
+Check:
+
+- Atlas username
+- Password
+- IP allowlist
+- Cluster URL
+- Database connection string
+
+---
+
+## Environment validation failed
+
+Run:
+
+```bash
+cd backend
+npm run check:env
+```
+
+Then fill all required variables in `.env`.
+
+---
+
+## Frontend API requests fail
+
+Check:
+
+```env
+VITE_API_BASE_URL=http://localhost:5000/api/v1
+```
+
+Also confirm that the backend is running on:
+
+```text
+http://localhost:5000
+```
+
+---
+
+# Documentation
+
+Additional repository documentation includes:
+
+```text
+docs/IMPLEMENTATION_REPORT.md
+docs/DASHBOARD_ANALYTICS.md
+docs/DEPLOYMENT_READINESS.md
+docs/TESTING_STRATEGY.md
+docs/OPERATIONS_RUNBOOK.md
+```
+
+### Implementation Report
+
+Contains detailed phase verification and implementation information.
+
+### Dashboard Analytics
+
+Documents backend-owned dashboard analytics.
+
+### Deployment Readiness
+
+Contains staging/deployment-readiness information.
+
+### Testing Strategy
+
+Documents the testing approach.
+
+### Operations Runbook
+
+Contains operational and runtime guidance.
+
+---
+
+# VS Code Quick Start
+
+The repository supports starting the frontend, backend, and AI service together using a VS Code task.
+
+Configure a keyboard shortcut in:
+
+```text
+Preferences → Open Keyboard Shortcuts (JSON)
+```
+
+Add:
+
+```json
+{
+  "key": "ctrl+alt+s",
+  "command": "workbench.action.tasks.runTask",
+  "args": "Start All Servers"
+}
+```
+
+Then press:
+
+```text
+Ctrl + Alt + S
+```
+
+and select:
+
+```text
+Start All Servers
+```
+
+The configured VS Code task can start:
+
+- Frontend
+- Backend
+- AI service
+
+in parallel.
+
+---
+
+# Current Scope and Limitations
+
+AI-CMS is an MVP-oriented clinic management platform with progressively implemented AI/ML capabilities.
+
+The following limitations are intentionally documented:
 
 - Docker is supported but optional.
-- Local MongoDB and MongoDB Atlas are both supported.
-- The backend remains JavaScript-only.
-- Appointment scheduling, consultation EMR, prescriptions, billing, and lab orders/results now exist for the MVP.
-- Pharmacy inventory and prescription-linked dispensing now exist for the MVP.
-- The AI service remains fallback-safe for local setup, but no-show prediction now supports a trainable XGBoost path when historical data and dependencies are available.
-- Pharmacy forecasting prefers StatsForecast when enough daily sales history exists, but safely falls back to moving-average reorder rules when dependencies are unavailable or history is insufficient.
-- Pharmacy demand confidence values reflect data sufficiency and forecast method availability only. They do not claim validated production accuracy.
-- Billing anomaly screening is admin-facing only, uses explainable rules first, and falls back safely when IsolationForest artifacts or dependencies are unavailable.
-- Billing anomaly confidence values do not claim validated fraud-detection accuracy and must not be treated as a final judgment.
-- Consultation AI suggestions are assistive only and require doctor approval before becoming part of the consultation record.
-- Prescription AI assistance only formats doctor-provided advice text and must still be reviewed and approved by a doctor.
-- Billing totals are always recalculated on the backend, and invoice PDFs are stored under `backend/storage/invoices`.
-- Lab result abnormal detection in Phase 11 is rule-based inside the backend and does not require a separate heavy AI model or direct frontend-to-AI-service calls.
-- Pharmacy stock allocation and expiry checks in Phase 12 are backend-owned and do not trust client-side inventory math.
-- Billing fraud and revenue leakage review now exists as an admin-only assistive workflow with safe fallback behavior.
-- Detailed phase verification is recorded in `docs/IMPLEMENTATION_REPORT.md`.
-- Dashboard analytics details are summarized in `docs/DASHBOARD_ANALYTICS.md`.
-- Deployment readiness and test strategy notes live in `docs/DEPLOYMENT_READINESS.md`, `docs/TESTING_STRATEGY.md`, and `docs/OPERATIONS_RUNBOOK.md`.
+- Local MongoDB and MongoDB Atlas are supported.
+- Backend is JavaScript-only.
+- The AI service is Python/FastAPI.
+- AI functionality remains fallback-safe for local development.
+- OCR and transcription endpoints do not by themselves claim production-grade OCR/transcription engines.
+- No-show prediction has a trainable XGBoost path when historical data and dependencies are available.
+- Pharmacy forecasting requires sufficient history for statistical models.
+- Pharmacy fallback forecasting is rule-based.
+- Forecast confidence is not validated production accuracy.
+- Billing anomaly screening is assistive and admin-only.
+- Billing anomaly confidence is not validated fraud-detection accuracy.
+- Clinical AI suggestions require doctor approval.
+- Prescription AI assistance does not autonomously prescribe medication.
+- Lab abnormal detection is rule-based.
+- External LIS integrations are not part of the documented Phase 11 implementation.
+- Paid SMS/WhatsApp delivery infrastructure is not part of the documented Phase 13 implementation.
+- External BI tooling is not part of the documented dashboard implementation.
+- Telemedicine messaging infrastructure is not part of the documented notification implementation.
 
-## Pharmacy Forecasting Notes
+---
 
-- Required fields for demand forecasting: `medicine_id`, `medicine_name`, `current_stock`, `reorder_level`, `supplier_lead_time_days`, and `sales_history`
-- Historical-data behavior:
-  - fewer than `14` daily records returns `model_status: insufficient_data`
-  - `14` to `29` records uses moving-average fallback rules
-  - `30+` records attempts StatsForecast `AutoARIMA`, then `AutoETS`
-- Fallback reorder behavior estimates next 7-day and 30-day demand from average daily sales, then derives reorder quantity and stockout risk without blocking pharmacy workflows
-- Forecast failures should be shown as: `Forecast unavailable. Showing rule-based reorder status.`
-- Environment flags:
-- `ENABLE_PHARMACY_FORECAST=true`
-- `PHARMACY_FORECAST_MIN_RECORDS=30`
-- `BILLING_ANOMALY_MIN_TRAINING_RECORDS=300`
-- `MODEL_DIR=app/models`
-- `ENABLE_AI_FALLBACKS=true`
+# Important Design Principles
 
-## Billing Anomaly Notes
+## 1. Backend Owns Business Logic
 
-- `POST /ai/billing-anomaly` returns the standardized AI envelope, and its `output` contains `anomaly_score` and `triggered_rules`
-- Required billing context includes invoice totals, payment state, line items, and any available historical context such as duplicate invoice count, refund count, or average invoice values
-- Fewer than `300` billing records should return `model_status: insufficient_data` from the training endpoint instead of pretending an IsolationForest model is ready
-- If the billing anomaly model file is missing or dependencies are unavailable, the service must continue using rule-based fallback scoring
-- Review workflow is Admin and Super Admin only, and the result is an assistive review signal rather than a final fraud determination
+Critical calculations and workflow rules should remain on the backend.
 
-## VS Code Quick Start Keyboard Shortcut
+Examples:
 
-To start the frontend, backend, and AI service concurrently in separate terminals with a single keystroke (`Ctrl + Alt + S`), follow these steps:
+- Invoice totals
+- Pharmacy stock allocation
+- Expiry checks
+- Appointment conflicts
+- Authorization
+- AI safety rules
 
-1. **Configure VS Code Keybindings**:
-   - Open the Command Palette in VS Code (`Ctrl + Shift + P`).
-   - Select **Preferences: Open Keyboard Shortcuts (JSON)**.
-   - Paste the following entry inside the brackets `[ ... ]` of your custom keybindings:
-     ```json
-     {
-       "key": "ctrl+alt+s",
-       "command": "workbench.action.tasks.runTask",
-       "args": "Start All Servers"
-     }
-     ```
-   - Save and close the keybindings file.
+## 2. AI Is Assistive
 
-2. **Run the Servers**:
-   - Simply press `Ctrl + Alt + S` anywhere in VS Code.
-   - Select the `Start All Servers` task (if prompted).
-   - This runs the pre-configured tasks in [`.vscode/tasks.json`](file:///c:/Users/Lenovo/Desktop/Program/Ai-BASED-BRD-FRS-CLINIC-MANAGEMENT-SYSTEM/.vscode/tasks.json) to start all services (frontend, backend, and AI server) in parallel, complete with active logs in their respective terminal windows.
+AI should help users make better decisions, not silently replace clinical or administrative responsibility.
+
+## 3. Graceful Degradation
+
+When AI models, dependencies, or historical data are unavailable, the system should provide a safe fallback instead of pretending that a model is working.
+
+## 4. Auditability
+
+Important AI and business decisions should remain traceable.
+
+## 5. Clinic-Scoped Data
+
+Clinic data is designed to remain scoped to the appropriate clinic context.
+
+## 6. No Fake Accuracy
+
+The system explicitly reports statuses such as:
+
+```text
+fallback
+insufficient_data
+unavailable
+```
+
+instead of presenting unsupported model accuracy claims.
+
+---
+
+# Project Status
+
+**AI-CMS currently covers Phase 0 through Phase 23.**
+
+The repository has evolved from its initial infrastructure and authentication foundation into a full clinic workflow platform covering:
+
+```text
+Authentication
+      ↓
+RBAC + Audit Logging
+      ↓
+Patients + Doctors
+      ↓
+Appointments
+      ↓
+Consultations + EMR
+      ↓
+Digital Prescriptions
+      ↓
+Billing
+      ↓
+Laboratory
+      ↓
+Pharmacy
+      ↓
+Notifications + Follow-ups
+      ↓
+Dashboard Analytics
+      ↓
+AI Pharmacy Forecasting
+      ↓
+AI Billing Anomaly Review
+```
+
+The project is designed around a **backend-first, clinic-scoped, API-driven architecture with assistive AI/ML capabilities and explicit human oversight**.
+
+---
+
+## Quick Start
+
+For the fastest local setup:
+
+```bash
+# 1. Start MongoDB
+
+# 2. Backend
+cd backend
+cp .env.example .env
+npm install
+npm run check:env
+npm run seed
+npm run dev
+
+# 3. AI service
+cd ../ai-service
+python -m venv .venv
+
+# Windows
+.venv\Scripts\activate
+
+# macOS/Linux
+source .venv/bin/activate
+
+pip install -r requirements.txt
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+# 4. Frontend
+cd ../frontend
+cp .env.example .env
+npm install
+npm run dev
+```
+
+Open:
+
+```text
+http://localhost:5173
+```
+
+For the complete API surface:
+
+```text
+http://localhost:5000/api-docs
+```
+
+---
+
+## AI-CMS
+
+**AI-Based Clinic Management System**
+
+A full-stack platform for connecting clinic operations, clinical workflows, billing, laboratory, pharmacy, analytics, and assistive AI in one system.
