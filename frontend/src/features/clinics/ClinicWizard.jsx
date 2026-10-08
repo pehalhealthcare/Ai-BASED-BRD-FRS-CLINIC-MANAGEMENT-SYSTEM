@@ -1147,30 +1147,50 @@ export default function ClinicWizard() {
   const activePlanObj = selectedPlanObj;
 
   const limits = React.useMemo(() => {
+    const code = (selectedPlanObj?.code || '').toUpperCase();
     const planName = (selectedPlanObj?.name || '').toLowerCase();
-    if (planName.includes('starter')) {
+    
+    if (code === 'BASIC' || (planName.includes('basic') && !planName.includes('starter'))) {
       return {
-        maxDocs: 1,
-        maxStaff: 2,
-        maxBranches: 1,
+        maxDocs: selectedPlanObj?.limits?.maxDoctors || 1,
+        maxStaff: selectedPlanObj?.limits?.maxStaff || 2,
+        maxBranches: selectedPlanObj?.limits?.maxBranches || 1,
         ai: false,
         video: false,
         healthcare: false
       };
-    } else if (planName.includes('professional')) {
+    } else if (code === 'STARTER' || planName.includes('starter')) {
       return {
-        maxDocs: 3,
-        maxStaff: 5,
-        maxBranches: 2,
+        maxDocs: selectedPlanObj?.limits?.maxDoctors || 1,
+        maxStaff: selectedPlanObj?.limits?.maxStaff || 2,
+        maxBranches: selectedPlanObj?.limits?.maxBranches || 1,
         ai: false,
+        video: false,
+        healthcare: false
+      };
+    } else if (code === 'PROFESSIONAL' || planName.includes('professional')) {
+      return {
+        maxDocs: selectedPlanObj?.limits?.maxDoctors || 5,
+        maxStaff: selectedPlanObj?.limits?.maxStaff || 10,
+        maxBranches: selectedPlanObj?.limits?.maxBranches || 1,
+        ai: false,
+        video: true,
+        healthcare: true
+      };
+    } else if (code === 'PREMIUM' || planName.includes('premium')) {
+      return {
+        maxDocs: selectedPlanObj?.limits?.maxDoctors || 15,
+        maxStaff: selectedPlanObj?.limits?.maxStaff || 25,
+        maxBranches: selectedPlanObj?.limits?.maxBranches || 5,
+        ai: true,
         video: true,
         healthcare: true
       };
     } else {
       return {
-        maxDocs: 999,
-        maxStaff: 999,
-        maxBranches: 5,
+        maxDocs: selectedPlanObj?.limits?.maxDoctors || 999999,
+        maxStaff: selectedPlanObj?.limits?.maxStaff || 999999,
+        maxBranches: selectedPlanObj?.limits?.maxBranches || 999,
         ai: true,
         video: true,
         healthcare: true

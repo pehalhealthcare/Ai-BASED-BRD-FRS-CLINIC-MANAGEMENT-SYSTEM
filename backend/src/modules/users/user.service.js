@@ -210,7 +210,7 @@ const createStaffByAdmin = async ({ name, email, phone, password, role, requeste
   }
 
   const clinic = await Clinic.findById(clinicId).populate('subscription.planId');
-  if (clinic) {
+  if (clinic && actorRole !== ROLES.SUPER_ADMIN) {
     let maxStaff = 2;
     if (clinic.customLimits && clinic.customLimits.maxStaff !== null) {
       maxStaff = clinic.customLimits.maxStaff;
@@ -218,14 +218,19 @@ const createStaffByAdmin = async ({ name, email, phone, password, role, requeste
       maxStaff = clinic.subscription.planId.limits?.maxStaff ?? 2;
     }
 
-    const currentStaffCount = await User.countDocuments({
-      clinicId,
-      role: { $in: STAFF_ROLES },
-      deletedAt: null
-    });
+    if (maxStaff < 999999) {
+      const currentStaffCount = await User.countDocuments({
+        clinicId,
+        role: { $in: STAFF_ROLES },
+        deletedAt: null
+      });
 
-    if (currentStaffCount >= maxStaff) {
-      throw new AppError('Staff Limit Reached: Your clinic plan limit is ' + maxStaff + '. Current active staff: ' + currentStaffCount + '/' + maxStaff + '. Upgrade your clinic plan to add more staff.', HTTP_STATUS.BAD_REQUEST);
+      if (currentStaffCount >= maxStaff) {
+        throw new AppError(
+          `Your current plan supports ${maxStaff} user${maxStaff > 1 ? 's' : ''}. Upgrade your plan to add more staff.`,
+          HTTP_STATUS.BAD_REQUEST
+        );
+      }
     }
   }
 

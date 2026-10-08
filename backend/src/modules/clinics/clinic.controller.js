@@ -2389,7 +2389,7 @@ const getSubscriptionModules = asyncHandler(async (req, res) => {
 
   const modules = allModules.map((mod, index) => {
     let included = true;
-    if (planName.includes('starter') || planCode === 'STARTER') {
+    if (planName.includes('basic') || planName.includes('starter') || planCode === 'BASIC' || planCode === 'STARTER') {
       included = false;
     } else if (planName.includes('professional') || planCode === 'PROFESSIONAL') {
       included = index < 6;

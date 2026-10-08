@@ -45,14 +45,16 @@ const createProvider = async (clinicId, payload, actorUserId) => {
     maxStaff = clinic.subscription.planId.limits?.maxStaff ?? 2;
   }
 
-  const currentStaffCount = await User.countDocuments({
-    clinicId,
-    role: { $in: STAFF_ROLES },
-    deletedAt: null
-  });
+  if (maxStaff < 999999) {
+    const currentStaffCount = await User.countDocuments({
+      clinicId,
+      role: { $in: STAFF_ROLES },
+      deletedAt: null
+    });
 
-  if (currentStaffCount >= maxStaff) {
-    throw new AppError('You have reached your maximum staff limit for your current subscription plan. Upgrade your plan or free an existing staff slot before adding another Healthcare Provider.', HTTP_STATUS.BAD_REQUEST);
+    if (currentStaffCount >= maxStaff) {
+      throw new AppError(`Your current plan supports ${maxStaff} user${maxStaff > 1 ? 's' : ''}. Upgrade your plan to add more staff.`, HTTP_STATUS.BAD_REQUEST);
+    }
   }
 
   const globalId = await getNextGlobalId('PRV', 'global_provider_seq');

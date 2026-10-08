@@ -1,102 +1,102 @@
 import React from 'react';
-import { Play, ArrowRight, CheckCircle2, Shield, Sparkles, Calendar, Cloud, ShieldCheck, Heart } from 'lucide-react';
+import { Play, ArrowRight, ShieldCheck, Zap, Headphones, Calendar, Sparkles, CheckCircle2, ChevronRight, Activity, Users, FileText, IndianRupee } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { responsiveAssets } from '../../constants/landingAssets';
 
 export default function HeroSection({ onSetupClinic, onWatchVideo, onBookDemo }) {
-  const trustPoints = [
-    'No credit card required',
-    'Quick setup',
-    'HIPAA-ready',
-  ];
-
-  const bottomRibbonItems = [
+  const benefitPills = [
     {
-      icon: <ShieldCheck size={22} className="text-[#0070F3]" />,
-      title: 'Trusted by 1,000+ Clinics',
-      desc: 'Across India',
+      icon: <Zap size={15} className="text-[#0070F3]" />,
+      title: 'Quick Setup',
+      desc: 'Go live in minutes',
     },
     {
-      icon: <Cloud size={22} className="text-[#0070F3]" />,
-      title: 'Cloud Based & Secure',
-      desc: 'Your data is always safe',
+      icon: <ShieldCheck size={15} className="text-[#0070F3]" />,
+      title: 'Secure & Reliable',
+      desc: 'Your data stays safe',
     },
     {
-      icon: <Shield size={22} className="text-[#0070F3]" />,
-      title: 'HIPAA Compliant',
-      desc: 'Enterprise-grade security',
-    },
-    {
-      icon: <Heart size={22} className="text-[#0070F3]" />,
-      title: 'Better Care for All',
-      desc: 'Technology for a healthier tomorrow',
+      icon: <Headphones size={15} className="text-[#0070F3]" />,
+      title: 'Dedicated Support',
+      desc: 'Assistance whenever needed',
     },
   ];
 
   return (
-    <section id="hero" className="hero-section-full">
+    <section id="hero" className="relative w-full pt-28 pb-16 lg:pt-32 lg:pb-20 overflow-hidden bg-gradient-to-b from-[#F0F7FF] via-[#F8FAFC] to-white">
+      {/* ── BACKGROUND SUBTLE RADIAL GLOWS ── */}
+      <div className="absolute top-0 right-1/4 w-[600px] h-[500px] bg-blue-400/10 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute top-20 left-10 w-[450px] h-[450px] bg-sky-300/15 rounded-full blur-[100px] pointer-events-none" />
 
-      {/* ── FULL MEDICAL CLINIC BACKGROUND CANVAS ── */}
-      <div
-        className="hero-medical-bg"
-        aria-hidden="true"
-        style={{ backgroundImage: `url(${responsiveAssets.hero.medicalBackground})` }}
-      />
-
-      {/* ── HERO CONTENT WRAPPER ── */}
-      <div className="hero-content-wrap">
-        <div className="hero-grid-layout">
-
-          {/* ── LEFT COPY COLUMN ── */}
-          <div className="hero-copy">
-
-            {/* Badge */}
+      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-10 relative z-10">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-8 items-center">
+          
+          {/* ── LEFT COPY COLUMN (7 Cols) ── */}
+          <div className="lg:col-span-7 flex flex-col items-start text-left">
+            
+            {/* Pill Eyebrow */}
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.35 }}
-              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#E0F2FE]/90 border border-[#BAE6FD] text-[#0284C7] text-xs sm:text-sm font-semibold mb-4 sm:mb-5 shadow-xs whitespace-nowrap"
+              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#E0F2FE] border border-[#BAE6FD] text-[#0284C7] text-xs sm:text-[13px] font-bold mb-5 shadow-xs"
             >
-              <Shield size={14} className="text-[#0284C7] shrink-0 fill-[#0284C7]/15" />
-              <span>Trusted by 1,000+ Clinics Across India</span>
+              <span>All-in-One Clinic Management</span>
             </motion.div>
 
             {/* Headline */}
             <motion.h1
-              initial={{ opacity: 0, y: 18 }}
+              initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.06 }}
-              className="hero-headline font-black text-[#071B3A] mb-4 sm:mb-5 tracking-tight leading-[1.08]"
+              transition={{ duration: 0.45, delay: 0.05 }}
+              className="text-3xl sm:text-4xl md:text-5xl lg:text-[52px] font-black text-[#071B3A] mb-4 sm:mb-5 tracking-tight leading-[1.12]"
             >
-              AI Modern Technology{' '}
-              <br />
-              for{' '}
+              Run Your Clinic <br />
+              Smarter with{' '}
               <span className="bg-gradient-to-r from-[#0070F3] via-[#0060E6] to-[#0284C7] bg-clip-text text-transparent">
-                Healthier Communities
+                AI-CMS
               </span>
             </motion.h1>
 
-            {/* Description */}
+            {/* Supporting Description */}
             <motion.p
-              initial={{ opacity: 0, y: 18 }}
+              initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.12 }}
-              className="hero-desc text-[#64748B] mb-6 sm:mb-7 font-normal"
+              transition={{ duration: 0.45, delay: 0.1 }}
+              className="text-sm sm:text-base md:text-lg text-[#64748B] leading-relaxed max-w-2xl mb-7 font-normal"
             >
-              AI-CMS simplifies clinic operations with intelligent workflows,
-              seamless patient experience and data-driven insights — so you can
-              focus on what truly matters:{' '}
+              A complete clinic management platform with AI-powered workflows, seamless patient experience and intelligent automation — so you can focus on what truly matters:{' '}
               <strong className="font-bold text-[#071B3A]">Better Care.</strong>
             </motion.p>
 
-            {/* CTA Buttons Row (3 buttons) */}
+            {/* 3 Value Points (Circular Icons) */}
             <motion.div
-              initial={{ opacity: 0, y: 18 }}
+              initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.18 }}
-              className="hero-actions flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-3.5 w-full mb-6 sm:mb-7"
+              transition={{ duration: 0.45, delay: 0.15 }}
+              className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 w-full max-w-2xl mb-8"
             >
-              {/* 1. Setup Your Clinic */}
+              {benefitPills.map((b, i) => (
+                <div key={i} className="flex items-center gap-2.5 p-2.5 sm:p-3 rounded-2xl bg-white/90 border border-slate-200/80 shadow-xs hover:border-blue-200 transition-colors">
+                  <div className="w-8 h-8 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0">
+                    {b.icon}
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-xs font-black text-[#071B3A] leading-tight truncate">{b.title}</span>
+                    <span className="text-[11px] text-[#64748B] font-medium leading-tight truncate">{b.desc}</span>
+                  </div>
+                </div>
+              ))}
+            </motion.div>
+
+            {/* 3 Hero CTA Buttons */}
+            <motion.div
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.45, delay: 0.2 }}
+              className="flex flex-wrap sm:flex-nowrap items-center gap-3 w-full sm:w-auto"
+            >
+              {/* Primary */}
               <button
                 type="button"
                 id="hero-setup-clinic-btn"
@@ -107,20 +107,7 @@ export default function HeroSection({ onSetupClinic, onWatchVideo, onBookDemo })
                 <ArrowRight size={17} />
               </button>
 
-              {/* 2. Watch 2 Min Video */}
-              <button
-                type="button"
-                id="hero-watch-video-btn"
-                onClick={onWatchVideo}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-5 sm:px-6 py-3.5 rounded-full bg-white/95 hover:bg-white text-[#1E293B] hover:text-[#0070F3] font-semibold text-sm sm:text-[15px] border border-slate-200/90 shadow-sm hover:shadow-md hover:border-[#BAE6FD] transition-all active:scale-[0.98] min-h-[46px]"
-              >
-                <div className="w-6 h-6 rounded-full bg-[#E0F2FE] text-[#0070F3] flex items-center justify-center shrink-0">
-                  <Play size={11} className="fill-[#0070F3] ml-0.5" />
-                </div>
-                <span>Watch 2 Min Video</span>
-              </button>
-
-              {/* 3. Book a Demo */}
+              {/* Secondary: Book a Demo */}
               <button
                 type="button"
                 id="hero-book-demo-btn"
@@ -130,175 +117,132 @@ export default function HeroSection({ onSetupClinic, onWatchVideo, onBookDemo })
                 <Calendar size={17} className="text-[#0070F3]" />
                 <span>Book a Demo</span>
               </button>
+
+              {/* Tertiary: Watch 2 Min Video */}
+              <button
+                type="button"
+                id="hero-watch-video-btn"
+                onClick={onWatchVideo}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-3.5 rounded-full bg-white hover:bg-slate-50 text-[#1E293B] hover:text-[#0070F3] font-semibold text-sm sm:text-[14px] border border-slate-200/90 shadow-sm transition-all active:scale-[0.98] min-h-[46px]"
+              >
+                <div className="w-5 h-5 rounded-full bg-[#E0F2FE] text-[#0070F3] flex items-center justify-center shrink-0">
+                  <Play size={10} className="fill-[#0070F3] ml-0.5" />
+                </div>
+                <span>Watch 2 Min Video</span>
+              </button>
             </motion.div>
 
-            {/* Trust checkmarks under buttons */}
+          </div>
+
+          {/* ── RIGHT VISUAL COLUMN (5 Cols) ── */}
+          <div className="lg:col-span-5 relative flex justify-center items-center">
+            
+            {/* Script Text in Top Right */}
+            <div className="absolute -top-6 right-0 sm:right-4 z-20 pointer-events-none text-right">
+              <span className="font-serif italic font-bold text-base sm:text-lg text-[#0070F3] drop-shadow-sm block leading-tight">
+                Empowering Doctors
+              </span>
+              <span className="font-serif italic font-medium text-xs sm:text-sm text-[#0060E6] block">
+                Enriching Lives
+              </span>
+            </div>
+
+            {/* Doctor & Realistic Dashboard Visual Composite */}
             <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.24 }}
-              className="hero-trust flex flex-wrap items-center gap-2.5 sm:gap-4 text-xs sm:text-[13px] text-[#64748B] font-medium"
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ duration: 0.55, delay: 0.2 }}
+              className="relative w-full max-w-[540px] flex flex-col items-center"
             >
-              <div className="flex items-center gap-1.5 whitespace-nowrap">
-                <CheckCircle2 size={16} className="text-[#0070F3] shrink-0" />
-                <span>No credit card required</span>
+              {/* Doctor Headset / Portrait Background */}
+              <div className="relative w-full max-w-[340px] sm:max-w-[400px] aspect-[4/3] rounded-3xl overflow-hidden shadow-2xl bg-gradient-to-tr from-blue-600 via-sky-400 to-blue-200 border-4 border-white mb-[-80px] sm:mb-[-100px] z-0">
+                <img
+                  src={responsiveAssets.hero.doctorHero || responsiveAssets.hero.doctor}
+                  alt="Doctor with AICMS Platform"
+                  className="w-full h-full object-cover object-top"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/40 via-transparent to-transparent" />
               </div>
-              <span className="hidden sm:inline text-slate-300 font-light select-none">|</span>
-              <div className="flex items-center gap-1.5 whitespace-nowrap">
-                <CheckCircle2 size={16} className="text-[#0070F3] shrink-0" />
-                <span>Quick setup</span>
+
+              {/* Realistic AICMS Front Dashboard Card Overlap */}
+              <div className="relative z-10 w-full bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-2xl sm:rounded-3xl shadow-[0_20px_50px_rgba(0,112,243,0.18)] p-3.5 sm:p-4.5 space-y-3">
+                {/* Header Bar */}
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2.5 h-2.5 rounded-full bg-rose-400" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
+                    <span className="text-[11px] font-black text-slate-700 ml-1">AI-CMS Clinic Dashboard</span>
+                  </div>
+                  <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200">
+                    Live Demo
+                  </span>
+                </div>
+
+                {/* 4 Mini Stat Cards */}
+                <div className="grid grid-cols-4 gap-1.5 sm:gap-2 text-center">
+                  <div className="p-1.5 sm:p-2 rounded-xl bg-blue-50/70 border border-blue-100">
+                    <p className="text-[9px] text-slate-500 font-bold truncate">Today Appts</p>
+                    <p className="text-xs sm:text-sm font-black text-blue-700">42</p>
+                    <span className="text-[8px] text-emerald-600 font-bold">↑ 12%</span>
+                  </div>
+                  <div className="p-1.5 sm:p-2 rounded-xl bg-emerald-50/70 border border-emerald-100">
+                    <p className="text-[9px] text-slate-500 font-bold truncate">Checked In</p>
+                    <p className="text-xs sm:text-sm font-black text-emerald-700">28</p>
+                    <span className="text-[8px] text-emerald-600 font-bold">↑ 8%</span>
+                  </div>
+                  <div className="p-1.5 sm:p-2 rounded-xl bg-indigo-50/70 border border-indigo-100">
+                    <p className="text-[9px] text-slate-500 font-bold truncate">Revenue</p>
+                    <p className="text-xs sm:text-sm font-black text-indigo-700">₹48,320</p>
+                    <span className="text-[8px] text-emerald-600 font-bold">↑ 16%</span>
+                  </div>
+                  <div className="p-1.5 sm:p-2 rounded-xl bg-amber-50/70 border border-amber-100">
+                    <p className="text-[9px] text-slate-500 font-bold truncate">Pending Bills</p>
+                    <p className="text-xs sm:text-sm font-black text-amber-700">6</p>
+                    <span className="text-[8px] text-rose-500 font-bold">↓ 4%</span>
+                  </div>
+                </div>
+
+                {/* Mini Chart / Recent Patients Row */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                  <div className="p-2 rounded-xl bg-slate-50 border border-slate-100 flex flex-col justify-between">
+                    <div className="flex justify-between items-center text-[10px] font-bold text-slate-600">
+                      <span>Weekly Flow</span>
+                      <span className="text-blue-600 font-extrabold">+18.4%</span>
+                    </div>
+                    {/* SVG Curve */}
+                    <div className="h-9 w-full flex items-end pt-1">
+                      <svg viewBox="0 0 100 30" className="w-full h-full text-blue-500" preserveAspectRatio="none">
+                        <path d="M0 24 Q 20 18, 40 20 T 70 8 T 100 4" fill="none" stroke="currentColor" strokeWidth="2.5" />
+                        <path d="M0 24 Q 20 18, 40 20 T 70 8 T 100 4 L 100 30 L 0 30 Z" fill="rgba(0,112,243,0.12)" />
+                      </svg>
+                    </div>
+                  </div>
+
+                  <div className="p-2 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
+                    <div className="flex justify-between items-center text-[10px] font-bold text-slate-600">
+                      <span>Live Queue</span>
+                      <span className="text-[9px] text-slate-400">Next Up</span>
+                    </div>
+                    <div className="flex items-center justify-between text-[10px]">
+                      <span className="font-extrabold text-slate-800">Ramesh Kumar</span>
+                      <span className="text-emerald-600 font-bold text-[9px] bg-emerald-50 px-1.5 py-0.5 rounded">OPD Ready</span>
+                    </div>
+                    <div className="flex items-center justify-between text-[10px]">
+                      <span className="font-extrabold text-slate-800">Anita Patel</span>
+                      <span className="text-blue-600 font-bold text-[9px] bg-blue-50 px-1.5 py-0.5 rounded">Vitals Done</span>
+                    </div>
+                  </div>
+                </div>
+
               </div>
-              <span className="hidden sm:inline text-slate-300 font-light select-none">|</span>
-              <div className="flex items-center gap-1.5 whitespace-nowrap">
-                <CheckCircle2 size={16} className="text-[#0070F3] shrink-0" />
-                <span>HIPAA-ready</span>
-              </div>
+
             </motion.div>
 
           </div>
 
-          {/* ── DESKTOP ARTWORK COMPOSITION (≥ 768px) ── */}
-          <motion.div
-            initial={{ opacity: 0, y: 22 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.55, delay: 0.2 }}
-            className="hero-artwork-column hero-artwork-desktop select-none"
-          >
-            <div className="hero-artwork-container">
-
-              {/* Handwritten script slogan (Desktop) */}
-              <div className="hero-script-slogan">
-                <span>Empowering</span>
-                <span>Doctors</span>
-                <span>Enriching Lives</span>
-                <svg
-                  viewBox="0 0 120 12"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="hero-script-swoosh"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M2 6C32 1.5 82 2 118 8.5"
-                    stroke="#0070F3"
-                    strokeWidth="2.4"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </div>
-
-              {/* Floating AI Assistant Badge */}
-              <motion.div
-                initial={{ opacity: 0, scale: 0.88, y: 10 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                transition={{ duration: 0.45, delay: 0.35 }}
-                className="hero-floating-ai-card"
-              >
-                <div className="hero-floating-ai-icon">
-                  <Sparkles size={16} className="text-white fill-white/20" />
-                </div>
-                <div className="flex flex-col text-left">
-                  <span className="text-xs sm:text-sm font-bold text-[#071B3A] leading-tight">AI Assistant</span>
-                  <span className="text-[10px] sm:text-xs text-[#64748B] font-medium">Summarize today's patients</span>
-                </div>
-              </motion.div>
-
-              {/* Doctor Portrait with Blue Aura */}
-              <img
-                src={responsiveAssets.hero.doctorHero}
-                alt="Doctor with AI Assistant"
-                className="hero-doctor-portrait"
-              />
-
-              {/* Devices (Laptop Dashboard + Mobile App) */}
-              <img
-                src={responsiveAssets.hero.devices}
-                alt="AI-CMS Platform on Laptop and Mobile"
-                className="hero-devices-overlay"
-              />
-
-            </div>
-          </motion.div>
-
-          {/* ── MOBILE ARTWORK COMPOSITION (< 768px) ── */}
-          <motion.div
-            initial={{ opacity: 0, y: 18 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.22 }}
-            className="hero-artwork-mobile select-none"
-          >
-            {/* Doctor Image (aicms_image_3.svg) with responsive handwritten slogan */}
-            <div className="mobile-doctor-wrap">
-              {/* Handwritten script slogan positioned in upper-right of doctor artwork */}
-              <div className="mobile-script-slogan">
-                <span>Empowering</span>
-                <span>Doctors</span>
-                <span>Enriching Lives</span>
-                <svg
-                  viewBox="0 0 120 12"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="mobile-script-swoosh"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M2 6C32 1.5 82 2 118 8.5"
-                    stroke="#0070F3"
-                    strokeWidth="2.2"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </div>
-
-              <img
-                src={responsiveAssets.hero.doctor}
-                alt="Doctor using AI Clinic Management System"
-                className="mobile-doctor-img"
-              />
-            </div>
-
-            {/* Devices Image (aicms_image_4.svg) overlapping lower doctor portion */}
-            <div className="mobile-devices-wrap">
-              <img
-                src={responsiveAssets.hero.devices}
-                alt="AI-CMS Tablet and Mobile Platform"
-                className="mobile-devices-img"
-              />
-            </div>
-          </motion.div>
-
         </div>
       </div>
-
-      {/* ── BOTTOM TRUST RIBBON BAR ── */}
-      <div className="w-full bg-white/95 backdrop-blur-md border-t border-blue-100/70 shadow-[0_-4px_24px_rgba(0,112,243,0.03)] relative z-20 mt-auto">
-        <div className="max-w-[1680px] mx-auto px-4 sm:px-6 lg:px-12 py-4 sm:py-5">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8 divide-y sm:divide-y-0 lg:divide-x divide-slate-100/80">
-            {bottomRibbonItems.map((item, idx) => (
-              <div
-                key={idx}
-                className={`flex items-center gap-3 sm:gap-3.5 pt-3 sm:pt-0 ${
-                  idx > 0 ? 'lg:pl-6 xl:pl-8' : ''
-                }`}
-              >
-                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-blue-50/80 border border-[#BAE6FD]/80 flex items-center justify-center shrink-0 text-[#0070F3]">
-                  {item.icon}
-                </div>
-                <div className="flex flex-col min-w-0">
-                  <span className="text-xs sm:text-[13.5px] font-bold text-[#071B3A] leading-tight">
-                    {item.title}
-                  </span>
-                  <span className="text-[11px] sm:text-xs text-[#64748B] font-medium leading-tight">
-                    {item.desc}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
     </section>
   );
 }
-

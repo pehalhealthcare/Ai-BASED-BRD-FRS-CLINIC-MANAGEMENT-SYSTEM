@@ -1,47 +1,116 @@
-﻿import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Check, Sparkles, ArrowRight, ShieldCheck, Zap, 
   User, Building2, Crown, Calendar, Headphones,
-  Building, CalendarCheck, AlertCircle, RefreshCw, Layers 
+  Building, CalendarCheck, AlertCircle, RefreshCw, Layers,
+  ChevronDown, ChevronUp, Minus, Star, Table
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { subscriptionApi } from '../../lib/api';
 
 // Canonical feature labels lookup for system slugs
 const FEATURE_LABELS = {
+  patient_registration: 'Patient Registration',
   appointments: 'Appointment Management',
   billing: 'Billing & Invoicing',
-  prescriptions: 'Digital Prescriptions',
-  emr: 'Full OPD & Digital EMR',
-  sms: 'SMS & WhatsApp Reminders',
+  prescriptions: 'Prescription & Rx Generator',
+  digital_prescriptions: 'Digital Prescription',
+  emr: 'Basic EMR & Patient Records',
+  sms: 'SMS Reminders',
   reports: 'Daily & Financial Reports',
-  multi_doctor: 'Multi-Doctor Management',
+  staff_login: 'Staff Login & Roster',
+  cloud_backup: 'Cloud Backup',
+  email_support: 'Email Support',
+  whatsapp_messages: 'WhatsApp Messages',
+  whatsapp_integration: 'WhatsApp Integration',
+  whatsapp: 'WhatsApp Integration',
+  multi_doctor: 'Multi Doctor Management',
   ai_scheduling: 'AI Appointment Scheduling',
-  pharmacy: 'Integrated Pharmacy Management',
-  inventory: 'Medical Inventory & Stock Alerts',
-  labs: 'Laboratory & Diagnostic Module',
-  whatsapp: 'WhatsApp Notifications & Alerts',
-  analytics: 'Advanced Clinical Analytics',
+  doctor_calendar: 'Doctor Calendar & Slots',
+  pharmacy: 'Pharmacy Module',
+  inventory: 'Inventory & Stock Alerts',
+  labs: 'Lab & Diagnostic Module',
+  analytics: 'Analytics Dashboard',
+  role_based_access: 'Role-Based Access Control',
+  users_10: '10 Staff Users',
+  users_25: '25 Staff Users',
   symptom_checker: 'AI Symptom Checker',
-  consultation_assistant: 'AI Clinical Consultation Assistant',
-  voice_to_text: 'Voice-to-Text Clinical Dictation',
-  ai_prescription_suggestions: 'AI Prescription & Drug Interaction Suggestions',
-  ai_risk_scoring: 'AI Patient Risk Stratification',
-  lab_recommendations: 'AI Lab Test Recommendations',
-  online_consultation: 'Telemedicine & Video Consultation',
-  multi_branch: 'Multi-Branch & Location Support',
-  api_access: 'Developer API Access',
-  unlimited_users: 'Unlimited Staff & Practitioners',
+  consultation_assistant: 'AI Consultation Assistant',
+  voice_to_text: 'Voice-to-Text Dictation',
+  ai_prescription_suggestions: 'AI Prescription Suggestions',
+  prescription_suggestions: 'AI Prescription Suggestions',
+  ai_risk_scoring: 'AI Patient Risk Scoring',
+  lab_recommendations: 'AI Lab Recommendation',
+  referral_management: 'Referral Management',
+  multi_branch: 'Multi Branch Support',
+  online_consultation: 'Online Video Consultation',
+  mobile_app: 'Mobile App Access',
+  api_access: 'API Access',
+  unlimited_users: 'Unlimited Staff Users',
   unlimited_patients: 'Unlimited Patient Records',
-  unlimited_branches: 'Unlimited Branch Locations',
-  dedicated_server: 'Dedicated HIPAA-Ready Cloud Server',
-  custom_branding: 'White-label & Custom Branding',
-  insurance: 'Insurance & TPA Claims Processing',
-  abdm: 'ABDM & Ayushman Bharat Integration',
-  custom_apis: 'Custom Enterprise Integrations',
-  priority_support: '24×7 Priority Healthcare Support'
+  unlimited_branches: 'Unlimited Branches',
+  unlimited_everything: 'Unlimited Everything',
+  dedicated_server: 'Dedicated Server',
+  custom_workflow: 'Custom Clinical Workflow',
+  custom_branding: 'Custom White-label Branding',
+  dedicated_account_manager: 'Dedicated Account Manager',
+  insurance: 'Insurance Integration',
+  abdm: 'ABDM Integration',
+  custom_apis: 'Custom APIs',
+  priority_support: '24×7 Priority Support',
+  support_24x7: '24×7 Support',
+  priority_feature_requests: 'Priority Feature Requests'
 };
+
+const COMPARISON_ROWS = [
+  { feature: 'Target Profile', basic: 'Solo Doctor / Small Clinic', starter: 'Growing Solo Clinic', pro: '2–5 Doctors', premium: '5–15 Doctors / Multi-Speciality', enterprise: 'Large Healthcare Networks' },
+  { feature: 'Doctors Limit', basic: '1 Doctor', starter: '1 Doctor', pro: '2–5 Doctors', premium: '5–15 Doctors', enterprise: 'Unlimited' },
+  { feature: 'Patient Records', basic: '250 Patients', starter: '500 Patients', pro: 'Unlimited', premium: 'Unlimited', enterprise: 'Unlimited' },
+  { feature: 'Staff / Users Limit', basic: '2 Users', starter: '2 Users', pro: '10 Users', premium: '25 Users', enterprise: 'Unlimited' },
+  { feature: 'Patient Registration', basic: true, starter: true, pro: true, premium: true, enterprise: true },
+  { feature: 'Appointment Management', basic: true, starter: true, pro: true, premium: true, enterprise: true },
+  { feature: 'Billing & Invoicing', basic: true, starter: true, pro: true, premium: true, enterprise: true },
+  { feature: 'Prescriptions & Rx', basic: true, starter: true, pro: true, premium: true, enterprise: true },
+  { feature: 'Basic EMR', basic: true, starter: true, pro: true, premium: true, enterprise: true },
+  { feature: 'Daily Reports', basic: true, starter: true, pro: true, premium: true, enterprise: true },
+  { feature: 'SMS Reminders', basic: true, starter: true, pro: true, premium: true, enterprise: true },
+  { feature: 'Staff Login', basic: true, starter: true, pro: true, premium: true, enterprise: true },
+  { feature: 'Cloud Backup', basic: true, starter: true, pro: true, premium: true, enterprise: true },
+  { feature: 'Email Support', basic: true, starter: true, pro: true, premium: true, enterprise: true },
+  { feature: 'WhatsApp Messages', basic: true, starter: true, pro: false, premium: false, enterprise: false },
+  { feature: 'WhatsApp Integration', basic: false, starter: false, pro: true, premium: true, enterprise: true },
+  { feature: 'AI Appointment Scheduling', basic: false, starter: false, pro: true, premium: true, enterprise: true },
+  { feature: 'Doctor Calendar', basic: false, starter: false, pro: true, premium: true, enterprise: true },
+  { feature: 'Multi Doctor Management', basic: false, starter: false, pro: true, premium: true, enterprise: true },
+  { feature: 'Inventory Management', basic: false, starter: false, pro: true, premium: true, enterprise: true },
+  { feature: 'Pharmacy Module', basic: false, starter: false, pro: true, premium: true, enterprise: true },
+  { feature: 'Lab & Diagnostic Module', basic: false, starter: false, pro: true, premium: true, enterprise: true },
+  { feature: 'Digital Prescription', basic: false, starter: false, pro: true, premium: true, enterprise: true },
+  { feature: 'Analytics Dashboard', basic: false, starter: false, pro: true, premium: true, enterprise: true },
+  { feature: 'Role-Based Access Control', basic: false, starter: false, pro: true, premium: true, enterprise: true },
+  { feature: 'AI Symptom Checker', basic: false, starter: false, pro: false, premium: true, enterprise: true },
+  { feature: 'AI Consultation Assistant', basic: false, starter: false, pro: false, premium: true, enterprise: true },
+  { feature: 'Voice-to-Text Dictation', basic: false, starter: false, pro: false, premium: true, enterprise: true },
+  { feature: 'AI Prescription Suggestions', basic: false, starter: false, pro: false, premium: true, enterprise: true },
+  { feature: 'AI Lab Recommendations', basic: false, starter: false, pro: false, premium: true, enterprise: true },
+  { feature: 'AI Patient Risk Scoring', basic: false, starter: false, pro: false, premium: true, enterprise: true },
+  { feature: 'Referral Management', basic: false, starter: false, pro: false, premium: true, enterprise: true },
+  { feature: 'Multi Branch Support', basic: false, starter: false, pro: false, premium: true, enterprise: true },
+  { feature: 'Online Video Consultation', basic: false, starter: false, pro: false, premium: true, enterprise: true },
+  { feature: 'Mobile App Access', basic: false, starter: false, pro: false, premium: true, enterprise: true },
+  { feature: 'Developer API Access', basic: false, starter: false, pro: false, premium: true, enterprise: true },
+  { feature: 'ABDM Integration', basic: false, starter: false, pro: false, premium: false, enterprise: true },
+  { feature: 'Insurance Integration', basic: false, starter: false, pro: false, premium: false, enterprise: true },
+  { feature: 'Advanced AI Analytics', basic: false, starter: false, pro: false, premium: false, enterprise: true },
+  { feature: 'Custom Clinical Workflow', basic: false, starter: false, pro: false, premium: false, enterprise: true },
+  { feature: 'Custom Branding (White-label)', basic: false, starter: false, pro: false, premium: false, enterprise: true },
+  { feature: 'Dedicated HIPAA Cloud Server', basic: false, starter: false, pro: false, premium: false, enterprise: true },
+  { feature: 'Dedicated Account Manager', basic: false, starter: false, pro: false, premium: false, enterprise: true },
+  { feature: '24×7 Priority Support', basic: false, starter: false, pro: false, premium: false, enterprise: true },
+  { feature: 'Custom API Integrations', basic: false, starter: false, pro: false, premium: false, enterprise: true },
+  { feature: 'Priority Feature Requests', basic: false, starter: false, pro: false, premium: false, enterprise: true }
+];
 
 const formatFeatureText = (feat) => {
   if (!feat || typeof feat !== 'string') return '';
@@ -56,6 +125,7 @@ export default function PricingSection({ onSelectPlan, isAuthenticated = false }
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showComparison, setShowComparison] = useState(false);
   
   const scrollRef = useRef(null);
   const isDownRef = useRef(false);
@@ -96,18 +166,16 @@ export default function PricingSection({ onSelectPlan, isAuthenticated = false }
     fetchPlans();
   }, [fetchPlans]);
 
-  // Enhanced mouse wheel listener: allows vertical mouse wheel to scroll horizontally across plans on desktop, while preserving inner vertical scrolling for feature lists
+  // Enhanced mouse wheel listener: allows vertical mouse wheel to scroll horizontally across plans on desktop
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
 
     const handleWheel = (e) => {
-      // If trackpad horizontal scroll or Shift+wheel is already firing deltaX, let native handle it
       if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
         return;
       }
 
-      // If user is hovering over an inner vertical feature list with overflow, let it scroll vertically
       const scrollableChild = e.target.closest('.custom-scrollbar, ul');
       if (scrollableChild && scrollableChild.scrollHeight > scrollableChild.clientHeight) {
         const atTop = scrollableChild.scrollTop <= 0 && e.deltaY < 0;
@@ -131,7 +199,6 @@ export default function PricingSection({ onSelectPlan, isAuthenticated = false }
 
   // Mouse Drag to Scroll handlers
   const handleMouseDown = (e) => {
-    // If clicking on an interactive inner element (buttons, links, inputs, feature lists), skip outer drag
     if (e.target.closest('ul') || e.target.closest('button') || e.target.closest('a') || e.target.closest('input')) {
       return;
     }
@@ -187,7 +254,7 @@ export default function PricingSection({ onSelectPlan, isAuthenticated = false }
   }, [plans]);
 
   const handlePlanClick = (plan) => {
-    if (isDraggingRef.current) return; // Prevent triggering click during mouse drag
+    if (isDraggingRef.current) return;
     if (onSelectPlan) {
       onSelectPlan(plan, billingCycle);
     }
@@ -198,24 +265,31 @@ export default function PricingSection({ onSelectPlan, isAuthenticated = false }
     const code = (plan.code || '').toUpperCase();
     const name = (plan.name || '').toLowerCase();
 
-    if (code.includes('ENTERPRISE') || name.includes('enterprise') || plan.isEnterprise) {
+    if (code === 'ENTERPRISE' || name.includes('enterprise') || plan.isEnterprise) {
       return (
-        <div className="w-12 h-12 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
+        <div className="w-12 h-12 rounded-2xl bg-indigo-100 text-indigo-700 flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
           <Building size={22} strokeWidth={2.2} />
         </div>
       );
     }
-    if (code.includes('PREMIUM') || name.includes('premium')) {
+    if (code === 'PREMIUM' || name.includes('premium')) {
       return (
         <div className="w-12 h-12 rounded-2xl bg-purple-100 text-purple-600 flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
           <Crown size={22} strokeWidth={2.2} />
         </div>
       );
     }
-    if (code.includes('PRO') || name.includes('pro') || plan.isPopular) {
+    if (code === 'PROFESSIONAL' || name.includes('pro') || plan.isPopular) {
       return (
         <div className="w-12 h-12 rounded-2xl bg-blue-100/90 text-blue-600 flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
           <Building2 size={22} strokeWidth={2.2} />
+        </div>
+      );
+    }
+    if (code === 'STARTER' || name.includes('starter')) {
+      return (
+        <div className="w-12 h-12 rounded-2xl bg-sky-100 text-sky-600 flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
+          <Zap size={22} strokeWidth={2.2} />
         </div>
       );
     }
@@ -251,7 +325,7 @@ export default function PricingSection({ onSelectPlan, isAuthenticated = false }
           </h2>
 
           <p className="text-sm sm:text-base text-slate-600 mt-3 leading-relaxed font-normal">
-            Choose a plan that fits your practice. Upgrade anytime as you grow.
+            Choose the cumulative tier built for your medical practice. Upgrade anytime as you grow.
           </p>
 
           {/* Interactive Billing Toggle: Monthly vs Yearly */}
@@ -312,8 +386,8 @@ export default function PricingSection({ onSelectPlan, isAuthenticated = false }
         {/* ── LOADING SKELETON STATE ── */}
         {loading && (
           <div className="flex justify-center gap-6 overflow-hidden animate-pulse px-4 py-6">
-            {[1, 2].map((n) => (
-              <div key={n} className="bg-slate-50/80 rounded-3xl p-7 border border-slate-100 h-[520px] w-full max-w-[480px] flex flex-col justify-between shrink-0">
+            {[1, 2, 3].map((n) => (
+              <div key={n} className="bg-slate-50/80 rounded-3xl p-7 border border-slate-100 h-[520px] w-full max-w-[420px] flex flex-col justify-between shrink-0">
                 <div>
                   <div className="w-12 h-12 rounded-2xl bg-slate-200/80 mb-4" />
                   <div className="h-6 w-3/4 bg-slate-200/80 rounded-lg mb-2" />
@@ -366,11 +440,10 @@ export default function PricingSection({ onSelectPlan, isAuthenticated = false }
           </div>
         )}
 
-        {/* ── TRUE USER-SCROLLABLE 2-CARD HORIZONTAL CAROUSEL WITH PARTIAL PEEK ── */}
+        {/* ── 5 CUMULATIVE PLAN CARDS (HORIZONTAL CAROUSEL) ── */}
         {!loading && !error && plans.length > 0 && (
           <div className="pricing-carousel-wrapper relative mx-auto">
             
-            {/* ── HORIZONTAL SCROLL TRACK (SWIPEABLE / DRAGGABLE / ACCESSIBLE) ── */}
             <div 
               ref={scrollRef}
               onMouseDown={handleMouseDown}
@@ -396,12 +469,12 @@ export default function PricingSection({ onSelectPlan, isAuthenticated = false }
                   : null;
 
                 // Extract real limits from database
-                const doctorLimit = plan.limits?.maxDoctors ? (plan.limits.maxDoctors >= 9999 ? 'Unlimited Doctors' : `Up to ${plan.limits.maxDoctors} Doctor${plan.limits.maxDoctors > 1 ? 's' : ''}`) : null;
-                const staffLimit = plan.limits?.maxStaff ? (plan.limits.maxStaff >= 9999 ? 'Unlimited Staff' : `Up to ${plan.limits.maxStaff} Staff`) : null;
+                const doctorLimit = plan.limits?.maxDoctors ? (plan.limits.maxDoctors >= 9999 ? 'Unlimited Doctors' : (plan.limits.maxDoctors > 1 ? `Up to ${plan.limits.maxDoctors} Doctors` : '1 Doctor')) : null;
+                const staffLimit = plan.limits?.maxStaff ? (plan.limits.maxStaff >= 9999 ? 'Unlimited Users' : `${plan.limits.maxStaff} Users`) : null;
                 const patientLimit = plan.limits?.maxPatients ? (plan.limits.maxPatients >= 999999 ? 'Unlimited Patients' : `${plan.limits.maxPatients.toLocaleString('en-IN')} Patients`) : null;
                 const branchLimit = plan.limits?.maxBranches ? (plan.limits.maxBranches >= 9999 ? 'Unlimited Branches' : (plan.limits.maxBranches > 1 ? `Up to ${plan.limits.maxBranches} Branches` : 'Single Branch')) : null;
 
-                const limitHighlights = [doctorLimit, staffLimit, patientLimit, branchLimit].filter(Boolean);
+                const limitHighlights = [doctorLimit, patientLimit, staffLimit, branchLimit].filter(Boolean);
 
                 return (
                   <div
@@ -434,7 +507,7 @@ export default function PricingSection({ onSelectPlan, isAuthenticated = false }
 
                         {/* Plan Description */}
                         <p className="text-xs sm:text-[13px] text-slate-500 min-h-[38px] leading-relaxed mb-4">
-                          {plan.description || 'Configured by Super Admin for modern healthcare clinics.'}
+                          {plan.description || 'Designed for modern healthcare clinics.'}
                         </p>
 
                         {/* Price Block */}
@@ -442,11 +515,16 @@ export default function PricingSection({ onSelectPlan, isAuthenticated = false }
                           {isCustom ? (
                             <div className="flex flex-col">
                               <span className="text-2xl sm:text-3xl font-black text-slate-900">
-                                Custom Pricing
+                                ₹{plan.priceMonthly ? plan.priceMonthly.toLocaleString('en-IN') : '24,999'}
                               </span>
-                              <span className="text-xs text-slate-400 font-medium mt-1">
-                                Tailored for healthcare networks & polyclinics
+                              <span className="text-xs text-slate-500 font-medium mt-1">
+                                / month • Enterprise Hospital OS
                               </span>
+                              {billedAnnuallyText && (
+                                <span className="text-[11px] text-blue-600 font-semibold mt-1">
+                                  {billedAnnuallyText}
+                                </span>
+                              )}
                             </div>
                           ) : (
                             <div className="flex flex-col">
@@ -467,11 +545,11 @@ export default function PricingSection({ onSelectPlan, isAuthenticated = false }
                           )}
                         </div>
 
-                        {/* Limit Badges if configured by Admin */}
+                        {/* Limit Badges */}
                         {limitHighlights.length > 0 && (
                           <div className="flex flex-wrap gap-1.5 mb-4 pb-4 border-b border-slate-100">
                             {limitHighlights.map((limitText, lIdx) => (
-                              <span key={lIdx} className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">
+                              <span key={lIdx} className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-100">
                                 {limitText}
                               </span>
                             ))}
@@ -504,7 +582,7 @@ export default function PricingSection({ onSelectPlan, isAuthenticated = false }
                         </div>
                       </div>
 
-                      {/* Plan CTA Button (Passes real plan._id) */}
+                      {/* Plan CTA Button */}
                       <button
                         type="button"
                         onClick={() => handlePlanClick(plan)}
@@ -521,7 +599,7 @@ export default function PricingSection({ onSelectPlan, isAuthenticated = false }
                             : 'bg-slate-50 hover:bg-slate-100 text-slate-800 hover:text-slate-900 border border-slate-200/90 hover:border-slate-300'
                         }`}
                       >
-                        <span>{plan.ctaText || (isCustom ? 'Contact Sales' : 'Get Started')}</span>
+                        <span>{plan.ctaText || (plan.isEnterprise ? 'Contact Enterprise' : 'Get Started')}</span>
                         <ArrowRight size={15} />
                       </button>
                     </div>
@@ -532,6 +610,125 @@ export default function PricingSection({ onSelectPlan, isAuthenticated = false }
 
           </div>
         )}
+
+        {/* ── CUMULATIVE PLAN COMPARISON ACCORDION / TOGGLE ── */}
+        <div className="mt-14 max-w-6xl mx-auto">
+          <div className="text-center mb-6">
+            <button
+              type="button"
+              onClick={() => setShowComparison(prev => !prev)}
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-slate-50 hover:bg-slate-100 border border-slate-200/90 text-slate-800 text-xs sm:text-sm font-bold transition shadow-xs cursor-pointer"
+            >
+              <Table size={16} className="text-blue-600" />
+              <span>{showComparison ? 'Hide Plan Comparison Matrix' : 'Compare All Plan Features & Limits'}</span>
+              {showComparison ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            </button>
+          </div>
+
+          <AnimatePresence>
+            {showComparison && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.3 }}
+                className="overflow-hidden rounded-3xl border border-slate-200 shadow-md bg-white"
+              >
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-200 text-slate-800">
+                        <th className="p-4 font-bold min-w-[220px]">Plan Feature / Limit</th>
+                        <th className="p-4 font-bold text-center min-w-[130px]">
+                          <div>AI Basic</div>
+                          <div className="text-[11px] font-black text-blue-600">₹999/mo</div>
+                        </th>
+                        <th className="p-4 font-bold text-center min-w-[130px]">
+                          <div>AI Starter</div>
+                          <div className="text-[11px] font-black text-blue-600">₹1,999/mo</div>
+                        </th>
+                        <th className="p-4 font-bold text-center min-w-[140px] bg-blue-50/70 border-x border-blue-200">
+                          <div className="text-blue-950">AI Professional</div>
+                          <div className="text-[11px] font-black text-blue-600">₹4,999/mo</div>
+                        </th>
+                        <th className="p-4 font-bold text-center min-w-[130px]">
+                          <div>AI Premium</div>
+                          <div className="text-[11px] font-black text-blue-600">₹9,999/mo</div>
+                        </th>
+                        <th className="p-4 font-bold text-center min-w-[140px]">
+                          <div>AI Enterprise</div>
+                          <div className="text-[11px] font-black text-blue-600">₹24,999/mo</div>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
+                      {COMPARISON_ROWS.map((row, rIdx) => {
+                        const isValueRow = typeof row.basic === 'string';
+                        return (
+                          <tr key={rIdx} className={rIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50/40 hover:bg-slate-50'}>
+                            <td className="p-3.5 pl-4 font-semibold text-slate-800 flex items-center gap-1.5">
+                              {row.feature}
+                            </td>
+                            {/* Basic */}
+                            <td className="p-3.5 text-center">
+                              {isValueRow ? (
+                                <span className="font-bold text-slate-800">{row.basic}</span>
+                              ) : row.basic ? (
+                                <Check size={16} className="text-blue-600 mx-auto" strokeWidth={2.5} />
+                              ) : (
+                                <Minus size={14} className="text-slate-300 mx-auto" />
+                              )}
+                            </td>
+                            {/* Starter */}
+                            <td className="p-3.5 text-center">
+                              {isValueRow ? (
+                                <span className="font-bold text-slate-800">{row.starter}</span>
+                              ) : row.starter ? (
+                                <Check size={16} className="text-blue-600 mx-auto" strokeWidth={2.5} />
+                              ) : (
+                                <Minus size={14} className="text-slate-300 mx-auto" />
+                              )}
+                            </td>
+                            {/* Professional (Highlighted Column) */}
+                            <td className="p-3.5 text-center bg-blue-50/40 border-x border-blue-200">
+                              {isValueRow ? (
+                                <span className="font-black text-blue-900">{row.pro}</span>
+                              ) : row.pro ? (
+                                <Check size={16} className="text-blue-700 mx-auto" strokeWidth={3} />
+                              ) : (
+                                <Minus size={14} className="text-slate-300 mx-auto" />
+                              )}
+                            </td>
+                            {/* Premium */}
+                            <td className="p-3.5 text-center">
+                              {isValueRow ? (
+                                <span className="font-bold text-slate-800">{row.premium}</span>
+                              ) : row.premium ? (
+                                <Check size={16} className="text-purple-600 mx-auto" strokeWidth={2.5} />
+                              ) : (
+                                <Minus size={14} className="text-slate-300 mx-auto" />
+                              )}
+                            </td>
+                            {/* Enterprise */}
+                            <td className="p-3.5 text-center">
+                              {isValueRow ? (
+                                <span className="font-bold text-indigo-900">{row.enterprise}</span>
+                              ) : row.enterprise ? (
+                                <Check size={16} className="text-indigo-600 mx-auto" strokeWidth={2.5} />
+                              ) : (
+                                <Minus size={14} className="text-slate-300 mx-auto" />
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
         {/* ── SECTION 1 & 2: DEDICATED ASSISTANCE & TROUBLESHOOTING ── */}
         <div className="mt-12 sm:mt-14 w-full flex flex-col items-center space-y-6 sm:space-y-8">
@@ -602,3 +799,4 @@ export default function PricingSection({ onSelectPlan, isAuthenticated = false }
     </section>
   );
 }
+

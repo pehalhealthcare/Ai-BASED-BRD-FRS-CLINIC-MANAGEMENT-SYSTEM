@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import {
   ArrowLeft, Check, Copy, UploadCloud, Trash2, Clock, CheckCircle2,
@@ -434,34 +434,54 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
   // Fallback plans if database plans are still loading
   const displayPlans = plans.length > 0 ? plans : [
     {
+      _id: 'plan_basic',
+      name: 'AI Basic Clinic',
+      code: 'BASIC',
+      description: 'Essential core clinic management for single doctor clinics',
+      priceMonthly: 999,
+      priceYearly: 9999,
+      limits: { maxDoctors: 1, maxStaff: 2, maxPatients: 250 },
+      features: ['1 Doctor', '2 Users', '250 Patients', 'Patient Registration', 'Appointments & Billing', 'Prescriptions & Basic EMR', 'Daily Reports & SMS', 'WhatsApp Messages', 'Email Support']
+    },
+    {
       _id: 'plan_starter',
       name: 'AI Starter Clinic',
       code: 'STARTER',
-      description: 'Essential features for growing clinics',
-      priceMonthly: 999,
-      priceYearly: 11988,
-      limits: { maxDoctors: 2, maxStaff: 3, maxPatients: 500 },
-      features: ['Up to 2 Doctors', 'Up to 3 Staff Members', '500 Patients', 'Appointment Management', 'Basic Reports', 'Email Support']
+      description: 'Core clinic management with 500 patient records',
+      priceMonthly: 1999,
+      priceYearly: 19999,
+      limits: { maxDoctors: 1, maxStaff: 2, maxPatients: 500 },
+      features: ['1 Doctor', '2 Users', '500 Patients', 'Patient Registration', 'Appointments & Billing', 'Prescriptions & Basic EMR', 'Daily Reports & SMS', 'WhatsApp Messages', 'Email Support']
     },
     {
       _id: 'plan_pro',
       name: 'AI Professional Clinic',
       code: 'PROFESSIONAL',
-      description: 'Advanced AI consultation and clinic management',
-      priceMonthly: 2999,
-      priceYearly: 35988,
-      limits: { maxDoctors: 10, maxStaff: 20, maxPatients: 5000 },
-      features: ['Up to 10 Doctors', 'Up to 20 Staff Members', '5,000 Patients', 'AI Assistant', 'Advanced Reports', 'Pharmacy Management', 'Laboratory Management', 'Priority Support']
+      description: 'Complete multi-doctor clinical OS with smart AI & WhatsApp Integration',
+      priceMonthly: 4999,
+      priceYearly: 49999,
+      limits: { maxDoctors: 5, maxStaff: 10, maxPatients: 999999 },
+      features: ['2–5 Doctors', '10 Users', 'Unlimited Patients', 'WhatsApp Integration', 'AI Appointment Scheduling', 'Pharmacy & Lab Module', 'Inventory Management', 'Analytics Dashboard']
+    },
+    {
+      _id: 'plan_prem',
+      name: 'AI Premium Clinic',
+      code: 'PREMIUM',
+      description: 'Advanced AI consultation assistant, multi-branch & telemedicine',
+      priceMonthly: 9999,
+      priceYearly: 99999,
+      limits: { maxDoctors: 15, maxStaff: 25, maxPatients: 999999 },
+      features: ['5–15 Doctors', '25 Users', 'Unlimited Patients', 'WhatsApp Integration', 'AI Consultation Assistant', 'AI Symptom Checker', 'Voice-to-Text', 'Multi Branch Support', 'Online Consultation']
     },
     {
       _id: 'plan_ent',
-      name: 'AI Enterprise Clinic',
+      name: 'AI Enterprise ClinicOS',
       code: 'ENTERPRISE',
-      description: 'For multi-speciality and large clinics',
-      priceMonthly: 4999,
-      priceYearly: 59988,
+      description: 'Enterprise healthcare network platform with unlimited scale',
+      priceMonthly: 24999,
+      priceYearly: 249999,
       limits: { maxDoctors: 999999, maxStaff: 999999, maxPatients: 999999 },
-      features: ['Unlimited Doctors', 'Unlimited Staff Members', 'Unlimited Patients', 'AI Assistant (Advanced)', 'Advanced Analytics', 'Pharmacy Management', 'Laboratory Management', 'Dedicated Support']
+      features: ['Unlimited Everything', 'WhatsApp Integration', 'Custom Clinical Workflow', 'Custom Branding', 'Dedicated Server', 'Dedicated Account Manager', 'ABDM & Insurance', '24×7 Priority Support']
     }
   ];
 
@@ -2541,68 +2561,117 @@ export default function SubscriptionRenewalFlow({ initialScreen = 'subscription_
                 <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
                   <tr>
                     <th className="p-3">Feature</th>
-                    <th className="p-3 text-center">Starter</th>
-                    <th className="p-3 text-center bg-blue-50 text-blue-900">Professional</th>
-                    <th className="p-3 text-center">Enterprise</th>
-                    <th className="p-3 text-center">Custom</th>
+                    <th className="p-3 text-center">AI Basic (₹999)</th>
+                    <th className="p-3 text-center">AI Starter (₹1,999)</th>
+                    <th className="p-3 text-center bg-blue-50 text-blue-900">AI Professional (₹4,999)</th>
+                    <th className="p-3 text-center">AI Premium (₹9,999)</th>
+                    <th className="p-3 text-center">AI Enterprise (₹24,999)</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
                   <tr>
                     <td className="p-3 font-bold">Max Doctors</td>
-                    <td className="p-3 text-center">Up to 2</td>
-                    <td className="p-3 text-center bg-blue-50/50 font-bold text-blue-900">Up to 10</td>
-                    <td className="p-3 text-center">Unlimited</td>
-                    <td className="p-3 text-center">Custom</td>
+                    <td className="p-3 text-center font-bold">1 Doctor</td>
+                    <td className="p-3 text-center font-bold">1 Doctor</td>
+                    <td className="p-3 text-center bg-blue-50/50 font-black text-blue-900">2–5 Doctors</td>
+                    <td className="p-3 text-center font-bold">5–15 Doctors</td>
+                    <td className="p-3 text-center font-bold text-indigo-900">Unlimited</td>
                   </tr>
                   <tr>
-                    <td className="p-3 font-bold">Max Staff Members</td>
-                    <td className="p-3 text-center">Up to 3</td>
-                    <td className="p-3 text-center bg-blue-50/50 font-bold text-blue-900">Up to 20</td>
-                    <td className="p-3 text-center">Unlimited</td>
-                    <td className="p-3 text-center">Custom</td>
+                    <td className="p-3 font-bold">Max Users / Staff</td>
+                    <td className="p-3 text-center">2 Users</td>
+                    <td className="p-3 text-center">2 Users</td>
+                    <td className="p-3 text-center bg-blue-50/50 font-bold text-blue-900">10 Users</td>
+                    <td className="p-3 text-center">25 Users</td>
+                    <td className="p-3 text-center font-bold text-indigo-900">Unlimited</td>
                   </tr>
                   <tr>
                     <td className="p-3 font-bold">Max Patients</td>
-                    <td className="p-3 text-center">500</td>
-                    <td className="p-3 text-center bg-blue-50/50 font-bold text-blue-900">5,000</td>
-                    <td className="p-3 text-center">Unlimited</td>
-                    <td className="p-3 text-center">Custom</td>
+                    <td className="p-3 text-center font-bold">250 Records</td>
+                    <td className="p-3 text-center font-bold">500 Records</td>
+                    <td className="p-3 text-center bg-blue-50/50 font-black text-blue-900">Unlimited</td>
+                    <td className="p-3 text-center font-bold">Unlimited</td>
+                    <td className="p-3 text-center font-bold text-indigo-900">Unlimited</td>
                   </tr>
                   <tr>
-                    <td className="p-3 font-bold">AI Consultation Assistant</td>
+                    <td className="p-3 font-bold">Core Management (OPD/Billing/Rx/EMR)</td>
+                    <td className="p-3 text-center text-blue-600 font-bold">✓ Yes</td>
+                    <td className="p-3 text-center text-blue-600 font-bold">✓ Yes</td>
+                    <td className="p-3 text-center bg-blue-50/50 text-blue-700 font-bold">✓ Yes</td>
+                    <td className="p-3 text-center text-blue-600 font-bold">✓ Yes</td>
+                    <td className="p-3 text-center text-indigo-600 font-bold">✓ Yes</td>
+                  </tr>
+                  <tr>
+                    <td className="p-3 font-bold">WhatsApp Messages (Reminders)</td>
+                    <td className="p-3 text-center text-blue-600 font-bold">✓ Yes</td>
+                    <td className="p-3 text-center text-blue-600 font-bold">✓ Yes</td>
+                    <td className="p-3 text-center bg-blue-50/50 text-slate-300">—</td>
                     <td className="p-3 text-center text-slate-300">—</td>
-                    <td className="p-3 text-center bg-blue-50/50 text-blue-600 font-bold">✓ Standard</td>
-                    <td className="p-3 text-center text-purple-600 font-bold">✓ Advanced</td>
-                    <td className="p-3 text-center text-amber-600 font-bold">✓ Dedicated</td>
+                    <td className="p-3 text-center text-slate-300">—</td>
+                  </tr>
+                  <tr>
+                    <td className="p-3 font-bold">WhatsApp Integration (Business API)</td>
+                    <td className="p-3 text-center text-slate-300">—</td>
+                    <td className="p-3 text-center text-slate-300">—</td>
+                    <td className="p-3 text-center bg-blue-50/50 text-blue-700 font-bold">✓ Full Integration</td>
+                    <td className="p-3 text-center text-purple-600 font-bold">✓ Full Integration</td>
+                    <td className="p-3 text-center text-indigo-600 font-bold">✓ Full Integration</td>
+                  </tr>
+                  <tr>
+                    <td className="p-3 font-bold">AI Appointment Scheduling</td>
+                    <td className="p-3 text-center text-slate-300">—</td>
+                    <td className="p-3 text-center text-slate-300">—</td>
+                    <td className="p-3 text-center bg-blue-50/50 text-blue-700 font-bold">✓ Yes</td>
+                    <td className="p-3 text-center text-purple-600 font-bold">✓ Yes</td>
+                    <td className="p-3 text-center text-indigo-600 font-bold">✓ Yes</td>
                   </tr>
                   <tr>
                     <td className="p-3 font-bold">Pharmacy &amp; Inventory</td>
                     <td className="p-3 text-center text-slate-300">—</td>
-                    <td className="p-3 text-center bg-blue-50/50 text-blue-600 font-bold">✓ Yes</td>
-                    <td className="p-3 text-center text-blue-600 font-bold">✓ Yes</td>
-                    <td className="p-3 text-center text-blue-600 font-bold">✓ Yes</td>
+                    <td className="p-3 text-center text-slate-300">—</td>
+                    <td className="p-3 text-center bg-blue-50/50 text-blue-700 font-bold">✓ Yes</td>
+                    <td className="p-3 text-center text-purple-600 font-bold">✓ Yes</td>
+                    <td className="p-3 text-center text-indigo-600 font-bold">✓ Yes</td>
                   </tr>
                   <tr>
-                    <td className="p-3 font-bold">Laboratory Management</td>
+                    <td className="p-3 font-bold">Laboratory Module</td>
                     <td className="p-3 text-center text-slate-300">—</td>
-                    <td className="p-3 text-center bg-blue-50/50 text-blue-600 font-bold">✓ Yes</td>
-                    <td className="p-3 text-center text-blue-600 font-bold">✓ Yes</td>
-                    <td className="p-3 text-center text-blue-600 font-bold">✓ Yes</td>
+                    <td className="p-3 text-center text-slate-300">—</td>
+                    <td className="p-3 text-center bg-blue-50/50 text-blue-700 font-bold">✓ Yes</td>
+                    <td className="p-3 text-center text-purple-600 font-bold">✓ Yes</td>
+                    <td className="p-3 text-center text-indigo-600 font-bold">✓ Yes</td>
                   </tr>
                   <tr>
-                    <td className="p-3 font-bold">Telemedicine / Online Consult</td>
+                    <td className="p-3 font-bold">AI Consultation Assistant &amp; Voice-to-Text</td>
                     <td className="p-3 text-center text-slate-300">—</td>
-                    <td className="p-3 text-center bg-blue-50/50 text-blue-600 font-bold">✓ Yes</td>
-                    <td className="p-3 text-center text-blue-600 font-bold">✓ Yes</td>
-                    <td className="p-3 text-center text-blue-600 font-bold">✓ Yes</td>
+                    <td className="p-3 text-center text-slate-300">—</td>
+                    <td className="p-3 text-center bg-blue-50/50 text-slate-300">—</td>
+                    <td className="p-3 text-center text-purple-600 font-bold">✓ Included</td>
+                    <td className="p-3 text-center text-indigo-600 font-bold">✓ Advanced</td>
+                  </tr>
+                  <tr>
+                    <td className="p-3 font-bold">Multi-Branch &amp; Telemedicine</td>
+                    <td className="p-3 text-center text-slate-300">—</td>
+                    <td className="p-3 text-center text-slate-300">—</td>
+                    <td className="p-3 text-center bg-blue-50/50 text-slate-300">—</td>
+                    <td className="p-3 text-center text-purple-600 font-bold">✓ Included</td>
+                    <td className="p-3 text-center text-indigo-600 font-bold">✓ Unlimited</td>
+                  </tr>
+                  <tr>
+                    <td className="p-3 font-bold">Enterprise Custom APIs, ABDM &amp; Dedicated Server</td>
+                    <td className="p-3 text-center text-slate-300">—</td>
+                    <td className="p-3 text-center text-slate-300">—</td>
+                    <td className="p-3 text-center bg-blue-50/50 text-slate-300">—</td>
+                    <td className="p-3 text-center text-slate-300">—</td>
+                    <td className="p-3 text-center text-indigo-600 font-bold">✓ Dedicated</td>
                   </tr>
                   <tr>
                     <td className="p-3 font-bold">Support SLA</td>
-                    <td className="p-3 text-center">Email</td>
-                    <td className="p-3 text-center bg-blue-50/50 font-bold text-blue-900">Priority (24/7)</td>
-                    <td className="p-3 text-center">Dedicated Account Mgr</td>
-                    <td className="p-3 text-center">Custom SLA</td>
+                    <td className="p-3 text-center">Email Support</td>
+                    <td className="p-3 text-center">Email Support</td>
+                    <td className="p-3 text-center bg-blue-50/50 font-bold text-blue-900">Priority Support</td>
+                    <td className="p-3 text-center font-bold text-purple-700">Priority Support</td>
+                    <td className="p-3 text-center font-bold text-indigo-900">24×7 Dedicated Mgr</td>
                   </tr>
                 </tbody>
               </table>

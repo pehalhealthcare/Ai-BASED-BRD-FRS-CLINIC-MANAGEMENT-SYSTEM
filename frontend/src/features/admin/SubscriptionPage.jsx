@@ -1,8 +1,8 @@
-﻿import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import {
   Check, Star, Zap, Crown, Building2, ArrowUpRight,
-  Users, Database, Shield, Activity, ChevronRight, CreditCard,
+  User, Users, Database, Shield, Activity, ChevronRight, CreditCard,
   Clock, CheckCircle2, AlertCircle, Sparkles, Package, RefreshCw,
   Copy, UploadCloud, Trash2, ArrowRight, ShieldCheck, XCircle,
   HelpCircle, Eye, FileText, CheckCircle, Info, ArrowLeft,
@@ -32,17 +32,71 @@ const fmtDate = (d) => {
 };
 
 const PLAN_ICONS = {
-  0: Zap,
-  1: Star,
-  2: Crown,
-  3: Building2,
+  0: User,
+  1: Zap,
+  2: Building2,
+  3: Crown,
+  4: Building2,
 };
 
 const PLAN_RANKS = {
-  'STARTER': 1,
-  'PROFESSIONAL': 2,
-  'PREMIUM': 3,
-  'ENTERPRISE': 4
+  'BASIC': 1,
+  'STARTER': 2,
+  'PROFESSIONAL': 3,
+  'PREMIUM': 4,
+  'ENTERPRISE': 5
+};
+
+const FEATURE_LABELS = {
+  patient_registration: 'Patient Registration',
+  appointments: 'Appointment Management',
+  billing: 'Billing & Invoicing',
+  prescriptions: 'Prescription',
+  digital_prescriptions: 'Digital Prescription',
+  emr: 'Basic EMR',
+  reports: 'Daily Reports',
+  sms: 'SMS Reminders',
+  staff_login: 'Staff Login',
+  cloud_backup: 'Cloud Backup',
+  email_support: 'Email Support',
+  whatsapp_messages: 'WhatsApp Messages',
+  whatsapp_integration: 'WhatsApp Integration',
+  whatsapp: 'WhatsApp Integration',
+  ai_scheduling: 'AI Appointment Scheduling',
+  doctor_calendar: 'Doctor Calendar',
+  multi_doctor: 'Multi Doctor Management',
+  inventory: 'Inventory',
+  pharmacy: 'Pharmacy',
+  labs: 'Lab Module',
+  analytics: 'Analytics Dashboard',
+  role_based_access: 'Role-Based Access',
+  symptom_checker: 'AI Symptom Checker',
+  consultation_assistant: 'AI Consultation Assistant',
+  voice_to_text: 'Voice-to-Text',
+  ai_prescription_suggestions: 'AI Prescription Suggestions',
+  lab_recommendations: 'AI Lab Recommendation',
+  ai_risk_scoring: 'AI Patient Risk Scoring',
+  referral_management: 'Referral Management',
+  multi_branch: 'Multi Branch Support',
+  online_consultation: 'Online Consultation',
+  mobile_app: 'Mobile App',
+  api_access: 'API Access',
+  abdm: 'ABDM Integration',
+  insurance: 'Insurance Integration',
+  advanced_ai_analytics: 'Advanced AI Analytics',
+  custom_workflow: 'Custom Workflow',
+  custom_branding: 'Custom Branding',
+  dedicated_server: 'Dedicated Server',
+  dedicated_account_manager: 'Dedicated Account Manager',
+  priority_support: '24×7 Support',
+  custom_apis: 'Custom API',
+  priority_feature_requests: 'Priority Feature Requests'
+};
+
+const formatFeatureLabel = (f) => {
+  if (!f) return '';
+  if (FEATURE_LABELS[f]) return FEATURE_LABELS[f];
+  return String(f).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 };
 
 const TABS = ['My Subscription', 'Available Plans', 'Billing & Payment History'];
@@ -51,7 +105,7 @@ const TABS = ['My Subscription', 'Available Plans', 'Billing & Payment History']
 const FeatureItem = ({ text, highlighted = false }) => (
   <div className="flex items-start gap-2">
     <CheckCircle2 size={14} className={`mt-0.5 shrink-0 ${highlighted ? 'text-indigo-600' : 'text-blue-500'}`} />
-    <span className="text-xs text-slate-600 leading-relaxed font-medium">{text}</span>
+    <span className="text-xs text-slate-600 leading-relaxed font-medium">{formatFeatureLabel(text)}</span>
   </div>
 );
 

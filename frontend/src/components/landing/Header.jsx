@@ -26,10 +26,11 @@ export default function Header({
 
   const navLinks = [
     { label: 'Home', href: '#hero', id: 'hero', isPrimary: true },
-    { label: 'Product', href: '#product', id: 'product', isPrimary: true },
+    { label: 'Product', href: '#workflow', id: 'workflow', isPrimary: true },
     { label: 'Features', href: '#features', id: 'features', isPrimary: true },
-    { label: 'Pricing', href: '#pricing', id: 'pricing', isPrimary: true },
-    { label: 'Solutions', href: '#solutions', id: 'solutions', isPrimary: false },
+    { label: 'Solutions', href: '#solutions', id: 'solutions', isPrimary: true },
+    { label: 'Pricing', href: '/pricing', id: 'pricing', isPrimary: true, isRoute: true },
+    { label: 'Resources', href: '/book-demo', id: 'resources', isPrimary: false, isRoute: true },
     { label: 'About', href: '#footer', id: 'footer', isPrimary: false },
   ];
 
@@ -90,31 +91,26 @@ export default function Header({
 
   const handleLinkClick = (e, item) => {
     e.preventDefault();
+    document.body.style.overflow = '';
+    setIsMobileMenuOpen(false);
 
-    // Capture values synchronously — do NOT pass the SyntheticEvent into any
-    // async context (it gets nullified after the handler returns in React 16,
-    // and even in React 17+ it's safer to copy primitive values out).
+    if (item.isRoute || (item.href && item.href.startsWith('/'))) {
+      navigate(item.href);
+      return;
+    }
+
+    if (window.location.pathname !== '/') {
+      navigate(`/${item.href}`);
+      return;
+    }
+
     const sectionId = item.id;
     const href = item.href;
 
-    // 1. Immediately restore body scroll (synchronously, before React re-renders).
-    //    The useEffect that normally clears overflow only runs after the next render
-    //    so we must do it here to unblock window.scrollTo.
-    document.body.style.overflow = '';
-
-    // 2. Close the drawer (triggers Framer Motion exit animation: 250ms).
-    setIsMobileMenuOpen(false);
-
-    // 3. Also notify parent so it can update activeSection state.
     if (onNavClick) {
-      // Pass null for event since we already called preventDefault above.
       onNavClick(null, sectionId, href);
     }
 
-    // 4. Wait for the drawer exit animation to complete before scrolling.
-    //    If we scroll while the drawer is still collapsing, getBoundingClientRect
-    //    returns wrong positions because the drawer height is still shifting layout.
-    //    The exit animation duration is 250ms — we wait 300ms to be safe.
     setTimeout(() => {
       const el = document.getElementById(sectionId);
       if (!el) return;
@@ -122,10 +118,9 @@ export default function Header({
       if (sectionId === 'hero') {
         window.scrollTo({ top: 0, behavior: 'smooth' });
       } else {
-        // Use scrollIntoView so scroll-margin-top (set in CSS) handles header offset.
         el.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
-    }, 300);
+    }, 100);
   };
 
   const handleSearchSubmit = (e) => {

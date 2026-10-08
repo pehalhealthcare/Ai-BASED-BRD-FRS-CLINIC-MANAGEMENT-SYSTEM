@@ -165,6 +165,7 @@ import ReportsPage from '../features/admin/ReportsPage';
 import SubscriptionPage from '../features/admin/SubscriptionPage';
 import PatientAppointmentsPage from '../features/patients/PatientAppointmentsPage';
 import LandingPage from '../pages/LandingPage';
+import PricingPage from '../pages/PricingPage';
 import ContactPage from '../pages/ContactPage';
 import BookDemoPage from '../pages/BookDemoPage';
 import ClinicRegister from '../features/clinics/ClinicRegister';
@@ -211,6 +212,10 @@ export const router = createBrowserRouter([
   {
     path: '/',
     element: <LandingPage />
+  },
+  {
+    path: '/pricing',
+    element: <PricingPage />
   },
   {
     path: '/contact',

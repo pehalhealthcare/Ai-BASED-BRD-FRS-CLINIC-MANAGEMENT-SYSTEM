@@ -6,8 +6,10 @@ import useAuth from '../hooks/useAuth';
 import Header from '../components/landing/Header';
 import HeroSection from '../components/landing/HeroSection';
 import FeaturesSection from '../components/landing/FeaturesSection';
-import ProductShowcaseSection from '../components/landing/ProductShowcaseSection';
-import PricingSection from '../components/landing/PricingSection';
+import HowItWorksSection from '../components/landing/HowItWorksSection';
+import RoleConnectedSection from '../components/landing/RoleConnectedSection';
+import AiClinicSection from '../components/landing/AiClinicSection';
+import EcosystemSection from '../components/landing/EcosystemSection';
 import SolutionsSection from '../components/landing/SolutionsSection';
 import CTASection from '../components/landing/CTASection';
 import Footer from '../components/landing/Footer';
@@ -44,27 +46,10 @@ export default function LandingPage() {
     }
   }, [isAuthenticated, user, navigate]);
 
-  // Handle Plan selection from Pricing Cards
-  const handleSelectPlan = useCallback((plan, billingCycle) => {
-    const planCode = plan.code || plan._id;
-    if (planCode === 'ENTERPRISE' || plan.priceCustom) {
-      // Enterprise inquiry or registration
-      if (!isAuthenticated) {
-        navigate(`/register-clinic?plan=ENTERPRISE&billing=${billingCycle}`);
-      } else {
-        navigate('/admin/subscriptions');
-      }
-      return;
-    }
-
-    handleSetupClinicClick(planCode, billingCycle);
-  }, [isAuthenticated, navigate, handleSetupClinicClick]);
-
   // Smooth Navigation and Section Scrolling Handler
   const handleNavClick = useCallback((e, sectionId, href) => {
     if (e && e.preventDefault) e.preventDefault();
 
-    // Always update the active section and push the hash to the URL.
     setActiveSection(sectionId);
     isClickScrollingRef.current = true;
 
@@ -72,9 +57,6 @@ export default function LandingPage() {
       window.history.pushState(null, '', href);
     }
 
-    // When e is null the Header component is already handling the scroll
-    // (it waits for the drawer animation to finish before scrollIntoView).
-    // In that case we skip the duplicate scrollTo here to avoid a conflict.
     if (e !== null) {
       const targetElement = document.getElementById(sectionId);
       if (targetElement) {
@@ -96,7 +78,7 @@ export default function LandingPage() {
 
   // Scroll spy to highlight active section in Navbar
   useEffect(() => {
-    const sections = ['hero', 'features', 'product', 'pricing', 'solutions', 'footer'];
+    const sections = ['hero', 'features', 'workflow', 'roles', 'ai-features', 'ecosystem', 'solutions', 'footer'];
     const sectionElements = sections.map((id) => document.getElementById(id)).filter(Boolean);
 
     const observer = new IntersectionObserver(
@@ -151,7 +133,7 @@ export default function LandingPage() {
         user={user}
       />
 
-      {/* ── MAIN LANDING SECTIONS (PRECISE MASTER ORDER) ── */}
+      {/* ── MAIN LANDING SECTIONS (EXACT REFERENCE HIERARCHY) ── */}
       <main className="flex-1">
         {/* 1. Hero Section */}
         <HeroSection
@@ -160,33 +142,38 @@ export default function LandingPage() {
           onBookDemo={() => navigate('/book-demo')}
         />
 
-        {/* 2. Why AI-CMS / Features Section */}
+        {/* 2. Core AICMS Features Section: Everything You Need to Run a Modern Clinic */}
         <FeaturesSection
-          onExploreFeatures={() => handleNavClick(null, 'product', '#product')}
+          onExploreFeatures={() => handleNavClick(null, 'workflow', '#workflow')}
         />
 
-        {/* 3. AI-CMS Product Showcase Section */}
-        <ProductShowcaseSection
+        {/* 3. How AICMS Works: From Patient Arrival to Complete Care — Connected. */}
+        <HowItWorksSection />
+
+        {/* 4. One Platform — Every Role Connected */}
+        <RoleConnectedSection
           onSetupClinic={() => handleSetupClinicClick()}
-          onWatchVideo={() => setIsVideoModalOpen(true)}
-          onBookDemo={() => navigate('/book-demo')}
-          onTryAssistant={() => handleNavClick(null, 'pricing', '#pricing')}
         />
 
-        {/* 4. Pricing Plans Section (NEW: Dynamic Plans & Billing Toggle) */}
-        <PricingSection
-          onSelectPlan={handleSelectPlan}
-          isAuthenticated={isAuthenticated}
+        {/* 5. AI That Works With Your Clinic — Not Around It */}
+        <AiClinicSection
+          onExploreAi={() => handleNavClick(null, 'ecosystem', '#ecosystem')}
         />
 
-        {/* 5. Solutions for Every Practice Section */}
+        {/* 6. Complete Clinic Ecosystem */}
+        <EcosystemSection
+          onSetupClinic={() => handleSetupClinicClick()}
+        />
+
+        {/* 7. Solutions for Every Practice */}
         <SolutionsSection
           onSelectSolution={() => handleSetupClinicClick()}
         />
 
-        {/* 6. Final CTA Section */}
+        {/* 8. Final CTA: Join AI-CMS Today */}
         <CTASection
           onSetupClinic={() => handleSetupClinicClick()}
+          onViewPlans={() => navigate('/pricing')}
         />
       </main>
 

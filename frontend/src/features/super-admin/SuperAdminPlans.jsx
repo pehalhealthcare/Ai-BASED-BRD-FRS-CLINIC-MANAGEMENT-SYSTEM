@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { subscriptionApi } from '../../lib/api';
 import {
   Plus, Edit3, Copy, Archive, ToggleLeft, ToggleRight, RefreshCw,
@@ -6,36 +6,49 @@ import {
 } from 'lucide-react';
 
 const ALL_FEATURES = [
+  { key: 'patient_registration', label: 'Patient Registration' },
   { key: 'appointments', label: 'Appointment Management' },
-  { key: 'billing', label: 'Billing' },
-  { key: 'prescriptions', label: 'Prescriptions' },
+  { key: 'billing', label: 'Billing & Invoicing' },
+  { key: 'prescriptions', label: 'Prescriptions & Rx' },
+  { key: 'digital_prescriptions', label: 'Digital Prescription' },
   { key: 'emr', label: 'Basic EMR' },
-  { key: 'sms', label: 'SMS Reminders' },
   { key: 'reports', label: 'Daily Reports' },
-  { key: 'multi_doctor', label: 'Multi Doctor Management' },
+  { key: 'sms', label: 'SMS Reminders' },
+  { key: 'staff_login', label: 'Staff Login' },
+  { key: 'cloud_backup', label: 'Cloud Backup' },
+  { key: 'email_support', label: 'Email Support' },
+  { key: 'whatsapp_messages', label: 'WhatsApp Messages (Basic Reminders)' },
+  { key: 'whatsapp_integration', label: 'WhatsApp Integration (Full Business Integration)' },
   { key: 'ai_scheduling', label: 'AI Appointment Scheduling' },
-  { key: 'pharmacy', label: 'Pharmacy Module' },
+  { key: 'doctor_calendar', label: 'Doctor Calendar' },
+  { key: 'multi_doctor', label: 'Multi Doctor Management' },
   { key: 'inventory', label: 'Inventory Management' },
+  { key: 'pharmacy', label: 'Pharmacy Module' },
   { key: 'labs', label: 'Lab Module' },
-  { key: 'whatsapp', label: 'WhatsApp Integration' },
   { key: 'analytics', label: 'Analytics Dashboard' },
+  { key: 'role_based_access', label: 'Role-Based Access' },
   { key: 'symptom_checker', label: 'AI Symptom Checker' },
   { key: 'consultation_assistant', label: 'AI Consultation Assistant' },
-  { key: 'voice_to_text', label: 'Voice-to-Text Notes' },
+  { key: 'voice_to_text', label: 'Voice-to-Text Dictation' },
   { key: 'ai_prescription_suggestions', label: 'AI Prescription Suggestions' },
+  { key: 'lab_recommendations', label: 'AI Lab Recommendations' },
   { key: 'ai_risk_scoring', label: 'AI Patient Risk Scoring' },
-  { key: 'online_consultation', label: 'Online Consultation' },
+  { key: 'referral_management', label: 'Referral Management' },
   { key: 'multi_branch', label: 'Multi-Branch Support' },
-  { key: 'api_access', label: 'API Access' },
-  { key: 'unlimited_users', label: 'Unlimited Users' },
-  { key: 'unlimited_patients', label: 'Unlimited Patients' },
-  { key: 'unlimited_branches', label: 'Unlimited Branches' },
-  { key: 'dedicated_server', label: 'Dedicated Server' },
-  { key: 'custom_branding', label: 'Custom Branding' },
-  { key: 'insurance', label: 'Insurance Integration' },
+  { key: 'online_consultation', label: 'Online Video Consultation' },
+  { key: 'mobile_app', label: 'Mobile App Access' },
+  { key: 'api_access', label: 'Developer API Access' },
   { key: 'abdm', label: 'ABDM Integration' },
-  { key: 'custom_apis', label: 'Custom APIs' },
+  { key: 'insurance', label: 'Insurance Integration' },
+  { key: 'advanced_ai_analytics', label: 'Advanced AI Analytics' },
+  { key: 'custom_workflow', label: 'Custom Clinical Workflow' },
+  { key: 'custom_branding', label: 'Custom Branding' },
+  { key: 'dedicated_server', label: 'Dedicated HIPAA Server' },
+  { key: 'dedicated_account_manager', label: 'Dedicated Account Manager' },
   { key: 'priority_support', label: '24×7 Priority Support' },
+  { key: 'custom_apis', label: 'Custom APIs' },
+  { key: 'priority_feature_requests', label: 'Priority Feature Requests' },
+  { key: 'unlimited_everything', label: 'Unlimited Everything' }
 ];
 
 const EMPTY_PLAN = {
@@ -55,11 +68,13 @@ const EMPTY_PLAN = {
   ctaText: ''
 };
 
-const planIcon = (name = '') => {
-  const n = name.toLowerCase();
-  if (n.includes('enterprise')) return <Crown className="w-5 h-5" />;
-  if (n.includes('premium')) return <Star className="w-5 h-5" />;
-  if (n.includes('professional')) return <Zap className="w-5 h-5" />;
+const planIcon = (name = '', code = '') => {
+  const n = (name || '').toLowerCase();
+  const c = (code || '').toUpperCase();
+  if (c === 'ENTERPRISE' || n.includes('enterprise')) return <Crown className="w-5 h-5" />;
+  if (c === 'PREMIUM' || n.includes('premium')) return <Star className="w-5 h-5" />;
+  if (c === 'PROFESSIONAL' || n.includes('professional')) return <Zap className="w-5 h-5" />;
+  if (c === 'STARTER' || n.includes('starter')) return <Package className="w-5 h-5" />;
   return <Package className="w-5 h-5" />;
 };
 
@@ -303,16 +318,34 @@ const SuperAdminPlans = () => {
 
                 <div className="grid grid-cols-4 gap-2 mb-4 text-center">
                   {[
-                    { label: 'Doctors', val: plan.limits?.maxDoctors ?? '∞' },
-                    { label: 'Staff', val: plan.limits?.maxStaff ?? '∞' },
+                    { label: 'Doctors', val: plan.limits?.maxDoctors ? (plan.limits.maxDoctors >= 9999 ? '∞' : plan.limits.maxDoctors) : '∞' },
+                    { label: 'Staff', val: plan.limits?.maxStaff ? (plan.limits.maxStaff >= 9999 ? '∞' : plan.limits.maxStaff) : '∞' },
                     { label: 'Branches', val: plan.limits?.maxBranches ? (plan.limits.maxBranches >= 9999 ? '∞' : plan.limits.maxBranches) : '1' },
-                    { label: 'Patients', val: plan.limits?.maxPatients === 999999 ? '∞' : plan.limits?.maxPatients ?? '∞' },
+                    { label: 'Patients', val: plan.limits?.maxPatients === 999999 || !plan.limits?.maxPatients ? '∞' : plan.limits?.maxPatients },
                   ].map(l => (
                     <div key={l.label} className="bg-blue-50 rounded-xl p-2">
                       <p className="text-[10px] text-blue-400 font-bold">{l.label}</p>
                       <p className="text-blue-700 font-black text-xs">{l.val}</p>
                     </div>
                   ))}
+                </div>
+
+                {/* WhatsApp Capability Badge */}
+                <div className="mb-3.5 flex items-center gap-2">
+                  <span className="text-[11px] font-bold text-slate-500">WhatsApp:</span>
+                  {plan.features?.includes('whatsapp_integration') || plan.features?.includes('whatsapp') ? (
+                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-black">
+                      ✓ WhatsApp Integration
+                    </span>
+                  ) : plan.features?.includes('whatsapp_messages') ? (
+                    <span className="px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-[11px] font-bold">
+                      ✓ WhatsApp Messages
+                    </span>
+                  ) : (
+                    <span className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[11px] font-medium">
+                      Not Included
+                    </span>
+                  )}
                 </div>
 
                 <div className="flex flex-wrap gap-1.5 mb-5">

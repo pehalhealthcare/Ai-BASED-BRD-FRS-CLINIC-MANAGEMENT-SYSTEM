@@ -243,10 +243,31 @@ const createDoctor = async ({ requester, payload, requestedClinicId = null, req 
 
   const User = require('../users/user.model');
   const Clinic = require('../clinics/clinic.model');
+  const Doctor = require('./doctor.model');
   const bcrypt = require('bcryptjs');
   const nodemailer = require('nodemailer');
   const { env } = require('../../config/env');
   const { logger } = require('../../common/utils/logger');
+
+  // Enforce subscription plan doctor limits
+  if (clinicId && requester.role !== ROLES.SUPER_ADMIN) {
+    const clinicDoc = await Clinic.findById(clinicId).populate('subscription.planId');
+    if (clinicDoc) {
+      const maxDoctors = clinicDoc.customLimits?.maxDoctors ?? clinicDoc.subscription?.planId?.limits?.maxDoctors ?? 1;
+      if (maxDoctors < 9999) {
+        const currentDocCount = await Doctor.countDocuments({
+          clinicId,
+          isDeleted: { $ne: true }
+        });
+        if (currentDocCount >= maxDoctors) {
+          throw new AppError(
+            `Your current plan supports ${maxDoctors} doctor${maxDoctors > 1 ? 's' : ''}. Upgrade your plan to add more doctors.`,
+            HTTP_STATUS.BAD_REQUEST
+          );
+        }
+      }
+    }
+  }
 
   const fullName = payload.fullName || `${payload.firstName || 'Doctor'} ${payload.lastName || ''}`.trim();
   const doctorEmail = (payload.email?.trim() || `doctor.${payload.phone || Date.now()}@clinic.local`).toLowerCase();

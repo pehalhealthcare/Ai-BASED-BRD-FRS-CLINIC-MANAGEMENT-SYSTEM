@@ -241,6 +241,28 @@ const createPatient = async ({ requester, payload, requestedClinicId = null, req
     throw new AppError('Mobile number is required', HTTP_STATUS.BAD_REQUEST);
   }
 
+  // Enforce subscription plan patient limits
+  if (clinicId && requester.role !== ROLES.SUPER_ADMIN) {
+    const Clinic = require('../clinics/clinic.model');
+    const clinicDoc = await Clinic.findById(clinicId).populate('subscription.planId');
+    if (clinicDoc) {
+      const maxPatients = clinicDoc.customLimits?.maxPatients ?? clinicDoc.subscription?.planId?.limits?.maxPatients ?? 250;
+      if (maxPatients < 999999) {
+        const ClinicMembership = require('./clinicMembership.model');
+        const currentPatientCount = await ClinicMembership.countDocuments({
+          clinicId,
+          status: 'active'
+        });
+        if (currentPatientCount >= maxPatients) {
+          throw new AppError(
+            `Your current plan has reached the ${maxPatients} patient limit. Upgrade your plan to add more patients.`,
+            HTTP_STATUS.BAD_REQUEST
+          );
+        }
+      }
+    }
+  }
+
   const Patient = require('./patient.model');
   const existingPatient = await Patient.findOne({ phone, clinicId });
   if (existingPatient) {

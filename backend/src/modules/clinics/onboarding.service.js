@@ -48,7 +48,7 @@ const getOnboardingFlow = async (clinicId) => {
   // 3. Resolve limits (use plan limits; fallback to standard defaults based on features/trials)
   const maxDoctors = plan?.limits?.maxDoctors || 1;
   const maxStaff = plan?.limits?.maxStaff || 2;
-  const maxPatients = plan?.limits?.maxPatients || 500;
+  const maxPatients = plan?.limits?.maxPatients || (planCode === 'BASIC' ? 250 : 500);
 
   let maxBranches = plan?.limits?.maxBranches || 0;
   if (maxBranches === 0 && allActiveFeatures.has('multi_branch')) {
@@ -59,7 +59,7 @@ const getOnboardingFlow = async (clinicId) => {
   }
 
   let maxDepartments = plan?.limits?.maxDepartments || 0;
-  if (maxDepartments === 0 && (allActiveFeatures.has('labs') || allActiveFeatures.has('pharmacy') || planCode !== 'STARTER')) {
+  if (maxDepartments === 0 && (allActiveFeatures.has('labs') || allActiveFeatures.has('pharmacy') || (!['BASIC', 'STARTER'].includes(planCode)))) {
     maxDepartments = 10; // Default limit for Professional/Premium
   }
   if (planCode === 'ENTERPRISE') {

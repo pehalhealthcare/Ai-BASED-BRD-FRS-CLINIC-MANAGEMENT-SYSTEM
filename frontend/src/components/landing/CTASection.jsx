@@ -1,13 +1,23 @@
 import React from 'react';
-import { ArrowRight, Sparkles, CheckCircle2, BarChart2 } from 'lucide-react';
+import { ArrowRight, CheckCircle2, BarChart2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 
-export default function CTASection({ onSetupClinic }) {
+export default function CTASection({ onSetupClinic, onViewPlans }) {
+  const navigate = useNavigate();
   const points = [
     'Quick setup',
     'Free onboarding',
     'Dedicated support',
   ];
+
+  const handleViewPlans = () => {
+    if (onViewPlans) {
+      onViewPlans();
+    } else {
+      navigate('/pricing');
+    }
+  };
 
   return (
     <section className="py-12 sm:py-16 bg-white relative">
@@ -47,14 +57,26 @@ export default function CTASection({ onSetupClinic }) {
             </div>
 
             {/* Right Action & Trust Points */}
-            <div className="flex flex-col sm:items-end gap-3 shrink-0">
-              <button
-                onClick={onSetupClinic}
-                className="w-full sm:w-auto flex items-center justify-center gap-2.5 px-8 py-3.5 sm:py-4 rounded-full bg-white text-blue-800 hover:bg-sky-50 font-bold text-sm sm:text-base shadow-xl transition active:scale-95"
-              >
-                <span>Setup Your Clinic</span>
-                <ArrowRight size={18} />
-              </button>
+            <div className="flex flex-col sm:items-end gap-3.5 shrink-0">
+              <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 w-full sm:w-auto">
+                {/* 1. Setup Your Clinic */}
+                <button
+                  onClick={onSetupClinic}
+                  className="w-full sm:w-auto flex items-center justify-center gap-2.5 px-7 py-3.5 sm:py-4 rounded-full bg-white text-blue-800 hover:bg-sky-50 font-bold text-sm sm:text-base shadow-xl transition active:scale-95 cursor-pointer whitespace-nowrap"
+                >
+                  <span>Setup Your Clinic</span>
+                  <ArrowRight size={18} />
+                </button>
+
+                {/* 2. View Plans */}
+                <button
+                  onClick={handleViewPlans}
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 sm:py-4 rounded-full bg-blue-900/40 hover:bg-blue-900/60 text-white font-bold text-sm sm:text-base border border-white/30 shadow-lg backdrop-blur-sm transition active:scale-95 cursor-pointer whitespace-nowrap"
+                >
+                  <span>View Plans</span>
+                  <ArrowRight size={16} />
+                </button>
+              </div>
 
               {/* Subtext Guarantees */}
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-blue-100 font-medium">
