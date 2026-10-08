@@ -5,11 +5,11 @@ import useAuth from '../hooks/useAuth';
 // Landing Page Components
 import Header from '../components/landing/Header';
 import HeroSection from '../components/landing/HeroSection';
-import FeaturesSection from '../components/landing/FeaturesSection';
 import HowItWorksSection from '../components/landing/HowItWorksSection';
 import RoleConnectedSection from '../components/landing/RoleConnectedSection';
 import AiClinicSection from '../components/landing/AiClinicSection';
 import EcosystemSection from '../components/landing/EcosystemSection';
+import FeaturesSection from '../components/landing/FeaturesSection';
 import SolutionsSection from '../components/landing/SolutionsSection';
 import CTASection from '../components/landing/CTASection';
 import Footer from '../components/landing/Footer';
@@ -78,7 +78,7 @@ export default function LandingPage() {
 
   // Scroll spy to highlight active section in Navbar
   useEffect(() => {
-    const sections = ['hero', 'features', 'workflow', 'roles', 'ai-features', 'ecosystem', 'solutions', 'footer'];
+    const sections = ['hero', 'workflow', 'roles', 'ai-features', 'ecosystem', 'features', 'solutions', 'footer'];
     const sectionElements = sections.map((id) => document.getElementById(id)).filter(Boolean);
 
     const observer = new IntersectionObserver(
@@ -133,7 +133,7 @@ export default function LandingPage() {
         user={user}
       />
 
-      {/* ── MAIN LANDING SECTIONS (EXACT REFERENCE HIERARCHY) ── */}
+      {/* ── MAIN LANDING SECTIONS (EXACT MASTER SEQUENCE) ── */}
       <main className="flex-1">
         {/* 1. Hero Section */}
         <HeroSection
@@ -142,27 +142,27 @@ export default function LandingPage() {
           onBookDemo={() => navigate('/book-demo')}
         />
 
-        {/* 2. Core AICMS Features Section: Everything You Need to Run a Modern Clinic */}
-        <FeaturesSection
-          onExploreFeatures={() => handleNavClick(null, 'workflow', '#workflow')}
-        />
-
-        {/* 3. How AICMS Works: From Patient Arrival to Complete Care — Connected. */}
+        {/* 2. From Patient Arrival to Complete Care — Connected. */}
         <HowItWorksSection />
 
-        {/* 4. One Platform — Every Role Connected */}
+        {/* 3. One Platform. Every Role Connected. */}
         <RoleConnectedSection
           onSetupClinic={() => handleSetupClinicClick()}
         />
 
-        {/* 5. AI That Works With Your Clinic — Not Around It */}
+        {/* 4. AI That Works With Your Clinic — Not Around It */}
         <AiClinicSection
           onExploreAi={() => handleNavClick(null, 'ecosystem', '#ecosystem')}
         />
 
-        {/* 6. Complete Clinic Ecosystem */}
+        {/* 5. Complete Clinic Ecosystem */}
         <EcosystemSection
           onSetupClinic={() => handleSetupClinicClick()}
+        />
+
+        {/* 6. WHY AI-CMS: Everything You Need to Run a Modern Clinic */}
+        <FeaturesSection
+          onExploreFeatures={() => handleNavClick(null, 'solutions', '#solutions')}
         />
 
         {/* 7. Solutions for Every Practice */}

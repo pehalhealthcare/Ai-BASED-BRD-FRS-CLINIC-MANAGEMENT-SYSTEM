@@ -1,6 +1,6 @@
 import React from 'react';
 import { 
-  Sparkles, LayoutGrid, Users, ShieldCheck, BarChart3, Cloud, 
+  Sparkles, Calendar, Users, ShieldCheck, BarChart3, Cloud, 
   ArrowRight 
 } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -10,15 +10,15 @@ export default function FeaturesSection({ onExploreFeatures }) {
     {
       id: 'ai-workflows',
       title: 'AI-Powered Workflows',
-      desc: 'Automate appointments, prescriptions, follow-ups and more.',
+      desc: 'Automate OPD, prescriptions, follow-ups and more.',
       icon: <Sparkles className="w-6 h-6 text-blue-600" />,
       bgIcon: 'bg-blue-50/90 border border-blue-100',
     },
     {
       id: 'end-to-end',
       title: 'End-to-End Management',
-      desc: 'OPD, Lab, Pharmacy, Billing, Inventory — all in one place.',
-      icon: <LayoutGrid className="w-6 h-6 text-blue-600" />,
+      desc: 'OPD, IPD, Lab, Pharmacy, Billing, Inventory — all in one place.',
+      icon: <Calendar className="w-6 h-6 text-blue-600" />,
       bgIcon: 'bg-blue-50/90 border border-blue-100',
     },
     {
@@ -31,7 +31,7 @@ export default function FeaturesSection({ onExploreFeatures }) {
     {
       id: 'security-compliant',
       title: 'Secure & Compliant',
-      desc: 'Built for healthcare workflows with strong data protection.',
+      desc: 'Built for Indian healthcare standards with enterprise-grade security.',
       icon: <ShieldCheck className="w-6 h-6 text-blue-600" />,
       bgIcon: 'bg-blue-50/90 border border-blue-100',
     },
@@ -52,12 +52,17 @@ export default function FeaturesSection({ onExploreFeatures }) {
   ];
 
   return (
-    <section id="features" className="py-16 sm:py-20 lg:py-24 bg-white relative">
+    <section id="features" className="py-16 sm:py-20 lg:py-24 bg-white relative border-t border-slate-100">
       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-10">
         
         {/* Section Header Row */}
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 sm:mb-12 gap-4">
           <div>
+            {/* Eyebrow Badge */}
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-100 text-blue-600 text-[11px] font-black uppercase tracking-wider mb-3">
+              <span>WHY AI-CMS</span>
+            </div>
+
             <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight">
               Everything You Need to Run a{' '}
               <span className="text-blue-600">Modern Clinic</span>
@@ -68,17 +73,17 @@ export default function FeaturesSection({ onExploreFeatures }) {
           </div>
 
           <a
-            href="#workflow"
+            href="#solutions"
             onClick={(e) => {
               e.preventDefault();
               if (onExploreFeatures) {
                 onExploreFeatures();
               } else {
-                const el = document.getElementById('workflow');
+                const el = document.getElementById('solutions');
                 if (el) el.scrollIntoView({ behavior: 'smooth' });
               }
             }}
-            className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-blue-600 hover:text-blue-700 transition shrink-0 group"
+            className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-blue-600 hover:text-blue-700 transition shrink-0 group cursor-pointer"
           >
             <span>Explore All Features</span>
             <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />

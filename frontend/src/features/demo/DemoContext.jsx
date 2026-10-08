@@ -1,8 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import toast from 'react-hot-toast';
-import { INITIAL_DEMO_DATA } from './demoData';
-
-const DEMO_STORAGE_KEY = 'aicms-demo-v1';
+import { INITIAL_DEMO_DATA, DEMO_STORAGE_KEY } from './demoData';
 
 const DemoContext = createContext(null);
 
@@ -14,7 +12,7 @@ export function DemoProvider({ children }) {
         return JSON.parse(saved);
       }
     } catch (err) {
-      console.warn('Failed to parse aicms-demo-v1 from localStorage, initializing fresh:', err);
+      console.warn('Failed to parse aicms_demo_v1_state from localStorage:', err);
     }
     return INITIAL_DEMO_DATA;
   });
@@ -24,28 +22,144 @@ export function DemoProvider({ children }) {
     try {
       localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(demoState));
     } catch (err) {
-      console.error('Failed to write to localStorage for aicms-demo-v1:', err);
+      console.error('Failed to write to localStorage for demo state:', err);
     }
   }, [demoState]);
 
-  // Create Appointment (used by Receptionist / Patient / Owner)
-  const createAppointment = useCallback((newAppt) => {
+  // 1. DOCTORS MANAGEMENT
+  const addDoctor = useCallback((newDoc) => {
+    if (!newDoc.name || !newDoc.specialization) {
+      toast.error('Doctor name and specialization are required');
+      return false;
+    }
     setDemoState((prev) => {
-      const tokenNum = `A-0${prev.appointments.length + 1}`;
+      const docRecord = {
+        id: `doc-${Date.now()}`,
+        avatar: (newDoc.name || 'Dr').split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase(),
+        status: newDoc.status || 'Active',
+        todaySlots: newDoc.todaySlots || ['10:00 AM', '11:30 AM', '02:00 PM', '04:30 PM'],
+        fee: Number(newDoc.fee) || 600,
+        experience: newDoc.experience || '5 Years',
+        phone: newDoc.phone || '+91 98765 00000',
+        email: newDoc.email || `${newDoc.name.toLowerCase().replace(/[^a-z]/g, '')}@sunriseclinic.demo`,
+        ...newDoc,
+      };
+
+      const notif = {
+        id: `notif-${Date.now()}`,
+        title: 'Doctor Added',
+        message: `${docRecord.name} (${docRecord.specialization}) added to demo clinic.`,
+        time: 'Just now',
+        read: false,
+      };
+
+      return {
+        ...prev,
+        doctors: [docRecord, ...prev.doctors],
+        notifications: [notif, ...prev.notifications],
+      };
+    });
+    toast.success(`${newDoc.name} added to demo clinic!`);
+    return true;
+  }, []);
+
+  const toggleDoctorStatus = useCallback((docId) => {
+    setDemoState((prev) => ({
+      ...prev,
+      doctors: prev.doctors.map((d) => {
+        if (d.id === docId) {
+          const next = d.status === 'Active' ? 'On Leave' : 'Active';
+          toast.success(`${d.name} marked as ${next}`);
+          return { ...d, status: next };
+        }
+        return d;
+      }),
+    }));
+  }, []);
+
+  const deleteDoctor = useCallback((docId) => {
+    setDemoState((prev) => {
+      const doc = prev.doctors.find((d) => d.id === docId);
+      toast.success(`${doc ? doc.name : 'Doctor'} removed from demo clinic.`);
+      return {
+        ...prev,
+        doctors: prev.doctors.filter((d) => d.id !== docId),
+      };
+    });
+  }, []);
+
+  // 2. PATIENTS MANAGEMENT
+  const addPatient = useCallback((newPat) => {
+    if (!newPat.name) {
+      toast.error('Patient name is required');
+      return false;
+    }
+    setDemoState((prev) => {
+      const patientRecord = {
+        id: `pat-${Date.now()}`,
+        age: Number(newPat.age) || 30,
+        gender: newPat.gender || 'Male',
+        phone: newPat.phone || '+91 98000 00000',
+        bloodGroup: newPat.bloodGroup || 'B+',
+        vitals: newPat.vitals || { bp: '120/80', pulse: '72 bpm', spo2: '99%', temp: '98.4°F', weight: '65 kg' },
+        history: newPat.history || 'New demo patient registered.',
+        lastVisit: 'Today',
+        ...newPat,
+      };
+
+      const notif = {
+        id: `notif-${Date.now()}`,
+        title: 'New Patient Registered',
+        message: `${patientRecord.name} (Age ${patientRecord.age}) enrolled at front desk.`,
+        time: 'Just now',
+        read: false,
+      };
+
+      return {
+        ...prev,
+        patients: [patientRecord, ...prev.patients],
+        notifications: [notif, ...prev.notifications],
+      };
+    });
+    toast.success(`${newPat.name} added to demo patients.`);
+    return true;
+  }, []);
+
+  const deletePatient = useCallback((patId) => {
+    setDemoState((prev) => {
+      const pat = prev.patients.find((p) => p.id === patId);
+      toast.success(`${pat ? pat.name : 'Patient'} removed from demo records.`);
+      return {
+        ...prev,
+        patients: prev.patients.filter((p) => p.id !== patId),
+        appointments: prev.appointments.filter((a) => a.patientId !== patId),
+      };
+    });
+  }, []);
+
+  // 3. APPOINTMENTS MANAGEMENT
+  const createAppointment = useCallback((newAppt) => {
+    if (!newAppt.patientName || !newAppt.doctorName) {
+      toast.error('Please select both a patient and a doctor');
+      return false;
+    }
+    setDemoState((prev) => {
+      const tokenNum = `T-0${prev.appointments.length + 1}`;
       const apptRecord = {
         id: `apt-${Date.now()}`,
         token: tokenNum,
         date: newAppt.date || 'Today',
-        time: newAppt.time || '10:00 AM',
-        status: 'SCHEDULED',
+        time: newAppt.time || '10:30 AM',
+        status: newAppt.status || 'SCHEDULED',
         type: newAppt.type || 'General Consultation',
         reason: newAppt.reason || 'Checkup & Consultation',
+        fee: Number(newAppt.fee) || 500,
         ...newAppt,
       };
 
       const notif = {
         id: `notif-${Date.now()}`,
-        title: 'New Appointment Booked',
+        title: 'Appointment Booked',
         message: `${apptRecord.patientName} scheduled with ${apptRecord.doctorName} for ${apptRecord.time}`,
         time: 'Just now',
         read: false,
@@ -57,10 +171,10 @@ export function DemoProvider({ children }) {
         notifications: [notif, ...prev.notifications],
       };
     });
-    toast.success('Appointment scheduled successfully in demo!');
+    toast.success(`Appointment booked for ${newAppt.patientName}!`);
+    return true;
   }, []);
 
-  // Update Appointment Status (e.g. SCHEDULED -> CHECKED_IN -> IN_CONSULTATION -> COMPLETED)
   const updateAppointmentStatus = useCallback((apptId, newStatus) => {
     setDemoState((prev) => {
       let updatedApptName = '';
@@ -74,8 +188,8 @@ export function DemoProvider({ children }) {
 
       const notif = {
         id: `notif-${Date.now()}`,
-        title: `Patient Status: ${newStatus.replace('_', ' ')}`,
-        message: `${updatedApptName || 'Patient'} marked as ${newStatus.replace('_', ' ')}`,
+        title: `Appointment ${newStatus.replace('_', ' ')}`,
+        message: `${updatedApptName || 'Patient'} status updated to ${newStatus.replace('_', ' ')}`,
         time: 'Just now',
         read: false,
       };
@@ -86,124 +200,158 @@ export function DemoProvider({ children }) {
         notifications: [notif, ...prev.notifications],
       };
     });
-    toast.success(`Appointment status updated to ${newStatus.replace('_', ' ')}`);
+    toast.success(`Status updated to ${newStatus.replace('_', ' ')}`);
   }, []);
 
-  // Add New Doctor (used by Admin)
-  const addDoctor = useCallback((newDoc) => {
+  const rescheduleAppointment = useCallback((apptId, newTime, newDate = 'Tomorrow') => {
+    setDemoState((prev) => ({
+      ...prev,
+      appointments: prev.appointments.map((a) => (a.id === apptId ? { ...a, time: newTime, date: newDate, status: 'SCHEDULED' } : a)),
+    }));
+    toast.success(`Appointment rescheduled to ${newDate} at ${newTime}`);
+  }, []);
+
+  const cancelAppointment = useCallback((apptId) => {
     setDemoState((prev) => {
-      const docRecord = {
-        id: `doc-${Date.now()}`,
-        avatar: (newDoc.name || 'Dr').split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase(),
-        status: 'Available',
-        todaySlots: ['10:00 AM', '11:30 AM', '02:00 PM', '04:30 PM'],
-        fee: 700,
-        experience: '5 Years',
-        ...newDoc,
+      toast.success('Appointment cancelled in demo.');
+      return {
+        ...prev,
+        appointments: prev.appointments.filter((a) => a.id !== apptId),
+      };
+    });
+  }, []);
+
+  // Call Next Waiting Patient (Receptionist)
+  const callNextPatient = useCallback(() => {
+    setDemoState((prev) => {
+      const waiting = prev.appointments.find((a) => a.status === 'WAITING' || a.status === 'SCHEDULED');
+      if (!waiting) {
+        toast('No waiting patients in queue.', { icon: 'ℹ️' });
+        return prev;
+      }
+      toast.success(`Calling Token ${waiting.token} (${waiting.patientName}) to Consultation Room`);
+      return {
+        ...prev,
+        appointments: prev.appointments.map((a) => (a.id === waiting.id ? { ...a, status: 'CHECKED_IN' } : a)),
+      };
+    });
+  }, []);
+
+  // Add Walk-In Patient (Receptionist)
+  const addWalkInPatient = useCallback((walkInData) => {
+    const pName = walkInData.name || 'Walk-in Patient';
+    const dName = walkInData.doctorName || 'Dr. Priya Sharma';
+    
+    setDemoState((prev) => {
+      const patId = `pat-${Date.now()}`;
+      const newPat = {
+        id: patId,
+        name: pName,
+        age: Number(walkInData.age) || 35,
+        gender: walkInData.gender || 'Male',
+        phone: walkInData.phone || '+91 98000 11111',
+        bloodGroup: walkInData.bloodGroup || 'B+',
+        vitals: { bp: '122/80', pulse: '74 bpm', spo2: '99%', temp: '98.4°F', weight: '68 kg' },
+        history: 'Walk-in front desk emergency registration.',
+        lastVisit: 'Today',
+      };
+
+      const tokenNum = `T-0${prev.appointments.length + 1}`;
+      const newAppt = {
+        id: `apt-${Date.now()}`,
+        token: tokenNum,
+        patientId: patId,
+        patientName: pName,
+        doctorName: dName,
+        specialty: 'General OPD',
+        time: 'Just Now',
+        date: 'Today',
+        type: 'Walk-In OPD',
+        reason: walkInData.reason || 'Immediate OPD Consultation',
+        status: 'CHECKED_IN',
+        fee: 500,
       };
 
       return {
         ...prev,
-        doctors: [...prev.doctors, docRecord],
+        patients: [newPat, ...prev.patients],
+        appointments: [newAppt, ...prev.appointments],
+        notifications: [
+          {
+            id: `notif-${Date.now()}`,
+            title: 'Walk-in Registered',
+            message: `${pName} issued Token ${tokenNum} for ${dName}`,
+            time: 'Just now',
+            read: false,
+          },
+          ...prev.notifications,
+        ],
       };
     });
-    toast.success(`Dr. ${newDoc.name} added to clinic roster!`);
+    toast.success(`Walk-in patient ${pName} registered and checked in!`);
   }, []);
 
-  // Toggle Doctor Available / On Leave
-  const toggleDoctorStatus = useCallback((docId) => {
-    setDemoState((prev) => ({
-      ...prev,
-      doctors: prev.doctors.map((d) => {
-        if (d.id === docId) {
-          const next = d.status === 'Available' ? 'On Leave' : 'Available';
-          toast.success(`${d.name} marked as ${next}`);
-          return { ...d, status: next };
-        }
-        return d;
-      }),
-    }));
-  }, []);
-
-  // Add Staff (Admin)
-  const addStaff = useCallback((newStaff) => {
-    setDemoState((prev) => ({
-      ...prev,
-      staff: [...prev.staff, { id: `st-${Date.now()}`, status: 'Active', ...newStaff }],
-    }));
-    toast.success(`Staff member ${newStaff.name} onboarded!`);
-  }, []);
-
-  // Toggle Staff Status
-  const toggleStaffStatus = useCallback((staffId) => {
-    setDemoState((prev) => ({
-      ...prev,
-      staff: prev.staff.map((s) => {
-        if (s.id === staffId) {
-          const next = s.status === 'Active' ? 'Inactive' : 'Active';
-          toast.success(`${s.name} status updated to ${next}`);
-          return { ...s, status: next };
-        }
-        return s;
-      }),
-    }));
-  }, []);
-
-  // Complete Doctor Consultation with Prescription & Lab Tests
+  // 4. CONSULTATIONS & PRESCRIPTIONS
   const completeConsultation = useCallback((apptId, consultationData) => {
     setDemoState((prev) => {
       const appt = prev.appointments.find((a) => a.id === apptId);
-      const patient = prev.patients.find((p) => p.id === (appt?.patientId || consultationData.patientId)) || prev.patients[0];
+      const patient = prev.patients.find((p) => p.name === (appt?.patientName || consultationData.patientName)) || prev.patients[0];
 
-      // 1. Mark appointment completed
+      // Mark appointment completed
       const updatedAppointments = prev.appointments.map((a) => (a.id === apptId ? { ...a, status: 'COMPLETED' } : a));
 
-      // 2. Add Prescription record
+      // Prescription
       const rxRecord = {
         id: `rx-${Date.now()}`,
-        patientId: patient.id,
-        patientName: patient.name,
+        prescriptionNumber: `RX-2026-${Math.floor(1000 + Math.random() * 9000)}`,
+        patientId: patient?.id || 'pat-1',
+        patientName: patient?.name || 'Ramesh Kumar',
         doctorName: appt?.doctorName || 'Dr. Priya Sharma',
         date: 'Today',
-        diagnosis: consultationData.diagnosis || 'Clinical Consultation Completed',
-        notes: consultationData.clinicalNotes || 'Follow medication schedule and maintain adequate rest.',
+        diagnosis: consultationData.diagnosis || 'Clinical OPD Assessment',
+        notes: consultationData.clinicalNotes || 'Adhere to prescribed dosage with proper rest and hydration.',
         medicines: consultationData.medicines || [
           { name: 'Paracetamol 500mg', dosage: '1 Tab', frequency: 'Twice daily', duration: '3 Days', instruction: 'After food' },
         ],
         labRecommendations: consultationData.labTests || [],
       };
 
-      // 3. If lab tests added, create lab orders
+      // Lab orders
       const newLabOrders = (consultationData.labTests || []).map((testName, i) => ({
         id: `lab-${Date.now()}-${i}`,
-        patientId: patient.id,
-        patientName: patient.name,
+        patientId: patient?.id || 'pat-1',
+        patientName: patient?.name || 'Ramesh Kumar',
         testName,
         orderedBy: appt?.doctorName || 'Dr. Priya Sharma',
         date: 'Today',
-        status: 'In Progress',
-        sampleType: 'Routine Sample',
-        resultSummary: 'Sample collected, processing analysis.',
+        price: 400,
+        status: 'Processing',
+        sampleType: 'Whole Blood (EDTA)',
+        resultSummary: 'Sample accessioned in lab queue.',
         qrVerified: false,
       }));
 
-      // 4. Generate bill for consultation
+      // Bill
+      const feeAmount = (appt?.fee || 500) + (consultationData.labTests?.length || 0) * 350 + (consultationData.medicines?.length || 0) * 50;
       const newBill = {
         id: `inv-${Date.now()}`,
-        invoiceNumber: `INV-2026-${Math.floor(1000 + Math.random() * 9000)}`,
-        patientId: patient.id,
-        patientName: patient.name,
+        invoiceNumber: `INV-2026-${Math.floor(100 + Math.random() * 900)}`,
+        patientId: patient?.id || 'pat-1',
+        patientName: patient?.name || 'Ramesh Kumar',
+        doctorName: appt?.doctorName || 'Dr. Priya Sharma',
         services: [`Consultation (${appt?.doctorName || 'Doctor'})`, ...(consultationData.labTests || [])],
-        amount: (appt?.fee || 600) + (consultationData.labTests?.length || 0) * 450,
+        subtotal: feeAmount,
+        discount: 0,
+        amount: feeAmount,
         date: 'Today',
         status: 'PENDING',
-        mode: 'Pending Payment',
+        mode: 'Pending at Counter',
       };
 
       const notif = {
         id: `notif-${Date.now()}`,
         title: 'Consultation Completed',
-        message: `Prescription & Invoice generated for ${patient.name}`,
+        message: `Prescription & Invoice prepared for ${patient?.name || 'Patient'}`,
         time: 'Just now',
         read: false,
       };
@@ -217,20 +365,55 @@ export function DemoProvider({ children }) {
         notifications: [notif, ...prev.notifications],
       };
     });
-    toast.success('Consultation completed! Prescription & Invoice created.');
+    toast.success('Consultation finished! Digital prescription and bill generated.');
   }, []);
 
-  // Dispense Medicine from Pharmacy
-  const dispenseMedicine = useCallback((medicineId, qty = 1) => {
+  // 5. PHARMACY & INVENTORY MANAGEMENT
+  const addMedicine = useCallback((newMed) => {
+    if (!newMed.name) {
+      toast.error('Medicine name is required');
+      return false;
+    }
     setDemoState((prev) => {
-      let medName = '';
+      const stockVal = Number(newMed.stock) || 100;
+      const minStockVal = Number(newMed.minStock) || 30;
+      const medRecord = {
+        id: `med-${Date.now()}`,
+        batch: newMed.batch || `B${Math.floor(100 + Math.random() * 900)}`,
+        category: newMed.category || 'General',
+        expiry: newMed.expiry || '12/2026',
+        stock: stockVal,
+        minStock: minStockVal,
+        unitPrice: Number(newMed.unitPrice) || 20,
+        status: stockVal <= minStockVal ? (stockVal === 0 ? 'Out of Stock' : 'Low Stock') : 'In Stock',
+        ...newMed,
+      };
+
+      const notif = {
+        id: `notif-${Date.now()}`,
+        title: 'Medicine Added',
+        message: `${medRecord.name} (${medRecord.stock} units) added to demo pharmacy.`,
+        time: 'Just now',
+        read: false,
+      };
+
+      return {
+        ...prev,
+        medicines: [medRecord, ...prev.medicines],
+        notifications: [notif, ...prev.notifications],
+      };
+    });
+    toast.success(`${newMed.name} added to demo pharmacy!`);
+    return true;
+  }, []);
+
+  const adjustStock = useCallback((medId, delta) => {
+    setDemoState((prev) => {
       const updatedMeds = prev.medicines.map((m) => {
-        if (m.id === medicineId) {
-          medName = m.name;
-          return {
-            ...m,
-            stock: Math.max(0, m.stock - qty),
-          };
+        if (m.id === medId) {
+          const newStock = Math.max(0, m.stock + delta);
+          const newStatus = newStock === 0 ? 'Out of Stock' : newStock <= m.minStock ? 'Low Stock' : 'In Stock';
+          return { ...m, stock: newStock, status: newStatus };
         }
         return m;
       });
@@ -240,10 +423,125 @@ export function DemoProvider({ children }) {
         medicines: updatedMeds,
       };
     });
-    toast.success(`Dispensed ${qty} unit(s) of medicine. Stock updated!`);
+    toast.success(delta > 0 ? `Stock increased by ${delta}` : `Stock decreased by ${Math.abs(delta)}`);
   }, []);
 
-  // Mark Bill as Paid
+  const dispenseMedicine = useCallback((medId, qty = 1) => {
+    setDemoState((prev) => {
+      const updatedMeds = prev.medicines.map((m) => {
+        if (m.id === medId) {
+          const newStock = Math.max(0, m.stock - qty);
+          const newStatus = newStock === 0 ? 'Out of Stock' : newStock <= m.minStock ? 'Low Stock' : 'In Stock';
+          return { ...m, stock: newStock, status: newStatus };
+        }
+        return m;
+      });
+
+      return {
+        ...prev,
+        medicines: updatedMeds,
+      };
+    });
+    toast.success(`Dispensed ${qty} unit(s). Local pharmacy stock updated!`);
+  }, []);
+
+  // 6. LABORATORY MANAGEMENT
+  const addLabTest = useCallback((newTest) => {
+    if (!newTest.testName || !newTest.patientName) {
+      toast.error('Test name and patient are required');
+      return false;
+    }
+    setDemoState((prev) => {
+      const testRecord = {
+        id: `lab-${Date.now()}`,
+        date: 'Today',
+        price: Number(newTest.price) || 450,
+        status: newTest.status || 'Pending',
+        sampleType: newTest.sampleType || 'Whole Blood (EDTA)',
+        resultSummary: 'Sample accessioned at diagnostic desk.',
+        qrVerified: false,
+        ...newTest,
+      };
+
+      const notif = {
+        id: `notif-${Date.now()}`,
+        title: 'Lab Test Ordered',
+        message: `${testRecord.testName} ordered for ${testRecord.patientName}`,
+        time: 'Just now',
+        read: false,
+      };
+
+      return {
+        ...prev,
+        labOrders: [testRecord, ...prev.labOrders],
+        notifications: [notif, ...prev.notifications],
+      };
+    });
+    toast.success(`Lab order "${newTest.testName}" placed!`);
+    return true;
+  }, []);
+
+  const updateLabStatus = useCallback((labId, newStatus, qrVerified = false) => {
+    setDemoState((prev) => {
+      const updatedOrders = prev.labOrders.map((o) => {
+        if (o.id === labId) {
+          return {
+            ...o,
+            status: newStatus,
+            qrVerified: qrVerified !== undefined ? qrVerified : o.qrVerified,
+            resultSummary: newStatus === 'Completed' ? 'All clinical parameters verified and within normal range.' : o.resultSummary,
+          };
+        }
+        return o;
+      });
+
+      return {
+        ...prev,
+        labOrders: updatedOrders,
+      };
+    });
+    toast.success(`Lab test status updated to ${newStatus}`);
+  }, []);
+
+  // 7. BILLING MANAGEMENT
+  const createBill = useCallback((newBill) => {
+    if (!newBill.patientName || !newBill.amount) {
+      toast.error('Patient name and amount are required');
+      return false;
+    }
+    setDemoState((prev) => {
+      const billRecord = {
+        id: `inv-${Date.now()}`,
+        invoiceNumber: `INV-2026-${Math.floor(100 + Math.random() * 900)}`,
+        doctorName: newBill.doctorName || 'Dr. Priya Sharma',
+        services: newBill.services || ['Consultation', 'Diagnostic Tests'],
+        subtotal: Number(newBill.subtotal) || Number(newBill.amount),
+        discount: Number(newBill.discount) || 0,
+        amount: Number(newBill.amount),
+        date: 'Today',
+        status: newBill.status || 'PENDING',
+        mode: newBill.mode || 'Pending at Counter',
+        ...newBill,
+      };
+
+      const notif = {
+        id: `notif-${Date.now()}`,
+        title: 'Demo Invoice Created',
+        message: `${billRecord.invoiceNumber} for ₹${billRecord.amount} issued for ${billRecord.patientName}`,
+        time: 'Just now',
+        read: false,
+      };
+
+      return {
+        ...prev,
+        bills: [billRecord, ...prev.bills],
+        notifications: [notif, ...prev.notifications],
+      };
+    });
+    toast.success('Demo bill generated! (No real payment required)');
+    return true;
+  }, []);
+
   const markBillPaid = useCallback((billId, paymentMode = 'UPI (Instant)') => {
     setDemoState((prev) => {
       let settledAmt = 0;
@@ -257,8 +555,8 @@ export function DemoProvider({ children }) {
 
       const notif = {
         id: `notif-${Date.now()}`,
-        title: 'Bill Settled',
-        message: `₹${settledAmt} collected via ${paymentMode}`,
+        title: 'Demo Bill Settled',
+        message: `₹${settledAmt} received via ${paymentMode}`,
         time: 'Just now',
         read: false,
       };
@@ -269,59 +567,59 @@ export function DemoProvider({ children }) {
         notifications: [notif, ...prev.notifications],
       };
     });
-    toast.success('Bill marked as Paid! Revenue metrics updated.');
+    toast.success(`Demo payment recorded via ${paymentMode}!`);
   }, []);
 
-  // Order Lab Test directly
-  const addLabOrder = useCallback((orderData) => {
-    setDemoState((prev) => {
-      const newOrder = {
-        id: `lab-${Date.now()}`,
-        date: 'Today',
-        status: 'In Progress',
-        qrVerified: false,
-        resultSummary: 'Sample accessioned in lab queue.',
-        ...orderData,
-      };
-
-      return {
-        ...prev,
-        labOrders: [newOrder, ...prev.labOrders],
-      };
-    });
-    toast.success(`Lab order "${orderData.testName}" placed!`);
+  // 8. SETTINGS MANAGEMENT
+  const updateClinicSettings = useCallback((updatedSettings) => {
+    setDemoState((prev) => ({
+      ...prev,
+      clinic: {
+        ...prev.clinic,
+        ...updatedSettings,
+      },
+    }));
+    toast.success('Demo clinic settings saved in this browser.');
   }, []);
 
-  // Reset Demo to Initial State
+  // 9. RESET DEMO DATA
   const resetDemoData = useCallback(() => {
     try {
       localStorage.removeItem(DEMO_STORAGE_KEY);
       setDemoState(INITIAL_DEMO_DATA);
-      toast.success('AICMS Demo data restored to initial state!');
+      toast.success('AI-CMS Demo reset to original state!');
     } catch (err) {
       console.error('Reset demo error:', err);
     }
   }, []);
 
-  // Derived Real Dynamic Metrics calculated from Local Demo Store
+  // DERIVED DYNAMIC METRICS
   const metrics = useMemo(() => {
     const totalRevenue = demoState.bills
       .filter((b) => b.status === 'PAID')
-      .reduce((sum, b) => sum + (b.amount || 0), 0);
+      .reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
 
     const pendingBillsCount = demoState.bills.filter((b) => b.status === 'PENDING').length;
     const pendingBillsAmount = demoState.bills
       .filter((b) => b.status === 'PENDING')
-      .reduce((sum, b) => sum + (b.amount || 0), 0);
+      .reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
 
     const totalPatients = demoState.patients.length;
     const totalAppointments = demoState.appointments.length;
-    const checkedInAppointments = demoState.appointments.filter((a) => a.status === 'CHECKED_IN' || a.status === 'IN_CONSULTATION').length;
+    const scheduledAppointments = demoState.appointments.filter((a) => a.status === 'SCHEDULED').length;
+    const checkedInAppointments = demoState.appointments.filter((a) => a.status === 'CHECKED_IN').length;
     const waitingAppointments = demoState.appointments.filter((a) => a.status === 'WAITING' || a.status === 'SCHEDULED').length;
     const completedAppointments = demoState.appointments.filter((a) => a.status === 'COMPLETED').length;
 
-    const availableDoctors = demoState.doctors.filter((d) => d.status === 'Available').length;
     const totalDoctors = demoState.doctors.length;
+    const activeDoctors = demoState.doctors.filter((d) => d.status === 'Active').length;
+
+    const totalMedicines = demoState.medicines.length;
+    const lowStockMedicines = demoState.medicines.filter((m) => m.stock <= m.minStock).length;
+
+    const totalLabTests = demoState.labOrders.length;
+    const completedLabTests = demoState.labOrders.filter((l) => l.status === 'Completed').length;
+    const pendingLabTests = demoState.labOrders.filter((l) => l.status !== 'Completed').length;
 
     return {
       totalRevenue,
@@ -329,27 +627,43 @@ export function DemoProvider({ children }) {
       pendingBillsAmount,
       totalPatients,
       totalAppointments,
+      scheduledAppointments,
       checkedInAppointments,
       waitingAppointments,
       completedAppointments,
-      availableDoctors,
       totalDoctors,
+      activeDoctors,
+      totalMedicines,
+      lowStockMedicines,
+      totalLabTests,
+      completedLabTests,
+      pendingLabTests,
     };
   }, [demoState]);
 
   const value = {
     demoState,
     metrics,
-    createAppointment,
-    updateAppointmentStatus,
     addDoctor,
     toggleDoctorStatus,
-    addStaff,
-    toggleStaffStatus,
+    deleteDoctor,
+    addPatient,
+    deletePatient,
+    createAppointment,
+    updateAppointmentStatus,
+    rescheduleAppointment,
+    cancelAppointment,
+    callNextPatient,
+    addWalkInPatient,
     completeConsultation,
+    addMedicine,
+    adjustStock,
     dispenseMedicine,
+    addLabTest,
+    updateLabStatus,
+    createBill,
     markBillPaid,
-    addLabOrder,
+    updateClinicSettings,
     resetDemoData,
   };
 
