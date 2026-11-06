@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Calendar, RotateCcw, Building2, MessageCircle,
@@ -11,6 +11,7 @@ import {
 import { appointmentApi, patientApi, doctorApi, clinicApi } from '../../lib/api';
 import aiApi from '../../api/aiApi';
 import useAuth from '../../hooks/useAuth';
+import { normalizeDoctorName } from '../../utils/doctorFormatters';
 
 /* ══════════════════════════════════════════════════════════════════
    CONSTANTS
@@ -220,7 +221,7 @@ const MessageBubble = ({ msg, handlers, bookingDate, setBookingDate, bookingTime
               {msg.payload.doctors.slice(0, 4).map(doc => (
                 <div key={doc._id} className="p-3 rounded-xl bg-[#1f293d]/50 border border-white/[0.08] flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-white font-bold text-xs">Dr. {doc.fullName}</p>
+                    <p className="text-white font-bold text-xs">{normalizeDoctorName(doc.fullName)}</p>
                     <p className="text-[10px] text-slate-400">{doc.specialization} • {doc.experience}y exp</p>
                     {doc.clinic?.name && <p className="text-[10px] text-slate-500 mt-0.5">🏥 {doc.clinic.name}</p>}
                     {doc.distance != null && <p className="text-[10px] text-blue-400 mt-0.5">📍 {(doc.distance / 1000).toFixed(1)} km away</p>}
@@ -542,12 +543,13 @@ const PatientAppointmentsPage = () => {
   const selectDoctor = (doc) => {
     setSelectedDoc(doc);
     setFlow('booking_confirm');
-    addMsg('user', `Book with Dr. ${doc.fullName}`);
+    const docDisplayName = normalizeDoctorName(doc.fullName);
+    addMsg('user', `Book with ${docDisplayName}`);
     setIsTyping(true);
     setTimeout(() => {
       setIsTyping(false);
       const clinicInfo = doc.clinic?.name ? ` at ${doc.clinic.name}` : '';
-      addMsg('bot', `Great! Pick a date and time for your consultation with Dr. ${doc.fullName}${clinicInfo}:`, { type: 'select_date_time' });
+      addMsg('bot', `Great! Pick a date and time for your consultation with ${docDisplayName}${clinicInfo}:`, { type: 'select_date_time' });
     }, 600);
   };
 
@@ -592,7 +594,7 @@ const PatientAppointmentsPage = () => {
       });
       setIsTyping(false);
       const dateStr = new Date(bookingDate).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-      addMsg('bot', `✅ Appointment request submitted!\n\n📅 ${dateStr}\n⏰ ${selectedSlot.startTime}\n👨‍⚕️ Dr. ${selectedDoc?.fullName}\n🏥 ${selectedDoc?.clinic?.name || 'Clinic'}\n\nYour appointment has been booked.`);
+      addMsg('bot', `✅ Appointment request submitted!\n\n📅 ${dateStr}\n⏰ ${selectedSlot.startTime}\n👨‍⚕️ ${normalizeDoctorName(selectedDoc?.fullName)}\n🏥 ${selectedDoc?.clinic?.name || 'Clinic'}\n\nYour appointment has been booked.`);
       setSelectedDoc(null); setBookingDate(''); selectSlot(null);
       try {
         const r = await appointmentApi.getAppointments({ limit: 30 });
@@ -996,7 +998,7 @@ const PatientAppointmentsPage = () => {
                   })).map((doc, idx) => (
                     <div key={doc._id || idx} className="p-4 rounded-2xl bg-[#060d18] border border-white/[0.06] flex items-center justify-between gap-4">
                       <div className="space-y-1">
-                        <h4 className="text-xs font-bold text-white">Dr. {doc.fullName}</h4>
+                        <h4 className="text-xs font-bold text-white">{normalizeDoctorName(doc.fullName)}</h4>
                         <p className="text-[10px] text-slate-400">{doc.specialization} • {doc.experience} Years Exp</p>
                         <div className="flex items-center gap-1 text-[9px] text-amber-400 font-bold">
                           <Star size={10} fill="currentColor" /> {doc.rating} Rating
@@ -1007,7 +1009,7 @@ const PatientAppointmentsPage = () => {
                           setSelectedDoc(doc._id ? doc : { ...doc, _id: String(idx) });
                           setBookingDate(new Date().toISOString().split('T')[0]);
                           setFlow('booking_confirm');
-                          addMsg('user', `Book with Dr. ${doc.fullName}`);
+                          addMsg('user', `Book with ${normalizeDoctorName(doc.fullName)}`);
                           // Back to chatbot view
                           setSelectedClinic(null);
                         }}

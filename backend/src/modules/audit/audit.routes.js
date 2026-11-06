@@ -21,6 +21,14 @@ router.get(
 );
 
 router.get(
+  '/export',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),
+  validate(listAuditLogsQuerySchema),
+  auditController.exportAuditLogs
+);
+
+router.get(
   '/:id',
   protect,
   authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),

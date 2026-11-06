@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const PDFDocument = require('pdfkit');
+const { normalizeDoctorName } = require('../../common/utils/doctorFormatter');
 
 // ────────────────────────────────────────────────────────────────────────────
 // Constants & Design Tokens
@@ -225,7 +226,7 @@ const renderHeader = (doc, clinic, doctor, patient, consultation, qrBuffer, page
 
     // Doctor details
     doc.font(F.bold).fontSize(9.5).fillColor(C.heading);
-    doc.text(`Dr. ${doctor?.fullName || 'Shyam Verma'}`, L + 50, docY + 8, { width: CW * 0.40, ...o });
+    doc.text(normalizeDoctorName(doctor?.fullName || 'Shyam Verma'), L + 50, docY + 8, { width: CW * 0.40, ...o });
 
     doc.font(F.regular).fontSize(7.5).fillColor(C.body);
     doc.text(doctor?.qualifications?.join(', ') || doctor?.qualification || 'MBBS, MD (General Medicine)', L + 50, docY + 21, { ...o });
@@ -409,7 +410,7 @@ const generateConsultationPdf = async ({ consultation, clinic, patient, doctor, 
       bufferPages: true,
       info: {
         Title: `Consultation Note - ${patient?.fullName || 'Patient'}`,
-        Author: `Dr. ${doctor?.fullName || 'Doctor'}`,
+        Author: normalizeDoctorName(doctor?.fullName || 'Doctor'),
         Subject: 'Clinical Consultation Note',
         Creator: clinic?.name || 'AI-CMS'
       }
@@ -837,7 +838,7 @@ const generateConsultationPdf = async ({ consultation, clinic, patient, doctor, 
     doc.save().strokeColor(C.border).lineWidth(0.8).moveTo(sigX, sigY).lineTo(R, sigY).stroke().restore();
 
     doc.font(F.bold).fontSize(8.5).fillColor(C.heading);
-    doc.text(`Dr. ${doctor?.fullName || 'Shyam Verma'}`, sigX, sigY + 5, { width: sigW, align: 'center' });
+    doc.text(normalizeDoctorName(doctor?.fullName || 'Shyam Verma'), sigX, sigY + 5, { width: sigW, align: 'center' });
 
     doc.font(F.regular).fontSize(7).fillColor(C.muted);
     doc.text(doctor?.specialization || 'Consultant Physician', sigX, doc.y, { width: sigW, align: 'center' });

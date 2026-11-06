@@ -173,6 +173,26 @@
 
 @layer components {
 
+  /* Premium Minimal Dashboard Scrollbar */
+  .dashboard-custom-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
+  }
+  .dashboard-custom-scroll::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+  .dashboard-custom-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .dashboard-custom-scroll::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 9999px;
+  }
+  .dashboard-custom-scroll::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+
   /* Glassmorphism — light */
   .glass {
     background: rgba(255, 255, 255, 0.7);

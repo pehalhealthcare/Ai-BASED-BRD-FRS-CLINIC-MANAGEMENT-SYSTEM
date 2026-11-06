@@ -60,8 +60,22 @@ export default {
         'spin-slow': 'spin 3s linear infinite',
         'bounce-subtle': 'bounceSubtle 1.4s ease-in-out infinite',
         'typing': 'typing 1.2s steps(3, end) infinite',
+        'wiggle': 'wiggle 1.4s ease-in-out infinite',
+        'scale-in': 'scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
       },
       keyframes: {
+        wiggle: {
+          '0%, 100%': { transform: 'rotate(0deg)' },
+          '15%': { transform: 'rotate(14deg)' },
+          '30%': { transform: 'rotate(-12deg)' },
+          '45%': { transform: 'rotate(8deg)' },
+          '60%': { transform: 'rotate(-6deg)' },
+          '75%': { transform: 'rotate(0deg)' },
+        },
+        scaleIn: {
+          '0%': { transform: 'scale(0.7)', opacity: '0' },
+          '100%': { transform: 'scale(1)', opacity: '1' },
+        },
         fadeIn: {
           '0%': { opacity: '0' },
           '100%': { opacity: '1' },

@@ -29,9 +29,14 @@ const getAuditLogById = async (id) => {
   return auditRepository.getById(id);
 };
 
+const exportAuditLogs = async (filters) => {
+  return auditRepository.listAllForExport(filters);
+};
+
 module.exports = {
   createAuditLog,
   logAuthEvent,
   listAuditLogs,
-  getAuditLogById
+  getAuditLogById,
+  exportAuditLogs
 };

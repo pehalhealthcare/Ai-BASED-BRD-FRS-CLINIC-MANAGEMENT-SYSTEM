@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import {
@@ -19,6 +19,7 @@ import LoadingState from '../../components/common/LoadingState';
 import PageHeader from '../../components/layout/PageHeader';
 import LegacyConsultationPage from '../../features/consultations/ConsultationPage';
 import useAuth from '../../hooks/useAuth';
+import { normalizeDoctorName, getDoctorInitials } from '../../utils/doctorFormatters';
 
 const getToday = () => new Date().toISOString().slice(0, 10);
 
@@ -881,7 +882,7 @@ const ConsultationPage = () => {
                   <span>This consultation was completed on </span>
                   <strong>{completedStr}</strong>
                   <span> by </span>
-                  <strong>Dr. {doctorObj?.fullName || 'N/A'}</strong>
+                  <strong>{normalizeDoctorName(doctorObj?.fullName, 'N/A')}</strong>
                   {consult._id && (
                     <>
                       <span className="mx-2 text-indigo-300">•</span>
@@ -938,10 +939,10 @@ const ConsultationPage = () => {
                 </div>
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-12 h-12 rounded-full bg-teal-50 border border-teal-100 flex items-center justify-center text-teal-600 font-black text-lg shrink-0">
-                    {doctorObj?.fullName?.charAt(0) || 'D'}
+                    {getDoctorInitials(doctorObj?.fullName, 'D')}
                   </div>
                   <div>
-                    <strong className="text-slate-900 font-extrabold text-sm block">Dr. {doctorObj?.fullName || 'N/A'}</strong>
+                    <strong className="text-slate-900 font-extrabold text-sm block">{normalizeDoctorName(doctorObj?.fullName, 'N/A')}</strong>
                     <span className="text-[11px] text-slate-500">{doctorObj?.qualification || doctorObj?.qualifications?.join(', ') || 'MBBS, MD (General Medicine)'}</span>
                   </div>
                 </div>

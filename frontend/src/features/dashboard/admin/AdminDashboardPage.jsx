@@ -297,8 +297,8 @@ const AdminDashboardPage = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         {/* LEFT MAIN */}
         <div className="lg:col-span-8 space-y-5">
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
-            <div className="md:col-span-7">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-stretch">
+            <div className="md:col-span-7 flex flex-col">
               <AppointmentSection
                 appointments={getAppointmentsList()}
                 loading={appointmentsQuery.isLoading}
@@ -306,7 +306,7 @@ const AdminDashboardPage = () => {
                 overview={getOverviewData()}
               />
             </div>
-            <div className="md:col-span-5">
+            <div className="md:col-span-5 flex flex-col">
               <CheckedInQueue
                 queue={getQueueList()}
                 loading={queueQuery.isLoading}
@@ -322,7 +322,7 @@ const AdminDashboardPage = () => {
             isFetchingNextPage={doctorStatusQuery.isFetchingNextPage}
           />
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5 items-stretch">
             <BranchOverview
               branches={getBranchList()}
               loading={branchQuery.isLoading}

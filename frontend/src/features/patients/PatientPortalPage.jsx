@@ -22,7 +22,7 @@ import { FullPageSpinner } from '../../components/ui/Spinner';
 import { appointmentApi, billingApi, patientApi, prescriptionApi, doctorApi, clinicApi, paymentApi, providersApi, labApi, pharmacyApi } from '../../lib/api';
 import aiApi from '../../api/aiApi';
 import PatientMedicalDocuments from './PortalComponents/PatientMedicalDocuments';
-import { formatDoctorName, getTimeBasedGreeting, normalizeCategory } from '../../utils/patientFormatters';
+import { formatDoctorName, normalizeDoctorName, getDoctorInitials, getTimeBasedGreeting, normalizeCategory } from '../../utils/patientFormatters';
 import MyProfile from './PortalComponents/MyProfile';
 import MedicalHistory from './PortalComponents/MedicalHistory';
 import Appointments from './PortalComponents/Appointments';
@@ -1183,7 +1183,7 @@ const PatientPortalPage = () => {
                   <div className="p-4 rounded-2xl bg-blue-500/5 border border-blue-500/10 flex items-center justify-between gap-3">
                     <div>
                       <p className="text-2xl font-black text-blue-600 leading-none">{todayAppointment.startTime || 'TBD'}</p>
-                      <p className="text-xs font-black text-slate-900 mt-2">Dr. {todayAppointment.doctorId?.fullName}</p>
+                      <p className="text-xs font-black text-slate-900 mt-2">{normalizeDoctorName(todayAppointment.doctorId?.fullName)}</p>
                       <p className="text-[10px] text-slate-400 mt-0.5">{todayAppointment.doctorId?.specialization || 'Physician'} • Token No: {todayAppointment.tokenNumber || '15'}</p>
                     </div>
                     <div className="shrink-0 flex flex-col items-end gap-1.5">
@@ -1233,7 +1233,7 @@ const PatientPortalPage = () => {
                 {filteredPrescriptions.slice(0, 3).map((rx) => (
                   <div key={rx._id} className="p-3 rounded-2xl bg-slate-50 hover:bg-slate-100/50 border border-slate-100 flex items-center justify-between gap-3 transition">
                     <div className="min-w-0">
-                      <p className="text-xs font-bold text-slate-900 truncate">Dr. {rx.doctorId?.fullName || 'Doctor'}</p>
+                      <p className="text-xs font-bold text-slate-900 truncate">{normalizeDoctorName(rx.doctorId?.fullName, 'Doctor')}</p>
                       <p className="text-[10px] text-slate-400 mt-0.5">{rx.finalizedAt ? new Date(rx.finalizedAt).toLocaleDateString() : 'Completed'}</p>
                     </div>
                     <button
@@ -1359,10 +1359,10 @@ const PatientPortalPage = () => {
                     <div key={doc._id} className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm hover:shadow transition duration-200 flex flex-col justify-between space-y-4">
                       <div className="flex gap-4">
                         <div className="w-12 h-12 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 font-extrabold text-base shrink-0">
-                          {doc.fullName?.charAt(0).toUpperCase()}
+                          {getDoctorInitials(doc.fullName, 'D')}
                         </div>
                         <div className="min-w-0">
-                          <h4 className="text-xs font-black text-slate-805 truncate">Dr. {doc.fullName}</h4>
+                          <h4 className="text-xs font-black text-slate-805 truncate">{normalizeDoctorName(doc.fullName)}</h4>
                           <p className="text-[10px] text-slate-400 font-semibold mt-0.5 truncate">{doc.specialization || 'General Physician'}</p>
                           <p className="text-[9px] text-slate-500 font-medium mt-1 truncate">{doc.qualifications || 'MBBS, MD'}</p>
                         </div>
@@ -1424,7 +1424,7 @@ const PatientPortalPage = () => {
                     <div key={appt._id} className="relative pl-7 text-xs">
                       <div className="absolute left-3 top-1.5 -translate-x-1/2 w-2 h-2 rounded-full bg-blue-600 border border-white" />
                       <p className="font-extrabold text-slate-800">Completed Consultation</p>
-                      <p className="text-[10px] text-slate-400 mt-0.5">Dr. {appt.doctorId?.fullName || 'Physician'}</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">{normalizeDoctorName(appt.doctorId?.fullName, 'Physician')}</p>
                       <p className="text-[9px] text-slate-400 mt-0.5">{new Date(appt.appointmentDate).toLocaleDateString()}</p>
                     </div>
                   ))}
@@ -1442,7 +1442,7 @@ const PatientPortalPage = () => {
                     <div key={appt._id} className="p-3 rounded-2xl bg-blue-50/50 border border-blue-100/50 flex items-center justify-between">
                       <div>
                         <p className="text-xs font-black text-blue-800">{appt.startTime}</p>
-                        <p className="text-[10px] text-slate-500 font-bold mt-0.5">Dr. {appt.doctorId?.fullName}</p>
+                        <p className="text-[10px] text-slate-500 font-bold mt-0.5">{normalizeDoctorName(appt.doctorId?.fullName)}</p>
                         <p className="text-[9px] text-slate-400 mt-0.5">{new Date(appt.appointmentDate).toLocaleDateString()}</p>
                       </div>
                       <span className="text-[9px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">Booked</span>
@@ -2456,7 +2456,7 @@ const PatientPortalPage = () => {
                               <option value="">-- Choose EMR Prescription --</option>
                               {prescriptions.map(rx => (
                                 <option key={rx._id} value={rx._id}>
-                                  {rx.finalizedAt ? new Date(rx.finalizedAt).toLocaleDateString() : 'N/A'} - Dr. {rx.doctorId?.fullName || 'Physician'}
+                                  {rx.finalizedAt ? new Date(rx.finalizedAt).toLocaleDateString() : 'N/A'} - {normalizeDoctorName(rx.doctorId?.fullName, 'Physician')}
                                 </option>
                               ))}
                             </select>
@@ -2863,7 +2863,7 @@ const PatientPortalPage = () => {
                       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 border-b border-slate-100 pb-3">
                         <div>
                           <p className="text-xs font-black text-slate-900">
-                            Prescribed by Dr. {rx.doctorId?.fullName || rx.doctorName || 'Attending Physician'}
+                            Prescribed by {normalizeDoctorName(rx.doctorId?.fullName || rx.doctorName, 'Attending Physician')}
                           </p>
                           <p className="text-[10px] text-slate-400 mt-0.5">
                             Date: {rx.createdAt ? new Date(rx.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Recent'}

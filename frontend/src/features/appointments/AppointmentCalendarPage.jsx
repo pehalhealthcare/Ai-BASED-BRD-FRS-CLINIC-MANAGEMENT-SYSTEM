@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
@@ -16,6 +16,7 @@ import toast from 'react-hot-toast';
 import useAuth from '../../hooks/useAuth';
 import { ROLES } from '../../constants/roles';
 import { clinicApi, doctorApi, appointmentApi, billingApi, specializationApi } from '../../lib/api';
+import { normalizeDoctorName } from '../../utils/doctorFormatters';
 
 const getTodayStr = (d = new Date()) => {
   const year = d.getFullYear();
@@ -724,7 +725,7 @@ const AppointmentCalendarPage = () => {
                       </div>
                       <div>
                         <p className="text-xs font-black text-slate-800 leading-none">{apt.patientId?.fullName}</p>
-                        <span className="text-[9px] text-slate-400 block mt-1 truncate max-w-[120px]">Dr. {apt.doctorId?.fullName}</span>
+                        <span className="text-[9px] text-slate-400 block mt-1 truncate max-w-[120px]">{normalizeDoctorName(apt.doctorId?.fullName)}</span>
                       </div>
                     </div>
                     <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase ${

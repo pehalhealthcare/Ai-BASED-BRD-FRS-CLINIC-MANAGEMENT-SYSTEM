@@ -5,6 +5,7 @@ const { AppError } = require('../../common/utils/AppError');
 const { resolveClinicContext } = require('../../common/utils/clinicContext');
 const { buildPaginationMeta, getPagination } = require('../../common/utils/pagination');
 const { createAuditLog } = require('../audit/audit.service');
+const { normalizeDoctorName } = require('../../common/utils/doctorFormatter');
 const appointmentRepository = require('../appointments/appointment.repository');
 const consultationRepository = require('../consultations/consultation.repository');
 const doctorRepository = require('../doctors/doctor.repository');
@@ -1248,7 +1249,7 @@ const sendAppointmentBookingNotifications = async ({ appointment, patient, docto
     const clinic = await Clinic.findById(appointment.clinicId).populate('organizationId').lean();
     
     const orgName = clinic?.organizationId?.name || 'our Hospital';
-    const doctorName = doctor?.fullName || 'the Doctor';
+    const doctorName = normalizeDoctorName(doctor?.fullName, 'the Doctor');
     const dateLabel = appointment.appointmentDate ? formatDate(appointment.appointmentDate) : '';
     const timeLabel = appointment.startTime || '';
     
@@ -1270,7 +1271,7 @@ const sendAppointmentBookingNotifications = async ({ appointment, patient, docto
       instructionDetails = `A meeting link would be generated 10 minutes before the appointment.`;
     }
 
-    const customMessage = `Your Appointment with Dr. ${doctorName} at Hospital ${orgName} of ${locationDetails} on schedule ${dateLabel} and ${timeLabel}. Be prepared 10 minutes before the appointment. ${instructionDetails}${qrCodeUrl ? `\n\nQR Code: ${qrCodeUrl}` : ''}`;
+    const customMessage = `Your Appointment with ${doctorName} at Hospital ${orgName} of ${locationDetails} on schedule ${dateLabel} and ${timeLabel}. Be prepared 10 minutes before the appointment. ${instructionDetails}${qrCodeUrl ? `\n\nQR Code: ${qrCodeUrl}` : ''}`;
 
     const variables = buildAppointmentVariables({ appointment, patient, doctor, clinic });
 
@@ -1356,11 +1357,11 @@ const sendAppointmentCancelNotifications = async ({ appointment, patient, doctor
       const clinic = await Clinic.findById(appointment.clinicId).populate('organizationId').lean();
       
       const orgName = clinic?.organizationId?.name || 'our Hospital';
-      const doctorName = doctor?.fullName || 'the Doctor';
+      const doctorName = normalizeDoctorName(doctor?.fullName, 'the Doctor');
       const dateLabel = appointment.appointmentDate ? formatDate(appointment.appointmentDate) : '';
       const timeLabel = appointment.startTime || '';
 
-      const customMessage = `Hello ${patient.fullName || 'Patient'},\n\nYour appointment with Dr. ${doctorName} at Hospital ${orgName} on ${dateLabel} at ${timeLabel} has been successfully cancelled.\n\nNo cancellation charges were charged. The slot has been made available for other patients.\n\nBest regards,\nAI-CMS Clinic`;
+      const customMessage = `Hello ${patient.fullName || 'Patient'},\n\nYour appointment with ${doctorName} at Hospital ${orgName} on ${dateLabel} at ${timeLabel} has been successfully cancelled.\n\nNo cancellation charges were charged. The slot has been made available for other patients.\n\nBest regards,\nAI-CMS Clinic`;
 
       const variables = buildAppointmentVariables({ appointment, patient, doctor, clinic });
 
@@ -1399,7 +1400,7 @@ const sendAppointmentRescheduleNotifications = async ({ oldAppointment, appointm
     const clinic = await Clinic.findById(appointment.clinicId).populate('organizationId').lean();
     
     const orgName = clinic?.organizationId?.name || 'our Hospital';
-    const doctorName = doctor?.fullName || 'the Doctor';
+    const doctorName = normalizeDoctorName(doctor?.fullName, 'the Doctor');
     
     const oldDateLabel = oldAppointment?.appointmentDate ? formatDate(oldAppointment.appointmentDate) : '';
     const oldTimeLabel = oldAppointment?.startTime || '';
@@ -1407,7 +1408,7 @@ const sendAppointmentRescheduleNotifications = async ({ oldAppointment, appointm
     const newDateLabel = appointment.appointmentDate ? formatDate(appointment.appointmentDate) : '';
     const newTimeLabel = appointment.startTime || '';
 
-    const customMessage = `Hello ${patient.fullName || 'Patient'},\n\nYour appointment with Dr. ${doctorName} at Hospital ${orgName} originally scheduled for ${oldDateLabel} at ${oldTimeLabel} has been successfully rescheduled to ${newDateLabel} at ${newTimeLabel}.\n\nNo rescheduling charges were charged. Your previous slot has been freed for other patients.\n\nBest regards,\nAI-CMS Clinic`;
+    const customMessage = `Hello ${patient.fullName || 'Patient'},\n\nYour appointment with ${doctorName} at Hospital ${orgName} originally scheduled for ${oldDateLabel} at ${oldTimeLabel} has been successfully rescheduled to ${newDateLabel} at ${newTimeLabel}.\n\nNo rescheduling charges were charged. Your previous slot has been freed for other patients.\n\nBest regards,\nAI-CMS Clinic`;
 
     const variables = buildAppointmentVariables({ appointment, patient, doctor, clinic });
 

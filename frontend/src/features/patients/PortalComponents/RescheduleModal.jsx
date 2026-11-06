@@ -1,8 +1,9 @@
-﻿import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   X, Calendar, Clock, MapPin, ChevronLeft, ChevronRight,
   AlertCircle, CheckCircle2, RotateCcw, Info, AlertTriangle, Shield
 } from 'lucide-react';
+import { normalizeDoctorName, getDoctorInitials } from '../../../utils/doctorFormatters';
 
 const MONTH_NAMES = [
   'January','February','March','April','May','June',
@@ -282,11 +283,11 @@ export default function RescheduleModal({ appointment, appointmentApi, onClose, 
                 <p className="text-[10px] font-bold uppercase tracking-wider text-blue-400 mb-3">Current Appointment</p>
                 <div className="rounded-xl border border-white/[0.07] bg-white/[0.03] p-3 flex items-center gap-3">
                   <div className="w-11 h-11 rounded-full bg-blue-500/20 flex items-center justify-center text-lg font-bold text-blue-400 shrink-0">
-                    {(doctor?.fullName || 'D').charAt(0).toUpperCase()}
+                    {getDoctorInitials(doctor?.fullName, 'D')}
                   </div>
                   <div className="min-w-0">
                     <p className="text-sm font-bold text-white truncate">
-                      Dr. {doctor?.fullName || 'Unknown'}
+                      {normalizeDoctorName(doctor?.fullName, 'Unknown')}
                       {doctor?.isVerified && <CheckCircle2 size={12} className="inline ml-1 text-blue-400" />}
                     </p>
                     <p className="text-xs text-slate-400 truncate">{doctor?.specialization || 'General Physician'}</p>

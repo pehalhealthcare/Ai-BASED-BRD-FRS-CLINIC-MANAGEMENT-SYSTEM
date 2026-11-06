@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import {
   FlaskConical, Search, Clock, Droplet, ClipboardList, CheckCircle,
   AlertCircle, Calendar, X, ChevronRight, Activity, Bell, FileText,
@@ -12,6 +12,7 @@ import Badge from '../../components/ui/Badge';
 import { FullPageSpinner } from '../../components/ui/Spinner';
 import toast from 'react-hot-toast';
 import FloatingLabCart from './FloatingLabCart';
+import { normalizeDoctorName } from '../../utils/doctorFormatters';
 
 export default function LabTestsPage() {
   const { user } = useAuth();
@@ -491,7 +492,7 @@ export default function LabTestsPage() {
                     Tests from Doctor's Prescription
                   </h2>
                   <p className="text-xs text-slate-500">
-                    Recommended investigations from Dr. {selectedPrescription?.doctorId?.fullName || 'Consultation Doctor'}
+                    Recommended investigations from {normalizeDoctorName(selectedPrescription?.doctorId?.fullName, 'Consultation Doctor')}
                   </p>
                 </div>
                 {prescriptions.length > 1 && (

@@ -10,13 +10,15 @@ const aiBaseURL =
 
 export const axiosClient = axios.create({
   baseURL,
+  timeout: 12000,
   headers: {
     'Content-Type': 'application/json'
   }
 });
 
 export const aiAxiosClient = axios.create({
-  baseURL: aiBaseURL
+  baseURL: aiBaseURL,
+  timeout: 12000
 });
 
 const attachAuthorization = (config) => {

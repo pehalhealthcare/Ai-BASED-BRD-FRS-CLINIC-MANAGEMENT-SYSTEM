@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState, useMemo } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   Calendar, Clock, Filter, Eye, Printer, FileText, ChevronLeft, ChevronRight,
@@ -18,6 +18,7 @@ import { appointmentApi, prescriptionApi, billingApi, pharmacyApi, labApi } from
 import { aiApi } from '../../api/aiApi';
 import { useFeatureAccess } from '../../hooks/useFeatureAccess';
 import PremiumFeaturePlaceholder from '../../components/PremiumFeaturePlaceholder';
+import { normalizeDoctorName } from '../../utils/doctorFormatters';
 
 import {
   getConsultation,
@@ -6870,7 +6871,7 @@ const ConsultationPage = ({ editMode, onCancelEdit, onCompleteEdit }) => {
                   </div>
                   <div className="border-t border-slate-200 pt-2 mt-2">
                     <span className="text-[10px] text-slate-400 font-bold block">Doctor Name</span>
-                    <strong className="text-slate-800">Dr. {doctor?.fullName || user?.fullName || '—'}</strong>
+                    <strong className="text-slate-800">{normalizeDoctorName(doctor?.fullName || user?.fullName, '—')}</strong>
                   </div>
                 </div>
 

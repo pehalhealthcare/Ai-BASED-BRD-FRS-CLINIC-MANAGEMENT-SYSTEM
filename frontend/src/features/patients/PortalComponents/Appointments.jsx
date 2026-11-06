@@ -374,11 +374,11 @@ export default function Appointments({
                   </div>
                   <div className="max-h-[150px] overflow-y-auto space-y-2 pr-1 scrollbar-thin scrollbar-thumb-amber-500/30">
                     {pendingInvoices.map(inv => {
-                      const drName = inv.doctorId?.fullName || inv.appointmentId?.doctorId?.fullName || 'Doctor';
+                      const drName = formatDoctorName(inv.doctorId?.fullName || inv.appointmentId?.doctorId?.fullName || 'Doctor');
                       return (
                         <div key={inv._id} className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between gap-3 text-amber-900 dark:text-amber-200">
                           <div className="min-w-0">
-                            <p className="text-xs font-bold">Consultation Fee Pending: Dr. {drName}</p>
+                            <p className="text-xs font-bold">Consultation Fee Pending: {drName}</p>
                             <p className="text-[10px] text-amber-700/80 dark:text-amber-450 mt-0.5">Please pay doctor fees of ₹{inv.dueAmount || inv.totalAmount} to access EMR consultation records.</p>
                           </div>
                           <Link

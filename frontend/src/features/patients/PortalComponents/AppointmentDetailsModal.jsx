@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   X, Calendar, Clock, MapPin, Copy, Star, CheckCircle2, Shield, Video,
@@ -9,6 +9,7 @@ import { getConsultation, getAppointmentConsultation, downloadConsultationPdf } 
 import { apiClient } from '../../../lib/api';
 import { toast } from 'react-hot-toast';
 import { io } from 'socket.io-client';
+import { normalizeDoctorName, getDoctorInitials } from '../../../utils/doctorFormatters';
 
 const CLINIC_FACILITIES = [
   { name: 'Digital Consultation', desc: 'Secure video consultations', icon: Video },
@@ -1033,10 +1034,10 @@ export default function AppointmentDetailsModal({ appointment, invoices = [], on
                             <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Doctor Details</h4>
                             <div className="flex items-center gap-3">
                               <div className="w-10 h-10 rounded-full bg-teal-50 border border-teal-100 flex items-center justify-center text-teal-600 font-extrabold text-sm shrink-0">
-                                {doctor?.fullName?.charAt(0).toUpperCase()}
+                                {getDoctorInitials(doctor?.fullName, 'ND')}
                               </div>
                               <div>
-                                <p className="text-xs font-black text-slate-800">Dr. {doctor?.fullName || 'Neha Dhawan'}</p>
+                                <p className="text-xs font-black text-slate-800">{normalizeDoctorName(doctor?.fullName, 'Neha Dhawan')}</p>
                                 <p className="text-[10px] text-slate-500 font-medium mt-0.5">{doctor?.specialization || 'General Physician'}</p>
                                 <p className="text-[9px] text-slate-400 font-semibold mt-0.5">Experience: {doctor?.experience || '10+ Years'}</p>
                               </div>
@@ -1084,7 +1085,7 @@ export default function AppointmentDetailsModal({ appointment, invoices = [], on
                         <div className="bg-white border border-slate-200 shadow-md p-8 max-w-lg w-full rounded-2xl relative text-xs text-slate-800">
                           <div className="text-center border-b border-slate-150 pb-4 mb-4">
                             <h4 className="text-sm font-black text-teal-800 tracking-wider">AI-CMS HEALTH CLINIC</h4>
-                            <p className="text-[10px] text-slate-400 font-bold mt-0.5">Dr. {doctor?.fullName || 'Neha Dhawan'}</p>
+                            <p className="text-[10px] text-slate-400 font-bold mt-0.5">{normalizeDoctorName(doctor?.fullName, 'Neha Dhawan')}</p>
                             <p className="text-[9px] text-slate-400 font-medium">Reg No: {doctor?.doctorCode || '12345'}</p>
                           </div>
                           <p className="text-right text-[10px] font-bold text-slate-400 mb-4">Date: {consultationDateStr}</p>
@@ -1118,7 +1119,7 @@ export default function AppointmentDetailsModal({ appointment, invoices = [], on
 
                           <div className="text-right border-t border-slate-100 pt-6 mt-8">
                             <p className="font-extrabold text-teal-700 italic">Neha</p>
-                            <p className="text-[9px] font-bold text-slate-400">Dr. {doctor?.fullName || 'Neha Dhawan'}</p>
+                            <p className="text-[9px] font-bold text-slate-400">{normalizeDoctorName(doctor?.fullName, 'Neha Dhawan')}</p>
                           </div>
                       </div>
                     </div>
@@ -1500,7 +1501,7 @@ export default function AppointmentDetailsModal({ appointment, invoices = [], on
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-wider text-blue-400">Consultation with</p>
                 <h3 className="text-base font-extrabold text-white flex items-center gap-1.5 mt-0.5">
-                  Dr. {doctor?.fullName || 'Alpha Doctor'}
+                  {normalizeDoctorName(doctor?.fullName, 'Alpha Doctor')}
                   <CheckCircle2 size={14} className="text-blue-400" />
                 </h3>
                 <p className="text-xs text-slate-400 mt-0.5">{doctor?.specialization || 'General Physician'}</p>
@@ -1755,7 +1756,7 @@ export default function AppointmentDetailsModal({ appointment, invoices = [], on
                         <Phone size={24} className="animate-pulse" />
                       </div>
                       <h5 className="text-sm font-bold text-white">Incoming Call from Doctor</h5>
-                      <p className="text-xs text-slate-400">Dr. {doctor?.fullName || 'Doctor'} is calling you.</p>
+                      <p className="text-xs text-slate-400">{normalizeDoctorName(doctor?.fullName, 'Doctor')} is calling you.</p>
                       
                       <div className="flex gap-3">
                         <button

@@ -26,7 +26,12 @@ const router = Router();
 router.get('/', protect, authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN), validate(listUsersQuerySchema), userController.listUsers);
 router.post('/', protect, authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN), userController.createStaff);
 
+router.put('/me/profile', protect, userController.updateMyProfile);
+router.patch('/me/profile', protect, userController.updateMyProfile);
+
 router.get('/:id', protect, validate(userIdParamSchema), userController.getUserById);
+router.put('/:id', protect, authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN), validate(userIdParamSchema), userController.updateUser);
+router.patch('/:id', protect, authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN), validate(userIdParamSchema), userController.updateUser);
 
 router.patch('/:id/role',protect,authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),validate(updateRoleSchema),userController.updateUserRole);
 

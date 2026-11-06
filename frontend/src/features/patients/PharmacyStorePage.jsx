@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import {
   Pill, Search, UserCheck, MessageSquare, AlertCircle, ShoppingBag,
   X, ChevronRight, Upload, Percent, Gift, Truck, ShoppingCart,
@@ -10,6 +10,7 @@ import useAuth from '../../hooks/useAuth';
 import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
 import { FullPageSpinner } from '../../components/ui/Spinner';
+import { normalizeDoctorName } from '../../utils/doctorFormatters';
 
 export default function PharmacyStorePage() {
   const { user } = useAuth();
@@ -855,7 +856,7 @@ export default function PharmacyStorePage() {
                         <option value="">Select prescription...</option>
                         {patientPrescriptions.map((rx) => (
                           <option key={rx._id} value={rx._id}>
-                            {new Date(rx.createdAt).toLocaleDateString()} — Dr. {rx.doctorId?.fullName || 'Physician'}
+                            {new Date(rx.createdAt).toLocaleDateString()} — {normalizeDoctorName(rx.doctorId?.fullName, 'Physician')}
                           </option>
                         ))}
                       </select>
@@ -1174,7 +1175,7 @@ export default function PharmacyStorePage() {
                               <div className="min-w-0">
                                 <h4 className="text-xs font-bold text-white truncate">Prescription — {rxDate}</h4>
                                 <p className="text-[10px] text-slate-400 mt-0.5 truncate">
-                                  Dr. {rx.doctorId?.fullName || 'Physician'} • {rx.medicines?.length || 0} medicines
+                                  {normalizeDoctorName(rx.doctorId?.fullName, 'Physician')} • {rx.medicines?.length || 0} medicines
                                 </p>
                               </div>
                             </div>

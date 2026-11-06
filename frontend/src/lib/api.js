@@ -4,6 +4,7 @@ import { clearToken, getToken, clearCurrentUser } from './auth';
 
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api/v1',
+  timeout: 12000,
   headers: {
     'Content-Type': 'application/json'
   }
@@ -59,6 +60,7 @@ const authApi = {
   sendClinicAdminOtp: (payload) => extractData(apiClient.post('/auth/clinic-admin/send-otp', payload)),
   verifyClinicAdminOtp: (payload) => extractData(apiClient.post('/auth/clinic-admin/verify-otp', payload)),
   me: () => extractData(apiClient.get('/auth/me')),
+  updateProfile: (payload) => extractData(apiClient.put('/users/me/profile', payload)),
   logout: () => extractData(apiClient.post('/auth/logout'))
 };
 
@@ -67,6 +69,8 @@ const authApi = {
 const userApi = {
   list: (params = {}) => extractData(apiClient.get('/users', { params })),
   get: (id) => extractData(apiClient.get(`/users/${id}`)),
+  updateProfile: (payload) => extractData(apiClient.put('/users/me/profile', payload)),
+  update: (id, payload) => extractData(apiClient.put(`/users/${id}`, payload)),
   create: (payload) => extractData(apiClient.post('/users', payload)),
   updateRole: (id, payload) => extractData(apiClient.patch(`/users/${id}/role`, payload)),
   updateStatus: (id, payload) => extractData(apiClient.patch(`/users/${id}/status`, payload)),
@@ -463,6 +467,12 @@ const clinicApi = {
   createHoliday: (payload) => extractData(apiClient.post('/holidays', payload)),
   updateHoliday: (id, payload) => extractData(apiClient.put(`/holidays/${id}`, payload)),
   deleteHoliday: (id, permanent = false) => extractData(apiClient.delete(`/holidays/${id}`, { params: { permanent } })),
+  // Backup & Integrations
+  triggerBackup: (id) => extractData(apiClient.post(`/clinics/${id}/backup/manual`)),
+  downloadBackup: (id) => apiClient.get(`/clinics/${id}/backup/download`, { responseType: 'blob' }),
+  exportClinicData: (id, payload) => apiClient.post(`/clinics/${id}/backup/export`, payload, { responseType: payload?.format === 'csv' ? 'blob' : 'json' }),
+  restoreBackup: (id, payload) => extractData(apiClient.post(`/clinics/${id}/backup/restore`, payload)),
+  testIntegration: (id, type, payload) => extractData(apiClient.post(`/clinics/${id}/integrations/${type}/test`, payload)),
   // Onboarding & Super Admin
   getRegistrationPlans: () => extractData(apiClient.get('/clinics/register/plans')),
   submitRegistration: (payload) => extractData(apiClient.post('/clinics/register/submit', payload)),
@@ -538,7 +548,8 @@ const specializationApi = {
 
 const auditApi = {
   listLogs: (params = {}) => extractData(apiClient.get('/audit', { params: sanitizeParams(params) })),
-  getLog: (id) => extractData(apiClient.get(`/audit/${id}`))
+  getLog: (id) => extractData(apiClient.get(`/audit/${id}`)),
+  exportLogs: (params = {}) => apiClient.get('/audit/export', { params: sanitizeParams(params), responseType: params?.format === 'json' ? 'json' : 'blob' })
 };
 
 const aiApi = {

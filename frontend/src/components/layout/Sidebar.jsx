@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { NavLink, useNavigate, useLocation, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -10,7 +10,7 @@ import {
   Shield, Syringe
 } from 'lucide-react';
 import { clinicApi, patientApi, providersApi, subscriptionPaymentApi } from '../../lib/api';
-import pehalLogo from '../../assets/pehal_logo.svg';
+import { isFinancialSettlementPortalEnabled } from '../../config/featureFlags';
 
 const ICON_MAP = {
   'Dashboard': <LayoutDashboard size={20} />,
@@ -75,13 +75,22 @@ const isClinicFeatureActive = (clinic, featureCode) => {
   return false;
 };
 
-const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOpen: externalMobileOpen, onToggleMobile }) => {
+const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOpen: externalMobileOpen, onToggleMobile, onToggleSidebar }) => {
   const [internalMobileOpen, setInternalMobileOpen] = useState(false);
   const isMobileDrawerOpen = externalMobileOpen !== undefined ? externalMobileOpen : internalMobileOpen;
   const setMobileDrawer = (val) => {
     if (onToggleMobile) onToggleMobile(val);
     setInternalMobileOpen(val);
     if (onNavigate && val === false) onNavigate(false);
+  };
+  const handleToggle = () => {
+    if (onToggleSidebar) {
+      onToggleSidebar();
+    } else if (typeof window !== 'undefined' && window.innerWidth < 1280) {
+      setMobileDrawer(!isMobileDrawerOpen);
+    } else if (onNavigate) {
+      onNavigate(!open);
+    }
   };
   const location = useLocation();
   const navigate = useNavigate();
@@ -428,7 +437,7 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
           ]
         },
         { label: 'Global Medicine Catalog', path: '/super-admin/healthcare-catalog/medicines', iconKey: 'Global Medicine Catalog' },
-        { label: 'Payments', path: '/payments', iconKey: 'Payments' },
+        ...(isFinancialSettlementPortalEnabled() ? [{ label: 'Payments', path: '/payments', iconKey: 'Payments' }] : []),
         { label: 'Reports', path: '/dashboard/revenue', iconKey: 'Reports' },
         { label: 'Settings', path: '/settings/payment', iconKey: 'Settings' }
       ];
@@ -444,7 +453,7 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
       { label: 'Healthcare Providers', path: '/admin/providers', iconKey: 'Healthcare Providers' },
       { label: 'Procedures', path: '/procedures', iconKey: 'Procedures' },
       { label: 'Billing & Invoices', path: '/billing', iconKey: 'Billing & Invoices' },
-      { label: 'Payments', path: '/billing/financials', iconKey: 'Payments' },
+      ...(isFinancialSettlementPortalEnabled() ? [{ label: 'Payments', path: '/billing/financials', iconKey: 'Payments' }] : []),
       { label: 'Reports', path: '/admin/reports', iconKey: 'Reports' },
       { label: 'Inventory', path: '/pharmacy/medicines', iconKey: 'Inventory' },
       { label: 'Settings', path: '/admin/settings', iconKey: 'Settings' }
@@ -1405,20 +1414,19 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
   return (
     <>
       {/* State 1: Closed Sidebar (Fixed Icon Rail on Mobile/Tablet) */}
-      <aside className="fixed inset-y-0 left-0 z-30 w-[72px] sm:w-[80px] bg-white border-r border-slate-150 flex flex-col items-center py-5 shadow-md rounded-r-3xl xl:hidden select-none">
-        <div className="flex flex-col items-center gap-6 w-full shrink-0">
+      <aside className="fixed inset-y-0 left-0 z-30 w-[72px] sm:w-[80px] bg-white border-r border-slate-150 flex flex-col items-center py-4 shadow-md rounded-r-3xl xl:hidden select-none">
+        <div className="flex flex-col items-center w-full shrink-0 pb-2">
           <button 
             type="button"
-            onClick={() => setMobileDrawer(true)}
-            aria-label="Open navigation menu"
-            className="p-2 rounded-xl hover:bg-slate-50 transition text-slate-800 cursor-pointer"
+            onClick={handleToggle}
+            aria-label="Toggle navigation menu"
+            className="w-10 h-10 rounded-xl hover:bg-slate-100/80 active:scale-95 transition flex items-center justify-center text-slate-800 cursor-pointer"
           >
             <Menu size={22} />
           </button>
-          <img src={pehalLogo} alt="Pehal" className="h-9 w-auto" />
         </div>
 
-        <nav className="flex-1 w-full overflow-y-auto px-2 py-6 space-y-3.5 flex flex-col items-center [scrollbar-width:none]">
+        <nav className="flex-1 w-full overflow-y-auto px-2 py-1 space-y-3 flex flex-col items-center [scrollbar-width:none]">
           {isPatient ? (
             <div className="relative group flex items-center justify-center">
               <button
@@ -1487,18 +1495,23 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
               transition={{ type: 'spring', damping: 25, stiffness: 220 }}
               className="fixed inset-y-0 left-0 z-50 w-72 bg-white flex flex-col shadow-2xl xl:hidden select-none border-r border-slate-150"
             >
-              <div className="p-5 flex items-center justify-between border-b border-slate-100 shrink-0">
-                <div className="flex items-center gap-3">
-                  <img src={pehalLogo} alt="Pehal" className="h-10 w-auto" />
-                  <div>
-                    <h2 className="text-sm font-black text-slate-900 tracking-tight">AICMS</h2>
-                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block mt-0.5">AI-CMS Enterprise</span>
-                  </div>
+              <div className="px-5 py-4 flex items-center justify-between border-b border-slate-100 shrink-0">
+                <div className="flex items-center gap-2.5">
+                  <button 
+                    type="button"
+                    onClick={() => setMobileDrawer(false)}
+                    aria-label="Toggle navigation menu"
+                    className="w-9 h-9 rounded-xl hover:bg-slate-100 active:scale-95 transition flex items-center justify-center text-slate-800 cursor-pointer"
+                  >
+                    <Menu size={20} />
+                  </button>
+                  <span className="text-xs font-black text-slate-900 tracking-tight">Navigation</span>
                 </div>
                 <button 
                   type="button"
                   onClick={() => setMobileDrawer(false)}
-                  className="p-1.5 rounded-xl hover:bg-slate-50 text-slate-555 cursor-pointer"
+                  aria-label="Close navigation menu"
+                  className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-500 cursor-pointer transition"
                 >
                   <X size={18} />
                 </button>
@@ -1705,27 +1718,16 @@ const Sidebar = ({ role, open, onNavigate, user, onLogout, onAddWalkIn, mobileOp
 
       {/* State 3: Desktop Persistent Sidebar */}
       <aside className={`hidden xl:flex flex-col bg-white border-r border-slate-150 h-screen sticky top-0 shrink-0 select-none shadow-[2px_0_12px_rgba(0,0,0,0.015)] rounded-r-3xl transition-all duration-300 ${open ? 'w-72' : 'w-20'}`}>
-        <div className="px-5 pt-6 pb-4 shrink-0 flex flex-col gap-4">
-          <div className="flex items-center gap-3">
-            <img src={pehalLogo} alt="Pehal" className="h-[42px] w-auto" />
-            {open && (
-              <div>
-                <p className="text-sm font-black text-slate-900 tracking-tight">AICMS</p>
-                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-1">AI-CMS ENTERPRISE</p>
-              </div>
-            )}
-          </div>
-
-          {open && !isPatient && normRole !== 'SUPER_ADMIN' && (
-            <div className="bg-slate-50 border border-slate-100 rounded-2xl p-3 flex items-center justify-between shadow-sm hover:bg-slate-100/60 transition duration-150 cursor-pointer">
-              <div className="min-w-0">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Current Clinic</p>
-                <p className="text-xs font-black text-slate-800 truncate mt-0.5">{clinicName}</p>
-                <p className="text-[9px] text-slate-400 font-bold mt-0.5">All Branches</p>
-              </div>
-              <ChevronDown size={13} className="text-slate-400 shrink-0" />
-            </div>
-          )}
+        {/* Top: Single Hamburger Toggle Button */}
+        <div className={`shrink-0 py-4 pb-2 ${open ? 'px-5 flex items-center' : 'flex flex-col items-center w-full'}`}>
+          <button
+            type="button"
+            onClick={handleToggle}
+            aria-label={open ? "Collapse sidebar" : "Expand sidebar"}
+            className="w-10 h-10 rounded-xl hover:bg-slate-100/80 active:scale-95 transition flex items-center justify-center text-slate-800 cursor-pointer"
+          >
+            <Menu size={22} />
+          </button>
         </div>
 
         {isPatient ? (

@@ -14,6 +14,7 @@ import axios from 'axios';
 import { AlertCircle } from 'lucide-react';
 import { LoadingProvider } from '../../context/LoadingContext';
 import GlobalLoader from '../common/GlobalLoader';
+import NavigationProgressBar from '../common/NavigationProgressBar';
 
 const pageTitles = {
   [ROUTES.dashboard]: 'Dashboard',
@@ -52,10 +53,11 @@ const DashboardLayout = () => {
   useEffect(() => {
     if (user?.role === ROLES.ADMIN) {
       axios.get('/api/v1/subscriptions/current', {
-        headers: { Authorization: `Bearer ${localStorage.getItem('ai_cms_access_token') || localStorage.getItem('token')}` }
+        headers: { Authorization: `Bearer ${localStorage.getItem('ai_cms_access_token') || localStorage.getItem('token')}` },
+        timeout: 6000
       })
       .then(res => setSubInfo(res.data?.data))
-      .catch(err => console.error('Subscription check failed:', err));
+      .catch(err => console.warn('Subscription check non-blocking notice:', err.message));
     }
   }, [user]);
 
@@ -68,7 +70,9 @@ const DashboardLayout = () => {
     const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5001';
     const socket = io(socketUrl, {
       transports: ['websocket', 'polling'],
-      auth: { token }
+      auth: { token },
+      timeout: 4000,
+      reconnectionAttempts: 5
     });
 
     socket.on('connect', () => {
@@ -157,6 +161,18 @@ const DashboardLayout = () => {
   const show24hWarning = user?.role === ROLES.ADMIN && subInfo?.usage?.remainingDays === 1 && subInfo?.subscription?.status !== 'Expired';
 
 
+  const toggleSidebar = () => {
+    if (typeof window !== 'undefined' && window.innerWidth < 1280) {
+      setMobileDrawerOpen((m) => !m);
+    } else {
+      setSidebarOpen((s) => {
+        const next = !s;
+        localStorage.setItem('sidebarOpen', JSON.stringify(next));
+        return next;
+      });
+    }
+  };
+
   return (
     <LoadingProvider>
       <div className="h-screen max-h-screen overflow-hidden bg-[var(--bg-base)] text-[var(--text-primary)] flex">
@@ -166,6 +182,7 @@ const DashboardLayout = () => {
           open={sidebarOpen}
           mobileOpen={mobileDrawerOpen}
           onToggleMobile={setMobileDrawerOpen}
+          onToggleSidebar={toggleSidebar}
           onNavigate={(state) => {
             setSidebarOpen(state);
             if (!state) setMobileDrawerOpen(false);
@@ -176,6 +193,7 @@ const DashboardLayout = () => {
 
         {/* Main content */}
         <div className="relative flex h-screen max-h-screen flex-1 flex-col overflow-hidden w-full max-w-full pl-[72px] sm:pl-[80px] xl:pl-0">
+          <NavigationProgressBar />
           {show24hWarning && (
             <div className="bg-rose-650 bg-rose-600 text-white p-4 text-xs font-bold flex items-center justify-between gap-4 flex-wrap shrink-0">
               <span>
@@ -230,17 +248,7 @@ const DashboardLayout = () => {
             title={activeTitle}
             currentUser={user}
             sidebarOpen={sidebarOpen}
-            onToggleSidebar={() => {
-              if (typeof window !== 'undefined' && window.innerWidth < 1280) {
-                setMobileDrawerOpen((m) => !m);
-              } else {
-                setSidebarOpen((s) => {
-                  const next = !s;
-                  localStorage.setItem('sidebarOpen', JSON.stringify(next));
-                  return next;
-                });
-              }
-            }}
+            onToggleSidebar={toggleSidebar}
             onLogout={handleLogout}
           />
           <main className="flex-1 min-h-0 flex flex-col overflow-y-auto p-3 sm:p-4 lg:p-5 animate-fade-in">

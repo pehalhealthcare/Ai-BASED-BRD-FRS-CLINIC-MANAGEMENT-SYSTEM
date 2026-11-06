@@ -5,8 +5,12 @@ const { sanitizeUser } = require('../../common/utils/sanitizeUser');
 const { createAuditLog } = require('../audit/audit.service');
 const userRepository = require('./user.repository');
 
-const buildUserFilter = ({ role, isActive, search, providerId }) => {
+const buildUserFilter = ({ role, isActive, search, providerId, clinicId }) => {
   const filter = {};
+
+  if (clinicId) {
+    filter.clinicId = clinicId;
+  }
 
   if (role) {
     filter.role = role;
@@ -396,12 +400,127 @@ const updateUserProvider = async ({ requester, userId, providerId, req }) => {
   return sanitizeUser(user);
 };
 
+const updateMyProfile = async ({ user, payload }) => {
+  const { name, phone, avatar, profilePhoto } = payload;
+  const User = require('./user.model');
+  const targetUser = await User.findById(user._id);
+  if (!targetUser) {
+    throw new AppError('User not found', HTTP_STATUS.NOT_FOUND);
+  }
+  if (name && typeof name === 'string' && name.trim()) {
+    targetUser.name = name.trim();
+  }
+  if (phone !== undefined) {
+    targetUser.phone = String(phone).trim();
+  }
+  const photo = avatar || profilePhoto;
+  if (photo !== undefined) {
+    targetUser.avatar = photo;
+    targetUser.profilePhoto = photo;
+  }
+  await targetUser.save({ validateBeforeSave: false });
+
+  // If user is clinic owner, sync with clinic ownerDetails
+  if (targetUser.role === ROLES.ADMIN && targetUser.clinicId) {
+    const Clinic = require('../clinics/clinic.model');
+    const updateObj = {};
+    if (name) updateObj['ownerDetails.name'] = name.trim();
+    if (phone !== undefined) updateObj['ownerDetails.phone'] = String(phone).trim();
+    if (photo !== undefined) updateObj['ownerDetails.profilePhoto'] = photo;
+    await Clinic.findByIdAndUpdate(targetUser.clinicId, { $set: updateObj });
+  }
+
+  // If user is doctor, sync with doctor record
+  if (targetUser.role === ROLES.DOCTOR) {
+    const Doctor = require('../doctors/doctor.model');
+    const updateObj = {};
+    if (name) updateObj['fullName'] = name.trim();
+    if (phone !== undefined) updateObj['phone'] = String(phone).trim();
+    if (photo !== undefined) updateObj['image'] = photo;
+    await Doctor.findOneAndUpdate({ userId: targetUser._id }, { $set: updateObj });
+  }
+
+  // If staff/receptionist, sync with staff record
+  const { STAFF_ROLES } = require('../../common/constants/roles');
+  if (targetUser.role === ROLES.RECEPTIONIST || (STAFF_ROLES && STAFF_ROLES.includes(targetUser.role)) || targetUser.role === ROLES.STAFF || targetUser.role === ROLES.LAB_TECHNICIAN || targetUser.role === ROLES.PHARMACIST) {
+    const Staff = require('../staff/staff.model');
+    const updateObj = {};
+    if (name) updateObj['fullName'] = name.trim();
+    if (phone !== undefined) updateObj['phone'] = String(phone).trim();
+    if (photo !== undefined) updateObj['image'] = photo;
+    await Staff.findOneAndUpdate({ userId: targetUser._id }, { $set: updateObj });
+  }
+
+  const authService = require('../auth/auth.service');
+  return authService.getCurrentUser(targetUser);
+};
+
+const updateUser = async ({ requester, userId, data, req }) => {
+  const user = await userRepository.findById(userId);
+  if (!user) {
+    throw new AppError('User not found', HTTP_STATUS.NOT_FOUND);
+  }
+
+  if (requester.role !== ROLES.SUPER_ADMIN) {
+    if (requester.clinicId && user.clinicId && requester.clinicId.toString() !== user.clinicId.toString()) {
+      throw new AppError('Access Denied: User does not belong to your clinic', HTTP_STATUS.FORBIDDEN);
+    }
+  }
+
+  const { name, email, phone, role, department, isActive } = data;
+  if (name !== undefined) user.name = name.trim();
+  if (email !== undefined) user.email = email.toLowerCase().trim();
+  if (phone !== undefined) user.phone = phone.trim();
+  if (role !== undefined) user.role = role;
+  if (department !== undefined) user.department = department.trim();
+  if (isActive !== undefined) user.isActive = Boolean(isActive);
+
+  await user.save();
+
+  // If this user is also a doctor or staff, synchronize their profile
+  if (user.role === ROLES.DOCTOR) {
+    const Doctor = require('../doctors/doctor.model');
+    const docUpdate = {};
+    if (name !== undefined) docUpdate.fullName = name.trim();
+    if (phone !== undefined) docUpdate.phone = phone.trim();
+    if (email !== undefined) docUpdate.email = email.toLowerCase().trim();
+    if (department !== undefined) docUpdate.department = department.trim();
+    if (isActive !== undefined) docUpdate.isActive = Boolean(isActive);
+    await Doctor.findOneAndUpdate({ userId: user._id }, { $set: docUpdate }).catch(() => {});
+  } else {
+    const Staff = require('../staff/staff.model');
+    const staffUpdate = {};
+    if (name !== undefined) staffUpdate.fullName = name.trim();
+    if (phone !== undefined) staffUpdate.phone = phone.trim();
+    if (email !== undefined) staffUpdate.email = email.toLowerCase().trim();
+    if (department !== undefined) staffUpdate.department = department.trim();
+    if (role !== undefined) staffUpdate.role = role;
+    if (isActive !== undefined) staffUpdate.isActive = Boolean(isActive);
+    await Staff.findOneAndUpdate({ userId: user._id }, { $set: staffUpdate }).catch(() => {});
+  }
+
+  if (req) {
+    await createAuditLog({
+      userId: requester._id,
+      action: 'USER_UPDATED',
+      resource: 'User',
+      resourceId: user._id,
+      details: { updatedFields: Object.keys(data), targetUserEmail: user.email },
+      req
+    }).catch(() => {});
+  }
+
+  return sanitizeUser(user);
+};
+
 module.exports = {
   listUsers,
   getUserById,
+  updateUser,
   updateUserRole,
   updateUserStatus,
   updateUserProvider,
   createStaffByAdmin,
-  deleteUser
+  deleteUser,
+  updateMyProfile
 };

@@ -7,6 +7,12 @@ const auditSchema = new mongoose.Schema(
       ref: 'User',
       default: null
     },
+    clinicId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Clinic',
+      default: null,
+      index: true
+    },
     action: {
       type: String,
       required: true,
@@ -16,6 +22,16 @@ const auditSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true
+    },
+    module: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    details: {
+      type: String,
+      trim: true,
+      default: ''
     },
     entityId: {
       type: mongoose.Schema.Types.ObjectId,

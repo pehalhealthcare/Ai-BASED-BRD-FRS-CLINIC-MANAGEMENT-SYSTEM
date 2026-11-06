@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const PDFDocument = require('pdfkit');
 const { env } = require('../../config/env');
+const { normalizeDoctorName } = require('../../common/utils/doctorFormatter');
 
 const PAGE = {
   size: 'A4',
@@ -85,7 +86,7 @@ const renderHeader = (doc, clinic, doctor, qrBuffer) => {
   // Doctor Info (Center)
   const docX = div1X + 12;
   doc.font(FONTS.bold).fontSize(10.5).fillColor(COLORS.heading);
-  doc.text(`Dr. ${doctor?.fullName || 'Alpha Doctor'}`, docX, top);
+  doc.text(normalizeDoctorName(doctor?.fullName || 'Alpha Doctor'), docX, top);
   doc.font(FONTS.regular).fontSize(7).fillColor(COLORS.body);
   doc.text(doctor?.qualifications?.join(', ') || 'MBBS, MD (General Medicine)', docX, top + 14);
   doc.font(FONTS.bold).fontSize(7.5).fillColor(COLORS.accent);
@@ -415,7 +416,7 @@ const drawSignatureBlock = (doc, doctor, y) => {
   const sigX = PAGE.width - PAGE.marginRight - blockW;
 
   doc.font(FONTS.bold).fontSize(8.5).fillColor(COLORS.heading);
-  doc.text(`Dr. ${doctor?.fullName || 'Alpha Doctor'}`, sigX, y, { width: blockW, align: 'center' });
+  doc.text(normalizeDoctorName(doctor?.fullName || 'Alpha Doctor'), sigX, y, { width: blockW, align: 'center' });
   doc.font(FONTS.regular).fontSize(7).fillColor(COLORS.body);
   doc.text(doctor?.specialization || 'General Physician', sigX, y + 10, { width: blockW, align: 'center' });
   doc.font(FONTS.regular).fontSize(6.5).fillColor(COLORS.muted);
@@ -493,7 +494,7 @@ const generatePrescriptionPdf = async ({ prescription, clinic, patient, doctor }
       bufferPages: true,
       info: {
         Title: `Prescription — ${patient?.fullName || 'Patient'}`,
-        Author: `Dr. ${doctor?.fullName || 'Doctor'}`,
+        Author: normalizeDoctorName(doctor?.fullName || 'Doctor'),
         Subject: 'Digital Medical Prescription'
       }
     });

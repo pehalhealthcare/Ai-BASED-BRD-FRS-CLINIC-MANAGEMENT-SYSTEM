@@ -65,6 +65,12 @@ const RoleDashboardPage = () => {
     } else {
       setAdminStatusChecked(true);
     }
+    // Safety timer: Never block mounting of the dashboard for more than 3.5s
+    const safetyTimer = setTimeout(() => {
+      setAdminStatusChecked(true);
+    }, 3500);
+
+    return () => clearTimeout(safetyTimer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

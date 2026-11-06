@@ -1,5 +1,6 @@
-﻿import React from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { normalizeDoctorName } from '../../../utils/doctorFormatters';
 
 const ALERT_CONFIGS = {
   warning: { icon: '⚠️', bg: 'bg-red-50', border: 'border-red-100', text: 'text-red-700' },
@@ -29,7 +30,7 @@ const computeInsights = (overview, queue, doctorStatus) => {
       insights.push({
         type: 'warning',
         title: 'Doctor High Load',
-        message: `Dr. ${busyDoctors[0].fullName} has a high patient load (${busyDoctors[0].utilization}% utilization).`,
+        message: `${normalizeDoctorName(busyDoctors[0].fullName)} has a high patient load (${busyDoctors[0].utilization}% utilization).`,
       });
     }
   }

@@ -1,10 +1,11 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Calendar, Upload, Camera, Shield, FileText, CheckCircle2, User, Plus, Search, Check, Bot, Clock, CreditCard, Receipt, Tag, AlertCircle, Printer, Download, Send, ArrowLeft, Video, VideoOff, Laptop } from 'lucide-react';
 import { patientApi, doctorApi, appointmentApi, receptionistApi } from '../../lib/api';
 import { aiApi } from '../../api/aiApi';
 import useAuth from '../../hooks/useAuth';
 import { useFeatureAccess } from '../../hooks/useFeatureAccess';
 import { io } from 'socket.io-client';
+import { normalizeDoctorName, getDoctorInitials } from '../../utils/doctorFormatters';
 
 const STATES = [
   'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
@@ -841,7 +842,7 @@ export default function WalkInPatientModal({ isOpen, onClose, onSuccess }) {
       const nowStr = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) + ' | ' + new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
 
       const activeDoc = chosenDoctor || doctorsList.find(d => d._id === selectedDoctorId);
-      const doctorName = activeDoc?.fullName || activeDoc?.userId?.name || 'Dr. â€”';
+      const doctorName = normalizeDoctorName(activeDoc, 'Doctor');
       const doctorSpecialty = activeDoc?.specialization || activeDoc?.specialty || 'General Physician';
       const docExperience = activeDoc?.experience || '10+ Years';
       const docClinicLocation = activeDoc?.clinic?.name || clinicName;
@@ -2374,7 +2375,7 @@ export default function WalkInPatientModal({ isOpen, onClose, onSuccess }) {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {filteredDocs.map(doc => {
                     const isSelected = selectedDoctorId === doc._id;
-                    const name = doc.fullName || doc.userId?.name || 'Dr. Doctor';
+                    const name = normalizeDoctorName(doc, 'Doctor');
                     const specialty = doc.specialization || 'General Physician';
                     const qualifications = doc.qualifications || 'MBBS, MD';
                     const fee = doc.consultationFee || 500;
@@ -2509,12 +2510,12 @@ export default function WalkInPatientModal({ isOpen, onClose, onSuccess }) {
                   {/* Selected Doctor Summary Card */}
                   {doctorsList.find(d => d._id === selectedDoctorId) && (() => {
                     const doc = doctorsList.find(d => d._id === selectedDoctorId);
-                    const name = doc.fullName || doc.userId?.name || 'Dr. Doctor';
+                    const name = normalizeDoctorName(doc, 'Doctor');
                     const specialty = doc.specialization || 'General Physician';
                     return (
                       <div className="p-3 bg-slate-50 border border-slate-100 rounded-2xl flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-teal-555 text-white flex items-center justify-center font-bold text-xs shrink-0">
-                          {name[0] === 'D' && name[1] === 'r' ? name[4] || name[0] : name[0]}
+                          {getDoctorInitials(name)}
                         </div>
                         <div>
                           <p className="text-xs font-bold text-slate-800">{name}</p>
@@ -3400,7 +3401,9 @@ export default function WalkInPatientModal({ isOpen, onClose, onSuccess }) {
                           type="button"
                           onClick={() => {
                             const apt = finalAppointment || createdAppointment;
-                            const msg = `Appointment Details:\nDoctor: Dr. ${doctorsList.find(d => d._id === (chosenDoctor?._id || selectedDoctorId))?.fullName || 'General'}\nDate: ${selectedDate} | Time Slot: ${selectedSlot?.startTime || '—'}\nZoom Link: ${apt?.virtualMeetingLink || 'https://teleconsult.ai-cms.com/room/'}`;
+                            const selectedDocObj = doctorsList.find(d => d._id === (chosenDoctor?._id || selectedDoctorId));
+                            const formattedDocName = normalizeDoctorName(selectedDocObj, 'General');
+                            const msg = `Appointment Details:\nDoctor: ${formattedDocName}\nDate: ${selectedDate} | Time Slot: ${selectedSlot?.startTime || '—'}\nZoom Link: ${apt?.virtualMeetingLink || 'https://teleconsult.ai-cms.com/room/'}`;
                             navigator.clipboard.writeText(msg);
                             alert('Meeting details copied to clipboard!');
                           }}

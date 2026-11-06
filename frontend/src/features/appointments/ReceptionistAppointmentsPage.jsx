@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   Search, Calendar, Clock, CheckCircle, Info, Copy, Check, Upload,
   SlidersHorizontal, ChevronRight, X, AlertCircle, Sparkles, QrCode,
@@ -15,6 +15,7 @@ import { Html5Qrcode } from 'html5-qrcode';
 import { io } from 'socket.io-client';
 
 import { clinicApi } from '../../lib/api';
+import { normalizeDoctorName } from '../../utils/doctorFormatters';
 
 export default function ReceptionistAppointmentsPage() {
   const { user, logout } = useAuth();
@@ -731,7 +732,7 @@ export default function ReceptionistAppointmentsPage() {
                   const isSelected = selectedAppt?._id === appt._id;
                   const patName = appt.patientId?.fullName || 'Walk-in Patient';
                   const patDetail = `${appt.patientId?.age || '--'} Y/O • ${appt.patientId?.gender || ''}`;
-                  const docName = appt.doctorId?.fullName || 'General Physician';
+                  const docName = normalizeDoctorName(appt.doctorId?.fullName, 'General Physician');
                   const docDetail = appt.doctorId?.specialization || 'Physician';
                   const statusVal = appt.status || 'PENDING';
                   const isOffline = appt.appointmentType !== 'teleconsultation';
@@ -762,7 +763,7 @@ export default function ReceptionistAppointmentsPage() {
                           </div>
                         </td>
                         {/* Doctor Name */}
-                        <td className="py-4.5 px-5 text-white font-black">Dr. {docName}</td>
+                        <td className="py-4.5 px-5 text-white font-black">{docName}</td>
                         {/* Specialist */}
                         <td className="py-4.5 px-5 text-slate-400 font-medium">{docDetail}</td>
                         {/* Room No. */}
@@ -819,7 +820,7 @@ export default function ReceptionistAppointmentsPage() {
 
                       {/* Doctor Info */}
                       <td className="py-3.5 px-4">
-                        <p className="font-black text-white leading-tight text-xs">Dr. {docName}</p>
+                        <p className="font-black text-white leading-tight text-xs">{docName}</p>
                         <p className="text-[10px] text-slate-500 font-semibold mt-0.5">{docDetail}</p>
                       </td>
 
@@ -1187,7 +1188,7 @@ export default function ReceptionistAppointmentsPage() {
 
               <div>
                 <p className="text-[9px] font-bold text-slate-555 uppercase tracking-wider">Doctor</p>
-                <p className="text-xs font-bold text-slate-300 mt-1">Dr. {selectedAppt.doctorId?.fullName}</p>
+                <p className="text-xs font-bold text-slate-300 mt-1">{normalizeDoctorName(selectedAppt.doctorId?.fullName)}</p>
                 <p className="text-[10px] text-slate-500 font-semibold">{selectedAppt.doctorId?.specialization}</p>
               </div>
 

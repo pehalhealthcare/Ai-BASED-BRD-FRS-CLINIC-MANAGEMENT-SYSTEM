@@ -84,6 +84,7 @@ import ProcedureDetailPage from '../features/procedures/ProcedureDetailPage';
 import ProcedureSettingsPage from '../features/procedures/ProcedureSettingsPage';
 import ProtectedRoute from './ProtectedRoute';
 import RoleHomeRedirect from './RoleHomeRedirect';
+import FinancialPortalRouteGuard from './FeatureRouteGuard';
 import ChatbotPage from '../pages/ai/ChatbotPage';
 import ChatPage from '../pages/chat/ChatPage';
 import DoctorSchedulePage from '../pages/doctors/DoctorSchedulePage';
@@ -388,27 +389,27 @@ export const router = createBrowserRouter([
       },
       {
         path: 'payments',
-        element: protect(<SuperAdminPaymentsPage />, [ROLES.SUPER_ADMIN])
+        element: protect(<FinancialPortalRouteGuard redirectTo="/dashboard"><SuperAdminPaymentsPage /></FinancialPortalRouteGuard>, [ROLES.SUPER_ADMIN])
       },
       {
         path: 'payments/:id',
-        element: protect(<SuperAdminPaymentVerificationPage />, [ROLES.SUPER_ADMIN])
+        element: protect(<FinancialPortalRouteGuard redirectTo="/dashboard"><SuperAdminPaymentVerificationPage /></FinancialPortalRouteGuard>, [ROLES.SUPER_ADMIN])
       },
       {
         path: 'payments/verify/:id',
-        element: protect(<SuperAdminPaymentVerificationPage />, [ROLES.SUPER_ADMIN])
+        element: protect(<FinancialPortalRouteGuard redirectTo="/dashboard"><SuperAdminPaymentVerificationPage /></FinancialPortalRouteGuard>, [ROLES.SUPER_ADMIN])
       },
       {
         path: 'super-admin/payments',
-        element: protect(<SuperAdminPaymentsPage />, [ROLES.SUPER_ADMIN])
+        element: protect(<FinancialPortalRouteGuard redirectTo="/dashboard"><SuperAdminPaymentsPage /></FinancialPortalRouteGuard>, [ROLES.SUPER_ADMIN])
       },
       {
         path: 'super-admin/payments/:id',
-        element: protect(<SuperAdminPaymentVerificationPage />, [ROLES.SUPER_ADMIN])
+        element: protect(<FinancialPortalRouteGuard redirectTo="/dashboard"><SuperAdminPaymentVerificationPage /></FinancialPortalRouteGuard>, [ROLES.SUPER_ADMIN])
       },
       {
         path: 'super-admin/payments/verify/:id',
-        element: protect(<SuperAdminPaymentVerificationPage />, [ROLES.SUPER_ADMIN])
+        element: protect(<FinancialPortalRouteGuard redirectTo="/dashboard"><SuperAdminPaymentVerificationPage /></FinancialPortalRouteGuard>, [ROLES.SUPER_ADMIN])
       },
       {
         path: 'super-admin/settings',
@@ -919,7 +920,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'billing/financials',
-        element: protect(<FinancialDashboard />, [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.DOCTOR])
+        element: protect(<FinancialPortalRouteGuard redirectTo="/dashboard"><FinancialDashboard /></FinancialPortalRouteGuard>, [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.DOCTOR])
       },
       {
         path: 'billing/:id',

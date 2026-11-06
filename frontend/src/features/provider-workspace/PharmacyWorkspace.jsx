@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
 import {
   TrendingUp, Pill, ShoppingBag, Users, AlertTriangle,
   Search, Scan, RefreshCw, Barcode, Plus, Minus, Trash2,
@@ -19,6 +19,7 @@ import { providersApi } from '../../lib/api';
 
 import useAuth from '../../hooks/useAuth';
 import PrescriptionOrdersWorkspace from './PrescriptionOrdersWorkspace';
+import { normalizeDoctorName } from '../../utils/doctorFormatters';
 
 const PharmacyWorkspace = ({ user }) => {
   const navigate = useNavigate();
@@ -1899,7 +1900,7 @@ const PharmacyWorkspace = ({ user }) => {
       appointmentId: data.appointmentId?._id || data.appointmentId || '',
       patientName: data.patientId?.fullName || (data.patientId?.firstName ? `${data.patientId.firstName} ${data.patientId.lastName || ''}` : 'Patient'),
       phone: data.patientId?.phone || '',
-      doctor: data.doctorId?.fullName || (data.doctorId?.firstName ? `Dr. ${data.doctorId.firstName} ${data.doctorId.lastName || ''}` : 'Doctor'),
+      doctor: normalizeDoctorName(data.doctorId?.fullName || (data.doctorId?.firstName ? `${data.doctorId.firstName} ${data.doctorId.lastName || ''}` : ''), 'Doctor'),
       diagnosis: data.consultationId?.diagnosis || 'N/A',
       date: data.createdAt ? new Date(data.createdAt).toLocaleDateString('en-CA') : new Date().toLocaleDateString('en-CA'),
       rawDate: data.createdAt ? new Date(data.createdAt) : new Date(),

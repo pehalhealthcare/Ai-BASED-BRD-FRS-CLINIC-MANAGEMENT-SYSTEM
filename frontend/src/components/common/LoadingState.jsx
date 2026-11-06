@@ -1,8 +1,28 @@
-const LoadingState = ({ label = 'Loading workspace status...' }) => {
+import React from 'react';
+import CompactPageLoader from './CompactPageLoader';
+
+/**
+ * LoadingState - Compact Premium In-Page Loading Indicator
+ * 
+ * Complies with UI/UX requirements:
+ * - 20-26px circular animated spinner using PEHAL's primary blue (#2563EB)
+ * - Smooth rotation animation
+ * - Minimal visual footprint
+ * - Non-blocking in-page rendering
+ */
+const LoadingState = ({ 
+  label = 'Loading...', 
+  size = 24, 
+  inline = false, 
+  className = '' 
+}) => {
   return (
-    <div className="rounded-3xl border border-amber-200 bg-amber-50 px-6 py-5 text-sm font-medium text-amber-900">
-      {label}
-    </div>
+    <CompactPageLoader 
+      label={label} 
+      size={size} 
+      inline={inline} 
+      className={className} 
+    />
   );
 };
 

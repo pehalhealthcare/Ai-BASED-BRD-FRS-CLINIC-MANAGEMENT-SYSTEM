@@ -1,7 +1,8 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import appointmentApi from '../../api/appointmentApi';
 import { doctorApi } from '../../lib/api';
 import ErrorState from '../../components/common/ErrorState';
+import { normalizeDoctorName } from '../../utils/doctorFormatters';
 
 const QueueStatusWidget = () => {
   const [doctors, setDoctors] = useState([]);
@@ -57,7 +58,7 @@ const QueueStatusWidget = () => {
           className="rounded border border-stone-300 bg-white px-2 py-1 text-sm outline-none"
         >
           {doctors.map(doc => (
-            <option key={doc._id} value={doc._id}>Dr. {doc.user?.fullName || doc.specialization}</option>
+            <option key={doc._id} value={doc._id}>{normalizeDoctorName(doc.user?.fullName || doc.specialization)}</option>
           ))}
         </select>
       </div>

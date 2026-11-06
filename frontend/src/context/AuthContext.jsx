@@ -154,6 +154,12 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
+  const updateUser = (updatedUser) => {
+    if (updatedUser) {
+      applyAuthState({ nextUser: updatedUser });
+    }
+  };
+
   const value = useMemo(
     () => ({
       user,
@@ -164,7 +170,8 @@ export const AuthProvider = ({ children }) => {
       setAuthSession,
       register,
       logout,
-      refreshUser
+      refreshUser,
+      updateUser
     }),
     [user, token, loading]
   );

@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Building2, Clock, CreditCard, AlertTriangle, XCircle,
@@ -8,6 +8,7 @@ import {
 import { dashboardApi, subscriptionPaymentApi } from '../../lib/api';
 import useAuth from '../../hooks/useAuth';
 import toast from 'react-hot-toast';
+import { isFinancialSettlementPortalEnabled } from '../../config/featureFlags';
 
 const fmt = (n) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n || 0);
@@ -404,11 +405,11 @@ const SuperAdminDashboard = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className={`grid grid-cols-2 ${isFinancialSettlementPortalEnabled() ? 'sm:grid-cols-4' : 'sm:grid-cols-3'} gap-3`}>
           {[
             { label: 'Create New Clinic', sub: 'Manually create and onboard a new clinic', icon: Plus, bg: 'bg-blue-600', path: '/clinics', primary: true },
             { label: 'Manage Plans', sub: 'View and edit subscription plans', icon: CreditCard, bg: 'bg-blue-50', tc: 'text-blue-700', path: '/plans' },
-            { label: 'Verify Payments', sub: 'Review pending payment verifications', icon: ShieldCheck, bg: 'bg-amber-50', tc: 'text-amber-700', badge: stats.paymentsPending || 0, path: '/payments' },
+            ...(isFinancialSettlementPortalEnabled() ? [{ label: 'Verify Payments', sub: 'Review pending payment verifications', icon: ShieldCheck, bg: 'bg-amber-50', tc: 'text-amber-700', badge: stats.paymentsPending || 0, path: '/payments' }] : []),
             { label: 'View Reports', sub: 'Platform usage, revenue and analytics', icon: BarChart3, bg: 'bg-purple-50', tc: 'text-purple-700', path: '/dashboard/revenue' },
           ].map(a => {
             const Icon = a.icon;
@@ -432,7 +433,7 @@ const SuperAdminDashboard = () => {
           })}
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        <div className={`grid grid-cols-1 ${isFinancialSettlementPortalEnabled() ? 'xl:grid-cols-2' : ''} gap-4`}>
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-50">
               <div>
@@ -486,80 +487,82 @@ const SuperAdminDashboard = () => {
             )}
           </div>
 
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-50">
-              <div>
-                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
-                  Payment Verifications
-                  {(stats.paymentsPending || 0) > 0 && (
-                    <span className="w-4 h-4 rounded-full bg-amber-500 text-white text-[9px] font-bold flex items-center justify-center">{stats.paymentsPending}</span>
-                  )}
-                </h3>
-                <p className="text-[10px] text-slate-400">Clinic payments awaiting verification</p>
+          {isFinancialSettlementPortalEnabled() && (
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-slate-50">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                    Payment Verifications
+                    {(stats.paymentsPending || 0) > 0 && (
+                      <span className="w-4 h-4 rounded-full bg-amber-500 text-white text-[9px] font-bold flex items-center justify-center">{stats.paymentsPending}</span>
+                    )}
+                  </h3>
+                  <p className="text-[10px] text-slate-400">Clinic payments awaiting verification</p>
+                </div>
+                <Link to="/payments" className="text-xs text-blue-600 hover:text-blue-700 font-semibold flex items-center gap-1">View All <ChevronRight size={12} /></Link>
               </div>
-              <Link to="/payments" className="text-xs text-blue-600 hover:text-blue-700 font-semibold flex items-center gap-1">View All <ChevronRight size={12} /></Link>
-            </div>
-            {pendingPayments.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-center px-6">
-                <CheckCircle2 size={28} className="text-blue-400 mb-2" />
-                <p className="text-xs font-semibold text-slate-600">No pending payment verifications</p>
-                <p className="text-[10px] text-slate-400 mt-0.5">All submitted clinic payments have been reviewed.</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-slate-50 border-b border-slate-100">
-                      <th className="text-left px-4 py-2.5 text-[10px] font-bold text-slate-500 uppercase">Clinic</th>
-                      <th className="text-left px-3 py-2.5 text-[10px] font-bold text-slate-500 uppercase">Amount</th>
-                      <th className="text-left px-3 py-2.5 text-[10px] font-bold text-slate-500 uppercase">UTR</th>
-                      <th className="text-right px-4 py-2.5 text-[10px] font-bold text-slate-500 uppercase">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-50">
-                    {pendingPayments.slice(0, 5).map((p, i) => {
-                      const cName = p.clinicId?.name || p.clinicName || 'Clinic';
-                      return (
-                        <tr
-                          key={p._id || i}
-                          onClick={() => navigate(`/payments/verify/${p._id}`)}
-                          className="hover:bg-slate-50/80 transition cursor-pointer group"
-                        >
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-2">
-                              <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-[10px] font-bold shrink-0" style={{ background: getAvatarColor(cName) }}>{getInitials(cName)}</div>
-                              <div>
-                                <p className="text-xs font-semibold text-slate-900 group-hover:text-blue-600 transition leading-tight flex items-center gap-1">
-                                  {cName}
-                                  <ArrowUpRight size={10} className="opacity-0 group-hover:opacity-100 transition text-blue-500" />
-                                </p>
-                                <p className="text-[9px] text-slate-400">{p.clinicId?.code || p.clinicCode || '--'}</p>
+              {pendingPayments.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center px-6">
+                  <CheckCircle2 size={28} className="text-blue-400 mb-2" />
+                  <p className="text-xs font-semibold text-slate-600">No pending payment verifications</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">All submitted clinic payments have been reviewed.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-100">
+                        <th className="text-left px-4 py-2.5 text-[10px] font-bold text-slate-500 uppercase">Clinic</th>
+                        <th className="text-left px-3 py-2.5 text-[10px] font-bold text-slate-500 uppercase">Amount</th>
+                        <th className="text-left px-3 py-2.5 text-[10px] font-bold text-slate-500 uppercase">UTR</th>
+                        <th className="text-right px-4 py-2.5 text-[10px] font-bold text-slate-500 uppercase">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {pendingPayments.slice(0, 5).map((p, i) => {
+                        const cName = p.clinicId?.name || p.clinicName || 'Clinic';
+                        return (
+                          <tr
+                            key={p._id || i}
+                            onClick={() => navigate(`/payments/verify/${p._id}`)}
+                            className="hover:bg-slate-50/80 transition cursor-pointer group"
+                          >
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-[10px] font-bold shrink-0" style={{ background: getAvatarColor(cName) }}>{getInitials(cName)}</div>
+                                <div>
+                                  <p className="text-xs font-semibold text-slate-900 group-hover:text-blue-600 transition leading-tight flex items-center gap-1">
+                                    {cName}
+                                    <ArrowUpRight size={10} className="opacity-0 group-hover:opacity-100 transition text-blue-500" />
+                                  </p>
+                                  <p className="text-[9px] text-slate-400">{p.clinicId?.code || p.clinicCode || '--'}</p>
+                                </div>
                               </div>
-                            </div>
-                          </td>
-                          <td className="px-3 py-3 font-bold text-blue-600 text-xs">{fmt(p.amount)}</td>
-                          <td className="px-3 py-3"><span className="font-mono text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">{p.utr || '--'}</span></td>
-                          <td className="px-4 py-3 text-right">
-                            <div className="flex items-center justify-end gap-1">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  navigate(`/payments/verify/${p._id}`);
-                                }}
-                                className="px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 text-[10px] font-bold hover:bg-amber-100 border border-amber-200 transition flex items-center gap-1"
-                              >
-                                <Clock size={10} /> Pending
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
+                            </td>
+                            <td className="px-3 py-3 font-bold text-blue-600 text-xs">{fmt(p.amount)}</td>
+                            <td className="px-3 py-3"><span className="font-mono text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">{p.utr || '--'}</span></td>
+                            <td className="px-4 py-3 text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigate(`/payments/verify/${p._id}`);
+                                  }}
+                                  className="px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 text-[10px] font-bold hover:bg-amber-100 border border-amber-200 transition flex items-center gap-1"
+                                >
+                                  <Clock size={10} /> Pending
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

@@ -11,6 +11,7 @@ const PharmacySale = require('../pharmacy/pharmacySale.model');
 const NotificationLog = require('../notifications/notificationLog.model');
 const FollowUpTask = require('../notifications/followUpTask.model');
 const Doctor = require('../doctors/doctor.model');
+const Expense = require('../billing/expense.model');
 
 const countDocuments = (Model, filter) => Model.countDocuments(filter);
 const aggregateDocuments = (Model, pipeline) => Model.aggregate(pipeline);
@@ -32,7 +33,8 @@ module.exports = {
     PharmacySale,
     NotificationLog,
     FollowUpTask,
-    Doctor
+    Doctor,
+    Expense
   },
   countDocuments,
   aggregateDocuments,

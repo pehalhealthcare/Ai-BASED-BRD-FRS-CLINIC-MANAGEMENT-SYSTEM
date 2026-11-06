@@ -7,6 +7,7 @@ const { AppError } = require('../../common/utils/AppError');
 const { HTTP_STATUS } = require('../../common/constants/httpStatus');
 const { APPOINTMENT_STATUSES } = require('../../common/constants/appointmentStatus');
 const { ROLES } = require('../../common/constants/roles');
+const { normalizeDoctorName } = require('../../common/utils/doctorFormatter');
 
 /**
  * Check if a doctor has an approved leave overlapping the given time range
@@ -303,7 +304,7 @@ const resolveConflictingAppointments = async (leave, policy) => {
 
       if (alternate) {
         app.doctorId = alternate._id;
-        app.notes = (app.notes || '') + `\n[Reassigned automatically to Dr. ${alternate.fullName} due to original doctor leave]`;
+        app.notes = (app.notes || '') + `\n[Reassigned automatically to ${normalizeDoctorName(alternate.fullName)} due to original doctor leave]`;
         await app.save();
         continue;
       }

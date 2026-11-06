@@ -64,6 +64,188 @@ const clinicSchema = new mongoose.Schema(
       trim: true,
       default: ''
     },
+    email: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    alternatePhone: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    website: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    clinicType: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    timeZone: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    currency: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    workingDays: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    workingHours: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    socialLinks: {
+      website: { type: String, trim: true, default: '' },
+      facebook: { type: String, trim: true, default: '' },
+      twitter: { type: String, trim: true, default: '' },
+      instagram: { type: String, trim: true, default: '' }
+    },
+    communicationSettings: {
+      senderId: { type: String, trim: true, default: '' },
+      whatsappNumber: { type: String, trim: true, default: '' },
+      enableApptConfirm: { type: Boolean, default: null },
+      enableEmailNotif: { type: Boolean, default: null },
+      enableSmsNotif: { type: Boolean, default: null }
+    },
+    preferences: {
+      autoInvoice: { type: Boolean, default: null },
+      inventoryAlerts: { type: Boolean, default: null },
+      labApproval: { type: Boolean, default: null },
+      dataEncryption: { type: Boolean, default: null },
+      darkMode: { type: Boolean, default: false }
+    },
+    notificationSettings: {
+      channels: {
+        email: { type: Boolean, default: true },
+        sms: { type: Boolean, default: true },
+        whatsapp: { type: Boolean, default: true },
+        inApp: { type: Boolean, default: true }
+      },
+      events: {
+        appointmentConfirmation: { type: Boolean, default: true },
+        appointmentReminder: { type: Boolean, default: true },
+        appointmentReschedule: { type: Boolean, default: true },
+        appointmentCancellation: { type: Boolean, default: true },
+        patientRegistration: { type: Boolean, default: true },
+        invoicePaymentUpdates: { type: Boolean, default: true },
+        labReportReady: { type: Boolean, default: false }
+      }
+    },
+    integrations: {
+      whatsapp: {
+        enabled: { type: Boolean, default: false },
+        status: { type: String, enum: ['connected', 'not_connected'], default: 'not_connected' },
+        phoneNumberId: { type: String, default: '' },
+        businessAccountId: { type: String, default: '' },
+        apiKey: { type: String, default: '' },
+        lastSync: { type: Date, default: null }
+      },
+      smsGateway: {
+        enabled: { type: Boolean, default: false },
+        status: { type: String, enum: ['connected', 'not_connected'], default: 'not_connected' },
+        provider: { type: String, default: '' },
+        senderId: { type: String, default: '' },
+        apiKey: { type: String, default: '' },
+        lastSync: { type: Date, default: null }
+      },
+      emailService: {
+        enabled: { type: Boolean, default: false },
+        status: { type: String, enum: ['connected', 'not_connected'], default: 'not_connected' },
+        provider: { type: String, default: '' },
+        host: { type: String, default: '' },
+        port: { type: Number, default: 587 },
+        user: { type: String, default: '' },
+        pass: { type: String, default: '' },
+        fromEmail: { type: String, default: '' },
+        fromName: { type: String, default: '' },
+        lastSync: { type: Date, default: null }
+      },
+      lis: {
+        enabled: { type: Boolean, default: false },
+        status: { type: String, enum: ['connected', 'not_connected'], default: 'not_connected' },
+        systemName: { type: String, default: '' },
+        endpointUrl: { type: String, default: '' },
+        apiKey: { type: String, default: '' },
+        autoSyncOrders: { type: Boolean, default: true },
+        lastSync: { type: Date, default: null }
+      },
+      ris: {
+        enabled: { type: Boolean, default: false },
+        status: { type: String, enum: ['connected', 'not_connected'], default: 'not_connected' },
+        systemName: { type: String, default: '' },
+        endpointUrl: { type: String, default: '' },
+        apiKey: { type: String, default: '' },
+        autoSyncReports: { type: Boolean, default: true },
+        lastSync: { type: Date, default: null }
+      },
+      paymentGateway: {
+        enabled: { type: Boolean, default: false },
+        status: { type: String, default: 'coming_soon' }
+      }
+    },
+    securitySettings: {
+      twoFactorAuth: { type: Boolean, default: false },
+      loginAlerts: { type: Boolean, default: true },
+      accountLockout: {
+        enabled: { type: Boolean, default: true },
+        maxFailedAttempts: { type: Number, default: 5 },
+        lockoutDurationMinutes: { type: Number, default: 15 }
+      },
+      ipRestriction: {
+        enabled: { type: Boolean, default: false },
+        allowedIps: { type: [String], default: [] }
+      },
+      passwordPolicy: {
+        minLength: { type: Number, default: 8 },
+        requireUppercase: { type: Boolean, default: true },
+        requireNumber: { type: Boolean, default: true },
+        requireSpecialChar: { type: Boolean, default: true },
+        expiryDays: { type: Number, default: 90 }
+      },
+      sessionManagement: {
+        sessionTimeoutMinutes: { type: Number, default: 60 },
+        maxConcurrentSessions: { type: Number, default: 3 }
+      },
+      trustedDevices: [
+        {
+          deviceId: { type: String, default: '' },
+          deviceName: { type: String, default: '' },
+          browser: { type: String, default: '' },
+          os: { type: String, default: '' },
+          ipAddress: { type: String, default: '' },
+          lastActive: { type: Date, default: Date.now },
+          trustedAt: { type: Date, default: Date.now }
+        }
+      ]
+    },
+    backupSettings: {
+      autoBackup: { type: Boolean, default: true },
+      backupFrequency: { type: String, enum: ['Daily', 'Weekly', 'Monthly'], default: 'Daily' },
+      backupTime: { type: String, default: '02:00 AM' },
+      lastBackupAt: { type: Date, default: null },
+      lastBackupStatus: { type: String, enum: ['Successful', 'Failed', 'In Progress', 'None'], default: 'None' },
+      lastBackupSizeBytes: { type: Number, default: 0 },
+      lastBackupFilename: { type: String, default: '' },
+      dataRetentionDays: { type: Number, default: 365 },
+      backupHistory: [
+        {
+          timestamp: { type: Date, default: Date.now },
+          status: { type: String, default: 'Successful' },
+          sizeBytes: { type: Number, default: 0 },
+          filename: { type: String, default: '' }
+        }
+      ]
+    },
     parentClinicId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Clinic',

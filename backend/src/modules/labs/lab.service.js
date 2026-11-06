@@ -6,6 +6,7 @@ const { resolveClinicContext } = require('../../common/utils/clinicContext');
 const { generateLabOrderNumber } = require('../../common/utils/generateLabOrderNumber');
 const { buildPaginationMeta, getPagination } = require('../../common/utils/pagination');
 const { createAuditLog } = require('../audit/audit.service');
+const { normalizeDoctorName } = require('../../common/utils/doctorFormatter');
 const aiService = require('../ai/ai.service');
 const consultationRepository = require('../consultations/consultation.repository');
 const doctorRepository = require('../doctors/doctor.repository');
@@ -2936,7 +2937,7 @@ const createCustomLabRequest = async ({ requester, payload }) => {
         type: 'custom_lab_request',
         channel: 'in_app',
         subject: 'Custom Lab Test Requested',
-        body: `Doctor Dr. ${requester.name} has requested a new laboratory test: **${payload.testName}** (Type: ${payload.isGlobalRequest ? 'Global Catalogue Request' : 'Custom Laboratory Test'}).\n\nRequested On: ${new Date().toLocaleString()}\n\nAction Required: Add to Clinic Laboratory Catalogue or review.`,
+        body: `${normalizeDoctorName(requester.name)} has requested a new laboratory test: **${payload.testName}** (Type: ${payload.isGlobalRequest ? 'Global Catalogue Request' : 'Custom Laboratory Test'}).\n\nRequested On: ${new Date().toLocaleString()}\n\nAction Required: Add to Clinic Laboratory Catalogue or review.`,
         metadata: {
           doctorId: requester._id,
           doctorName: requester.name,
@@ -6668,7 +6669,7 @@ const verifyPublicLabReport = async ({ reportId }) => {
     testName,
     issuedAt: report.issuedAt || report.createdAt,
     publishedAt: report.publishedAt || report.issuedAt || report.createdAt,
-    verifiedBy: report.verifiedBy?.name ? `Dr. ${report.verifiedBy.name}` : 'Authorized Medical Pathologist',
+    verifiedBy: report.verifiedBy?.name ? normalizeDoctorName(report.verifiedBy.name) : 'Authorized Medical Pathologist',
     verificationBadge: 'VERIFIED_AICMS_DOCUMENT',
     verificationDate: new Date()
   };

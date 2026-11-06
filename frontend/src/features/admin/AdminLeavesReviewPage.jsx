@@ -1,8 +1,9 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { leaveApi } from '../../lib/api';
 import PageHeader from '../../components/layout/PageHeader';
 import { Calendar, User, Clock, CheckCircle2, XCircle, AlertTriangle, Layers, ArrowLeftRight, Ban, Settings } from 'lucide-react';
+import { normalizeDoctorName } from '../../utils/doctorFormatters';
 
 const AdminLeavesReviewPage = () => {
   const navigate = useNavigate();
@@ -154,7 +155,7 @@ const AdminLeavesReviewPage = () => {
                   </div>
                   <div>
                     <h4 className="font-bold text-stone-900 dark:text-white text-sm">
-                      Dr. {l.doctorId?.fullName || 'Doctor'}
+                      {normalizeDoctorName(l.doctorId?.fullName, 'Doctor')}
                     </h4>
                     <p className="text-xs text-stone-500 dark:text-stone-400">
                       {l.doctorId?.specialization || 'General'}
@@ -241,7 +242,7 @@ const AdminLeavesReviewPage = () => {
           <div className="bg-white dark:bg-navy-900 rounded-3xl border border-stone-200 dark:border-white/[0.08] p-6 max-w-md w-full shadow-2xl">
             <AlertTriangle className="mx-auto text-amber-500 mb-3" size={32} />
             <h3 className="text-base font-bold text-stone-900 dark:text-white mb-1 text-center">
-              Approve Leave for Dr. {confirmApprove.doctorId?.fullName}?
+              Approve Leave for {normalizeDoctorName(confirmApprove.doctorId?.fullName)}?
             </h3>
             <p className="text-xs text-stone-500 dark:text-stone-400 mb-6 text-center">
               Select the policy to resolve existing appointments during the leave window:

@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useMemo, useRef } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import io from 'socket.io-client';
@@ -16,6 +16,7 @@ import ErrorState from '../../components/common/ErrorState';
 import LoadingState from '../../components/common/LoadingState';
 import { patientApi, appointmentApi, billingApi } from '../../lib/api';
 import useAuth from '../../hooks/useAuth';
+import { normalizeDoctorName } from '../../utils/doctorFormatters';
 
 const PatientDetailPage = () => {
   const { id } = useParams();
@@ -684,7 +685,7 @@ const PatientDetailPage = () => {
                         {new Date(appt.appointmentDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}
                       </p>
                       <p className="text-[10px] text-slate-500 font-semibold mt-1">
-                        Assigned to Dr. {appt.doctorId?.fullName || 'Amit Sharma'} ({appt.doctorId?.specialization || 'General Medicine'}). Reason: {appt.reasonForVisit || 'Follow-up consultation'}.
+                        Assigned to {normalizeDoctorName(appt.doctorId?.fullName, 'Amit Sharma')} ({appt.doctorId?.specialization || 'General Medicine'}). Reason: {appt.reasonForVisit || 'Follow-up consultation'}.
                       </p>
                     </div>
                   </div>

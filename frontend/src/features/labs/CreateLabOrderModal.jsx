@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   X,
   Search,
@@ -23,6 +23,7 @@ import {
 import toast from 'react-hot-toast';
 import { labApi, patientApi, doctorApi, clinicApi } from '../../lib/api';
 import useAuth from '../../hooks/useAuth';
+import { normalizeDoctorName } from '../../utils/doctorFormatters';
 
 export default function CreateLabOrderModal({
   isOpen,
@@ -784,7 +785,7 @@ export default function CreateLabOrderModal({
                   <option value="">No Doctor / Self Referred</option>
                   {doctors.map((d) => (
                     <option key={d._id} value={d._id}>
-                      Dr. {d.fullName} ({d.speciality || 'General'})
+                      {normalizeDoctorName(d.fullName)} ({d.speciality || 'General'})
                     </option>
                   ))}
                 </select>

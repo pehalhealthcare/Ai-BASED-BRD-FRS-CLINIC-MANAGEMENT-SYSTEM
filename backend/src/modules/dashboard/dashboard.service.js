@@ -28,7 +28,8 @@ const {
   PharmacySale,
   NotificationLog,
   FollowUpTask,
-  Doctor
+  Doctor,
+  Expense
 } = dashboardRepository.models;
 
 const PENDING_APPOINTMENT_STATUSES = [
@@ -297,14 +298,48 @@ const getOverview = async ({ requester, query = {}, requestedClinicId = null }) 
     appointmentDate: { $gte: targetFrom, $lte: targetTo }
   }).populate('patientId', 'fullName gender dateOfBirth age');
 
+  const mapToHourSlot = (timeStr, dateObj) => {
+    let hour = -1;
+    if (timeStr && typeof timeStr === 'string') {
+      const match = timeStr.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i);
+      if (match) {
+        hour = parseInt(match[1], 10);
+        const meridiem = match[3] ? match[3].toLowerCase() : null;
+        if (meridiem === 'pm' && hour < 12) hour += 12;
+        if (meridiem === 'am' && hour === 12) hour = 0;
+      }
+    }
+    if (hour < 0 && dateObj) {
+      hour = new Date(dateObj).getHours();
+    }
+    if (hour >= 0) {
+      if (hour <= 9) return '9 AM';
+      if (hour === 10) return '10 AM';
+      if (hour === 11) return '11 AM';
+      if (hour === 12) return '12 PM';
+      if (hour === 13) return '1 PM';
+      if (hour === 14) return '2 PM';
+      if (hour >= 15) return '3 PM';
+    }
+    return '9 AM';
+  };
+
+  // 1. APPOINTMENT SUMMARY & REAL HOURLY CHART
   let totalAppointments = appointmentsOnDate.length;
   let walkIns = 0;
   let scheduled = 0;
   let completed = 0;
   let cancelled = 0;
+  let rescheduled = 0;
   let noShow = 0;
   let pending = 0;
   let confirmed = 0;
+  let onlineAppts = 0;
+  let offlineAppts = 0;
+
+  const appointmentHourlyCounts = {
+    '9 AM': 0, '10 AM': 0, '11 AM': 0, '12 PM': 0, '1 PM': 0, '2 PM': 0, '3 PM': 0
+  };
 
   appointmentsOnDate.forEach(appt => {
     if (appt.appointmentType === 'walk_in') {
@@ -313,11 +348,19 @@ const getOverview = async ({ requester, query = {}, requestedClinicId = null }) 
       scheduled++;
     }
 
+    if (appt.consultationMode === 'ONLINE' || appt.appointmentType === 'teleconsultation') {
+      onlineAppts++;
+    } else {
+      offlineAppts++;
+    }
+
     const status = appt.status;
     if (status === 'completed' || status === 'consultation_completed') {
       completed++;
     } else if (status === 'cancelled' || status === 'patient_cancelled' || status === 'clinic_cancelled') {
       cancelled++;
+    } else if (status === 'rescheduled') {
+      rescheduled++;
     } else if (status === 'no_show' || status === 'not_attended') {
       noShow++;
     }
@@ -327,85 +370,301 @@ const getOverview = async ({ requester, query = {}, requestedClinicId = null }) 
     } else if (status === 'confirmed') {
       confirmed++;
     }
-  });
 
-  // Appointment hourly chart data
-  const chartData = [
-    { label: '8 AM', completed: 0, upcoming: 0 },
-    { label: '11 AM', completed: 0, upcoming: 0 },
-    { label: '2 PM', completed: 0, upcoming: 0 },
-    { label: '5 PM', completed: 0, upcoming: 0 },
-    { label: '8 PM', completed: 0, upcoming: 0 }
-  ];
-
-  appointmentsOnDate.forEach(appt => {
-    if (appt.startTime) {
-      const match = appt.startTime.match(/^(\d+)/);
-      if (match) {
-        const hour = parseInt(match[1], 10);
-        let slotIndex = 0;
-        if (hour < 11) slotIndex = 0;
-        else if (hour < 14) slotIndex = 1;
-        else if (hour < 17) slotIndex = 2;
-        else if (hour < 20) slotIndex = 3;
-        else slotIndex = 4;
-
-        const isCompleted = appt.status === 'completed' || appt.status === 'consultation_completed';
-        if (isCompleted) {
-          chartData[slotIndex].completed++;
-        } else if (appt.status !== 'cancelled' && appt.status !== 'no_show') {
-          chartData[slotIndex].upcoming++;
-        }
-      }
+    const slot = mapToHourSlot(appt.startTime, appt.appointmentDate);
+    if (appointmentHourlyCounts[slot] !== undefined) {
+      appointmentHourlyCounts[slot]++;
     }
   });
 
-  // Revenue Calculations
-  let amountReceived = 0;
-  let commissionEarned = 0;
-  let todayInvoicesCount = 0;
-  if (!isFuture) {
-    if (!doctorId) {
-      const revenueSummary = await Invoice.aggregate([
+  const bookedTotal = pending + confirmed || totalAppointments;
+
+  let appointmentsChart = [];
+  if (totalAppointments > 0) {
+    appointmentsChart = Object.entries(appointmentHourlyCounts).map(([time, count]) => ({
+      time,
+      count
+    }));
+  } else {
+    // Check if clinic has any historical appointments
+    const hasHistoricalAppts = await Appointment.exists({
+      clinicId: toObjectId(clinicId),
+      ...(doctorId ? { doctorId: toObjectId(doctorId) } : {})
+    });
+    if (hasHistoricalAppts) {
+      const pastTrend = await Appointment.aggregate([
         {
           $match: {
             clinicId: toObjectId(clinicId),
-            invoiceStatus: { $ne: 'cancelled' },
-            invoiceDate: { $gte: targetFrom, $lte: targetTo }
+            ...(doctorId ? { doctorId: toObjectId(doctorId) } : {}),
+            appointmentDate: {
+              $gte: new Date(targetFrom.getTime() - 7 * 24 * 60 * 60 * 1000),
+              $lte: targetTo
+            }
           }
         },
         {
           $group: {
-            _id: null,
-            totalPaid: { $sum: '$paidAmount' },
-            totalCommission: { $sum: '$clinicCommission' },
-            invoiceCount: { $sum: 1 }
+            _id: { $dateToString: { format: '%Y-%m-%d', date: '$appointmentDate' } },
+            count: { $sum: 1 }
           }
-        }
+        },
+        { $sort: { _id: 1 } }
       ]);
-      if (revenueSummary && revenueSummary[0]) {
-        amountReceived = revenueSummary[0].totalPaid || 0;
-        commissionEarned = revenueSummary[0].totalCommission || 0;
-        todayInvoicesCount = revenueSummary[0].invoiceCount || 0;
+      if (pastTrend.length > 0 && pastTrend.some(d => d.count > 0)) {
+        appointmentsChart = pastTrend.map(d => ({
+          time: new Date(d._id).toLocaleDateString('en-US', { weekday: 'short' }),
+          count: d.count
+        }));
       }
     }
-  } else {
-    // Future Expected Revenue: sum of consultationFee for booked/confirmed appointments
-    appointmentsOnDate.forEach(appt => {
-      const status = appt.status;
-      if (status === 'booked' || status === 'confirmed' || status === 'checked_in') {
-        const fee = appt.discountRequest?.finalPayableAmount !== undefined && appt.discountRequest.status === 'approved'
-          ? appt.discountRequest.finalPayableAmount
-          : (appt.consultationFee || 0);
-        amountReceived += fee;
-      }
-    });
   }
 
-  // Pending Bills & Due Amounts
+  // 2. PATIENTS SUMMARY & REAL HOURLY CHART
+  const uniquePatientIds = new Set();
+  let walkInPatients = 0;
+  let onlinePatients = 0;
+  let offlinePatients = 0;
+  const patientHourlyCounts = {
+    '9 AM': 0, '10 AM': 0, '11 AM': 0, '12 PM': 0, '1 PM': 0, '2 PM': 0, '3 PM': 0
+  };
+
+  appointmentsOnDate.forEach(appt => {
+    const pId = String(appt.patientId?._id || appt.patientId || '');
+    if (pId && !uniquePatientIds.has(pId)) {
+      uniquePatientIds.add(pId);
+      if (appt.consultationMode === 'ONLINE' || appt.appointmentType === 'teleconsultation') {
+        onlinePatients++;
+      } else if (appt.appointmentType === 'walk_in') {
+        walkInPatients++;
+      } else {
+        offlinePatients++;
+      }
+      const slot = mapToHourSlot(appt.startTime, appt.appointmentDate);
+      if (patientHourlyCounts[slot] !== undefined) {
+        patientHourlyCounts[slot]++;
+      }
+    }
+  });
+
+  const totalPatientsToday = uniquePatientIds.size || (walkIns + scheduled);
+
+  let patientsChart = [];
+  if (totalPatientsToday > 0) {
+    patientsChart = Object.entries(patientHourlyCounts).map(([time, count]) => ({
+      time,
+      count
+    }));
+  } else {
+    const hasHistoricalPatients = await Patient.exists({ clinicId: toObjectId(clinicId) });
+    if (hasHistoricalPatients) {
+      const pastTrend = await Patient.aggregate([
+        {
+          $match: {
+            clinicId: toObjectId(clinicId),
+            createdAt: {
+              $gte: new Date(targetFrom.getTime() - 7 * 24 * 60 * 60 * 1000),
+              $lte: targetTo
+            }
+          }
+        },
+        {
+          $group: {
+            _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+            count: { $sum: 1 }
+          }
+        },
+        { $sort: { _id: 1 } }
+      ]);
+      if (pastTrend.length > 0 && pastTrend.some(d => d.count > 0)) {
+        patientsChart = pastTrend.map(d => ({
+          time: new Date(d._id).toLocaleDateString('en-US', { weekday: 'short' }),
+          count: d.count
+        }));
+      }
+    }
+  }
+
+  // 3. REVENUE SUMMARY & REAL TIME SERIES
+  const todayInvoices = await Invoice.find({
+    clinicId: toObjectId(clinicId),
+    invoiceStatus: { $ne: 'cancelled' },
+    invoiceDate: { $gte: targetFrom, $lte: targetTo }
+  });
+
+  let totalCollectedRevenue = 0;
+  let consultationRevenue = 0;
+  let pharmacyRevenue = 0;
+  let labTestsRevenue = 0;
+  let othersRevenue = 0;
+  let todayInvoicesCount = todayInvoices.length;
+
+  const revenueHourlyBuckets = {
+    '9 AM': 0, '10 AM': 0, '11 AM': 0, '12 PM': 0, '1 PM': 0, '2 PM': 0, '3 PM': 0
+  };
+
+  todayInvoices.forEach(inv => {
+    const netPaid = Math.max(0, (inv.paidAmount || 0) - (inv.refundAmount || 0));
+    totalCollectedRevenue += netPaid;
+
+    if (inv.serviceType === 'CONSULTATION') consultationRevenue += netPaid;
+    else if (inv.serviceType === 'PHARMACY') pharmacyRevenue += netPaid;
+    else if (inv.serviceType === 'LAB') labTestsRevenue += netPaid;
+    else othersRevenue += netPaid;
+
+    if (netPaid > 0) {
+      const slot = mapToHourSlot(null, inv.invoiceDate || inv.createdAt);
+      if (revenueHourlyBuckets[slot] !== undefined) {
+        revenueHourlyBuckets[slot] += netPaid;
+      }
+    }
+  });
+
+  const yesterdayFrom = new Date(targetFrom.getTime() - 24 * 60 * 60 * 1000);
+  const yesterdayTo = new Date(targetTo.getTime() - 24 * 60 * 60 * 1000);
+  const yesterdayInvoices = await Invoice.find({
+    clinicId: toObjectId(clinicId),
+    invoiceStatus: { $ne: 'cancelled' },
+    invoiceDate: { $gte: yesterdayFrom, $lte: yesterdayTo }
+  });
+  const yesterdayRevenue = yesterdayInvoices.reduce((sum, inv) => sum + Math.max(0, (inv.paidAmount || 0) - (inv.refundAmount || 0)), 0);
+
+  let revenueComparisonText = '';
+  if (yesterdayRevenue > 0) {
+    const diff = Math.round(((totalCollectedRevenue - yesterdayRevenue) / yesterdayRevenue) * 100);
+    revenueComparisonText = diff >= 0 ? `↑ +${diff}% vs yesterday` : `↓ ${diff}% vs yesterday`;
+  } else if (totalCollectedRevenue > 0) {
+    revenueComparisonText = '↑ +100% vs yesterday';
+  }
+
+  let revenueChart = [];
+  if (totalCollectedRevenue > 0) {
+    revenueChart = Object.entries(revenueHourlyBuckets).map(([time, amount]) => ({
+      time,
+      amount
+    }));
+  } else {
+    const hasHistoricalRevenue = await Invoice.exists({
+      clinicId: toObjectId(clinicId),
+      paidAmount: { $gt: 0 },
+      invoiceStatus: { $ne: 'cancelled' }
+    });
+    if (hasHistoricalRevenue) {
+      const pastTrend = await Invoice.aggregate([
+        {
+          $match: {
+            clinicId: toObjectId(clinicId),
+            invoiceStatus: { $ne: 'cancelled' },
+            invoiceDate: {
+              $gte: new Date(targetFrom.getTime() - 7 * 24 * 60 * 60 * 1000),
+              $lte: targetTo
+            }
+          }
+        },
+        {
+          $group: {
+            _id: { $dateToString: { format: '%Y-%m-%d', date: '$invoiceDate' } },
+            amount: { $sum: '$paidAmount' }
+          }
+        },
+        { $sort: { _id: 1 } }
+      ]);
+      if (pastTrend.length > 0 && pastTrend.some(d => d.amount > 0)) {
+        revenueChart = pastTrend.map(d => ({
+          time: new Date(d._id).toLocaleDateString('en-US', { weekday: 'short' }),
+          amount: d.amount
+        }));
+      }
+    }
+  }
+
+  // 4. EXPENSES SUMMARY & REAL TIME SERIES
+  const todayExpenses = await Expense.find({
+    clinicId: toObjectId(clinicId),
+    expenseDate: { $gte: targetFrom, $lte: targetTo },
+    paymentStatus: 'paid'
+  });
+
+  let totalExpenses = 0;
+  let salaryExpenses = 0;
+  let medicinesExpenses = 0;
+  let othersExpenses = 0;
+
+  const expenseHourlyBuckets = {
+    '9 AM': 0, '10 AM': 0, '11 AM': 0, '12 PM': 0, '1 PM': 0, '2 PM': 0, '3 PM': 0
+  };
+
+  todayExpenses.forEach(exp => {
+    const amt = exp.amount || 0;
+    totalExpenses += amt;
+    if (exp.category === 'salary') salaryExpenses += amt;
+    else if (exp.category === 'medicines') medicinesExpenses += amt;
+    else othersExpenses += amt;
+
+    const slot = mapToHourSlot(null, exp.expenseDate || exp.createdAt);
+    if (expenseHourlyBuckets[slot] !== undefined) {
+      expenseHourlyBuckets[slot] += amt;
+    }
+  });
+
+  const yesterdayExpenses = await Expense.find({
+    clinicId: toObjectId(clinicId),
+    expenseDate: { $gte: yesterdayFrom, $lte: yesterdayTo },
+    paymentStatus: 'paid'
+  });
+  const yesterdayExpenseTotal = yesterdayExpenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
+
+  let expenseComparisonText = '';
+  if (yesterdayExpenseTotal > 0) {
+    const diff = Math.round(((totalExpenses - yesterdayExpenseTotal) / yesterdayExpenseTotal) * 100);
+    expenseComparisonText = diff >= 0 ? `↑ +${diff}% vs yesterday` : `↓ ${diff}% vs yesterday`;
+  } else if (totalExpenses > 0) {
+    expenseComparisonText = '↑ +100% vs yesterday';
+  }
+
+  let expensesChart = [];
+  if (totalExpenses > 0) {
+    expensesChart = Object.entries(expenseHourlyBuckets).map(([time, amount]) => ({
+      time,
+      amount
+    }));
+  } else {
+    const hasHistoricalExpenses = await Expense.exists({
+      clinicId: toObjectId(clinicId),
+      paymentStatus: 'paid'
+    });
+    if (hasHistoricalExpenses) {
+      const pastTrend = await Expense.aggregate([
+        {
+          $match: {
+            clinicId: toObjectId(clinicId),
+            paymentStatus: 'paid',
+            expenseDate: {
+              $gte: new Date(targetFrom.getTime() - 7 * 24 * 60 * 60 * 1000),
+              $lte: targetTo
+            }
+          }
+        },
+        {
+          $group: {
+            _id: { $dateToString: { format: '%Y-%m-%d', date: '$expenseDate' } },
+            amount: { $sum: '$amount' }
+          }
+        },
+        { $sort: { _id: 1 } }
+      ]);
+      if (pastTrend.length > 0 && pastTrend.some(d => d.amount > 0)) {
+        expensesChart = pastTrend.map(d => ({
+          time: new Date(d._id).toLocaleDateString('en-US', { weekday: 'short' }),
+          amount: d.amount
+        }));
+      }
+    }
+  }
+
+  // Pending Invoices
   let pendingInvoices = 0;
   let pendingInvoicesAmount = 0;
-
   if (!isFuture) {
     const pendingInvoicesList = await Invoice.find({
       clinicId,
@@ -415,18 +674,6 @@ const getOverview = async ({ requester, query = {}, requestedClinicId = null }) 
     });
     pendingInvoices = pendingInvoicesList.length;
     pendingInvoicesAmount = pendingInvoicesList.reduce((sum, inv) => sum + (inv.remainingAmount || 0), 0);
-  } else {
-    // Future Expected Pending: expected payments from future scheduled appointments
-    appointmentsOnDate.forEach(appt => {
-      const status = appt.status;
-      if (status === 'booked' || status === 'confirmed') {
-        pendingInvoices++;
-        const fee = appt.discountRequest?.finalPayableAmount !== undefined && appt.discountRequest.status === 'approved'
-          ? appt.discountRequest.finalPayableAmount
-          : (appt.consultationFee || 0);
-        pendingInvoicesAmount += fee;
-      }
-    });
   }
 
   // Alerts & Notifications
@@ -450,7 +697,6 @@ const getOverview = async ({ requester, query = {}, requestedClinicId = null }) 
       }
     ];
   } else {
-    // Today
     if (lowStockMedicines > 0) {
       alerts.push({
         type: 'warning',
@@ -485,13 +731,43 @@ const getOverview = async ({ requester, query = {}, requestedClinicId = null }) 
     isFuture,
     appointmentSummary: {
       total: totalAppointments,
-      walkIns,
+      walkIns: walkInPatients,
       scheduled,
       completed,
       cancelled,
+      rescheduled,
       noShow,
       pending,
-      confirmed
+      confirmed,
+      booked: bookedTotal
+    },
+    patientSummary: {
+      total: totalPatientsToday,
+      walkIn: walkInPatients,
+      online: onlinePatients,
+      offline: offlinePatients,
+      newPatients: newPatientsCount
+    },
+    revenueSummary: {
+      total: totalCollectedRevenue,
+      consultation: consultationRevenue,
+      pharmacy: pharmacyRevenue,
+      labTests: labTestsRevenue,
+      others: othersRevenue,
+      comparisonText: revenueComparisonText
+    },
+    expenseSummary: {
+      total: totalExpenses,
+      salary: salaryExpenses,
+      medicines: medicinesExpenses,
+      others: othersExpenses,
+      comparisonText: expenseComparisonText
+    },
+    charts: {
+      appointments: appointmentsChart,
+      patients: patientsChart,
+      revenue: revenueChart,
+      expenses: expensesChart
     },
     cards: {
       totalPatients,
@@ -505,13 +781,13 @@ const getOverview = async ({ requester, query = {}, requestedClinicId = null }) 
       labOrders: 0,
       lowStockMedicines,
       pendingFollowUps: 0,
-      amountReceived,
-      commissionEarned,
+      amountReceived: totalCollectedRevenue,
+      commissionEarned: 0,
       paymentReceived,
       todayInvoicesCount
     },
     recentAppointments: appointmentsOnDate.slice(0, 5),
-    chart: chartData,
+    chart: appointmentsChart,
     alerts,
     range: {
       from: selectedDateStr,

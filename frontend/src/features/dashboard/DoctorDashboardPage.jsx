@@ -28,6 +28,7 @@ import useAuth from '../../hooks/useAuth';
 import { doctorApi, appointmentApi, followUpApi, chatApi, notificationApi } from '../../lib/api';
 import { getAppointments } from '../appointments/appointmentApi';
 import LoadingState from '../../components/common/LoadingState';
+import { normalizeDoctorName, cleanDoctorName, getDoctorInitials } from '../../utils/doctorFormatters';
 import toast from 'react-hot-toast';
 import Avatar from '../../components/ui/Avatar';
 
@@ -525,7 +526,7 @@ const DoctorDashboardPage = () => {
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-white border border-slate-150 rounded-3xl p-6 shadow-sm">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 flex items-center gap-2">
-            {greeting}, Dr. {profile?.fullName?.split(' ')[0] || 'Doctor'}! 👋
+            {greeting}, {normalizeDoctorName(cleanDoctorName(profile?.fullName).split(' ')[0] || 'Doctor')}! 👋
           </h1>
           <p className="text-xs text-slate-500 mt-1">
             Here's your clinical overview for today: <strong className="text-slate-800">{formattedDate}</strong>
@@ -541,11 +542,11 @@ const DoctorDashboardPage = () => {
             {profile?.avatar ? (
               <img src={profile.avatar} alt="Profile" className="w-full h-full object-cover" />
             ) : (
-              profile?.fullName?.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'DR'
+              getDoctorInitials(profile?.fullName, 'DR')
             )}
           </div>
           <div className="text-left">
-            <p className="text-xs font-black text-slate-805 leading-none group-hover:text-blue-600 transition-colors">Dr. {profile?.fullName || 'Physician'}</p>
+            <p className="text-xs font-black text-slate-805 leading-none group-hover:text-blue-600 transition-colors">{normalizeDoctorName(profile?.fullName, 'Physician')}</p>
             <span className="text-[10px] text-slate-500 font-bold block mt-1 leading-none">{profile?.specialization?.name || profile?.specialization || 'Doctor'}</span>
             <span className="text-[9px] text-slate-400 font-medium block mt-0.5">
               {profile?.registrationNumber ? `Reg No. ${profile.registrationNumber}` : (profile?.qualification ? profile.qualification : 'Verified Physician')}

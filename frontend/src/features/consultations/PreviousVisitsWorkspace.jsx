@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Search, Calendar, Clock, Printer, ChevronRight, Activity, ArrowLeft,
   Filter, User, Building, Trash2, Edit2, FileDown, PlusCircle, Check
@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import consultationApi from '../../api/consultationApi';
 import prescriptionApi from '../../api/prescriptionApi';
 import appointmentApi from '../../api/appointmentApi';
+import { normalizeDoctorName } from '../../utils/doctorFormatters';
 
 export default function PreviousVisitsWorkspace({ patient, currentUser, navigate }) {
   const [visits, setVisits] = useState([]);
@@ -169,7 +170,7 @@ export default function PreviousVisitsWorkspace({ patient, currentUser, navigate
                     <span className="text-[10px] font-black text-indigo-600 uppercase">{visitDate} • {visitTime}</span>
                     <span className="text-[9px] bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded font-black">Completed</span>
                   </div>
-                  <strong className="text-xs font-black text-slate-800 block truncate">Dr. {v.doctorId?.fullName || 'Doctor'}</strong>
+                  <strong className="text-xs font-black text-slate-800 block truncate">{normalizeDoctorName(v.doctorId?.fullName, 'Doctor')}</strong>
                   <span className="text-[10px] text-slate-400 block">{v.doctorId?.specialization || 'General Medicine'}</span>
                   <span className="text-[9px] text-slate-400 block truncate">{v.clinicId?.name || "Ram's Dental Clinic"}</span>
                 </div>
@@ -250,7 +251,7 @@ export default function PreviousVisitsWorkspace({ patient, currentUser, navigate
               {/* Visit Information Panel */}
               <div className="bg-slate-50 border border-slate-150 rounded-2xl p-4 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs leading-relaxed">
                 <div><span className="text-slate-400 block font-semibold">Visit Date & Time</span><strong className="text-slate-700">{visitDate} {visitTime}</strong></div>
-                <div><span className="text-slate-400 block font-semibold">Doctor Name</span><strong className="text-slate-700">Dr. {d.fullName}</strong></div>
+                <div><span className="text-slate-400 block font-semibold">Doctor Name</span><strong className="text-slate-700">{normalizeDoctorName(d.fullName)}</strong></div>
                 <div><span className="text-slate-400 block font-semibold">Branch</span><strong className="text-slate-700">Indirapuram Branch</strong></div>
                 <div><span className="text-slate-400 block font-semibold">Token No.</span><strong className="text-slate-700">{appt.tokenNumber || 'OP-18'}</strong></div>
               </div>

@@ -1,7 +1,8 @@
-﻿import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Clock, CheckCircle2, XCircle, AlertCircle, Tag, RefreshCw, User, ChevronDown, ChevronUp } from 'lucide-react';
 import { appointmentApi } from '../../lib/api';
 import useAuth from '../../hooks/useAuth';
+import { normalizeDoctorName } from '../../utils/doctorFormatters';
 
 const DECISION_LABELS = {
   percentage: 'Percentage Discount',
@@ -167,7 +168,7 @@ export default function DiscountApprovalQueue({ compact = false, onDecisionMade 
                   </div>
                   <div className="min-w-0">
                     <p className="text-xs font-bold text-slate-800 truncate">{patientName}</p>
-                    <p className="text-[9px] text-slate-500 font-semibold">Dr. {doctorName} · {discountLabel}</p>
+                    <p className="text-[9px] text-slate-500 font-semibold">{normalizeDoctorName(doctorName)} · {discountLabel}</p>
                   </div>
                 </div>
 

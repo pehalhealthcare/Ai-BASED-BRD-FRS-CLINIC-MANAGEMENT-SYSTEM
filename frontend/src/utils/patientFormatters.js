@@ -2,6 +2,10 @@
  * Utility functions for Patient Portal normalization and formatting
  */
 
+import { normalizeDoctorName, cleanDoctorName, getDoctorInitials } from './doctorFormatters';
+
+export { normalizeDoctorName, cleanDoctorName, getDoctorInitials };
+
 /**
  * Normalizes doctor names to avoid duplicate 'Dr.' or 'Dr' prefixes (DEF-23).
  * Examples:
@@ -11,20 +15,7 @@
  * - 'Shyam' -> 'Dr. Shyam'
  */
 export const formatDoctorName = (name) => {
-  if (!name || typeof name !== 'string') return 'Dr. Assigned Doctor';
-  const trimmed = name.trim();
-  if (!trimmed || trimmed.toLowerCase() === 'n/a' || trimmed.toLowerCase() === 'undefined') {
-    return 'Dr. Assigned Doctor';
-  }
-  
-  // Strip existing 'Dr.', 'Dr', 'Doctor', 'Doc.' prefix variations repeatedly
-  let cleaned = trimmed;
-  cleaned = cleaned.replace(/^(dr\.|dr|doctor|doc\.)\s+/gi, '');
-  cleaned = cleaned.replace(/^(dr\.|dr|doctor|doc\.)\s+/gi, '');
-  cleaned = cleaned.trim();
-
-  if (!cleaned) return 'Dr. Assigned Doctor';
-  return `Dr. ${cleaned}`;
+  return normalizeDoctorName(name, 'Dr. Assigned Doctor');
 };
 
 /**

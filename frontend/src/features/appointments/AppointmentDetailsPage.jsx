@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { 
   CheckCircle2, XCircle, AlertCircle, Printer, Download, Clock, User, 
@@ -25,6 +25,7 @@ import {
 import AppointmentConsultationButton from './AppointmentConsultationButton';
 import AppointmentStatusBadge from './components/AppointmentStatusBadge';
 import NoShowRiskBadge from './components/NoShowRiskBadge';
+import { normalizeDoctorName, getDoctorInitials } from '../../utils/doctorFormatters';
 
 const TRANSITIONS = {
   booked: ['confirmed', 'cancelled', 'no_show', 'rescheduled'],
@@ -503,10 +504,10 @@ const AppointmentDetailsPage = () => {
               <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Doctor Information</span>
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-full bg-teal-50 border border-teal-100 flex items-center justify-center font-black text-teal-600 text-lg">
-                  {doctor.fullName?.charAt(0) || 'D'}
+                  {getDoctorInitials(doctor.fullName, 'D')}
                 </div>
                 <div>
-                  <strong className="text-slate-900 font-extrabold text-xs block">Dr. {doctor.fullName}</strong>
+                  <strong className="text-slate-900 font-extrabold text-xs block">{normalizeDoctorName(doctor.fullName)}</strong>
                   <span className="text-[10px] text-slate-500 block leading-tight">Reg No. {doctor.medicalRegistrationNumber || '98765'}</span>
                   <span className="text-[10px] text-slate-500 block leading-tight">{doctor.specialization || 'Consultant Physician'}</span>
                 </div>

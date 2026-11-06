@@ -247,4 +247,41 @@ router.get(
   clinicController.getHealthcareProviders
 );
 
+// Backup & Data Management routes
+router.post(
+  '/:id/backup/manual',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),
+  clinicController.triggerBackup
+);
+
+router.get(
+  '/:id/backup/download',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),
+  clinicController.downloadBackup
+);
+
+router.post(
+  '/:id/backup/export',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),
+  clinicController.exportClinicData
+);
+
+router.post(
+  '/:id/backup/restore',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),
+  clinicController.restoreBackup
+);
+
+// Third-party Integration configuration & testing routes
+router.post(
+  '/:id/integrations/:type/test',
+  protect,
+  authorize(ROLES.SUPER_ADMIN, ROLES.ADMIN),
+  clinicController.testIntegration
+);
+
 module.exports = router;

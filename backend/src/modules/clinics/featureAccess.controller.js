@@ -8,6 +8,7 @@ const SubscriptionPlan = require('../subscriptions/subscriptionPlan.model');
 const FeatureRequest = require('./featureRequest.model');
 const User = require('../users/user.model');
 const { createNotificationRecord } = require('../notifications/notification.service');
+const { normalizeDoctorName } = require('../../common/utils/doctorFormatter');
 
 const AI_FEATURES = {
   voice_to_text: {
@@ -167,7 +168,7 @@ const requestFeatureAccess = asyncHandler(async (req, res) => {
         type: 'feature_request',
         channel: 'in_app',
         subject: 'Feature Upgrade Request',
-        body: `Dr. ${req.user.name} has requested access to **${featureName}**.\n\nReason: This feature helps doctors complete consultations faster, improves documentation quality, and reduces manual typing.\n\nSuggested Action: Upgrade your clinic subscription to unlock this feature.`,
+        body: `${normalizeDoctorName(req.user.name)} has requested access to **${featureName}**.\n\nReason: This feature helps doctors complete consultations faster, improves documentation quality, and reduces manual typing.\n\nSuggested Action: Upgrade your clinic subscription to unlock this feature.`,
         metadata: {
           doctorId: req.user._id,
           doctorName: req.user.name,

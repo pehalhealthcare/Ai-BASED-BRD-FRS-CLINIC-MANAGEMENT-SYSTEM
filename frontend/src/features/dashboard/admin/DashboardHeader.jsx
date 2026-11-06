@@ -1,14 +1,20 @@
-﻿import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useQuery, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Bell, MessageSquare, User, Settings, LogOut, Calendar, Search, 
-  X, Info, Briefcase, Trash2, Archive, CheckCircle2, RotateCw
+  X, Info, Briefcase, Trash2, Archive, CheckCircle2, RotateCw,
+  KeyRound, Edit3
 } from 'lucide-react';
 import { clinicApi, notificationApi, chatApi } from '../../../lib/api';
 import Avatar from '../../../components/ui/Avatar';
+import { 
+  ViewProfileModal, 
+  EditProfileModal, 
+  ChangePasswordModal 
+} from '../../../components/profile/ProfileModals';
 
 const GREETING_ICONS = { morning: '🌅', afternoon: '☀️', evening: '🌙', night: '🌙' };
 
@@ -30,10 +36,25 @@ const DashboardHeader = ({ user, selectedDate, onDateChange }) => {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   
+  // Profile Action Modals State
+  const [viewProfileOpen, setViewProfileOpen] = useState(false);
+  const [editProfileOpen, setEditProfileOpen] = useState(false);
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+
   const [expandedNotifications, setExpandedNotifications] = useState({});
 
   const { label, icon } = getGreetingPart();
   const clinicName = user?.clinic?.name || "Ram's Dental Clinic";
+
+  const userAvatarSrc = user?.avatar || user?.profilePhoto || user?.image || user?.clinic?.ownerDetails?.profilePhoto;
+
+  const roleLabel = useMemo(() => {
+    if (user?.role === 'admin') return 'Clinic Owner';
+    if (user?.role === 'super_admin') return 'Super Administrator';
+    if (user?.role === 'doctor') return user?.specialization?.name || 'Doctor';
+    if (user?.role === 'receptionist') return 'Receptionist';
+    return 'Clinic Admin';
+  }, [user]);
 
   // Socket IO Sync
   useEffect(() => {
@@ -260,54 +281,64 @@ const DashboardHeader = ({ user, selectedDate, onDateChange }) => {
           </div>
 
           {/* Action Icons + Profile */}
-          <div className="flex items-center gap-3">
-            {/* Chat Icon */}
+          <div className="flex items-center gap-2 sm:gap-2.5">
+            {/* Chat Icon with Premium Blue Badge */}
             <button 
               onClick={() => navigate('/chat')}
-              className="p-1 text-slate-655 relative hover:bg-slate-50 rounded-lg transition"
+              aria-label="Clinic Messages"
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-slate-50 hover:bg-blue-50/70 border border-slate-200/80 hover:border-blue-200 text-slate-600 hover:text-blue-600 transition-all duration-200 active:scale-95 shadow-[0_1px_2px_rgba(0,0,0,0.03)] hover:shadow-[0_2px_8px_rgba(37,99,235,0.12)] flex items-center justify-center cursor-pointer relative"
             >
-              <MessageSquare size={20} />
+              <MessageSquare size={17} />
               {unreadMessagesCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[8px] font-black w-4.5 h-4.5 rounded-full flex items-center justify-center">
-                  {unreadMessagesCount}
+                <span 
+                  key={unreadMessagesCount}
+                  className={`absolute -top-1 -right-1 bg-gradient-to-r from-blue-600 to-blue-500 text-white font-black text-[10px] leading-none border-2 border-white shadow-[0_2px_6px_rgba(37,99,235,0.35)] flex items-center justify-center animate-in zoom-in-75 duration-200 ${
+                    unreadMessagesCount > 9 ? 'px-1.5 h-[18px] min-w-[18px] rounded-full' : 'w-[18px] h-[18px] rounded-full'
+                  }`}
+                >
+                  {unreadMessagesCount > 9 ? '9+' : unreadMessagesCount}
                 </span>
               )}
             </button>
 
-            {/* Bell Icon with Premium Badge */}
+            {/* Bell Icon with Premium Red Badge */}
             <button 
               onClick={() => setNotifOpen(true)}
-              className="p-1 text-slate-655 relative hover:bg-slate-50 rounded-lg transition"
+              aria-label="Notifications"
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-slate-50 hover:bg-rose-50/70 border border-slate-200/80 hover:border-rose-200 text-slate-600 hover:text-rose-600 transition-all duration-200 active:scale-95 shadow-[0_1px_2px_rgba(0,0,0,0.03)] hover:shadow-[0_2px_8px_rgba(239,68,68,0.12)] flex items-center justify-center cursor-pointer relative"
             >
-              <Bell size={20} />
+              <Bell size={17} className={unreadNotifCount > 0 ? 'animate-[wiggle_1s_ease-in-out_infinite]' : ''} />
               {unreadNotifCount > 0 && (
-                <AnimatePresence mode="wait">
-                  <motion.span 
-                    key={unreadNotifCount}
-                    initial={{ scale: 0.8 }}
-                    animate={{ scale: [0.8, 1.2, 1] }}
-                    className={`absolute -top-1.5 -right-1.5 bg-[#EF4444] text-white text-[9px] font-bold border-2 border-white shadow-sm flex items-center justify-center ${
-                      unreadNotifCount > 9 ? 'px-1.5 h-[17px] rounded-full' : 'w-[17px] h-[17px] rounded-full'
-                    }`}
-                  >
-                    {unreadNotifCount > 99 ? '99+' : unreadNotifCount}
-                  </motion.span>
-                </AnimatePresence>
+                <span 
+                  key={unreadNotifCount}
+                  className={`absolute -top-1 -right-1 bg-gradient-to-r from-rose-500 to-red-600 text-white font-black text-[10px] leading-none border-2 border-white shadow-[0_2px_6px_rgba(239,68,68,0.35)] flex items-center justify-center animate-in zoom-in-75 duration-200 ${
+                    unreadNotifCount > 9 ? 'px-1.5 h-[18px] min-w-[18px] rounded-full' : 'w-[18px] h-[18px] rounded-full'
+                  }`}
+                >
+                  {unreadNotifCount > 9 ? '9+' : unreadNotifCount}
+                </span>
               )}
             </button>
 
-            {/* Admin Profile */}
+            {/* Admin Profile with Circular SaaS Avatar */}
             <button 
               onClick={() => setProfileOpen(true)}
-              className="flex items-center gap-2 text-left focus:outline-none ml-1 shrink-0"
+              aria-label="Admin Profile Menu"
+              className="flex items-center gap-2 text-left focus:outline-none ml-0.5 shrink-0 p-1 rounded-full hover:bg-slate-50 transition cursor-pointer"
             >
-              <div className="w-8 h-8 rounded-full bg-slate-200 text-slate-650 font-black text-xs flex items-center justify-center overflow-hidden border border-slate-150">
-                {user?.name?.slice(0, 2).toUpperCase() || 'AD'}
-              </div>
+              <Avatar 
+                src={userAvatarSrc} 
+                name={user?.name || 'Admin'} 
+                size="w-9 h-9" 
+                gradientBorder={true}
+                showOnline={true}
+                fallbackType="initials"
+                className="shrink-0"
+              />
               <div className="hidden sm:block leading-none">
                 <p className="text-[11px] font-black text-slate-900 leading-none">{user?.name || 'King!'}</p>
-                <span className="text-[9px] text-slate-400 block mt-1">Clinic Admin</span>
-                <span className="text-[9px] text-blue-600 font-bold block mt-0.5">🟢 online</span>
+                <span className="text-[9px] text-slate-400 block mt-1 font-semibold">{roleLabel}</span>
+                <span className="text-[8px] text-emerald-600 font-bold block mt-0.5">● Online</span>
               </div>
             </button>
           </div>
@@ -327,42 +358,69 @@ const DashboardHeader = ({ user, selectedDate, onDateChange }) => {
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95, y: -10 }}
                   transition={{ duration: 0.15 }}
-                  className="absolute right-4 top-16 w-64 bg-white border border-slate-150 rounded-[24px] shadow-2xl z-50 p-5 flex flex-col gap-4"
+                  className="absolute right-4 top-16 w-68 bg-white border border-slate-200/80 rounded-[24px] shadow-2xl z-50 p-4 flex flex-col gap-3"
                 >
-                  <div className="flex items-start gap-3">
+                  <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50/80 border border-slate-100">
                     <Avatar 
-                      src={user?.avatar} 
+                      src={userAvatarSrc} 
                       name={user?.name || 'Admin'} 
-                      size="w-12 h-12 rounded-full border border-slate-150 shrink-0" 
+                      size="w-12 h-12 rounded-full shrink-0" 
+                      gradientBorder={true}
+                      showOnline={true}
                     />
                     <div className="min-w-0 leading-tight">
-                      <h3 className="text-sm font-black text-slate-900 flex items-center gap-1.5">
+                      <h3 className="text-sm font-black text-slate-900 truncate">
                         {user?.name || 'King!'}
                       </h3>
-                      <p className="text-[10px] text-slate-400 font-bold mt-0.5">Clinic Admin</p>
-                      <span className="text-[10px] text-blue-600 font-bold mt-1 inline-flex items-center gap-1">
-                        <span className="w-2 h-2 rounded-full bg-blue-500"></span> online
+                      <p className="text-[10px] text-slate-400 font-bold mt-0.5">{roleLabel}</p>
+                      <span className="text-[9px] text-emerald-600 font-bold mt-1 inline-flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Online
                       </span>
                     </div>
                   </div>
 
-                  <div className="text-xs text-slate-500 font-semibold break-all border-b border-slate-100 pb-3">
+                  <div className="text-[11px] text-slate-500 font-semibold break-all border-b border-slate-100 pb-2 px-1">
                     {user?.email || 'owner@test.com'}
                   </div>
 
-                  <button 
-                    onClick={() => { navigate('/clinic/settings'); setProfileOpen(false); }}
-                    className="w-full py-3 bg-blue-50 border border-blue-200 hover:bg-blue-100 text-blue-700 font-black text-xs rounded-2xl transition duration-150 uppercase flex items-center justify-center gap-2"
-                  >
-                    <Settings size={14} /> Clinic Settings
-                  </button>
+                  <div className="space-y-1">
+                    <button 
+                      onClick={() => { setProfileOpen(false); setViewProfileOpen(true); }}
+                      className="w-full py-2 px-3 hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl transition flex items-center gap-2.5 text-left cursor-pointer"
+                    >
+                      <User size={14} className="text-slate-400" /> View Profile
+                    </button>
 
-                  <button 
-                    onClick={() => { handleLogoutClick(); setProfileOpen(false); }}
-                    className="w-full py-3 bg-white border border-rose-200 hover:bg-rose-50 text-rose-600 font-black text-xs rounded-2xl transition duration-150 uppercase flex items-center justify-center gap-2"
-                  >
-                    <LogOut size={14} /> Logout
-                  </button>
+                    <button 
+                      onClick={() => { setProfileOpen(false); setEditProfileOpen(true); }}
+                      className="w-full py-2 px-3 hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl transition flex items-center gap-2.5 text-left cursor-pointer"
+                    >
+                      <Edit3 size={14} className="text-slate-400" /> Edit Profile
+                    </button>
+
+                    <button 
+                      onClick={() => { navigate('/clinic/settings'); setProfileOpen(false); }}
+                      className="w-full py-2 px-3 hover:bg-blue-50/70 text-blue-700 font-bold text-xs rounded-xl transition flex items-center gap-2.5 text-left cursor-pointer"
+                    >
+                      <Settings size={14} className="text-blue-500" /> Clinic Settings
+                    </button>
+
+                    <button 
+                      onClick={() => { setProfileOpen(false); setChangePasswordOpen(true); }}
+                      className="w-full py-2 px-3 hover:bg-indigo-50/70 text-indigo-700 font-bold text-xs rounded-xl transition flex items-center gap-2.5 text-left cursor-pointer"
+                    >
+                      <KeyRound size={14} className="text-indigo-500" /> Change Password
+                    </button>
+
+                    <div className="border-t border-slate-100 my-1" />
+
+                    <button 
+                      onClick={() => { handleLogoutClick(); setProfileOpen(false); }}
+                      className="w-full py-2 px-3 hover:bg-rose-50 text-rose-600 font-bold text-xs rounded-xl transition flex items-center gap-2.5 text-left border border-rose-100 cursor-pointer"
+                    >
+                      <LogOut size={14} className="text-rose-500" /> Logout
+                    </button>
+                  </div>
                 </motion.div>
               </>
             )}
@@ -612,6 +670,40 @@ const DashboardHeader = ({ user, selectedDate, onDateChange }) => {
           </>
         )}
       </AnimatePresence>
+
+      {/* ========================================================
+          MODALS: VIEW PROFILE, EDIT PROFILE, CHANGE PASSWORD
+          ======================================================== */}
+      <ViewProfileModal
+        isOpen={viewProfileOpen}
+        onClose={() => setViewProfileOpen(false)}
+        user={user}
+        onOpenEdit={() => setEditProfileOpen(true)}
+        onOpenChangePassword={() => setChangePasswordOpen(true)}
+      />
+
+      <EditProfileModal
+        isOpen={editProfileOpen}
+        onClose={() => setEditProfileOpen(false)}
+        user={user}
+        onUserUpdated={(updatedUser) => {
+          queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
+          try {
+            const raw = localStorage.getItem('ai_cms_user');
+            if (raw) {
+              const current = JSON.parse(raw);
+              localStorage.setItem('ai_cms_user', JSON.stringify({ ...current, ...updatedUser }));
+            }
+          } catch (_) {}
+          window.dispatchEvent(new Event('storage'));
+        }}
+      />
+
+      <ChangePasswordModal
+        isOpen={changePasswordOpen}
+        onClose={() => setChangePasswordOpen(false)}
+        userEmail={user?.email}
+      />
 
     </div>
   );

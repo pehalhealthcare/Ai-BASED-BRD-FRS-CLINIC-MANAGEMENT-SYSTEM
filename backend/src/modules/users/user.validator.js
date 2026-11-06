@@ -19,10 +19,11 @@ const listUsersQuerySchema = z.object({
   query: z.object({
     page: z.coerce.number().int().positive().default(1),
     limit: z.coerce.number().int().positive().max(100).default(10),
-    role: z.enum(Object.values(ROLES)).optional(),
+    role: z.string().optional(),
     isActive: booleanQuerySchema,
     search: z.string().trim().optional(),
-    providerId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid Provider ID').optional()
+    providerId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid Provider ID').optional(),
+    clinicId: z.string().optional()
   })
 });
 

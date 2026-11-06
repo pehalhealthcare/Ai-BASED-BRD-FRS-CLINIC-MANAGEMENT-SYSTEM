@@ -3,6 +3,7 @@ import { axiosClient, unwrapResponse } from './axiosClient';
 export const authApi = {
   login: async (payload) => unwrapResponse(await axiosClient.post('/auth/login', payload)),
   me: async () => unwrapResponse(await axiosClient.get('/auth/me')),
+  updateProfile: async (payload) => unwrapResponse(await axiosClient.put('/users/me/profile', payload)),
   logout: async () => unwrapResponse(await axiosClient.post('/auth/logout')),
   register: async (payload) => unwrapResponse(await axiosClient.post('/auth/register', payload)),
   sendLoginOtp: async (payload) => unwrapResponse(await axiosClient.post('/auth/send-otp', payload)),

@@ -516,57 +516,7 @@ const login = async ({ email, password, portal }, req) => {
     metadata: { email }
   });
 
-  const sanitizedUser = sanitizeUser(user);
-  if (clinicDetails) {
-    let paymentStatus = 'NOT_SUBMITTED';
-    let latestPayment = null;
-    try {
-      const SubscriptionPayment = require('../payment/models/subscriptionPayment.model');
-      latestPayment = await SubscriptionPayment.findOne({ clinicId: clinicDetails._id }).sort({ createdAt: -1 });
-      if (clinicDetails.paymentStatus === 'FREE_TIER' || clinicDetails.subscription?.isFreeTier) {
-        paymentStatus = 'FREE_TIER';
-      } else if (
-        clinicDetails.paymentStatus === 'VERIFIED' ||
-        clinicDetails.subscription?.status === 'Active' ||
-        clinicDetails.subscription?.status === 'Expired' ||
-        clinicDetails.subscription?.status === 'Suspended' ||
-        clinicDetails.subscription?.status === 'Trial' ||
-        clinicDetails.approvalStatus === 'approved' ||
-        latestPayment?.status === 'VERIFIED'
-      ) {
-        paymentStatus = 'VERIFIED';
-      } else if (latestPayment?.status === 'PENDING_VERIFICATION' || latestPayment?.status === 'SUBMITTED') {
-        paymentStatus = 'PENDING_VERIFICATION';
-      } else if (latestPayment?.status === 'REJECTED' || latestPayment?.status === 'REPAYMENT_REQUIRED' || clinicDetails.subscription?.status === 'Rejected') {
-        paymentStatus = 'REJECTED';
-      }
-    } catch (err) {
-      // fallback
-    }
-
-    sanitizedUser.clinic = {
-      _id: clinicDetails._id,
-      name: clinicDetails.name,
-      approvalStatus: clinicDetails.approvalStatus,
-      isOnboardingCompleted: clinicDetails.isOnboardingCompleted,
-      subscription: clinicDetails.subscription,
-      paymentStatus,
-      latestPayment: latestPayment ? {
-        _id: latestPayment._id,
-        status: latestPayment.status,
-        utr: latestPayment.utr,
-        amount: latestPayment.amount,
-        createdAt: latestPayment.createdAt
-      } : null,
-      trialFeatures: clinicDetails.trialFeatures || [],
-      rejectionReason: clinicDetails.rejectionReason,
-      rejectionComments: clinicDetails.rejectionComments,
-      incorrectFields: clinicDetails.incorrectFields,
-      requestedDocuments: clinicDetails.requestedDocuments,
-      refundStatus: clinicDetails.refundStatus,
-      refundReason: clinicDetails.refundReason
-    };
-  }
+  const sanitizedUser = await getCurrentUser(user);
 
   return {
     user: sanitizedUser,
@@ -584,9 +534,10 @@ const getCurrentUser = async (user) => {
       clinicId = provider.clinicId;
     }
   }
+  let clinicDetails = null;
   if (clinicId) {
     const Clinic = require('../clinics/clinic.model');
-    const clinicDetails = await Clinic.findById(clinicId).populate('subscription.planId');
+    clinicDetails = await Clinic.findById(clinicId).populate('subscription.planId');
     if (clinicDetails) {
       let paymentStatus = 'NOT_SUBMITTED';
       let latestPayment = null;
@@ -638,6 +589,60 @@ const getCurrentUser = async (user) => {
       };
     }
   }
+
+  // Dynamically resolve actual user avatar/profile photo from database records
+  let resolvedAvatar = user.avatar || user.profilePhoto || null;
+
+  if (!resolvedAvatar && user.role === ROLES.ADMIN && clinicDetails?.ownerDetails?.profilePhoto) {
+    resolvedAvatar = clinicDetails.ownerDetails.profilePhoto;
+  }
+
+  if (!resolvedAvatar && user.role === ROLES.DOCTOR) {
+    try {
+      const Doctor = require('../doctors/doctor.model');
+      const doc = await Doctor.findOne({ userId: user._id });
+      if (doc?.image || doc?.profilePhoto) {
+        resolvedAvatar = doc.image || doc.profilePhoto;
+      }
+    } catch (_) {}
+  }
+
+  const { STAFF_ROLES } = require('../../common/constants/roles');
+  if (!resolvedAvatar && (user.role === ROLES.RECEPTIONIST || (STAFF_ROLES && STAFF_ROLES.includes(user.role)) || user.role === ROLES.STAFF || user.role === ROLES.LAB_TECHNICIAN || user.role === ROLES.PHARMACIST)) {
+    try {
+      const Staff = require('../staff/staff.model');
+      const staff = await Staff.findOne({ userId: user._id });
+      if (staff?.image || staff?.profilePhoto) {
+        resolvedAvatar = staff.image || staff.profilePhoto;
+      }
+    } catch (_) {}
+  }
+
+  if (!resolvedAvatar && user.role === ROLES.PATIENT) {
+    try {
+      const Patient = require('../patients/patient.model');
+      const pat = await Patient.findOne({ userId: user._id });
+      if (pat?.profileImage) {
+        resolvedAvatar = pat.profileImage;
+      }
+    } catch (_) {}
+  }
+
+  if (resolvedAvatar && typeof resolvedAvatar === 'string' && resolvedAvatar.startsWith('gridfs:')) {
+    try {
+      const gridFsStorage = require('../../common/utils/gridFsStorage.service');
+      const base64 = await gridFsStorage.downloadAsBase64(resolvedAvatar).catch(() => null);
+      if (base64) {
+        resolvedAvatar = base64;
+      }
+    } catch (_) {}
+  }
+
+  if (resolvedAvatar) {
+    sanitizedUser.avatar = resolvedAvatar;
+    sanitizedUser.profilePhoto = resolvedAvatar;
+  }
+
   return sanitizedUser;
 };
 

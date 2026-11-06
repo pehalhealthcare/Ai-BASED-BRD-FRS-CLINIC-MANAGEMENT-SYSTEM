@@ -1,9 +1,10 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { 
   Check, ShieldAlert, CreditCard, Lock, Download, Printer, Share2, 
   Phone, AlertCircle, RefreshCw, Layers, Sparkles, User, FileText, CheckCircle
 } from 'lucide-react';
 import { prescriptionApi, pharmacyApi, labApi } from '../../lib/api';
+import { normalizeDoctorName } from '../../utils/doctorFormatters';
 
 export default function PrescriptionPreview({
   consultation,
@@ -150,7 +151,7 @@ export default function PrescriptionPreview({
         </div>
         <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-3">Prescription Access Locked</h2>
         <p className="text-slate-500 dark:text-slate-400 text-sm max-w-md mb-8 leading-relaxed">
-          Your consultation has been completed by Dr. {doctor?.fullName || 'your physician'}. 
+          Your consultation has been completed by {normalizeDoctorName(doctor?.fullName, 'your physician')}. 
           Please settle the outstanding consultation fees to view your medical prescription, AI analysis, and download the PDF.
         </p>
 
@@ -240,7 +241,7 @@ export default function PrescriptionPreview({
             <User className="w-6 h-6" />
           </div>
           <div className="text-left">
-            <h2 className="text-base font-extrabold text-slate-900">Dr. {doctor?.fullName || 'Alpha Doctor'}</h2>
+            <h2 className="text-base font-extrabold text-slate-900">{normalizeDoctorName(doctor?.fullName, 'Alpha Doctor')}</h2>
             <p className="text-xs font-bold text-blue-600 uppercase">{doctor?.specialization || 'General Physician'}</p>
             <p className="text-[11px] text-slate-400 mt-0.5">Reg. No.: {doctorReg}</p>
           </div>
@@ -618,9 +619,9 @@ export default function PrescriptionPreview({
         <div className="flex flex-col items-center justify-center p-4.5 border border-slate-150 rounded-2xl text-center space-y-4">
           <div>
             <div className="font-signature text-xl text-slate-800 italic select-none">
-              {doctor?.fullName || 'Dr. Alpha Doctor'}
+              {normalizeDoctorName(doctor?.fullName, 'Dr. Alpha Doctor')}
             </div>
-            <p className="text-xs font-extrabold text-slate-900 mt-2">Dr. {doctor?.fullName || 'Alpha Doctor'}</p>
+            <p className="text-xs font-extrabold text-slate-900 mt-2">{normalizeDoctorName(doctor?.fullName, 'Alpha Doctor')}</p>
             <p className="text-[10px] text-slate-400 capitalize">{doctor?.specialization || 'General Physician'}</p>
             <p className="text-[9px] text-slate-400">Reg No: {doctorReg}</p>
             <p className="text-[9px] text-blue-600 font-bold mt-1">Digitally Signed</p>

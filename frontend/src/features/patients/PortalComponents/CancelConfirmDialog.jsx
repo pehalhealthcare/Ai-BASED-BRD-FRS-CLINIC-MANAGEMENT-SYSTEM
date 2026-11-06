@@ -1,5 +1,6 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { X, Calendar, Clock, AlertTriangle, Info, Shield, RotateCcw, AlertCircle } from 'lucide-react';
+import { normalizeDoctorName } from '../../../utils/doctorFormatters';
 
 function fmt12(time24) {
   if (!time24) return '';
@@ -80,7 +81,7 @@ export default function CancelConfirmDialog({ appointment, appointmentApi, onClo
                 <span>{timeLabel}</span>
               </div>
             )}
-            <p className="text-xs text-slate-500 mt-1">with Dr. {doctorName}</p>
+            <p className="text-xs text-slate-500 mt-1">with {normalizeDoctorName(doctorName)}</p>
           </div>
 
           {/* Key messages */}

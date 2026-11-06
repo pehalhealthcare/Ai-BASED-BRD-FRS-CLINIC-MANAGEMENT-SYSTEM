@@ -17,6 +17,17 @@ const getUserById = asyncHandler(async (req, res) => {
   return sendSuccess(res, 'User retrieved successfully', { user });
 });
 
+const updateUser = asyncHandler(async (req, res) => {
+  const user = await userService.updateUser({
+    requester: req.user,
+    userId: req.params.id,
+    data: req.body,
+    req
+  });
+
+  return sendSuccess(res, 'User updated successfully', { user });
+});
+
 const updateUserRole = asyncHandler(async (req, res) => {
   const user = await userService.updateUserRole({
     requester: req.user,
@@ -74,12 +85,22 @@ const updateUserProvider = asyncHandler(async (req, res) => {
   return sendSuccess(res, 'User operational unit assignment updated successfully', { user });
 });
 
+const updateMyProfile = asyncHandler(async (req, res) => {
+  const user = await userService.updateMyProfile({
+    user: req.user,
+    payload: req.body
+  });
+  return sendSuccess(res, 'Profile updated successfully', { user });
+});
+
 module.exports = {
   listUsers,
   getUserById,
+  updateUser,
   updateUserRole,
   updateUserStatus,
   updateUserProvider,
   createStaff,
-  deleteUser
+  deleteUser,
+  updateMyProfile
 };
