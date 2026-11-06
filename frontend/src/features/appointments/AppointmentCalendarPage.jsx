@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
@@ -17,13 +17,16 @@ import useAuth from '../../hooks/useAuth';
 import { ROLES } from '../../constants/roles';
 import { clinicApi, doctorApi, appointmentApi, billingApi, specializationApi } from '../../lib/api';
 import { normalizeDoctorName } from '../../utils/doctorFormatters';
-
-const getTodayStr = (d = new Date()) => {
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
+import { 
+  calculateKpiComparison, 
+  getPreviousDayStr,
+  getTodayStr,
+  formatDateStr,
+  formatDisplayDate,
+  resolveDateRange,
+  validateCustomDateRange,
+  DATE_RANGE_OPTIONS
+} from '../../utils/kpiComparison';
 
 const AppointmentCalendarPage = () => {
   const { user } = useAuth();
@@ -35,8 +38,34 @@ const AppointmentCalendarPage = () => {
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
   const [actionMenuOpenId, setActionMenuOpenId] = useState(null);
 
+  // Date Range State
+  const [dateRangeOption, setDateRangeOption] = useState(DATE_RANGE_OPTIONS.TODAY);
+  const [customRange, setCustomRange] = useState({ from: '', to: '' });
+  const [customOpen, setCustomOpen] = useState(false);
+  const [tempFrom, setTempFrom] = useState('');
+  const [tempTo, setTempTo] = useState('');
+  const [customError, setCustomError] = useState('');
+  const customPopoverRef = useRef(null);
+
+  const resolvedRange = useMemo(() => {
+    return resolveDateRange(dateRangeOption, customRange);
+  }, [dateRangeOption, customRange]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (customPopoverRef.current && !customPopoverRef.current.contains(event.target)) {
+        setCustomOpen(false);
+      }
+    };
+    if (customOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [customOpen]);
+
   // Filters State
-  const [selectedDate, setSelectedDate] = useState(getTodayStr());
   const [searchQuery, setSearchQuery] = useState('');
 
   // Advanced Filters
@@ -104,98 +133,241 @@ const AppointmentCalendarPage = () => {
     enabled: !!clinicId
   });
 
-  // Main Appointments Query
-  const { data: appointmentsRes, isLoading, refetch, isRefetching } = useQuery({
-    queryKey: ['appointments', clinicId, selectedDate],
+  // Appointments Query for Selected Period
+  const { data: appointmentsRes, isLoading, isError, refetch, isRefetching } = useQuery({
+    queryKey: ['appointments', clinicId, resolvedRange.from, resolvedRange.to],
     queryFn: () => appointmentApi.getAppointments({
-      from: selectedDate,
-      to: selectedDate,
+      from: resolvedRange.from,
+      to: resolvedRange.to,
+      clinicId: clinicId || undefined,
+      limit: 1000,
+      includePending: true
+    }),
+    enabled: !!clinicId && !!resolvedRange.from && !!resolvedRange.to
+  });
+
+  // Comparison Query for KPI comparison
+  const { 
+    data: comparisonAppointmentsRes, 
+    isLoading: isComparisonLoading,
+    isSuccess: isComparisonSuccess
+  } = useQuery({
+    queryKey: ['appointments', clinicId, resolvedRange.comparisonFrom, resolvedRange.comparisonTo],
+    queryFn: () => appointmentApi.getAppointments({
+      from: resolvedRange.comparisonFrom,
+      to: resolvedRange.comparisonTo,
+      clinicId: clinicId || undefined,
+      limit: 1000,
+      includePending: true
+    }),
+    enabled: !!clinicId && !!resolvedRange.comparisonFrom && !!resolvedRange.comparisonTo
+  });
+
+  // Live Queue (Today) Query — always real-time TODAY independent of historical date filters
+  const todayStr = useMemo(() => getTodayStr(), []);
+  const isSelectedPeriodToday = resolvedRange.from === todayStr && resolvedRange.to === todayStr;
+
+  const { data: todayAppointmentsRes } = useQuery({
+    queryKey: ['appointments', clinicId, todayStr, todayStr, 'liveQueue'],
+    queryFn: () => appointmentApi.getAppointments({
+      from: todayStr,
+      to: todayStr,
+      clinicId: clinicId || undefined,
       limit: 100,
       includePending: true
     }),
-    enabled: !!clinicId
+    enabled: !!clinicId && !isSelectedPeriodToday
   });
 
   const allAppointments = useMemo(() => {
     return appointmentsRes?.data?.appointments || appointmentsRes?.appointments || [];
   }, [appointmentsRes]);
 
+  const comparisonAppointments = useMemo(() => {
+    return comparisonAppointmentsRes?.data?.appointments || comparisonAppointmentsRes?.appointments || [];
+  }, [comparisonAppointmentsRes]);
+
+  const todayLiveAppointments = useMemo(() => {
+    if (isSelectedPeriodToday) {
+      return allAppointments;
+    }
+    return todayAppointmentsRes?.data?.appointments || todayAppointmentsRes?.appointments || [];
+  }, [isSelectedPeriodToday, allAppointments, todayAppointmentsRes]);
+
+  const isKpiDataValid = Boolean(
+    resolvedRange.comparisonFrom &&
+    resolvedRange.comparisonTo &&
+    !isLoading &&
+    !isComparisonLoading &&
+    isComparisonSuccess &&
+    appointmentsRes
+  );
+
   const branchesList = useMemo(() => branchesRes?.data?.clinics || branchesRes?.clinics || [], [branchesRes]);
   const doctorsList = useMemo(() => doctorsRes?.data?.doctors || doctorsRes?.doctors || [], [doctorsRes]);
   const deptsList = useMemo(() => specialitiesRes?.data?.specializations || specialitiesRes?.specializations || [], [specialitiesRes]);
 
-  // Filtered Appointments
-  const filteredAppointments = useMemo(() => {
-    return allAppointments.filter(apt => {
-      // Unpaid appointments must NOT appear in normal status tabs (Booked, Checked-in, Completed, etc.), they appear in All and Pending Payment
-      const isUnpaid = apt.paymentStatus === 'pending' || apt.paymentStatus === 'unpaid';
-      if (activeTab !== 'pending_payment' && activeTab !== 'All' && isUnpaid) return false;
+  // Helper function to match active non-tab filters consistently
+  const matchesActiveFilters = (apt, searchStr, branch, doc, dept, consultType, paymentStat) => {
+    // 1. Global Search
+    if (searchStr) {
+      const query = searchStr.toLowerCase();
+      const patientName = (apt.patientId?.fullName || '').toLowerCase();
+      const patientPhone = (apt.patientId?.phone || '').toLowerCase();
+      const patientUhid = (apt.patientId?.patientId || '').toLowerCase();
+      const doctorName = (apt.doctorId?.fullName || '').toLowerCase();
+      const token = (apt.meta?.tokenNumber || apt.tokenNumber || '').toLowerCase();
 
-      // Global Search
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        const patientName = (apt.patientId?.fullName || '').toLowerCase();
-        const patientPhone = (apt.patientId?.phone || '').toLowerCase();
-        const patientUhid = (apt.patientId?.patientId || '').toLowerCase();
-        const doctorName = (apt.doctorId?.fullName || '').toLowerCase();
-        const token = (apt.meta?.tokenNumber || apt.tokenNumber || '').toLowerCase();
-
-        if (!patientName.includes(query) && 
-            !patientPhone.includes(query) && 
-            !patientUhid.includes(query) && 
-            !doctorName.includes(query) && 
-            !token.includes(query)) {
-          return false;
-        }
+      if (!patientName.includes(query) && 
+          !patientPhone.includes(query) && 
+          !patientUhid.includes(query) && 
+          !doctorName.includes(query) && 
+          !token.includes(query)) {
+        return false;
       }
+    }
 
-      // Dropdowns
-      if (selectedBranch && String(apt.clinicId?._id || apt.clinicId) !== selectedBranch) return false;
-      if (selectedDoctor && String(apt.doctorId?._id || apt.doctorId) !== selectedDoctor) return false;
-      if (selectedDept && (apt.doctorId?.specialization?._id || apt.doctorId?.specialization) !== selectedDept) return false;
-      if (selectedConsultType && apt.consultationMode !== selectedConsultType) return false;
-      if (selectedPaymentStatus && apt.paymentStatus !== selectedPaymentStatus) return false;
+    // 2. Dropdown Filters
+    if (branch && String(apt.clinicId?._id || apt.clinicId) !== branch) return false;
+    if (doc && String(apt.doctorId?._id || apt.doctorId) !== doc) return false;
+    if (dept && (apt.doctorId?.specialization?._id || apt.doctorId?.specialization) !== dept) return false;
+    if (consultType && apt.consultationMode !== consultType) return false;
+    if (paymentStat && apt.paymentStatus !== paymentStat) return false;
 
-      // Tab Filtering
-      if (activeTab === 'booked' && apt.status !== 'booked') return false;
-      if (activeTab === 'checked_in' && apt.status !== 'checked_in') return false;
-      if (activeTab === 'in_consultation' && apt.status !== 'in_consultation') return false;
-      if (activeTab === 'completed' && apt.status !== 'completed') return false;
-      if (activeTab === 'cancelled' && apt.status !== 'cancelled') return false;
-      if (activeTab === 'rescheduled' && apt.status !== 'rescheduled') return false;
-      if (activeTab === 'waiver' && !['waiver_pending', 'fully_waived', 'partially_waived'].includes(apt.paymentStatus)) return false;
-      if (activeTab === 'pending_payment' && !isUnpaid) return false;
+    return true;
+  };
 
-      return true;
-    });
-  }, [
-    allAppointments, searchQuery, selectedBranch, selectedDoctor, selectedDept,
-    selectedConsultType, selectedPaymentStatus, activeTab
-  ]);
+  // Unified Base Filtered Appointments — Single Source of Truth for KPIs, Status Tabs and Donut Chart
+  const baseFilteredAppointments = useMemo(() => {
+    return allAppointments.filter(apt => 
+      matchesActiveFilters(apt, searchQuery, selectedBranch, selectedDoctor, selectedDept, selectedConsultType, selectedPaymentStatus)
+    );
+  }, [allAppointments, searchQuery, selectedBranch, selectedDoctor, selectedDept, selectedConsultType, selectedPaymentStatus]);
 
-  // Statistics
+  // Comparison Base Filtered Appointments — Evaluated with identical active filters
+  const comparisonBaseFilteredAppointments = useMemo(() => {
+    return comparisonAppointments.filter(apt => 
+      matchesActiveFilters(apt, searchQuery, selectedBranch, selectedDoctor, selectedDept, selectedConsultType, selectedPaymentStatus)
+    );
+  }, [comparisonAppointments, searchQuery, selectedBranch, selectedDoctor, selectedDept, selectedConsultType, selectedPaymentStatus]);
+
+  // Single Source of Truth Statistics driving all KPI cards and status tabs
   const stats = useMemo(() => {
-    const total = allAppointments.length;
-    const booked = allAppointments.filter(a => a.status === 'booked').length;
-    const checkedIn = allAppointments.filter(a => a.status === 'checked_in').length;
-    const inConsult = allAppointments.filter(a => a.status === 'in_consultation').length;
-    const completed = allAppointments.filter(a => a.status === 'completed').length;
-    const cancelled = allAppointments.filter(a => a.status === 'cancelled').length;
-    const rescheduled = allAppointments.filter(a => a.status === 'rescheduled').length;
-    const pendingWaivers = allAppointments.filter(a => ['waiver_pending'].includes(a.paymentStatus)).length;
-    const pendingPayments = allAppointments.filter(a => a.paymentStatus === 'pending' || a.paymentStatus === 'unpaid').length;
+    const total = baseFilteredAppointments.length;
+    const booked = baseFilteredAppointments.filter(a => a.status === 'booked' || a.status === 'confirmed').length;
+    const checkedIn = baseFilteredAppointments.filter(a => a.status === 'checked_in' || a.status === 'waiting').length;
+    const inConsult = baseFilteredAppointments.filter(a => a.status === 'in_consultation' || a.status === 'consultation_started').length;
+    const completed = baseFilteredAppointments.filter(a => a.status === 'completed').length;
+    const cancelled = baseFilteredAppointments.filter(a => a.status === 'cancelled').length;
+    const rescheduled = baseFilteredAppointments.filter(a => a.status === 'rescheduled').length;
+    const pendingWaivers = baseFilteredAppointments.filter(a => ['waiver_pending', 'fully_waived', 'partially_waived'].includes(a.paymentStatus)).length;
+    const pendingPayments = baseFilteredAppointments.filter(a => a.paymentStatus === 'pending' || a.paymentStatus === 'unpaid').length;
 
     return {
       total, booked, checkedIn, inConsult, completed, cancelled, rescheduled, pendingWaivers, pendingPayments
     };
-  }, [allAppointments]);
+  }, [baseFilteredAppointments]);
 
-  // Donut chart segment data (Appointment Sources)
+  // Comparison Statistics for accurate KPI percentage change indicators
+  const comparisonStats = useMemo(() => {
+    const total = comparisonBaseFilteredAppointments.length;
+    const booked = comparisonBaseFilteredAppointments.filter(a => a.status === 'booked' || a.status === 'confirmed').length;
+    const checkedIn = comparisonBaseFilteredAppointments.filter(a => a.status === 'checked_in' || a.status === 'waiting').length;
+    const inConsult = comparisonBaseFilteredAppointments.filter(a => a.status === 'in_consultation' || a.status === 'consultation_started').length;
+    const completed = comparisonBaseFilteredAppointments.filter(a => a.status === 'completed').length;
+    const cancelled = comparisonBaseFilteredAppointments.filter(a => a.status === 'cancelled').length;
+    const rescheduled = comparisonBaseFilteredAppointments.filter(a => a.status === 'rescheduled').length;
+
+    return {
+      total, booked, checkedIn, inConsult, completed, cancelled, rescheduled
+    };
+  }, [comparisonBaseFilteredAppointments]);
+
+  // Tab Filtered Appointments for Datatable
+  const tableAppointments = useMemo(() => {
+    return baseFilteredAppointments.filter(apt => {
+      const isUnpaid = apt.paymentStatus === 'pending' || apt.paymentStatus === 'unpaid';
+
+      if (activeTab === 'booked') return apt.status === 'booked' || apt.status === 'confirmed';
+      if (activeTab === 'checked_in') return apt.status === 'checked_in' || apt.status === 'waiting';
+      if (activeTab === 'in_consultation') return apt.status === 'in_consultation' || apt.status === 'consultation_started';
+      if (activeTab === 'completed') return apt.status === 'completed';
+      if (activeTab === 'cancelled') return apt.status === 'cancelled';
+      if (activeTab === 'rescheduled') return apt.status === 'rescheduled';
+      if (activeTab === 'waiver') return ['waiver_pending', 'fully_waived', 'partially_waived'].includes(apt.paymentStatus);
+      if (activeTab === 'pending_payment') return isUnpaid;
+
+      // Active tab 'All' displays all appointments matching the date range and active filters
+      return true;
+    });
+  }, [baseFilteredAppointments, activeTab]);
+
+  // Infinite Scrolling / Progressive Table Loading State
+  const [visibleCount, setVisibleCount] = useState(20);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const tableScrollRef = useRef(null);
+
+  useEffect(() => {
+    setVisibleCount(20);
+    if (tableScrollRef.current) {
+      tableScrollRef.current.scrollTop = 0;
+    }
+  }, [
+    dateRangeOption, customRange, activeTab, searchQuery,
+    selectedBranch, selectedDoctor, selectedDept,
+    selectedConsultType, selectedPaymentStatus
+  ]);
+
+  const handleTableScroll = (e) => {
+    const { scrollTop, clientHeight, scrollHeight } = e.currentTarget;
+    if (scrollHeight - scrollTop - clientHeight < 60) {
+      if (visibleCount < tableAppointments.length && !isLoadingMore) {
+        setIsLoadingMore(true);
+        setTimeout(() => {
+          setVisibleCount(prev => Math.min(prev + 20, tableAppointments.length));
+          setIsLoadingMore(false);
+        }, 120);
+      }
+    }
+  };
+
+  const paginatedAppointments = useMemo(() => {
+    return tableAppointments.slice(0, visibleCount);
+  }, [tableAppointments, visibleCount]);
+
+  const handleRangeSelect = (option) => {
+    setDateRangeOption(option);
+    setCustomOpen(false);
+    setCustomError('');
+  };
+
+  const handleApplyCustom = () => {
+    const validation = validateCustomDateRange(tempFrom, tempTo, todayStr);
+    if (!validation.isValid) {
+      setCustomError(validation.error);
+      return;
+    }
+    setCustomError('');
+    setCustomRange({ from: tempFrom, to: tempTo });
+    setDateRangeOption(DATE_RANGE_OPTIONS.CUSTOM);
+    setCustomOpen(false);
+  };
+
+  const handleClearCustom = () => {
+    setTempFrom('');
+    setTempTo('');
+    setCustomError('');
+    setCustomRange({ from: '', to: '' });
+    setDateRangeOption(DATE_RANGE_OPTIONS.TODAY);
+    setCustomOpen(false);
+  };
+
+  // Donut chart segment data (Appointment Sources) — driven by unified base filtered dataset
   const sourcesData = useMemo(() => {
-    const patientCount = allAppointments.filter(a => a.source === 'patient_app').length;
-    const recepCount = allAppointments.filter(a => a.source === 'receptionist' || !a.source).length;
-    const doctorCount = allAppointments.filter(a => a.source === 'doctor').length;
-    const adminCount = allAppointments.filter(a => a.source === 'clinic_admin').length;
+    const patientCount = baseFilteredAppointments.filter(a => a.source === 'patient_app').length;
+    const recepCount = baseFilteredAppointments.filter(a => a.source === 'receptionist' || a.source === 'reception' || !a.source).length;
+    const doctorCount = baseFilteredAppointments.filter(a => a.source === 'doctor').length;
+    const adminCount = baseFilteredAppointments.filter(a => a.source === 'clinic_admin').length;
     const total = patientCount + recepCount + doctorCount + adminCount || 1;
 
     return [
@@ -204,7 +376,7 @@ const AppointmentCalendarPage = () => {
       { name: 'Doctor', count: doctorCount, pct: Math.round((doctorCount / total) * 100), color: 'bg-amber-500', fill: '#F59E0B' },
       { name: 'Clinic Admin', count: adminCount, pct: Math.round((adminCount / total) * 100), color: 'bg-sky-500', fill: '#0EA5E9' }
     ];
-  }, [allAppointments]);
+  }, [baseFilteredAppointments]);
 
   const handleStatusChange = async (aptId, newStatus) => {
     try {
@@ -231,18 +403,19 @@ const AppointmentCalendarPage = () => {
 
   // Export
   const handleExport = () => {
-    if (filteredAppointments.length === 0) {
+    if (tableAppointments.length === 0) {
       toast.error('No appointments to export.');
       return;
     }
-    const headers = ['Time', 'Token', 'Patient Name', 'UHID', 'Doctor', 'Department', 'Type', 'Payment Status', 'Status'];
-    const rows = filteredAppointments.map(a => [
+    const headers = ['Date', 'Time', 'Token', 'Patient Name', 'UHID', 'Doctor', 'Department', 'Type', 'Payment Status', 'Status'];
+    const rows = tableAppointments.map(a => [
+      a.appointmentDate ? formatDateStr(new Date(a.appointmentDate)) : resolvedRange.from,
       a.startTime || '',
       a.meta?.tokenNumber || a.tokenNumber || '—',
-      a.patientId?.fullName || 'Not provided',
+      `"${(a.patientId?.fullName || 'Not provided').replace(/"/g, '""')}"`,
       a.patientId?.patientId || '—',
-      a.doctorId?.fullName || 'Not provided',
-      a.doctorId?.specialization?.name || 'General Medicine',
+      `"${(normalizeDoctorName(a.doctorId?.fullName) || 'Not provided').replace(/"/g, '""')}"`,
+      `"${(a.doctorId?.specialization?.name || 'General Medicine').replace(/"/g, '""')}"`,
       a.consultationMode || 'Walk-In',
       a.paymentStatus || 'Pending',
       a.status || 'Booked'
@@ -252,7 +425,7 @@ const AppointmentCalendarPage = () => {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `Appointments_${selectedDate}.csv`);
+    link.setAttribute('download', `Appointments_${dateRangeOption}_${resolvedRange.from}_to_${resolvedRange.to}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -268,62 +441,205 @@ const AppointmentCalendarPage = () => {
       <div className="flex-1 flex flex-col gap-6 overflow-y-auto pr-1 [scrollbar-width:none]">
         
         {/* Title Header Section */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-black text-slate-900 tracking-tight">Appointments</h1>
             <p className="text-xs text-slate-400 mt-0.5">Manage appointments across all branches in real time.</p>
           </div>
 
           <div className="flex items-center gap-2.5 flex-wrap">
-            {/* Date Select Button */}
-            <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-sm">
-              <CalendarIcon size={14} className="text-slate-400" />
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="text-xs font-bold text-slate-700 outline-none bg-transparent cursor-pointer"
-              />
+            {/* Date Range Selector Pill Group */}
+            <div className="flex items-center bg-white border border-slate-200 rounded-full p-1 shadow-xs gap-1">
+              <div className="flex items-center gap-1.5 pl-2.5 pr-1 text-slate-400 text-xs font-bold">
+                <CalendarIcon size={13} />
+                <span>Date Range</span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => handleRangeSelect(DATE_RANGE_OPTIONS.TODAY)}
+                className={`px-3 py-1 rounded-full text-xs font-bold transition-all duration-150 ${
+                  dateRangeOption === DATE_RANGE_OPTIONS.TODAY
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }`}
+              >
+                Today
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleRangeSelect(DATE_RANGE_OPTIONS.YESTERDAY)}
+                className={`px-3 py-1 rounded-full text-xs font-bold transition-all duration-150 ${
+                  dateRangeOption === DATE_RANGE_OPTIONS.YESTERDAY
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }`}
+              >
+                Yesterday
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleRangeSelect(DATE_RANGE_OPTIONS.THIS_MONTH)}
+                className={`px-3 py-1 rounded-full text-xs font-bold transition-all duration-150 ${
+                  dateRangeOption === DATE_RANGE_OPTIONS.THIS_MONTH
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }`}
+              >
+                This Month
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleRangeSelect(DATE_RANGE_OPTIONS.THIS_YEAR)}
+                className={`px-3 py-1 rounded-full text-xs font-bold transition-all duration-150 ${
+                  dateRangeOption === DATE_RANGE_OPTIONS.THIS_YEAR
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }`}
+              >
+                This Year
+              </button>
+
+              <div className="relative" ref={customPopoverRef}>
+                <button
+                  type="button"
+                  onClick={() => setCustomOpen(!customOpen)}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-all duration-150 ${
+                    dateRangeOption === DATE_RANGE_OPTIONS.CUSTOM
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                  }`}
+                >
+                  <CalendarIcon size={12} />
+                  Custom
+                </button>
+
+                {/* Custom Popover */}
+                {customOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-2xl shadow-xl border border-slate-150 p-4 z-50 animate-in fade-in zoom-in-95 duration-150">
+                    <h4 className="text-xs font-black text-slate-800 mb-3">Custom Date Range</h4>
+                    
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">From</label>
+                        <div className="flex items-center gap-1.5 border border-slate-200 rounded-xl px-2.5 py-1.5 bg-slate-50/50 focus-within:border-blue-500 focus-within:bg-white transition">
+                          <CalendarIcon size={12} className="text-slate-400 shrink-0" />
+                          <input
+                            type="date"
+                            value={tempFrom}
+                            max={todayStr}
+                            onChange={(e) => setTempFrom(e.target.value)}
+                            className="w-full text-xs font-semibold text-slate-700 bg-transparent outline-none cursor-pointer"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">To</label>
+                        <div className="flex items-center gap-1.5 border border-slate-200 rounded-xl px-2.5 py-1.5 bg-slate-50/50 focus-within:border-blue-500 focus-within:bg-white transition">
+                          <CalendarIcon size={12} className="text-slate-400 shrink-0" />
+                          <input
+                            type="date"
+                            value={tempTo}
+                            max={todayStr}
+                            onChange={(e) => setTempTo(e.target.value)}
+                            className="w-full text-xs font-semibold text-slate-700 bg-transparent outline-none cursor-pointer"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {customError && (
+                      <p className="text-[10px] text-rose-500 font-bold mt-2">{customError}</p>
+                    )}
+
+                    <div className="flex items-center justify-end gap-2 mt-4 pt-2.5 border-t border-slate-100">
+                      <button
+                        type="button"
+                        onClick={handleClearCustom}
+                        className="px-3 py-1.5 text-xs font-bold text-slate-600 hover:text-slate-800 transition"
+                      >
+                        Clear
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleApplyCustom}
+                        disabled={!tempFrom || !tempTo}
+                        className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs transition disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Apply
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
+            {/* Formatted Date Range Pill */}
+            <div 
+              onClick={() => {
+                if (dateRangeOption === DATE_RANGE_OPTIONS.CUSTOM) {
+                  setTempFrom(customRange.from || resolvedRange.from);
+                  setTempTo(customRange.to || resolvedRange.to);
+                } else {
+                  setTempFrom(resolvedRange.from);
+                  setTempTo(resolvedRange.to);
+                }
+                setCustomOpen(true);
+              }}
+              className="flex items-center gap-2 bg-white border border-slate-200 rounded-full px-3.5 py-1.5 shadow-xs cursor-pointer hover:border-slate-300 transition"
+            >
+              <CalendarIcon size={13} className="text-slate-400" />
+              <span className="text-xs font-bold text-slate-700">{resolvedRange.displayDate}</span>
+              <ChevronDown size={13} className="text-slate-400" />
+            </div>
+
+            {/* New Appointment Button */}
             <Link 
               to="/appointments/new"
-              className="bg-blue-500 hover:bg-blue-600 text-white rounded-xl px-4.5 py-2 text-xs font-black transition flex items-center gap-1.5 shadow-sm"
+              className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-4 py-1.5 text-xs font-bold transition flex items-center gap-1.5 shadow-xs"
             >
-              <Plus className="w-4 h-4" /> New Appointment
+              <Plus className="w-3.5 h-3.5" /> New Appointment
             </Link>
 
+            {/* Export Button */}
             <button 
               onClick={handleExport}
-              className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl px-4 py-2 text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
+              className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-full px-4 py-1.5 text-xs font-bold transition flex items-center gap-1.5 shadow-xs"
             >
-              <Download className="w-4 h-4 text-slate-400" /> Export
-            </button>
-
-            <button 
-              onClick={() => refetch()}
-              disabled={isRefetching}
-              className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl px-4 py-2 text-xs font-bold transition flex items-center gap-1.5 shadow-sm disabled:opacity-55"
-            >
-              <RefreshCw className={`w-4 h-4 text-slate-400 ${isRefetching ? 'animate-spin' : ''}`} /> Refresh
+              <Download className="w-3.5 h-3.5 text-slate-400" /> Export
             </button>
           </div>
+        </div>
+
+        {/* Sub-header row with Refresh button */}
+        <div className="flex items-center justify-between">
+          <button 
+            onClick={() => refetch()}
+            disabled={isRefetching}
+            className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl px-3.5 py-1.5 text-xs font-bold transition flex items-center gap-1.5 shadow-xs disabled:opacity-55"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 text-slate-400 ${isRefetching ? 'animate-spin' : ''}`} /> Refresh
+          </button>
         </div>
 
         {/* 6 Top Stats Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 shrink-0">
           {[
             { 
-              label: "TODAY'S APPOINTMENTS", 
+              label: resolvedRange.kpiTitle, 
               count: stats.total, 
-              status: "Today's", 
+              comparisonCount: comparisonStats.total,
+              status: resolvedRange.kpiBadge, 
               statusColor: 'bg-blue-50 text-blue-650 border border-blue-100', 
               icon: <CalendarIcon size={18} />, 
               iconColor: 'bg-blue-50 text-blue-500 border border-blue-100',
               sparkColor: '#3B82F6',
               trendData: (() => {
                 const hours = Array(8).fill(0);
-                allAppointments.forEach(a => {
+                baseFilteredAppointments.forEach(a => {
                   const hour = parseInt(a.startTime?.split(':')[0] || '9', 10);
                   hours[Math.max(0, Math.min(7, hour - 9))]++;
                 });
@@ -333,6 +649,7 @@ const AppointmentCalendarPage = () => {
             { 
               label: "CHECKED-IN", 
               count: stats.checkedIn, 
+              comparisonCount: comparisonStats.checkedIn,
               status: "Live", 
               statusColor: 'bg-blue-50 text-blue-650 border border-blue-100', 
               icon: <UserCheck size={18} />, 
@@ -340,7 +657,7 @@ const AppointmentCalendarPage = () => {
               sparkColor: '#2563EB',
               trendData: (() => {
                 const hours = Array(8).fill(0);
-                allAppointments.filter(a => a.status === 'checked_in').forEach(a => {
+                baseFilteredAppointments.filter(a => a.status === 'checked_in' || a.status === 'waiting').forEach(a => {
                   const hour = parseInt(a.startTime?.split(':')[0] || '9', 10);
                   hours[Math.max(0, Math.min(7, hour - 9))]++;
                 });
@@ -350,6 +667,7 @@ const AppointmentCalendarPage = () => {
             { 
               label: "IN CONSULTATION", 
               count: stats.inConsult, 
+              comparisonCount: comparisonStats.inConsult,
               status: "Tracking", 
               statusColor: 'bg-purple-50 text-purple-650 border border-purple-100', 
               icon: <Activity size={18} />, 
@@ -357,7 +675,7 @@ const AppointmentCalendarPage = () => {
               sparkColor: '#8B5CF6',
               trendData: (() => {
                 const hours = Array(8).fill(0);
-                allAppointments.filter(a => a.status === 'in_consultation').forEach(a => {
+                baseFilteredAppointments.filter(a => a.status === 'in_consultation' || a.status === 'consultation_started').forEach(a => {
                   const hour = parseInt(a.startTime?.split(':')[0] || '9', 10);
                   hours[Math.max(0, Math.min(7, hour - 9))]++;
                 });
@@ -367,6 +685,7 @@ const AppointmentCalendarPage = () => {
             { 
               label: "COMPLETED", 
               count: stats.completed, 
+              comparisonCount: comparisonStats.completed,
               status: "Healthy", 
               statusColor: 'bg-blue-50 text-blue-650 border border-blue-100', 
               icon: <CheckCircle size={18} />, 
@@ -374,7 +693,7 @@ const AppointmentCalendarPage = () => {
               sparkColor: '#2563EB',
               trendData: (() => {
                 const hours = Array(8).fill(0);
-                allAppointments.filter(a => a.status === 'completed').forEach(a => {
+                baseFilteredAppointments.filter(a => a.status === 'completed').forEach(a => {
                   const hour = parseInt(a.startTime?.split(':')[0] || '9', 10);
                   hours[Math.max(0, Math.min(7, hour - 9))]++;
                 });
@@ -384,6 +703,7 @@ const AppointmentCalendarPage = () => {
             { 
               label: "CANCELLED", 
               count: stats.cancelled, 
+              comparisonCount: comparisonStats.cancelled,
               status: "Updated", 
               statusColor: 'bg-rose-50 text-rose-650 border border-rose-100', 
               icon: <Info size={18} />, 
@@ -391,7 +711,7 @@ const AppointmentCalendarPage = () => {
               sparkColor: '#EF4444',
               trendData: (() => {
                 const hours = Array(8).fill(0);
-                allAppointments.filter(a => a.status === 'cancelled').forEach(a => {
+                baseFilteredAppointments.filter(a => a.status === 'cancelled').forEach(a => {
                   const hour = parseInt(a.startTime?.split(':')[0] || '9', 10);
                   hours[Math.max(0, Math.min(7, hour - 9))]++;
                 });
@@ -401,6 +721,7 @@ const AppointmentCalendarPage = () => {
             { 
               label: "RESCHEDULED", 
               count: stats.rescheduled, 
+              comparisonCount: comparisonStats.rescheduled,
               status: "Updated", 
               statusColor: 'bg-amber-50 text-amber-650 border border-amber-100', 
               icon: <RefreshCw size={18} />, 
@@ -408,7 +729,7 @@ const AppointmentCalendarPage = () => {
               sparkColor: '#F59E0B',
               trendData: (() => {
                 const hours = Array(8).fill(0);
-                allAppointments.filter(a => a.status === 'rescheduled').forEach(a => {
+                baseFilteredAppointments.filter(a => a.status === 'rescheduled').forEach(a => {
                   const hour = parseInt(a.startTime?.split(':')[0] || '9', 10);
                   hours[Math.max(0, Math.min(7, hour - 9))]++;
                 });
@@ -416,11 +737,12 @@ const AppointmentCalendarPage = () => {
               })()
             }
           ].map((c, idx) => {
-            const seed = (selectedDate.replaceAll('-', '') + c.label).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-            const yesterdayCount = Math.max(1, c.count + ((seed % 5) - 2));
-            const diff = c.count - yesterdayCount;
-            const pct = Math.abs(Math.round((diff / yesterdayCount) * 100));
-            const isUp = diff >= 0;
+            const comparison = calculateKpiComparison(
+              c.count, 
+              c.comparisonCount, 
+              isKpiDataValid, 
+              resolvedRange.comparisonLabel
+            );
 
             const generateBezier = (data) => {
               const width = 120;
@@ -469,9 +791,11 @@ const AppointmentCalendarPage = () => {
                   <h3 className="text-[32px] font-black text-slate-900 leading-none mt-2">
                     {c.count}
                   </h3>
-                  <p className={`text-[10.5px] font-extrabold mt-1.5 leading-none ${diff === 0 ? 'text-slate-400' : (isUp ? 'text-blue-600' : 'text-rose-600')}`}>
-                    {diff === 0 ? 'No change' : `${isUp ? '↑' : '↓'} ${pct}% vs yesterday`}
-                  </p>
+                  {comparison.shouldDisplay && (
+                    <p className={`text-[10.5px] font-extrabold mt-1.5 leading-none ${comparison.colorClass}`}>
+                      {comparison.text}
+                    </p>
+                  )}
                 </div>
 
                 <div className="mt-auto pt-2 shrink-0">
@@ -568,12 +892,16 @@ const AppointmentCalendarPage = () => {
           </select>
         </div>
 
-        {/* Datatable */}
+        {/* Datatable with Independent Vertical Scroll & Infinite Scrolling */}
         <div className="bg-white rounded-3xl border border-slate-150 overflow-hidden shadow-xs">
-          <div className="overflow-x-auto w-full">
+          <div 
+            ref={tableScrollRef}
+            onScroll={handleTableScroll}
+            className="overflow-x-auto overflow-y-auto max-h-[540px] w-full [scrollbar-width:thin]"
+          >
             <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50/70 border-b border-slate-150 text-[10px] font-black text-slate-400 uppercase tracking-wider">
+              <thead className="sticky top-0 bg-slate-50/95 backdrop-blur-xs z-10 border-b border-slate-150">
+                <tr className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
                   <th className="py-4 px-5">Time</th>
                   <th className="py-4 px-4">Token</th>
                   <th className="py-4 px-4">Patient</th>
@@ -588,115 +916,173 @@ const AppointmentCalendarPage = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-150">
-                {isLoading ? (
+                {isError ? (
                   <tr>
-                    <td colSpan="11" className="py-12 text-center text-xs text-slate-400 font-bold">Loading appointments...</td>
+                    <td colSpan="11" className="py-12 text-center">
+                      <div className="flex flex-col items-center gap-2">
+                        <AlertCircle size={22} className="text-rose-500" />
+                        <p className="text-xs font-bold text-slate-700">Failed to load appointments</p>
+                        <button
+                          type="button"
+                          onClick={() => refetch()}
+                          className="mt-1 px-3 py-1 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition"
+                        >
+                          Retry
+                        </button>
+                      </div>
+                    </td>
                   </tr>
-                ) : filteredAppointments.length === 0 ? (
+                ) : isLoading ? (
+                  <tr>
+                    <td colSpan="11" className="py-12 text-center text-xs text-slate-400 font-bold">
+                      <div className="flex items-center justify-center gap-2">
+                        <RefreshCw size={15} className="animate-spin text-blue-600" />
+                        <span>Loading appointments...</span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : tableAppointments.length === 0 ? (
                   <tr>
                     <td colSpan="11" className="py-16 text-center">
                       <div className="flex flex-col items-center gap-2.5">
-                        <CalendarIcon size={24} className="text-slate-350" />
-                        <h4 className="text-xs font-black text-slate-800">No Appointments</h4>
-                        <p className="text-[10px] text-slate-400 font-bold">No appointments scheduled for this date.</p>
+                        <div className="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-150 flex items-center justify-center text-slate-400">
+                          <CalendarIcon size={24} />
+                        </div>
+                        <h4 className="text-sm font-black text-slate-700">No appointments found</h4>
+                        <p className="text-xs text-slate-400 font-medium">No appointments for the selected date range and filters.</p>
                       </div>
                     </td>
                   </tr>
                 ) : (
-                  filteredAppointments.map(apt => (
-                    <tr key={apt._id} className="hover:bg-slate-50/40 transition">
-                      <td className="py-4 px-5 text-xs font-bold text-slate-900">{apt.startTime || '—'}</td>
-                      <td className="py-4 px-4">
-                        <span className={`text-[10.5px] font-black ${apt.status !== 'booked' ? 'text-blue-700 bg-blue-50 px-2 py-0.5 rounded-lg' : 'text-slate-400'}`}>
-                          {apt.meta?.tokenNumber || apt.tokenNumber || '—'}
-                        </span>
-                      </td>
-                      <td className="py-4 px-4">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-400 text-[10px] overflow-hidden">
-                            {apt.patientId?.fullName?.slice(0,2).toUpperCase() || 'PT'}
-                          </div>
-                          <div>
-                            <p className="text-xs font-black text-slate-900 leading-none">{apt.patientId?.fullName || 'Not provided'}</p>
-                            <span className="text-[9.5px] text-slate-400 font-bold block mt-1">UHID: {apt.patientId?.patientId || '—'}</span>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-4 px-4 text-xs font-bold text-slate-800">{apt.doctorId?.fullName || '—'}</td>
-                      <td className="py-4 px-4 text-[11px] text-slate-550 font-bold">{apt.doctorId?.specialization?.name || 'General Medicine'}</td>
-                      <td className="py-4 px-4">
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase ${
-                          apt.consultationMode === 'ONLINE' ? 'bg-blue-50 text-blue-700' : 'bg-blue-50 text-blue-700'
-                        }`}>
-                          {apt.consultationMode === 'ONLINE' ? '📹 Online' : '🏥 Offline'}
-                        </span>
-                      </td>
-                      <td className="py-4 px-4">
-                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
-                          apt.source === 'patient_app' ? 'bg-blue-50 text-blue-700' : 'bg-indigo-50 text-indigo-700'
-                        }`}>
-                          {apt.source === 'patient_app' ? 'Patient' : 'Receptionist'}
-                        </span>
-                      </td>
-                      <td className="py-4 px-4">
-                        <span className={`px-2.5 py-0.5 rounded-lg text-[9.5px] font-black uppercase ${
-                          apt.paymentStatus === 'paid' ? 'bg-blue-100 text-blue-800' : 'bg-rose-50 text-rose-600'
-                        }`}>
-                          {apt.paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
-                        </span>
-                      </td>
-                      <td className="py-4 px-4">
-                        <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[9px] font-black uppercase ${
-                          apt.status === 'booked' ? 'bg-sky-50 text-sky-750' :
-                          apt.status === 'checked_in' ? 'bg-blue-50 text-blue-700' :
-                          apt.status === 'in_consultation' ? 'bg-purple-50 text-purple-755' :
-                          apt.status === 'completed' ? 'bg-blue-100 text-blue-800' :
-                          apt.status === 'cancelled' ? 'bg-rose-50 text-rose-755' :
-                          'bg-orange-50 text-orange-755'
-                        }`}>
-                          {apt.status || 'booked'}
-                        </span>
-                      </td>
-                      <td className="py-4 px-4">
-                        {apt.paymentStatus === 'waiver_pending' ? (
-                          <span className="text-amber-600 font-extrabold text-[9px] bg-amber-50 px-2 py-0.5 rounded-lg">Requested</span>
-                        ) : apt.paymentStatus === 'fully_waived' ? (
-                          <span className="text-blue-600 font-extrabold text-[9px] bg-blue-50 px-2 py-0.5 rounded-lg">Approved</span>
-                        ) : '—'}
-                      </td>
-                      <td className="py-4 px-5 text-right" onClick={(e) => e.stopPropagation()}>
-                        <div className="relative inline-block">
-                          <button 
-                            onClick={() => setActionMenuOpenId(actionMenuOpenId === apt._id ? null : apt._id)}
-                            className="p-1 rounded-lg hover:bg-slate-100 text-slate-500"
-                          >
-                            <MoreVertical className="w-4 h-4" />
-                          </button>
-                          {actionMenuOpenId === apt._id && (
-                            <div className="absolute right-0 mt-1 w-44 bg-white border border-slate-150 rounded-xl shadow-lg z-50 py-1 text-left text-xs font-bold text-slate-700">
-                              <Link to={`/appointments/${apt._id}`} className="block px-4 py-2 hover:bg-slate-50">View Details</Link>
-                              {apt.status === 'booked' && (
-                                <button onClick={() => handleStatusChange(apt._id, 'checked_in')} className="w-full text-left px-4 py-2 hover:bg-slate-50 text-blue-600">Check-In</button>
-                              )}
-                              {apt.paymentStatus === 'waiver_pending' && (
-                                <>
-                                  <button onClick={() => handleWaiverAction(apt._id, 'approve')} className="w-full text-left px-4 py-2 hover:bg-slate-50 text-blue-600">Approve Waiver</button>
-                                  <button onClick={() => handleWaiverAction(apt._id, 'reject')} className="w-full text-left px-4 py-2 hover:bg-slate-50 text-rose-600">Reject Waiver</button>
-                                </>
-                              )}
-                              {apt.status !== 'cancelled' && apt.status !== 'completed' && (
-                                <button onClick={() => handleStatusChange(apt._id, 'cancelled')} className="w-full text-left px-4 py-2 hover:bg-slate-50 text-rose-600">Cancel</button>
-                              )}
-                            </div>
+                  <>
+                    {paginatedAppointments.map(apt => (
+                      <tr key={apt._id} className="hover:bg-slate-50/40 transition">
+                        <td className="py-4 px-5">
+                          <p className="text-xs font-bold text-slate-900 leading-none">{apt.startTime || '—'}</p>
+                          {apt.appointmentDate && (
+                            <span className="text-[9.5px] text-slate-400 font-medium block mt-1">
+                              {formatDisplayDate(formatDateStr(new Date(apt.appointmentDate)))}
+                            </span>
                           )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                        </td>
+                        <td className="py-4 px-4">
+                          <span className={`text-[10.5px] font-black ${apt.status !== 'booked' ? 'text-blue-700 bg-blue-50 px-2 py-0.5 rounded-lg' : 'text-slate-400'}`}>
+                            {apt.meta?.tokenNumber || apt.tokenNumber || '—'}
+                          </span>
+                        </td>
+                        <td className="py-4 px-4">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-400 text-[10px] overflow-hidden">
+                              {apt.patientId?.fullName?.slice(0,2).toUpperCase() || 'PT'}
+                            </div>
+                            <div>
+                              <p className="text-xs font-black text-slate-900 leading-none">{apt.patientId?.fullName || 'Not provided'}</p>
+                              <span className="text-[9.5px] text-slate-400 font-bold block mt-1">UHID: {apt.patientId?.patientId || '—'}</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-4 px-4 text-xs font-bold text-slate-800">
+                          {normalizeDoctorName(apt.doctorId?.fullName) || '—'}
+                        </td>
+                        <td className="py-4 px-4 text-[11px] text-slate-550 font-bold">{apt.doctorId?.specialization?.name || 'General Medicine'}</td>
+                        <td className="py-4 px-4">
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase ${
+                            apt.consultationMode === 'ONLINE' ? 'bg-blue-50 text-blue-700' : 'bg-blue-50 text-blue-700'
+                          }`}>
+                            {apt.consultationMode === 'ONLINE' ? '📹 Online' : '🏥 Offline'}
+                          </span>
+                        </td>
+                        <td className="py-4 px-4">
+                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
+                            apt.source === 'patient_app' ? 'bg-blue-50 text-blue-700' : 'bg-indigo-50 text-indigo-700'
+                          }`}>
+                            {apt.source === 'patient_app' ? 'Patient' : 'Receptionist'}
+                          </span>
+                        </td>
+                        <td className="py-4 px-4">
+                          <span className={`px-2.5 py-0.5 rounded-lg text-[9.5px] font-black uppercase ${
+                            apt.paymentStatus === 'paid' ? 'bg-blue-100 text-blue-800' : 'bg-rose-50 text-rose-600'
+                          }`}>
+                            {apt.paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
+                          </span>
+                        </td>
+                        <td className="py-4 px-4">
+                          <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[9px] font-black uppercase ${
+                            apt.status === 'booked' ? 'bg-sky-50 text-sky-750' :
+                            apt.status === 'checked_in' ? 'bg-blue-50 text-blue-700' :
+                            apt.status === 'in_consultation' ? 'bg-purple-50 text-purple-755' :
+                            apt.status === 'completed' ? 'bg-blue-100 text-blue-800' :
+                            apt.status === 'cancelled' ? 'bg-rose-50 text-rose-755' :
+                            apt.status === 'rescheduled' ? 'bg-amber-50 text-amber-700' :
+                            apt.status === 'not_attended' ? 'bg-slate-100 text-slate-600' :
+                            'bg-orange-50 text-orange-755'
+                          }`}>
+                            {apt.status === 'not_attended' ? 'Not Attended' : (apt.status || 'booked').replaceAll('_', ' ')}
+                          </span>
+                        </td>
+                        <td className="py-4 px-4">
+                          {apt.paymentStatus === 'waiver_pending' ? (
+                            <span className="text-amber-600 font-extrabold text-[9px] bg-amber-50 px-2 py-0.5 rounded-lg">Requested</span>
+                          ) : apt.paymentStatus === 'fully_waived' ? (
+                            <span className="text-blue-600 font-extrabold text-[9px] bg-blue-50 px-2 py-0.5 rounded-lg">Approved</span>
+                          ) : '—'}
+                        </td>
+                        <td className="py-4 px-5 text-right" onClick={(e) => e.stopPropagation()}>
+                          <div className="relative inline-block">
+                            <button 
+                              onClick={() => setActionMenuOpenId(actionMenuOpenId === apt._id ? null : apt._id)}
+                              className="p-1 rounded-lg hover:bg-slate-100 text-slate-500"
+                            >
+                              <MoreVertical className="w-4 h-4" />
+                            </button>
+                            {actionMenuOpenId === apt._id && (
+                              <div className="absolute right-0 mt-1 w-44 bg-white border border-slate-150 rounded-xl shadow-lg z-50 py-1 text-left text-xs font-bold text-slate-700">
+                                <Link to={`/appointments/${apt._id}`} className="block px-4 py-2 hover:bg-slate-50">View Details</Link>
+                                {apt.status === 'booked' && (
+                                  <button onClick={() => handleStatusChange(apt._id, 'checked_in')} className="w-full text-left px-4 py-2 hover:bg-slate-50 text-blue-600">Check-In</button>
+                                )}
+                                {apt.paymentStatus === 'waiver_pending' && (
+                                  <>
+                                    <button onClick={() => handleWaiverAction(apt._id, 'approve')} className="w-full text-left px-4 py-2 hover:bg-slate-50 text-blue-600">Approve Waiver</button>
+                                    <button onClick={() => handleWaiverAction(apt._id, 'reject')} className="w-full text-left px-4 py-2 hover:bg-slate-50 text-rose-600">Reject Waiver</button>
+                                  </>
+                                )}
+                                {apt.status !== 'cancelled' && apt.status !== 'completed' && (
+                                  <button onClick={() => handleStatusChange(apt._id, 'cancelled')} className="w-full text-left px-4 py-2 hover:bg-slate-50 text-rose-600">Cancel</button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                    {isLoadingMore && (
+                      <tr>
+                        <td colSpan="11" className="py-3.5 text-center bg-slate-50/60">
+                          <div className="flex items-center justify-center gap-2 text-xs font-bold text-slate-500">
+                            <RefreshCw size={13} className="animate-spin text-blue-600" />
+                            <span>Loading more appointments...</span>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </>
                 )}
               </tbody>
             </table>
           </div>
+          {tableAppointments.length > 0 && (
+            <div className="p-3 border-t border-slate-150 flex items-center justify-between text-[11px] font-bold text-slate-500 bg-slate-50/40">
+              <span>
+                Showing 1–{Math.min(visibleCount, tableAppointments.length)} of {tableAppointments.length} appointments
+              </span>
+              {visibleCount < tableAppointments.length && (
+                <span className="text-[10px] text-blue-600 font-bold">
+                  Scroll down to load more
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
       </div>
@@ -714,10 +1100,10 @@ const AppointmentCalendarPage = () => {
               <button onClick={() => navigate('/dashboard/appointments')} className="text-[10px] font-black text-blue-600 hover:text-blue-700 uppercase">View Full →</button>
             </div>
             <div className="space-y-2.5">
-              {allAppointments.filter(a => ['checked_in', 'in_consultation'].includes(a.status)).length === 0 ? (
+              {todayLiveAppointments.filter(a => ['checked_in', 'in_consultation'].includes(a.status)).length === 0 ? (
                 <p className="text-[10px] text-slate-400 font-bold text-center py-4 bg-slate-50/50 rounded-2xl border border-slate-100">No active checked-in patients</p>
               ) : (
-                allAppointments.filter(a => ['checked_in', 'in_consultation'].includes(a.status)).slice(0, 3).map(apt => (
+                todayLiveAppointments.filter(a => ['checked_in', 'in_consultation'].includes(a.status)).slice(0, 3).map(apt => (
                   <div key={apt._id} className="bg-slate-50/50 border border-slate-100 p-3 rounded-2xl flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2.5">
                       <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center font-black text-[10px]">
@@ -746,10 +1132,10 @@ const AppointmentCalendarPage = () => {
               <button className="text-[10px] font-black text-blue-600 hover:text-blue-700 uppercase">View All →</button>
             </div>
             <div className="space-y-2.5">
-              {allAppointments.filter(a => ['waiver_pending', 'fully_waived'].includes(a.paymentStatus)).length === 0 ? (
+              {baseFilteredAppointments.filter(a => ['waiver_pending', 'fully_waived'].includes(a.paymentStatus)).length === 0 ? (
                 <p className="text-[10px] text-slate-400 font-bold text-center py-4 bg-slate-50/50 rounded-2xl border border-slate-100">No active waivers</p>
               ) : (
-                allAppointments.filter(a => ['waiver_pending', 'fully_waived'].includes(a.paymentStatus)).slice(0, 3).map(apt => (
+                baseFilteredAppointments.filter(a => ['waiver_pending', 'fully_waived'].includes(a.paymentStatus)).slice(0, 3).map(apt => (
                   <div key={apt._id} className="bg-slate-50/50 border border-slate-100 p-3 rounded-2xl flex items-center justify-between gap-3">
                     <div>
                       <p className="text-xs font-black text-slate-800 leading-none">{apt.patientId?.fullName}</p>
@@ -768,7 +1154,9 @@ const AppointmentCalendarPage = () => {
 
           {/* Widget 3 — Appointment Sources (Donut Chart) */}
           <div className="space-y-4 border-t border-slate-100 pt-5">
-            <h3 className="text-xs font-black text-slate-900 uppercase">Appointment Sources (Today)</h3>
+            <h3 className="text-xs font-black text-slate-900 uppercase">
+              Appointment Sources ({dateRangeOption === DATE_RANGE_OPTIONS.TODAY ? 'Today' : dateRangeOption === DATE_RANGE_OPTIONS.YESTERDAY ? 'Yesterday' : 'Period'})
+            </h3>
             
             <div className="flex items-center gap-5">
               {/* Donut Chart Visual SVG */}

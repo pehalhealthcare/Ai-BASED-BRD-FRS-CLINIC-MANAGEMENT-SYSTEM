@@ -82,13 +82,22 @@ const patientIdParamSchema = objectIdParamSchema('patientId');
 const listInvoiceQuerySchema = z.object({
   query: z.object({
     page: z.coerce.number().int().positive().default(1),
-    limit: z.coerce.number().int().positive().max(1000).default(10),
+    limit: z.coerce.number().int().positive().max(1000).default(5),
     patientId: objectIdSchema.optional(),
-    status: z.enum(INVOICE_STATUSES).optional(),
-    paymentStatus: z.enum(PAYMENT_STATUSES).optional(),
+    status: z.string().trim().optional(),
+    paymentStatus: z.string().trim().optional(),
+    serviceType: z.string().trim().optional(),
+    invoiceType: z.string().trim().optional(),
+    tab: z.enum(['invoices', 'payments', 'refunds']).optional(),
     fromDate: isoDateSchema.optional(),
     toDate: isoDateSchema.optional(),
-    search: z.string().trim().optional()
+    from: isoDateSchema.optional(),
+    to: isoDateSchema.optional(),
+    startDate: isoDateSchema.optional(),
+    endDate: isoDateSchema.optional(),
+    search: z.string().trim().optional(),
+    cursor: z.string().trim().optional(),
+    offset: z.coerce.number().int().nonnegative().optional()
   })
 });
 

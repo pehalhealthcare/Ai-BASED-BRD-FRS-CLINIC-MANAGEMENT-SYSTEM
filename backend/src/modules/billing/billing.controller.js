@@ -120,6 +120,7 @@ const getPatientInvoices = asyncHandler(async (req, res) => {
 const getBillingSummary = asyncHandler(async (req, res) => {
   const summary = await billingService.getBillingSummary({
     requester: req.user,
+    query: req.query,
     requestedClinicId: req.query.clinicId
   });
 

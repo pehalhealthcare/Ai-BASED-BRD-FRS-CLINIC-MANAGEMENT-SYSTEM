@@ -375,28 +375,72 @@ const listInvoices = async ({ requester, query = {}, requestedClinicId = null })
     user: requester,
     requestedClinicId: requestedClinicId || query.clinicId
   });
-  const { page, limit } = getPagination(query);
+
+  // Support cursor or offset if provided
+  let pageNumber = query.page;
+  if (query.cursor && !query.page) {
+    pageNumber = Number(query.cursor);
+  } else if (query.offset !== undefined && !query.page) {
+    const limitNum = Number(query.limit) || 5;
+    pageNumber = Math.floor(Number(query.offset) / limitNum) + 1;
+  }
+
+  const { page, limit } = getPagination({ ...query, page: pageNumber, limit: query.limit || 5 });
   const filter = { clinicId };
 
   if (query.patientId) {
     filter.patientId = query.patientId;
   }
 
-  if (query.status) {
-    filter.invoiceStatus = query.status;
-  }
-
-  if (query.paymentStatus) {
-    filter.paymentStatus = query.paymentStatus;
-  }
-
-  if (query.fromDate || query.toDate) {
-    filter.invoiceDate = {};
-    if (query.fromDate) {
-      filter.invoiceDate.$gte = new Date(`${query.fromDate}T00:00:00.000Z`);
+  // Tab Filtering (independent infinite scrolling per tab)
+  if (query.tab === 'payments') {
+    filter.$or = [
+      { 'payments.0': { $exists: true } },
+      { paidAmount: { $gt: 0 } },
+      { paymentStatus: { $in: ['paid', 'partial'] } }
+    ];
+    if (query.status) {
+      filter['payments.paymentMode'] = new RegExp(query.status, 'i');
     }
-    if (query.toDate) {
-      filter.invoiceDate.$lte = new Date(`${query.toDate}T23:59:59.999Z`);
+  } else if (query.tab === 'refunds') {
+    filter.$or = [
+      { refundAmount: { $gt: 0 } },
+      { invoiceStatus: 'cancelled' }
+    ];
+  } else {
+    // Invoices Tab
+    if (query.status) {
+      const lowerStatus = query.status.toLowerCase();
+      if (['paid', 'partial', 'unpaid'].includes(lowerStatus)) {
+        filter.paymentStatus = lowerStatus;
+      } else if (['cancelled', 'refunded'].includes(lowerStatus)) {
+        filter.invoiceStatus = lowerStatus;
+      } else {
+        filter.invoiceStatus = query.status;
+      }
+    }
+
+    if (query.paymentStatus) {
+      filter.paymentStatus = query.paymentStatus;
+    }
+  }
+
+  // Type Filter (serviceType or invoiceType)
+  const serviceTypeVal = query.serviceType || query.invoiceType;
+  if (serviceTypeVal && serviceTypeVal !== 'ALL') {
+    filter.serviceType = serviceTypeVal;
+  }
+
+  const fromDate = query.fromDate || query.from || query.startDate;
+  const toDate = query.toDate || query.to || query.endDate;
+
+  if (fromDate || toDate) {
+    filter.invoiceDate = {};
+    if (fromDate) {
+      filter.invoiceDate.$gte = new Date(`${fromDate}T00:00:00.000Z`);
+    }
+    if (toDate) {
+      filter.invoiceDate.$lte = new Date(`${toDate}T23:59:59.999Z`);
     }
   }
 
@@ -406,10 +450,16 @@ const listInvoices = async ({ requester, query = {}, requestedClinicId = null })
       clinicId,
       doctorId: doctor._id
     });
-    filter.$or = [
+    const doctorScopeOr = [
       { consultationId: { $in: consultationIds } },
       { appointmentId: { $in: appointmentIds } }
     ];
+    if (filter.$or) {
+      filter.$and = [{ $or: filter.$or }, { $or: doctorScopeOr }];
+      delete filter.$or;
+    } else {
+      filter.$or = doctorScopeOr;
+    }
   }
 
   if (query.search?.trim()) {
@@ -431,16 +481,24 @@ const listInvoices = async ({ requester, query = {}, requestedClinicId = null })
     if (filter.$or) {
       filter.$and = [{ $or: filter.$or }, { $or: searchOr }];
       delete filter.$or;
+    } else if (filter.$and) {
+      filter.$and.push({ $or: searchOr });
     } else {
       filter.$or = searchOr;
     }
   }
 
   const { invoices, total } = await billingRepository.listInvoices({ filter, page, limit });
+  const hasMore = page * limit < total;
+  const totalPages = Math.ceil(total / limit) || 1;
 
   return {
     invoices,
-    pagination: buildPaginationMeta({ page, limit, total })
+    pagination: {
+      ...buildPaginationMeta({ page, limit, total }),
+      hasMore,
+      nextCursor: hasMore ? String(page + 1) : null
+    }
   };
 };
 
@@ -912,13 +970,20 @@ const getPatientInvoices = async ({ requester, patientId, query = {}, requestedC
   };
 };
 
-const getBillingSummary = async ({ requester, requestedClinicId = null }) => {
+const getBillingSummary = async ({ requester, query = {}, requestedClinicId = null }) => {
   const clinicId = resolveClinicContext({
     user: requester,
-    requestedClinicId
+    requestedClinicId: requestedClinicId || query.clinicId
   });
 
-  const summary = await billingRepository.getBillingSummary({ clinicId });
+  const from = query.fromDate || query.from || query.startDate;
+  const to = query.toDate || query.to || query.endDate;
+
+  const range = {};
+  if (from) range.from = from;
+  if (to) range.to = to;
+
+  const summary = await billingRepository.getBillingSummary({ clinicId, range });
   return summary;
 };
 

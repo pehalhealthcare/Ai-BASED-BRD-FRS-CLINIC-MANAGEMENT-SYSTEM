@@ -153,18 +153,28 @@ const assertDateNotPast = ({ appointmentDate, appointmentType }) => {
 
 const buildAppointmentFilter = ({ clinicId, query, requester }) => {
   const filter = {};
-  if (requester?.role !== ROLES.PATIENT || query.clinicId) {
-    filter.clinicId = clinicId;
+  const targetClinicId = query.branchId || query.clinicId || clinicId;
+  if (requester?.role !== ROLES.PATIENT || query.clinicId || query.branchId) {
+    if (targetClinicId) {
+      filter.clinicId = targetClinicId;
+    }
   }
+
+  const fromDate = query.from || query.startDate;
+  const toDate = query.to || query.endDate;
 
   if (query.date) {
     filter.appointmentDate = normalizeDate(query.date);
-  }
-
-  if (query.from || query.to) {
+  } else if (fromDate || toDate) {
+    const gteDate = fromDate ? normalizeDate(fromDate) : null;
+    let lteDate = null;
+    if (toDate) {
+      lteDate = new Date(normalizeDate(toDate));
+      lteDate.setUTCHours(23, 59, 59, 999);
+    }
     filter.appointmentDate = {
-      ...(query.from ? { $gte: normalizeDate(query.from) } : {}),
-      ...(query.to ? { $lte: normalizeDate(query.to) } : {})
+      ...(gteDate ? { $gte: gteDate } : {}),
+      ...(lteDate ? { $lte: lteDate } : {})
     };
   }
 
@@ -174,6 +184,10 @@ const buildAppointmentFilter = ({ clinicId, query, requester }) => {
 
   if (query.patientId) {
     filter.patientId = query.patientId;
+  }
+
+  if (query.appointmentType) {
+    filter.appointmentType = query.appointmentType;
   }
 
   if (query.status) {
@@ -193,6 +207,16 @@ const buildAppointmentFilter = ({ clinicId, query, requester }) => {
 
   if (query.consultationMode) {
     filter.consultationMode = query.consultationMode;
+  }
+
+  if (query.paymentStatus) {
+    if (query.paymentStatus === 'waiver') {
+      filter.paymentStatus = { $in: ['waiver_pending', 'fully_waived', 'partially_waived'] };
+    } else if (query.paymentStatus === 'pending' || query.paymentStatus === 'unpaid') {
+      filter.paymentStatus = { $in: ['pending', 'unpaid'] };
+    } else {
+      filter.paymentStatus = query.paymentStatus;
+    }
   }
 
   return filter;
@@ -949,11 +973,21 @@ const listAppointments = async ({ requester, query }) => {
 
   const { page, limit } = getPagination(query);
   const filter = buildAppointmentFilter({ clinicId, query, requester });
-  const { appointments, total } = await appointmentRepository.listAppointments({
-    filter,
-    page,
-    limit
-  });
+
+  // Base filter for summary: same date, clinic, doctor, branch, mode, etc., but without specific status/paymentStatus if narrowed for table tab
+  const baseQueryForSummary = { ...query };
+  delete baseQueryForSummary.status;
+  delete baseQueryForSummary.paymentStatus;
+  const summaryFilter = buildAppointmentFilter({ clinicId, query: baseQueryForSummary, requester });
+
+  const [{ appointments, total }, summary] = await Promise.all([
+    appointmentRepository.listAppointments({
+      filter,
+      page,
+      limit
+    }),
+    appointmentRepository.getAppointmentsSummary(summaryFilter)
+  ]);
 
   const resolvedAppointments = await Promise.all(
     appointments.map(async (apt) => {
@@ -964,7 +998,8 @@ const listAppointments = async ({ requester, query }) => {
 
   return {
     appointments: resolvedAppointments,
-    pagination: buildPaginationMeta({ page, limit, total })
+    pagination: buildPaginationMeta({ page, limit, total }),
+    summary
   };
 };
 

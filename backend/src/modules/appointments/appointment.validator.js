@@ -44,7 +44,16 @@ const listAppointmentsQuerySchema = z.object({
     consultationMode: z.enum(['WALK_IN', 'ONLINE']).optional(),
     from: dateStringSchema.optional(),
     to: dateStringSchema.optional(),
-    clinicId: objectIdSchema.optional()
+    startDate: dateStringSchema.optional(),
+    endDate: dateStringSchema.optional(),
+    clinicId: objectIdSchema.optional(),
+    branchId: objectIdSchema.optional(),
+    appointmentType: appointmentTypeSchema.optional(),
+    includePending: z.union([z.boolean(), z.enum(['true', 'false'])]).optional(),
+    search: z.string().trim().optional(),
+    paymentStatus: z.string().trim().optional(),
+    department: z.string().trim().optional(),
+    specialization: z.string().trim().optional()
   })
 });
 

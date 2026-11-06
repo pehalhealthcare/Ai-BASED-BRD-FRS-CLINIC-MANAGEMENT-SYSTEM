@@ -1,4 +1,30 @@
+const mongoose = require('mongoose');
 const Appointment = require('./appointment.model');
+
+const toObjectId = (val) => {
+  if (!val) return val;
+  if (val instanceof mongoose.Types.ObjectId) return val;
+  if (typeof val === 'string' && /^[0-9a-fA-F]{24}$/.test(val)) {
+    return new mongoose.Types.ObjectId(val);
+  }
+  return val;
+};
+
+const castFilterObjectIds = (filter = {}) => {
+  const result = { ...filter };
+  ['clinicId', 'doctorId', 'patientId', 'branchId', '_id'].forEach((key) => {
+    if (result[key]) {
+      if (typeof result[key] === 'string') {
+        result[key] = toObjectId(result[key]);
+      } else if (result[key]?.$in && Array.isArray(result[key].$in)) {
+        result[key].$in = result[key].$in.map(toObjectId);
+      } else if (result[key]?.$ne) {
+        result[key].$ne = toObjectId(result[key].$ne);
+      }
+    }
+  });
+  return result;
+};
 
 const populateAppointment = (query) =>
   query
@@ -62,11 +88,77 @@ const findDoctorAppointmentsForDate = ({
 const findPatientAppointmentHistory = ({ clinicId, patientId, limit = 25 }) =>
   Appointment.find({ clinicId, patientId }).sort({ appointmentDate: -1, startTime: -1 }).limit(limit);
 
+const getAppointmentsSummary = async (baseFilter = {}) => {
+  const safeFilter = castFilterObjectIds(baseFilter);
+  const matchStage = safeFilter && Object.keys(safeFilter).length > 0 ? [{ $match: safeFilter }] : [];
+  const [counts] = await Appointment.aggregate([
+    ...matchStage,
+    {
+      $facet: {
+        total: [{ $count: 'count' }],
+        byStatus: [{ $group: { _id: '$status', count: { $sum: 1 } } }],
+        byPaymentStatus: [{ $group: { _id: '$paymentStatus', count: { $sum: 1 } } }],
+        bySource: [{ $group: { _id: '$source', count: { $sum: 1 } } }]
+      }
+    }
+  ]);
+
+  const total = counts?.total?.[0]?.count || 0;
+  const statusMap = {};
+  (counts?.byStatus || []).forEach((item) => {
+    if (item._id) statusMap[item._id] = item.count;
+  });
+
+  const paymentStatusMap = {};
+  (counts?.byPaymentStatus || []).forEach((item) => {
+    if (item._id) paymentStatusMap[item._id] = item.count;
+  });
+
+  const sourceMap = {};
+  (counts?.bySource || []).forEach((item) => {
+    if (item._id) sourceMap[item._id] = item.count;
+  });
+
+  const booked = (statusMap['booked'] || 0) + (statusMap['confirmed'] || 0);
+  const checkedIn = (statusMap['checked_in'] || 0) + (statusMap['waiting'] || 0);
+  const inConsult = (statusMap['in_consultation'] || 0) + (statusMap['consultation_started'] || 0);
+  const completed = statusMap['completed'] || 0;
+  const cancelled = statusMap['cancelled'] || 0;
+  const rescheduled = statusMap['rescheduled'] || 0;
+  const notAttended = statusMap['not_attended'] || 0;
+  const pendingWaivers = (paymentStatusMap['waiver_pending'] || 0);
+  const fullyWaived = (paymentStatusMap['fully_waived'] || 0);
+  const partiallyWaived = (paymentStatusMap['partially_waived'] || 0);
+  const pendingPayments = (paymentStatusMap['pending'] || 0) + (paymentStatusMap['unpaid'] || 0);
+
+  return {
+    total,
+    booked,
+    checkedIn,
+    inConsult,
+    completed,
+    cancelled,
+    rescheduled,
+    notAttended,
+    pendingWaivers,
+    fullyWaived,
+    partiallyWaived,
+    pendingPayments,
+    sources: {
+      patient_app: sourceMap['patient_app'] || 0,
+      receptionist: (sourceMap['receptionist'] || 0) + (sourceMap['reception'] || 0),
+      doctor: sourceMap['doctor'] || 0,
+      clinic_admin: sourceMap['clinic_admin'] || 0
+    }
+  };
+};
+
 module.exports = {
   createAppointment,
   findAppointmentByIdAndClinic,
   listAppointments,
   findAppointmentsForRange,
   findDoctorAppointmentsForDate,
-  findPatientAppointmentHistory
+  findPatientAppointmentHistory,
+  getAppointmentsSummary
 };
