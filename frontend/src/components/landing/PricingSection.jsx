@@ -4,7 +4,8 @@ import {
   Check, Sparkles, ArrowRight, ShieldCheck, Zap, 
   User, Building2, Crown, Calendar, Headphones,
   Building, CalendarCheck, AlertCircle, RefreshCw, Layers,
-  ChevronDown, ChevronUp, Minus, Star, Table
+  ChevronDown, ChevronUp, Minus, Star, Table,
+  ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { subscriptionApi } from '../../lib/api';
@@ -119,6 +120,73 @@ const formatFeatureText = (feat) => {
   return feat.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 };
 
+const CANONICAL_PLAN_FEATURES = {
+  BASIC: [
+    'Patient Registration',
+    'Appointment Management',
+    'Billing & Invoicing',
+    'Prescription & Rx Generator',
+    'Basic EMR & Patient Records',
+    'Daily & Financial Reports',
+    'SMS Reminders',
+    'Staff Login & Roster'
+  ],
+  STARTER: [
+    'Patient Registration',
+    'Appointment Management',
+    'Billing & Invoicing',
+    'Prescription & Rx Generator',
+    'Basic EMR & Patient Records',
+    'Daily & Financial Reports',
+    'SMS Reminders',
+    'Staff Login & Roster'
+  ],
+  PROFESSIONAL: [
+    'Patient Registration',
+    'Appointment Management',
+    'Billing & Invoicing',
+    'Prescription & Rx Generator',
+    'Basic EMR & Patient Records',
+    'Pharmacy & Inventory Management',
+    'Lab Management',
+    'WhatsApp & SMS Notifications'
+  ],
+  PREMIUM: [
+    'Patient Registration',
+    'Appointment Management',
+    'Billing & Invoicing',
+    'Prescription & Rx Generator',
+    'Advanced EMR & Patient Records',
+    'AI Consultation Assistant',
+    'Lab & Pharmacy Management',
+    'Telemedicine & Multi-Branch Support'
+  ],
+  ENTERPRISE: [
+    'All Professional & Premium Features',
+    'Dedicated HIPAA Cloud Server',
+    'Custom Clinical Workflows',
+    'White-label Custom Branding',
+    'Dedicated Account Manager',
+    '24×7 Priority SLA Support',
+    'ABDM & Insurance Integration',
+    'Custom API & HL7/FHIR Access'
+  ]
+};
+
+const getCardFeatures = (plan) => {
+  const code = (plan.code || '').toUpperCase();
+  if (CANONICAL_PLAN_FEATURES[code]) {
+    return CANONICAL_PLAN_FEATURES[code];
+  }
+  if (Array.isArray(plan.features) && plan.features.length > 0) {
+    return plan.features
+      .filter(f => !f.startsWith('users_') && !f.startsWith('unlimited_'))
+      .map(formatFeatureText)
+      .slice(0, 8);
+  }
+  return ['Full Clinic Management Suite'];
+};
+
 export default function PricingSection({ onSelectPlan, isAuthenticated = false }) {
   const navigate = useNavigate();
   const [billingCycle, setBillingCycle] = useState('monthly'); // 'monthly' | 'yearly'
@@ -126,12 +194,32 @@ export default function PricingSection({ onSelectPlan, isAuthenticated = false }
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showComparison, setShowComparison] = useState(false);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [visibleCards, setVisibleCards] = useState(3);
   
   const scrollRef = useRef(null);
+  const scrollTimeoutRef = useRef(null);
   const isDownRef = useRef(false);
   const startXRef = useRef(0);
   const scrollLeftRef = useRef(0);
   const isDraggingRef = useRef(false);
+
+  // Track viewport width for responsive card counts
+  useEffect(() => {
+    const updateVisible = () => {
+      const w = window.innerWidth;
+      if (w >= 1024) {
+        setVisibleCards(3);
+      } else if (w >= 768) {
+        setVisibleCards(2);
+      } else {
+        setVisibleCards(1);
+      }
+    };
+    updateVisible();
+    window.addEventListener('resize', updateVisible);
+    return () => window.removeEventListener('resize', updateVisible);
+  }, []);
 
   // Fetch real active plans from the database via backend public API
   const fetchPlans = useCallback(async () => {
@@ -166,6 +254,60 @@ export default function PricingSection({ onSelectPlan, isAuthenticated = false }
     fetchPlans();
   }, [fetchPlans]);
 
+  const maxIndex = useMemo(() => {
+    return Math.max(0, plans.length - visibleCards);
+  }, [plans.length, visibleCards]);
+
+  const scrollToCard = useCallback((targetIndex) => {
+    if (!scrollRef.current) return;
+    const cards = scrollRef.current.querySelectorAll('.pricing-card-item');
+    if (cards[targetIndex]) {
+      const track = scrollRef.current;
+      const targetCard = cards[targetIndex];
+      const offset = targetCard.offsetLeft - track.offsetLeft;
+      track.scrollTo({ left: offset, behavior: 'smooth' });
+      setCurrentIndex(targetIndex);
+    }
+  }, []);
+
+  const handlePrev = useCallback(() => {
+    const prevIndex = Math.max(currentIndex - 1, 0);
+    scrollToCard(prevIndex);
+  }, [currentIndex, scrollToCard]);
+
+  const handleNext = useCallback(() => {
+    const nextIndex = Math.min(currentIndex + 1, maxIndex);
+    scrollToCard(nextIndex);
+  }, [currentIndex, maxIndex, scrollToCard]);
+
+  // Synchronize active index and pagination dots during user scroll/drag/swipe
+  const handleScroll = useCallback(() => {
+    if (!scrollRef.current) return;
+    if (scrollTimeoutRef.current) cancelAnimationFrame(scrollTimeoutRef.current);
+    scrollTimeoutRef.current = requestAnimationFrame(() => {
+      if (!scrollRef.current) return;
+      const track = scrollRef.current;
+      const cards = track.querySelectorAll('.pricing-card-item');
+      if (!cards || cards.length === 0) return;
+      
+      const scrollLeft = track.scrollLeft;
+      let closestIndex = 0;
+      let minDiff = Infinity;
+      
+      cards.forEach((card, idx) => {
+        const cardOffset = card.offsetLeft - track.offsetLeft;
+        const diff = Math.abs(cardOffset - scrollLeft);
+        if (diff < minDiff) {
+          minDiff = diff;
+          closestIndex = idx;
+        }
+      });
+
+      const clamped = Math.min(closestIndex, maxIndex);
+      setCurrentIndex(clamped);
+    });
+  }, [maxIndex]);
+
   // Enhanced mouse wheel listener: allows vertical mouse wheel to scroll horizontally across plans on desktop
   useEffect(() => {
     const el = scrollRef.current;
@@ -174,15 +316,6 @@ export default function PricingSection({ onSelectPlan, isAuthenticated = false }
     const handleWheel = (e) => {
       if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
         return;
-      }
-
-      const scrollableChild = e.target.closest('.custom-scrollbar, ul');
-      if (scrollableChild && scrollableChild.scrollHeight > scrollableChild.clientHeight) {
-        const atTop = scrollableChild.scrollTop <= 0 && e.deltaY < 0;
-        const atBottom = Math.ceil(scrollableChild.scrollTop + scrollableChild.clientHeight) >= scrollableChild.scrollHeight && e.deltaY > 0;
-        if (!atTop && !atBottom) {
-          return;
-        }
       }
 
       if (e.deltaY !== 0) {
@@ -199,7 +332,7 @@ export default function PricingSection({ onSelectPlan, isAuthenticated = false }
 
   // Mouse Drag to Scroll handlers
   const handleMouseDown = (e) => {
-    if (e.target.closest('ul') || e.target.closest('button') || e.target.closest('a') || e.target.closest('input')) {
+    if (e.target.closest('button') || e.target.closest('a') || e.target.closest('input')) {
       return;
     }
     if (!scrollRef.current) return;
@@ -229,14 +362,12 @@ export default function PricingSection({ onSelectPlan, isAuthenticated = false }
 
   // Keyboard navigation on the carousel
   const handleKeyDown = (e) => {
-    if (!scrollRef.current) return;
-    const step = scrollRef.current.clientWidth * 0.45 || 380;
     if (e.key === 'ArrowLeft') {
       e.preventDefault();
-      scrollRef.current.scrollBy({ left: -step, behavior: 'smooth' });
+      handlePrev();
     } else if (e.key === 'ArrowRight') {
       e.preventDefault();
-      scrollRef.current.scrollBy({ left: step, behavior: 'smooth' });
+      handleNext();
     }
   };
 
@@ -267,28 +398,28 @@ export default function PricingSection({ onSelectPlan, isAuthenticated = false }
 
     if (code === 'ENTERPRISE' || name.includes('enterprise') || plan.isEnterprise) {
       return (
-        <div className="w-12 h-12 rounded-2xl bg-indigo-100 text-indigo-700 flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
+        <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
           <Building size={22} strokeWidth={2.2} />
         </div>
       );
     }
     if (code === 'PREMIUM' || name.includes('premium')) {
       return (
-        <div className="w-12 h-12 rounded-2xl bg-purple-100 text-purple-600 flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
+        <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
           <Crown size={22} strokeWidth={2.2} />
         </div>
       );
     }
     if (code === 'PROFESSIONAL' || name.includes('pro') || plan.isPopular) {
       return (
-        <div className="w-12 h-12 rounded-2xl bg-blue-100/90 text-blue-600 flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
+        <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
           <Building2 size={22} strokeWidth={2.2} />
         </div>
       );
     }
     if (code === 'STARTER' || name.includes('starter')) {
       return (
-        <div className="w-12 h-12 rounded-2xl bg-sky-100 text-sky-600 flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
+        <div className="w-12 h-12 rounded-2xl bg-sky-50 text-blue-500 flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
           <Zap size={22} strokeWidth={2.2} />
         </div>
       );
@@ -442,172 +573,221 @@ export default function PricingSection({ onSelectPlan, isAuthenticated = false }
 
         {/* ── 5 CUMULATIVE PLAN CARDS (HORIZONTAL CAROUSEL) ── */}
         {!loading && !error && plans.length > 0 && (
-          <div className="pricing-carousel-wrapper relative mx-auto">
-            
-            <div 
-              ref={scrollRef}
-              onMouseDown={handleMouseDown}
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUpOrLeave}
-              onMouseLeave={handleMouseUpOrLeave}
-              onKeyDown={handleKeyDown}
-              tabIndex={0}
-              role="region"
-              aria-label="Pricing plans carousel. Scroll horizontally, swipe, or use arrow keys to view all plans."
-              className="pricing-scroll-track focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded-3xl"
-            >
-              {plans.map((plan, index) => {
-                const isPopular = !!plan.isPopular || plan.badge === 'MOST POPULAR';
-                const isCustom = !!plan.isEnterprise || (plan.priceMonthly === 0 && plan.priceYearly === 0);
-                
-                const currentPrice = billingCycle === 'yearly'
-                  ? (plan.priceYearly ? Math.round(plan.priceYearly / 12) : plan.priceMonthly)
-                  : plan.priceMonthly;
+          <div className="relative mx-auto w-full">
+            <div className="relative w-full max-w-[1360px] mx-auto px-1 sm:px-2 flex items-center justify-center">
+              {/* Circular Previous Arrow */}
+              <button
+                type="button"
+                onClick={handlePrev}
+                disabled={currentIndex === 0}
+                aria-label="Previous plans"
+                className="shrink-0 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white border border-slate-200/90 shadow-md hover:shadow-lg flex items-center justify-center text-blue-600 hover:bg-blue-50/80 transition-all duration-200 disabled:opacity-20 disabled:cursor-not-allowed cursor-pointer z-20 mr-1.5 sm:mr-3"
+              >
+                <ChevronLeft size={24} strokeWidth={2.5} />
+              </button>
 
-                const billedAnnuallyText = billingCycle === 'yearly' && plan.priceYearly > 0
-                  ? `Billed ₹${plan.priceYearly.toLocaleString('en-IN')}/year`
-                  : null;
+              {/* Carousel Track Wrapper */}
+              <div className="pricing-carousel-wrapper flex-1 overflow-hidden pt-5 pb-3">
+                <div 
+                  ref={scrollRef}
+                  onScroll={handleScroll}
+                  onMouseDown={handleMouseDown}
+                  onMouseMove={handleMouseMove}
+                  onMouseUp={handleMouseUpOrLeave}
+                  onMouseLeave={handleMouseUpOrLeave}
+                  onKeyDown={handleKeyDown}
+                  tabIndex={0}
+                  role="region"
+                  aria-label="Pricing plans carousel. Scroll horizontally, swipe, or use arrow keys to view all plans."
+                  className="pricing-scroll-track focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-3xl"
+                >
+                  {plans.map((plan, index) => {
+                    const isPopular = !!plan.isPopular || plan.badge === 'MOST POPULAR';
+                    const isCustom = !!plan.isEnterprise || (plan.priceMonthly === 0 && plan.priceYearly === 0);
+                    
+                    const currentPrice = billingCycle === 'yearly'
+                      ? (plan.priceYearly ? Math.round(plan.priceYearly / 12) : plan.priceMonthly)
+                      : plan.priceMonthly;
 
-                // Extract real limits from database
-                const doctorLimit = plan.limits?.maxDoctors ? (plan.limits.maxDoctors >= 9999 ? 'Unlimited Doctors' : (plan.limits.maxDoctors > 1 ? `Up to ${plan.limits.maxDoctors} Doctors` : '1 Doctor')) : null;
-                const staffLimit = plan.limits?.maxStaff ? (plan.limits.maxStaff >= 9999 ? 'Unlimited Users' : `${plan.limits.maxStaff} Users`) : null;
-                const patientLimit = plan.limits?.maxPatients ? (plan.limits.maxPatients >= 999999 ? 'Unlimited Patients' : `${plan.limits.maxPatients.toLocaleString('en-IN')} Patients`) : null;
-                const branchLimit = plan.limits?.maxBranches ? (plan.limits.maxBranches >= 9999 ? 'Unlimited Branches' : (plan.limits.maxBranches > 1 ? `Up to ${plan.limits.maxBranches} Branches` : 'Single Branch')) : null;
+                    const billedAnnuallyText = billingCycle === 'yearly' && plan.priceYearly > 0
+                      ? `Billed ₹${plan.priceYearly.toLocaleString('en-IN')}/year`
+                      : null;
 
-                const limitHighlights = [doctorLimit, patientLimit, staffLimit, branchLimit].filter(Boolean);
+                    // Extract real limits from database
+                    const doctorLimit = plan.limits?.maxDoctors ? (plan.limits.maxDoctors >= 9999 ? 'Unlimited Doctors' : (plan.limits.maxDoctors > 1 ? `Up to ${plan.limits.maxDoctors} Doctors` : '1 Doctor')) : null;
+                    const staffLimit = plan.limits?.maxStaff ? (plan.limits.maxStaff >= 9999 ? 'Unlimited Users' : `${plan.limits.maxStaff} Users`) : null;
+                    const patientLimit = plan.limits?.maxPatients ? (plan.limits.maxPatients >= 999999 ? 'Unlimited Patients' : `${plan.limits.maxPatients.toLocaleString('en-IN')} Patients`) : null;
+                    const branchLimit = plan.limits?.maxBranches ? (plan.limits.maxBranches >= 9999 ? 'Unlimited Branches' : (plan.limits.maxBranches > 1 ? `Up to ${plan.limits.maxBranches} Branches` : 'Single Branch')) : null;
 
-                return (
-                  <div
-                    key={plan._id || plan.code || index}
-                    className="pricing-card-item group shrink-0"
-                  >
-                    <div className={`relative rounded-3xl p-6 sm:p-7 flex flex-col justify-between h-full transition-all duration-300 bg-white ${
-                      isPopular
-                        ? 'border-2 border-blue-600 shadow-xl shadow-blue-500/10'
-                        : 'border border-slate-200/90 shadow-sm hover:shadow-lg hover:border-blue-200'
-                    }`}>
-                      {/* Floating Badge (Controlled by DB / Super Admin) */}
-                      {(isPopular || plan.badge) && (
-                        <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[11px] font-extrabold uppercase tracking-wider px-3.5 py-1 rounded-full shadow-md shadow-blue-600/30 flex items-center gap-1.5 whitespace-nowrap z-10">
-                          <Sparkles size={12} />
-                          <span>{plan.badge || 'MOST POPULAR'}</span>
-                        </div>
-                      )}
+                    const limitHighlights = [doctorLimit, patientLimit, staffLimit, branchLimit].filter(Boolean);
+                    const featuresList = getCardFeatures(plan);
+                    const ctaLabel = isPopular
+                      ? (plan.ctaText || 'Start Free Trial')
+                      : (plan.code === 'PREMIUM' ? 'Upgrade Now' : (plan.ctaText || (plan.isEnterprise ? 'Contact Enterprise' : 'Get Started')));
 
-                      <div>
-                        {/* Top Plan Icon */}
-                        <div className="mb-4">
-                          {renderPlanIcon(plan)}
-                        </div>
-
-                        {/* Plan Name */}
-                        <h3 className="text-xl font-bold text-slate-900 tracking-tight mb-2">
-                          {plan.name}
-                        </h3>
-
-                        {/* Plan Description */}
-                        <p className="text-xs sm:text-[13px] text-slate-500 min-h-[38px] leading-relaxed mb-4">
-                          {plan.description || 'Designed for modern healthcare clinics.'}
-                        </p>
-
-                        {/* Price Block */}
-                        <div className="mb-5 pb-5 border-b border-slate-100">
-                          {isCustom ? (
-                            <div className="flex flex-col">
-                              <span className="text-2xl sm:text-3xl font-black text-slate-900">
-                                ₹{plan.priceMonthly ? plan.priceMonthly.toLocaleString('en-IN') : '24,999'}
-                              </span>
-                              <span className="text-xs text-slate-500 font-medium mt-1">
-                                / month • Enterprise Hospital OS
-                              </span>
-                              {billedAnnuallyText && (
-                                <span className="text-[11px] text-blue-600 font-semibold mt-1">
-                                  {billedAnnuallyText}
-                                </span>
-                              )}
-                            </div>
-                          ) : (
-                            <div className="flex flex-col">
-                              <div className="flex items-baseline gap-1">
-                                <span className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
-                                  ₹{currentPrice ? currentPrice.toLocaleString('en-IN') : '0'}
-                                </span>
-                                <span className="text-xs sm:text-sm text-slate-500 font-medium">
-                                  / month
-                                </span>
-                              </div>
-                              {billedAnnuallyText && (
-                                <span className="text-[11px] text-blue-600 font-semibold mt-1">
-                                  {billedAnnuallyText}
-                                </span>
-                              )}
+                    return (
+                      <div
+                        key={plan._id || plan.code || index}
+                        className="pricing-card-item group shrink-0"
+                      >
+                        <div className={`relative rounded-3xl p-6 sm:p-7 flex flex-col justify-between h-full transition-all duration-300 bg-white ${
+                          isPopular
+                            ? 'border-2 border-blue-600 shadow-xl shadow-blue-500/10'
+                            : 'border border-slate-200/90 shadow-sm hover:shadow-lg hover:border-blue-200'
+                        }`}>
+                          {/* Centered Floating "MOST POPULAR" Badge */}
+                          {(isPopular || plan.badge) && (
+                            <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[11px] font-bold uppercase tracking-wider px-3.5 py-1 rounded-full shadow-md shadow-blue-600/30 flex items-center gap-1.5 whitespace-nowrap z-10">
+                              <Star size={12} className="stroke-white fill-none" strokeWidth={2.5} />
+                              <span>{plan.badge || 'MOST POPULAR'}</span>
                             </div>
                           )}
-                        </div>
 
-                        {/* Limit Badges */}
-                        {limitHighlights.length > 0 && (
-                          <div className="flex flex-wrap gap-1.5 mb-4 pb-4 border-b border-slate-100">
-                            {limitHighlights.map((limitText, lIdx) => (
-                              <span key={lIdx} className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-100">
-                                {limitText}
-                              </span>
-                            ))}
-                          </div>
-                        )}
+                          <div className="flex flex-col flex-1">
+                            {/* 1. Centered Plan Icon */}
+                            <div className="flex items-center justify-center mx-auto mb-4">
+                              {renderPlanIcon(plan)}
+                            </div>
 
-                        {/* Feature List Header */}
-                        <div className="mb-6">
-                          <div className="text-[11px] font-bold text-slate-900 uppercase tracking-wider mb-3">
-                            PLAN FEATURES
-                          </div>
-                          
-                          {/* Real Features from Backend */}
-                          <ul 
-                            className="flex flex-col gap-2.5 max-h-[220px] overflow-y-auto pr-1.5 custom-scrollbar text-xs sm:text-[13px] text-slate-700 select-text"
-                            onMouseDown={(e) => e.stopPropagation()}
-                            onTouchStart={(e) => e.stopPropagation()}
-                          >
-                            {Array.isArray(plan.features) && plan.features.length > 0 ? (
-                              plan.features.map((feature, fIdx) => (
-                                <li key={fIdx} className="flex items-center gap-2.5 leading-snug">
-                                  <Check size={14} className="text-blue-500 shrink-0" strokeWidth={2.5} />
-                                  <span className="font-normal text-slate-700">{formatFeatureText(feature)}</span>
-                                </li>
-                              ))
-                            ) : (
-                              <li className="text-xs text-slate-400 italic">Full Clinic Management Suite</li>
+                            {/* 2. Centered Plan Title */}
+                            <h3 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight text-center mb-2">
+                              {plan.name}
+                            </h3>
+
+                            {/* 3. Centered Plan Description */}
+                            <p className="text-xs sm:text-[13px] text-slate-500 text-center leading-relaxed mb-4 max-w-[320px] mx-auto min-h-[38px] flex items-center justify-center">
+                              {plan.description || 'Designed for modern healthcare clinics.'}
+                            </p>
+
+                            {/* 4. Centered Price Block */}
+                            <div className="flex flex-col items-center justify-center mb-5">
+                              {isCustom ? (
+                                <div className="flex flex-col items-center justify-center">
+                                  <div className="flex items-baseline justify-center">
+                                    <span className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
+                                      ₹{plan.priceMonthly ? plan.priceMonthly.toLocaleString('en-IN') : '24,999'}
+                                    </span>
+                                    <span className="text-xs sm:text-sm text-slate-500 font-medium ml-1.5 whitespace-nowrap">
+                                      / month
+                                    </span>
+                                  </div>
+                                  <span className="text-[11px] text-slate-500 font-medium mt-1 text-center">
+                                    Enterprise Hospital OS
+                                  </span>
+                                  {billedAnnuallyText && (
+                                    <span className="text-[11px] text-blue-600 font-semibold mt-1 text-center">
+                                      {billedAnnuallyText}
+                                    </span>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="flex flex-col items-center justify-center">
+                                  <div className="flex items-baseline justify-center">
+                                    <span className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
+                                      ₹{currentPrice ? currentPrice.toLocaleString('en-IN') : '0'}
+                                    </span>
+                                    <span className="text-xs sm:text-sm text-slate-500 font-medium ml-1.5 whitespace-nowrap">
+                                      / month
+                                    </span>
+                                  </div>
+                                  {billedAnnuallyText && (
+                                    <span className="text-[11px] text-blue-600 font-semibold mt-1 text-center">
+                                      {billedAnnuallyText}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* 5. Centered Limit Badges */}
+                            {limitHighlights.length > 0 && (
+                              <div className="flex flex-wrap items-center justify-center gap-1.5 mb-6 min-h-[52px]">
+                                {limitHighlights.map((limitText, lIdx) => (
+                                  <span key={lIdx} className="text-[10px] sm:text-[11px] font-semibold px-2.5 py-1 rounded-md bg-blue-50 text-blue-700 border border-blue-100/80">
+                                    {limitText}
+                                  </span>
+                                ))}
+                              </div>
                             )}
-                          </ul>
+
+                            {/* 6. Left-Aligned Feature List */}
+                            <div className="mb-6 flex-1">
+                              <div className="text-[11px] font-bold text-slate-900 uppercase tracking-wider mb-3.5 text-left">
+                                PLAN FEATURES
+                              </div>
+                              
+                              <ul 
+                                className="flex flex-col gap-2.5 text-xs sm:text-[13px] text-slate-700 select-text text-left"
+                                onMouseDown={(e) => e.stopPropagation()}
+                                onTouchStart={(e) => e.stopPropagation()}
+                              >
+                                {featuresList.map((featText, fIdx) => (
+                                  <li key={fIdx} className="flex items-start gap-2.5 leading-snug">
+                                    <Check size={14} className="text-blue-600 shrink-0 mt-0.5" strokeWidth={2.5} />
+                                    <span className="font-normal text-slate-700">{featText}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          </div>
+
+                          {/* 7. Full-width Plan CTA Button */}
+                          <button
+                            type="button"
+                            onClick={() => handlePlanClick(plan)}
+                            onFocus={(e) => {
+                              e.currentTarget.closest('.pricing-card-item')?.scrollIntoView({
+                                behavior: 'smooth',
+                                block: 'nearest',
+                                inline: 'center'
+                              });
+                            }}
+                            className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl sm:rounded-2xl font-bold text-xs sm:text-sm transition-all duration-200 active:scale-95 cursor-pointer mt-auto ${
+                              isPopular
+                                ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/25 hover:shadow-blue-600/35'
+                                : 'bg-slate-50 hover:bg-slate-100 text-slate-800 hover:text-slate-900 border border-slate-200/90 hover:border-slate-300'
+                            }`}
+                          >
+                            <span>{ctaLabel}</span>
+                            <ArrowRight size={15} />
+                          </button>
                         </div>
                       </div>
+                    );
+                  })}
+                </div>
+              </div>
 
-                      {/* Plan CTA Button */}
-                      <button
-                        type="button"
-                        onClick={() => handlePlanClick(plan)}
-                        onFocus={(e) => {
-                          e.currentTarget.closest('.pricing-card-item')?.scrollIntoView({
-                            behavior: 'smooth',
-                            block: 'nearest',
-                            inline: 'center'
-                          });
-                        }}
-                        className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl font-bold text-xs sm:text-sm transition-all duration-200 active:scale-95 cursor-pointer mt-4 ${
-                          isPopular
-                            ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/25 hover:shadow-blue-600/35'
-                            : 'bg-slate-50 hover:bg-slate-100 text-slate-800 hover:text-slate-900 border border-slate-200/90 hover:border-slate-300'
-                        }`}
-                      >
-                        <span>{plan.ctaText || (plan.isEnterprise ? 'Contact Enterprise' : 'Get Started')}</span>
-                        <ArrowRight size={15} />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
+              {/* Circular Next Arrow */}
+              <button
+                type="button"
+                onClick={handleNext}
+                disabled={currentIndex >= maxIndex}
+                aria-label="Next plans"
+                className="shrink-0 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white border border-slate-200/90 shadow-md hover:shadow-lg flex items-center justify-center text-blue-600 hover:bg-blue-50/80 transition-all duration-200 disabled:opacity-20 disabled:cursor-not-allowed cursor-pointer z-20 ml-1.5 sm:ml-3"
+              >
+                <ChevronRight size={24} strokeWidth={2.5} />
+              </button>
             </div>
 
+            {/* Pagination Dots */}
+            {maxIndex > 0 && (
+              <div className="flex items-center justify-center gap-2 mt-6">
+                {Array.from({ length: maxIndex + 1 }).map((_, dotIdx) => (
+                  <button
+                    key={dotIdx}
+                    type="button"
+                    onClick={() => scrollToCard(dotIdx)}
+                    aria-label={`Go to slide ${dotIdx + 1}`}
+                    className={`transition-all duration-200 rounded-full cursor-pointer ${
+                      currentIndex === dotIdx
+                        ? 'w-2.5 h-2.5 bg-blue-600 scale-110 shadow-xs'
+                        : 'w-2.5 h-2.5 bg-blue-200 hover:bg-blue-300'
+                    }`}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
 

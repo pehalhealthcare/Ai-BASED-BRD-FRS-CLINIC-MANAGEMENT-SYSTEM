@@ -1007,40 +1007,41 @@ body {
 }
 
 @media (max-width: 767px) {
-
-  /* Mobile Header (< 768px): Dedicated 64px header bar that sits above the hero in normal flow */
+  /* Mobile Header (< 768px): Floating pill matching mobile reference */
   .site-header-wrapper {
-    position: sticky;
-    top: 0;
+    position: fixed;
+    top: 10px;
     left: 0;
     right: 0;
     width: 100%;
-    z-index: 100;
-    pointer-events: auto;
-    padding: 0;
-    background: rgba(255, 255, 255, 0.96);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border-bottom: 1px solid rgba(226, 232, 240, 0.88);
-    box-shadow: 0 1px 6px rgba(15, 23, 42, 0.04);
+    z-index: 1000;
+    pointer-events: none;
+    padding: 0 12px;
+    background: transparent;
+    border-bottom: none;
+    box-shadow: none;
   }
 
   .site-header-container {
-    border-radius: 0;
-    border: none;
-    background: transparent;
-    box-shadow: none;
+    width: 100%;
+    pointer-events: auto;
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    box-shadow: 0 4px 20px rgba(15, 23, 42, 0.06);
+    border-radius: 9999px;
     max-width: 100%;
   }
 
   .site-header-container.menu-open {
-    border-radius: 0;
+    border-radius: 20px;
     background: #ffffff;
   }
 
   .site-header-inner {
-    height: 64px;
-    padding: 0 16px;
+    height: 58px;
+    padding: 0 12px;
   }
 }
 
@@ -1051,9 +1052,15 @@ body {
   }
 }
 
-@media (min-width: 1200px) {
+@media (min-width: 1280px) {
   .site-header-wrapper {
     top: 16px;
+    padding: 0 clamp(16px, 2vw, 44px);
+  }
+}
+
+@media (min-width: 1440px) {
+  .site-header-wrapper {
     padding: 0 clamp(24px, 3.5vw, 60px);
   }
 }
@@ -1088,6 +1095,7 @@ body {
   align-items: center;
   justify-content: space-between;
   width: 100%;
+  min-width: 0;
   height: 62px;
   padding: 0 12px;
 }
@@ -1106,7 +1114,14 @@ body {
   }
 }
 
-@media (min-width: 1200px) {
+@media (min-width: 1280px) {
+  .site-header-inner {
+    height: 76px;
+    padding: 0 clamp(14px, 1.5vw, 24px);
+  }
+}
+
+@media (min-width: 1440px) {
   .site-header-inner {
     height: 80px;
     padding: 0 28px;
@@ -1119,7 +1134,7 @@ body {
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
-  min-width: 0;
+  min-width: max-content;
 }
 
 @media (min-width: 768px) {
@@ -1128,37 +1143,32 @@ body {
   }
 }
 
-/* Desktop Navigation */
+/* Desktop Navigation: Visible ONLY on Large Desktop (>= 1280px) */
 .site-header-nav {
   display: none;
   align-items: center;
   justify-content: center;
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
-  padding: 0 8px;
+  margin: 0 clamp(6px, 1.2vw, 20px);
+  padding: 0 2px;
 }
 
-/* Medium Desktop (992px – 1199px): Show high priority items */
-@media (min-width: 992px) and (max-width: 1199px) {
+@media (min-width: 1280px) {
   .site-header-nav {
     display: flex;
-    gap: 4px;
-  }
-
-  .site-header-nav .nav-item-secondary {
-    display: none;
-  }
-}
-
-/* Large Desktop (>= 1200px): Full navigation */
-@media (min-width: 1200px) {
-  .site-header-nav {
-    display: flex;
-    gap: clamp(4px, 0.8vw, 16px);
+    gap: clamp(3px, 0.6vw, 12px);
   }
 
   .site-header-nav .nav-item-secondary {
     display: flex;
+  }
+}
+
+@media (min-width: 1440px) {
+  .site-header-nav {
+    gap: 16px;
+    margin: 0 clamp(12px, 1.8vw, 32px);
   }
 }
 
@@ -1168,6 +1178,7 @@ body {
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
+  min-width: max-content;
 }
 
 @media (min-width: 768px) {
@@ -1176,46 +1187,46 @@ body {
   }
 }
 
-@media (min-width: 1200px) {
+@media (min-width: 1280px) {
   .site-header-actions {
     gap: 12px;
   }
 }
 
-/* Search button visibility */
+/* Search button visibility: Visible on Large Desktop (>= 1280px) */
 .header-btn-search {
   display: none;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 1280px) {
   .header-btn-search {
     display: flex;
   }
 }
 
-/* Login button visibility */
+/* Login button visibility: Visible on Large Desktop (>= 1280px) */
 .header-btn-login {
   display: none;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 1280px) {
   .header-btn-login {
     display: flex;
   }
 }
 
-/* CTA button visibility: Visible on Large Desktop (>= 1200px) */
+/* CTA button visibility: Visible on Large Desktop (>= 1280px) */
 .header-btn-cta {
   display: none;
 }
 
-@media (min-width: 1200px) {
+@media (min-width: 1280px) {
   .header-btn-cta {
     display: flex;
   }
 }
 
-/* Hamburger button visibility: Visible on screens < 1200px */
+/* Hamburger button visibility: Visible on Mobile & Medium screens (< 1280px) */
 .header-btn-hamburger {
   display: flex;
   width: 44px;
@@ -1224,8 +1235,169 @@ body {
   justify-content: center;
 }
 
-@media (min-width: 1200px) {
+@media (min-width: 1280px) {
   .header-btn-hamburger {
+    display: none !important;
+  }
+}
+
+/* Unbreakable Brand Name Unit (Prevents hyphen/word breaks across all screen sizes) */
+.brand-ai-cms,
+.brand-name {
+  white-space: nowrap !important;
+  display: inline-block;
+  hyphens: none !important;
+  -webkit-hyphens: none !important;
+  word-break: keep-all !important;
+}
+
+/* ============================================================
+   Workflow Responsive Breakpoint System (Desktop, Tablet, Mobile)
+   ============================================================ */
+.workflow-desktop {
+  display: none;
+}
+.workflow-tablet {
+  display: none;
+}
+.workflow-mobile {
+  display: block;
+}
+
+@media (min-width: 750px) and (max-width: 1023px) {
+  .workflow-desktop {
+    display: none;
+  }
+  .workflow-tablet {
+    display: flex;
+  }
+  .workflow-mobile {
+    display: none;
+  }
+}
+
+@media (min-width: 1024px) {
+  .workflow-desktop {
+    display: block;
+  }
+  .workflow-tablet {
+    display: none;
+  }
+  .workflow-mobile {
+    display: none;
+  }
+}
+
+/* ============================================================
+   AI Features Section Responsive Breakpoint System
+   ============================================================ */
+.ai-features-desktop {
+  display: none;
+}
+.ai-features-tablet {
+  display: none;
+}
+.ai-features-mobile {
+  display: block;
+}
+
+@media (min-width: 750px) and (max-width: 1023px) {
+  .ai-features-desktop {
+    display: none;
+  }
+  .ai-features-tablet {
+    display: block;
+  }
+  .ai-features-mobile {
+    display: none;
+  }
+}
+
+@media (min-width: 1024px) {
+  .ai-features-desktop {
+    display: block;
+  }
+  .ai-features-tablet {
+    display: none;
+  }
+  .ai-features-mobile {
+    display: none;
+  }
+}
+
+/* ============================================================
+   Modern Clinic (Why AI-CMS) Features Responsive Breakpoints
+   - Mobile: Below 768px
+   - Tablet/Medium: 768px to 1023px
+   - Desktop: 1024px and Above
+   ============================================================ */
+.modern-clinic-desktop {
+  display: none;
+}
+.modern-clinic-tablet {
+  display: none;
+}
+.modern-clinic-mobile {
+  display: block;
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .modern-clinic-desktop {
+    display: none;
+  }
+  .modern-clinic-tablet {
+    display: block;
+  }
+  .modern-clinic-mobile {
+    display: none;
+  }
+}
+
+@media (min-width: 1024px) {
+  .modern-clinic-desktop {
+    display: block;
+  }
+  .modern-clinic-tablet {
+    display: none;
+  }
+  .modern-clinic-mobile {
+    display: none;
+  }
+}
+
+/* ============================================================
+   Solutions Section Responsive Breakpoints
+   ============================================================ */
+.solutions-desktop {
+  display: none;
+}
+.solutions-tablet {
+  display: none;
+}
+.solutions-mobile {
+  display: block;
+}
+
+@media (min-width: 580px) and (max-width: 1023px) {
+  .solutions-desktop {
+    display: none;
+  }
+  .solutions-tablet {
+    display: block;
+  }
+  .solutions-mobile {
+    display: none;
+  }
+}
+
+@media (min-width: 1024px) {
+  .solutions-desktop {
+    display: block;
+  }
+  .solutions-tablet {
+    display: none;
+  }
+  .solutions-mobile {
     display: none;
   }
 }
@@ -2181,10 +2353,10 @@ body {
 .pricing-carousel-wrapper {
   position: relative;
   width: 100%;
-  max-width: 1160px;
   margin-inline: auto;
-  overflow: hidden; /* Clips carousel cards so they don't bleed outside container */
-  padding-block: 8px;
+  overflow: hidden;
+  padding-top: 20px;
+  padding-bottom: 12px;
 }
 
 /* Horizontal scroll track (grab to drag, swipe, mouse wheel, trackpad) */
@@ -2197,14 +2369,15 @@ body {
   box-sizing: border-box;
   align-items: stretch;
   overflow-x: auto;
-  overflow-y: hidden;
+  overflow-y: visible;
   scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE/Edge */
   cursor: grab;
   user-select: none;
-  padding-block: 16px;
+  padding-top: 18px;
+  padding-bottom: 16px;
   scroll-behavior: smooth;
 }
 
@@ -2225,42 +2398,38 @@ body {
   flex-direction: column;
   justify-content: stretch;
   height: auto;
-  min-height: 100%;
   flex-shrink: 0;
 }
 
 /* ─────────────────────────────────────────────────────────────
-   DESKTOP (>= 1024px): Exactly 2 Full Cards Centered + Visible Partial Peek
+   DESKTOP (>= 1024px): Exactly 3 Full Cards Visible Side by Side
    Formula:
-   - Container max-width: 1160px
    - Gap between cards: 24px
-   - Track padding-inline: 60px (leaving 1040px in center)
-   - Card width = (1040px - 24px) / 2 = 508px
-   - Card 0 & Card 1 fill the 1040px center area
-   - Card 2 starts at 60px + 1040px + 24px = 1124px, peeking 36px on the right
+   - Total gaps for 3 cards: 2 * 24px = 48px
+   - Card width = (100% - 48px) / 3
    ───────────────────────────────────────────────────────────── */
 @media (min-width: 1024px) {
   .pricing-carousel-wrapper {
-    max-width: 1160px;
+    max-width: 100%;
   }
 
   .pricing-scroll-track {
     gap: 24px;
-    padding-inline: 60px;
-    scroll-padding-inline: 60px;
+    padding-inline: 4px;
+    scroll-padding-inline: 4px;
   }
 
   .pricing-card-item {
-    flex: 0 0 calc((100% - 144px) / 2);
-    width: calc((100% - 144px) / 2);
-    min-width: 420px;
-    max-width: 490px;
+    flex: 0 0 calc((100% - 48px) / 3);
+    width: calc((100% - 48px) / 3);
+    min-width: 0;
+    max-width: none;
     scroll-snap-align: start;
   }
 }
 
 /* ─────────────────────────────────────────────────────────────
-   TABLET (768px to 1023px): ~1.5 to 2 Cards Visible with Peeking
+   TABLET (768px to 1023px): Exactly 2 Cards Visible Side by Side
    ───────────────────────────────────────────────────────────── */
 @media (min-width: 768px) and (max-width: 1023px) {
   .pricing-carousel-wrapper {
@@ -2269,20 +2438,21 @@ body {
 
   .pricing-scroll-track {
     gap: 20px;
-    padding-inline: 36px;
-    scroll-padding-inline: 36px;
+    padding-inline: 4px;
+    scroll-padding-inline: 4px;
   }
 
   .pricing-card-item {
-    flex: 0 0 min(420px, calc(58vw - 20px));
-    width: min(420px, calc(58vw - 20px));
-    min-width: 340px;
+    flex: 0 0 calc((100% - 20px) / 2);
+    width: calc((100% - 20px) / 2);
+    min-width: 0;
+    max-width: none;
     scroll-snap-align: start;
   }
 }
 
 /* ─────────────────────────────────────────────────────────────
-   MOBILE (< 768px): 1 Full Card + Small Peek of Next Card (~40-60px)
+   MOBILE (< 768px): 1 Complete Card at a time
    ───────────────────────────────────────────────────────────── */
 @media (max-width: 767px) {
   .pricing-carousel-wrapper {
@@ -2292,15 +2462,16 @@ body {
 
   .pricing-scroll-track {
     gap: 16px;
-    padding-inline: 20px;
-    scroll-padding-inline: 20px;
+    padding-inline: 4px;
+    scroll-padding-inline: 4px;
   }
 
   .pricing-card-item {
-    flex: 0 0 calc(100% - 56px);
-    width: calc(100% - 56px);
-    max-width: 360px;
-    scroll-snap-align: start;
+    flex: 0 0 100%;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    scroll-snap-align: center;
   }
 }
 

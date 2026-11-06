@@ -179,15 +179,15 @@ export default function Header({
               <div className="h-6 sm:h-7 w-[1.5px] bg-slate-200 hidden sm:block mx-0.5 shrink-0" />
               <div className="flex flex-col justify-center leading-none shrink-0">
                 <div className="flex items-center gap-1.5 whitespace-nowrap">
-                  <span className="text-base sm:text-xl lg:text-[22px] font-black tracking-tight text-slate-900 leading-none">
+                  <span className="text-base sm:text-xl lg:text-[22px] font-black tracking-tight text-slate-900 leading-none whitespace-nowrap inline-block brand-ai-cms">
                     AI-CMS
                   </span>
-                  <span className="text-[8.5px] sm:text-[9.5px] lg:text-[10px] font-black uppercase tracking-wider bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-1.5 sm:px-2 py-0.5 rounded-full shadow-xs leading-none">
+                  <span className="text-[8.5px] sm:text-[9.5px] lg:text-[10px] font-black uppercase tracking-wider bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-1.5 sm:px-2 py-0.5 rounded-full shadow-xs leading-none whitespace-nowrap">
                     PRO
                   </span>
                 </div>
-                <span className="text-[10px] sm:text-[11px] font-medium text-slate-500 hidden md:inline-block tracking-tight mt-0.5 whitespace-nowrap">
-                  AI-CMS Enterprise
+                <span className="text-[10px] sm:text-[11px] font-medium text-slate-500 block tracking-tight mt-0.5 whitespace-nowrap">
+                  <span className="whitespace-nowrap inline-block brand-ai-cms">AI-CMS</span> Enterprise
                 </span>
               </div>
             </Link>
@@ -205,7 +205,7 @@ export default function Header({
                   key={item.id}
                   href={item.href}
                   onClick={(e) => handleLinkClick(e, item)}
-                  className={`relative px-3 xl:px-4 py-2 text-sm font-semibold transition-all duration-200 rounded-full flex items-center justify-center whitespace-nowrap ${
+                  className={`relative px-2.5 xl:px-3 2xl:px-4 py-2 text-[13.5px] 2xl:text-sm font-semibold transition-all duration-200 rounded-full flex items-center justify-center whitespace-nowrap shrink-0 ${
                     !item.isPrimary ? 'nav-item-secondary' : ''
                   } ${
                     isActive 
@@ -217,7 +217,7 @@ export default function Header({
                   {isActive && (
                     <motion.div
                       layoutId="activeNavIndicator"
-                      className="absolute -bottom-1 left-3 right-3 h-[2.5px] bg-blue-600 rounded-full shadow-xs shadow-blue-500/40"
+                      className="absolute -bottom-1 left-2.5 right-2.5 2xl:left-3 2xl:right-3 h-[2.5px] bg-blue-600 rounded-full shadow-xs shadow-blue-500/40"
                       transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                     />
                   )}
@@ -277,7 +277,7 @@ export default function Header({
               <button
                 type="button"
                 onClick={() => setIsLoginDropdownOpen(!isLoginDropdownOpen)}
-                className="flex items-center gap-1.5 sm:gap-2 px-3.5 sm:px-4 lg:px-5 h-9 sm:h-10 lg:h-11 rounded-full text-slate-700 hover:text-blue-600 bg-white/90 hover:bg-blue-50/60 text-xs sm:text-sm font-semibold transition-all border border-slate-200/90 hover:border-blue-200 shadow-xs whitespace-nowrap"
+                className="flex items-center gap-1.5 sm:gap-2 px-3 xl:px-3.5 2xl:px-5 h-9 sm:h-10 lg:h-11 rounded-full text-slate-700 hover:text-blue-600 bg-white/90 hover:bg-blue-50/60 text-xs sm:text-sm font-semibold transition-all border border-slate-200/90 hover:border-blue-200 shadow-xs whitespace-nowrap"
               >
                 <LogIn size={15} className="text-slate-500 shrink-0" />
                 <span>Login</span>
@@ -340,17 +340,17 @@ export default function Header({
               </AnimatePresence>
             </div>
 
-            {/* Primary CTA: Setup Your Clinic (Visible on Large Desktop >= 1200px) */}
+            {/* Primary CTA: Setup Your Clinic (Visible on Large Desktop >= 1280px) */}
             <button
               onClick={onSetupClinic}
-              className="header-btn-cta items-center gap-2 px-4 sm:px-5 lg:px-6 h-9 sm:h-10 lg:h-11 rounded-full bg-gradient-to-r from-blue-600 via-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs sm:text-sm font-bold shadow-md shadow-blue-600/25 hover:shadow-lg hover:shadow-blue-600/35 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] transition-all duration-200 shrink-0 group whitespace-nowrap"
+              className="header-btn-cta items-center gap-1.5 xl:gap-2 px-3.5 xl:px-4 2xl:px-6 h-9 sm:h-10 lg:h-11 rounded-full bg-gradient-to-r from-blue-600 via-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs sm:text-sm font-bold shadow-md shadow-blue-600/25 hover:shadow-lg hover:shadow-blue-600/35 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] transition-all duration-200 shrink-0 group whitespace-nowrap"
               aria-label="Setup Your Clinic"
             >
               <span>Setup Your Clinic</span>
               <ArrowRight size={15} className="transition-transform group-hover:translate-x-1" />
             </button>
 
-            {/* Hamburger Button (< 1200px: Mobile, Tablet, Medium Desktop) */}
+            {/* Hamburger Button (< 1280px: Mobile & Medium Screens) */}
             <button
               type="button"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -363,7 +363,7 @@ export default function Header({
           </div>
         </div>
 
-        {/* ── EXPANDABLE NAVIGATION DRAWER (< 1200px) ── */}
+        {/* ── EXPANDABLE NAVIGATION DRAWER (< 1280px) ── */}
         <AnimatePresence>
           {isMobileMenuOpen && (
             <motion.div
@@ -394,7 +394,7 @@ export default function Header({
               </form>
 
               {/* Navigation Links Grid / List */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-1.5 sm:gap-2">
                 {navLinks.map((item) => {
                   const isActive = (activeSection || 'hero') === item.id;
                   return (
