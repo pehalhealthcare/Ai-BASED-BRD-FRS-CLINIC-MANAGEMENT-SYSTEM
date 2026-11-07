@@ -23,3 +23,6 @@ uploads/
 *.pdf
 backend/storage/invoices/*.pdf
 storage/invoices/*.pdf
+
+ai-service/storage/*.jsonl
+ai-service/storage/
