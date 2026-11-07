@@ -95,7 +95,8 @@ const PLANS_DATA = [
     isActive: true,
     isPopular: false,
     isEnterprise: false,
-    ctaText: 'Get Started'
+    ctaText: 'Get Started',
+    ctaAction: 'setup_clinic'
   },
   {
     name: 'AI Starter Clinic',
@@ -116,7 +117,8 @@ const PLANS_DATA = [
     isActive: true,
     isPopular: false,
     isEnterprise: false,
-    ctaText: 'Get Started'
+    ctaText: 'Get Started',
+    ctaAction: 'setup_clinic'
   },
   {
     name: 'AI Professional Clinic',
@@ -138,7 +140,8 @@ const PLANS_DATA = [
     isPopular: true,
     badge: 'MOST POPULAR',
     isEnterprise: false,
-    ctaText: 'Start Free Trial'
+    ctaText: 'Start Free Trial',
+    ctaAction: 'setup_clinic'
   },
   {
     name: 'AI Premium Clinic',
@@ -159,7 +162,8 @@ const PLANS_DATA = [
     isActive: true,
     isPopular: false,
     isEnterprise: false,
-    ctaText: 'Upgrade to Premium'
+    ctaText: 'Upgrade to Premium',
+    ctaAction: 'setup_clinic'
   },
   {
     name: 'AI Enterprise ClinicOS',
@@ -180,7 +184,8 @@ const PLANS_DATA = [
     isActive: true,
     isPopular: false,
     isEnterprise: true,
-    ctaText: 'Contact Enterprise'
+    ctaText: 'Contact Enterprise',
+    ctaAction: 'contact_sales'
   }
 ];
 
@@ -191,19 +196,22 @@ const seedPlans = async () => {
       await SubscriptionPlan.create(plan);
       console.log(`[Subscription Service] Seeded plan: ${plan.name}`);
     } else {
-      // Keep name, features, description, prices, badges, and limits updated
-      existing.name = plan.name;
-      existing.description = plan.description || existing.description || '';
-      existing.priceMonthly = plan.priceMonthly;
-      existing.priceYearly = plan.priceYearly;
-      existing.features = plan.features;
-      existing.limits = plan.limits;
-      existing.trialPeriodDays = plan.trialPeriodDays;
-      existing.displayOrder = plan.displayOrder;
-      existing.isPopular = plan.isPopular;
-      existing.isEnterprise = plan.isEnterprise;
-      existing.badge = plan.badge || null;
-      existing.ctaText = plan.ctaText || existing.ctaText || '';
+      // Keep name, features, description, prices, badges, and limits updated while preserving super admin customizations
+      existing.name = existing.name || plan.name;
+      existing.description = existing.description || plan.description || '';
+      existing.priceMonthly = existing.priceMonthly !== undefined && existing.priceMonthly !== null ? existing.priceMonthly : plan.priceMonthly;
+      existing.priceYearly = existing.priceYearly !== undefined && existing.priceYearly !== null ? existing.priceYearly : plan.priceYearly;
+      existing.features = (existing.features && existing.features.length > 0) ? existing.features : plan.features;
+      existing.limits = existing.limits || plan.limits;
+      existing.trialPeriodDays = existing.trialPeriodDays !== undefined && existing.trialPeriodDays !== null ? existing.trialPeriodDays : plan.trialPeriodDays;
+      existing.displayOrder = existing.displayOrder !== undefined && existing.displayOrder !== null ? existing.displayOrder : plan.displayOrder;
+      existing.isPopular = existing.isPopular !== undefined ? existing.isPopular : plan.isPopular;
+      existing.isEnterprise = existing.isEnterprise !== undefined ? existing.isEnterprise : plan.isEnterprise;
+      existing.badge = (existing.badge !== undefined && existing.badge !== null) ? existing.badge : (plan.badge || null);
+      existing.ctaText = (existing.ctaText !== undefined && existing.ctaText !== null && existing.ctaText !== '')
+        ? existing.ctaText
+        : (plan.ctaText || '');
+      existing.ctaAction = existing.ctaAction || plan.ctaAction || (existing.isEnterprise ? 'contact_sales' : 'setup_clinic');
       await existing.save();
     }
   }

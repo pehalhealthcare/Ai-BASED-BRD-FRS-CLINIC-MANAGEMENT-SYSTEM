@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { subscriptionApi } from '../../lib/api';
 import {
   Plus, Edit3, Copy, Archive, ToggleLeft, ToggleRight, RefreshCw,
-  Check, X, ChevronDown, ChevronUp, Sparkles, Zap, Star, Crown, Package
+  Check, X, ChevronDown, ChevronUp, Sparkles, Zap, Star, Crown, Package,
+  MessageSquare, Building2
 } from 'lucide-react';
 
 const ALL_FEATURES = [
@@ -65,7 +66,8 @@ const EMPTY_PLAN = {
   isPopular: false,
   isEnterprise: false,
   badge: '',
-  ctaText: ''
+  ctaText: '',
+  ctaAction: 'setup_clinic'
 };
 
 const planIcon = (name = '', code = '') => {
@@ -133,7 +135,8 @@ const SuperAdminPlans = () => {
       isPopular: !!plan.isPopular,
       isEnterprise: !!plan.isEnterprise,
       badge: plan.badge || '',
-      ctaText: plan.ctaText || ''
+      ctaText: plan.ctaText || '',
+      ctaAction: plan.ctaAction || (plan.isEnterprise ? 'contact_sales' : 'setup_clinic')
     });
     setIsNew(false);
     setError('');
@@ -331,7 +334,7 @@ const SuperAdminPlans = () => {
                 </div>
 
                 {/* WhatsApp Capability Badge */}
-                <div className="mb-3.5 flex items-center gap-2">
+                <div className="mb-2.5 flex items-center gap-2">
                   <span className="text-[11px] font-bold text-slate-500">WhatsApp:</span>
                   {plan.features?.includes('whatsapp_integration') || plan.features?.includes('whatsapp') ? (
                     <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-black">
@@ -344,6 +347,27 @@ const SuperAdminPlans = () => {
                   ) : (
                     <span className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[11px] font-medium">
                       Not Included
+                    </span>
+                  )}
+                </div>
+
+                {/* Button Action (CTA) Badge */}
+                <div className="mb-3.5 flex flex-wrap items-center gap-2">
+                  <span className="text-[11px] font-bold text-slate-500">Button Action:</span>
+                  {(plan.ctaAction === 'contact_sales' || (!plan.ctaAction && plan.isEnterprise)) ? (
+                    <span className="px-2.5 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200 text-[11px] font-black flex items-center gap-1">
+                      <MessageSquare className="w-3 h-3 text-purple-600" />
+                      Contact Sales (Opens Book a Demo)
+                    </span>
+                  ) : (
+                    <span className="px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-[11px] font-bold flex items-center gap-1">
+                      <Building2 className="w-3 h-3 text-blue-600" />
+                      Setup Your Clinic (Standard Onboarding)
+                    </span>
+                  )}
+                  {plan.ctaText && (
+                    <span className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200 text-[11px] font-mono font-bold" title="Custom CTA Button Label">
+                      Label: "{plan.ctaText}"
                     </span>
                   )}
                 </div>
@@ -492,6 +516,87 @@ const SuperAdminPlans = () => {
                 </div>
               </div>
 
+              {/* Plan Button Action (CTA Type Selector) */}
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-3">
+                <div>
+                  <p className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-blue-600" />
+                    Button Action (Landing &amp; Pricing Page Behavior)
+                  </p>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Choose what happens when visitors or clinic admins click on this plan's action button.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Option 1: Setup Your Clinic */}
+                  <div
+                    onClick={() => setEditingPlan(p => ({
+                      ...p,
+                      ctaAction: 'setup_clinic',
+                      ctaText: p.ctaText === 'Contact Sales' ? 'Get Started' : (p.ctaText || 'Get Started')
+                    }))}
+                    className={`p-3.5 rounded-xl border-2 cursor-pointer transition-all ${
+                      (editingPlan.ctaAction || 'setup_clinic') === 'setup_clinic'
+                        ? 'border-blue-600 bg-blue-50/60 shadow-sm'
+                        : 'border-slate-200 bg-white hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                        (editingPlan.ctaAction || 'setup_clinic') === 'setup_clinic'
+                          ? 'border-blue-600 bg-blue-600'
+                          : 'border-slate-300'
+                      }`}>
+                        {(editingPlan.ctaAction || 'setup_clinic') === 'setup_clinic' && (
+                          <div className="w-1.5 h-1.5 rounded-full bg-white" />
+                        )}
+                      </div>
+                      <span className="font-bold text-xs text-slate-900 flex items-center gap-1.5">
+                        <Building2 className="w-3.5 h-3.5 text-blue-600" />
+                        Setup Your Clinic
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 leading-snug pl-6">
+                      Directs visitors to self-serve clinic onboarding &amp; registration (<code className="text-blue-600 font-mono text-[10px]">/register-clinic</code>).
+                    </p>
+                  </div>
+
+                  {/* Option 2: Contact Sales (Opens Book a Demo) */}
+                  <div
+                    onClick={() => setEditingPlan(p => ({
+                      ...p,
+                      ctaAction: 'contact_sales',
+                      ctaText: (!p.ctaText || p.ctaText === 'Get Started' || p.ctaText === 'Start Free Trial') ? 'Contact Sales' : p.ctaText
+                    }))}
+                    className={`p-3.5 rounded-xl border-2 cursor-pointer transition-all ${
+                      editingPlan.ctaAction === 'contact_sales'
+                        ? 'border-purple-600 bg-purple-50/60 shadow-sm'
+                        : 'border-slate-200 bg-white hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                        editingPlan.ctaAction === 'contact_sales'
+                          ? 'border-purple-600 bg-purple-600'
+                          : 'border-slate-300'
+                      }`}>
+                        {editingPlan.ctaAction === 'contact_sales' && (
+                          <div className="w-1.5 h-1.5 rounded-full bg-white" />
+                        )}
+                      </div>
+                      <span className="font-bold text-xs text-slate-900 flex items-center gap-1.5">
+                        <MessageSquare className="w-3.5 h-3.5 text-purple-600" />
+                        Contact Sales (Opens Demo)
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 leading-snug pl-6">
+                      Replaces setup action with a Contact Sales button that opens Book a Demo (<code className="text-purple-600 font-mono text-[10px]">/book-demo</code>).
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               {/* Custom Badge & CTA Text */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
@@ -504,12 +609,14 @@ const SuperAdminPlans = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1.5">Button Text (CTA)</label>
+                  <label className="block text-xs font-bold text-slate-600 mb-1.5">
+                    Button Label (CTA Text)
+                  </label>
                   <input
                     value={editingPlan.ctaText || ''}
                     onChange={e => setEditingPlan(p => ({ ...p, ctaText: e.target.value }))}
                     className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500"
-                    placeholder="e.g. Get Started, Start Trial, Contact Sales"
+                    placeholder={editingPlan.ctaAction === 'contact_sales' ? 'e.g. Contact Sales, Talk to Expert' : 'e.g. Get Started, Start Trial'}
                   />
                 </div>
               </div>

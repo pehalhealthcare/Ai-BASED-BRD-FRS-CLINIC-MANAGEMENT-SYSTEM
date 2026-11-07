@@ -50,7 +50,7 @@ export default function ContactPage() {
 
     if (!formData.phone.trim()) {
       newErrors.phone = 'Phone number is required';
-    } else if (!/^[0-9]{10}$/.test(formData.phone.replace(/[^0-9]/g, ''))) {
+    } else if (!/^[0-9]{10}$/.test((formData.phone || '').replace(/[^0-9]/g, ''))) {
       newErrors.phone = 'Must be a 10-digit number';
     }
 
@@ -488,7 +488,7 @@ export default function ContactPage() {
             <p className={`${isMobile ? 'text-[9.5px]' : 'text-[10.5px] xl:text-[11px] 2xl:text-[12.5px]'} text-slate-500 leading-tight font-medium`}>
               Average response under 5m
               <a
-                href={`https://api.whatsapp.com/send/?phone=${(import.meta.env.VITE_WHATSAPP_NUMBER || import.meta.env.VITE_COMPANY_PHONE).replace(/\D/g, '')}&text&type=phone_number&app_absent=0`}
+                href={`https://api.whatsapp.com/send/?phone=${(import.meta.env.VITE_WHATSAPP_NUMBER || import.meta.env.VITE_COMPANY_PHONE || '918130916134').replace(/\D/g, '')}&text&type=phone_number&app_absent=0`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-1.5 py-2 justify-center bg-white border border-[#D9E5F3] rounded-xl hover:text-[#0066FF] hover:border-[#1683FF] transition"
@@ -514,9 +514,9 @@ export default function ContactPage() {
               Email Support
             </h4>
             <p className={`${isMobile ? 'text-[9.5px]' : 'text-[10.5px] xl:text-[11px] 2xl:text-[12.5px]'} text-slate-500 leading-tight font-medium break-all`}>
-              {import.meta.env.VITE_COMPANY_EMAIL}
+              {import.meta.env.VITE_COMPANY_EMAIL || 'support@pehalhealthcare.com'}
               <a
-                href={`mailto:${import.meta.env.VITE_COMPANY_EMAIL}`}
+                href={`mailto:${import.meta.env.VITE_COMPANY_EMAIL || 'support@pehalhealthcare.com'}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-1.5 py-2 justify-center bg-white border border-[#D9E5F3] rounded-xl hover:text-[#0066FF] hover:border-[#1683FF] transition"
@@ -568,7 +568,7 @@ export default function ContactPage() {
             </h4>
             <p className={`${isMobile ? 'text-[9.5px]' : 'text-[10.5px] xl:text-[11px] 2xl:text-[12.5px]'} text-slate-500 leading-tight font-medium`}>
               <a
-                href={`tel:${import.meta.env.VITE_COMPANY_PHONE}`}
+                href={`tel:${import.meta.env.VITE_COMPANY_PHONE || '+918130916134'}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-1.5 py-2 justify-center bg-white border border-[#D9E5F3] rounded-xl hover:text-[#0066FF] hover:border-[#1683FF] transition"
@@ -589,7 +589,10 @@ export default function ContactPage() {
               Phone Support
             </h4>
             <p className={`${isMobile ? 'text-[9.5px]' : 'text-[10.5px] xl:text-[11px] 2xl:text-[12.5px]'} text-slate-500 font-medium`}>
-              {(import.meta.env.VITE_COMPANY_PHONE).slice(0, 3) + " " + (import.meta.env.VITE_COMPANY_PHONE).slice(3)}
+              {(() => {
+                const phoneStr = import.meta.env.VITE_COMPANY_PHONE || '+91 81309 16134';
+                return phoneStr.length >= 3 ? phoneStr.slice(0, 3) + " " + phoneStr.slice(3) : phoneStr;
+              })()}
             </p>
           </div>
         </div>

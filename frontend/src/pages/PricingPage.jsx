@@ -33,7 +33,14 @@ export default function PricingPage() {
   }, [isAuthenticated, user, navigate]);
 
   const handleSelectPlan = useCallback((plan, billingCycle) => {
+    const isContactSales = plan.ctaAction === 'contact_sales' || (!plan.ctaAction && (plan.isEnterprise || plan.code === 'ENTERPRISE'));
     const planCode = plan.code || plan._id;
+
+    if (isContactSales) {
+      navigate(`/book-demo?plan=${encodeURIComponent(planCode || plan.name || 'Custom')}`);
+      return;
+    }
+
     if (planCode === 'ENTERPRISE' || plan.priceCustom) {
       if (!isAuthenticated) {
         navigate(`/register-clinic?plan=ENTERPRISE&billing=${billingCycle}`);

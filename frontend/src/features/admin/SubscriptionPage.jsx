@@ -6,7 +6,7 @@ import {
   Clock, CheckCircle2, AlertCircle, Sparkles, Package, RefreshCw,
   Copy, UploadCloud, Trash2, ArrowRight, ShieldCheck, XCircle,
   HelpCircle, Eye, FileText, CheckCircle, Info, ArrowLeft,
-  DollarSign, Calendar, Lock, AlertTriangle
+  DollarSign, Calendar, Lock, AlertTriangle, MessageSquare
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import useAuth from '../../hooks/useAuth';
@@ -818,6 +818,14 @@ export default function SubscriptionPage() {
                       <div className="w-full py-2.5 rounded-2xl bg-blue-100 text-blue-800 text-xs font-black text-center">
                         Active Plan
                       </div>
+                    ) : plan.ctaAction === 'contact_sales' ? (
+                      <button
+                        onClick={() => navigate(`/book-demo?plan=${encodeURIComponent(plan.code || plan.name)}`)}
+                        className="w-full py-3 rounded-2xl text-xs font-black transition flex items-center justify-center gap-1.5 cursor-pointer bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md shadow-purple-600/20 hover:opacity-95"
+                      >
+                        <MessageSquare size={14} />
+                        <span>{plan.ctaText || 'Contact Sales (Book Demo)'}</span>
+                      </button>
                     ) : isHigher ? (
                       <button
                         onClick={() => handleProceedToReview(plan, 'monthly')}

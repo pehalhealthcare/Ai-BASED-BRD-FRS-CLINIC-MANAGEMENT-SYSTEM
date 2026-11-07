@@ -74,6 +74,12 @@ const subscriptionPlanSchema = new mongoose.Schema(
       type: String,
       default: '',
       trim: true
+    },
+    ctaAction: {
+      type: String,
+      enum: ['setup_clinic', 'contact_sales'],
+      default: 'setup_clinic',
+      trim: true
     }
   },
   {

@@ -980,7 +980,7 @@ function RoleConnectedInner({ onSetupClinic }) {
                                       apt.status === 'COMPLETED' ? 'bg-emerald-50 text-emerald-700' :
                                       apt.status === 'CHECKED_IN' ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'
                                     }`}>
-                                      {apt.status.replace('_', ' ')}
+                                      {apt.status ? apt.status.replace('_', ' ') : ''}
                                     </span>
                                   </td>
                                   <td className="py-1.5 px-2 text-right">
@@ -1054,7 +1054,7 @@ function RoleConnectedInner({ onSetupClinic }) {
                                     apt.status === 'CHECKED_IN' ? 'bg-emerald-50 text-emerald-700' : 
                                     apt.status === 'COMPLETED' ? 'bg-slate-200 text-slate-700' : 'bg-amber-50 text-amber-700'
                                   }`}>
-                                    {apt.status.replace('_', ' ')}
+                                    {apt.status ? apt.status.replace('_', ' ') : ''}
                                   </span>
                                 </div>
                                 <div className="font-bold text-slate-900 truncate">{apt.patientName}</div>

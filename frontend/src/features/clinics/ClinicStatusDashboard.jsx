@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
 import {
@@ -520,7 +520,7 @@ export default function ClinicStatusDashboard() {
                   <span className="truncate">{supportInfo.email}</span>
                 </a>
                 <a
-                  href={`tel:${supportInfo.phone.replace(/\s+/g, '')}`}
+                  href={`tel:${(supportInfo?.phone || '').replace(/\s+/g, '')}`}
                   className="flex items-center gap-2 text-slate-600 hover:text-blue-600 font-medium p-2 rounded-xl hover:bg-slate-50 transition"
                 >
                   <Phone size={14} className="text-slate-400" />

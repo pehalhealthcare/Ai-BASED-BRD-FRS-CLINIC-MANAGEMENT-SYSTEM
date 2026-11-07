@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
 import { clinicApi, specializationApi, providersApi, validationApi } from '../../lib/api';
@@ -203,7 +203,7 @@ export default function ClinicOnboarding() {
 
   // 2. Phone format and database uniqueness check
   const checkPhoneUniqueness = async (phoneVal) => {
-    const cleanPhone = phoneVal.replace(/\D/g, '').trim();
+    const cleanPhone = (phoneVal || '').replace(/\D/g, '').trim();
     if (!cleanPhone) {
       setPhoneValState({ status: 'idle', message: '', accountType: '' });
       return;
@@ -216,7 +216,7 @@ export default function ClinicOnboarding() {
     }
 
     // Check frontend local list (doctors already in list)
-    const localDup = doctors.some(d => d.phone.replace(/\D/g, '') === cleanPhone);
+    const localDup = doctors.some(d => (d?.phone || '').replace(/\D/g, '') === cleanPhone);
     if (localDup) {
       setPhoneValState({ status: 'invalid', message: 'This phone number is already in your pending invitations list.', accountType: '' });
       return;
@@ -319,7 +319,7 @@ export default function ClinicOnboarding() {
   };
 
   const checkStaffPhoneUniqueness = async (phoneVal) => {
-    const cleanPhone = phoneVal.replace(/\D/g, '').trim();
+    const cleanPhone = (phoneVal || '').replace(/\D/g, '').trim();
     if (!cleanPhone) {
       setStaffPhoneValState({ status: 'idle', message: '', accountType: '' });
       return;
@@ -328,11 +328,11 @@ export default function ClinicOnboarding() {
       setStaffPhoneValState({ status: 'invalid', message: 'Phone number must be exactly 10 digits.', accountType: '' });
       return;
     }
-    if (doctors.some(d => d.phone.replace(/\D/g, '') === cleanPhone)) {
+    if (doctors.some(d => (d?.phone || '').replace(/\D/g, '') === cleanPhone)) {
       setStaffPhoneValState({ status: 'invalid', message: 'This phone number is already assigned to a doctor in this onboarding session.', accountType: '' });
       return;
     }
-    if (staff.some(s => s.phone.replace(/\D/g, '') === cleanPhone)) {
+    if (staff.some(s => (s?.phone || '').replace(/\D/g, '') === cleanPhone)) {
       setStaffPhoneValState({ status: 'invalid', message: 'This phone number is already in your pending staff list.', accountType: '' });
       return;
     }
@@ -1472,7 +1472,7 @@ export default function ClinicOnboarding() {
     }
     if (!formData.phone) {
       errs.phone = 'Phone number is required';
-    } else if (!/^\d{10}$/.test(formData.phone.replace(/\D/g, ''))) {
+    } else if (!/^\d{10}$/.test((formData.phone || '').replace(/\D/g, ''))) {
       errs.phone = 'Phone number must be exactly 10 digits';
     }
 
@@ -1480,20 +1480,20 @@ export default function ClinicOnboarding() {
 
     // 1. Check local duplicates within current step (exclude current editing ID)
     if (targetType === 'doctor') {
-      const emailDup = doctors.some(d => d.email.toLowerCase() === formData.email.toLowerCase() && (d._id || d.id) !== currentId);
+      const emailDup = doctors.some(d => (d?.email || '').toLowerCase() === (formData.email || '').toLowerCase() && (d._id || d.id) !== currentId);
       if (emailDup) {
         errs.email = 'This email has already been used for another doctor in this clinic.';
       }
-      const phoneDup = doctors.some(d => d.phone.replace(/\D/g, '') === formData.phone.replace(/\D/g, '') && (d._id || d.id) !== currentId);
+      const phoneDup = doctors.some(d => (d?.phone || '').replace(/\D/g, '') === (formData.phone || '').replace(/\D/g, '') && (d._id || d.id) !== currentId);
       if (phoneDup) {
         errs.phone = 'This phone number has already been used for another doctor in this clinic.';
       }
     } else {
-      const emailDup = staff.some(s => s.email.toLowerCase() === formData.email.toLowerCase() && (s._id || s.id) !== currentId);
+      const emailDup = staff.some(s => (s?.email || '').toLowerCase() === (formData.email || '').toLowerCase() && (s._id || s.id) !== currentId);
       if (emailDup) {
         errs.email = 'This email has already been used for another staff member in this clinic.';
       }
-      const phoneDup = staff.some(s => s.phone.replace(/\D/g, '') === formData.phone.replace(/\D/g, '') && (s._id || s.id) !== currentId);
+      const phoneDup = staff.some(s => (s?.phone || '').replace(/\D/g, '') === (formData.phone || '').replace(/\D/g, '') && (s._id || s.id) !== currentId);
       if (phoneDup) {
         errs.phone = 'This phone number has already been used for another staff member in this clinic.';
       }
@@ -1501,20 +1501,20 @@ export default function ClinicOnboarding() {
 
     // 2. Cross-step Validation (Doctors <-> Staff)
     if (targetType === 'doctor') {
-      const crossEmailDup = staff.some(s => s.email.toLowerCase() === formData.email.toLowerCase());
+      const crossEmailDup = staff.some(s => (s?.email || '').toLowerCase() === (formData.email || '').toLowerCase());
       if (crossEmailDup) {
         errs.email = 'This email is already assigned to another member of your clinic.';
       }
-      const crossPhoneDup = staff.some(s => s.phone.replace(/\D/g, '') === formData.phone.replace(/\D/g, ''));
+      const crossPhoneDup = staff.some(s => (s?.phone || '').replace(/\D/g, '') === (formData.phone || '').replace(/\D/g, ''));
       if (crossPhoneDup) {
         errs.phone = 'This phone number is already assigned to another member of your clinic.';
       }
     } else {
-      const crossEmailDup = doctors.some(d => d.email.toLowerCase() === formData.email.toLowerCase());
+      const crossEmailDup = doctors.some(d => (d?.email || '').toLowerCase() === (formData.email || '').toLowerCase());
       if (crossEmailDup) {
         errs.email = 'This email is already assigned to another member of your clinic.';
       }
-      const crossPhoneDup = doctors.some(d => d.phone.replace(/\D/g, '') === formData.phone.replace(/\D/g, ''));
+      const crossPhoneDup = doctors.some(d => (d?.phone || '').replace(/\D/g, '') === (formData.phone || '').replace(/\D/g, ''));
       if (crossPhoneDup) {
         errs.phone = 'This phone number is already assigned to another member of your clinic.';
       }
@@ -1535,7 +1535,7 @@ export default function ClinicOnboarding() {
     }
 
     try {
-      const phoneRes = await clinicApi.validatePhone({ phone: formData.phone.replace(/\D/g, '') });
+      const phoneRes = await clinicApi.validatePhone({ phone: (formData.phone || '').replace(/\D/g, '') });
       if (phoneRes.data && !phoneRes.data.isUnique) {
         errs.phone = 'Phone number already belongs to another registered user.';
       }
@@ -4920,8 +4920,8 @@ export default function ClinicOnboarding() {
                       title: 'AI Modules',
                       status: limits.ai ? `${enabledAiModules} Modules Activated` : 'Plan Restricted',
                       desc: limits.ai ? `${enabledAiModules} AI feature${enabledAiModules !== 1 ? 's' : ''} enabled and configured` : 'Upgrade to unlock AI capabilities',
-                      details: Object.entries(aiFeatures).map(([k, v]) => ({
-                        label: k.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase()),
+                      details: Object.entries(aiFeatures || {}).map(([k, v]) => ({
+                        label: (k || '').replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase()),
                         value: v ? 'Enabled' : 'Disabled'
                       }))
                     },
@@ -5658,8 +5658,8 @@ export default function ClinicOnboarding() {
                 { key: 'Notifications Created', label: 'Creating Notifications' },
                 { key: 'Emails Queued', label: 'Queued Welcome Emails' }
               ].map((step, idx) => {
-                const isCompleted = launchProgress.checklist.includes(step.key);
-                const isCurrent = !isCompleted && launchProgress.currentTask.toLowerCase().includes(step.label.toLowerCase().replace('creating ', '').replace('configuring ', ''));
+                const isCompleted = Array.isArray(launchProgress?.checklist) && launchProgress.checklist.includes(step.key);
+                const isCurrent = !isCompleted && Boolean(launchProgress?.currentTask) && Boolean(step?.label) && launchProgress.currentTask.toLowerCase().includes(step.label.toLowerCase().replace('creating ', '').replace('configuring ', ''));
                 
                 return (
                   <div key={idx} className="flex items-center gap-3">

@@ -705,7 +705,7 @@ export default function ClinicWizard() {
   // Validate Owner Phone
   const handleValidateOwnerPhone = (phoneVal) => {
     if (phoneTimeout.current) clearTimeout(phoneTimeout.current);
-    const cleaned = phoneVal.replace(/\D/g, '').slice(0, 10);
+    const cleaned = (phoneVal || '').replace(/\D/g, '').slice(0, 10);
     if (!cleaned) {
       setOwnerPhoneValidation(null);
       return;
@@ -876,7 +876,7 @@ export default function ClinicWizard() {
     }
     if (!ownerForm.phone) {
       newErrors.phone = 'Please enter a valid mobile number.';
-    } else if (ownerForm.phone.replace(/\D/g, '').length !== 10) {
+    } else if ((ownerForm.phone || '').replace(/\D/g, '').length !== 10) {
       newErrors.phone = 'Please enter a valid mobile number.';
     }
     if (!ownerForm.password) {
@@ -897,7 +897,7 @@ export default function ClinicWizard() {
       try {
         const [emailRes, phoneRes] = await Promise.all([
           !newErrors.email ? clinicApi.validateEmail({ email: ownerForm.email }) : Promise.resolve({ data: { isUnique: true } }),
-          !newErrors.phone ? clinicApi.validatePhone({ phone: ownerForm.phone.replace(/\D/g, '') }) : Promise.resolve({ data: { isUnique: true } })
+          !newErrors.phone ? clinicApi.validatePhone({ phone: (ownerForm.phone || '').replace(/\D/g, '') }) : Promise.resolve({ data: { isUnique: true } })
         ]);
         if (!emailRes.data.isUnique) newErrors.email = 'This email address is already registered.';
         if (!phoneRes.data.isUnique) newErrors.phone = 'This mobile number is already registered.';

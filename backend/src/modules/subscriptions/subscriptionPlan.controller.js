@@ -33,7 +33,8 @@ const createPlan = asyncHandler(async (req, res) => {
     isPopular, 
     isEnterprise, 
     badge, 
-    ctaText 
+    ctaText,
+    ctaAction 
   } = req.body;
 
   if (!name || !code) {
@@ -44,6 +45,10 @@ const createPlan = asyncHandler(async (req, res) => {
   if (existing) {
     throw new AppError('A plan with this code already exists.', HTTP_STATUS.CONFLICT);
   }
+
+  const validCtaAction = ['setup_clinic', 'contact_sales'].includes(ctaAction)
+    ? ctaAction
+    : (isEnterprise ? 'contact_sales' : 'setup_clinic');
 
   const plan = await SubscriptionPlan.create({
     name,
@@ -59,7 +64,8 @@ const createPlan = asyncHandler(async (req, res) => {
     isPopular: !!isPopular,
     isEnterprise: !!isEnterprise,
     badge: badge || null,
-    ctaText: ctaText || ''
+    ctaText: ctaText || '',
+    ctaAction: validCtaAction
   });
 
   return sendSuccess(res, 'Subscription plan created successfully', { plan }, 201);
@@ -82,7 +88,8 @@ const updatePlan = asyncHandler(async (req, res) => {
     isPopular, 
     isEnterprise, 
     badge, 
-    ctaText 
+    ctaText,
+    ctaAction 
   } = req.body;
 
   const plan = await SubscriptionPlan.findById(id);
@@ -103,6 +110,9 @@ const updatePlan = asyncHandler(async (req, res) => {
   if (isEnterprise !== undefined) plan.isEnterprise = isEnterprise;
   if (badge !== undefined) plan.badge = badge;
   if (ctaText !== undefined) plan.ctaText = ctaText;
+  if (ctaAction !== undefined && ['setup_clinic', 'contact_sales'].includes(ctaAction)) {
+    plan.ctaAction = ctaAction;
+  }
 
   await plan.save();
 
@@ -139,6 +149,7 @@ const duplicatePlan = asyncHandler(async (req, res) => {
     isEnterprise: original.isEnterprise || false,
     badge: original.badge || null,
     ctaText: original.ctaText || '',
+    ctaAction: original.ctaAction || (original.isEnterprise ? 'contact_sales' : 'setup_clinic'),
     isActive: false // Default to inactive so Super Admin can customize before publishing
   });
 

@@ -13,7 +13,6 @@ import FeaturesSection from '../components/landing/FeaturesSection';
 import SolutionsSection from '../components/landing/SolutionsSection';
 import CTASection from '../components/landing/CTASection';
 import Footer from '../components/landing/Footer';
-import VideoModal from '../components/landing/VideoModal';
 import FloatingWhatsApp from '../components/common/FloatingWhatsApp';
 
 export default function LandingPage() {
@@ -21,7 +20,6 @@ export default function LandingPage() {
   const { isAuthenticated, user } = useAuth();
 
   const [activeSection, setActiveSection] = useState('hero');
-  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
   const isClickScrollingRef = useRef(false);
 
   // Handle Primary "Setup Your Clinic" CTA
@@ -45,6 +43,15 @@ export default function LandingPage() {
       navigate('/register-clinic');
     }
   }, [isAuthenticated, user, navigate]);
+
+  // Handle Watch Video (Inline playback directly in Hero container - no modal)
+  const handleWatchVideo = useCallback(() => {
+    const heroEl = document.getElementById('hero');
+    if (heroEl) {
+      heroEl.scrollIntoView({ behavior: 'smooth' });
+    }
+    window.dispatchEvent(new CustomEvent('aicms:play-hero-video'));
+  }, []);
 
   // Smooth Navigation and Section Scrolling Handler
   const handleNavClick = useCallback((e, sectionId, href) => {
@@ -138,7 +145,7 @@ export default function LandingPage() {
         {/* 1. Hero Section */}
         <HeroSection
           onSetupClinic={() => handleSetupClinicClick()}
-          onWatchVideo={() => setIsVideoModalOpen(true)}
+          onWatchVideo={handleWatchVideo}
           onBookDemo={() => navigate('/book-demo')}
         />
 
@@ -179,13 +186,6 @@ export default function LandingPage() {
 
       {/* ── FOOTER ── */}
       <Footer />
-
-      {/* ── VIDEO WALKTHROUGH MODAL ── */}
-      <VideoModal
-        isOpen={isVideoModalOpen}
-        onClose={() => setIsVideoModalOpen(false)}
-        onSetupClinic={() => handleSetupClinicClick()}
-      />
 
       {/* ── FLOATING WHATSAPP BUTTON ── */}
       <FloatingWhatsApp />

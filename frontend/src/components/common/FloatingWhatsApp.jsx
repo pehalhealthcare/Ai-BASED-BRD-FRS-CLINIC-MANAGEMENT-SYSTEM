@@ -5,7 +5,7 @@ export default function FloatingWhatsApp() {
   const [isHovered, setIsHovered] = useState(false);
 
   const rawPhone = import.meta.env.VITE_WHATSAPP_NUMBER || import.meta.env.VITE_COMPANY_PHONE || '918130916134';
-  const cleanPhone = rawPhone.replace(/\D/g, '');
+  const cleanPhone = (rawPhone || '918130916134').replace(/\D/g, '');
   const defaultText = encodeURIComponent('Hello PEHAL Healthcare Team, I would like to inquire about PEHAL AI-CMS.');
   const whatsappUrl = `https://api.whatsapp.com/send/?phone=${cleanPhone}&text=${defaultText}&type=phone_number&app_absent=0`;
 

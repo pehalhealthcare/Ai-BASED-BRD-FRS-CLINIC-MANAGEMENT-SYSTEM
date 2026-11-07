@@ -386,6 +386,11 @@ export default function PricingSection({ onSelectPlan, isAuthenticated = false }
 
   const handlePlanClick = (plan) => {
     if (isDraggingRef.current) return;
+    const isContactSales = plan.ctaAction === 'contact_sales' || (!plan.ctaAction && plan.isEnterprise);
+    if (isContactSales) {
+      navigate(`/book-demo?plan=${encodeURIComponent(plan.code || plan._id || plan.name)}`);
+      return;
+    }
     if (onSelectPlan) {
       onSelectPlan(plan, billingCycle);
     }
@@ -621,9 +626,13 @@ export default function PricingSection({ onSelectPlan, isAuthenticated = false }
 
                     const limitHighlights = [doctorLimit, patientLimit, staffLimit, branchLimit].filter(Boolean);
                     const featuresList = getCardFeatures(plan);
-                    const ctaLabel = isPopular
-                      ? (plan.ctaText || 'Start Free Trial')
-                      : (plan.code === 'PREMIUM' ? 'Upgrade Now' : (plan.ctaText || (plan.isEnterprise ? 'Contact Enterprise' : 'Get Started')));
+                    const isContactSales = plan.ctaAction === 'contact_sales' || (!plan.ctaAction && plan.isEnterprise);
+                    const customCta = typeof plan.ctaText === 'string' && plan.ctaText.trim().length > 0 ? plan.ctaText.trim() : null;
+                    const ctaLabel = customCta || (isContactSales
+                      ? 'Contact Sales'
+                      : (isPopular
+                          ? 'Start Free Trial'
+                          : (plan.code === 'PREMIUM' ? 'Upgrade Now' : 'Get Started')));
 
                     return (
                       <div
@@ -743,9 +752,11 @@ export default function PricingSection({ onSelectPlan, isAuthenticated = false }
                               });
                             }}
                             className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl sm:rounded-2xl font-bold text-xs sm:text-sm transition-all duration-200 active:scale-95 cursor-pointer mt-auto ${
-                              isPopular
-                                ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/25 hover:shadow-blue-600/35'
-                                : 'bg-slate-50 hover:bg-slate-100 text-slate-800 hover:text-slate-900 border border-slate-200/90 hover:border-slate-300'
+                              isContactSales
+                                ? 'bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 hover:from-purple-700 hover:via-indigo-700 hover:to-blue-700 text-white shadow-md shadow-purple-600/25 hover:shadow-purple-600/35'
+                                : isPopular
+                                  ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/25 hover:shadow-blue-600/35'
+                                  : 'bg-slate-50 hover:bg-slate-100 text-slate-800 hover:text-slate-900 border border-slate-200/90 hover:border-slate-300'
                             }`}
                           >
                             <span>{ctaLabel}</span>

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   Calendar, Clock, CheckCircle2, ArrowLeft, ArrowRight,
@@ -39,6 +39,8 @@ const DATE_STATE = {
 
 export default function BookDemoPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const requestedPlan = searchParams.get('plan');
   const errorSummaryRef = useRef(null);
 
   // Form input states (TC-16: All fields preserved on error)
@@ -48,9 +50,20 @@ export default function BookDemoPage() {
     phoneNumber: '',
     clinicName: '',
     doctorsCount: '',
-    topics: '',
+    topics: requestedPlan ? `Inquiring about ${requestedPlan} Plan` : '',
     privacyConsent: false
   });
+
+  useEffect(() => {
+    if (requestedPlan) {
+      setFormData(prev => {
+        if (!prev.topics) {
+          return { ...prev, topics: `Inquiring about ${requestedPlan} Plan` };
+        }
+        return prev;
+      });
+    }
+  }, [requestedPlan]);
 
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
@@ -865,7 +878,7 @@ export default function BookDemoPage() {
             <p className={`${'text-[10.5px] xl:text-[11px] 2xl:text-[12.5px]'} text-slate-500 leading-tight font-medium`}>
               Average response under 5m
               <a
-                href={`https://api.whatsapp.com/send/?phone=${(import.meta.env.VITE_WHATSAPP_NUMBER || import.meta.env.VITE_COMPANY_PHONE).replace(/\D/g, '')}&text&type=phone_number&app_absent=0`}
+                href={`https://api.whatsapp.com/send/?phone=${(import.meta.env.VITE_WHATSAPP_NUMBER || import.meta.env.VITE_COMPANY_PHONE || '918130916134').replace(/\D/g, '')}&text&type=phone_number&app_absent=0`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-1.5 py-2 justify-center bg-white border border-[#D9E5F3] rounded-xl hover:text-[#0066FF] hover:border-[#1683FF] transition"
@@ -891,9 +904,9 @@ export default function BookDemoPage() {
               Email Support
             </h4>
             <p className={`${'text-[10.5px] xl:text-[11px] 2xl:text-[12.5px]'} text-slate-500 leading-tight font-medium break-all`}>
-              {import.meta.env.VITE_COMPANY_EMAIL}
+              {import.meta.env.VITE_COMPANY_EMAIL || 'support@pehalhealthcare.com'}
               <a
-                href={`mailto:${import.meta.env.VITE_COMPANY_EMAIL}`}
+                href={`mailto:${import.meta.env.VITE_COMPANY_EMAIL || 'support@pehalhealthcare.com'}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-1.5 py-2 justify-center bg-white border border-[#D9E5F3] rounded-xl hover:text-[#0066FF] hover:border-[#1683FF] transition"
@@ -986,6 +999,16 @@ export default function BookDemoPage() {
             </p>
           </div>
         </div>
+
+        {/* Selected Plan Inquiring Notice */}
+        {requestedPlan && status !== 'success' && (
+          <div className="mb-3.5 flex items-center gap-2 p-3 rounded-xl bg-purple-50/90 border border-purple-200/90 text-purple-900 text-xs sm:text-[13px] font-semibold shadow-xs">
+            <Sparkles size={16} className="shrink-0 text-purple-600" />
+            <span className="flex-1 leading-snug">
+              Inquiring about <strong>{requestedPlan} Plan</strong> — our sales specialist will walk you through customized pricing and features.
+            </span>
+          </div>
+        )}
 
         {/* Form-Level Error Summary directly below "Schedule Your Demo" heading */}
         {errorMessage && status !== 'success' && (

@@ -240,7 +240,7 @@ export default function ClinicRegister() {
 
   const handleValidatePhone = (phoneVal) => {
     if (phoneTimeout.current) clearTimeout(phoneTimeout.current);
-    const cleaned = phoneVal.replace(/\D/g, '');
+    const cleaned = (phoneVal || '').replace(/\D/g, '');
     if (cleaned.length !== 10) {
       setOwnerPhoneValidation(null);
       return;
@@ -340,7 +340,7 @@ export default function ClinicRegister() {
     if (!ownerForm.email || !ownerForm.email.trim()) newErrors.email = 'Email address is required.';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ownerForm.email.trim())) newErrors.email = 'Invalid email address format.';
     if (!ownerForm.phone || !ownerForm.phone.trim()) newErrors.phone = 'Mobile number is required.';
-    else if (ownerForm.phone.replace(/\D/g, '').length !== 10) newErrors.phone = 'Mobile number must be exactly 10 digits.';
+    else if ((ownerForm.phone || '').replace(/\D/g, '').length !== 10) newErrors.phone = 'Mobile number must be exactly 10 digits.';
     if (!ownerForm.password) newErrors.password = 'Password is required.';
     else if (ownerForm.password.length < 8) newErrors.password = 'Password must be at least 8 characters.';
     if (ownerForm.password !== ownerForm.confirmPassword) newErrors.confirmPassword = 'Passwords do not match.';
@@ -349,7 +349,7 @@ export default function ClinicRegister() {
     if (!dobVal.valid) newErrors.dob = dobVal.error;
 
     if (ownerForm.aadhaar && ownerForm.aadhaar.trim()) {
-      if (ownerForm.aadhaar.replace(/\D/g, '').length !== 12) newErrors.aadhaar = 'Aadhaar must be exactly 12 digits.';
+      if ((ownerForm.aadhaar || '').replace(/\D/g, '').length !== 12) newErrors.aadhaar = 'Aadhaar must be exactly 12 digits.';
     }
     if (ownerForm.pan && ownerForm.pan.trim()) {
       if (!/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(ownerForm.pan.trim().toUpperCase())) newErrors.pan = 'Invalid PAN format (e.g. ABCDE1234F).';
@@ -365,8 +365,8 @@ export default function ClinicRegister() {
 
     try {
       const [emailRes, phoneRes] = await Promise.allSettled([
-        clinicApi.validateEmail({ email: ownerForm.email.trim() }),
-        clinicApi.validatePhone({ phone: ownerForm.phone.replace(/\D/g, '') })
+        clinicApi.validateEmail({ email: (ownerForm.email || '').trim() }),
+        clinicApi.validatePhone({ phone: (ownerForm.phone || '').replace(/\D/g, '') })
       ]);
 
       if (emailRes.status === 'fulfilled' && emailRes.value?.data?.isUnique === false) {
@@ -402,11 +402,11 @@ export default function ClinicRegister() {
     }
     if (!clinicForm.addressLine1 || !clinicForm.addressLine1.trim()) newErrors.addressLine1 = 'Street address is required.';
     if (!clinicForm.pincode || !clinicForm.pincode.trim()) newErrors.pincode = 'Pincode is required.';
-    else if (clinicForm.pincode.replace(/\D/g, '').length !== 6) newErrors.pincode = 'Pincode must be exactly 6 digits.';
+    else if ((clinicForm.pincode || '').replace(/\D/g, '').length !== 6) newErrors.pincode = 'Pincode must be exactly 6 digits.';
     if (!clinicForm.city || !clinicForm.city.trim()) newErrors.city = 'City name is required.';
     if (!clinicForm.state || !clinicForm.state.trim()) newErrors.state = 'State name is required.';
     if (!clinicForm.contactNumber || !clinicForm.contactNumber.trim()) newErrors.contactNumber = 'Clinic phone number is required.';
-    else if (clinicForm.contactNumber.replace(/\D/g, '').length !== 10) newErrors.contactNumber = 'Clinic phone must be exactly 10 digits.';
+    else if ((clinicForm.contactNumber || '').replace(/\D/g, '').length !== 10) newErrors.contactNumber = 'Clinic phone must be exactly 10 digits.';
     if (!clinicForm.shortDescription || !clinicForm.shortDescription.trim()) newErrors.shortDescription = 'Clinic description is required.';
 
     if (Object.keys(newErrors).length > 0) {
@@ -1340,7 +1340,7 @@ export default function ClinicRegister() {
                                 className={`w-full pl-9 pr-24 py-2.5 sm:py-3 bg-white border rounded-xl outline-none focus:bg-white focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10 transition text-sm text-[#071B3A] placeholder-[#8AA0BE] ${errors.phone ? 'border-rose-500 bg-rose-50/10' : 'border-[#D9E5F3]'}`}
                                 value={ownerForm.phone}
                                 onChange={(e) => {
-                                  setOwnerForm({ ...ownerForm, phone: e.target.value.replace(/\D/g, '').slice(0, 10) });
+                                  setOwnerForm({ ...ownerForm, phone: (e.target.value || '').replace(/\D/g, '').slice(0, 10) });
                                   if (errors.phone) setErrors(prev => ({ ...prev, phone: '' }));
                                   handleValidatePhone(e.target.value);
                                 }}
@@ -1459,7 +1459,7 @@ export default function ClinicRegister() {
                               className={`w-full px-3.5 sm:px-4 py-2.5 sm:py-3 bg-white border rounded-xl outline-none focus:bg-white focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10 transition text-sm text-[#071B3A] placeholder-[#8AA0BE] ${errors.aadhaar ? 'border-rose-500 bg-rose-50/10' : 'border-[#D9E5F3]'}`}
                               value={ownerForm.aadhaar}
                               onChange={(e) => {
-                                setOwnerForm({ ...ownerForm, aadhaar: e.target.value.replace(/\D/g, '').slice(0, 12) });
+                                setOwnerForm({ ...ownerForm, aadhaar: (e.target.value || '').replace(/\D/g, '').slice(0, 12) });
                                 if (errors.aadhaar) setErrors(prev => ({ ...prev, aadhaar: '' }));
                               }}
                             />
@@ -1620,7 +1620,7 @@ export default function ClinicRegister() {
                               className={`w-full px-3.5 sm:px-4 py-2.5 sm:py-3 bg-white border rounded-xl outline-none focus:bg-white focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10 transition text-sm text-[#071B3A] ${errors.establishedYear ? 'border-rose-500 bg-rose-50/10' : 'border-[#D9E5F3]'}`}
                               value={clinicForm.establishedYear}
                               onChange={(e) => {
-                                setClinicForm({ ...clinicForm, establishedYear: e.target.value.replace(/\D/g, '').slice(0, 4) });
+                                setClinicForm({ ...clinicForm, establishedYear: (e.target.value || '').replace(/\D/g, '').slice(0, 4) });
                                 if (errors.establishedYear) setErrors(prev => ({ ...prev, establishedYear: '' }));
                               }}
                             />
@@ -1683,7 +1683,7 @@ export default function ClinicRegister() {
                               className={`w-full px-3.5 sm:px-4 py-2.5 sm:py-3 bg-white border rounded-xl outline-none focus:bg-white focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10 transition text-sm text-[#071B3A] ${errors.pincode ? 'border-rose-500 bg-rose-50/10' : 'border-[#D9E5F3]'}`}
                               value={clinicForm.pincode}
                               onChange={(e) => {
-                                setClinicForm({ ...clinicForm, pincode: e.target.value.replace(/\D/g, '').slice(0, 6) });
+                                setClinicForm({ ...clinicForm, pincode: (e.target.value || '').replace(/\D/g, '').slice(0, 6) });
                                 if (errors.pincode) setErrors(prev => ({ ...prev, pincode: '' }));
                               }}
                             />
@@ -1728,7 +1728,7 @@ export default function ClinicRegister() {
                               className={`w-full px-3.5 sm:px-4 py-2.5 sm:py-3 bg-white border rounded-xl outline-none focus:bg-white focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10 transition text-sm text-[#071B3A] ${errors.contactNumber ? 'border-rose-500 bg-rose-50/10' : 'border-[#D9E5F3]'}`}
                               value={clinicForm.contactNumber}
                               onChange={(e) => {
-                                setClinicForm({ ...clinicForm, contactNumber: e.target.value.replace(/\D/g, '').slice(0, 10) });
+                                setClinicForm({ ...clinicForm, contactNumber: (e.target.value || '').replace(/\D/g, '').slice(0, 10) });
                                 if (errors.contactNumber) setErrors(prev => ({ ...prev, contactNumber: '' }));
                               }}
                             />
@@ -2069,24 +2069,45 @@ export default function ClinicRegister() {
                               </div>
 
                               {/* FIXED FOOTER CTA */}
-                              <div className="shrink-0 pt-3 border-t border-[#D9E5F3]">
-                                <button
-                                  type="button"
-                                  className={`w-full py-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                                    isSelected
-                                      ? 'text-white shadow-md shadow-[#0066FF]/20'
-                                      : 'bg-[#F8FBFF] hover:bg-[#EAF4FF] hover:text-[#0066FF] text-[#071B3A] border border-[#D9E5F3]'
-                                  }`}
-                                  style={isSelected ? { background: 'linear-gradient(135deg, #1683FF 0%, #0057D9 100%)', color: '#FFFFFF' } : {}}
-                                >
-                                  {isSelected ? (
-                                    <>
-                                      <Check size={13} className="stroke-[3]" /> Plan Selected
-                                    </>
-                                  ) : (
-                                    'Choose Plan'
-                                  )}
-                                </button>
+                              <div className="shrink-0 pt-3 border-t border-[#D9E5F3] space-y-1.5">
+                                {p.ctaAction === 'contact_sales' && (
+                                  <div className="text-center">
+                                    <span className="text-[10px] font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-100 block">
+                                      Custom Plan • Requires Assisted Setup
+                                    </span>
+                                  </div>
+                                )}
+                                {p.ctaAction === 'contact_sales' ? (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      navigate(`/book-demo?plan=${encodeURIComponent(p.code || p.name || 'Custom')}`);
+                                    }}
+                                    className="w-full py-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 text-white shadow-md shadow-purple-600/20 hover:opacity-95"
+                                  >
+                                    <MessageSquare size={13} />
+                                    <span>Contact Sales &amp; Book Demo</span>
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    className={`w-full py-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                                      isSelected
+                                        ? 'text-white shadow-md shadow-[#0066FF]/20'
+                                        : 'bg-[#F8FBFF] hover:bg-[#EAF4FF] hover:text-[#0066FF] text-[#071B3A] border border-[#D9E5F3]'
+                                    }`}
+                                    style={isSelected ? { background: 'linear-gradient(135deg, #1683FF 0%, #0057D9 100%)', color: '#FFFFFF' } : {}}
+                                  >
+                                    {isSelected ? (
+                                      <>
+                                        <Check size={13} className="stroke-[3]" /> Plan Selected
+                                      </>
+                                    ) : (
+                                      'Choose Plan'
+                                    )}
+                                  </button>
+                                )}
                               </div>
                             </div>
                           );
@@ -2405,7 +2426,7 @@ export default function ClinicRegister() {
                 maxLength="6"
                 placeholder="000000"
                 value={otpCode}
-                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                onChange={(e) => setOtpCode((e.target.value || '').replace(/\D/g, ''))}
                 className="w-full text-center px-4 py-3 bg-white border border-[#D9E5F3] rounded-2xl outline-none focus:bg-white focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10 text-2xl font-mono font-black tracking-[0.4em] text-[#071B3A] shadow-xs"
               />
               {otpError && <p className="text-xs text-rose-500 font-bold">{otpError}</p>}
